@@ -3254,7 +3254,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           committed earlier.
         */
       }
-      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
+      foreach_table_root.ClearForReuse();
     }
   }
 
@@ -3282,7 +3282,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           &safe_to_release_mdl_atomic, &foreach_table_root)) {
         goto err_with_rollback;
       }
-      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
+      foreach_table_root.ClearForReuse();
     }
 
     DBUG_EXECUTE_IF("rm_table_no_locks_abort_after_atomic_tables", {
@@ -3315,7 +3315,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                          &foreach_table_root))
         goto err_with_rollback;
 
-      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
+      foreach_table_root.ClearForReuse();
     }
 
 #ifndef NDEBUG

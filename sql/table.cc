@@ -575,10 +575,10 @@ void TABLE_SHARE::destroy() {
 
   /*
     Make a copy since the share is allocated in its own root,
-    and free_root() updates its argument after freeing the memory.
+    and ~MEM_ROOT() updates its argument after freeing the memory.
   */
   MEM_ROOT own_root = std::move(mem_root);
-  free_root(&own_root, MYF(0));
+  own_root.Clear();
 }
 
 /**
@@ -3268,7 +3268,7 @@ err:
   }
   outparam->file = nullptr;  // For easier error checking
   outparam->db_stat = 0;
-  if (!internal_tmp) free_root(root, MYF(0));
+  if (!internal_tmp) root->Clear();
   my_free(const_cast<char *>(outparam->alias));
   return error;
 }
@@ -3316,7 +3316,7 @@ int closefrm(TABLE *table, bool free_share) {
     else
       free_table_share(table->s);
   }
-  free_root(&table->mem_root, MYF(0));
+  table->mem_root.Clear();
   return error;
 }
 
@@ -4048,7 +4048,7 @@ Blob_mem_storage::Blob_mem_storage() : truncated_value(false) {
                   MAX_FIELD_VARCHARLENGTH, 0);
 }
 
-Blob_mem_storage::~Blob_mem_storage() { free_root(&storage, MYF(0)); }
+Blob_mem_storage::~Blob_mem_storage() { storage.Clear(); }
 
 /**
   Initialize TABLE instance (newly created, or coming either from table

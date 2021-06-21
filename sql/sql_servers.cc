@@ -246,7 +246,7 @@ static bool servers_load(THD *thd, TABLE *table) {
   if (servers_cache != nullptr) {
     servers_cache->clear();
   }
-  free_root(&mem, MYF(0));
+  mem.Clear();
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
   unique_ptr_destroy_only<RowIterator> iterator =
@@ -881,12 +881,12 @@ void servers_free(bool end) {
   DBUG_TRACE;
   if (servers_cache == nullptr) return;
   if (!end) {
-    free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
+    mem.ClearForReuse();
     servers_cache->clear();
     return;
   }
   mysql_rwlock_destroy(&THR_LOCK_servers);
-  free_root(&mem, MYF(0));
+  mem.Clear();
   delete servers_cache;
   servers_cache = nullptr;
 }

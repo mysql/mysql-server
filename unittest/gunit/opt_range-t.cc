@@ -107,7 +107,7 @@ class OptRangeTest : public ::testing::Test {
     delete m_opt_param;
 
     initializer.TearDown();
-    free_root(&m_alloc, MYF(0));
+    m_alloc.Clear();
   }
 
   THD *thd() { return initializer.thd(); }
@@ -415,14 +415,14 @@ const int num_allocs = 10;
 
 TEST_F(OptRangeTest, AllocateExplicit) {
   for (int ix = 0; ix < num_iterations; ++ix) {
-    free_root(thd()->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd()->mem_root->ClearForReuse();
     for (int ii = 0; ii < num_allocs; ++ii) new (thd()->mem_root) SEL_ARG;
   }
 }
 
 TEST_F(OptRangeTest, AllocateImplicit) {
   for (int ix = 0; ix < num_iterations; ++ix) {
-    free_root(thd()->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd()->mem_root->ClearForReuse();
     for (int ii = 0; ii < num_allocs; ++ii) new (thd()->mem_root) SEL_ARG;
   }
 }

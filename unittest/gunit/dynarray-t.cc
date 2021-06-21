@@ -86,7 +86,7 @@ class MemRootTest : public ::testing::Test {
     destroy_counter = 0;
   }
 
-  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
+  void TearDown() override { m_mem_root.Clear(); }
 
   static void SetUpTestCase() {
     generate_test_data(test_data, table_list, num_elements);

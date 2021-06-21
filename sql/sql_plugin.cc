@@ -1157,7 +1157,7 @@ static void plugin_del(st_plugin_int *plugin) {
   if (plugin->plugin_dl) plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state = PLUGIN_IS_FREED;
   plugin_array_version++;
-  free_root(&plugin->mem_root, MYF(0));
+  plugin->mem_root.Clear();
 }
 
 static void reap_plugins(void) {
@@ -1498,7 +1498,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
     plugin_load_list(&tmp_root, argc, argv, item->ptr, true);
 
   /* Temporary mem root not needed anymore, can free it here */
-  free_root(&tmp_root, MYF(0));
+  tmp_root.Clear();
 
   if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
     retval = plugin_init_initialize_and_reap();
@@ -1566,7 +1566,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
         tmp.load_option = PLUGIN_FORCE;
       }
 
-      free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+      tmp_root.ClearForReuse();
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
         tmp.state = PLUGIN_IS_DISABLED;
       else
@@ -1619,12 +1619,12 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
 
   mysql_mutex_unlock(&LOCK_plugin);
 
-  free_root(&tmp_root, MYF(0));
+  tmp_root.Clear();
   return false;
 
 err_unlock:
   mysql_mutex_unlock(&LOCK_plugin);
-  free_root(&tmp_root, MYF(0));
+  tmp_root.Clear();
   return true;
 }
 
@@ -1739,7 +1739,7 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
       plugin_load(&tmp_root, argc, argv);
 
     /* Temporary mem root not needed anymore, can free it here */
-    free_root(&tmp_root, MYF(0));
+    tmp_root.Clear();
   } else if (!opt_plugin_load_list.is_empty()) {
     /* Table is always empty at initialize */
     assert(opt_initialize);
@@ -1861,7 +1861,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       mysql_mutex_unlock(&LOCK_plugin);
     }
-    free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+    tmp_root->ClearForReuse();
   }
   if (error > 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
@@ -1931,7 +1931,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
               name.str = const_cast<char *>(plugin->name);
               name.length = strlen(name.str);
 
-              free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+              tmp_root->ClearForReuse();
               if (plugin_add(tmp_root, to_lex_cstring(name), &dl, argc, argv,
                              REPORT_TO_LOG, load_early))
                 goto error;
@@ -1940,7 +1940,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           } else
             goto error;
         } else {
-          free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+          tmp_root->ClearForReuse();
           /*
             The whole locking sequence is not strictly speaking needed since
             this is a function that's executed only during server bootstrap, but
@@ -2136,7 +2136,7 @@ void plugin_shutdown(void) {
   bookmark_hash = nullptr;
   delete malloced_string_type_sysvars_bookmark_hash;
   malloced_string_type_sysvars_bookmark_hash = nullptr;
-  free_root(&plugin_mem_root, MYF(0));
+  plugin_mem_root.Clear();
 
   global_variables_dynamic_size = 0;
 }
@@ -2187,7 +2187,7 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
   plugin_load_list(&tmp_root, argc, argv, plugin, true);
 
   /* Temporary mem root not needed anymore, can free it here */
-  free_root(&tmp_root, MYF(0));
+  tmp_root.Clear();
 
   retval = plugin_init_initialize_and_reap();
 

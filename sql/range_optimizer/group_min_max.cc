@@ -214,7 +214,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     head->file->ha_index_or_rnd_end();
 
   for (uint i = 0; i < key_infix_parts; i++) delete key_infix_ranges[i];
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
   delete min_functions_it;
   delete max_functions_it;
   delete quick_prefix_query_block;

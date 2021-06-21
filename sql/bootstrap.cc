@@ -268,7 +268,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
       break;
     }
 
-    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd->mem_root->ClearForReuse();
 
     /*
       Make sure bootstrap statements do not change binlog options.

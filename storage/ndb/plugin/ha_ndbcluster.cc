@@ -1153,7 +1153,7 @@ Thd_ndb::~Thd_ndb() {
 
   delete ndb;
 
-  free_root(&m_batch_mem_root, MYF(0));
+  m_batch_mem_root.Clear();
 }
 
 void ha_ndbcluster::set_rec_per_key(THD *thd) {

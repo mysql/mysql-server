@@ -33,10 +33,10 @@
 /**
   Mem_root_allocator is a C++ STL memory allocator based on MEM_ROOT.
 
-  No deallocation is done by this allocator. Calling init_sql_alloc()
-  and free_root() on the supplied MEM_ROOT is the responsibility of
-  the caller. Do *not* call free_root() until the destructor of any
-  objects using this allocator has completed. This includes iterators.
+  No deallocation is done by this allocator. Calling the constructor
+  and destructor on the supplied MEM_ROOT is the responsibility of
+  the caller. Do *not* call Clear() or ~MEM_ROOT until the destructor
+  of any objects using this allocator has completed. This includes iterators.
 
   Example of use:
   vector<int, Mem_root_allocator<int> > v((Mem_root_allocator<int>(&mem_root)));

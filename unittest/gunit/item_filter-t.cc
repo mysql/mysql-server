@@ -67,7 +67,7 @@ class ItemFilterTest : public ::testing::Test {
     delete m_table;
 
     initializer.TearDown();
-    free_root(&m_alloc, MYF(0));
+    m_alloc.Clear();
   }
 
   THD *thd() { return initializer.thd(); }

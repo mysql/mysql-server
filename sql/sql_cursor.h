@@ -72,7 +72,7 @@ class Server_side_cursor {
   virtual bool open(THD *thd) = 0;
   virtual bool fetch(ulong num_rows) = 0;
   virtual void close() = 0;
-  virtual ~Server_side_cursor() { free_root(&mem_root, MYF(0)); }
+  virtual ~Server_side_cursor() { mem_root.Clear(); }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t & = std::nothrow) noexcept {
     return mem_root->Alloc(size);

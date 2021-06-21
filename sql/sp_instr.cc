@@ -565,7 +565,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   cleanup_before_parsing(thd);
 
   // Cleanup and re-init the lex mem_root for re-parse.
-  free_root(&m_lex_mem_root, MYF(0));
+  m_lex_mem_root.Clear();
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_lex_mem_root, MEM_ROOT_BLOCK_SIZE,
                  MEM_ROOT_PREALLOC);
 

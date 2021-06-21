@@ -275,15 +275,6 @@ char *safe_strdup_root(MEM_ROOT *root, const char *str) {
   return str ? strdup_root(root, str) : nullptr;
 }
 
-void free_root(MEM_ROOT *root, myf flags) {
-  if (root != nullptr) {
-    if ((flags & MY_MARK_BLOCKS_FREE) || (flags & MY_KEEP_PREALLOC))
-      root->ClearForReuse();
-    else
-      root->Clear();
-  }
-}
-
 char *strmake_root(MEM_ROOT *root, const char *str, size_t len) {
   char *pos;
   if ((pos = static_cast<char *>(root->Alloc(len + 1)))) {

@@ -719,7 +719,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
         (error = my_search_option_files(my_login_file, argc, argv, &args_used,
                                         handle_default_option, (void *)&ctx,
                                         dirs, true, found_no_defaults))) {
-      free_root(alloc, MYF(0));
+      alloc->Clear();
       return error;
     }
   }
@@ -1321,7 +1321,7 @@ void my_print_default_files(const char *conf_file) {
       }
     }
 
-    free_root(&alloc, MYF(0));
+    alloc.Clear();
   }
   puts("");
 }

@@ -192,7 +192,7 @@ Bucket *find_longest_match(HashTable *ht, char *str, uint length,
 }
 
 void completion_hash_clean(HashTable *ht) {
-  free_root(&ht->mem_root, MYF(0));
+  ht->mem_root.Clear();
   memset(ht->arBuckets, 0, ht->nTableSize * sizeof(Bucket *));
 }
 

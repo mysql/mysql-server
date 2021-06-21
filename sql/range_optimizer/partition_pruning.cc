@@ -293,7 +293,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   if (create_partition_index_description(&prune_param)) {
     mark_all_partitions_as_used(part_info);
     thd->pop_internal_handler();
-    free_root(&alloc, MYF(0));  // Return memory & allocator
+    alloc.Clear();  // Return memory & allocator
     return false;
   }
 
@@ -397,7 +397,7 @@ end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
   thd->mem_root = range_par->old_root;
-  free_root(&alloc, MYF(0));  // Return memory & allocator
+  alloc.Clear();  // Return memory & allocator
   /* If an error occurred we can return failure after freeing the memroot. */
   if (thd->is_error()) {
     return true;

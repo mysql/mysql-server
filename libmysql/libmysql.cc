@@ -1304,7 +1304,7 @@ bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt) {
     /* skip parameters data: we don't support it yet */
     if (!(cli_read_metadata(mysql, param_count, 7))) return true;
     /* free memory allocated by cli_read_metadata() for parameters data */
-    free_root(mysql->field_alloc, MYF(0));
+    mysql->field_alloc->Clear();
   }
 
   if (field_count != 0) {
@@ -1461,8 +1461,8 @@ int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
     stmt->bind_param_done = false;
     stmt->bind_result_done = false;
     stmt->param_count = stmt->field_count = 0;
-    free_root(stmt->mem_root, MYF(MY_KEEP_PREALLOC));
-    free_root(&stmt->extension->fields_mem_root, MYF(0));
+    stmt->mem_root->ClearForReuse();
+    stmt->extension->fields_mem_root.Clear();
 
     int4store(buff, stmt->stmt_id);
 
@@ -1522,7 +1522,7 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
 
   assert(stmt->field_count);
 
-  free_root(fields_mem_root, MYF(0));
+  fields_mem_root->Clear();
 
   /*
     mysql->fields is NULL when the client set CLIENT_OPTIONAL_RESULTSET_METADATA
@@ -1997,7 +1997,7 @@ static int stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row) {
     MYSQL_DATA *result = &stmt->result;
     uchar buff[4 /* statement id */ + 4 /* number of rows to fetch */];
 
-    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->alloc->ClearForReuse();
     result->data = nullptr;
     result->rows = 0;
     /* Send row request to the server */
@@ -4009,7 +4009,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
   }
 
   if ((*mysql->methods->read_binary_rows)(stmt)) {
-    free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->alloc->ClearForReuse();
     result->data = nullptr;
     result->rows = 0;
     mysql->status = MYSQL_STATUS_READY;
@@ -4103,7 +4103,7 @@ static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags) {
     */
     if (flags & RESET_STORE_RESULT) {
       /* Result buffered */
-      free_root(result->alloc, MYF(MY_KEEP_PREALLOC));
+      result->alloc->ClearForReuse();
       result->data = nullptr;
       result->rows = 0;
       stmt->data_cursor = nullptr;
@@ -4177,9 +4177,9 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt) {
   int rc = 0;
   DBUG_TRACE;
 
-  free_root(stmt->result.alloc, MYF(0));
-  free_root(stmt->mem_root, MYF(0));
-  free_root(&stmt->extension->fields_mem_root, MYF(0));
+  stmt->result.alloc->Clear();
+  stmt->mem_root->Clear();
+  stmt->extension->fields_mem_root.Clear();
 
   if (mysql) {
     mysql->stmts = list_delete(mysql->stmts, &stmt->list);

@@ -1287,7 +1287,7 @@ Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
 Acl_table_user_reader::~Acl_table_user_reader() {
   if (m_table_schema) delete m_table_schema;
   if (m_restrictions) delete m_restrictions;
-  free_root(&m_mem_root, MYF(0));
+  m_mem_root.Clear();
 }
 
 /**

@@ -563,7 +563,7 @@ int main(int argc, char **argv) {
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
   my_end(my_end_arg);
   return (first_error != 0);
 } /* main */

@@ -370,7 +370,7 @@ void mysql_client_plugin_deinit() {
 
   memset(&plugin_list, 0, sizeof(plugin_list));
   initialized = false;
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
 

@@ -107,7 +107,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
   free_io_cache(head);
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
 }
 
 bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields) {

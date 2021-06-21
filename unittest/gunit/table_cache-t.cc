@@ -142,7 +142,7 @@ class Mock_share : public TABLE_SHARE {
     increment_ref_count();
   }
 
-  ~Mock_share() { free_root(&m_mem_root, MYF(0)); }
+  ~Mock_share() { m_mem_root.Clear(); }
 
   TABLE *create_table(THD *thd) {
     TABLE *result =

@@ -7485,7 +7485,7 @@ restart_cluster_failure:
     // any outstanding business
     schema_event_handler.post_epoch(current_epoch);
 
-    free_root(&mem_root, MYF(0));
+    mem_root.Clear();
     *root_ptr = old_root;
 
     if (current_epoch > ndb_latest_handled_binlog_epoch) {

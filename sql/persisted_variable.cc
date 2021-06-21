@@ -233,11 +233,11 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   my_getopt_skip_unknown = true;
   if (my_handle_options(&temp_argc, &res, persist_options, nullptr, nullptr,
                         true)) {
-    free_root(&alloc, MYF(0));
+    alloc.Clear();
     return 1;
   }
   my_getopt_skip_unknown = false;
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
 
   persisted_globals_load = persist_load;
 
@@ -1385,6 +1385,6 @@ map<string, st_persist_var>
 void Persisted_variables_cache::cleanup() {
   mysql_mutex_destroy(&m_LOCK_persist_variables);
   mysql_mutex_destroy(&m_LOCK_persist_file);
-  free_root(&ro_persisted_argv_alloc, MYF(0));
-  free_root(&ro_persisted_plugin_argv_alloc, MYF(0));
+  ro_persisted_argv_alloc.Clear();
+  ro_persisted_plugin_argv_alloc.Clear();
 }

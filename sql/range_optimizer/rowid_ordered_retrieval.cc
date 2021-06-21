@@ -280,7 +280,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
   DBUG_TRACE;
   quick_selects.delete_elements();
   delete cpk_quick;
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
   if (need_to_fetch_row && head->file->inited) head->file->ha_rnd_end();
 }
 
@@ -388,7 +388,7 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
   DBUG_TRACE;
   quick_selects.delete_elements();
   if (head->file->inited) head->file->ha_rnd_end();
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
 }
 
 bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields) {

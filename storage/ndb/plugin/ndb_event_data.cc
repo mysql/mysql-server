@@ -58,7 +58,7 @@ Ndb_event_data::~Ndb_event_data() {
   bitmap_free(&stored_columns);
   bitmap_free(&pk_bitmap);
 
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 /*

@@ -9464,7 +9464,7 @@ static void print_help() {
   my_print_help(&all_options[0]);
   my_print_variables(&all_options[0]);
 
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
   vector<my_option>().swap(all_options);  // Deletes the vector contents.
 }
 

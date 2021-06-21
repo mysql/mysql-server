@@ -2428,7 +2428,7 @@ void free_tmp_table(TABLE *table) {
   {
     MEM_ROOT own_root = std::move(share->mem_root);
     destroy(table);
-    free_root(&own_root, MYF(0));
+    own_root.Clear();
   }
 }
 

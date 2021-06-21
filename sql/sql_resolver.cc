@@ -4512,8 +4512,8 @@ bool Query_block::check_only_full_group_by(THD *thd) {
       Group_check gc(this, &root);
       rc = gc.check_query(thd);
       gc.to_opt_trace(thd);
-    }  // scope, to let any destructor run before free_root().
-    free_root(&root, MYF(0));
+    }  // scope, to let any destructor run before root.Clear().
+    root.Clear();
   }
 
   if (!rc && is_distinct()) {

@@ -245,7 +245,7 @@ class Query_fetch_protocol_binary final : public Query_result_send {
 class Protocol_local final : public Protocol {
  public:
   Protocol_local(THD *thd, Ed_connection *ed_connection);
-  ~Protocol_local() override { free_root(&m_rset_root, MYF(0)); }
+  ~Protocol_local() override { m_rset_root.Clear(); }
 
   int read_packet() override;
 
@@ -2391,7 +2391,7 @@ Prepared_statement::~Prepared_statement() {
     lex->destroy();
     delete (st_lex_local *)lex;  // TRASH memory
   }
-  free_root(&main_mem_root, MYF(0));
+  main_mem_root.Clear();
 }
 
 void Prepared_statement::cleanup_stmt() {

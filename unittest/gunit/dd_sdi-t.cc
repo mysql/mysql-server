@@ -360,7 +360,7 @@ TEST(SdiTest, Column_statistics) {
   EXPECT_TRUE(dd_obj.get()->schema_name() == deserialized.get()->schema_name());
   EXPECT_TRUE(dd_obj.get()->table_name() == deserialized.get()->table_name());
   EXPECT_TRUE(dd_obj.get()->column_name() == deserialized.get()->column_name());
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 TEST(SdiTest, Index_element) { simple_test<dd::Index_element>(); }

@@ -65,7 +65,7 @@ class SqlListTest : public ::testing::Test {
     THR_MALLOC = &m_mem_root_p;
   }
 
-  void TearDown() override { free_root(&m_mem_root, MYF(0)); }
+  void TearDown() override { m_mem_root.Clear(); }
 
   static void SetUpTestCase() {
     current_thd = nullptr;
@@ -118,7 +118,7 @@ TEST_F(SqlListTest, DeepCopy) {
     EXPECT_EQ(*m_int_list.pop(), *list_copy.pop());
   }
   EXPECT_TRUE(m_int_list.is_empty());
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 // Tests that we can iterate over values.

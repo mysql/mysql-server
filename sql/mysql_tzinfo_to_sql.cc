@@ -312,7 +312,7 @@ static bool scan_tz_dir(char *name_end) {
           fprintf(stderr,
                   "Warning: Unable to load '%s' as time zone. Skipping it.\n",
                   fullname);
-        free_root(&tz_storage, MYF(0));
+        tz_storage.Clear();
       } else
         fprintf(stderr, "Warning: '%s' is not regular file or directory\n",
                 fullname);
@@ -372,7 +372,7 @@ int main(int argc, char **argv) {
       printf("COMMIT;\n");
     }
 
-    free_root(&tz_storage, MYF(0));
+    tz_storage.Clear();
   }
 
   return 0;

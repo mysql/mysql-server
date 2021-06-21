@@ -1465,7 +1465,7 @@ void mysql_end(int sig) {
   }
   batch_readline_end(status.line_buff);
   completion_hash_free(&ht);
-  free_root(&hash_mem_root, MYF(0));
+  hash_mem_root.Clear();
 
   my_free(histfile);
   my_free(histfile_tmp);
@@ -2843,7 +2843,7 @@ static void build_completion_hash(bool rehash, bool write_info) {
   /* Free old used memory */
   if (field_names) field_names = nullptr;
   completion_hash_clean(&ht);
-  free_root(&hash_mem_root, MYF(0));
+  hash_mem_root.Clear();
 
   /* hash this file's known subset of SQL commands */
   while (cmd->name) {

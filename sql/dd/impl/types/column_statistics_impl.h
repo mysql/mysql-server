@@ -114,7 +114,7 @@ class Column_statistics_impl final : public Entity_object_impl,
 
   void set_histogram(const histograms::Histogram *histogram) override {
     // Free any existing histogram data
-    free_root(&m_mem_root, MYF(0));
+    m_mem_root.Clear();
 
     // Take responsibility for the MEM_ROOT of the histogram provided
     m_mem_root = std::move(*histogram->get_mem_root());

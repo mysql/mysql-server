@@ -172,10 +172,6 @@ struct MEM_ROOT;
 #define MIN_COMPRESS_LENGTH 50           /* Don't compress small bl. */
 #define DFLT_INIT_HITS 3
 
-/* root_alloc flags */
-#define MY_KEEP_PREALLOC 1
-#define MY_MARK_BLOCKS_FREE 2 /* move used to free list and reuse them */
-
 /* Internal error numbers (for assembler functions) */
 #define MY_ERRNO_EDOM 33
 #define MY_ERRNO_ERANGE 34

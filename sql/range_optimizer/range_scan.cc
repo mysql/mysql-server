@@ -121,7 +121,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
         destroy(file);
       }
     }
-    if (alloc != nullptr) free_root(alloc.get(), MYF(0));
+    if (alloc != nullptr) alloc.get()->Clear();
     my_free(column_bitmap.bitmap);
   }
   my_free(mrr_buf_desc);

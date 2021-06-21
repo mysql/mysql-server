@@ -1282,7 +1282,7 @@ class Blob_mem_storage {
   ~Blob_mem_storage();
 
   void reset() {
-    free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
+    storage.ClearForReuse();
     truncated_value = false;
   }
   /**

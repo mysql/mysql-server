@@ -430,7 +430,7 @@ err:
   close_cached_file(&sort_param->tempfile_for_exceptions);
 
 ok:
-  free_root(&sort_param->wordroot, MYF(0));
+  sort_param->wordroot.Clear();
   /*
     Detach from the share if the writer is involved. Avoid others to
     be blocked. This includes a flush of the write buffer. This will

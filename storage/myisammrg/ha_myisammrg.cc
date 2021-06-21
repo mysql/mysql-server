@@ -138,7 +138,7 @@ ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
   @brief Destructor
 */
 
-ha_myisammrg::~ha_myisammrg(void) { free_root(&children_mem_root, MYF(0)); }
+ha_myisammrg::~ha_myisammrg(void) { children_mem_root.Clear(); }
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
@@ -321,7 +321,7 @@ int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
   test_if_locked = test_if_locked_arg;
 
   /* In case this handler was open and closed before, free old data. */
-  free_root(&this->children_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+  this->children_mem_root.ClearForReuse();
 
   /*
     Initialize variables that are used, modified, and/or set by

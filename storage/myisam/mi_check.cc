@@ -2212,7 +2212,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
     }
     /* No need to calculate checksum again. */
     sort_param.calc_checksum = false;
-    free_root(&sort_param.wordroot, MYF(0));
+    sort_param.wordroot.Clear();
 
     /* Set for next loop */
     sort_info.max_records = (ha_rows)info->state->records;
@@ -2864,7 +2864,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
 
   if (!sort_param->wordlist) {
     for (;;) {
-      free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
+      sort_param->wordroot.ClearForReuse();
       if ((error = sort_get_next_record(sort_param))) return error;
       if (!(wptr = _mi_ft_parserecord(info, sort_param->key, sort_param->record,
                                       &sort_param->wordroot)))
@@ -2883,7 +2883,7 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key) {
                                              (uchar *)key, wptr++,
                                              sort_param->filepos));
   if (!wptr->pos) {
-    free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
+    sort_param->wordroot.ClearForReuse();
     sort_param->wordlist = nullptr;
     error = sort_write_record(sort_param);
   } else

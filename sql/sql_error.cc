@@ -351,7 +351,7 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
   m_message_text[0] = '\0';
 }
 
-Diagnostics_area::~Diagnostics_area() { free_root(&m_condition_root, MYF(0)); }
+Diagnostics_area::~Diagnostics_area() { m_condition_root.Clear(); }
 
 void Diagnostics_area::reset_diagnostics_area() {
   DBUG_TRACE;
@@ -498,7 +498,7 @@ void Diagnostics_area::reset_condition_info(THD *thd) {
 
   m_conditions_list.clear();
   m_preexisting_sql_conditions.clear();
-  free_root(&m_condition_root, MYF(0));
+  m_condition_root.Clear();
   memset(m_current_statement_cond_count_by_qb, 0,
          sizeof(m_current_statement_cond_count_by_qb));
   m_current_statement_cond_count = 0;

@@ -1529,7 +1529,7 @@ static int free_share(FEDERATED_SHARE *share) {
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
     MEM_ROOT mem_root = std::move(share->mem_root);
-    free_root(&mem_root, MYF(0));
+    mem_root.Clear();
   }
   mysql_mutex_unlock(&federated_mutex);
 

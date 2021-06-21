@@ -104,7 +104,7 @@ Delegate::Delegate(
 Delegate::~Delegate() {
   inited = false;
   mysql_rwlock_destroy(&lock);
-  free_root(&memroot, MYF(0));
+  memroot.Clear();
 }
 
 int Delegate::add_observer(void *observer, st_plugin_int *plugin) {

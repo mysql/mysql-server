@@ -4867,7 +4867,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
     } else {
       if (!opt_force) {
         dynstr_free(&lock_tables_query);
-        free_root(&root, MYF(0));
+        root.Clear();
       }
       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
       /* We shall continue here, if --force was given */
@@ -4885,7 +4885,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
                          (ulong)(lock_tables_query.length - 1))) {
       if (!opt_force) {
         dynstr_free(&lock_tables_query);
-        free_root(&root, MYF(0));
+        root.Clear();
       }
       DB_error(mysql, "when doing LOCK TABLES");
       /* We shall continue here, if --force was given */
@@ -4894,7 +4894,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   dynstr_free(&lock_tables_query);
   if (flush_logs) {
     if (mysql_refresh(mysql, REFRESH_LOG)) {
-      if (!opt_force) free_root(&root, MYF(0));
+      if (!opt_force) root.Clear();
       DB_error(mysql, "when doing refresh");
     }
     /* We shall continue here, if --force was given */
@@ -4964,7 +4964,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
     DBUG_PRINT("info", ("Dumping routines for database %s", db));
     dump_routines_for_db(db);
   }
-  free_root(&root, MYF(0));
+  root.Clear();
   if (opt_xml) {
     fputs("</database>\n", md_result_file);
     check_io(md_result_file);

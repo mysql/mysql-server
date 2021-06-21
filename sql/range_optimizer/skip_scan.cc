@@ -227,7 +227,7 @@ QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   if (head->file->inited) head->file->ha_index_or_rnd_end();
 
   my_free(column_bitmap.bitmap);
-  free_root(&alloc, MYF(0));
+  alloc.Clear();
 }
 
 /**

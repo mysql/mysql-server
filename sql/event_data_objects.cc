@@ -235,7 +235,7 @@ Event_basic::Event_basic()
 
 Event_basic::~Event_basic() {
   DBUG_TRACE;
-  free_root(&mem_root, MYF(0));
+  mem_root.Clear();
 }
 
 /*

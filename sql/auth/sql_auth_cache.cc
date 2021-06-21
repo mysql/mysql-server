@@ -1944,7 +1944,7 @@ void acl_free(bool end /*= false*/) {
       acl_cache_initialized = false;
     }
   }
-  free_root(&global_acl_memory, MYF(0));
+  global_acl_memory.Clear();
 }
 
 bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
@@ -2237,7 +2237,7 @@ bool acl_reload(THD *thd, bool mdl_locked) {
     delete old_dyn_priv_map;
     // Delete the old role caches
     delete_old_role_cache();
-    free_root(&old_mem, MYF(0));
+    old_mem.Clear();
   }
 
 end:
@@ -2272,7 +2272,7 @@ void grant_free(void) {
   column_priv_hash.reset();
   proc_priv_hash.reset();
   func_priv_hash.reset();
-  free_root(&memex, MYF(0));
+  memex.Clear();
 }
 
 /**
@@ -2649,11 +2649,11 @@ bool grant_reload(THD *thd, bool mdl_locked) {
                            &tables[2])))) {  // Error. Revert to old hash
       DBUG_PRINT("error", ("Reverting to old privileges"));
       column_priv_hash = move(old_column_priv_hash); /* purecov: deadcode */
-      free_root(&memex, MYF(0));
+      memex.Clear();
       memex = move(old_mem); /* purecov: deadcode */
     } else {                 // Reload successful
       old_column_priv_hash.reset();
-      free_root(&old_mem, MYF(0));
+      old_mem.Clear();
       grant_version++;
       get_global_acl_cache()->increase_version();
     }

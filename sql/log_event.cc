@@ -551,7 +551,7 @@ inline int idempotent_error_code(int err_code) {
 
       Note that HA_ERR_RECORD_DELETED is not in the list since
       do_exec_row() should not return that error code.
-    */
+     */
     case HA_ERR_RECORD_CHANGED:
     case HA_ERR_KEY_NOT_FOUND:
     case HA_ERR_END_OF_FILE:
@@ -3058,7 +3058,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       That concludes the memroot reset can't harm anything in SQL thread roles
       after Coordinator has finished its current scheduling.
     */
-    free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    thd->mem_root->ClearForReuse();
 
 #ifndef NDEBUG
     w_rr++;
@@ -5066,11 +5066,11 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
   {
     /**
-      The following failure injecion works in cooperation with tests
+      The following failure injection works in cooperation with tests
       setting @@global.debug= 'd,stop_replica_middle_group'.
       The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
-    */
+     */
 
     // TODO: address the middle-group killing in MTS case
 
@@ -5122,7 +5122,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt_for_binlog = 0;
   thd->first_successful_insert_id_in_prev_stmt = 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
-  free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+  thd->mem_root->ClearForReuse();
   return thd->is_slave_error;
 }
 
@@ -5766,7 +5766,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
       happens from Query_log_event::do_apply_event or
       Rows_log_event::do_apply_event when they find end of the group event).
     */
-    if (server_id == 0) free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    if (server_id == 0) thd->mem_root->ClearForReuse();
   } else
     rli->inc_event_relay_log_pos();
 
@@ -6841,7 +6841,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
   e->update_hash(val, val_len, (Item_result)type, charset, DERIVATION_IMPLICIT,
                  (flags & binary_log::User_var_event::UNSIGNED_F));
   if (!is_deferred())
-    free_root(thd->mem_root, 0);
+    thd->mem_root->Clear();
   else
     current_thd->query_id = sav_query_id; /* restore current query's context */
 
@@ -9147,12 +9147,12 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
     store_record(m_table, record[1]);
 
     /*
-     This is the situation after hashing the BI:
+      This is the situation after hashing the BI:
 
-     ===|=== before image ====|=== after image ===|===
-        ^                     ^
-        m_curr_row            m_curr_row_end
-   */
+      ===|=== before image ====|=== after image ===|===
+         ^                     ^
+         m_curr_row            m_curr_row_end
+     */
 
     /* Set the position to the start of the record to be unpacked. */
     m_curr_row = m_curr_row_end;
@@ -9168,7 +9168,7 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli) {
       ===|=== before image ====|=== after image ===|===
                                ^                   ^
                                m_curr_row          m_curr_row_end
-    */
+     */
 
     /* Restore back the copy of the BI. */
     restore_record(m_table, record[1]);
@@ -10005,12 +10005,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     thd->variables.sql_mode = saved_sql_mode;
 
-    { /*
-          The following failure injecion works in cooperation with tests
-          setting @@global.debug= 'd,stop_replica_middle_group'.
-          The sql thread receives the killed status and will proceed
-          to shutdown trying to finish incomplete events group.
-      */
+    {
+      /*
+        The following failure injecion works in cooperation with tests
+        setting @@global.debug= 'd,stop_replica_middle_group'.
+        The sql thread receives the killed status and will proceed
+        to shutdown trying to finish incomplete events group.
+       */
       DBUG_EXECUTE_IF(
           "stop_replica_middle_group",
           if (thd->get_transaction()->cannot_safely_rollback(
@@ -10078,7 +10079,7 @@ end:
       *not* try to free the memory here. It will be done latter
       in dispatch_command() after command execution is completed.
      */
-    if (thd->slave_thread) free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+    if (thd->slave_thread) thd->mem_root->ClearForReuse();
   }
   return error;
 }

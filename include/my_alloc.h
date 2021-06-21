@@ -394,13 +394,11 @@ struct MEM_ROOT {
   PSI_memory_key m_psi_key = 0;
 };
 
-// Legacy C thunks. Do not use in new code.
+// Legacy C thunk. Do not use in new code.
 static inline void init_alloc_root(PSI_memory_key key, MEM_ROOT *root,
                                    size_t block_size, size_t) {
   ::new (root) MEM_ROOT(key, block_size);
 }
-
-void free_root(MEM_ROOT *root, myf flags);
 
 /**
  * Allocate an object of the given type. Use like this:

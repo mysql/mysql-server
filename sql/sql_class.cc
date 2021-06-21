@@ -1151,7 +1151,7 @@ THD::~THD() {
 
   my_free(const_cast<char *>(m_db.str));
   m_db = NULL_CSTR;
-  get_transaction()->free_memory(MYF(0));
+  get_transaction()->free_memory();
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
@@ -1184,7 +1184,7 @@ THD::~THD() {
   */
   unregister_slave(this, true, true);
 
-  free_root(&main_mem_root, MYF(0));
+  main_mem_root.Clear();
 
   if (m_token_array != nullptr) {
     my_free(m_token_array);

@@ -304,7 +304,7 @@ bool Recovered_xa_transactions::recover_prepared_xa_transactions() {
 
       m_prepared_xa_trans.pop_front();
     }
-    free_root(&m_mem_root, MYF(0));
+    m_mem_root.Clear();
     m_mem_root_inited = false;
   }
 

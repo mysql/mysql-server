@@ -253,7 +253,7 @@ void PFS_system_variable_cache::set_mem_root(void) {
 */
 void PFS_system_variable_cache::clear_mem_root(void) {
   if (m_mem_sysvar_ptr) {
-    free_root(&m_mem_sysvar, MYF(MY_MARK_BLOCKS_FREE));
+    m_mem_sysvar.ClearForReuse();
     *m_mem_thd = m_mem_thd_save; /* restore original mem_root */
     m_mem_thd = nullptr;
     m_mem_thd_save = nullptr;
@@ -266,7 +266,7 @@ void PFS_system_variable_cache::clear_mem_root(void) {
 */
 void PFS_system_variable_cache::free_mem_root(void) {
   if (m_mem_sysvar_ptr) {
-    free_root(&m_mem_sysvar, MYF(0));
+    m_mem_sysvar.Clear();
     m_mem_sysvar_ptr = nullptr;
     if (m_mem_thd && m_mem_thd_save) {
       *m_mem_thd = m_mem_thd_save; /* restore original mem_root */

@@ -1348,7 +1348,7 @@ void my_tz_free() {
     mysql_mutex_destroy(&tz_LOCK);
     offset_tzs.clear();
     tz_names.clear();
-    free_root(&tz_storage, MYF(0));
+    tz_storage.Clear();
   }
 }
 

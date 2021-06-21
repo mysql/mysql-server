@@ -415,7 +415,7 @@ class Json_path final : public Json_seekable_path {
     for (const auto ptr : m_path_legs) ptr->~Json_path_leg();
     m_path_legs.clear();
     // Mark the memory as ready for reuse.
-    free_root(&m_mem_root, MYF(MY_MARK_BLOCKS_FREE));
+    m_mem_root.ClearForReuse();
   }
 
   /**

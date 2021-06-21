@@ -575,7 +575,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   ftb->state = FTB::READY;
   return (FT_INFO *)ftb;
 err:
-  free_root(&ftb->mem_root, MYF(0));
+  ftb->mem_root.Clear();
   my_free(ftb);
   return nullptr;
 }
@@ -941,7 +941,7 @@ extern "C" void ft_boolean_close_search(FT_INFO *ftb_base) {
   if (is_tree_inited(&ftb->no_dupes)) {
     delete_tree(&ftb->no_dupes);
   }
-  free_root(&ftb->mem_root, MYF(0));
+  ftb->mem_root.Clear();
   my_free(ftb);
 }
 

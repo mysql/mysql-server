@@ -211,7 +211,7 @@ void Thd_ndb::set_option(Options option) { options |= option; }
 */
 
 bool Thd_ndb::add_row_check_if_batch_full(uint size) {
-  if (m_unsent_bytes == 0) free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
+  if (m_unsent_bytes == 0) m_batch_mem_root.ClearForReuse();
 
   uint unsent = m_unsent_bytes;
   unsent += size;

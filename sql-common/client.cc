@@ -1269,7 +1269,7 @@ ulong cli_safe_read(MYSQL *mysql, bool *is_data_packet) {
 
 void free_rows(MYSQL_DATA *cur) {
   if (cur) {
-    free_root(cur->alloc, MYF(0));
+    cur->alloc->Clear();
     my_free(cur->alloc);
     my_free(cur);
   }
@@ -1567,7 +1567,7 @@ end:
 void free_old_query(MYSQL *mysql) {
   DBUG_TRACE;
   if (mysql->field_alloc) {
-    free_root(mysql->field_alloc, MYF(0));
+    mysql->field_alloc->Clear();
     init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
                     0); /* Assume rowlength < 8192 */
   }
@@ -1763,7 +1763,7 @@ static void cli_flush_use_result(MYSQL *mysql, bool flush_all_results) {
       if (read_com_query_metadata(mysql, pos, field_count)) {
         return;
       } else {
-        free_root(mysql->field_alloc, MYF(0));
+        mysql->field_alloc->Clear();
       }
     }
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
@@ -1878,7 +1878,7 @@ net_async_status STDCALL mysql_free_result_nonblocking(MYSQL_RES *result) {
   }
   free_rows(result->data);
   if (result->field_alloc) {
-    free_root(result->field_alloc, MYF(0));
+    result->field_alloc->Clear();
     my_free(result->field_alloc);
   }
   my_free(result->row);
@@ -1904,7 +1904,7 @@ void STDCALL mysql_free_result(MYSQL_RES *result) {
     }
     free_rows(result->data);
     if (result->field_alloc) {
-      free_root(result->field_alloc, MYF(0));
+      result->field_alloc->Clear();
       my_free(result->field_alloc);
     }
     my_free(result->row);
@@ -2698,7 +2698,7 @@ static int read_com_query_metadata(MYSQL *mysql, uchar *pos,
 
       if (!(mysql->fields = cli_read_metadata(mysql, field_count,
                                               protocol_41(mysql) ? 7 : 5))) {
-        free_root(mysql->field_alloc, MYF(0));
+        mysql->field_alloc->Clear();
         return 1;
       }
       break;
@@ -2758,7 +2758,7 @@ static net_async_status read_com_query_metadata_nonblocking(MYSQL *mysql,
       }
 
       if (!mysql->fields) {
-        free_root(mysql->field_alloc, MYF(0));
+        mysql->field_alloc->Clear();
         *res = 1;
         return NET_ASYNC_COMPLETE;
       }

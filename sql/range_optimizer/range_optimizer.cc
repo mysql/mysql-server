@@ -566,8 +566,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
               (KEY_PART *)alloc.Alloc(sizeof(KEY_PART) * head->s->key_parts)) ||
         fill_used_fields_bitmap(&param)) {
       thd->pop_internal_handler();
-      free_root(&alloc, MYF(0));  // Return memory & allocator
-      return 0;                   // Can't use range
+      alloc.Clear();  // Return memory & allocator
+      return 0;       // Can't use range
     }
     key_parts = param.key_parts;
     thd->mem_root = &alloc;
@@ -839,7 +839,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           .add("chosen", true);
     }
 
-    free_root(&alloc, MYF(0));  // Return memory & allocator
+    alloc.Clear();  // Return memory & allocator
     thd->mem_root = param.old_root;
 
     DBUG_EXECUTE("info", print_quick(*quick, needed_reg););

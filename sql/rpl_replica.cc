@@ -4709,7 +4709,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
         or Rows_log_event::do_apply_event when they find the end of
         the group event).
       */
-      if (skip_event) free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+      if (skip_event) thd->mem_root->ClearForReuse();
 
 #ifndef NDEBUG
       DBUG_PRINT("info", ("update_pos error = %d", error));
@@ -5738,11 +5738,11 @@ extern "C" void *handle_slave_io(void *arg) {
         /*
           After event is flushed to relay log file, memory used
           by thread's mem_root is not required any more.
-          Hence adding free_root(thd->mem_root,...) to do the
+          Hence adding ClearorReuse() to do the
           cleanup, otherwise a long running IO thread can
           cause OOM error.
         */
-        free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
+        thd->mem_root->ClearForReuse();
       }
     }
 

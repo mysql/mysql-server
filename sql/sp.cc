@@ -1199,7 +1199,7 @@ bool sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
         if (mark_referencing_views_invalid(thd, &fn_name, &foreach_fn_root))
           return true;
 
-        free_root(&foreach_fn_root, MYF(MY_MARK_BLOCKS_FREE));
+        foreach_fn_root.ClearForReuse();
       }
 
       is_routine_dropped = true;

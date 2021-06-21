@@ -370,7 +370,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info, uint keynr,
 
 void ftparser_call_deinitializer(MI_INFO *info) {
   uint i, j, keys = info->s->state.header.keys;
-  free_root(&info->ft_memroot, MYF(0));
+  info->ft_memroot.Clear();
   if (!info->ftparser_param) return;
   for (i = 0; i < keys; i++) {
     MI_KEYDEF *keyinfo = &info->s->keyinfo[i];

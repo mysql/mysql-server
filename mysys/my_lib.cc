@@ -71,9 +71,8 @@ void my_dirend(MY_DIR *buffer) {
     Entries_array *array = pointer_cast<Entries_array *>(
         (char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)));
     array->~Entries_array();
-    free_root((MEM_ROOT *)((char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                           ALIGN_SIZE(sizeof(Entries_array))),
-              MYF(0));
+    destroy((MEM_ROOT *)((char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                         ALIGN_SIZE(sizeof(Entries_array))));
     my_free(buffer);
   }
 } /* my_dirend */

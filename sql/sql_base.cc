@@ -10089,7 +10089,7 @@ bool mysql_rm_tmp_tables(void) {
     (void)mysql_file_delete(key_file_misc, file_str->str, MYF(0));
 
 err:
-  free_root(&files_root, MYF(0));
+  files_root.Clear();
   delete thd;
   return result;
 }

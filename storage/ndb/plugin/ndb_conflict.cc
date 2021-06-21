@@ -781,7 +781,7 @@ st_ndb_slave_state::st_ndb_slave_state()
                   CONFLICT_MEMROOT_BLOCK_SIZE, 0);
 }
 
-st_ndb_slave_state::~st_ndb_slave_state() { free_root(&conflict_mem_root, 0); }
+st_ndb_slave_state::~st_ndb_slave_state() {}
 
 /**
    resetPerAttemptCounters
@@ -1235,7 +1235,7 @@ void st_ndb_slave_state::atEndTransConflictHandling() {
     current_trans_in_conflict_count =
         trans_dependency_tracker->get_conflict_count();
     trans_dependency_tracker = NULL;
-    free_root(&conflict_mem_root, MY_MARK_BLOCKS_FREE);
+    conflict_mem_root.ClearForReuse();
   }
 }
 
