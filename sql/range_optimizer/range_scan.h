@@ -113,7 +113,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
  public:
   std::shared_ptr<MEM_ROOT> alloc;
 
-  QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
+  QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg,
                      MEM_ROOT *parent_alloc);
   ~QUICK_RANGE_SELECT() override;
 

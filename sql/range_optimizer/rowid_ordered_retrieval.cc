@@ -49,17 +49,14 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                                                        bool retrieve_full_rows,
                                                        MEM_ROOT *parent_alloc)
     : cpk_quick(nullptr),
+      alloc(key_memory_quick_ror_intersect_select_root,
+            thd_param->variables.range_alloc_block_size),
       thd(thd_param),
       need_to_fetch_row(retrieve_full_rows),
       scans_inited(false) {
   index = MAX_KEY;
   head = table;
   record = head->record[0];
-  if (!parent_alloc)
-    init_sql_alloc(key_memory_quick_ror_intersect_select_root, &alloc,
-                   thd->variables.range_alloc_block_size, 0);
-  else
-    ::new (&alloc) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
   last_rowid = (uchar *)(parent_alloc ? parent_alloc : &alloc)
                    ->Alloc(head->file->ref_length);
 }
@@ -280,21 +277,20 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
   DBUG_TRACE;
   quick_selects.delete_elements();
   delete cpk_quick;
-  alloc.Clear();
   if (need_to_fetch_row && head->file->inited) head->file->ha_rnd_end();
 }
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param, TABLE *table)
     : queue(Quick_ror_union_less(this),
             Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
+      alloc(key_memory_quick_ror_union_select_root,
+            thd_param->variables.range_alloc_block_size),
       thd(thd_param),
       scans_inited(false) {
   index = MAX_KEY;
   head = table;
   rowid_length = table->file->ref_length;
   record = head->record[0];
-  init_sql_alloc(key_memory_quick_ror_union_select_root, &alloc,
-                 thd->variables.range_alloc_block_size, 0);
   thd_param->mem_root = &alloc;
 }
 
@@ -388,7 +384,6 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
   DBUG_TRACE;
   quick_selects.delete_elements();
   if (head->file->inited) head->file->ha_rnd_end();
-  alloc.Clear();
 }
 
 bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields) {

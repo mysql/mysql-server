@@ -786,11 +786,9 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
   DBUG_TRACE;
 
   if (table->key_info[keyno].flags & HA_SPATIAL)
-    quick = new QUICK_RANGE_SELECT_GEOM(thd, table, keyno,
-                                        parent_alloc != nullptr, parent_alloc);
+    quick = new QUICK_RANGE_SELECT_GEOM(thd, table, keyno, parent_alloc);
   else
-    quick = new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc != nullptr,
-                                   nullptr);
+    quick = new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc);
 
   if (quick) {
     assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||

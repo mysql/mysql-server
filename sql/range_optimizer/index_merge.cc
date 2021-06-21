@@ -53,12 +53,14 @@
 struct MY_BITMAP;
 
 QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param, TABLE *table)
-    : unique(nullptr), pk_quick_select(nullptr), thd(thd_param) {
+    : unique(nullptr),
+      pk_quick_select(nullptr),
+      alloc(key_memory_quick_index_merge_root,
+            thd_param->variables.range_alloc_block_size),
+      thd(thd_param) {
   DBUG_TRACE;
   index = MAX_KEY;
   head = table;
-  init_sql_alloc(key_memory_quick_index_merge_root, &alloc,
-                 thd->variables.range_alloc_block_size, 0);
 }
 
 int QUICK_INDEX_MERGE_SELECT::init() {
@@ -107,7 +109,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
   free_io_cache(head);
-  alloc.Clear();
 }
 
 bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields) {

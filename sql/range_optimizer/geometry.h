@@ -33,9 +33,9 @@ struct TABLE;
 
 class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
  public:
-  QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
+  QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg,
                           MEM_ROOT *parent_alloc)
-      : QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc) {}
+      : QUICK_RANGE_SELECT(thd, table, index_arg, parent_alloc) {}
   int get_next() override;
 };
 

@@ -277,13 +277,12 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   }
 
   PART_PRUNE_PARAM prune_param;
-  MEM_ROOT alloc;
+  MEM_ROOT alloc(key_memory_partitions_prune_exec,
+                 thd->variables.range_alloc_block_size);
   RANGE_OPT_PARAM *range_par = &prune_param.range_param;
   my_bitmap_map *old_sets[2];
 
   prune_param.part_info = part_info;
-  init_sql_alloc(key_memory_partitions_prune_exec, &alloc,
-                 thd->variables.range_alloc_block_size, 0);
   alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
   alloc.set_error_for_capacity_exceeded(true);
   thd->push_internal_handler(&range_par->error_handler);
@@ -293,7 +292,6 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   if (create_partition_index_description(&prune_param)) {
     mark_all_partitions_as_used(part_info);
     thd->pop_internal_handler();
-    alloc.Clear();  // Return memory & allocator
     return false;
   }
 
@@ -397,7 +395,6 @@ end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
   thd->mem_root = range_par->old_root;
-  alloc.Clear();  // Return memory & allocator
   /* If an error occurred we can return failure after freeing the memroot. */
   if (thd->is_error()) {
     return true;

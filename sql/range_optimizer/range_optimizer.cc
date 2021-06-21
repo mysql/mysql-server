@@ -503,7 +503,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all()) {
-    MEM_ROOT alloc;
+    MEM_ROOT alloc(key_memory_test_quick_select_exec,
+                   thd->variables.range_alloc_block_size);
     SEL_TREE *tree = nullptr;
     KEY_PART *key_parts;
     KEY *key_info;
@@ -555,8 +556,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     param.skip_records_in_range = skip_records_in_range;
 
-    init_sql_alloc(key_memory_test_quick_select_exec, &alloc,
-                   thd->variables.range_alloc_block_size, 0);
     alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
     alloc.set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
@@ -564,8 +563,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
               (KEY_PART *)alloc.Alloc(sizeof(KEY_PART) * head->s->key_parts)) ||
         fill_used_fields_bitmap(&param)) {
       thd->pop_internal_handler();
-      alloc.Clear();  // Return memory & allocator
-      return 0;       // Can't use range
+      return 0;  // Can't use range
     }
     key_parts = param.key_parts;
     thd->mem_root = &alloc;
@@ -844,7 +842,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           .add("chosen", true);
     }
 
-    alloc.Clear();  // Return memory & allocator
     thd->mem_root = param.old_root;
 
     DBUG_EXECUTE("info", print_quick(*quick, needed_reg););

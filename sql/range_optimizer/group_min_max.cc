@@ -96,7 +96,9 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       key_infix_len(key_infix_len_arg),
       min_max_ranges(PSI_INSTRUMENT_ME),
       key_infix_ranges(PSI_INSTRUMENT_ME),
-      is_index_scan(is_index_scan_arg) {
+      is_index_scan(is_index_scan_arg),
+      alloc(key_memory_quick_group_min_max_select_root,
+            join->thd->variables.range_alloc_block_size) {
   head = table;
   index = use_index;
   record = head->record[0];
@@ -119,12 +121,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     yet.
   */
   assert(!parent_alloc);
-  if (!parent_alloc) {
-    init_sql_alloc(key_memory_quick_group_min_max_select_root, &alloc,
-                   join->thd->variables.range_alloc_block_size, 0);
-    join->thd->mem_root = &alloc;
-  } else
-    ::new (&alloc) MEM_ROOT;  // ensure that it's not used
+  join->thd->mem_root = &alloc;
 }
 
 /*

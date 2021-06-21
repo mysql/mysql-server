@@ -49,7 +49,7 @@
 #include "template_utils.h"
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
-                                       bool no_alloc, MEM_ROOT *parent_alloc)
+                                       MEM_ROOT *parent_alloc)
     : ranges(key_memory_Quick_ranges),
       free_file(false),
       cur_range(nullptr),
@@ -68,14 +68,12 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size = thd->variables.read_rnd_buff_size;
 
-  if (!no_alloc && !parent_alloc) {
+  if (!parent_alloc) {
     // Allocates everything through the internal memroot
-    alloc.reset(new MEM_ROOT);
-    init_sql_alloc(key_memory_quick_range_select_root, alloc.get(),
-                   thd->variables.range_alloc_block_size, 0);
+    alloc.reset(new MEM_ROOT(key_memory_quick_range_select_root,
+                             thd->variables.range_alloc_block_size));
     thd->mem_root = alloc.get();
-  } else if (alloc != nullptr)
-    ::new (alloc.get()) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
+  }
   file = head->file;
   record = head->record[0];
 }
@@ -122,7 +120,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
         destroy(file);
       }
     }
-    if (alloc != nullptr) alloc.get()->Clear();
     my_free(column_bitmap.bitmap);
   }
   my_free(mrr_buf_desc);

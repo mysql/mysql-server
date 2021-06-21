@@ -89,7 +89,9 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       max_range_key(nullptr),
       min_search_key(nullptr),
       max_search_key(nullptr),
-      has_aggregate_function(has_aggregate_function) {
+      has_aggregate_function(has_aggregate_function),
+      alloc(key_memory_quick_group_min_max_select_root,
+            join->thd->variables.range_alloc_block_size) {
   head = table;
   index = use_index;
   record = head->record[0];
@@ -130,12 +132,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     for why parent_alloc should be NULL.
   */
   assert(!parent_alloc);
-  if (!parent_alloc) {
-    init_sql_alloc(key_memory_quick_group_min_max_select_root, &alloc,
-                   join->thd->variables.range_alloc_block_size, 0);
-    join->thd->mem_root = &alloc;
-  } else
-    ::new (&alloc) MEM_ROOT;  // ensure that it's not used
+  join->thd->mem_root = &alloc;
 }
 
 /**
@@ -227,7 +224,6 @@ QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   if (head->file->inited) head->file->ha_index_or_rnd_end();
 
   my_free(column_bitmap.bitmap);
-  alloc.Clear();
 }
 
 /**
