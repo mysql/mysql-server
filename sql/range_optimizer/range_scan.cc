@@ -42,6 +42,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_select.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
@@ -49,13 +50,14 @@
 #include "template_utils.h"
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
-                                       MEM_ROOT *parent_alloc)
+                                       MEM_ROOT *parent_alloc, uint mrr_flags,
+                                       uint mrr_buf_size, const KEY_PART *key)
     : ranges(key_memory_Quick_ranges),
       free_file(false),
       cur_range(nullptr),
       last_range(nullptr),
-      mrr_flags(0),
-      mrr_buf_size(0),
+      mrr_flags(mrr_flags),
+      mrr_buf_size(mrr_buf_size),
       mrr_buf_desc(nullptr),
       dont_free(false) {
   DBUG_TRACE;
@@ -65,9 +67,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   head = table;
   key_part_info = head->key_info[index].key_part;
 
-  /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
-  mrr_buf_size = thd->variables.read_rnd_buff_size;
-
   if (!parent_alloc) {
     // Allocates everything through the internal memroot
     alloc.reset(new MEM_ROOT(key_memory_quick_range_select_root,
@@ -76,6 +75,10 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   }
   file = head->file;
   record = head->record[0];
+
+  key_parts = (KEY_PART *)memdup_root(
+      parent_alloc ? parent_alloc : alloc.get(), (const char *)key,
+      sizeof(KEY_PART) * actual_key_parts(&table->key_info[key_nr]));
 }
 
 void QUICK_RANGE_SELECT::need_sorted_output() { mrr_flags |= HA_MRR_SORTED; }
@@ -126,8 +129,8 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
 }
 
 #ifndef NDEBUG
-static void print_multiple_key_values(KEY_PART *key_part, const uchar *key,
-                                      uint used_length) {
+static void print_multiple_key_values(const KEY_PART *key_part,
+                                      const uchar *key, uint used_length) {
   char buff[1024];
   const uchar *key_end = key + used_length;
   String tmp(buff, sizeof(buff), &my_charset_bin);

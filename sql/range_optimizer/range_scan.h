@@ -72,10 +72,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
                              const uchar *base_max_key, uchar *max_key,
                              uint max_key_flag, uint *desc_flag,
                              uint num_key_parts);
-  friend QUICK_RANGE_SELECT *get_quick_select(
-      THD *thd, TABLE *table, KEY_PART *key, uint keyno, uchar *min_key,
-      uchar *max_key, SEL_ROOT *key_tree, uint mrr_flags, uint mrr_buf_size,
-      MEM_ROOT *parent_alloc, uint num_key_parts);
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
@@ -94,14 +90,12 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   /* Members needed to use the MRR interface */
   QUICK_RANGE_SEQ_CTX qr_traversal_ctx;
 
- public:
-  uint mrr_flags; /* Flags to be used with MRR interface */
- protected:
+  uint mrr_flags;    /* Flags to be used with MRR interface */
   uint mrr_buf_size; /* copy from thd->variables.read_rnd_buff_size */
   HANDLER_BUFFER *mrr_buf_desc; /* the handler buffer */
 
   /* Info about index we're scanning */
-  KEY_PART *key_parts;
+  const KEY_PART *key_parts;
   KEY_PART_INFO *key_part_info;
 
   bool dont_free; /* Used by QUICK_SELECT_DESC */
@@ -114,7 +108,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   std::shared_ptr<MEM_ROOT> alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg,
-                     MEM_ROOT *parent_alloc);
+                     MEM_ROOT *parent_alloc, uint mrr_flags, uint mrr_buf_size,
+                     const KEY_PART *key);
   ~QUICK_RANGE_SELECT() override;
 
   void need_sorted_output() override;
@@ -144,6 +139,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
     for (uint i = 0; i < used_key_parts; i++)
       bitmap_set_bit(used_fields, key_parts[i].field->field_index());
   }
+  uint get_mrr_flags() const { return mrr_flags; }
 
  private:
   /* Default copy ctor used by QUICK_SELECT_DESC */

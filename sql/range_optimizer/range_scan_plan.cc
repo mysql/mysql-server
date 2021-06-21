@@ -782,31 +782,27 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
                                      SEL_ROOT *key_tree, uint mrr_flags,
                                      uint mrr_buf_size, MEM_ROOT *parent_alloc,
                                      uint num_key_parts) {
-  QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
 
-  if (table->key_info[keyno].flags & HA_SPATIAL)
-    quick = new QUICK_RANGE_SELECT_GEOM(thd, table, keyno, parent_alloc);
-  else
-    quick = new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc);
+  assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
+         key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
 
-  if (quick) {
-    assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
-           key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
-    if (key_tree->type == SEL_ROOT::Type::KEY_RANGE &&
-        get_quick_keys(quick, key, key_tree->root, min_key, min_key, 0, max_key,
-                       max_key, 0, nullptr, num_key_parts)) {
-      delete quick;
+  std::unique_ptr<QUICK_RANGE_SELECT> quick;
+  if (table->key_info[keyno].flags & HA_SPATIAL) {
+    quick.reset(new QUICK_RANGE_SELECT_GEOM(thd, table, keyno, parent_alloc,
+                                            mrr_flags, mrr_buf_size, key));
+  } else {
+    quick.reset(new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc,
+                                       mrr_flags, mrr_buf_size, key));
+  }
+
+  if (key_tree->type == SEL_ROOT::Type::KEY_RANGE) {
+    if (get_quick_keys(quick.get(), key, key_tree->root, min_key, min_key, 0,
+                       max_key, max_key, 0, nullptr, num_key_parts)) {
       return nullptr;
-    } else {
-      quick->mrr_flags = mrr_flags;
-      quick->mrr_buf_size = mrr_buf_size;
-      quick->key_parts = (KEY_PART *)memdup_root(
-          parent_alloc ? parent_alloc : quick->alloc.get(), (char *)key,
-          sizeof(KEY_PART) * actual_key_parts(&table->key_info[keyno]));
     }
   }
-  return quick;
+  return quick.release();
 }
 
 void TRP_RANGE::trace_basic_info(const PARAM *param,
