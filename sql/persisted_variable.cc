@@ -207,7 +207,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 #endif
 
   int temp_argc = *argc;
-  MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
+  MEM_ROOT alloc{key_memory_persisted_variables, 512};
   char *ptr, **res, *datadir = nullptr;
   char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0};
   const char *dirs = NULL;
@@ -222,7 +222,6 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
        0, nullptr, 0, nullptr}};
 
   /* create temporary args list and pass it to handle_options */
-  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
   if (!(ptr =
             (char *)alloc.Alloc(sizeof(alloc) + (*argc + 1) * sizeof(char *))))
     return 1;
@@ -1206,11 +1205,9 @@ int Persisted_variables_cache::read_persist_file() {
 bool Persisted_variables_cache::append_read_only_variables(
     int *argc, char ***argv, bool plugin_options) {
   Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
-  MEM_ROOT alloc;
+  MEM_ROOT alloc(key_memory_persisted_variables, 512);
 
   if (*argc < 2 || no_defaults || !persisted_globals_load) return false;
-
-  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
 
   /* create a set of values sorted by timestamp */
   std::multiset<st_persist_var, sort_tv_by_timestamp> sorted_vars;

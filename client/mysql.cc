@@ -216,7 +216,7 @@ static const char *month_names[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 static char default_pager[FN_REFLEN];
 static char pager[FN_REFLEN], outfile[FN_REFLEN];
 static FILE *PAGER, *OUTFILE;
-static MEM_ROOT hash_mem_root;
+static MEM_ROOT hash_mem_root(PSI_NOT_INSTRUMENTED, 16384);
 static uint prompt_counter;
 static char delimiter[16] = DEFAULT_DELIMITER;
 static size_t delimiter_length = 1;
@@ -1328,7 +1328,6 @@ int main(int argc, char *argv[]) {
   }
   glob_buffer.mem_realloc((status.batch) ? batch_io_size : 512);
   completion_hash_init(&ht, 128);
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
   global_attrs = new client_query_attributes();
   if (sql_connect(current_host, current_db, current_user, opt_password,

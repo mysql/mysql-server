@@ -10034,7 +10034,6 @@ bool mysql_rm_tmp_tables(void) {
   THD *thd;
   List<LEX_STRING> files;
   List_iterator<LEX_STRING> files_it;
-  MEM_ROOT files_root;
   LEX_STRING *file_str;
   bool result = true;
   DBUG_TRACE;
@@ -10043,7 +10042,7 @@ bool mysql_rm_tmp_tables(void) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &files_root, 32768, 0);
+  MEM_ROOT files_root(PSI_NOT_INSTRUMENTED, 32768);
 
   for (i = 0; i <= mysql_tmpdir_list.max; i++) {
     tmpdir = mysql_tmpdir_list.list[i];

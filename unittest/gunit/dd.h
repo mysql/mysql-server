@@ -416,8 +416,7 @@ inline void set_attributes(dd::Column_statistics *obj,
   value_map.add_values(-1, 10);
   value_map.add_values(1, 10);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   /*
     The Column_statistics object will take over the histogram data and free the

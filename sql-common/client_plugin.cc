@@ -331,7 +331,7 @@ int mysql_client_plugin_init() {
 
   mysql_mutex_init(key_mutex_LOCK_load_client_plugin, &LOCK_load_client_plugin,
                    MY_MUTEX_INIT_SLOW);
-  init_alloc_root(key_memory_root, &mem_root, 128, 128);
+  ::new ((void *)&mem_root) MEM_ROOT(key_memory_root, 128);
 
   memset(&plugin_list, 0, sizeof(plugin_list));
 

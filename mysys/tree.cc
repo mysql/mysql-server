@@ -133,7 +133,8 @@ void init_tree(TREE *tree, ulong memory_limit, int element_size,
     tree->size_of_element += sizeof(void *);
   }
   if (!(tree->with_delete = with_delete)) {
-    init_alloc_root(key_memory_TREE, &tree->mem_root, DEFAULT_ALLOC_SIZE, 0);
+    ::new ((void *)&tree->mem_root)
+        MEM_ROOT(key_memory_TREE, DEFAULT_ALLOC_SIZE);
   }
 }
 

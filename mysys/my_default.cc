@@ -1292,8 +1292,7 @@ void my_print_default_files(const char *conf_file) {
     fputs(conf_file, stdout);
   else {
     const char **dirs;
-    MEM_ROOT alloc;
-    init_alloc_root(key_memory_defaults, &alloc, 512, 0);
+    MEM_ROOT alloc(key_memory_defaults, 512);
 
     if ((dirs = init_default_directories(&alloc)) == nullptr) {
       fputs("Internal error initializing default directories list", stdout);

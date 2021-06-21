@@ -1079,8 +1079,8 @@ static bool plugin_add(MEM_ROOT *tmp_root, LEX_CSTRING name,
         if (plugin_hash[plugin->type]
                 ->emplace(to_string(tmp_plugin_ptr->name), tmp_plugin_ptr)
                 .second) {
-          init_alloc_root(key_memory_plugin_int_mem_root,
-                          &tmp_plugin_ptr->mem_root, 4096, 4096);
+          ::new ((void *)&tmp_plugin_ptr->mem_root)
+              MEM_ROOT(key_memory_plugin_int_mem_root, 4096);
           return false;
         }
         tmp_plugin_ptr->state = PLUGIN_IS_FREED;
@@ -1391,7 +1391,7 @@ static bool plugin_init_internals() {
   init_plugin_psi_keys();
 #endif
 
-  init_alloc_root(key_memory_plugin_mem_root, &plugin_mem_root, 4096, 4096);
+  ::new ((void *)&plugin_mem_root) MEM_ROOT(key_memory_plugin_mem_root, 4096);
 
   bookmark_hash = new malloc_unordered_map<std::string, st_bookmark *>(
       key_memory_plugin_bookmark);
@@ -1489,8 +1489,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
   if ((retval = plugin_init_internals())) return retval;
 
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root;
-  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+  MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
 
   I_List_iterator<i_string> iter(opt_early_plugin_load_list);
   i_string *item;
@@ -1522,8 +1521,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
   assert(!initialized);
 
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root;
-  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+  MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
 
   mysql_mutex_lock(&LOCK_plugin);
   initialized = true;
@@ -1727,8 +1725,7 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING)) {
     /* Allocate the temporary mem root, will be freed before returning */
-    MEM_ROOT tmp_root;
-    init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+    MEM_ROOT tmp_root(key_memory_plugin_init_tmp, 4096);
 
     I_List_iterator<i_string> iter(opt_plugin_load_list);
     i_string *item;
@@ -1739,7 +1736,6 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
       plugin_load(&tmp_root, argc, argv);
 
     /* Temporary mem root not needed anymore, can free it here */
-    tmp_root.Clear();
   } else if (!opt_plugin_load_list.is_empty()) {
     /* Table is always empty at initialize */
     assert(opt_initialize);
@@ -2181,8 +2177,7 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
       initialized = true;
   }
   /* Allocate the temporary mem root, will be freed before returning */
-  MEM_ROOT tmp_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_root, 4096, 4096);
+  MEM_ROOT tmp_root(PSI_NOT_INSTRUMENTED, 4096);
 
   plugin_load_list(&tmp_root, argc, argv, plugin, true);
 

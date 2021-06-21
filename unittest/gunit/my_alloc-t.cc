@@ -90,7 +90,7 @@ const size_t num_iterations = 1ULL;
 class MyAllocTest : public ::testing::TestWithParam<size_t> {
  protected:
   void SetUp() override {
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_root, 1024, 0);
+    ::new ((void *)&m_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 1024);
   }
   void TearDown() override { m_root.Clear(); }
   size_t m_num_objects;
@@ -100,7 +100,7 @@ class MyAllocTest : public ::testing::TestWithParam<size_t> {
 class MyPreAllocTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_prealloc_root, 1024, 2048);
+    ::new ((void *)&m_prealloc_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 1024);
   }
   void TearDown() override { m_prealloc_root.Clear(); }
   size_t m_num_objects;

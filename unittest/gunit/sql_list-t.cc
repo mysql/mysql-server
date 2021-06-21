@@ -110,8 +110,7 @@ TEST_F(SqlListTest, BasicOperations) {
 TEST_F(SqlListTest, DeepCopy) {
   int values[] = {11, 22, 33, 42, 5};
   insert_values(values, &m_int_list);
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 4096, 4096);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 4096);
   List<int> list_copy(m_int_list, &mem_root);
   EXPECT_EQ(list_copy.elements, m_int_list.elements);
   while (!list_copy.is_empty()) {

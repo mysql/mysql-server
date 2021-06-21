@@ -1025,8 +1025,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
       The MEM_ROOT is transferred to the dictionary object when
       histogram->store_histogram is called.
     */
-    MEM_ROOT local_mem_root;
-    init_alloc_root(key_memory_histograms, &local_mem_root, 256, 0);
+    MEM_ROOT local_mem_root(key_memory_histograms, 256);
 
     std::string col_name(field->field_name);
     histograms::Histogram *histogram =

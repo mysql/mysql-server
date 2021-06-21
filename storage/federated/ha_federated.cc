@@ -1448,7 +1448,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   Field **field;
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
   FEDERATED_SHARE *share = nullptr, tmp_share;
-  MEM_ROOT mem_root;
   DBUG_TRACE;
 
   /*
@@ -1457,7 +1456,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table) {
   */
   query.length(0);
 
-  init_alloc_root(fe_key_memory_federated_share, &mem_root, 256, 0);
+  MEM_ROOT mem_root(fe_key_memory_federated_share, 256);
 
   mysql_mutex_lock(&federated_mutex);
 

@@ -1125,7 +1125,8 @@ Thd_ndb::Thd_ndb(THD *thd)
       global_schema_lock_count(0),
       global_schema_lock_error(0),
       schema_locks_count(0),
-      m_last_commit_epoch_session(0) {
+      m_last_commit_epoch_session(0),
+      m_batch_mem_root(PSI_INSTRUMENT_ME, BATCH_FLUSH_SIZE / 4) {
   connection = ndb_get_cluster_connection();
   m_connect_count = connection->get_connect_count();
   ndb = new Ndb(connection, "");
@@ -1142,9 +1143,6 @@ Thd_ndb::Thd_ndb(THD *thd)
   m_pushed_queries_dropped = 0;
   m_pushed_queries_executed = 0;
   m_pushed_reads = 0;
-
-  init_alloc_root(PSI_INSTRUMENT_ME, &m_batch_mem_root, BATCH_FLUSH_SIZE / 4,
-                  0);
 }
 
 Thd_ndb::~Thd_ndb() {

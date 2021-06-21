@@ -105,12 +105,10 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
 
   rawmem = pointer_cast<Entries_array *>(buffer + ALIGN_SIZE(sizeof(MY_DIR)));
   dir_entries_storage = new (rawmem) Entries_array(key_memory_MY_DIR);
-  names_storage = (MEM_ROOT *)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                               ALIGN_SIZE(sizeof(Entries_array)));
-
-  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE,
-                  NAMES_START_SIZE);
-
+  names_storage = new (buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                       ALIGN_SIZE(sizeof(Entries_array)))
+      MEM_ROOT(key_memory_MY_DIR, NAMES_START_SIZE);
+  ;
   /* MY_DIR structure is allocated and completly initialized at this point */
   result = (MY_DIR *)buffer;
 
@@ -219,11 +217,9 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
 
   rawmem = buffer + ALIGN_SIZE(sizeof(MY_DIR));
   dir_entries_storage = new (rawmem) Entries_array(key_memory_MY_DIR);
-  names_storage = pointer_cast<MEM_ROOT *>(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
-                                           ALIGN_SIZE(sizeof(Entries_array)));
-
-  init_alloc_root(key_memory_MY_DIR, names_storage, NAMES_START_SIZE,
-                  NAMES_START_SIZE);
+  names_storage = new (buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
+                       ALIGN_SIZE(sizeof(Entries_array)))
+      MEM_ROOT(key_memory_MY_DIR, NAMES_START_SIZE);
 
   /* MY_DIR structure is allocated and completly initialized at this point */
   result = (MY_DIR *)buffer;

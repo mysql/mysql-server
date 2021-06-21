@@ -58,7 +58,7 @@ class Column_statistics_impl final : public Entity_object_impl,
  public:
   Column_statistics_impl()
       : m_schema_name(), m_table_name(), m_column_name(), m_histogram(nullptr) {
-    init_alloc_root(key_memory_DD_column_statistics, &m_mem_root, 256, 0);
+    ::new ((void *)&m_mem_root) MEM_ROOT(key_memory_DD_column_statistics, 256);
   }
 
  private:
@@ -69,7 +69,7 @@ class Column_statistics_impl final : public Entity_object_impl,
         m_table_name(column_statistics.m_table_name),
         m_column_name(column_statistics.m_column_name),
         m_histogram(nullptr) {
-    init_alloc_root(key_memory_DD_column_statistics, &m_mem_root, 256, 0);
+    ::new ((void *)&m_mem_root) MEM_ROOT(key_memory_DD_column_statistics, 256);
 
     if (column_statistics.m_histogram != nullptr)
       m_histogram = column_statistics.m_histogram->clone(&m_mem_root);

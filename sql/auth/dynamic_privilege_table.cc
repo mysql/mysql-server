@@ -105,7 +105,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     return true;
   }
   int read_rec_errcode;
-  MEM_ROOT tmp_mem;
+  MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 256);
   char percentile_character[2] = {'%', '\0'};
   char empty_str = '\0';
   /*
@@ -119,7 +119,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     if (!service.is_valid()) {
       return true;
     }
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
     while (!error && !(read_rec_errcode = iterator->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);

@@ -530,7 +530,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   memset(&ftb->no_dupes, 0, sizeof(TREE));
   ftb->last_word = nullptr;
 
-  init_alloc_root(PSI_INSTRUMENT_ME, &ftb->mem_root, 1024, 1024);
+  ::new ((void *)&ftb->mem_root) MEM_ROOT(PSI_INSTRUMENT_ME, 1024);
   ftb->queue.max_elements = 0;
   if (!(ftbe = (FTB_EXPR *)ftb->mem_root.Alloc(sizeof(FTB_EXPR)))) goto err;
   ftbe->weight = 1;

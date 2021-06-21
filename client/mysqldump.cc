@@ -4840,7 +4840,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
 static int dump_selected_tables(char *db, char **table_names, int tables) {
   char table_buff[NAME_LEN * 2 + 3];
   DYNAMIC_STRING lock_tables_query;
-  MEM_ROOT root;
+  MEM_ROOT root(PSI_NOT_INSTRUMENTED, 8192);
   char **dump_tables, **pos, **end;
   DBUG_TRACE;
 
@@ -4849,7 +4849,6 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
 
   if (init_dumping(db, init_dumping_tables)) return 1;
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &root, 8192, 0);
   if (!(dump_tables = pos = (char **)root.Alloc(tables * sizeof(char *))))
     die(EX_EOM, "alloc_root failure.");
 

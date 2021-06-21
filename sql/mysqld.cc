@@ -5422,18 +5422,19 @@ static bool initialize_storage_engine(const char *se_name, const char *se_kind,
 }
 
 static void setup_error_log() {
-/* Setup logs */
+  /* Setup logs */
 
-/*
-        Enable old-fashioned error log, except when the user has requested
-        help information. Since the implementation of plugin server
-        variables the help output is now written much later.
+  /*
+    Enable old-fashioned error log, except when the user has requested
+    help information. Since the implementation of plugin server
+    variables the help output is now written much later.
 
-        log_error_dest can be:
-        disabled_my_option     --log-error was not used or --log-error=
-        ""                     --log-error without arguments (no '=')
-        filename               --log-error=filename
-*/
+    log_error_dest can be:
+    disabled_my_option     --log-error was not used or --log-error=
+    ""                     --log-error without arguments (no '=')
+    filename               --log-error=filename
+   */
+
 #ifdef _WIN32
   /*
     Enable the error log file only if console option is not specified
@@ -9449,8 +9450,7 @@ static bool operator<(const my_option &a, const my_option &b) {
 }
 
 static void print_help() {
-  MEM_ROOT mem_root;
-  init_alloc_root(key_memory_help, &mem_root, 4096, 4096);
+  MEM_ROOT mem_root(key_memory_help, 4096);
 
   all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);

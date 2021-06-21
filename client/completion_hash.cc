@@ -53,7 +53,7 @@ int completion_hash_init(HashTable *ht, uint nSize) {
     ht->initialized = 0;
     return FAILURE;
   }
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &ht->mem_root, 8192, 0);
+  ::new ((void *)&ht->mem_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192);
   ht->pHashFunction = hashpjw;
   ht->nTableSize = nSize;
   ht->initialized = 1;

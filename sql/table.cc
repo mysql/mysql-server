@@ -4043,10 +4043,9 @@ ulonglong TABLE_SHARE::get_table_ref_version() const {
   return table_map_id.id();
 }
 
-Blob_mem_storage::Blob_mem_storage() : truncated_value(false) {
-  init_alloc_root(key_memory_blob_mem_storage, &storage,
-                  MAX_FIELD_VARCHARLENGTH, 0);
-}
+Blob_mem_storage::Blob_mem_storage()
+    : storage(key_memory_blob_mem_storage, MAX_FIELD_VARCHARLENGTH),
+      truncated_value(false) {}
 
 Blob_mem_storage::~Blob_mem_storage() { storage.Clear(); }
 

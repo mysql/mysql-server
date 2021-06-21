@@ -223,8 +223,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     ACL_USER *acl_role;
     ACL_USER *acl_user;
     int read_rec_errcode;
-    MEM_ROOT tmp_mem;
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
+    MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 128);
     g_authid_to_vertex->clear();
     g_granted_roles->clear();
     while (!(read_rec_errcode = iterator->Read())) {

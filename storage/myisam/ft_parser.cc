@@ -333,8 +333,8 @@ MYSQL_FTPARSER_PARAM *ftparser_alloc_param(MI_INFO *info) {
         mi_key_memory_FTPARSER_PARAM,
         MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) * info->s->ftkeys,
         MYF(MY_WME | MY_ZEROFILL));
-    init_alloc_root(mi_key_memory_ft_memroot, &info->ft_memroot,
-                    FTPARSER_MEMROOT_ALLOC_SIZE, 0);
+    ::new ((void *)&info->ft_memroot)
+        MEM_ROOT(mi_key_memory_ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE);
   }
   return info->ftparser_param;
 }

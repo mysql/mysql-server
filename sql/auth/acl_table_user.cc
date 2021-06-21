@@ -2277,10 +2277,9 @@ USER statement is issued.
 bool read_user_application_user_metadata_from_table(
     const LEX_CSTRING user, const LEX_CSTRING host, String *metadata_str,
     TABLE *table, bool mode_no_backslash_escapes) {
-  MEM_ROOT tmp_mem;
+  MEM_ROOT tmp_mem(PSI_NOT_INSTRUMENTED, 256);
   char null_token[5] = {'n', 'u', 'l', 'l', '\0'};
   uchar user_key[MAX_KEY_LENGTH];
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
   if (table->file->ha_index_init(0, false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);

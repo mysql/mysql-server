@@ -1382,9 +1382,9 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       break;
 
     /*
-            No server reply is expected after these commands so we reamin ready
-            for the next command.
-*/
+            No server reply is expected after these commands so we reamin
+            ready for the next command.
+     */
     case COM_STMT_SEND_LONG_DATA:
     case COM_STMT_CLOSE:
     case COM_REGISTER_SLAVE:
@@ -1394,7 +1394,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     /*
             These replication commands are not supported and we bail out
             by pretending that connection has been closed.
-    */
+     */
     case COM_BINLOG_DUMP:
     case COM_BINLOG_DUMP_GTID:
     case COM_TABLE_DUMP:
@@ -1404,7 +1404,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     /*
             After COM_CHANGE_USER a regular authentication exchange
             is performed.
-    */
+     */
     case COM_CHANGE_USER:
       MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
       break;
@@ -1412,15 +1412,15 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     /*
             Server replies to COM_STATISTICS with a single packet
             containing a string with statistics information.
-    */
+     */
     case COM_STATISTICS:
       MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
       break;
 
     /*
-            For all other commands we expect server to send regular reply which
-            is either OK, ERR or a result-set header.
-    */
+            For all other commands we expect server to send regular reply
+            which is either OK, ERR or a result-set header.
+     */
     default:
       MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
       break;
@@ -1568,8 +1568,6 @@ void free_old_query(MYSQL *mysql) {
   DBUG_TRACE;
   if (mysql->field_alloc) {
     mysql->field_alloc->Clear();
-    init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
-                    0); /* Assume rowlength < 8192 */
   }
   mysql->fields = nullptr;
   mysql->field_count = 0; /* For API */
@@ -2623,14 +2621,13 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
 
 static int alloc_field_alloc(MYSQL *mysql) {
   if (mysql->field_alloc == nullptr) {
-    mysql->field_alloc = (MEM_ROOT *)my_malloc(
-        key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME | MY_ZEROFILL));
+    mysql->field_alloc =
+        new (my_malloc(key_memory_MYSQL, sizeof(MEM_ROOT), MYF(MY_WME)))
+            MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192); /* Assume rowlength < 8192 */
     if (mysql->field_alloc == nullptr) {
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 1;
     }
-    init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
-                    0); /* Assume rowlength < 8192 */
   }
   /* At this point the NET is receiving a resultset. max packet should be set */
   assert(mysql->net.max_packet_size != 0);
@@ -2826,8 +2823,8 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
       return NET_ASYNC_COMPLETE;
     }
     async_context->rows_result_buffer = result;
-    init_alloc_root(PSI_NOT_INSTRUMENTED, result->alloc, 8192,
-                    0); /* Assume rowlength < 8192 */
+    ::new ((void *)result->alloc)
+        MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192); /* Assume rowlength < 8192 */
     async_context->prev_row_ptr = &result->data;
     result->rows = 0;
     result->fields = fields;
@@ -2949,8 +2946,8 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
     free_rows(result);
     return nullptr;
   }
-  init_alloc_root(PSI_NOT_INSTRUMENTED, result->alloc, 8192,
-                  0); /* Assume rowlength < 8192 */
+  ::new ((void *)result->alloc)
+      MEM_ROOT(PSI_NOT_INSTRUMENTED, 8192); /* Assume rowlength < 8192 */
   prev_ptr = &result->data;
   result->rows = 0;
   result->fields = fields;

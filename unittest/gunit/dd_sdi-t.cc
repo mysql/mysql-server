@@ -341,8 +341,7 @@ TEST(SdiTest, Column_statistics) {
   std::unique_ptr<dd::Column_statistics> dd_obj(
       dd::create_object<dd::Column_statistics>());
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   mock_column_statistics_obj(dd_obj.get(), &mem_root);
 

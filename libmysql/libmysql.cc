@@ -1380,8 +1380,8 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
     return nullptr;
   }
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->mem_root, 2048, 2048);
-  init_alloc_root(PSI_NOT_INSTRUMENTED, stmt->result.alloc, 4096, 4096);
+  ::new ((void *)stmt->mem_root) MEM_ROOT(PSI_NOT_INSTRUMENTED, 2048);
+  ::new ((void *)stmt->result.alloc) MEM_ROOT(PSI_NOT_INSTRUMENTED, 4096);
   mysql->stmts = list_add(mysql->stmts, &stmt->list);
   stmt->list.data = stmt;
   stmt->state = MYSQL_STMT_INIT_DONE;
@@ -1391,8 +1391,8 @@ MYSQL_STMT *STDCALL mysql_stmt_init(MYSQL *mysql) {
   my_stpcpy(stmt->sqlstate, not_error_sqlstate);
   /* The rest of statement members was zeroed inside malloc */
 
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &stmt->extension->fields_mem_root, 2048,
-                  0);
+  ::new ((void *)&stmt->extension->fields_mem_root)
+      MEM_ROOT(PSI_NOT_INSTRUMENTED, 2048);
 
   return stmt;
 }

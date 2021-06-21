@@ -777,8 +777,8 @@ st_ndb_slave_state::st_ndb_slave_state()
 
   /* Init conflict handling state memroot */
   const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
-  init_alloc_root(PSI_INSTRUMENT_ME, &conflict_mem_root,
-                  CONFLICT_MEMROOT_BLOCK_SIZE, 0);
+  ::new ((void *)&conflict_mem_root)
+      MEM_ROOT(PSI_INSTRUMENT_ME, CONFLICT_MEMROOT_BLOCK_SIZE);
 }
 
 st_ndb_slave_state::~st_ndb_slave_state() {}
