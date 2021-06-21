@@ -6920,26 +6920,30 @@ bool Query_block::transform_subquery_to_derived(
 }
 
 /**
-  Called (before transforming a correlated subquery to derived table)
-  to check if the predicate that is being looked into is an equality and
-  that its non-correlated operand is a simple column reference.
-  (Else we need to group on expressions in the derived table -
-  not supported currently).
+  Called to check if the provided correlated predicate is eligible for
+  transformation. To be eligible, it must have one non-correlated operand
+  and one correlated operand, and the non-correlated operand must be a
+  simple column reference (Else we need to group on expressions in the
+  derived table - not supported currently).
   @param  cor_pred correlated predicate that needs to be examined
-  @return true if the check fails, false otherwise.
+  @return true if predicate is eligible for transformation.
 */
-bool check_predicate_and_args(Item *cor_pred) {
+bool is_correlated_predicate_eligible(Item *cor_pred) {
+  assert(cor_pred->is_outer_reference());
   if (cor_pred->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
-    return true;
+    return false;
   Item_func *eq_func = down_cast<Item_func *>(cor_pred);
+  bool non_correlated_operand = false;
   for (uint i = 0; i < eq_func->argument_count(); i++) {
     Item *item = eq_func->arguments()[i];
-    if (!item->is_outer_reference() &&
-        item->real_item()->type() != Item::FIELD_ITEM)
-      return true;
+    if (!item->is_outer_reference()) {
+      if (item->real_item()->type() != Item::FIELD_ITEM) return false;
+      non_correlated_operand = true;
+    }
   }
-  return false;
+  // We need to find one non-correlated operand in the correlated predicate
+  return non_correlated_operand;
 }
 
 /**
@@ -6990,7 +6994,7 @@ static bool extract_correlated_condition(THD *thd, Item **cond,
         else if (!cor_pred->eq(pred, false))
           continue;
         found = true;
-        if (check_predicate_and_args(cor_pred)) return true;
+        if (!is_correlated_predicate_eligible(cor_pred)) return true;
         break;
       }
     }
@@ -7215,7 +7219,7 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
         cor_pred = cond_part;
         cond_part = nullptr;
       }
-      if (check_predicate_and_args(cor_pred)) return false;
+      if (!is_correlated_predicate_eligible(cor_pred)) return false;
       going.push_back(cor_pred);
     }
     if (cond_part) staying.push_back(cond_part);
@@ -7226,7 +7230,7 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
   // expression containing this outer reference is not marked as such due to
   // some optimizations. Reject such queries for transformation (Since we
   // anyways reject queries with non-correlated operands having expressions in
-  // check_predicate_and_args())
+  // is_correlated_predicate_eligible())
   if (going.elements == 0) return false;
 
   // Construct a new, reduced, WHERE clause sans the lifted predicates, which
