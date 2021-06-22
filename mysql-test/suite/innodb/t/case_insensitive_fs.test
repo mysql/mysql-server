@@ -85,3 +85,8 @@ DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP TABLESPACE ts3;
 
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+--rmdir $KNOWN_DIR_LC/test
+--rmdir $KNOWN_DIR_LC
+
