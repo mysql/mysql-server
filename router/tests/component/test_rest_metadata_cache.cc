@@ -800,7 +800,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 
     {"metadata_status_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -812,7 +813,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 
     {"metadata_config_invalid_methods",
      std::string(rest_api_basepath) + "/metadata/" +
@@ -824,7 +826,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kMetadataSwaggerPaths},
 };
 
 INSTANTIATE_TEST_SUITE_P(

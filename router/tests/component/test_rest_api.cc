@@ -293,7 +293,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      kRestApiUsername,
      kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed,
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
      {}},
 };
 
@@ -320,7 +320,7 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
      /*username =*/"",
      /*password =*/"",
      /*request_authentication =*/false,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed,
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
      {}},
 };
 
