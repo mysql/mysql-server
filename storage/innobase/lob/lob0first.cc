@@ -303,9 +303,11 @@ void first_page_t::free_all_data_pages() {
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
 
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 }
 
@@ -332,9 +334,11 @@ void first_page_t::free_all_index_pages() {
     set_next_page(next_page, &local_mtr);
     index_page.dealloc();
 
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
 
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 }
 
