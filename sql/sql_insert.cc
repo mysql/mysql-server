@@ -3185,8 +3185,6 @@ bool Query_result_create::send_eof(THD *thd) {
   if (error)
     abort_result_set(thd);
   else {
-    bool commit_error = false;
-
     DBUG_EXECUTE_IF("crash_after_create_select_insert", DBUG_SUICIDE(););
     /*
       Do an implicit commit at end of statement for non-temporary tables.
@@ -3199,29 +3197,19 @@ bool Query_result_create::send_eof(THD *thd) {
     */
     if (!table->s->tmp_table) {
       thd->get_stmt_da()->set_overwrite_status(true);
-      commit_error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
+      error = trans_commit_stmt(thd) || trans_commit_implicit(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
     }
 
-    if (m_plock) {
+    if (!error && m_plock) {
       mysql_unlock_tables(thd, *m_plock);
       *m_plock = nullptr;
       m_plock = nullptr;
     }
 
-    if (commit_error) {
-      assert(!table->s->tmp_table);
-      assert(table == thd->open_tables);
-      close_thread_table(thd, &thd->open_tables);
-      /*
-        Remove TABLE and TABLE_SHARE objects for the table which creation
-        might have been rolled back from the caches.
-      */
-      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, create_table->db,
-                       create_table->table_name, false);
+    if (!error && m_post_ddl_ht) {
+      m_post_ddl_ht->post_ddl(thd);
     }
-
-    if (m_post_ddl_ht) m_post_ddl_ht->post_ddl(thd);
 
     fk_invalidator.invalidate(thd);
   }
