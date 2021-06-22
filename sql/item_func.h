@@ -4018,4 +4018,7 @@ void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 
 extern bool volatile mqh_used;
 
+/// Checks if "item" is a function of the specified type.
+bool IsFuncType(const Item *item, Item_func::Functype type);
+
 #endif /* ITEM_FUNC_INCLUDED */

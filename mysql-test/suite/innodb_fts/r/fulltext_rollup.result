@@ -1,0 +1,44 @@
+#
+# Bug#32996762: WRONG RESULT FOR FULL-TEXT MATCH FUNCTION ON ROLLUP COLUMN
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('abc'), ('abc abc');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT a, MATCH (a) AGAINST ('abc') FROM t GROUP BY a WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+DROP TABLE t;
+#
+# Bug#32565923: WRONG RESULT WITH ROLLUP ON FULL-TEXT FUNCTION
+#
+CREATE TABLE t (a varchar(10), FULLTEXT (a));
+INSERT INTO t VALUES ('abc'), ('xyz');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT MATCH (a) AGAINST ('abc') AS score, a FROM t
+GROUP BY score, a WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+DROP TABLE t;
+#
+# WL#14697: Reject calls to MATCH with rollup column as argument
+#
+CREATE TABLE t (id INTEGER PRIMARY KEY, a VARCHAR(10), FULLTEXT (a));
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY a WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY id, a WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT MATCH (a) AGAINST ('abc') FROM t GROUP BY a, id WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT 1 FROM t GROUP BY a, MATCH (a) AGAINST ('abc') WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT 1 FROM t GROUP BY MATCH (a) AGAINST ('abc'), a WITH ROLLUP;
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT 1 FROM t GROUP BY a WITH ROLLUP HAVING MATCH (a) AGAINST ('abc');
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT 1 FROM t GROUP BY a WITH ROLLUP ORDER BY MATCH (a) AGAINST ('abc');
+ERROR HY000: MATCH does not support ROLLUP columns.
+SELECT 1 FROM t WHERE MATCH (a) AGAINST ('abc') GROUP BY a WITH ROLLUP;
+1
+DROP TABLE t;

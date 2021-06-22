@@ -7876,7 +7876,16 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
 }
 
 double Item_func_match::val_real() {
-  assert(fixed == 1);
+  assert(fixed);
+
+  // MATCH only knows how to get the score for base columns. Other types of
+  // expressions (such as function calls or rollup columns) should have been
+  // rejected during resolving.
+  assert(!has_rollup_expr());
+  assert(std::all_of(args, args + arg_count, [](const Item *item) {
+    return item->real_item()->type() == FIELD_ITEM;
+  }));
+
   DBUG_TRACE;
   if (ft_handler == nullptr) return -1.0;
 
@@ -10000,4 +10009,9 @@ bool Item_func::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
     }
   }
   return false;
+}
+
+bool IsFuncType(const Item *item, Item_func::Functype type) {
+  return item->type() == Item::FUNC_ITEM &&
+         down_cast<const Item_func *>(item)->functype() == type;
 }

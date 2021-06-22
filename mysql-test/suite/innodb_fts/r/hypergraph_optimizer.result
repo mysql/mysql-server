@@ -80,13 +80,7 @@ score
 NULL
 SELECT MATCH (x) AGAINST ('abc') AS score, x FROM t
 GROUP BY x WITH ROLLUP ORDER BY score, x;
-score	x
-0	NULL
-0	NULL
-0	xyz
-0.0492168664932251	abc
-0.0492168664932251	abc xyz
-0.0984337329864502	abc abc
+ERROR HY000: MATCH does not support ROLLUP columns.
 SELECT ANY_VALUE(x), MATCH (x) AGAINST ('abc') AS score
 FROM t
 WHERE x IN ('abc', 'abc abc', 'xyz')

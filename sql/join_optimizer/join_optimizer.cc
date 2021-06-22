@@ -2801,23 +2801,6 @@ void CollectItemsToMaterializeForFullTextAggregation(
   CompileItem(
       root,
       [items](Item *item) {
-        // First, unconditionally materialize any call to the MATCH function.
-        // This would usually be done anyways by the "else" branch in the if
-        // statement below. But not if the argument of the MATCH function is a
-        // rollup group item. When the argument is a rollup item, we can either
-        // materialize the inside of the rollup item and get right result for
-        // the rollup group (but not the other groups), or materialize the MATCH
-        // function and get the right result for the non-rollup groups (but not
-        // for the rollup group). We cannot get both right currently. The old
-        // optimizer has the same problem, see bug#32996762.
-        if (item->type() == Item::FUNC_ITEM) {
-          Item_func::Functype type = down_cast<Item_func *>(item)->functype();
-          if (type == Item_func::FT_FUNC || type == Item_func::MATCH_FUNC) {
-            items->push_back(item);
-            return false;
-          }
-        }
-
         if (item->has_aggregation()) {
           // Since we materialize before aggregation, we cannot materialize
           // items that depend on an aggregated value. But we can look inside
