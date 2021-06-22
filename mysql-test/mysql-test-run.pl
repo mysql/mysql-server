@@ -4286,7 +4286,7 @@ sub check_testcase($$) {
   my %started;
   foreach my $mysqld (mysqlds()) {
     # Skip if server has been restarted with additional options
-    if (defined $mysqld->{'proc'}){
+    if (defined $mysqld->{'proc'} && !exists $mysqld->{'restart_opts'}) {
       my $proc = start_check_testcase($tinfo, $mode, $mysqld);
       $started{ $proc->pid() } = $proc;
     }

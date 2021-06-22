@@ -51,6 +51,4 @@ include/gr_assert_secondary_member.inc
 # 9. Cleanup
 [connection server2]
 DROP TABLE t1;
-[connection server3]
-DROP TABLE t1;
 include/group_replication_end.inc
