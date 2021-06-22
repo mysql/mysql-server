@@ -467,8 +467,8 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
     const auto time_diff =
         std::chrono::duration_cast<std::chrono::microseconds>(end - start)
             .count();
-    ib::info() << "Time taken to initialize rseg using "
-               << srv_rseg_init_threads << " thread: " << time_diff << " ms.";
+    ib::info(ER_IB_MSG_PAR_RSEG_INIT_TIME_MSG, srv_rseg_init_threads,
+             (uint32_t)time_diff);
   }
 
   mtr_t mtr;
