@@ -19,5 +19,6 @@ include/start_slave.inc
 include/assert.inc [time between last reconnection and the reconnection before that should be >= replica_net_timeout]
 set @@global.general_log = @save_general_log;
 set @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
 set @@global.replica_net_timeout = @save_replica_net_timeout;
 include/rpl_end.inc

@@ -84,6 +84,7 @@ while ($timeout)
 connection master;
 set @@global.general_log = @save_general_log;
 set @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
 connection slave;
 set @@global.replica_net_timeout = @save_replica_net_timeout;
 
