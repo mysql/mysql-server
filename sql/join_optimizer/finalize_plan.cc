@@ -46,6 +46,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/table.h"
@@ -245,6 +246,7 @@ static Temp_table_param *GetItemsToCopy(AccessPath *path) {
 /// See FinalizePlanForQueryBlock().
 static void UpdateReferencesToMaterializedItems(
     THD *thd, Query_block *query_block, AccessPath *path,
+    bool after_aggregation,
     Mem_root_array<const Func_ptr_array *> *applied_replacements) {
   JOIN *join = query_block->join;
   const mem_root_deque<Item *> *original_fields = join->fields;
@@ -267,6 +269,28 @@ static void UpdateReferencesToMaterializedItems(
       ReplaceUpdateValuesWithTempTableFields(
           down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd), query_block,
           *original_fields, *join->fields);
+    }
+    if (after_aggregation) {
+      // Due to the use of Item_aggregate_ref, we can effectively sometimes have
+      // sum_func(rollup_wrapper(rollup_wrapper(x), n), n)), and
+      // ReplaceSelectListWithTempTableFields() will only be able to remove the
+      // inner one. This can be problematic for buffering window functions,
+      // which need to be able to load back old values for x and reevaluate
+      // the expression -- but it is not able to load back the state of the
+      // rollup functions, so we get inconsistency.
+      //
+      // Thus, unwrap the remaining layer here.
+      const auto replace_functor = [](Item *sub_item, Item *,
+                                      unsigned) -> ReplaceResult {
+        if (is_rollup_group_wrapper(sub_item)) {
+          return {ReplaceResult::REPLACE, unwrap_rollup_group(sub_item)};
+        } else {
+          return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+        }
+      };
+      for (Item *item : *join->fields) {
+        WalkAndReplace(thd, item, replace_functor);
+      }
     }
   } else if (path->type == AccessPath::SORT) {
     assert(path->sort().filesort == nullptr);
@@ -513,8 +537,8 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                                     &last_window_temp_table, &num_windows_seen);
 
         const mem_root_deque<Item *> *original_fields = join->fields;
-        UpdateReferencesToMaterializedItems(thd, query_block, path,
-                                            &applied_replacements);
+        UpdateReferencesToMaterializedItems(
+            thd, query_block, path, after_aggregation, &applied_replacements);
         if (path->type == AccessPath::WINDOW) {
           FinalizeWindowPath(thd, query_block, *original_fields,
                              applied_replacements, path);
