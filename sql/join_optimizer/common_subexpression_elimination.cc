@@ -25,7 +25,6 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_list.h"
 #include "template_utils.h"
 
@@ -44,6 +43,18 @@ bool IsOr(const Item *item) {
   return item->type() == Item::COND_ITEM &&
          down_cast<const Item_cond *>(item)->functype() ==
              Item_func::COND_OR_FUNC;
+}
+
+Item *CreateConjunction(List<Item> &items) {
+  assert(!items.is_empty());
+  if (items.size() == 1) {
+    return items.head();
+  }
+
+  Item_cond_and *item_and = new Item_cond_and(items);
+  item_and->update_used_tables();
+  item_and->quick_fix_field();
+  return item_and;
 }
 
 /**
@@ -151,7 +162,7 @@ Item *OrGroupWithSomeRemoved(Item_cond_or *or_item,
         // True.
         return nullptr;
       } else {
-        new_args.push_back(CreateConjunction(&and_args));
+        new_args.push_back(CreateConjunction(and_args));
       }
     } else if (IsOr(&item)) {
       Item *new_item = OrGroupWithSomeRemoved(down_cast<Item_cond_or *>(&item),
@@ -221,6 +232,5 @@ Item *CommonSubexpressionElimination(Item *cond) {
   if (remainder != nullptr) {
     common_items.push_back(remainder);
   }
-  assert(!common_items.is_empty());
-  return CreateConjunction(&common_items);
+  return CreateConjunction(common_items);
 }

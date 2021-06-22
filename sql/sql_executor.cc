@@ -74,7 +74,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/join_optimizer/cost_model.h"
+#include "sql/join_optimizer/estimate_filter_cost.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -755,20 +755,6 @@ static bool ContainsAnyMRRPaths(AccessPath *path) {
   return any_mrr_paths;
 }
 
-Item *CreateConjunction(List<Item> *items) {
-  if (items->size() == 0) {
-    return nullptr;
-  } else if (items->size() == 1) {
-    return items->head();
-  } else {
-    Item *condition = new Item_cond_and(*items);
-    condition->quick_fix_field();
-    condition->update_used_tables();
-    condition->apply_is_true();
-    return condition;
-  }
-}
-
 /**
   Return a new iterator that wraps "iterator" and that tests all of the given
   conditions (if any), ANDed together. If there are no conditions, just return
@@ -801,9 +787,16 @@ AccessPath *PossiblyAttachFilter(AccessPath *path,
     }
   }
 
-  Item *condition = CreateConjunction(&items);
-  if (condition == nullptr) {
+  Item *condition = nullptr;
+  if (items.size() == 0) {
     return path;
+  } else if (items.size() == 1) {
+    condition = items.head();
+  } else {
+    condition = new Item_cond_and(items);
+    condition->quick_fix_field();
+    condition->update_used_tables();
+    condition->apply_is_true();
   }
   *conditions_depend_on_outer_tables |= condition->used_tables();
 
@@ -1531,7 +1524,7 @@ AccessPath *GetAccessPathForDerivedTable(
         query_expression->offset_limit_cnt == 0
             ? query_expression->m_reject_multiple_rows
             : false);
-    EstimateMaterializeCost(thd, path);
+    EstimateMaterializeCost(path);
     path = MoveCompositeIteratorsFromTablePath(path);
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
@@ -1573,16 +1566,12 @@ AccessPath *GetAccessPathForDerivedTable(
         query_expression,
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         query_expression->m_reject_multiple_rows);
-    EstimateMaterializeCost(thd, path);
+    EstimateMaterializeCost(path);
     path = MoveCompositeIteratorsFromTablePath(path);
   }
 
   path->cost_before_filter = path->cost;
   path->num_output_rows_before_filter = path->num_output_rows;
-
-  if (rematerialize) {
-    path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
-  }
 
   table_ref->access_path_for_derived = path;
   return path;
@@ -1673,7 +1662,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         /*ref_slice=*/-1, qep_tab->rematerialize,
         sjm->table_param.end_write_records,
         /*reject_multiple_rows=*/false);
-    EstimateMaterializeCost(thd, table_path);
+    EstimateMaterializeCost(table_path);
 
 #ifndef NDEBUG
     // Make sure we clear this table out when the join is reset,
@@ -2895,7 +2884,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(thd, path);
+        EstimateMaterializeCost(path);
       }
     }
   } else {
@@ -3073,7 +3062,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*ref_slice=*/-1,
             /*rematerialize=*/true, tmp_table_param.end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(thd, path);
+        EstimateMaterializeCost(path);
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewTemptableAggregateAccessPath(
@@ -3119,7 +3108,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(thd, path);
+        EstimateMaterializeCost(path);
       }
     }
 

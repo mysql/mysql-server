@@ -24,10 +24,9 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <algorithm>
 #include <array>
-#include <bitset>
+#include <functional>
 #include <initializer_list>
 #include <string>
 #include <unordered_map>
@@ -35,68 +34,54 @@
 #include <vector>
 
 #include "ft_global.h"
-#include "map_helpers.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_bitmap.h"
+#include "my_bit.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "sql/field.h"
 #include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
-#include "sql/item_func.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
-#include "sql/join_optimizer/build_interesting_orders.h"
-#include "sql/join_optimizer/cost_model.h"
+#include "sql/join_optimizer/estimate_filter_cost.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
+#include "sql/join_optimizer/explain_access_path.h"
+#include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/interesting_orders.h"
-#include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
-#include "sql/join_optimizer/node_map.h"
-#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/replace_item.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
-#include "sql/join_type.h"
-#include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/sql_array.h"
-#include "sql/sql_bitmap.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_insert.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_planner.h"
+#include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
-#include "sql/temp_table_param.h"
-#include "sql/window.h"
-#include "template_utils.h"
-
-namespace hypergraph {
-struct Hyperedge;
-struct Hypergraph;
-}  // namespace hypergraph
 
 using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
@@ -106,18 +91,71 @@ using std::bitset;
 using std::min;
 using std::string;
 using std::swap;
+using std::vector;
 
 namespace {
 
+// These are extremely arbitrary cost model constants. We should revise them
+// based on actual query times (possibly using linear regression?), and then
+// put them into the cost model to make them user-tunable. However, until
+// we've fixed some glaring omissions such as lack of understanding of initial
+// cost, any such estimation will be dominated by outliers/noise.
+constexpr double kApplyOneFilterCost = 0.1;
+constexpr double kAggregateOneRowCost = 0.1;
+constexpr double kSortOneRowCost = 0.1;
+constexpr double kHashBuildOneRowCost = 0.1;
+constexpr double kHashProbeOneRowCost = 0.1;
+constexpr double kHashReturnOneRowCost = 0.07;
+constexpr double kMaterializeOneRowCost = 0.1;
+
 using OrderingSet = std::bitset<kMaxSupportedOrderings>;
+
+TABLE *CreateTemporaryTableFromSelectList(
+    THD *thd, Query_block *query_block,
+    Temp_table_param **temp_table_param_arg);
+
+void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
+                                          const Func_ptr_array &items_to_copy);
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
+                                          const Func_ptr_array &items_to_copy);
 
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
-                                      Temp_table_param *temp_table_param,
-                                      bool copy_items);
+                                      Temp_table_param *temp_table_param);
 
-AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
-                              bool need_rowid);
+// An ordering that we could be doing sort-ahead by; typically either an
+// interesting ordering or an ordering homogenized from one.
+struct SortAheadOrdering {
+  // Pointer to an ordering in LogicalOrderings.
+  int ordering_idx;
+
+  // Which tables must be present in the join before one can apply
+  // this sort (usually because the elements we sort by are contained
+  // in these tables).
+  NodeMap required_nodes;
+
+  // Whether aggregates must be computed before one can apply this sort
+  // (because it includes at least one aggregate).
+  bool aggregates_required;
+
+  // The ordering expressed in a form that filesort can use.
+  ORDER *order;
+};
+
+// An index that we can use in the query, either for index lookup (ref access)
+// or for scanning along to get an interesting ordering.
+struct ActiveIndexInfo {
+  TABLE *table;
+  int key_idx;
+  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0;
+};
+
+// A full-text index that we can use in the query, either for index lookup or
+// for scanning along to get an interesting order.
+struct FullTextIndexInfo {
+  Item_func_match *match;
+  LogicalOrderings::StateIndex order = 0;
+};
 
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
@@ -246,13 +284,6 @@ class CostingReceiver {
    */
   std::unordered_map<NodeMap, AccessPathSet> m_access_paths;
 
-  /**
-    How many subgraph pairs we've seen so far. Used to give up
-    if we end up allocating too many resources (prompting us to
-    create a simpler join graph and try again).
-   */
-  int m_num_seen_subgraph_pairs = 0;
-
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
 
@@ -333,9 +364,8 @@ class CostingReceiver {
   void ProposeAccessPathForBaseTable(int node_idx,
                                      const char *description_for_trace,
                                      AccessPath *path);
-  void ProposeAccessPathForIndex(int node_idx,
-                                 OverflowBitset applied_predicates,
-                                 OverflowBitset subsumed_predicates,
+  void ProposeAccessPathForIndex(int node_idx, uint64_t applied_predicates,
+                                 uint64_t subsumed_predicates,
                                  const char *description_for_trace,
                                  AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
@@ -350,9 +380,9 @@ class CostingReceiver {
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
-  bool AlreadyAppliedThroughSargable(
-      Item_func_eq *cond, OverflowBitset applied_sargable_join_predicates,
-      NodeMap left, NodeMap right);
+  bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
+                                     uint64_t applied_sargable_join_predicates,
+                                     NodeMap left, NodeMap right);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
@@ -367,17 +397,18 @@ class CostingReceiver {
                        FunctionalDependencySet new_fd_set,
                        OrderingSet new_obsolete_orderings,
                        bool rewrite_semi_to_inner, bool *wrote_trace);
-  void ApplyPredicatesForBaseTable(int node_idx,
-                                   OverflowBitset applied_predicates,
-                                   OverflowBitset subsumed_predicates,
+  void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
+                                   uint64_t subsumed_predicates,
                                    bool materialize_subqueries,
                                    AccessPath *path,
                                    FunctionalDependencySet *new_fd_set);
-  void ApplyDelayedPredicatesAfterJoin(
-      NodeMap left, NodeMap right, const AccessPath *left_path,
-      const AccessPath *right_path, int join_predicate_first,
-      int join_predicate_last, bool materialize_subqueries,
-      AccessPath *join_path, FunctionalDependencySet *new_fd_set);
+  void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
+                                       const AccessPath *left_path,
+                                       const AccessPath *right_path,
+                                       uint64_t join_predicate_bitmap,
+                                       bool materialize_subqueries,
+                                       AccessPath *join_path,
+                                       FunctionalDependencySet *new_fd_set);
 };
 
 /// Lists the current secondary engine flags in use. If there is no secondary
@@ -595,6 +626,28 @@ bool ContainsSubqueries(Item *item_arg) {
   });
 }
 
+double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
+                                double num_output_rows) {
+  // When asking the cost model for costs, the API takes in a double,
+  // but truncates it to an unsigned integer. This means that if we
+  // expect an index lookup to give e.g. 0.9 rows on average, the cost
+  // model will assume we get back 0 -- and even worse, InnoDB's
+  // cost model gives a cost of exactly zero for this case, ignoring
+  // entirely the startup cost! Obviously, a cost of zero would make
+  // it very attractive to line up a bunch of such lookups in a nestloop
+  // and nestloop-join against them, crowding out pretty much any other
+  // way to do a join, so to counteract both of these issues, we
+  // explicitly round up here. This can be removed if InnoDB's
+  // cost model is tuned better for this case.
+  const double hacked_num_output_rows = ceil(num_output_rows);
+
+  const double table_scan_cost = table->file->table_scan_cost().total_cost();
+  const double worst_seeks = find_worst_seeks(
+      table->cost_model(), hacked_num_output_rows, table_scan_cost);
+  return find_cost_for_ref(thd, table, key_idx, hacked_num_output_rows,
+                           worst_seeks);
+}
+
 bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                                        unsigned key_idx, bool reverse,
                                        table_map allowed_parameter_tables,
@@ -745,10 +798,8 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
 
   double num_output_rows = table->file->stats.records;
 
-  MutableOverflowBitset applied_predicates{m_thd->mem_root,
-                                           m_graph.predicates.size()};
-  MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
-                                            m_graph.predicates.size()};
+  uint64_t applied_predicates = 0;
+  uint64_t subsumed_predicates = 0;
   for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
     int keypart_idx = WasPushedDownToRef(m_graph.predicates[i].condition,
                                          keyparts, matched_keyparts);
@@ -761,12 +812,12 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       // since it was part of a cycle. For purposes of sargable predicates,
       // we always see all relevant join conditions, so skip it this time
       // so that we don't double-count its selectivity.
-      applied_predicates.SetBit(i);
+      applied_predicates |= uint64_t{1} << i;
       continue;
     }
 
     num_output_rows *= m_graph.predicates[i].selectivity;
-    applied_predicates.SetBit(i);
+    applied_predicates |= uint64_t{1} << i;
 
     const KeypartForRef &keypart = keyparts[keypart_idx];
     if (ref_lookup_subsumes_comparison(keypart.field, keypart.val)) {
@@ -776,7 +827,7 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                          ItemToString(m_graph.predicates[i].condition).c_str(),
                          table->alias, keypart.field->field_name);
       }
-      subsumed_predicates.SetBit(i);
+      subsumed_predicates |= uint64_t{1} << i;
     } else {
       if (m_trace != nullptr) {
         *m_trace += StringPrintf(
@@ -838,28 +889,14 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
-  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
-                            std::move(subsumed_predicates), key->name, &path);
+  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
+                            key->name, &path);
   return false;
 }
 
 void CostingReceiver::ProposeAccessPathForIndex(
-    int node_idx, OverflowBitset applied_predicates,
-    OverflowBitset subsumed_predicates, const char *description_for_trace,
-    AccessPath *path) {
-  MutableOverflowBitset applied_sargable_join_predicates_tmp =
-      applied_predicates.Clone(m_thd->mem_root);
-  applied_sargable_join_predicates_tmp.ClearBits(0,
-                                                 m_graph.num_where_predicates);
-  OverflowBitset applied_sargable_join_predicates =
-      std::move(applied_sargable_join_predicates_tmp);
-
-  MutableOverflowBitset subsumed_sargable_join_predicates_tmp =
-      subsumed_predicates.Clone(m_thd->mem_root);
-  subsumed_sargable_join_predicates_tmp.ClearBits(0,
-                                                  m_graph.num_where_predicates);
-  OverflowBitset subsumed_sargable_join_predicates =
-      std::move(subsumed_sargable_join_predicates_tmp);
+    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
+    const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
@@ -867,12 +904,11 @@ void CostingReceiver::ProposeAccessPathForIndex(
                                 path, &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
-    path->applied_sargable_join_predicates() = OverflowBitset::Or(
-        m_thd->mem_root, path->applied_sargable_join_predicates(),
-        applied_sargable_join_predicates);
-    path->subsumed_sargable_join_predicates() = OverflowBitset::Or(
-        m_thd->mem_root, path->subsumed_sargable_join_predicates(),
-        subsumed_sargable_join_predicates);
+    path->applied_sargable_join_predicates |=
+        applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
+    path->subsumed_sargable_join_predicates |=
+        subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
+
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
@@ -949,8 +985,7 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
     materialize_path->cost = path.cost;
     materialize_path->filter_predicates = path.filter_predicates;
     materialize_path->delayed_predicates = path.delayed_predicates;
-    new_path->filter_predicates.Clear();
-    new_path->delayed_predicates.Clear();
+    new_path->filter_predicates = new_path->delayed_predicates = 0;
 
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
@@ -1007,18 +1042,11 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
       materialize_path->parameter_tables =
           GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
                                  m_graph.table_num_to_node_num);
-
-      // If we don't need row IDs, we also don't care about row ID safety.
-      // This keeps us from retaining many extra unneeded paths.
-      if (!m_need_rowid) {
-        materialize_path->safe_for_rowid = AccessPath::SAFE;
-      }
     }
 
     materialize_path->filter_predicates = path.filter_predicates;
     materialize_path->delayed_predicates = path.delayed_predicates;
-    stable_path->filter_predicates.Clear();
-    stable_path->delayed_predicates.Clear();
+    stable_path->filter_predicates = stable_path->delayed_predicates = 0;
     path = *materialize_path;
     assert(path.cost >= 0.0);
   }
@@ -1267,10 +1295,8 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   assert(predicate_idx == -1 ||
          match == GetSargableFullTextPredicate(*predicate));
 
-  MutableOverflowBitset applied_predicates{m_thd->mem_root,
-                                           m_graph.predicates.size()};
-  MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
-                                            m_graph.predicates.size()};
+  uint64_t applied_predicates = 0;
+  uint64_t subsumed_predicates = 0;
   double num_output_rows_from_index;
   double num_output_rows_from_filter;
   if (predicate == nullptr) {
@@ -1289,7 +1315,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       // The predicate can be fully subsumed by the index. Apply the full
       // selectivity on the index scan and mark the predicate as subsumed.
       index_selectivity = predicate->selectivity;
-      subsumed_predicates.SetBit(predicate_idx);
+      subsumed_predicates = uint64_t{1} << predicate_idx;
     } else {
       // The predicate uses <, <=, > or >=, and it cannot be subsumed. For
       // example MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of
@@ -1302,7 +1328,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       // num_output_rows_from_index and num_output_rows_from_filter below, so
       // mark the predicate as applied to avoid double-counting of the
       // selectivity.
-      applied_predicates.SetBit(predicate_idx);
+      applied_predicates = uint64_t{1} << predicate_idx;
     }
 
     num_output_rows_from_index = table->file->stats.records * index_selectivity;
@@ -1330,8 +1356,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
 
-  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
-                            std::move(subsumed_predicates),
+  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
                             table->key_info[key_idx].name, path);
   return false;
 }
@@ -1340,13 +1365,9 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     int node_idx, const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
-    ApplyPredicatesForBaseTable(
-        node_idx,
-        /*applied_predicates=*/
-        MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
-        /*subsumed_predicates=*/
-        MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
-        materialize_subqueries, path, &new_fd_set);
+    ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
+                                /*subsumed_predicates=*/0,
+                                materialize_subqueries, path, &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     ProposeAccessPathWithOrderings(
@@ -1381,21 +1402,19 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     non-materialized subqueries.
  */
 void CostingReceiver::ApplyPredicatesForBaseTable(
-    int node_idx, OverflowBitset applied_predicates,
-    OverflowBitset subsumed_predicates, bool materialize_subqueries,
-    AccessPath *path, FunctionalDependencySet *new_fd_set) {
+    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
+    bool materialize_subqueries, AccessPath *path,
+    FunctionalDependencySet *new_fd_set) {
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
   path->num_output_rows = path->num_output_rows_before_filter;
   path->cost = path->cost_before_filter;
-  MutableOverflowBitset filter_predicates{m_thd->mem_root,
-                                          m_graph.predicates.size()};
-  MutableOverflowBitset delayed_predicates{m_thd->mem_root,
-                                           m_graph.predicates.size()};
+  path->filter_predicates = 0;
+  path->delayed_predicates = 0;
   new_fd_set->reset();
   for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
-    if (IsBitSet(i, subsumed_predicates)) {
+    if (subsumed_predicates & (uint64_t{1} << i)) {
       // Apply functional dependencies for the base table, but no others;
       // this ensures we get the same functional dependencies set no matter what
       // access path we choose. (The ones that refer to multiple tables,
@@ -1410,12 +1429,12 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         // The other side of the join will mark it as delayed, so we
         // need to do so, too. Otherwise, we would never apply the
         // associated functional dependency at the right time.
-        delayed_predicates.SetBit(i);
+        path->delayed_predicates |= uint64_t{1} << i;
       }
       continue;
     }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
-      filter_predicates.SetBit(i);
+      path->filter_predicates |= uint64_t{1} << i;
       FilterCost cost =
           EstimateFilterCost(m_thd, path->num_output_rows,
                              m_graph.predicates[i].condition, m_query_block);
@@ -1425,7 +1444,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       } else {
         path->cost += cost.cost_if_not_materialized;
       }
-      if (IsBitSet(i, applied_predicates)) {
+      if (applied_predicates & (uint64_t{1} << i)) {
         // We already factored in this predicate when calculating
         // the selectivity of the ref access, so don't do it again.
       } else {
@@ -1433,11 +1452,9 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       }
       *new_fd_set |= m_graph.predicates[i].functional_dependencies;
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
-      delayed_predicates.SetBit(i);
+      path->delayed_predicates |= uint64_t{1} << i;
     }
   }
-  path->filter_predicates = std::move(filter_predicates);
-  path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
     ExpandSingleFilterAccessPath(m_thd, path, m_graph.predicates,
@@ -1467,12 +1484,6 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
 bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
   if (m_thd->is_error()) return true;
-
-  if (++m_num_seen_subgraph_pairs > 100000) {
-    // Bail out; we're going to be needing graph simplification
-    // (a separate worklog).
-    return true;
-  }
 
   assert(left != 0);
   assert(right != 0);
@@ -1548,12 +1559,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // ordering properties through joins.
       AccessPath *zero_path = NewZeroRowsAccessPath(
           m_thd, right_path, "Join condition rejects all rows");
-      MutableOverflowBitset applied_sargable_join_predicates =
-          right_path->applied_sargable_join_predicates().Clone(m_thd->mem_root);
-      applied_sargable_join_predicates.ClearBits(0,
-                                                 m_graph.num_where_predicates);
-      zero_path->filter_predicates =
-          std::move(applied_sargable_join_predicates);
+      zero_path->applied_sargable_join_predicates =
+          right_path->applied_sargable_join_predicates;
       zero_path->delayed_predicates = right_path->delayed_predicates;
       right_path = zero_path;
     }
@@ -1595,9 +1602,38 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
             new_obsolete_orderings);
       }
+
+      if (m_access_paths.size() > 100000) {
+        // Bail out; we're going to be needing graph simplification
+        // (a separate worklog).
+        return true;
+      }
     }
   }
   return false;
+}
+
+double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
+                             const JoinPredicate *edge,
+                             double already_applied_selectivity) {
+  const double outer_rows = left_path->num_output_rows;
+  const double inner_rows = right_path->num_output_rows;
+  const double selectivity = edge->selectivity / already_applied_selectivity;
+  if (edge->expr->type == RelationalExpression::ANTIJOIN) {
+    return outer_rows * (1.0 - selectivity);
+  } else {
+    double num_output_rows = outer_rows * inner_rows * selectivity;
+    if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
+      num_output_rows = std::max(num_output_rows, outer_rows);
+    }
+    if (edge->expr->type == RelationalExpression::SEMIJOIN) {
+      num_output_rows =
+          std::min(num_output_rows, outer_rows / already_applied_selectivity);
+      num_output_rows =
+          std::min(num_output_rows, inner_rows / already_applied_selectivity);
+    }
+    return num_output_rows;
+  }
 }
 
 /**
@@ -1719,16 +1755,6 @@ void CostingReceiver::ProposeHashJoin(
   }
   join_path.cost = cost;
 
-  // For each scan, hash join will read the left side once and the right side
-  // once, so we are as safe as the least safe of the two. (This isn't true
-  // if we set spill_to_disk = false, but we never do that in the hypergraph
-  // optimizer.) Note that if the right side fits entirely in RAM, we don't
-  // scan it the second time (so we could make the operation _more_ safe
-  // than the right side, and we should consider both ways of doing
-  // an inner join), but we cannot know that when planning.
-  join_path.safe_for_rowid =
-      std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
-
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
@@ -1746,8 +1772,7 @@ void CostingReceiver::ProposeHashJoin(
   {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
         /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
@@ -1762,8 +1787,7 @@ void CostingReceiver::ProposeHashJoin(
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
         /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
@@ -1779,8 +1803,8 @@ void CostingReceiver::ProposeHashJoin(
 // ones that need to be delayed further.
 void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     NodeMap left, NodeMap right, const AccessPath *left_path,
-    const AccessPath *right_path, int join_predicate_first,
-    int join_predicate_last, bool materialize_subqueries, AccessPath *join_path,
+    const AccessPath *right_path, uint64_t join_predicate_bitmap,
+    bool materialize_subqueries, AccessPath *join_path,
     FunctionalDependencySet *new_fd_set) {
   // We build up a new FD set each time; it should be the same for the same
   // left/right pair, so it is somewhat redundant, but it allows us to verify
@@ -1821,8 +1845,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   // (except for functional dependencies). We simply track which ones have been
   // applied this iteration by keeping a bitmap of them.
   uint64_t multiple_equality_bitmap = 0;
-  for (int pred_idx = join_predicate_first; pred_idx < join_predicate_last;
-       ++pred_idx) {
+  for (int pred_idx : BitsSetIn(join_predicate_bitmap)) {
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (pred.source_multiple_equality_idx != -1) {
       multiple_equality_bitmap |= uint64_t{1}
@@ -1832,34 +1855,25 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
 
   double materialize_cost = 0.0;
 
-  // filter_predicates holds both filter_predicates and
-  // applied_sargable_join_predicates. Keep the information about the latter,
-  // but reset the one pertaining to the former.
-  MutableOverflowBitset filter_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
-      right_path->applied_sargable_join_predicates());
-  filter_predicates.ClearBits(0, m_graph.num_where_predicates);
-
-  // Predicates we are still delaying.
-  MutableOverflowBitset delayed_predicates =
-      OverflowBitset::Xor(m_thd->mem_root, left_path->delayed_predicates,
-                          right_path->delayed_predicates);
-  delayed_predicates.ClearBits(join_predicate_first, join_predicate_last);
-
-  // Predicates that were delayed, but that we need to check now.
-  MutableOverflowBitset ready_predicates =
-      OverflowBitset::And(m_thd->mem_root, left_path->delayed_predicates,
-                          right_path->delayed_predicates);
-  ready_predicates.ClearBits(join_predicate_first, join_predicate_last);
-
+  // Keep the information about applied_sargable_join_predicates,
+  // but reset the one pertaining to filter_predicates.
+  join_path->applied_sargable_join_predicates =
+      (left_path->applied_sargable_join_predicates |
+       right_path->applied_sargable_join_predicates) &
+      ~TablesBetween(0, m_graph.num_where_predicates);
+  join_path->delayed_predicates =
+      left_path->delayed_predicates ^ right_path->delayed_predicates;
+  join_path->delayed_predicates &= ~join_predicate_bitmap;
   const NodeMap ready_tables = left | right;
-  for (int pred_idx : BitsSetIn(std::move(ready_predicates))) {
+  for (int pred_idx :
+       BitsSetIn(left_path->delayed_predicates &
+                 right_path->delayed_predicates & ~join_predicate_bitmap)) {
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (IsSubset(pred.total_eligibility_set, ready_tables)) {
       if (pred.source_multiple_equality_idx == -1 ||
           !IsBitSet(pred.source_multiple_equality_idx,
                     multiple_equality_bitmap)) {
-        filter_predicates.SetBit(pred_idx);
+        join_path->filter_predicates |= uint64_t{1} << pred_idx;
         FilterCost cost = EstimateFilterCost(m_thd, join_path->num_output_rows,
                                              pred.condition, m_query_block);
         if (materialize_subqueries) {
@@ -1876,11 +1890,9 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       }
       *new_fd_set |= pred.functional_dependencies;
     } else {
-      delayed_predicates.SetBit(pred_idx);
+      join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }
   }
-  join_path->filter_predicates = std::move(filter_predicates);
-  join_path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
     ExpandSingleFilterAccessPath(m_thd, join_path, m_graph.predicates,
@@ -1918,7 +1930,7 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   (e.g., in the given example, we'd see the t2=t3 join).
  */
 bool CostingReceiver::AlreadyAppliedThroughSargable(
-    Item_func_eq *join_cond, OverflowBitset applied_sargable_join_predicates,
+    Item_func_eq *join_cond, uint64_t applied_sargable_join_predicates,
     NodeMap left, NodeMap right) {
   if (join_cond->source_multiple_equality == nullptr) {
     return false;
@@ -2007,12 +2019,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
         static_cast<JoinType>(edge->expr->type);
   }
 
-  const OverflowBitset applied_sargable_join_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
-      right_path->applied_sargable_join_predicates());
-  const OverflowBitset subsumed_sargable_join_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->subsumed_sargable_join_predicates(),
-      right_path->subsumed_sargable_join_predicates());
+  const uint64_t applied_sargable_join_predicates =
+      left_path->applied_sargable_join_predicates |
+      right_path->applied_sargable_join_predicates;
+  const uint64_t subsumed_sargable_join_predicates =
+      left_path->subsumed_sargable_join_predicates |
+      right_path->subsumed_sargable_join_predicates;
 
   double already_applied_selectivity = 1.0;
   if (edge->expr->join_conditions_reject_all_rows) {
@@ -2044,13 +2056,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
       const auto it = m_graph.sargable_join_predicates.find(condition);
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
-          IsBitSet(it->second, applied_sargable_join_predicates)) {
+          Overlaps(applied_sargable_join_predicates,
+                   uint64_t{1} << it->second)) {
         // This predicate was already applied as a ref access earlier.
         // Make sure not to double-count its selectivity, and also
         // that we don't reapply it if it was subsumed by the ref access.
         already_applied_selectivity *=
             m_graph.predicates[it->second].selectivity;
-        subsumed = IsBitSet(it->second, subsumed_sargable_join_predicates);
+        subsumed = Overlaps(subsumed_sargable_join_predicates,
+                            uint64_t{1} << it->second);
       } else if (AlreadyAppliedThroughSargable(condition,
                                                applied_sargable_join_predicates,
                                                left, right)) {
@@ -2117,20 +2131,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
   join_path.ordering_state =
       m_orderings->ApplyFDs(left_path->ordering_state, new_fd_set);
 
-  // We may scan the right side several times, but the left side maybe once.
-  // So if the right side is not safe to scan for row IDs after multiple scans,
-  // neither are we. But if it's safe, we're exactly as safe as the left side.
-  if (right_path->safe_for_rowid != AccessPath::SAFE) {
-    join_path.safe_for_rowid = AccessPath::UNSAFE;
-  } else {
-    join_path.safe_for_rowid = left_path->safe_for_rowid;
-  }
-
   {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
         /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
@@ -2144,8 +2148,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last,
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
         /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
@@ -2238,16 +2241,6 @@ static inline PathComparisonResult CompareAccessPaths(
     b_is_better = true;
   }
 
-  // If one path is safe for row IDs and another one is not,
-  // that is also something we need to take into account.
-  // Safer values have lower numerical values, so we can compare them
-  // as integers.
-  if (a.safe_for_rowid < b.safe_for_rowid) {
-    a_is_better = true;
-  } else if (b.safe_for_rowid < a.safe_for_rowid) {
-    b_is_better = true;
-  }
-
   if (!a_is_better && !b_is_better) {
     return PathComparisonResult::IDENTICAL;
   } else if (a_is_better && !b_is_better) {
@@ -2290,17 +2283,41 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
     str += StringPrintf(", order=%d", path.ordering_state);
   }
 
-  if (path.safe_for_rowid == AccessPath::SAFE_IF_SCANNED_ONCE) {
-    str += StringPrintf(", safe_for_rowid_once");
-  } else if (path.safe_for_rowid == AccessPath::UNSAFE) {
-    str += StringPrintf(", unsafe_for_rowid");
-  }
-
   if (strcmp(description_for_trace, "") == 0) {
     return str + "}";
   } else {
     return str + "} [" + description_for_trace + "]";
   }
+}
+
+void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR) {
+  AccessPath *child = path->sort().child;
+  const double num_input_rows = child->num_output_rows;
+  const double num_output_rows =
+      path->sort().use_limit ? std::min<double>(num_input_rows, limit_rows)
+                             : num_input_rows;
+
+  double sort_cost;
+  if (num_input_rows <= 1.0) {
+    // Avoid NaNs from log2().
+    sort_cost = kSortOneRowCost;
+  } else {
+    // Filesort's complexity is O(n + k log k) with a limit, or O(n log n)
+    // without. See comment in Filesort_buffer::sort_buffer(). We can use the
+    // same calculation for both. If n = k (no limit, or the limit is higher
+    // than the number of input rows), O(n + k log k) is the same as
+    // O(n + n log n), which is equivalent to O(n log n) because n < n log n for
+    // large values of n. So we always calculate it as n + k log k:
+    sort_cost = kSortOneRowCost *
+                (num_input_rows +
+                 num_output_rows * std::max(log2(num_output_rows), 1.0));
+  }
+
+  path->num_output_rows = num_output_rows;
+  path->cost = path->init_cost = child->cost + sort_cost;
+  path->init_once_cost = 0.0;
+  path->num_output_rows_before_filter = path->num_output_rows;
+  path->cost_before_filter = path->cost;
 }
 
 /**
@@ -2343,7 +2360,7 @@ void CostingReceiver::ProposeAccessPath(
     }
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
-    if (!IsEmpty(path->filter_predicates)) {
+    if (path->filter_predicates != 0) {
       assert(path->num_output_rows <= path->num_output_rows_before_filter);
       assert(path->cost_before_filter <= path->cost);
       assert(path->init_cost <= path->cost_before_filter);
@@ -2453,17 +2470,15 @@ void CostingReceiver::ProposeAccessPath(
   return;
 }
 
-AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
-                                       ORDER *order, int ordering_state,
+AccessPath MakeSortPathWithoutFilesort(AccessPath *child, ORDER *order,
+                                       int ordering_state,
                                        int num_where_predicates) {
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
   sort_path.ordering_state = ordering_state;
-  MutableOverflowBitset applied_sargable_join_predicates =
-      child->applied_sargable_join_predicates().Clone(thd->mem_root);
-  applied_sargable_join_predicates.ClearBits(0, num_where_predicates);
-  sort_path.applied_sargable_join_predicates() =
-      std::move(applied_sargable_join_predicates);
+  sort_path.applied_sargable_join_predicates =
+      child->applied_sargable_join_predicates &
+      ~BitsBetween(0, num_where_predicates);
   sort_path.delayed_predicates = child->delayed_predicates;
   sort_path.count_examined_rows = false;
   sort_path.sort().child = child;
@@ -2520,8 +2535,6 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     return;
   }
 
-  path = GetSafePathToSort(m_thd, m_query_block->join, path, m_need_rowid);
-
   // Try sort-ahead for all interesting orderings.
   // (For the final sort, this might not be so much _ahead_, but still
   // potentially useful, if there are multiple orderings where one is a
@@ -2550,8 +2563,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     }
 
     AccessPath sort_path =
-        MakeSortPathWithoutFilesort(m_thd, path, sort_ahead_ordering.order,
-                                    new_state, m_graph.num_where_predicates);
+        MakeSortPathWithoutFilesort(path, sort_ahead_ordering.order, new_state,
+                                    m_graph.num_where_predicates);
 
     char buf[256];
     if (m_trace != nullptr) {
@@ -2568,8 +2581,10 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   }
 }
 
-}  // namespace
-
+/**
+  Find the list of all tables used by this root, stopping at materializations.
+  Used for knowing which tables to sort.
+ */
 Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
   Mem_root_array<TABLE *> tables(thd->mem_root);
   WalkTablesUnderAccessPath(
@@ -2578,9 +2593,7 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
   return tables;
 }
 
-namespace {
-
-bool CheckSupportedQuery(THD *thd) {
+bool CheckSupportedQuery(THD *thd, JOIN *join) {
   if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
       !Overlaps(EngineFlags(thd),
                 MakeSecondaryEngineFlags(
@@ -2590,31 +2603,160 @@ bool CheckSupportedQuery(THD *thd) {
              "the secondary engine in use");
     return true;
   }
+  if (join->query_block->has_windows()) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "windowing functions");
+    return true;
+  }
   return false;
 }
 
 /**
-  Set up an access path for streaming or materializing through a temporary
-  table. If none is needed (because earlier iterators already materialize
-  what needs to be done), returns the path itself.
-
-  The actual temporary table will be created and filled out during finalization.
+  Replaces field references in an ON DUPLICATE KEY UPDATE clause with references
+  to corresponding fields in a temporary table. The changes will be rolled back
+  at the end of execution and will have to be redone during optimization in the
+  next execution.
  */
-AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
-                                                 AccessPath *path,
-                                                 bool need_rowid,
-                                                 bool copy_items) {
-  // See if later sorts will need row IDs from us or not.
-  if (!need_rowid) {
-    // The common case; we can use streaming.
-    if (!copy_items) {
-      // StreamingIterator exists only to copy items, so we don't need an
-      // iterator here at all.
-      return path;
+void ReplaceUpdateValuesWithTempTableFields(
+    Sql_cmd_insert_select *sql_cmd, Query_block *query_block,
+    const mem_root_deque<Item *> &original_fields,
+    const mem_root_deque<Item *> &temp_table_fields) {
+  assert(CountVisibleFields(original_fields) ==
+         CountVisibleFields(temp_table_fields));
+
+  if (sql_cmd->update_value_list.empty()) return;
+
+  auto tmp_field_it = VisibleFields(temp_table_fields).begin();
+  for (Item *orig_field : VisibleFields(original_fields)) {
+    Item *tmp_field = *tmp_field_it++;
+    if (orig_field->type() == Item::FIELD_ITEM) {
+      Item::Item_field_replacement replacement(
+          down_cast<Item_field *>(orig_field)->field,
+          down_cast<Item_field *>(tmp_field), query_block);
+      for (Item *&orig_item : sql_cmd->update_value_list) {
+        uchar *dummy;
+        Item *new_item = orig_item->compile(
+            &Item::visit_all_analyzer, &dummy, &Item::replace_item_field,
+            pointer_cast<uchar *>(&replacement));
+        if (new_item != orig_item) {
+          query_block->join->thd->change_item_tree(&orig_item, new_item);
+        }
+      }
     }
-    AccessPath *stream_path = NewStreamingAccessPath(
-        thd, path, join, /*temp_table_param=*/nullptr, /*temp_table=*/nullptr,
-        /*ref_slice=*/-1);
+  }
+}
+
+/**
+  Creates a temporary table with columns matching the SELECT list of the given
+  query block. The SELECT list of the query block is updated to point to the
+  fields in the temporary table, and the same is done for the ON DUPLICATE KEY
+  UPDATE clause of INSERT SELECT statements, if they have one.
+
+  This function is used for materializing the query result, either as an
+  intermediate step before sorting the final result if the sort requires the
+  rows to come from a single table instead of a join, or as the last step if the
+  SQL_BUFFER_RESULT query option has been specified.
+ */
+TABLE *CreateTemporaryTableFromSelectList(
+    THD *thd, Query_block *query_block,
+    Temp_table_param **temp_table_param_arg) {
+  JOIN *join = query_block->join;
+
+  Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
+  *temp_table_param_arg = temp_table_param;
+  assert(!temp_table_param->precomputed_group_by);
+  assert(!temp_table_param->skip_create_table);
+  count_field_types(query_block, temp_table_param, *join->fields,
+                    /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
+
+  TABLE *temp_table =
+      create_tmp_table(thd, temp_table_param, *join->fields,
+                       /*group=*/nullptr, /*distinct=*/false,
+                       /*save_sum_fields=*/true, query_block->active_options(),
+                       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
+
+  // Most items have been added to items_to_copy in create_tmp_field(), but not
+  // aggregate funtions, so add them here.
+  //
+  // Note that MIN/MAX in the presence of an index have special semantics
+  // where they are filled out elsewhere and may not have a result field,
+  // so we need to skip those that don't have one.
+  for (Item *item : *join->fields) {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        item->get_result_field() != nullptr) {
+      temp_table_param->items_to_copy->push_back(
+          Func_ptr{item, item->get_result_field()});
+    }
+
+    // Verify that all non-constant items have been added to items_to_copy.
+    assert(item->const_for_execution() ||
+           std::any_of(
+               temp_table_param->items_to_copy->begin(),
+               temp_table_param->items_to_copy->end(),
+               [item](const Func_ptr &ptr) { return ptr.func() == item; }));
+  }
+
+  // We made a new table, so make sure it gets properly cleaned up
+  // at the end of execution.
+  join->temp_tables.push_back(
+      JOIN::TemporaryTableToCleanup{temp_table, temp_table_param});
+
+  return temp_table;
+}
+
+/**
+  Replaces the items in the SELECT list with items that point to fields in a
+  temporary table. See FinalizePlanForQueryBlock() for more information.
+ */
+void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
+                                          const Func_ptr_array &items_to_copy) {
+  auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
+  for (Item *item : *join->fields) {
+    fields->push_back(
+        FindReplacementOrReplaceMaterializedItems(thd, item, items_to_copy,
+                                                  /*need_exact_match=*/true));
+  }
+  join->fields = fields;
+}
+
+// Change all items in the ORDER list to point to the temporary table.
+// This isn't important for streaming (the items would get the correct
+// value anyway -- although possibly with some extra calculations),
+// but it is for materialization.
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
+                                          const Func_ptr_array &items_to_copy) {
+  for (; order != nullptr; order = order->next) {
+    Item *temp_field_item = FindReplacementOrReplaceMaterializedItems(
+        thd, *order->item, items_to_copy, /*need_exact_match=*/true);
+    if (temp_field_item != *order->item) {
+      // *order->item points into a memory area (the “base ref slice”)
+      // where HAVING might expect to find items _not_ pointing into the
+      // temporary table (if there is true materialization, it should run
+      // before it to minimize the size of the sorted input), so in order to
+      // not disturb it, we create a whole new place for the Item pointer
+      // to live.
+      //
+      // TODO(sgunders): When we get rid of slices altogether,
+      // we can skip this.
+      thd->change_item_tree(pointer_cast<Item **>(&order->item),
+                            pointer_cast<Item *>(new (thd->mem_root) Item *));
+      thd->change_item_tree(order->item, temp_field_item);
+    }
+  }
+}
+
+/**
+  Set up an access path for streaming or materializing through a temporary
+  table.
+ */
+AccessPath *CreateMaterializationOrStreamingPath(
+    THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
+    Temp_table_param *temp_table_param) {
+  // See if later sorts will need row IDs from us or not.
+  if (!SortWillBeOnRowId(temp_table)) {
+    // The common case; we can use streaming.
+    AccessPath *stream_path =
+        NewStreamingAccessPath(thd, path, join, temp_table_param, temp_table,
+                               /*ref_slice=*/-1);
     stream_path->num_output_rows = path->num_output_rows;
     stream_path->cost = path->cost;
     stream_path->init_cost = path->init_cost;
@@ -2623,7 +2765,6 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
     stream_path->cost_before_filter = stream_path->cost;
     stream_path->ordering_state = path->ordering_state;
-    stream_path->safe_for_rowid = path->safe_for_rowid;
     return stream_path;
   } else {
     // Filesort needs sort by row ID, possibly because large blobs are
@@ -2631,20 +2772,8 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     // smaller temporary table at the expense of more seeks, we could
     // materialize only aggregate functions and do a multi-table sort
     // by docid, but this situation is rare, so we go for simplicity.)
-    return CreateMaterializationPath(thd, join, path, /*temp_table=*/nullptr,
-                                     /*temp_table_param=*/nullptr, copy_items);
-  }
-}
-
-AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
-                              bool need_rowid) {
-  if (need_rowid && path->safe_for_rowid == AccessPath::UNSAFE) {
-    // We need to materialize this path before we can sort it,
-    // since it might not give us stable row IDs.
-    return CreateMaterializationOrStreamingPath(thd, join, path, need_rowid,
-                                                /*copy_items=*/true);
-  } else {
-    return path;
+    return CreateMaterializationPath(thd, join, path, temp_table,
+                                     temp_table_param);
   }
 }
 
@@ -2654,21 +2783,19 @@ AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
  */
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
-                                      Temp_table_param *temp_table_param,
-                                      bool copy_items) {
+                                      Temp_table_param *temp_table_param) {
   AccessPath *table_path =
       NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
   AccessPath *materialize_path = NewMaterializeAccessPath(
       thd,
       SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
-                                  copy_items, temp_table_param),
+                                  /*copy_items=*/true, temp_table_param),
       /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
       /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
       /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
 
-  EstimateMaterializeCost(thd, materialize_path);
+  EstimateMaterializeCost(materialize_path);
   materialize_path->ordering_state = path->ordering_state;
-  materialize_path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
   return materialize_path;
 }
 
@@ -2857,6 +2984,18 @@ bool CreateTemporaryTableForFullTextFunctions(
   return false;
 }
 
+// Estimate the width of each row produced by “query_block”,
+// for temporary table materialization.
+//
+// See EstimateRowWidth() in make_join_hypergraph.cc.
+size_t EstimateRowWidth(const Query_block &query_block) {
+  size_t ret = 0;
+  for (const Item *item : query_block.fields) {
+    ret += min<size_t>(item->max_length, 4096);
+  }
+  return ret;
+}
+
 // Returns a map containing the node indexes of all tables referenced by a
 // full-text MATCH function.
 NodeMap FindFullTextSearchedTables(const JoinHypergraph &graph) {
@@ -3006,72 +3145,121 @@ void EnableFullTextCoveringIndexes(const Query_block *query_block) {
   }
 }
 
-// If we are planned using in2exists, and our SELECT list has a window
-// function, the HAVING condition may include parts that refer to window
-// functions. (This cannot happen in standard SQL, but we add such conditions
-// as part of in2exists processing.) Split them here.
-void SplitHavingCondition(THD *thd, Item *cond, Item **having_cond,
-                          Item **having_cond_wf) {
-  if (cond == nullptr || !cond->has_wf()) {
-    *having_cond = cond;
-    *having_cond_wf = nullptr;
-    return;
-  }
+}  // namespace
 
-  Mem_root_array<Item *> cond_parts(thd->mem_root);
-  ExtractConditions(cond, &cond_parts);
+static ORDER *BuildSortAheadOrdering(THD *thd,
+                                     const LogicalOrderings *orderings,
+                                     Ordering ordering);
 
-  List<Item> cond_parts_wf;
-  List<Item> cond_parts_normal;
-  for (Item *item : cond_parts) {
-    if (item->has_wf()) {
-      cond_parts_wf.push_back(item);
-    } else {
-      cond_parts_normal.push_back(item);
+FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
+                              Query_block *outer_query_block) {
+  FilterCost cost{0.0, 0.0, 0.0};
+  cost.cost_if_not_materialized = num_rows * kApplyOneFilterCost;
+  cost.cost_if_materialized = num_rows * kApplyOneFilterCost;
+  WalkItem(condition, enum_walk::POSTFIX,
+           [thd, num_rows, outer_query_block, &cost](Item *item) {
+             if (!IsItemInSubSelect(item)) {
+               return false;
+             }
+             Item_in_subselect *item_subs =
+                 down_cast<Item_in_subselect *>(item);
+
+             // TODO(sgunders): Respect subquery hints, which can force the
+             // strategy to be materialize.
+             Query_block *query_block = item_subs->unit->first_query_block();
+             const bool materializeable =
+                 item_subs->subquery_allows_materialization(
+                     thd, query_block, outer_query_block) &&
+                 query_block->subquery_strategy(thd) ==
+                     Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
+
+             AccessPath *path = item_subs->unit->root_access_path();
+             if (path == nullptr) {
+               // In rare situations involving IN subqueries on the left side of
+               // other IN subqueries, the query block may not be part of the
+               // parent query block's list of inner query blocks. If so, it has
+               // not been optimized here. Since this is a rare case, we'll just
+               // skip it and assign it zero cost.
+               return false;
+             }
+
+             cost.cost_if_not_materialized += num_rows * path->cost;
+             if (materializeable) {
+               // We can't ask the handler for costs at this stage, since that
+               // requires an actual TABLE, and we don't want to be creating
+               // them every time we're evaluating a cost. Thus, instead,
+               // we ask the cost model for an estimate. Longer-term, these two
+               // estimates should really be guaranteed to be the same somehow.
+               Cost_model_server::enum_tmptable_type tmp_table_type;
+               if (EstimateRowWidth(*query_block) * num_rows <
+                   thd->variables.max_heap_table_size) {
+                 tmp_table_type = Cost_model_server::MEMORY_TMPTABLE;
+               } else {
+                 tmp_table_type = Cost_model_server::DISK_TMPTABLE;
+               }
+               cost.cost_if_materialized +=
+                   thd->cost_model()->tmptable_readwrite_cost(
+                       tmp_table_type, /*write_rows=*/0,
+                       /*read_rows=*/num_rows);
+               cost.cost_to_materialize +=
+                   path->cost + kMaterializeOneRowCost * path->num_output_rows;
+             } else {
+               cost.cost_if_materialized += num_rows * path->cost;
+             }
+             return false;
+           });
+  return cost;
+}
+
+// Very rudimentary (assuming no deduplication; it's better to overestimate
+// than to understimate), so that we get something that isn't “unknown”.
+void EstimateMaterializeCost(AccessPath *path) {
+  AccessPath *table_path = path->materialize().table_path;
+
+  path->cost = 0;
+  path->num_output_rows = 0;
+  double cost_for_cacheable = 0.0;
+  for (const MaterializePathParameters::QueryBlock &block :
+       path->materialize().param->query_blocks) {
+    if (block.subquery_path->num_output_rows >= 0.0) {
+      path->num_output_rows += block.subquery_path->num_output_rows;
+      path->cost += block.subquery_path->cost;
+      if (block.join != nullptr && block.join->query_block->is_cacheable()) {
+        cost_for_cacheable += block.subquery_path->cost;
+      }
     }
   }
-  *having_cond = CreateConjunction(&cond_parts_normal);
-  *having_cond_wf = CreateConjunction(&cond_parts_wf);
+  path->cost += kMaterializeOneRowCost * path->num_output_rows;
+
+  // Try to get usable estimates. Ignored by InnoDB, but used by
+  // TempTable.
+  if (table_path->type == AccessPath::TABLE_SCAN) {
+    TABLE *temp_table = table_path->table_scan().table;
+    temp_table->file->stats.records = path->num_output_rows;
+
+    table_path->num_output_rows = path->num_output_rows;
+    table_path->init_cost = table_path->init_once_cost = 0.0;
+    table_path->cost = temp_table->file->table_scan_cost().total_cost();
+  }
+
+  path->init_cost = path->cost + std::max(table_path->init_cost, 0.0);
+  path->init_once_cost = cost_for_cacheable;
+  path->cost = path->cost + std::max(table_path->cost, 0.0);
 }
 
-void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
-                          const char *description_for_trace, string *trace,
-                          Prealloced_array<AccessPath *, 4> *root_candidates,
-                          CostingReceiver *receiver) {
-  if (having_cond == nullptr) {
-    return;
-  }
+void EstimateAggregateCost(AccessPath *path) {
+  AccessPath *child = path->aggregate().child;
 
-  if (trace != nullptr) {
-    *trace += description_for_trace;
-  }
-
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-  for (AccessPath *root_path : *root_candidates) {
-    AccessPath filter_path;
-    filter_path.type = AccessPath::FILTER;
-    filter_path.filter().child = root_path;
-    filter_path.filter().condition = having_cond;
-    // We don't currently bother with materializing subqueries
-    // in HAVING, as they should be rare.
-    filter_path.filter().materialize_subqueries = false;
-    filter_path.num_output_rows = root_path->num_output_rows *
-                                  EstimateSelectivity(thd, having_cond, trace);
-    filter_path.init_cost = root_path->init_cost;
-    filter_path.init_once_cost = root_path->init_once_cost;
-    filter_path.cost =
-        root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows,
-                                             having_cond, query_block)
-                              .cost_if_not_materialized;
-    filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
-    filter_path.cost_before_filter = filter_path.cost;
-    receiver->ProposeAccessPath(&filter_path, &new_root_candidates,
-                                /*obsolete_orderings=*/0, "");
-  }
-  *root_candidates = std::move(new_root_candidates);
+  // TODO(sgunders): How do we estimate how many rows aggregation
+  // will be reducing the output by?
+  path->num_output_rows = child->num_output_rows;
+  path->init_cost = child->init_cost;
+  path->init_once_cost = child->init_once_cost;
+  path->cost = child->cost + kAggregateOneRowCost * child->num_output_rows;
+  path->num_output_rows_before_filter = path->num_output_rows;
+  path->cost_before_filter = path->cost;
+  path->ordering_state = child->ordering_state;
 }
-
-}  // namespace
 
 JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
   for (JoinHypergraph::Node &node : graph->nodes) {
@@ -3099,14 +3287,14 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   }
 
   // If we have both ORDER BY and GROUP BY, we need a materialization step
-  // after the grouping (if windowing hasn't already given us one) -- although
-  // in most cases, we only need to materialize one row at a time (streaming),
-  // so the performance loss should be very slight. This is because when
-  // filesort only really deals with fields, not values; when it is to “output”
-  // a row, it puts back the contents of the sorted table's (or tables')
-  // row buffer(s). For expressions that only depend on the current row, such as
-  // (f1 + 1), this is fine, but aggregate functions (Item_sum) depend on
-  // multiple rows, so we need a field where filesort can put back its value
+  // after the grouping -- although in most cases, we only need to
+  // materialize one row at a time (streaming), so the performance loss
+  // should be very slight. This is because when filesort only really deals
+  // with fields, not values; when it is to “output” a row, it puts back the
+  // contents of the sorted table's (or tables') row buffer(s). For
+  // expressions that only depend on the current row, such as (f1 + 1),
+  // this is fine, but aggregate functions (Item_sum) depend on multiple
+  // rows, so we need a field where filesort can put back its value
   // (and of course, subsequent readers need to read from that field
   // instead of trying to evaluate the Item_sum). A temporary table provides
   // just that, so we create one based on the current field list;
@@ -3127,15 +3315,16 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   //
   // NOTE: If we elide the sort due to interesting orderings, this might
   // be redundant. It is fairly harmless, though.
-  if ((query_block->is_explicitly_grouped() &&
-       (*join->sum_funcs != nullptr ||
-        join->rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
-      join->m_windows.is_empty()) {
+  if (query_block->is_explicitly_grouped() &&
+      (*join->sum_funcs != nullptr ||
+       join->rollup_state != JOIN::RollupState::NONE || need_rowid)) {
+    Temp_table_param *temp_table_param = nullptr;
+    TABLE *temp_table =
+        CreateTemporaryTableFromSelectList(thd, query_block, &temp_table_param);
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      root_path =
-          CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
-                                               /*copy_items=*/true);
+      root_path = CreateMaterializationOrStreamingPath(
+          thd, join, root_path, temp_table, temp_table_param);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
@@ -3178,9 +3367,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
       }
-
-      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
-
       // We need to sort. Try all sort-ahead, not just the one directly
       // derived from DISTINCT clause, because a broader one might help us
       // elide ORDER BY later.
@@ -3214,6 +3400,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             orderings.ordering(sort_ahead_ordering.ordering_idx));
         sort_path.sort().order = order_copy;
 
+        if (need_rowid) {
+          FindTablesToGetRowidFor(&sort_path);
+        }
         EstimateSortCost(&sort_path);
         receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
@@ -3253,8 +3442,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         const bool push_limit_to_filesort =
             limit_rows != HA_POS_ERROR && !join->calc_found_rows;
 
-        root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
-
         AccessPath *sort_path = new (thd->mem_root) AccessPath;
         sort_path->type = AccessPath::SORT;
         sort_path->count_examined_rows = false;
@@ -3284,360 +3471,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     root_candidates = std::move(new_root_candidates);
   }
   return root_candidates;
-}
-
-static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
-                               JOIN *join, bool need_rowid_for_window) {
-  AccessPath *window_path =
-      NewWindowAccessPath(thd, root_path, /*temp_table_param=*/nullptr,
-                          /*ref_slice=*/-1, window->needs_buffering());
-  window_path->window().temp_table = nullptr;
-  window_path->window().window = window;
-  CopyBasicProperties(*root_path, window_path);
-  window_path->cost += kWindowOneRowCost * window_path->num_output_rows;
-
-  // NOTE: copy_items = false, because the window iterator does the copying
-  // itself.
-  return CreateMaterializationOrStreamingPath(thd, join, window_path,
-                                              need_rowid_for_window,
-                                              /*copy_items=*/false);
-}
-
-/**
-  Find the ordering that allows us to process the most unprocessed windows.
-  If specified, we can also demand that the ordering satisfies one or two
-  later orderings (for DISTINCT and/or ORDER BY).
-
-  Our priorities are, in strict order:
-
-    1. Satisfying both DISTINCT and ORDER BY (if both are given;
-       but see below).
-    2. Satisfying the first operation after windowing
-       (which is either DISTINCT or ORDER BY).
-    3. Satisfying as many windows as possible.
-    4. The shortest possible ordering (as a tie-breaker).
-
-  If first_ordering_idx is given, #2 is mandatory. #4 is so that we don't
-  get strange situations where the user specifies e.g. OVER (ORDER BY i)
-  and we choose an ordering i,j,k,l,... because it happened to be given
-  somewhere else.
-
-  Note that normally, it is very hard to satisfy DISTINCT for a window
-  function, because generally, it isn't constant for a given input
-  (by nature, it also depends on other rows). But it can happen if the
-  window frame is static; see main.window_functions_interesting_orders.
-
-  @param join                    Contains the list of windows.
-  @param orderings               Logical orderings in the query block.
-  @param sort_ahead_orderings    Candidate orderings to consider.
-  @param fd_set                  Active functional dependencies.
-  @param finished_windows        Windows to ignore.
-  @param tmp_buffer              Temporary space for keeping the best list
-                                 of windows so far; must be as large as
-                                 the number of values.
-  @param first_ordering_idx      The first ordering after the query block
-                                 that we need to satisfy (-1 if none).
-  @param second_ordering_idx     The second ordering after the query block
-                                 that we would like to satisfy (-1 if none).
-  @param [out] included_windows  Which windows can be sorted using the given
-                                 ordering.
-
-  @return An index into sort_ahead_orderings, or -1 if no ordering could
-    be found that sorts at least one window (plus, if first_ordering_idx
-    is set, follows that ordering).
- */
-static int FindBestOrderingForWindow(
-    JOIN *join, const LogicalOrderings &orderings,
-    FunctionalDependencySet fd_set,
-    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
-    Bounds_checked_array<bool> finished_windows,
-    Bounds_checked_array<bool> tmp_buffer, int first_ordering_idx,
-    int second_ordering_idx, Bounds_checked_array<bool> included_windows) {
-  if (first_ordering_idx == -1) {
-    assert(second_ordering_idx == -1);
-  }
-
-  int best_ordering_idx = -1;
-  bool best_following_both_orders = false;
-  int best_num_matching_windows = 0;
-  for (size_t i = 0; i < sort_ahead_orderings.size(); ++i) {
-    const int ordering_idx = sort_ahead_orderings[i].ordering_idx;
-    LogicalOrderings::StateIndex ordering_state =
-        orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
-
-    bool following_both_orders = false;
-    if (first_ordering_idx != -1) {
-      if (!orderings.DoesFollowOrder(ordering_state, first_ordering_idx)) {
-        // Following one is mandatory.
-        continue;
-      }
-      if (second_ordering_idx != -1) {
-        if (orderings.DoesFollowOrder(ordering_state, second_ordering_idx)) {
-          following_both_orders = true;
-        } else if (best_following_both_orders) {
-          continue;
-        }
-      }
-    }
-
-    // If we are doing sortahead for DISTINCT/ORDER BY:
-    // Find windows that are referred to by DISTINCT/ORDER BY,
-    // and disallow them. E.g., if we have
-    //
-    //   SELECT FOO() OVER w1 AS a ... ORDER BY a,
-    //
-    // we cannot put w1 in the group of windows that are to be sorted
-    // together with ORDER BY.
-    for (Window &window : join->m_windows) {
-      window.m_mark = false;
-    }
-    Ordering ordering = orderings.ordering(ordering_idx);
-    bool any_wf = false;
-    for (OrderElement elem : ordering) {
-      WalkItem(orderings.item(elem.item), enum_walk::PREFIX,
-               [&any_wf](Item *item) {
-                 if (item->m_is_window_function) {
-                   down_cast<Item_sum *>(item)->window()->m_mark = true;
-                   any_wf = true;
-                 }
-                 return false;
-               });
-      if (first_ordering_idx == -1 && any_wf) {
-        break;
-      }
-    }
-
-    // If we are doing sorts _before_ DISTINCT/ORDER BY, simply disallow
-    // any sorts on window functions. There should be better options
-    // available for us.
-    if (first_ordering_idx == -1 && any_wf) {
-      continue;
-    }
-
-    // Now find out which windows can be processed under this order.
-    // We use tmp_buffer to hold which one we selected,
-    // and then copy it into included_windows if we are the best so far.
-    int num_matching_windows = 0;
-    for (size_t window_idx = 0; window_idx < join->m_windows.size();
-         ++window_idx) {
-      Window *window = join->m_windows[window_idx];
-      if (window->m_mark || finished_windows[window_idx] ||
-          !orderings.DoesFollowOrder(ordering_state, window->m_ordering_idx)) {
-        tmp_buffer[window_idx] = false;
-        continue;
-      }
-      tmp_buffer[window_idx] = true;
-      ++num_matching_windows;
-    }
-    if (num_matching_windows == 0) {
-      continue;
-    }
-
-    bool is_best;
-    if (best_ordering_idx == -1) {
-      is_best = true;
-    } else if (following_both_orders < best_following_both_orders) {
-      is_best = false;
-    } else if (following_both_orders > best_following_both_orders) {
-      is_best = true;
-    } else if (num_matching_windows < best_num_matching_windows) {
-      is_best = false;
-    } else if (num_matching_windows > best_num_matching_windows) {
-      is_best = true;
-    } else if (orderings.ordering(ordering_idx).size() <
-               orderings
-                   .ordering(
-                       sort_ahead_orderings[best_ordering_idx].ordering_idx)
-                   .size()) {
-      is_best = true;
-    } else {
-      is_best = false;
-    }
-    if (is_best) {
-      best_ordering_idx = i;
-      best_following_both_orders = following_both_orders;
-      best_num_matching_windows = num_matching_windows;
-      memcpy(included_windows.array(), tmp_buffer.array(),
-             sizeof(bool) * included_windows.size());
-    }
-  }
-  return best_ordering_idx;
-}
-
-/**
-  Apply window functions.
-
-  Ordering of window functions is a tricky topic. We can apply window functions
-  in any order that we'd like, but we would like to do as few sorts as possible.
-  In its most general form, this would entail solving an instance of the
-  traveling salesman problem (TSP), and although the number of windows is
-  typically small (one or two in most queries), this can blow up for large
-  numbers of windows.
-
-  Thankfully, window functions never add or remove rows. We also assume that all
-  sorts are equally expensive (which isn't really true, as ones on more columns
-  take more processing time and buffer, but it's close enough in practice),
-  and we also ignore the fact that as we compute more buffers, the temporary
-  tables and sort buffers will get more columns. These assumptions, combined
-  with some reasonable assumptions about ordering transitivity (if an ordering A
-  is more sorted than an ordering B, and B > C, then also A > C -- the only
-  thing that can disturb this is groupings, which we ignore for the sake of
-  simplicity), mean that we need to care _only_ about the number of sorts, and
-  can do them greedily. Thus, at any point, we pick the ordering that allows us
-  to process the largest number of windows, process them, remove them from
-  consideration, and repeat until there are none left.
-
-  There is one more ordering complication; after windowing, we may have DISTINCT
-  and/or ORDER BY, which may also benefit from groupings/orderings we leave
-  after the last window. Thus, first of all, we see if there's an ordering that
-  can satisfy them (ideally both if possible) _and_ at least one window; if so,
-  we save that ordering and those windows for last.
-
-  Temporary tables are set up in FinalizePlanForQueryBlock(). This is so that
-  it is easier to have multiple different orderings for the temporary table
-  parameters later.
- */
-static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
-    THD *thd, const CostingReceiver &receiver,
-    const LogicalOrderings &orderings, FunctionalDependencySet fd_set,
-    bool aggregation_is_unordered, int order_by_ordering_idx,
-    int distinct_ordering_idx, const JoinHypergraph &graph,
-    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
-    Query_block *query_block, int num_where_predicates, bool need_rowid,
-    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
-  JOIN *join = query_block->join;
-
-  // Figure out if windows need row IDs or not; we won't create
-  // the temporary tables before later (since the optimal ordering
-  // of windows is cost-based), so this is a conservative check.
-  bool need_rowid_for_window = need_rowid;
-  if (!need_rowid) {
-    for (Item *item : *join->fields) {
-      if (item->m_is_window_function && item->is_blob_field()) {
-        need_rowid_for_window = true;
-        break;
-      }
-    }
-  }
-
-  // Windows we're done processing, or have reserved for the last block.
-  auto finished_windows =
-      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
-
-  // Windows we've reserved for the last block (see function comment).
-  auto reserved_windows =
-      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
-
-  // Temporary space for FindBestOrderingForWindow().
-  auto tmp =
-      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
-
-  // Windows we're doing in this pass.
-  auto included_windows =
-      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
-
-  if (trace) {
-    *trace += "\n";
-  }
-  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-  for (AccessPath *root_path : root_candidates) {
-    if (trace) {
-      *trace += "Considering window order on top of " +
-                PrintCost(*root_path, graph, "") + "\n";
-    }
-
-    // First, go through and check which windows we can do without
-    // any reordering, just based on the input ordering we get.
-    int num_windows_left = join->m_windows.size();
-    for (size_t window_idx = 0; window_idx < join->m_windows.size();
-         ++window_idx) {
-      Window *window = join->m_windows[window_idx];
-      if (window->m_ordering_idx == -1 ||
-          orderings.DoesFollowOrder(root_path->ordering_state,
-                                    window->m_ordering_idx)) {
-        if (trace) {
-          *trace += std::string(" - window ") + window->printable_name() +
-                    " does not need further sorting\n";
-        }
-        root_path =
-            ApplyWindow(thd, root_path, window, join, need_rowid_for_window);
-        finished_windows[window_idx] = true;
-        --num_windows_left;
-      } else {
-        finished_windows[window_idx] = false;
-      }
-    }
-
-    // Now, see if we can find an ordering that allows us to process
-    // at least one window _and_ an operation after the windowing
-    // (DISTINCT, ORDER BY). If so, that ordering will be our last.
-    int final_sort_ahead_ordering_idx = -1;
-    if ((!aggregation_is_unordered || distinct_ordering_idx == -1) &&
-        (distinct_ordering_idx != -1 || order_by_ordering_idx != -1)) {
-      int first_ordering_idx, second_ordering_idx;
-      if (distinct_ordering_idx == -1) {
-        first_ordering_idx = order_by_ordering_idx;
-        second_ordering_idx = -1;
-      } else {
-        first_ordering_idx = distinct_ordering_idx;
-        second_ordering_idx = order_by_ordering_idx;
-      }
-      final_sort_ahead_ordering_idx = FindBestOrderingForWindow(
-          join, orderings, fd_set, sort_ahead_orderings, finished_windows, tmp,
-          first_ordering_idx, second_ordering_idx, reserved_windows);
-      for (size_t window_idx = 0; window_idx < join->m_windows.size();
-           ++window_idx) {
-        finished_windows[window_idx] |= reserved_windows[window_idx];
-      }
-    }
-
-    // Now all the other orderings, eventually reaching all windows.
-    while (num_windows_left > 0) {
-      int sort_ahead_ordering_idx = FindBestOrderingForWindow(
-          join, orderings, fd_set, sort_ahead_orderings, finished_windows, tmp,
-          /*first_ordering_idx=*/-1,
-          /*second_ordering_idx=*/-1, included_windows);
-      Bounds_checked_array<bool> windows_this_iteration = included_windows;
-      if (sort_ahead_ordering_idx == -1) {
-        // None left, so take the one we've saved for last.
-        sort_ahead_ordering_idx = final_sort_ahead_ordering_idx;
-        windows_this_iteration = reserved_windows;
-        final_sort_ahead_ordering_idx = -1;
-      }
-      if (sort_ahead_ordering_idx == -1) {
-        // Should never happen.
-        assert(false);
-        break;
-      }
-
-      AccessPath sort_path = MakeSortPathWithoutFilesort(
-          thd, root_path, sort_ahead_orderings[sort_ahead_ordering_idx].order,
-          /*ordering_state=*/0, num_where_predicates);
-      sort_path.ordering_state = orderings.ApplyFDs(
-          orderings.SetOrder(
-              sort_ahead_orderings[sort_ahead_ordering_idx].ordering_idx),
-          fd_set);
-      root_path = new (thd->mem_root) AccessPath(sort_path);
-
-      for (size_t window_idx = 0; window_idx < join->m_windows.size();
-           ++window_idx) {
-        if (!windows_this_iteration[window_idx]) {
-          continue;
-        }
-        root_path = ApplyWindow(thd, root_path, join->m_windows[window_idx],
-                                join, need_rowid_for_window);
-        finished_windows[window_idx] = true;
-        --num_windows_left;
-      }
-    }
-
-    receiver.ProposeAccessPath(root_path, &new_root_candidates,
-                               /*obsolete_orderings=*/0, "");
-  }
-  if (trace) {
-    *trace += "\n";
-  }
-  return new_root_candidates;
 }
 
 /**
@@ -3751,6 +3584,820 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
 }
 
 /**
+  Helper for CollectFunctionalDependenciesFromPredicates(); also used for
+  non-equijoin predicates in CollectFunctionalDependenciesFromJoins().
+ */
+static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
+                                                bool always_active,
+                                                LogicalOrderings *orderings) {
+  if (condition->type() != Item::FUNC_ITEM) {
+    return -1;
+  }
+
+  // We treat IS NULL as item = const.
+  if (down_cast<Item_func *>(condition)->functype() == Item_func::ISNULL_FUNC) {
+    Item_func_isnull *isnull = down_cast<Item_func_isnull *>(condition);
+
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::FD;
+    fd.head = Bounds_checked_array<ItemHandle>();
+    fd.tail = orderings->GetHandle(isnull->arguments()[0]);
+    fd.always_active = always_active;
+
+    return orderings->AddFunctionalDependency(thd, fd);
+  }
+
+  if (down_cast<Item_func *>(condition)->functype() != Item_func::EQ_FUNC) {
+    // We only deal with equalities.
+    return -1;
+  }
+  Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
+  Item *left = eq->arguments()[0];
+  Item *right = eq->arguments()[1];
+  if (left->const_for_execution()) {
+    if (right->const_for_execution()) {
+      // Ignore const = const.
+      return -1;
+    }
+    swap(left, right);
+  }
+  if (equality_determines_uniqueness(eq, left, right)) {
+    // item = const.
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::FD;
+    fd.head = Bounds_checked_array<ItemHandle>();
+    fd.tail = orderings->GetHandle(left);
+    fd.always_active = always_active;
+
+    return orderings->AddFunctionalDependency(thd, fd);
+  } else if (!equality_has_no_implicit_casts(eq, left, right)) {
+    // This is not a true equivalence; there is an implicit cast involved
+    // that is potentially information-losing, so ordering by one will not
+    // necessarily be the same as ordering by the other.
+    // TODO(sgunders): Revisit this when we have explicit casts for
+    // all comparisons, where we can generate potentially useful equivalences
+    // involving the casts.
+    return -1;
+  } else {
+    // item = item.
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::EQUIVALENCE;
+    ItemHandle head = orderings->GetHandle(left);
+    fd.head = Bounds_checked_array<ItemHandle>(&head, 1);
+    fd.tail = orderings->GetHandle(right);
+    fd.always_active = always_active;
+
+    // Takes a copy if needed, so the stack reference is safe.
+    return orderings->AddFunctionalDependency(thd, fd);
+  }
+}
+
+/**
+  Collect functional dependencies from joins. Currently, we apply
+  item = item only, and only on inner joins and semijoins. Outer joins do not
+  enforce their equivalences unconditionally (e.g. with an outer join on
+  t1.a = t2.b, t1.a = t2.b does not hold afterwards; t2.b could be NULL).
+  Semijoins do, and even though the attributes from the inner side are
+  inaccessible afterwards, there could still be interesting constant FDs
+  that are applicable to the outer side after equivalences.
+
+  It is possible to generate a weaker form of FDs for outer joins,
+  as described in sql/aggregate_check.h (and done for GROUP BY);
+  e.g. from the join condition t1.x=t2.x AND t1.y=t2.y, one can infer a
+  functional dependency {t1.x,t1.y} → t2.x and similar for t2.y.
+  However, do note the comment about FD propagation in the calling function.
+ */
+static void CollectFunctionalDependenciesFromJoins(
+    THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
+  for (JoinPredicate &pred : graph->edges) {
+    const RelationalExpression *expr = pred.expr;
+    if (expr->type != RelationalExpression::INNER_JOIN &&
+        expr->type != RelationalExpression::STRAIGHT_INNER_JOIN &&
+        expr->type != RelationalExpression::SEMIJOIN) {
+      continue;
+    }
+    pred.functional_dependencies_idx.init(thd->mem_root);
+    pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size() +
+                                             expr->join_conditions.size());
+    for (Item_func_eq *join_condition : expr->equijoin_conditions) {
+      int fd_idx = AddFunctionalDependencyFromCondition(
+          thd, join_condition, /*always_active=*/false, orderings);
+      if (fd_idx != -1) {
+        pred.functional_dependencies_idx.push_back(fd_idx);
+      }
+    }
+    for (Item *join_condition : expr->join_conditions) {
+      int fd_idx = AddFunctionalDependencyFromCondition(
+          thd, join_condition, /*always_active=*/false, orderings);
+      if (fd_idx != -1) {
+        pred.functional_dependencies_idx.push_back(fd_idx);
+      }
+    }
+  }
+}
+
+/**
+  Collect functional dependencies from non-join predicates.
+  Again, we only do item = item, and more interesting; we only take the
+  raw items, where we could have been much more sophisticated.
+  Imagine a predicate like a = b + c; we will add a FD saying exactly
+  that (which may or may not be useful, if b + c shows up in ORDER BY),
+  but we should probably also have added {b,c} → a, if b and c could
+  be generated somehow.
+
+  However, we _do_ special-case item = const, since they are so useful;
+  they become {} → item instead.
+ */
+static void CollectFunctionalDependenciesFromPredicates(
+    THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
+  for (Predicate &pred : graph->predicates) {
+    bool always_active =
+        !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
+        IsSingleBitSet(pred.total_eligibility_set);
+    int fd_idx = AddFunctionalDependencyFromCondition(thd, pred.condition,
+                                                      always_active, orderings);
+    if (fd_idx != -1) {
+      pred.functional_dependencies_idx.push_back(fd_idx);
+    }
+  }
+}
+
+static void CollectFunctionalDependenciesFromUniqueIndexes(
+    THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
+  // Collect functional dependencies from unique indexes.
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    TABLE *table = node.table;
+    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+      KEY *key = &table->key_info[key_idx];
+      if (!Overlaps(actual_key_flags(key), HA_NOSAME)) {
+        // Not a unique index.
+        continue;
+      }
+      if (Overlaps(actual_key_flags(key), HA_NULL_PART_KEY)) {
+        // Some part of the index could be NULL,
+        // with special semantics; so ignore it.
+        continue;
+      }
+
+      FunctionalDependency fd;
+      fd.type = FunctionalDependency::FD;
+      fd.head = Bounds_checked_array<ItemHandle>::Alloc(thd->mem_root,
+                                                        actual_key_parts(key));
+      for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+           ++keypart_idx) {
+        fd.head[keypart_idx] = orderings->GetHandle(
+            new Item_field(key->key_part[keypart_idx].field));
+      }
+      fd.always_active = true;
+
+      // Add a FD for each field in the table that is not part of the key.
+      for (unsigned field_idx = 0; field_idx < table->s->fields; ++field_idx) {
+        Field *field = table->field[field_idx];
+        bool in_key = false;
+        for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+             ++keypart_idx) {
+          if (field->eq(key->key_part[keypart_idx].field)) {
+            in_key = true;
+            break;
+          }
+        }
+        if (!in_key) {
+          fd.tail = orderings->GetHandle(new Item_field(field));
+          orderings->AddFunctionalDependency(thd, fd);
+        }
+      }
+    }
+  }
+}
+
+static Ordering CollectInterestingOrder(THD *thd, ORDER *order, int order_len,
+                                        bool unwrap_rollup,
+                                        LogicalOrderings *orderings,
+                                        table_map *used_tables) {
+  Ordering ordering = Ordering::Alloc(thd->mem_root, order_len);
+  int i = 0;
+  *used_tables = 0;
+  for (; order != nullptr; order = order->next, ++i) {
+    Item *item = *order->item;
+    if (unwrap_rollup) {
+      item = unwrap_rollup_group(item);
+    }
+    ordering[i].item = orderings->GetHandle(item);
+    ordering[i].direction = order->direction;
+    *used_tables |= item->used_tables();
+  }
+  return ordering;
+}
+
+// A convenience form of the above.
+static Ordering CollectInterestingOrder(THD *thd,
+                                        const SQL_I_List<ORDER> &order_list,
+                                        bool unwrap_rollup,
+                                        LogicalOrderings *orderings,
+                                        table_map *used_tables) {
+  return CollectInterestingOrder(thd, order_list.first, order_list.size(),
+                                 unwrap_rollup, orderings, used_tables);
+}
+
+// Build an ORDER * that we can give to Filesort. It is only suitable for
+// sort-ahead, since it assumes no temporary tables have been inserted.
+// Call ReplaceOrderItemsWithTempTableFields() on the ordering if you wish
+// to use it after the temporary table.
+static ORDER *BuildSortAheadOrdering(THD *thd,
+                                     const LogicalOrderings *orderings,
+                                     Ordering ordering) {
+  ORDER *order = nullptr;
+  ORDER *last_order = nullptr;
+  for (OrderElement element : ordering) {
+    ORDER *new_ptr = new (thd->mem_root) ORDER;
+    new_ptr->item_initial = orderings->item(element.item);
+    new_ptr->item = &new_ptr->item_initial;
+    new_ptr->direction = element.direction;
+
+    if (order == nullptr) {
+      order = new_ptr;
+    }
+    if (last_order != nullptr) {
+      last_order->next = new_ptr;
+    }
+    last_order = new_ptr;
+  }
+  return order;
+}
+
+static int AddOrdering(
+    THD *thd, const JoinHypergraph *graph, Ordering ordering,
+    ORDER *order_for_filesort, bool used_at_end, table_map homogenize_tables,
+    table_map used_tables, LogicalOrderings *orderings,
+    Mem_root_array<SortAheadOrdering> *sort_ahead_orderings) {
+  if (ordering.empty()) {
+    return 0;
+  }
+
+  const int old_num_orderings = orderings->num_orderings();
+  const int ordering_idx = orderings->AddOrdering(
+      thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
+  if (ordering_idx < old_num_orderings) {
+    // A duplicate, so we don't add anything new to sort_ahead_orderings.
+    return ordering_idx;
+  }
+
+  // See if we can use this for sort-ahead. (For groupings, LogicalOrderings
+  // will create its own sort-ahead orderings for us, so we shouldn't do it
+  // here.)
+  if (!Overlaps(used_tables, RAND_TABLE_BIT) && !IsGrouping(ordering)) {
+    NodeMap required_nodes = GetNodeMapFromTableMap(
+        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
+    if (order_for_filesort == nullptr) {
+      order_for_filesort = BuildSortAheadOrdering(thd, orderings, ordering);
+    }
+    bool aggregates_required = false;
+    for (OrderElement element : orderings->ordering(ordering_idx)) {
+      if (orderings->item(element.item)->has_aggregation()) {
+        aggregates_required = true;
+        break;
+      }
+    }
+    sort_ahead_orderings->push_back(SortAheadOrdering{
+        ordering_idx, required_nodes, aggregates_required, order_for_filesort});
+  }
+
+  return ordering_idx;
+}
+
+static void CanonicalizeGrouping(Ordering *ordering) {
+  for (OrderElement &elem : *ordering) {
+    elem.direction = ORDER_NOT_RELEVANT;
+  }
+  std::sort(ordering->begin(), ordering->end(),
+            [](const OrderElement &a, const OrderElement &b) {
+              return a.item < b.item;
+            });
+  ordering->resize(std::unique(ordering->begin(), ordering->end()) -
+                   ordering->begin());
+}
+
+/**
+  Build all structures we need for keeping track of interesting orders.
+  We collect the actual relevant orderings (e.g. from ORDER BY) and any
+  functional dependencies we can find, then ask LogicalOrderings to create
+  its state machine. The result is said state machine, a list of potential
+  sort-ahead orderings, and a list of what indexes we can use to scan
+  each table (including what orderings they yield, if they are interesting).
+ */
+static void BuildInterestingOrders(
+    THD *thd, JoinHypergraph *graph, Query_block *query_block,
+    LogicalOrderings *orderings,
+    Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
+    int *order_by_ordering_idx, int *group_by_ordering_idx,
+    int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
+    Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
+  // Collect ordering from ORDER BY.
+  if (query_block->is_ordered()) {
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, query_block->order_list,
+                                                /*unwrap_rollup=*/false,
+                                                orderings, &used_tables);
+    *order_by_ordering_idx =
+        AddOrdering(thd, graph, ordering,
+                    /*order_for_filesort=*/nullptr,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
+  }
+
+  // Collect grouping from GROUP BY.
+  if (query_block->is_explicitly_grouped()) {
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, query_block->group_list,
+                                                /*unwrap_rollup=*/true,
+                                                orderings, &used_tables);
+    CanonicalizeGrouping(&ordering);
+
+    *group_by_ordering_idx =
+        AddOrdering(thd, graph, ordering, query_block->group_list.first,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
+  }
+
+  // Collect grouping from DISTINCT.
+  //
+  // Note that we don't give in the ORDER BY ordering here, and thus also don't
+  // care about all_order_by_fields_used (which says whether the DISTINCT
+  // ordering was able to also satisfy the ORDER BY); group coverings will be
+  // dealt with by the more general intesting order framework, which can also
+  // combine e.g. GROUP BY groupings with ORDER BY.
+  if (query_block->join->select_distinct) {
+    bool all_order_fields_used = false;
+    ORDER *order = create_order_from_distinct(
+        thd, Ref_item_array(), /*order=*/nullptr, query_block->join->fields,
+        /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
+        &all_order_fields_used);
+
+    int order_len = 0;
+    for (ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
+      ++order_len;
+    }
+
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, order, order_len,
+                                                /*unwrap_rollup=*/false,
+                                                orderings, &used_tables);
+
+    CanonicalizeGrouping(&ordering);
+    *distinct_ordering_idx =
+        AddOrdering(thd, graph, ordering,
+                    /*order_for_filesort=*/order,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
+  }
+
+  // Collect groupings from semijoins (because we might want to do duplicate
+  // removal on the inner side, which will allow us to convert the join to an
+  // inner join and invert it).
+  for (JoinPredicate &pred : graph->edges) {
+    if (pred.expr->type != RelationalExpression::SEMIJOIN) {
+      continue;
+    }
+    if (!pred.expr->join_conditions.empty()) {
+      // Most semijoins (e.g. from IN) are pure equijoins, but due to
+      // outer references, there may also be non-equijoin conditions
+      // involved. If so, we can no longer rewrite to a regular inner
+      // join (at least not in the general case), so skip these.
+      continue;
+    }
+    const table_map inner_tables = pred.expr->right->tables_in_subtree;
+    Ordering ordering =
+        Ordering::Alloc(thd->mem_root, pred.expr->equijoin_conditions.size());
+    table_map used_tables = 0;
+    bool contains_row_item = false;
+    for (size_t i = 0; i < pred.expr->equijoin_conditions.size(); ++i) {
+      Item *item = pred.expr->equijoin_conditions[i]->get_arg(1);
+      if (!IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables)) {
+        item = pred.expr->equijoin_conditions[i]->get_arg(0);
+        assert(
+            IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables));
+      }
+      if (item->result_type() == ROW_RESULT) {
+        // In rare cases, the optimizer may set up semijoins where the
+        // items themselves are ROW() items. RemoveDuplicatesIterator
+        // isn't ready for ROW_RESULT type, so we unwrap the simple ones
+        // and simply ignore semijoins over more complex row-type items.
+        if (item->type() == Item::ROW_ITEM && item->cols() == 1) {
+          item = down_cast<Item_row *>(item)->element_index(0);
+        } else {
+          contains_row_item = true;
+          break;
+        }
+      }
+      ordering[i].item = orderings->GetHandle(item);
+      used_tables |= item->used_tables();
+    }
+    if (contains_row_item) {
+      continue;
+    }
+    CanonicalizeGrouping(&ordering);
+
+    pred.ordering_idx_needed_for_semijoin_rewrite =
+        AddOrdering(thd, graph, ordering, /*order_for_filesort=*/nullptr,
+                    /*used_at_end=*/false, /*homogenize_tables=*/inner_tables,
+                    used_tables, orderings, sort_ahead_orderings);
+  }
+
+  // Collect list of all active indexes. We will be needing this for ref access
+  // and full-text index search even if we don't have any interesting orders.
+  for (unsigned node_idx = 0; node_idx < graph->nodes.size(); ++node_idx) {
+    TABLE *table = graph->nodes[node_idx].table;
+    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+      // NOTE: visible_index claims to contain “visible and enabled” indexes,
+      // but we still need to check keys_in_use to ignore disabled indexes.
+      if (!table->keys_in_use_for_query.is_set(key_idx)) {
+        continue;
+      }
+      ActiveIndexInfo index_info;
+      index_info.table = table;
+      index_info.key_idx = key_idx;
+      active_indexes->push_back(index_info);
+    }
+  }
+
+  // Collect list of full-text searches that can be satisfied by an active
+  // full-text index.
+  if (query_block->has_ft_funcs()) {
+    for (const ActiveIndexInfo &index_info : *active_indexes) {
+      const TABLE *table = index_info.table;
+      const unsigned key_idx = index_info.key_idx;
+      const KEY &key = table->key_info[key_idx];
+
+      if (!Overlaps(key.flags, HA_FULLTEXT)) continue;
+
+      for (Item_func_match &ftfunc : *query_block->ftfunc_list) {
+        if (ftfunc.get_master() == &ftfunc &&
+            ftfunc.table_ref->table == table && ftfunc.key == key_idx) {
+          fulltext_searches->push_back(FullTextIndexInfo{&ftfunc, 0});
+        }
+      }
+    }
+  }
+
+  // Early exit if we don't have any interesting orderings.
+  if (orderings->num_orderings() <= 1) {
+    if (trace != nullptr) {
+      *trace +=
+          "\nNo interesting orders found. Not collecting functional "
+          "dependencies.\n\n";
+    }
+    orderings->Build(thd, trace);
+    return;
+  }
+
+  // Collect orderings from indexes. Note that these are not interesting
+  // in themselves, so they will be rapidly pruned away if they cannot lead
+  // to an interesting order.
+  for (ActiveIndexInfo &index_info : *active_indexes) {
+    TABLE *table = index_info.table;
+    KEY *key = &table->key_info[index_info.key_idx];
+
+    // Find out how many usable keyparts there are. We have to stop
+    // at the first that is partial (if any), or if the index is
+    // nonorderable (e.g. a hash index), which we can seemingly only
+    // query by keypart.
+    int sortable_key_parts = 0;
+    for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+         ++keypart_idx, ++sortable_key_parts) {
+      if (Overlaps(key->key_part[keypart_idx].key_part_flag, HA_PART_KEY_SEG) ||
+          !Overlaps(
+              table->file->index_flags(index_info.key_idx, keypart_idx, true),
+              HA_READ_ORDER)) {
+        break;
+      }
+    }
+
+    // First add the forward order.
+    Ordering ordering = Ordering::Alloc(thd->mem_root, sortable_key_parts);
+    for (int keypart_idx = 0; keypart_idx < sortable_key_parts; ++keypart_idx) {
+      const KEY_PART_INFO &key_part = key->key_part[keypart_idx];
+      ordering[keypart_idx].item =
+          orderings->GetHandle(new Item_field(key_part.field));
+      ordering[keypart_idx].direction =
+          Overlaps(key_part.key_part_flag, HA_REVERSE_SORT) ? ORDER_DESC
+                                                            : ORDER_ASC;
+    }
+    index_info.forward_order =
+        orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                               /*used_at_end=*/true, /*homogenize_tables=*/0);
+
+    // And now the reverse, if the index allows it.
+    if (Overlaps(table->file->index_flags(index_info.key_idx,
+                                          sortable_key_parts - 1, true),
+                 HA_READ_PREV)) {
+      for (int keypart_idx = 0; keypart_idx < sortable_key_parts;
+           ++keypart_idx) {
+        if (ordering[keypart_idx].direction == ORDER_ASC) {
+          ordering[keypart_idx].direction = ORDER_DESC;
+        } else {
+          ordering[keypart_idx].direction = ORDER_ASC;
+        }
+      }
+      index_info.reverse_order =
+          orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                                 /*used_at_end=*/true, /*homogenize_tables=*/0);
+    }
+  }
+
+  // Collect orderings from full-text indexes. Note that these are not
+  // interesting in themselves, so they will be rapidly pruned away if they
+  // cannot lead to an interesting order. Full-text indexes can only provide
+  // results ordered descending on the result returned by MATCH ... AGAINST.
+  for (FullTextIndexInfo &info : *fulltext_searches) {
+    // MyISAM does not support ordering on queries in boolean mode.
+    if (Overlaps(info.match->flags, FT_BOOL) &&
+        !Overlaps(info.match->table_ref->table->file->ha_table_flags(),
+                  HA_CAN_FULLTEXT_EXT)) {
+      continue;
+    }
+
+    ItemHandle item = orderings->GetHandle(info.match);
+    OrderElement order_element{item, ORDER_DESC};
+    Ordering ordering{&order_element, 1};
+    info.order = orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                                        /*used_at_end=*/true,
+                                        /*homogenize_tables=*/0);
+  }
+
+  // Collect functional dependencies. Currently, there are many kinds
+  // we don't do; see sql/aggregate_check.h. In particular, we don't
+  // collect FDs from:
+  //
+  //  - Unique indexes that are nullable, but that are made non-nullable
+  //    by WHERE predicates.
+  //  - Generated columns. [*]
+  //  - Join conditions from outer joins. [*]
+  //  - Non-merged derived tables (including views and CTEs). [*]
+  //
+  // Note that the points marked with [*] introduce special problems related
+  // to propagation of FDs; aggregate_check.h contains more details around
+  // so-called “NULL-friendly functional dependencies”. If we include any
+  // of them, we need to take more care about propagating them through joins.
+  //
+  // We liberally insert FDs here, even if they are not obviously related
+  // to interesting orders; they may be useful at a later stage, when
+  // other FDs can use them as a stepping stone. Optimization in Build()
+  // will remove them if they are indeed not useful.
+  CollectFunctionalDependenciesFromJoins(thd, graph, orderings);
+  CollectFunctionalDependenciesFromPredicates(thd, graph, orderings);
+  CollectFunctionalDependenciesFromUniqueIndexes(thd, graph, orderings);
+
+  // Collect the GROUP BY expression, which will be used by
+  // AddFDsFromAggregateItems() later.
+  if (query_block->is_explicitly_grouped()) {
+    auto head = Bounds_checked_array<ItemHandle>::Alloc(
+        thd->mem_root, query_block->group_list.size());
+    int idx = 0;
+    for (ORDER *group = query_block->group_list.first; group != nullptr;
+         group = group->next, ++idx) {
+      head[idx] = orderings->GetHandle(*group->item);
+    }
+    orderings->SetHeadForAggregates(head);
+  }
+  orderings->SetRollup(query_block->join->rollup_state !=
+                       JOIN::RollupState::NONE);
+
+  orderings->Build(thd, trace);
+
+  if (*order_by_ordering_idx != -1) {
+    *order_by_ordering_idx =
+        orderings->RemapOrderingIndex(*order_by_ordering_idx);
+  }
+  if (*group_by_ordering_idx != -1) {
+    *group_by_ordering_idx =
+        orderings->RemapOrderingIndex(*group_by_ordering_idx);
+  }
+  if (*distinct_ordering_idx != -1) {
+    *distinct_ordering_idx =
+        orderings->RemapOrderingIndex(*distinct_ordering_idx);
+  }
+
+  for (JoinPredicate &pred : graph->edges) {
+    for (int fd_idx : pred.functional_dependencies_idx) {
+      pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
+    }
+  }
+  for (Predicate &pred : graph->predicates) {
+    for (int fd_idx : pred.functional_dependencies_idx) {
+      pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
+    }
+  }
+
+  // Get the updated ordering indexes, since Build() may have moved them around.
+  for (SortAheadOrdering &ordering : *sort_ahead_orderings) {
+    ordering.ordering_idx =
+        orderings->RemapOrderingIndex(ordering.ordering_idx);
+  }
+
+  for (JoinPredicate &pred : graph->edges) {
+    if (pred.ordering_idx_needed_for_semijoin_rewrite != -1) {
+      pred.ordering_idx_needed_for_semijoin_rewrite =
+          orderings->RemapOrderingIndex(
+              pred.ordering_idx_needed_for_semijoin_rewrite);
+
+      // Set up the elements to deduplicate against. Note that we don't do this
+      // before after Build(), because Build() may have simplified away some
+      // (or all) elements using functional dependencies.
+      Ordering grouping =
+          orderings->ordering(pred.ordering_idx_needed_for_semijoin_rewrite);
+      pred.semijoin_group_size = grouping.size();
+      if (!grouping.empty()) {
+        pred.semijoin_group =
+            thd->mem_root->ArrayAlloc<Item *>(grouping.size());
+        for (size_t i = 0; i < grouping.size(); ++i) {
+          pred.semijoin_group[i] = orderings->item(grouping[i].item);
+        }
+      }
+    }
+  }
+
+  for (FullTextIndexInfo &info : *fulltext_searches) {
+    info.order = orderings->RemapOrderingIndex(info.order);
+  }
+
+  // After Build(), there may be more interesting orders that we can try
+  // as sort-ahead; in particular homogenized orderings. (The ones we already
+  // added will not have moved around, as per the contract.) Scan for them,
+  // create orders that filesort can use, and add them to the list.
+  for (int ordering_idx = sort_ahead_orderings->size();
+       ordering_idx < orderings->num_orderings(); ++ordering_idx) {
+    if (!orderings->ordering_is_relevant_for_sortahead(ordering_idx)) {
+      continue;
+    }
+
+    table_map used_tables = 0;
+    bool aggregates_required = false;
+    for (OrderElement element : orderings->ordering(ordering_idx)) {
+      Item *item = orderings->item(element.item);
+      used_tables |= item->used_tables();
+      aggregates_required |= item->has_aggregation();
+    }
+    NodeMap required_nodes = GetNodeMapFromTableMap(
+        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
+
+    ORDER *order = BuildSortAheadOrdering(thd, orderings,
+                                          orderings->ordering(ordering_idx));
+    sort_ahead_orderings->push_back(SortAheadOrdering{
+        ordering_idx, required_nodes, aggregates_required, order});
+  }
+}
+
+// If the AccessPath is a materialization (MATERIALIZE or STREAM)
+// within the same query block, returns its temporary table parameters.
+// If not, return nullptr.
+static Temp_table_param *GetMaterialization(AccessPath *path) {
+  if (path->type == AccessPath::STREAM) {
+    if (path->stream().table->pos_in_table_list != nullptr) {
+      // Materializes a different query block.
+      return nullptr;
+    }
+    return path->stream().temp_table_param;
+  }
+  if (path->type == AccessPath::MATERIALIZE) {
+    const MaterializePathParameters *param = path->materialize().param;
+    if (param->table->pos_in_table_list != nullptr) {
+      // Materializes a different query block.
+      return nullptr;
+    }
+    assert(param->query_blocks.size() == 1);
+    return param->query_blocks[0].temp_table_param;
+  }
+  return nullptr;
+}
+
+/*
+  Do the final touchups of the access path tree, once we have selected a final
+  plan (ie., there are no more alternatives). There are currently two major
+  tasks to do here: Account for materializations (because we cannot do it until
+  we have the entire plan), and set up filesorts (because it involves
+  constructing new objects, so we don't want to do it for unused candidates).
+  The former also influences the latter.
+
+  Materializations in particular are a bit tricky due to the way our item system
+  works; expression evaluation cares intimately about _where_ values come from,
+  not just what they are (i.e., all non-leaf Items carry references to other
+  Items, and pull data only from there). Thus, whenever an Item is materialized,
+  references to that Item need to be modified to instead point into the correct
+  field in the temporary table. We traverse the tree bottom-up and keep track of
+  which materializations are active, and modify the appropriate Item lists at
+  any given point, so that they point to the right place. We currently modify:
+
+    - The SELECT list. (There is only one, so we can update it as we go.)
+    - Referenced fields for INSERT ... ON DUPLICATE KEY UPDATE (IODKU);
+      also updated as we go.
+    - Sort keys (e.g. for ORDER BY).
+    - The HAVING clause, if the materialize node is below an aggregate node.
+      (If the materialization is above aggregation, the HAVING clause has
+      already accomplished its mission of filtering out the uninteresting
+      results, and will not be evaluated anymore.)
+
+  Surprisingly enough, we also need to update the materialization parameters
+  themselves. Say that we first have a materialization that copies
+  t1.x -> <temp1>.x. After that, we have a materialization that copies
+  t1.x -> <temp2>.x. For this to work properly, we obviously need to go in
+  and modify the second one so that it instead says <temp1>.x -> <temp2>.x,
+  ie., the copy is done from the correct source.
+
+  You cannot yet insert temporary tables in arbitrary places in the query;
+  in particular, we do not yet handle these rewrites (although they would
+  very likely be possible):
+
+    - Group elements for aggregations (GROUP BY). Do note that
+      create_tmp_table() will replace elements within aggregate functions
+      if you set save_sum_funcs=false; you may also want to supplant
+      this mechanism.
+    - Filters (e.g. WHERE predicates); do note that partial pushdown may
+      present its own challenges.
+    - Join conditions.
+ */
+void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                               AccessPath *root_path) {
+  assert(query_block->join->needs_finalize);
+
+  Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
+  WalkAccessPaths(
+      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [thd, query_block, &applied_replacements](AccessPath *path, JOIN *join) {
+        Temp_table_param *temp_table_param = GetMaterialization(path);
+        if (temp_table_param != nullptr) {
+          // Update source references in this materialization.
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
+            for (Func_ptr &func : *temp_table_param->items_to_copy) {
+              func.set_func(FindReplacementOrReplaceMaterializedItems(
+                  thd, func.func(), *earlier_replacement,
+                  /*need_exact_match=*/true));
+            }
+          }
+          applied_replacements.push_back(temp_table_param->items_to_copy);
+
+          // Update SELECT list and IODKU references.
+          const mem_root_deque<Item *> *original_fields = join->fields;
+          ReplaceSelectListWithTempTableFields(
+              thd, join, *temp_table_param->items_to_copy);
+          if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
+            ReplaceUpdateValuesWithTempTableFields(
+                down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd),
+                query_block, *original_fields, *join->fields);
+          }
+        } else if (path->type == AccessPath::SORT) {
+          assert(path->sort().filesort == nullptr);
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
+            ReplaceOrderItemsWithTempTableFields(thd, path->sort().order,
+                                                 *earlier_replacement);
+          }
+
+          // Set up a Filesort object for this sort.
+          Mem_root_array<TABLE *> tables = CollectTables(thd, path);
+          const ha_rows limit_rows =
+              path->sort().use_limit
+                  ? join->query_expression()->select_limit_cnt
+                  : HA_POS_ERROR;
+          path->sort().filesort = new (thd->mem_root) Filesort(
+              thd, std::move(tables),
+              /*keep_buffers=*/false, path->sort().order, limit_rows,
+              path->sort().remove_duplicates, /*force_sort_positions=*/false,
+              path->sort().unwrap_rollup);
+          join->filesorts_to_cleanup.push_back(path->sort().filesort);
+          if (!path->sort().filesort->using_addon_fields()) {
+            FindTablesToGetRowidFor(path);
+          }
+        } else if (path->type == AccessPath::FILTER) {
+          // Update the HAVING clause. (It also runs on filters for WHERE
+          // clauses, but they typically don't have references to any
+          // materialized expressions.)
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
+            path->filter().condition =
+                FindReplacementOrReplaceMaterializedItems(
+                    thd, path->filter().condition, *earlier_replacement,
+                    /*need_exact_match=*/true);
+          }
+        } else if (path->type == AccessPath::REMOVE_DUPLICATES) {
+          Item **group_items = path->remove_duplicates().group_items;
+          for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
+            for (const Func_ptr_array *earlier_replacement :
+                 applied_replacements) {
+              group_items[i] = FindReplacementOrReplaceMaterializedItems(
+                  thd, group_items[i], *earlier_replacement,
+                  /*need_exact_match=*/true);
+            }
+          }
+        }
+        return false;
+      },
+      /*post_order_traversal=*/true);
+
+  query_block->join->needs_finalize = false;
+}
+
+/**
   Find the lowest-cost plan (which hopefully is also the cheapest to execute)
   of all the legal ways to execute the query. The overall order of operations is
   largely dictated by the standard:
@@ -3760,7 +4407,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
     3. GROUP BY (it is sometimes possible to push this down into #1,
        but we don't have the functionality to do so).
     4. HAVING.
-    5. Window functions.
+    5. Window functions (not supported yet).
     6. DISTINCT.
     7. ORDER BY.
     8. LIMIT.
@@ -3780,7 +4427,7 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
 AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               string *trace) {
   JOIN *join = query_block->join;
-  if (CheckSupportedQuery(thd)) return nullptr;
+  if (CheckSupportedQuery(thd, join)) return nullptr;
 
   // In the case of rollup (only): After the base slice list was made, we may
   // have modified the field list to add rollup group items and sum switchers.
@@ -3813,31 +4460,22 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   bool need_rowid = false;
   if (query_block->is_explicitly_grouped() || query_block->is_ordered() ||
       join->select_distinct) {
-    // NOTE: This is distinct from SortWillBeOnRowId(), as it also checks blob
-    // fields arising from blob-generating functions on non-blob fields.
-    for (Item *item : *join->fields) {
-      if (item->is_blob_field()) {
-        need_rowid = true;
-        break;
-      }
-    }
-    for (TABLE_LIST *tl = query_block->leaf_tables;
-         tl != nullptr && !need_rowid; tl = tl->next_leaf) {
+    for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+         tl = tl->next_leaf) {
       if (SortWillBeOnRowId(tl->table)) {
         need_rowid = true;
+        break;
       }
     }
   }
 
   // Find out which predicates contain subqueries.
-  MutableOverflowBitset materializable_predicates{thd->mem_root,
-                                                  graph.predicates.size()};
+  graph.materializable_predicates = 0;
   for (unsigned i = 0; i < graph.predicates.size(); ++i) {
     if (ContainsSubqueries(graph.predicates[i].condition)) {
-      materializable_predicates.SetBit(i);
+      graph.materializable_predicates |= uint64_t{1} << i;
     }
   }
-  graph.materializable_predicates = std::move(materializable_predicates);
 
   NodeMap fulltext_tables = 0;
   uint64_t sargable_fulltext_predicates = 0;
@@ -3849,7 +4487,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     EnableFullTextCoveringIndexes(query_block);
   }
 
-  // Collect interesting orders from ORDER BY, GROUP BY, semijoins and windows.
+  // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
   // See BuildInterestingOrders() for more detailed information.
   SecondaryEngineFlags engine_flags = EngineFlags(thd);
   LogicalOrderings orderings(thd);
@@ -3940,9 +4578,6 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         AccessPath path = *root_path;
         double init_once_cost = 0.0;
 
-        MutableOverflowBitset filter_predicates =
-            path.filter_predicates.Clone(thd->mem_root);
-
         // Apply any predicates that don't belong to any
         // specific table, or which are nondeterministic.
         for (size_t i = 0; i < graph.num_where_predicates; ++i) {
@@ -3950,7 +4585,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                         TablesBetween(0, graph.nodes.size())) ||
               Overlaps(graph.predicates[i].total_eligibility_set,
                        RAND_TABLE_BIT)) {
-            filter_predicates.SetBit(i);
+            path.filter_predicates |= uint64_t{1} << i;
             FilterCost cost =
                 EstimateFilterCost(thd, root_path->num_output_rows,
                                    graph.predicates[i].condition, query_block);
@@ -3965,7 +4600,6 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
         path.ordering_state = orderings.ApplyFDs(path.ordering_state, fd_set);
 
-        path.filter_predicates = std::move(filter_predicates);
         const bool contains_subqueries =
             Overlaps(path.filter_predicates, graph.materializable_predicates);
 
@@ -4059,8 +4693,6 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         continue;
       }
 
-      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
-
       // We need to sort. Try all sort-ahead, not just the one directly derived
       // from GROUP BY clause, because a broader one might help us elide ORDER
       // BY or DISTINCT later.
@@ -4116,51 +4748,54 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
     root_candidates = std::move(new_root_candidates);
 
+    Item_sum **func_ptr = join->sum_funcs;
+    Item_sum *func;
+    bool need_distinct = true;  // We don't support loose index scan yet.
+    while ((func = *(func_ptr++))) {
+      Aggregator::Aggregator_type type =
+          need_distinct && func->has_with_distinct()
+              ? Aggregator::DISTINCT_AGGREGATOR
+              : Aggregator::SIMPLE_AGGREGATOR;
+      if (func->set_aggregator(type) || func->aggregator_setup(thd)) {
+        return nullptr;
+      }
+    }
     if (make_group_fields(join, join)) {
       return nullptr;
     }
-
-    // Final setup will be done in FinalizePlanForQueryBlock(),
-    // when we have all materialization done.
   }
 
-  // Apply HAVING, if applicable (sans any window-related in2exists parts,
-  // which we apply below).
-  Item *having_cond;
-  Item *having_cond_wf;
-  SplitHavingCondition(thd, join->having_cond, &having_cond, &having_cond_wf);
-  ApplyHavingCondition(thd, having_cond, query_block,
-                       "Applying filter for HAVING\n", trace, &root_candidates,
-                       &receiver);
+  // Apply HAVING, if applicable.
+  if (join->having_cond != nullptr) {
+    if (trace != nullptr) {
+      *trace += "Applying filter for HAVING\n";
+    }
 
-  // If we have GROUP BY followed by a window function (which might include
-  // ORDER BY), we might need to materialize before the first ordering -- see
-  // the comment near the top of ApplyDistinctAndOrder() for why.
-  if (query_block->is_explicitly_grouped() && !join->m_windows.is_empty()) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      root_path =
-          CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
-                                               /*copy_items=*/true);
-      receiver.ProposeAccessPath(root_path, &new_root_candidates,
+      AccessPath filter_path;
+      filter_path.type = AccessPath::FILTER;
+      filter_path.filter().child = root_path;
+      filter_path.filter().condition = join->having_cond;
+      // We don't currently bother with materializing subqueries
+      // in HAVING, as they should be rare.
+      filter_path.filter().materialize_subqueries = false;
+      filter_path.num_output_rows =
+          root_path->num_output_rows *
+          EstimateSelectivity(thd, join->having_cond, trace);
+      filter_path.init_cost = root_path->init_cost;
+      filter_path.init_once_cost = root_path->init_once_cost;
+      filter_path.cost =
+          root_path->cost + EstimateFilterCost(thd, root_path->num_output_rows,
+                                               join->having_cond, query_block)
+                                .cost_if_not_materialized;
+      filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
+      filter_path.cost_before_filter = filter_path.cost;
+      receiver.ProposeAccessPath(&filter_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
-
-  join->m_windowing_steps = !join->m_windows.is_empty();
-  if (join->m_windowing_steps) {
-    root_candidates = ApplyWindowFunctions(
-        thd, receiver, orderings, fd_set, aggregation_is_unordered,
-        order_by_ordering_idx, distinct_ordering_idx, graph,
-        sort_ahead_orderings, query_block, graph.num_where_predicates,
-        need_rowid, std::move(root_candidates), trace);
-  }
-
-  ApplyHavingCondition(
-      thd, having_cond_wf, query_block,
-      "Applying filter for window function in2exists conditions\n", trace,
-      &root_candidates, &receiver);
 
   if (join->select_distinct || query_block->is_ordered()) {
     root_candidates = ApplyDistinctAndOrder(
@@ -4220,13 +4855,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }
 
-    // If we have windows, we may need to add a materialization for the last
-    // window here, or create_tmp_table() will not create fields for its window
-    // functions. (All other windows have already been materialized.)
-    bool copy_items = join->m_windows.is_empty();
-    root_path =
-        CreateMaterializationPath(thd, join, root_path, /*temp_table=*/nullptr,
-                                  /*temp_table_param=*/nullptr, copy_items);
+    Temp_table_param *temp_table_param = nullptr;
+    TABLE *buffer_temp_table =
+        CreateTemporaryTableFromSelectList(thd, query_block, &temp_table_param);
+    root_path = CreateMaterializationPath(thd, join, root_path,
+                                          buffer_temp_table, temp_table_param);
   }
 
   if (trace != nullptr) {

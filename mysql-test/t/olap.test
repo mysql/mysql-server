@@ -1049,10 +1049,6 @@ DROP TABLE t1;
 CREATE TABLE t(a INT,b BLOB);
 INSERT INTO t VALUES (1,'a'),(1,'b'),(2,'c'),(3,'d');
 
-# This query is pretty nonsensical, and the query output itself doesn't matter much;
-# we just don't want it to crash. The result will depend on the point of which
-# we evaluate the variable assignments, so it's not stable with respect to the query plan.
---replace_regex /^NULL$/1/
 SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
   (CONNECTION_ID()+LEAD(5225.750000,110) RESPECT NULLS OVER(ORDER BY b, a)))))
   FROM t GROUP BY b,a WITH ROLLUP;

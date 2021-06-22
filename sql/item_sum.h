@@ -645,18 +645,6 @@ class Item_sum : public Item_func {
   bool fix_fields(THD *thd, Item **ref) override;
 
   /**
-    Signal to the function that its arguments may have changed,
-    and that any internal caches etc. based on those arguments
-    must be updated accordingly.
-
-    This is used by the hypergraph optimizer when it rewrites
-    arguments to window functions to take into account that they
-    have been materialized into temporary tables, or that they
-    should read their values from the framebuffer.
-  */
-  virtual void update_after_wf_arguments_changed(THD *) {}
-
-  /**
     Called to initialize the aggregator.
   */
 
@@ -722,7 +710,6 @@ class Item_sum : public Item_func {
 
   void cleanup() override;
 
-  Window *window() { return m_window; }
   const Window *window() const { return m_window; }
   bool reset_wf_state(uchar *arg) override;
 
@@ -1640,7 +1627,6 @@ class Item_sum_hybrid : public Item_sum {
  public:
   bool fix_fields(THD *, Item **) override;
   void clear() override;
-  void update_after_wf_arguments_changed(THD *thd) override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   double val_real() override;
@@ -2310,7 +2296,6 @@ class Item_rank : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  void update_after_wf_arguments_changed(THD *thd) override;
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   /**
@@ -2471,7 +2456,6 @@ class Item_lead_lag : public Item_non_framing_wf {
 
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
-  void update_after_wf_arguments_changed(THD *thd) override;
   void clear() override;
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
@@ -2548,7 +2532,6 @@ class Item_first_last_value : public Item_sum {
 
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
-  void update_after_wf_arguments_changed(THD *thd) override;
   void clear() override;
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
@@ -2615,7 +2598,6 @@ class Item_nth_value : public Item_sum {
 
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
-  void update_after_wf_arguments_changed(THD *thd) override;
   bool setup_nth();
   void clear() override;
 

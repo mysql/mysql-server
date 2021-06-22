@@ -4730,9 +4730,6 @@ bool WalkAndReplace(
       default:
         break;
     }
-    if (item->m_is_window_function) {
-      down_cast<Item_sum *>(item)->update_after_wf_arguments_changed(thd);
-    }
   } else if (item->type() == Item::ROW_ITEM) {
     // Pretty much exactly the same logic as functions above.
     Item_row *row_item = down_cast<Item_row *>(item);

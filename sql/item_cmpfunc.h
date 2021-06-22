@@ -253,7 +253,6 @@ class Arg_comparator {
   longlong extract_value_from_argument(THD *thd, Item *item, bool left_argument,
                                        bool *is_null) const;
 
-  Item **get_left_ptr() const { return left; }
   Item *get_right() const { return *right; }
 
  private:

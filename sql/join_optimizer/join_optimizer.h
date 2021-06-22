@@ -34,13 +34,12 @@
 
   It is intended to eventually take over completely from the older join
   optimizer based on prefix search (sql_planner.cc and related code),
-  and is nearly feature complete, but is currently in the early stages
-  with a very simplistic cost model and certain limitations.
-  The most notable ones are that we do not support:
+  but is currently in early alpha stage with a very simplistic cost model
+  and certain limitations. The most notable ones are that we do not support:
 
+    - Window functions.
     - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
-    - Too large queries (too many possible subgraphs).
 
   For unsupported queries, we will return an error; every valid SQL
   query should either give such an error a correct result set.
@@ -57,17 +56,10 @@
 
 #include <string>
 
-#include "sql/mem_root_array.h"
-
-class Func_ptr;
-class Query_block;
-class THD;
 struct AccessPath;
 struct JoinHypergraph;
-struct ORDER;
-struct TABLE;
-
-using Func_ptr_array = Mem_root_array<Func_ptr>;
+class THD;
+class Query_block;
 
 /**
   The main entry point for the hypergraph join optimizer; takes in a query
@@ -151,7 +143,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
 
 // See comment in .cc file.
-bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                                AccessPath *root_path);
 
 // Exposed for unit testing only.
@@ -159,19 +151,6 @@ void FindSargablePredicates(THD *thd, std::string *trace,
                             JoinHypergraph *graph);
 
 void EstimateAggregateCost(AccessPath *path);
-void EstimateMaterializeCost(THD *thd, AccessPath *path);
-
-// Change all items in the ORDER list to point to the temporary table.
-// This isn't important for streaming (the items would get the correct
-// value anyway -- although possibly with some extra calculations),
-// but it is for materialization.
-void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
-                                          const Func_ptr_array &items_to_copy);
-
-/**
-  Find the list of all tables used by this root, stopping at materializations.
-  Used for knowing which tables to sort.
- */
-Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
+void EstimateMaterializeCost(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H

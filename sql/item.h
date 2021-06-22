@@ -6123,7 +6123,6 @@ class Cached_item {
   */
   virtual bool cmp() = 0;
   Item *get_item() { return item; }
-  Item **get_item_ptr() { return &item; }
 };
 
 class Cached_item_str : public Cached_item {

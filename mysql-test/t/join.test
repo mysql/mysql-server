@@ -1888,28 +1888,3 @@ SELECT * FROM
 WHERE NOT EXISTS (SELECT 1 FROM t1 AS inner_t1 WHERE i = d1.i);
 
 DROP TABLE t1;
-
---echo #
---echo # Bug #32366946: USE-AFTER-FREE WITH HYPERGRAPH OPTIMIZER + SORT + REMATERIALIZATION
---echo #
-
-CREATE TABLE t1 (
-  f1 INTEGER
-);
-INSERT INTO t1 VALUES (1), (2), (3);
-
-CREATE TABLE t2 (
-  pk INTEGER,
-  blobfield LONGTEXT
-);
-INSERT INTO t2 VALUES (4, '');
-
---partially_sorted_result 2
-SELECT *
-FROM t1, t2, LATERAL (
-  SELECT pk, blobfield
-  GROUP BY pk, blobfield WITH ROLLUP
-) AS d1
-ORDER BY t1.f1, t2.pk;
-
-DROP TABLE t1, t2;

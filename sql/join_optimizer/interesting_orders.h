@@ -152,8 +152,6 @@
 // and usually lives on the MEM_ROOT.
 using Ordering = Bounds_checked_array<OrderElement>;
 
-class Window;
-
 struct FunctionalDependency {
   enum {
     // A special “empty” kind of edge in the FSM that signifies
@@ -629,10 +627,6 @@ class LogicalOrderings {
 
   // See comment in .cc file.
   void AddFDsFromAggregateItems(THD *thd);
-
-  // See comment in .cc file.
-  Bounds_checked_array<ItemHandle> CollectHeadForStaticWindowFunction(
-      THD *thd, ItemHandle argument_item, Window *window);
 
   // See comment in .cc file.
   void AddFDsFromConstItems(THD *thd);

@@ -49,8 +49,6 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"       // Item_sum
 #include "sql/item_timefunc.h"  // Item_date_add_interval
-#include "sql/join_optimizer/join_optimizer.h"
-#include "sql/join_optimizer/replace_item.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/parse_tree_nodes.h"   // PT_*
@@ -459,30 +457,6 @@ void Window::check_partition_boundary() {
   }
 }
 
-/*
-  For a comparator from m_comparators, locate the Item_cache to update
-  with a new reference value (see Window::m_comparators).
-
-  The comparator is one of
-
-    candidate {<, >} current row
-    candidate {<, >} current row {-,+} constant
-
-  The second form is used when the the RANGE frame boundary is
-  WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the
-  value specified in the query, cf. the setup in
-  Window::setup_range_expressions.
-*/
-static Item_cache *FindCacheInComparator(const Arg_comparator &cmp) {
-  Item *to_update;
-  if (cmp.get_right()->type() == Item::CACHE_ITEM) {
-    to_update = cmp.get_right();
-  } else {
-    to_update = down_cast<Item_func *>(cmp.get_right())->get_arg(0);
-  }
-  return down_cast<Item_cache *>(to_update);
-}
-
 void Window::reset_order_by_peer_set() {
   DBUG_TRACE;
 
@@ -499,7 +473,31 @@ void Window::reset_order_by_peer_set() {
   // comparisons, whereas cached_item is used in in_new_order_by_peer_set().
   for (int i = 0; i < 2; ++i) {
     for (Arg_comparator &cmp : m_comparators[i]) {
-      FindCacheInComparator(cmp)->cache_value();
+      /*
+        The comparator(cmp) is expected to compare the row for which window
+        function values need to be calculated (current row) against rows
+        (candidates) that could possibly be within or outside of the frame
+        wrt. the current row.
+
+        We need to update the values for the current row. The comparator
+        is one of
+
+        candidate {<, >} current row
+        candidate {<, >} current row {-,+} constant
+
+        The second form is used when the the RANGE frame boundary is
+        WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the
+        value specified in the query, cf. the setup in
+        Window::setup_range_expressions.
+      */
+      Item *to_update;
+      if (cmp.get_right()->type() == Item::CACHE_ITEM) {
+        to_update = cmp.get_right();
+      } else {
+        assert(m_comparators[i].size() == 1);
+        to_update = down_cast<Item_func *>(cmp.get_right())->get_arg(0);
+      }
+      down_cast<Item_cache *>(to_update)->cache_value();
     }
   }
 }
@@ -1291,15 +1289,10 @@ bool Window::setup_windows2(THD *thd, List<Window> *windows) {
 }
 
 bool Window::make_special_rows_cache(THD *thd, TABLE *out_tbl) {
+  assert(m_special_rows_cache_max_length == 0);
   // Each row may come either from frame buffer or out-table
   size_t l = std::max((needs_buffering() ? m_frame_buffer->s->reclength : 0),
                       out_tbl->s->reclength);
-  if (m_special_rows_cache_max_length != 0) {
-    // Could already be set up, if the query block is planned twice
-    // (for in2exists).
-    assert(m_special_rows_cache_max_length == l);
-    return false;
-  }
   m_special_rows_cache_max_length = l;
   return !(m_special_rows_cache =
                (uchar *)thd->alloc((FBC_FIRST_KEY - FBC_LAST_KEY + 1) * l));
@@ -1493,39 +1486,4 @@ double Window::compute_cost(double cost, const List<Window> &windows) {
   for (const Window &w : windows)
     if (w.needs_sorting()) total_cost += cost;
   return total_cost;
-}
-
-void Window::apply_temp_table(THD *thd, const Func_ptr_array &items_to_copy) {
-  for (Cached_item *&ci : m_partition_items) {
-    Item *item = FindReplacementOrReplaceMaterializedItems(
-        thd, ci->get_item()->real_item(), items_to_copy,
-        /*need_exact_match=*/true);
-    thd->change_item_tree(ci->get_item_ptr(), item);
-  }
-  for (Cached_item *&ci : m_order_by_items) {
-    Item *item = FindReplacementOrReplaceMaterializedItems(
-        thd, ci->get_item()->real_item(), items_to_copy,
-        /*need_exact_match=*/true);
-    thd->change_item_tree(ci->get_item_ptr(), item);
-  }
-  // Item_rank looks directly into the ORDER *, so we need to update
-  // that as well.
-  if (m_order_by != nullptr) {
-    ReplaceOrderItemsWithTempTableFields(thd, m_order_by->value.first,
-                                         items_to_copy);
-  }
-  for (int i = 0; i < 2; ++i) {
-    for (Arg_comparator &cmp : m_comparators[i]) {
-      Item **left_ptr = cmp.get_left_ptr();
-      Item *new_item = FindReplacementOrReplaceMaterializedItems(
-          thd, (*left_ptr)->real_item(), items_to_copy,
-          /*need_exact_match=*/true);
-      thd->change_item_tree(left_ptr, new_item);
-
-      Item_cache *cache = FindCacheInComparator(cmp);
-      cache->store(FindReplacementOrReplaceMaterializedItems(
-          thd, cache->get_example()->real_item(), items_to_copy,
-          /*need_exact_match=*/true));
-    }
-  }
 }

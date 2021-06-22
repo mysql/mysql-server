@@ -865,17 +865,14 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   return false;
 }
 
-bool Query_expression::finalize(THD *thd) {
+void Query_expression::finalize(THD *thd) {
   for (Query_block *query_block = first_query_block(); query_block != nullptr;
        query_block = query_block->next_query_block()) {
     if (query_block->join != nullptr && query_block->join->needs_finalize) {
-      if (FinalizePlanForQueryBlock(thd, query_block,
-                                    query_block->join->root_access_path())) {
-        return true;
-      }
+      FinalizePlanForQueryBlock(thd, query_block,
+                                query_block->join->root_access_path());
     }
   }
-  return false;
 }
 
 bool Query_expression::force_create_iterators(THD *thd) {
@@ -1015,7 +1012,7 @@ void Query_expression::create_access_paths(THD *thd) {
         /*ref_slice=*/-1,
         /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR,
         /*reject_multiple_rows=*/false);
-    EstimateMaterializeCost(thd, param.path);
+    EstimateMaterializeCost(param.path);
     param.path = MoveCompositeIteratorsFromTablePath(param.path);
     param.join = nullptr;
     union_all_sub_paths->push_back(param);

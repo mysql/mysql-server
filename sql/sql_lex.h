@@ -944,7 +944,7 @@ class Query_expression {
     create iterators. Must be called after the final access path is chosen
     (ie., after any calls to change_to_access_path_without_in2exists()).
    */
-  bool finalize(THD *thd);
+  void finalize(THD *thd);
 
   /**
     Do everything that would be needed before running Init() on the root

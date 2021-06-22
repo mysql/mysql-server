@@ -526,10 +526,9 @@ SELECT i, STD(i) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
 SELECT i, VARIANCE(VARIANCE(i)) OVER (), VARIANCE(i) OVER (ORDER BY i), MOD(VARIANCE(i),2), VARIANCE(i) FROM tj2 GROUP BY i ;
 --sorted_result
 SELECT i, STD(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, STD(i) OVER (ORDER BY i) FROM tj;
-# Different line numbers in warnings, and roundoff (due to different window ordering), in hypergraph optimizer.
---disable_warnings
---replace_numeric_round 14
 SELECT j,CAST(STD(j) OVER (PARTITION BY i) AS JSON), CAST(VARIANCE(j) OVER () AS JSON) FROM tj;
+# Different line numbers in warnings in hypergraph optimizer.
+--disable_warnings
 SELECT j,CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 --enable_warnings
 
