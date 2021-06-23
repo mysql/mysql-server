@@ -523,9 +523,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     /* set up parameter that is passed to all functions */
     param.thd = thd;
     param.baseflag = head->file->ha_table_flags();
-    param.prev_tables = prev_tables | INNER_TABLE_BIT;
-    param.read_tables = read_tables | INNER_TABLE_BIT;
-    param.current_table = head->pos_in_table_list->map();
     param.table = head;
     param.query_block = query_block;
     param.keys = 0;
@@ -659,7 +656,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     if (cond) {
       {
         Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
-        tree = get_mm_tree(&param, cond);
+        tree = get_mm_tree(&param, prev_tables | INNER_TABLE_BIT,
+                           read_tables | INNER_TABLE_BIT,
+                           head->pos_in_table_list->map(), cond);
       }
       if (tree) {
         if (tree->type == SEL_TREE::IMPOSSIBLE) {

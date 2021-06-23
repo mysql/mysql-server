@@ -23,6 +23,8 @@
 #ifndef SQL_RANGE_OPTIMIZER_RANGE_ANALYSIS_H_
 #define SQL_RANGE_OPTIMIZER_RANGE_ANALYSIS_H_
 
+#include "my_table_map.h"
+
 class SEL_TREE;
 class RANGE_OPT_PARAM;
 class Item;
@@ -42,6 +44,8 @@ class Item;
     this structure.
     All direct "users" of this module are located within this file, too.
  */
-SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond);
+SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
+                      table_map read_tables, table_map current_table,
+                      Item *cond);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_ANALYSIS_H_

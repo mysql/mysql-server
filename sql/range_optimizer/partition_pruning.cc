@@ -300,8 +300,9 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   range_par->table = table;
   range_par->query_block = query_block;
   /* range_par->cond doesn't need initialization */
-  range_par->prev_tables = range_par->read_tables = INNER_TABLE_BIT;
-  range_par->current_table = table->pos_in_table_list->map();
+  const table_map prev_tables = INNER_TABLE_BIT;
+  const table_map read_tables = INNER_TABLE_BIT;
+  const table_map current_table = table->pos_in_table_list->map();
 
   range_par->keys = 1;  // one index
   range_par->using_real_indexes = false;
@@ -316,7 +317,8 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   SEL_TREE *tree;
   int res;
 
-  tree = get_mm_tree(range_par, pprune_cond);
+  tree = get_mm_tree(range_par, prev_tables, read_tables, current_table,
+                     pprune_cond);
   if (!tree) goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE) {
