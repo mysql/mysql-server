@@ -108,7 +108,9 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
                         Opt_trace_object *trace_object) const override;
 };
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
+TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
+                                          bool index_merge_intersect_allowed,
+                                          SEL_TREE *tree,
                                           const Cost_estimate *cost_est,
                                           bool force_index_merge_result);
 

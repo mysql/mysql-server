@@ -803,7 +803,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
     NULL if out of memory or no suitable plan found.
 */
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
+TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
+                                          bool index_merge_intersect_allowed,
+                                          SEL_TREE *tree,
                                           const Cost_estimate *cost_est,
                                           bool force_index_merge_result) {
   uint idx;
@@ -819,9 +821,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
 
   min_cost.set_max_cost();
 
-  if (tree->n_ror_scans < 2 || ((!param->table->file->stats.records ||
-                                 !param->index_merge_intersect_allowed) &&
-                                !force_index_merge)) {
+  if (tree->n_ror_scans < 2 ||
+      ((!param->table->file->stats.records || !index_merge_intersect_allowed) &&
+       !force_index_merge)) {
     trace_ror.add("usable", false);
     if (tree->n_ror_scans < 2)
       trace_ror.add_alnum("cause", "too_few_roworder_scans");

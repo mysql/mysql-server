@@ -125,12 +125,6 @@ class PARAM : public RANGE_OPT_PARAM {
   */
   enum_order order_direction;
 
-  /// Control whether the various index merge strategies are allowed
-  bool index_merge_allowed;
-  bool index_merge_union_allowed;
-  bool index_merge_sort_union_allowed;
-  bool index_merge_intersect_allowed;
-
   /// Same value as JOIN_TAB::skip_records_in_range().
   bool skip_records_in_range;
 };

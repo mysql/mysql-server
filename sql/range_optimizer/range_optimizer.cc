@@ -142,9 +142,10 @@ using std::min;
 
 [[maybe_unused]] static uchar is_null_string[2] = {1, 0};
 
-static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
-                                                SEL_IMERGE *imerge,
-                                                const Cost_estimate *cost_est);
+static TABLE_READ_PLAN *get_best_disjunct_quick(
+    PARAM *param, bool index_merge_union_allowed,
+    bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
+    SEL_IMERGE *imerge, const Cost_estimate *cost_est);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
@@ -543,16 +544,16 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       Notice also that OPTIMIZER_SWITCH_INDEX_MERGE disables all
       index merge sub strategies.
     */
-    param.index_merge_allowed =
+    bool index_merge_allowed =
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE);
-    param.index_merge_union_allowed =
-        param.index_merge_allowed &&
+    bool index_merge_union_allowed =
+        index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION);
-    param.index_merge_sort_union_allowed =
-        param.index_merge_allowed &&
+    bool index_merge_sort_union_allowed =
+        index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION);
-    param.index_merge_intersect_allowed =
-        param.index_merge_allowed &&
+    bool index_merge_intersect_allowed =
+        index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
     param.skip_records_in_range = skip_records_in_range;
@@ -762,7 +763,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           descending order
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE) &&
-            (param.index_merge_allowed ||
+            (index_merge_allowed ||
              hint_table_state(param.thd, param.table->pos_in_table_list,
                               INDEX_MERGE_HINT_ENUM, 0)) &&
             interesting_order != ORDER_DESC) {
@@ -771,7 +772,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             building covering ROR-intersection.
           */
           if ((rori_trp =
-                   get_best_ror_intersect(&param, tree, &best_cost, true))) {
+                   get_best_ror_intersect(&param, index_merge_intersect_allowed,
+                                          tree, &best_cost, true))) {
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
           }
@@ -781,7 +783,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       // Here we calculate cost of union index merge
       if (!tree->merges.is_empty()) {
         // Cannot return rows in descending order.
-        if ((param.index_merge_allowed ||
+        if ((index_merge_allowed ||
              hint_table_state(param.thd, param.table->pos_in_table_list,
                               INDEX_MERGE_HINT_ENUM, 0)) &&
             interesting_order != ORDER_DESC &&
@@ -793,7 +795,10 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
                                           Opt_trace_context::RANGE_OPTIMIZER);
           while ((imerge = it++)) {
-            new_conj_trp = get_best_disjunct_quick(&param, imerge, &best_cost);
+            new_conj_trp = get_best_disjunct_quick(
+                &param, index_merge_union_allowed,
+                index_merge_sort_union_allowed, index_merge_intersect_allowed,
+                imerge, &best_cost);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -918,9 +923,10 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     NULL - Out of memory or no read scan could be built.
 */
 
-static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
-                                                SEL_IMERGE *imerge,
-                                                const Cost_estimate *cost_est) {
+static TABLE_READ_PLAN *get_best_disjunct_quick(
+    PARAM *param, bool index_merge_union_allowed,
+    bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
+    SEL_IMERGE *imerge, const Cost_estimate *cost_est) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
   uint n_child_scans = imerge->trees_next - imerge->trees;
@@ -1028,8 +1034,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
     guaranteed to be cheaper than non-ROR union), unless ROR-unions are
     disabled in @@optimizer_switch
   */
-  if (all_scans_rors &&
-      (param->index_merge_union_allowed || force_index_merge)) {
+  if (all_scans_rors && (index_merge_union_allowed || force_index_merge)) {
     roru_read_plans = (TABLE_READ_PLAN **)range_scans;
     trace_best_disjunct.add("use_roworder_union", true)
         .add_alnum("cause", "always_cheaper_than_not_roworder_retrieval");
@@ -1060,7 +1065,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
   }
   DBUG_PRINT("info", ("index_merge cost with rowid-to-row scan: %g",
                       imerge_cost.total_cost()));
-  if ((imerge_cost > read_cost || !param->index_merge_sort_union_allowed) &&
+  if ((imerge_cost > read_cost || !index_merge_sort_union_allowed) &&
       !force_index_merge) {
     trace_best_disjunct.add("use_roworder_index_merge", true)
         .add_alnum("cause", "cost");
@@ -1108,7 +1113,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
 
 build_ror_index_merge:
   if (!all_scans_ror_able || param->thd->lex->sql_command == SQLCOM_DELETE ||
-      (!param->index_merge_union_allowed && !force_index_merge))
+      (!index_merge_union_allowed && !force_index_merge))
     return imerge_trp;
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -1151,7 +1156,8 @@ skip_to_ror_scan:
 
     TABLE_READ_PLAN *prev_plan = *cur_child;
     if (!(*cur_roru_plan =
-              get_best_ror_intersect(param, *ptree, &scan_cost, false))) {
+              get_best_ror_intersect(param, index_merge_intersect_allowed,
+                                     *ptree, &scan_cost, false))) {
       if (prev_plan->is_ror)
         *cur_roru_plan = prev_plan;
       else
