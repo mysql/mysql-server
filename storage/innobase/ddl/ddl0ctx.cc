@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Created 2020-11-01 by Sunny Bains. */
 
 #include "btr0load.h"
+#include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
 #include "ddl0impl-cursor.h"
@@ -342,7 +343,17 @@ dberr_t Context::cleanup(dberr_t err) noexcept {
 
     m_trx->flush_observer = nullptr;
 
-    if (is_interrupted()) {
+    auto space_id = m_new_table != nullptr ? m_new_table->space
+                                           : dict_sys_t::s_invalid_space_id;
+
+    /* Notify clone after flushing all pages. */
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_INPLACE_BULK,
+                          space_id, false);
+
+    if (notifier.failed()) {
+      err = DB_ERROR;
+
+    } else if (is_interrupted()) {
       err = DB_INTERRUPTED;
     }
 

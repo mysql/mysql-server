@@ -2734,13 +2734,14 @@ ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
 some bigger value, we need to log the new autoinc counter. We will
 use the given mtr to do logging for performance reasons.
 @param[in]	node	Row update node
-@param[in,out]	mtr	Mini-transaction */
-static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
+@param[in,out]	mtr	Mini-transaction
+@return true if auto increment needs to be persisted to DD table buffer. */
+static bool row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   dict_table_t *table = node->table;
 
   if (!dict_table_has_autoinc_col(table) || table->is_temporary() ||
       node->row == nullptr) {
-    return;
+    return false;
   }
 
   /* If the node->row hasn't been prepared, there must
@@ -2753,7 +2754,7 @@ static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
       row_upd_get_new_autoinc_counter(node->update, table->autoinc_field_no);
 
   if (new_counter == 0) {
-    return;
+    return false;
   }
 
   ib_uint64_t old_counter;
@@ -2767,13 +2768,17 @@ static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   old_counter = row_get_autoinc_counter(
       node->row, index->get_col_no(table->autoinc_field_no));
 
+  bool persist_autoinc = false;
+
   /* We just check if the updated counter is bigger than
   the old one, which may result in more redo logs, since
   this is safer than checking with the counter in table
   object. */
   if (new_counter > old_counter) {
-    dict_table_autoinc_log(table, new_counter, mtr);
+    persist_autoinc = dict_table_autoinc_log(table, new_counter, mtr);
   }
+
+  return persist_autoinc;
 }
 
 /** Updates a clustered index record of a row when the ordering fields do
@@ -2818,7 +2823,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
 
   /* Check and log if necessary at the beginning, to prevent any
   further potential deadlock */
-  row_upd_check_autoinc_counter(node, mtr);
+  bool persist_autoinc = row_upd_check_autoinc_counter(node, mtr);
 
   /* Try optimistic updating of the record, keeping changes within
   the page; we do not check locks because we assume the x-lock on the
@@ -2917,7 +2922,13 @@ func_exit:
     dtuple_big_rec_free(big_rec);
   }
 
-  return (err);
+  /* Persist auto increment value to DD buffer table if requested. Do it after
+  closing the mini transaction and releasing latches. */
+  if (persist_autoinc) {
+    dict_table_persist_to_dd_table_buffer(node->table);
+  }
+
+  return err;
 }
 
 /** Delete marks a clustered index record.

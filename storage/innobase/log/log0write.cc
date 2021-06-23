@@ -2867,7 +2867,7 @@ bool log_read_encryption() {
   return (true);
 }
 
-bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
                                      bool is_boot, bool encrypt_key) {
   byte encryption_info[Encryption::INFO_SIZE];
 

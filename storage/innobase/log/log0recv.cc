@@ -1612,6 +1612,50 @@ void meb_apply_log_recs_via_callback(
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** Check if redo log is for encryption information.
+@param[in]	page_no		Page number
+@param[in]	space_id	Tablespace identifier
+@param[in]	start		Redo log record body
+@param[in]	end		End of buffer
+@return true if encryption information. */
+static inline bool check_encryption(page_no_t page_no, space_id_t space_id,
+                                    const byte *start, const byte *end) {
+  /* Only page zero contains encryption metadata. */
+  if (page_no != 0 || fsp_is_system_or_temp_tablespace(space_id) ||
+      end < start + 4) {
+    return false;
+  }
+
+  bool found = false;
+
+  const page_size_t &page_size = fil_space_get_page_size(space_id, &found);
+
+  if (!found) {
+    return false;
+  }
+
+  auto encryption_offset = fsp_header_get_encryption_offset(page_size);
+  auto offset = mach_read_from_2(start);
+
+  /* Encryption offset at page 0 is the only way we can identify encryption
+  information as of today. Ideally we should have a separate redo type. */
+  if (offset == encryption_offset) {
+    auto len = mach_read_from_2(start + 2);
+    ut_ad(len == Encryption::INFO_SIZE);
+
+    if (len != Encryption::INFO_SIZE) {
+      /* purecov: begin inspected */
+      ib::warn(ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH, size_t{len},
+               Encryption::INFO_SIZE);
+      return false;
+      /* purecov: end */
+    }
+    return true;
+  }
+
+  return false;
+}
+
 /** Try to parse a single log record body and also applies it if
 specified.
 @param[in]	type		Redo log entry type
@@ -2208,22 +2252,28 @@ static byte *recv_parse_or_apply_log_rec_body(
       break;
 
     case MLOG_INIT_FILE_PAGE:
-    case MLOG_INIT_FILE_PAGE2:
+    case MLOG_INIT_FILE_PAGE2: {
+      /* For clone, avoid initializing page-0. Page-0 should already have been
+      initialized. This is to avoid erasing encryption information. We cannot
+      update encryption information later with redo logged information for
+      clone. Please check comments in MLOG_WRITE_STRING. */
+      bool skip_init = (recv_sys->is_cloned_db && page_no == 0);
 
-      /* Allow anything in page_type when creating a page. */
-
-      ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
-
+      if (!skip_init) {
+        /* Allow anything in page_type when creating a page. */
+        ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
+      }
       break;
+    }
 
-    case MLOG_WRITE_STRING:
-
+    case MLOG_WRITE_STRING: {
       ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED || page_no == 0);
+      bool is_encryption = check_encryption(page_no, space_id, ptr, end_ptr);
 
 #ifndef UNIV_HOTBACKUP
       /* Reset in-mem encryption information for the tablespace here if this
       is "resetting encryprion info" log. */
-      if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id)) {
+      if (is_encryption && !recv_sys->is_cloned_db) {
         byte buf[Encryption::INFO_SIZE] = {0};
 
         if (memcmp(ptr + 4, buf, Encryption::INFO_SIZE - 4) == 0) {
@@ -2232,9 +2282,18 @@ static byte *recv_parse_or_apply_log_rec_body(
       }
 
 #endif
-      ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
+      auto apply_page = page;
 
+      /* For clone recovery, skip applying encryption information from
+      redo log. It is already updated in page 0. Redo log encryption
+      information is encrypted with donor master key and must be ignored. */
+      if (recv_sys->is_cloned_db && is_encryption) {
+        apply_page = nullptr;
+      }
+
+      ptr = mlog_parse_string(ptr, end_ptr, apply_page, page_zip);
       break;
+    }
 
     case MLOG_ZIP_WRITE_NODE_PTR:
 

@@ -127,6 +127,11 @@ class Server {
   }
 
  private:
+  /** @return true if clone needs to block concurrent DDl. */
+  bool block_ddl() const {
+    return m_is_master && (m_client_ddl_timeout != NO_LOCK_TIMEOUT_VALUE);
+  }
+
   /** Check if network error
   @param[in]	err	error code
   @return true if network error */

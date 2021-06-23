@@ -2473,6 +2473,12 @@ bool srv_enable_redo_encryption(bool is_boot) {
     return false;
   }
 
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT,
+                        dict_sys_t::s_log_space_first_id, false);
+  if (notifier.failed()) {
+    return true;
+  }
+
   dberr_t err;
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
@@ -2544,6 +2550,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 bool srv_enable_undo_encryption(bool is_boot) {
   /* Make sure undo::ddl_mutex is owned. */
   ut_ad(mutex_own(&undo::ddl_mutex));
+  bool ret_val = false;
 
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
   undo::spaces->s_lock();
@@ -2562,6 +2569,13 @@ bool srv_enable_undo_encryption(bool is_boot) {
       continue;
     }
 
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT, space->id,
+                          false);
+    if (notifier.failed()) {
+      ret_val = true;
+      break;
+    }
+
     undo_space->rsegs()->s_lock();
 
     /* Make sure that there is enough reusable space in the redo log files. */
@@ -2574,8 +2588,8 @@ bool srv_enable_undo_encryption(bool is_boot) {
     if (set_undo_tablespace_encryption(undo_space->id(), &mtr, is_boot)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
-      undo::spaces->s_unlock();
-      return true;
+      ret_val = true;
+      break;
     }
 
     mtr_commit(&mtr);
@@ -2584,9 +2598,9 @@ bool srv_enable_undo_encryption(bool is_boot) {
     /* Announce encryption is successfully enabled for the undo tablespace. */
     ib::info(ER_IB_MSG_1055, undo_space->space_name());
   }
-  undo::spaces->s_unlock();
 
-  return false;
+  undo::spaces->s_unlock();
+  return ret_val;
 }
 
 /** Puts master thread to sleep. At this point we are using polling to
@@ -2651,15 +2665,6 @@ static void srv_master_main_loop(srv_slot_t *slot) {
     } else {
       srv_master_do_idle_tasks();
     }
-
-    /* Let clone wait when redo/undo log encryption is set. If clone is already
-    in progress we skip the check and come back later. */
-    if (!clone_mark_wait()) {
-      continue;
-    }
-
-    /* Allow any blocking clone to progress. */
-    clone_mark_free();
 
     /* Purge any deleted tablespace pages. */
     fil_purge();

@@ -708,6 +708,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   }
 
   ut::aligned_free(first_page);
+  ib::info(ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED, space->name);
 
   return (DB_SUCCESS);
 }
@@ -2564,6 +2565,11 @@ files_checked:
     }
 
     srv_dict_metadata = recv_recovery_from_checkpoint_finish(*log_sys, false);
+
+    if (recv_sys->is_cloned_db && srv_dict_metadata != nullptr) {
+      UT_DELETE(srv_dict_metadata);
+      srv_dict_metadata = nullptr;
+    }
 
     /* We need to save the dynamic metadata collected from redo log to DD
     buffer table here. This is to make sure that the dynamic metadata is not

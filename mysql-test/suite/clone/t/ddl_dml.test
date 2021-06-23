@@ -1,0 +1,3 @@
+# Test clone with concurrent DML and DDL
+--let clone_ddl = 1
+--source local_dml.test

@@ -1,0 +1,213 @@
+# Prepare for creating Encrypted Table
+# create bootstrap file
+# Create and start mysqld with keyring plugin.
+# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+CREATE TABLE t2(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
+ENCRYPTION = 'Y';
+CREATE UNDO TABLESPACE undo_02 ADD DATAFILE 'undo_02.ibu';
+ALTER UNDO TABLESPACE undo_02 SET INACTIVE;
+SET DEBUG_SYNC = 'clone_state_transit_file_copy SIGNAL start_ddl WAIT_FOR resume_clone_file';
+SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_ddl_inplace WAIT_FOR resume_clone_page';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+# In connection CON2
+# Waiting for clone to reach state transition
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+# Wait finished
+# 1. CREATE TABLE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+CREATE TABLE t3(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB);
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 2A. ALTER TABLE COPY
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = COPY;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 2B. ALTER TABLE IN PLACE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = INPLACE;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 3. ALTER TABLE RENAME
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t1 RENAME t3;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 4. TRUNCATE TABLE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+TRUNCATE TABLE t1;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 5A. ALTER ENABLE Encryption
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t1 ENCRYPTION = "Y";
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 5B. ALTER DISABLE ENCRYPTION
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t2 ENCRYPTION = "N";
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 6. CREATE UNDO TABLESPACE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+CREATE UNDO TABLESPACE undo_01 ADD DATAFILE 'undo_01.ibu';
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 7A. ENABLE REDO ENCRYPTION
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+SET GLOBAL innodb_redo_log_encrypt = ON;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 7B. ENABLE UNDO ENCRYPTION
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+SET GLOBAL innodb_undo_log_encrypt = ON;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_file';
+# Waiting for clone to reach page copy state
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_inplace';
+# Wait finished
+# 8. ALTER TABLE INPLACE during PAGE COPY
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM = INPLACE;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Waiting for DDL to exit with error
+ERROR 70100: Query execution was interrupted
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'now SIGNAL resume_clone_page';
+# 9A. DROP TABLE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+DROP TABLE t1;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# 9B. DROP UNDO TABLESPACE
+SET DEBUG_SYNC = 'clone_notify_ddl SIGNAL kill_ddl';
+DROP UNDO TABLESPACE undo_02;
+# In connection CON1
+# Waiting for DDL to reach notification
+SET DEBUG_SYNC = 'now WAIT_FOR kill_ddl';
+# Wait finished
+KILL QUERY CON_ID;
+# In connection CON2
+# Query should no longer be interrupted and should pass
+# Wait finished
+SET DEBUG_SYNC = 'RESET';
+# In connection default
+# Waiting for Clone to complete
+# Wait finished
+# Cleanup
+DROP TABLE t2;
+SET DEBUG_SYNC = 'RESET';
+# Uninstall clone
+UNINSTALL PLUGIN clone;
+# Restart server and remove encrypted data directory
+# restart:

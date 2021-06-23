@@ -1275,13 +1275,13 @@ bool ha_innobase::inplace_alter_table(TABLE *altered_table,
   ut_ad(old_dd_tab != nullptr);
   ut_ad(new_dd_tab != nullptr);
 
-  /* Don't allow database clone during in place operations */
-  clone_mark_abort(true);
+  /* Notify clone during in place operations */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_INPLACE,
+                        dict_sys_t::s_invalid_space_id, false);
+  ut_ad(!notifier.failed());
 
   auto ret = inplace_alter_table_impl<dd::Table>(altered_table, ha_alter_info,
                                                  old_dd_tab, new_dd_tab);
-
-  clone_mark_active();
 
   return ret;
 }

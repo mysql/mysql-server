@@ -1,18 +1,27 @@
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
-SHOW VARIABLES LIKE 'clone_ddl_timeout';
-Variable_name	Value
-clone_ddl_timeout	300
-# Disable backup lock
-SET GLOBAL clone_ddl_timeout = 0;
-SHOW VARIABLES LIKE 'clone_ddl_timeout';
-Variable_name	Value
-clone_ddl_timeout	0
-# 1. CREATE TABLE while clone in progress
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+# 1. CLONE blocked by DDL at beginning
+# In connection CON1
+SET DEBUG_SYNC = 'fil_ibd_created_space SIGNAL start_clone WAIT_FOR resume_ddl_1';
+CREATE TABLE t1(col1 int);
+# In connection DEFAULT
+SET DEBUG_SYNC = 'now WAIT_FOR start_clone';
+SET DEBUG_SYNC = 'clone_begin_wait_ddl SIGNAL start_ddl_1 WAIT_FOR resume_clone_1';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl_2 WAIT_FOR resume_clone_2';
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+# In connection CON2
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_1';
+SET DEBUG_SYNC = 'clone_notify_ddl_before_state_block SIGNAL resume_ddl_1';
+CREATE TABLE t2(col1 int);
+# In connection CON1
+# Reap CREATE TABLE t1
+SET DEBUG_SYNC= 'now SIGNAL resume_clone_1';
+# In connection CON2
+# Reap CREATE TABLE t2
+# Disconnect CON2
+# In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl_2';
 # 1A. TOO MANY CLONE IN PROGRESS
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
@@ -30,281 +39,56 @@ ID	STAGE	STATE
 1	FILE SYNC	Not Started
 1	RESTART	Not Started
 1	RECOVERY	Not Started
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-CREATE TABLE t1 (col1 INT PRIMARY KEY);
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-# 1B. ALTER INSTANCE while clone in progress
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
+# 2. ALTER INSTANCE while clone in progress
 ALTER INSTANCE DISABLE INNODB REDO_LOG;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-ALTER INSTANCE ENABLE INNODB REDO_LOG;
-# 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress
-# In connection DEFAULT
+ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
 INSERT INTO t1 values(10), (20), (30);
 SELECT * FROM t1 ORDER BY col1;
 col1
 10
 20
 30
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2
-10	NULL
-20	NULL
-30	NULL
-UPDATE t1 SET col2 = col1 + 1000;
-# 2A. ALTER TABLE ADD COLUMN [INPLACE] while clone in progress
-# In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-col1	col2
-10	1010
-20	1020
-30	1030
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=INPLACE;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	NULL
-20	1020	NULL
-30	1030	NULL
-UPDATE t1 SET col3 = col2 + 1000;
-# 3A. ADD INDEX [COPY] while clone in progress
-# In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM=COPY;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`),
-  KEY `col2_idx` (`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-# 3B. ADD INDEX [INPLACE] while clone in progress
-# In connection DEFAULT
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=INPLACE;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`),
-  KEY `col2_idx` (`col2`),
-  KEY `col3_idx` (`col3`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-# 4A. DROP INDEX [COPY] while clone in progress
-# In connection DEFAULT
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`),
-  KEY `col2_idx` (`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-# 4B. DROP INDEX [INPLACE] while clone in progress
-# In connection DEFAULT
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-# 5. TRUNCATE TABLE while clone in progress
-# In connection DEFAULT
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	1010	2010
-20	1020	2020
-30	1030	2030
-SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-TRUNCATE TABLE t1;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-SET DEBUG_SYNC = 'RESET';
-# In connection CON1
-SET DEBUG_SYNC = 'RESET';
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` int NOT NULL,
-  `col2` int DEFAULT NULL,
-  `col3` int DEFAULT NULL,
-  PRIMARY KEY (`col1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-# 6. DROP TABLE while clone in progress
-# In connection DEFAULT
-INSERT INTO t1 values(10, 100, 1000);
-SELECT * FROM t1 ORDER BY col1;
-col1	col2	col3
-10	100	1000
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_ddl WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
-SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
-DROP TABLE t1;
-# In connection DEFAULT
-ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
-# In connection CON1
-CREATE TABLE t1(col1 int);
-# 7. KILL CLONE command while in progress
-# In connection DEFAULT
-INSERT INTO t1 values(10), (20), (30);
-SELECT * FROM t1 ORDER BY col1;
-col1
-10
-20
-30
-SET DEBUG_SYNC = 'clone_redo_copy SIGNAL start_kill WAIT_FOR resume_clone';
-SET GLOBAL clone_autotune_concurrency = OFF;
-SET GLOBAL clone_max_concurrency = 8;
-CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
-SET DEBUG_SYNC = 'now WAIT_FOR start_kill';
+# 3. ALTER DISCARD while clone in progress
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
+# 4. ALTER IMPORT while clone in progress
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
+# 5. KILL CLONE command while in progress
 KILL QUERY CON_ID;
-SET DEBUG_SYNC= 'now SIGNAL resume_clone';
+SET DEBUG_SYNC= 'now SIGNAL resume_clone_2';
 # In connection DEFAULT
 ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t2;
+# 6. Force clone to abort by DDL
+SET GLOBAL DEBUG = '+d,clone_ddl_error_abort';
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+SET DEBUG_SYNC = 'clone_notify_ddl_before_state_block SIGNAL resume_clone';
+CREATE TABLE t2(col1 int);
+INSERT INTO t2 VALUES(10), (20), (30);
+SELECT * FROM t2 ORDER BY col1;
+col1
+10
+20
+30
+# In connection DEFAULT
+ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
+SET GLOBAL DEBUG = '-d,clone_ddl_error_abort';
+SET DEBUG_SYNC = 'RESET';
 #Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
 # In connection DEFAULT
 SET DEBUG_SYNC = 'RESET';
-DROP TABLE t1;
+# Attempt to uninstall clone if there
+UNINSTALL PLUGIN clone;
+# Restart server
+# restart
+# Uninstall clone if there
 UNINSTALL PLUGIN clone;

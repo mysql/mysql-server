@@ -29,10 +29,12 @@ END IF;
 CASE p_dml_type
 WHEN 0 THEN
 SET @clol3_text = CONCAT('Clone Test Row - ', v_key);
-INSERT INTO t1 VALUES(v_key, v_key * 10,
+INSERT INTO t1 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
-INSERT INTO t2 VALUES(v_key, v_key * 10,
+INSERT INTO t2 (col1, col2, col3, col4) VALUES (
+v_key, v_key * 10,
 @clol3_text, REPEAT('Large Column Data ', 2048))
 ON DUPLICATE KEY UPDATE col2 = col2 + 1;
 WHEN 1 THEN
@@ -58,6 +60,7 @@ START TRANSACTION;
 END IF;
 END IF;
 END WHILE;
+COMMIT;
 END|
 # In connection default - starting clone
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL set_encryption WAIT_FOR resume_clone';
@@ -70,20 +73,20 @@ SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 Variable_name	Value
 innodb_redo_log_encrypt	OFF
 SET GLOBAL innodb_redo_log_encrypt = ON;
-ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
 SHOW VARIABLES LIKE 'innodb_redo_log_encrypt';
 Variable_name	Value
-innodb_redo_log_encrypt	OFF
+innodb_redo_log_encrypt	ON
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 Variable_name	Value
 innodb_undo_log_encrypt	OFF
 SET GLOBAL innodb_undo_log_encrypt = ON;
-ERROR HY000: Concurrent clone in progress. Please try after clone is complete.
 SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
 Variable_name	Value
-innodb_undo_log_encrypt	OFF
+innodb_undo_log_encrypt	ON
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
 # In connection default - finishing Clone
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+SET GLOBAL innodb_undo_log_encrypt = OFF;
 DROP TABLE t1;
 DROP TABLE t2;
 CREATE TABLE t1(col1 INT PRIMARY KEY, col2 int, col3 varchar(64), col4 BLOB)
@@ -455,6 +458,5 @@ DROP TABLESPACE tbs1;
 UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN keyring_file;
 SET DEBUG_SYNC = 'RESET';
-# restart:
 # Restart server and remove encrypted data directory
 # restart:

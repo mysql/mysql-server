@@ -3360,8 +3360,7 @@ bool dd_set_tablespace_compression(dd::cache::Dictionary_client *client,
                                    const char *algorithm,
                                    dd::Object_id dd_space_id) {
   dd::Tablespace *dd_space{};
-  auto fail = client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
-                                                                   &dd_space);
+  auto fail = client->acquire_uncached<dd::Tablespace>(dd_space_id, &dd_space);
 
   if (fail || dd_space == nullptr) {
     return true;

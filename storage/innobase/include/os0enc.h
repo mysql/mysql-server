@@ -72,6 +72,18 @@ class Encryption {
     VERSION_3 = 2,
   };
 
+  /** Encryption operation resume point after server restart. */
+  enum class Resume_point {
+    /* Resume from the beginning. */
+    INIT,
+    /* Resume processing. */
+    PROCESS,
+    /* Operation has ended. */
+    END,
+    /* All done. */
+    DONE
+  };
+
   /** Encryption magic bytes for 5.7.11, it's for checking the encryption
   information version. */
   static constexpr char KEY_MAGIC_V1[] = "lCA";
@@ -220,8 +232,9 @@ class Encryption {
   @param[in]      is_boot       if it's for bootstrap
   @param[in]      encrypt_key   encrypt with master key
   @return true if success. */
-  static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                   bool is_boot, bool encrypt_key) noexcept;
+  static bool fill_encryption_info(const byte *key, const byte *iv,
+                                   byte *encrypt_info, bool is_boot,
+                                   bool encrypt_key) noexcept;
 
   /** Get master key from encryption information
   @param[in]      encrypt_info  encryption information
@@ -326,13 +339,9 @@ class Encryption {
   @param[in]  type  encryption type **/
   void set_type(Type type);
 
-  /** Get encryption key
-  @return encryption key **/
-  byte *get_key() const;
-
   /** Set encryption key
   @param[in]  key  encryption key **/
-  void set_key(byte *key);
+  void set_key(const byte *key);
 
   /** Get key length
   @return  key length **/
@@ -342,13 +351,9 @@ class Encryption {
   @param[in]  klen  key length **/
   void set_key_length(ulint klen);
 
-  /** Get initial vector
-  @return initial vector **/
-  byte *get_initial_vector() const;
-
   /** Set initial vector
   @param[in]  iv  initial_vector **/
-  void set_initial_vector(byte *iv);
+  void set_initial_vector(const byte *iv);
 
   /** Get master key id
   @return master key id **/
@@ -370,13 +375,13 @@ class Encryption {
   Type m_type;
 
   /** Encrypt key */
-  byte *m_key;
+  const byte *m_key;
 
   /** Encrypt key length*/
   ulint m_klen;
 
   /** Encrypt initial vector */
-  byte *m_iv;
+  const byte *m_iv;
 
   /** Current master key id */
   static uint32_t s_master_key_id;

@@ -2290,6 +2290,24 @@ dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
                                     const char *new_name)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Write initial pages for a new tablespace file created.
+@param[in]	file		open file handle
+@param[in]	path		path and filename of the datafile
+@param[in]	type		file type
+@param[in]	size		Initial size of the tablespace file in pages
+@param[in]	encrypt_info	encryption key information
+@param[in]	space_id	tablespace ID
+@param[in,out]	space_flags	tablespace flags
+@param[out]	atomic_write	if atomic write is used
+@param[out]	punch_hole	if punch hole is used
+@return DB_SUCCESS on success */
+dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
+                                fil_type_t type, page_no_t size,
+                                const byte *encrypt_info, space_id_t space_id,
+                                uint32_t &space_flags, bool &atomic_write,
+                                bool &punch_hole)
+    MY_ATTRIBUTE((warn_unused_result));
+
 /** Free the data structures required for recovery. */
 void fil_free_scanned_files();
 

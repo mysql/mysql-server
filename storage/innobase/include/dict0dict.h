@@ -233,8 +233,9 @@ static inline void dict_table_autoinc_set_col_pos(dict_table_t *table,
 update some existing smaller one to bigger.
 @param[in,out]	table	InnoDB table object
 @param[in]	value	AUTOINC counter to log
-@param[in,out]	mtr	Mini-transaction */
-void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
+@param[in,out]	mtr	Mini-transaction
+@return true if auto increment needs to be persisted to DD table buffer. */
+bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
 
 /** Check if a table has an autoinc counter column.
 @param[in]	table	table
@@ -1185,6 +1186,44 @@ struct dict_sys_t {
 
 /** Structure for persisting dynamic metadata of data dictionary */
 struct dict_persist_t {
+#ifndef UNIV_HOTBACKUP
+  /** Write dynamic metadata to DD buffer table immediately when such data is
+  generated. By default, the metadata is first written to redo log and then to
+  the DD buffer table during checkpoint. This is going to hurt auto increment
+  performance and Currently enabled by clone for short time to eliminate
+  dependency with dynamic metadata recovered from redo log. */
+  class Enable_immediate {
+   public:
+    /** Constructor to immediate persisting mode.
+    @param[in,out]	persister	dictionary persister */
+    Enable_immediate(dict_persist_t *persister);
+
+    /** Destructor to switch back to default mode. */
+    ~Enable_immediate();
+
+    /** Disable copy construction */
+    Enable_immediate(Enable_immediate const &) = delete;
+
+    /** Disable assignment */
+    Enable_immediate &operator=(Enable_immediate const &) = delete;
+
+   private:
+    /** Dictionary persister */
+    dict_persist_t *m_persister;
+  };
+
+  /** @return true if need to write dynamic metadata to DD buffer table
+  immediately after logging. */
+  bool check_persist_immediately() const {
+    return m_persist_immediately.load();
+  }
+
+  /** List of tables whose dirty_status are marked as METADATA_DIRTY,
+  or METADATA_BUFFERED. It's protected by the mutex */
+  UT_LIST_BASE_NODE_T(dict_table_t, dirty_dict_tables)
+  dirty_dict_tables;
+#endif
+
   /** Mutex to protect data in this structure, also the
   dict_table_t::dirty_status and
   dict_table_t::in_dirty_dict_tables_list
@@ -1194,15 +1233,15 @@ struct dict_persist_t {
   tree latch, the latch level of this mutex then has to be right
   before the SYNC_INDEX_TREE. */
   ib_mutex_t mutex;
-#ifndef UNIV_HOTBACKUP
-  /** List of tables whose dirty_status are marked as METADATA_DIRTY,
-  or METADATA_BUFFERED. It's protected by the mutex */
-  UT_LIST_BASE_NODE_T(dict_table_t, dirty_dict_tables)
-  dirty_dict_tables;
-#endif
+
   /** Number of the tables which are of status METADATA_DIRTY.
   It's protected by the mutex */
   std::atomic<uint32_t> num_dirty_tables;
+
+  /** If set, dynamic metadata is saved to DD buffer table immediately.
+  Currently we consider only auto increment PM_TABLE_AUTO_INC. Corrupt
+  index PM_INDEX_CORRUPTED is not needed to be saved immediately. */
+  std::atomic<bool> m_persist_immediately;
 
 #ifndef UNIV_HOTBACKUP
   /** DDTableBuffer table for persistent dynamic metadata */

@@ -55,10 +55,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/types/table.h"
 #include "sql/rpl_msr.h"  // is_slave_configured()
 
+/* To get current session thread default THD */
+THD *thd_get_current_thd();
+
 /** Check if clone status file exists.
 @param[in]	file_name	file name
 @return true if file exists. */
-static bool file_exists(std::string &file_name) {
+static bool file_exists(const std::string &file_name) {
   std::ifstream file(file_name.c_str());
 
   if (file.is_open()) {
@@ -97,7 +100,13 @@ static void create_file(std::string &file_name) {
 
 /** Delete clone status file.
 @param[in]	file	name of file */
-static void remove_file(std::string &file) {
+static void remove_file(const std::string &file) {
+  /* Allow non existent file, as the server could have crashed or returned with
+  error before creating the file. This is needed during error cleanup. */
+  if (!file_exists(file)) {
+    return;
+  }
+
   auto ret = std::remove(file.c_str());
 
   if (ret != 0) {
@@ -176,21 +185,24 @@ static void drop_status_file(const Clone_Handle *clone) {
 void clone_init_list_files() {
   /* Remove any existing list files. */
   std::string new_files(CLONE_INNODB_NEW_FILES);
-  if (file_exists(new_files)) {
-    remove_file(new_files);
-  }
+  remove_file(new_files);
+
   std::string old_files(CLONE_INNODB_OLD_FILES);
-  if (file_exists(old_files)) {
-    remove_file(old_files);
-  }
+  remove_file(old_files);
+
   std::string replaced_files(CLONE_INNODB_REPLACED_FILES);
-  if (file_exists(replaced_files)) {
-    remove_file(replaced_files);
-  }
+  remove_file(replaced_files);
+
   std::string recovery_file(CLONE_INNODB_RECOVERY_FILE);
-  if (file_exists(recovery_file)) {
-    remove_file(recovery_file);
-  }
+  remove_file(recovery_file);
+
+  std::string ddl_file(CLONE_INNODB_DDL_FILES);
+  remove_file(ddl_file);
+}
+
+void clone_remove_list_file(const char *file_name) {
+  std::string list_file(file_name);
+  remove_file(list_file);
 }
 
 int clone_add_to_list_file(const char *list_file_name, const char *file_name) {
@@ -577,7 +589,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 
       } else if (in_err != 0) {
         /* Make sure re-start attempt fails immediately */
-        clone_hdl->set_state(CLONE_STATE_ABORT);
+        clone_hdl->set_abort();
       }
     }
 
@@ -678,6 +690,15 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
            "for restart timed out after "
         << time_out.count() << " minutes. Dropping Snapshot";
   }
+
+  /* If Clone snapshot is not restarted, at this point mark it for
+  abort and end the snapshot to allow any waiting DDL to unpin the
+  handle and exit. */
+  if (!clone_hdl->is_active()) {
+    ut_ad(err != 0 || is_timeout);
+    clone_hdl->set_abort();
+  }
+
   /* Last task should drop the clone handle. */
   clone_sys->drop_clone(clone_hdl);
   return (0);
@@ -777,7 +798,7 @@ int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
       return (err);
     }
 
-    err = clone_hdl->init(loc, loc_len, HA_CLONE_BLOCKING, data_dir);
+    err = clone_hdl->init(loc, loc_len, HA_CLONE_HYBRID, data_dir);
 
     if (err != 0) {
       clone_sys->drop_clone(clone_hdl);
@@ -1359,6 +1380,29 @@ void clone_update_gtid_status(std::string &gtids) {
   remove_file(replace_files);
 }
 
+/** Callback to process entries before removing status file. */
+using Remove_cbk = std::function<void(std::string &)>;
+
+/** Process all entries and remove status file.
+@param[in]	file_name	status file name
+@param[in]	process		callback to process entries */
+static void process_remove_file(const char *file_name, Remove_cbk &process) {
+  std::ifstream files;
+  std::string data_file;
+
+  /* Open file to get all file entries. */
+  files.open(file_name);
+  if (files.is_open()) {
+    /* Extract and process all files. */
+    while (std::getline(files, data_file)) {
+      process(data_file);
+    }
+    files.close();
+    std::string file_str(file_name);
+    remove_file(file_str);
+  }
+}
+
 void clone_files_error() {
   /* Check if clone file directory exists. */
   if (!os_file_exists(CLONE_FILES_DIR)) {
@@ -1372,44 +1416,20 @@ void clone_files_error() {
     create_file(err_file);
   }
 
-  std::ifstream files;
-  std::string data_file;
+  /* Process all old files to be moved. */
+  Remove_cbk cbk = old_file_rollback;
+  process_remove_file(CLONE_INNODB_OLD_FILES, cbk);
 
-  /* Open old file to get all files to be moved. */
-  files.open(CLONE_INNODB_OLD_FILES);
-  if (files.is_open()) {
-    /* Extract and process all files to be moved */
-    while (std::getline(files, data_file)) {
-      old_file_rollback(data_file);
-    }
-    files.close();
-    std::string old_files(CLONE_INNODB_OLD_FILES);
-    remove_file(old_files);
-  }
+  /* Process all files to be replaced. */
+  cbk = file_rollback;
+  process_remove_file(CLONE_INNODB_REPLACED_FILES, cbk);
 
-  /* Open file to get all files to be replaced. */
-  files.open(CLONE_INNODB_REPLACED_FILES);
-  if (files.is_open()) {
-    /* Extract and process all files to be replaced */
-    while (std::getline(files, data_file)) {
-      file_rollback(data_file);
-    }
-    files.close();
-    std::string replace_files(CLONE_INNODB_REPLACED_FILES);
-    remove_file(replace_files);
-  }
+  /* Process all new files to be deleted. */
+  cbk = remove_file;
+  process_remove_file(CLONE_INNODB_NEW_FILES, cbk);
 
-  /* Open file to get all new files to delete. */
-  files.open(CLONE_INNODB_NEW_FILES);
-  if (files.is_open()) {
-    /* Extract and process all files to be replaced */
-    while (std::getline(files, data_file)) {
-      remove_file(data_file);
-    }
-    files.close();
-    std::string new_files(CLONE_INNODB_NEW_FILES);
-    remove_file(new_files);
-  }
+  /* Process all temp ddl files to be deleted. */
+  process_remove_file(CLONE_INNODB_DDL_FILES, cbk);
 
   /* Remove error status file. */
   remove_file(err_file);
@@ -1549,27 +1569,7 @@ void clone_free() {
   Clone_Sys::s_clone_sys_state = CLONE_SYS_INACTIVE;
 }
 
-bool clone_mark_abort(bool force) {
-  bool aborted;
-
-  mutex_enter(clone_sys->get_mutex());
-
-  aborted = clone_sys->mark_abort(force);
-
-  mutex_exit(clone_sys->get_mutex());
-
-  DEBUG_SYNC_C("clone_marked_abort2");
-
-  return (aborted);
-}
-
-void clone_mark_active() {
-  mutex_enter(clone_sys->get_mutex());
-
-  clone_sys->mark_active();
-
-  mutex_exit(clone_sys->get_mutex());
-}
+bool clone_check_provisioning() { return Clone_handler::is_provisioning(); }
 
 bool clone_check_active() {
   mutex_enter(clone_sys->get_mutex());
@@ -1577,19 +1577,6 @@ bool clone_check_active() {
   mutex_exit(clone_sys->get_mutex());
 
   return (is_active || Clone_handler::is_provisioning());
-}
-
-bool clone_mark_wait() {
-  mutex_enter(clone_sys->get_mutex());
-  auto success = clone_sys->mark_wait();
-  mutex_exit(clone_sys->get_mutex());
-  return (success);
-}
-
-void clone_mark_free() {
-  mutex_enter(clone_sys->get_mutex());
-  clone_sys->mark_free();
-  mutex_exit(clone_sys->get_mutex());
 }
 
 template <typename T>
@@ -2355,19 +2342,30 @@ static void clone_init_compression(THD *thd) {
     return;
   }
 
+  ib::info(ER_IB_CLONE_SQL) << "Clone: Started initializing compressed tables";
+
   auto dc = dd::get_dd_client(thd);
   Releaser releaser(dc);
 
-  /* We don't bother about MDL lock here as clone holds X backup lock
-  preventing all DDL. */
-  DD_Objs<dd::Table> dd_tables;
+  std::vector<dd::Object_id> dd_table_ids;
 
-  if (dc->fetch_global_components(&dd_tables)) {
+  if (dc->fetch_global_component_ids<dd::Table>(&dd_table_ids)) {
     ut_ad(false);
     return;
   }
 
-  for (auto dd_table : dd_tables) {
+  for (auto dd_table_id : dd_table_ids) {
+    Releaser releaser_loop(dc);
+    dd::Table *dd_table = nullptr;
+
+    /* Acquire a local copy, without MDL lock. Any transaction consistent
+    snapshot from DD metadata tables should do here. */
+    auto fail = dc->acquire_uncached<dd::Table>(dd_table_id, &dd_table);
+
+    if (fail || dd_table == nullptr) {
+      continue;
+    }
+
     /* Skip non-innodb tables. */
     auto se =
         ha_resolve_by_name_raw(thd, lex_cstring_handle(dd_table->engine()));
@@ -2398,12 +2396,193 @@ static void clone_init_compression(THD *thd) {
                                   dd_index->tablespace_id());
   }
   compression_initialized = true;
+  ib::info(ER_IB_CLONE_SQL) << "Clone: Finished initializing compressed tables";
+}
+
+Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
+                           bool no_wait)
+    : m_space_id(space),
+      m_type(type),
+      m_wait(Wait_at::NONE),
+      m_blocked_state(),
+      m_error() {
+  DEBUG_SYNC_C("clone_notify_ddl");
+
+  if (fsp_is_system_temporary(space) || m_type == Type::SPACE_ALTER_INPLACE) {
+    /* No need to block clone. */
+    return;
+  }
+
+  std::string ntfn_mesg;
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+
+  if (type == Type::SYSTEM_REDO_DISABLE || type == Type::SPACE_IMPORT) {
+    if (clone_sys->check_active_clone(false)) {
+      get_mesg(true, ntfn_mesg);
+      ib::info(ER_IB_MSG_CLONE_DDL_NTFN) << ntfn_mesg;
+
+      m_error = ER_CLONE_IN_PROGRESS;
+      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+    }
+    return;
+  }
+
+  if (!clone_sys->check_active_clone(false)) {
+    /* Let any new clone block at the beginning. */
+    clone_sys->mark_wait();
+    m_wait = Wait_at::ENTER;
+    return;
+  }
+
+  bool abort_if_failed = false;
+
+  if (type == Type::SPACE_ALTER_ENCRYPT_GENERAL ||
+      type == Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS) {
+    /* For general tablespace, Encryption of data pages are always rolled
+    forward as of today. Since we cannot rollback the DDL, clone is aborted
+    on any failure here. */
+    abort_if_failed = true;
+
+  } else if (type == Type::SPACE_DROP) {
+    /* Post DDL operations should not fail, the transaction is already
+    committed. */
+    abort_if_failed = true;
+  }
+
+  get_mesg(true, ntfn_mesg);
+  ib::info(ER_IB_MSG_CLONE_DDL_NTFN) << ntfn_mesg;
+
+  DEBUG_SYNC_C("clone_notify_ddl_before_state_block");
+
+  /* Check if clone needs to block at state change. */
+  if (clone_sys->begin_ddl_state(m_type, m_space_id, no_wait, true,
+                                 m_blocked_state, m_error)) {
+    m_wait = Wait_at::STATE_CHANGE;
+    ut_ad(!failed());
+    return;
+  }
+
+  DEBUG_SYNC_C("clone_notify_ddl_after_state_block");
+
+  DBUG_EXECUTE_IF("clone_ddl_error_abort", abort_if_failed = true;);
+
+  /* Abort clone on failure, if requested. This is required when caller cannot
+  rollback on failure. Currently enable & disable encryption needs this. In
+  this case we need to force clone to abort. */
+  if (failed() && abort_if_failed) {
+    /* Clear any error raised. */
+    m_error = 0;
+    auto thd = thd_get_current_thd();
+    if (thd != nullptr) {
+      thd->clear_error();
+      thd->get_stmt_da()->reset_condition_info(thd);
+    }
+
+    clone_sys->mark_abort(true);
+    m_wait = Wait_at::ABORT;
+    return;
+  }
+  ut_ad(m_wait == Wait_at::NONE);
+}
+
+Clone_notify::~Clone_notify() {
+  IB_mutex_guard sys_mutex(clone_sys->get_mutex());
+
+  switch (m_wait) {
+    case Wait_at::ENTER:
+      clone_sys->mark_free();
+      break;
+
+    case Wait_at::STATE_CHANGE:
+      clone_sys->end_ddl_state(m_type, m_space_id, m_blocked_state);
+      break;
+
+    case Wait_at::ABORT:
+      clone_sys->mark_active();
+      break;
+
+    case Wait_at::NONE:
+      [[fallthrough]];
+
+    default:
+      return;
+  }
+
+  if (clone_sys->check_active_clone(false)) {
+    std::string ntfn_mesg;
+    get_mesg(false, ntfn_mesg);
+    ib::info(ER_IB_MSG_CLONE_DDL_NTFN) << ntfn_mesg;
+  }
+}
+
+void Clone_notify::get_mesg(bool begin, std::string &mesg) {
+  if (begin) {
+    mesg.assign("BEGIN ");
+  } else {
+    mesg.assign("END ");
+  }
+
+  switch (m_type) {
+    case Type::SPACE_CREATE:
+      mesg.append("[SPACE_CREATE] ");
+      break;
+    case Type::SPACE_DROP:
+      mesg.append("[SPACE_DROP] : ");
+      break;
+    case Type::SPACE_RENAME:
+      mesg.append("[SPACE_RENAME] ");
+      break;
+    case Type::SPACE_ALTER_ENCRYPT:
+      mesg.append("[SPACE_ALTER_ENCRYPT] ");
+      break;
+    case Type::SPACE_IMPORT:
+      mesg.append("[SPACE_IMPORT] ");
+      break;
+    case Type::SPACE_ALTER_ENCRYPT_GENERAL:
+      mesg.append("[SPACE_ALTER_ENCRYPT_GENERAL] ");
+      break;
+    case Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS:
+      mesg.append("[SPACE_ALTER_ENCRYPT_GENERAL_FLAGS] ");
+      break;
+    /* purecov: begin deadcode */
+    case Type::SPACE_ALTER_INPLACE:
+      mesg.append("[SPACE_ALTER_INPLACE] ");
+      break;
+    /* purecov: end */
+    case Type::SPACE_ALTER_INPLACE_BULK:
+      mesg.append("[SPACE_ALTER_INPLACE_BULK] ");
+      break;
+    case Type::SPACE_UNDO_DDL:
+      mesg.append("[SPACE_UNDO_DDL] ");
+      break;
+    case Type::SYSTEM_REDO_DISABLE:
+      mesg.append("[SYSTEM_REDO_DISABLE] Space ID");
+      break;
+    default:
+      mesg.append("[UNKNOWN] ");
+      break;
+  }
+
+  mesg.append("Space ID: ");
+  mesg.append(std::to_string(m_space_id));
+
+  if (m_space_id == dict_sys_t::s_invalid_space_id) {
+    return;
+  }
+  auto fil_space = fil_space_get(m_space_id);
+  if (fil_space == nullptr) {
+    return;
+  }
+  auto &file = fil_space->files.front();
+  mesg.append(" File: ");
+  mesg.append(file.name);
 }
 
 static void clone_init_tablespaces(THD *thd) {
   if (clone_sys->is_space_initialized()) {
     return;
   }
+  ib::info(ER_IB_CLONE_SQL) << "Clone: Started loading tablespaces";
   auto dc = dd::get_dd_client(thd);
   Releaser releaser(dc);
 
@@ -2483,4 +2662,23 @@ static void clone_init_tablespaces(THD *thd) {
   }
 
   clone_sys->set_space_initialized();
+  ib::info(ER_IB_CLONE_SQL) << "Clone: Finished loading tablespaces";
+}
+
+Clone_Sys::Wait_stage::Wait_stage(const char *new_info) {
+  m_saved_info = nullptr;
+  THD *thd = thd_get_current_thd();
+
+  if (thd != nullptr) {
+    m_saved_info = thd->proc_info();
+    thd->set_proc_info(new_info);
+  }
+}
+
+Clone_Sys::Wait_stage::~Wait_stage() {
+  THD *thd = thd_get_current_thd();
+
+  if (thd != nullptr && m_saved_info != nullptr) {
+    thd->set_proc_info(m_saved_info);
+  }
 }

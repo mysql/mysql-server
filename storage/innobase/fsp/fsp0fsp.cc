@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0log.h"
 #include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "clone0api.h"
 #include "dict0mem.h"
 #include "fsp0sysspace.h"
 #include "srv0start.h"
@@ -1084,9 +1085,20 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
       return (false);
     }
 
+    bool master_key_encrypt = true;
+
+    /* Generate redo log encryption info that cannot be extracted with master
+    key during recovery. This is to validate that clone ignores encryption
+    information in redo log and works fine. Clone needs to ignore it as the
+    encryption information in redo log is encrypted using donor master key which
+    is not available in recipient. This is otherwise difficult to test in mtr
+    test environment where recipient uses same keyring as donor. */
+    DBUG_EXECUTE_IF("log_redo_with_invalid_master_key",
+                    master_key_encrypt = false;);
+
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
-                                          is_boot, true)) {
+                                          is_boot, master_key_encrypt)) {
       space->encryption_type = Encryption::NONE;
       memset(space->encryption_key, 0, Encryption::KEY_LEN);
       memset(space->encryption_iv, 0, Encryption::KEY_LEN);
@@ -1095,6 +1107,16 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
     mlog_write_string(page + offset, encryption_info, Encryption::INFO_SIZE,
                       mtr);
+
+    /* Correct the master key stored in page. We only intend to generate
+    incorrect redo log. */
+    DBUG_EXECUTE_IF("log_redo_with_invalid_master_key", {
+      ut_ad(!master_key_encrypt);
+      Encryption::fill_encryption_info(space->encryption_key,
+                                       space->encryption_iv, encryption_info,
+                                       is_boot, true);
+      memcpy(page + offset, encryption_info, Encryption::INFO_SIZE);
+    });
   }
   space->encryption_op_in_progress = NONE;
 
@@ -4236,8 +4258,11 @@ static uint32_t get_encryption_progress(fil_space_t *space, byte &operation) {
   return progress;
 }
 
-static dberr_t init_before_encrypt_processing(fil_space_t *space,
-                                              space_id_t space_id) {
+/** Initialize space encrypt operation and persist in page-0.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t encrypt_begin_persist(fil_space_t *space) {
+  DBUG_TRACE;
   dberr_t err = DB_SUCCESS;
 
   /* Fill key, iv and prepare encryption_info to be written in page 0 */
@@ -4253,6 +4278,38 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
                                         true)) {
     ut_ad(false);
+    return DB_ERROR;
+  }
+
+  {
+    /* Write Encryption information and notify clone. Do this before persisting
+    encryption information because clone needs to know that the table is being
+    encrypted before the key is persisted in page-0. This is because clone needs
+    to copy and re-encrypt the key with recipients master key.
+
+    There is an existinge issue here that other pages could get encrypted and
+    flushed after this point before page-0 is flushed. It could eventually
+    cause issue during recovery in case of a crash. It needs to be fixed
+    separately (may be) by encrypting pages only if space flag is set. Note that
+    we haven't yet set the space flag to FSP_FLAGS_MASK_ENCRYPTION yet.
+
+    Also, we should introduce some concurrency control (atomics) to prevent race
+    while accessing space encryption related information during IO. */
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+
+    /* Set encryption for tablespace */
+    rw_lock_x_lock(&space->latch);
+    err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+    rw_lock_x_unlock(&space->latch);
+
+    if (err != DB_SUCCESS) {
+      /* purecov: begin deadcode */
+      ut_ad(false);
+      return err;
+      /* purecov: end */
+    }
   }
 
   /* Write Encryption information and space flags now on page 0
@@ -4260,26 +4317,19 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   the changes on disk and then modify in memory flags. */
   mtr_t mtr;
   mtr_start(&mtr);
-  if (!fsp_header_write_encryption(space_id,
+
+  if (!fsp_header_write_encryption(space->id,
                                    space->flags | FSP_FLAGS_MASK_ENCRYPTION,
                                    encryption_info, true, false, &mtr)) {
     ut_ad(false);
+    err = DB_ERROR;
   }
 
   /* Write operation type and progress (0 now) on page 0 */
   fsp_header_write_encryption_progress(
-      space_id, space->flags, 0, Encryption::ENCRYPT_IN_PROGRESS, true, &mtr);
+      space->id, space->flags, 0, Encryption::ENCRYPT_IN_PROGRESS, true, &mtr);
+
   mtr_commit(&mtr);
-
-  /* Set encryption for tablespace */
-  rw_lock_x_lock(&space->latch);
-  err = fil_set_encryption(space_id, Encryption::AES, key, iv);
-  rw_lock_x_unlock(&space->latch);
-
-  if (err != DB_SUCCESS) {
-    ut_ad(false);
-    return err;
-  }
 
   /* Make sure encryption information is persisted on disk. Following scenario:
   [1] Encryption key is written on page 0 but Page 0 is not flushed.
@@ -4287,72 +4337,370 @@ static dberr_t init_before_encrypt_processing(fil_space_t *space,
   [3] checkpoint hasn't reached [1] yet and has REDO for P before [1].
   [4] Server crashed. During recovery REDO scan batch REDO [1] is not reached.
   [5] Although REDO for P is to be discarded, but to confirm that page LSN is
-      to be checked, thus  P is read from disk. ERROR. */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+      to be checked, thus  P is read from disk. ERROR. We should replace this
+  expensive call to flush all by an interface that would flush only page-0. */
+  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
+  return DB_SUCCESS;
+}
+
+/** Initialize space encrypt memory flags.
+@param[in,out]	space	innodb tablespace */
+static void encrypt_begin_memory(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Don't allow operation to change while clone is evaluating the state of the
+  space during state transition. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
   space->encryption_op_in_progress = ENCRYPTION;
 
   /* Update In-mem Encryption flag for tablespace */
   fsp_flags_set_encryption(space->flags);
+}
+
+/** Force all pages of a space to be loaded and flushed back to disk
+@param[in,out]	thd		server session THD
+@param[in,out]	space		innodb tablespace
+@param[in]	from_page	page number to resume from */
+static void process_all_pages(THD *thd, fil_space_t *space,
+                              page_no_t from_page) {
+  DBUG_TRACE;
+  /* Mark all pages in tablespace dirty */
+  mark_all_page_dirty_in_tablespace(thd, space->id, space->flags, space->size,
+                                    from_page);
+
+  /* As DMLs are allowed in parallel, pass false for 'strict' */
+  buf_LRU_flush_or_remove_pages(space->id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+                                false);
+}
+
+/** Finish space encrypt operation.
+@param[in,out]	space	innodb tablespace */
+static void encrypt_end(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Crash before resetting progress on page 0 */
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  /* Erase Operation type and encryption progress from page 0 */
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  fsp_header_write_encryption_progress(space->id, space->flags, 0, 0, true,
+                                       &mtr);
+  mtr_commit(&mtr);
+
+  /* Don't allow operation to change while clone is evaluating the state of the
+  space during state transition. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
+
+  /* Reset encryption in progress flag */
+  space->encryption_op_in_progress = NONE;
+}
+
+/** Find out the place to resume the operation.
+@param[in,out]	space		innodb tablespace
+@param[out]	from_page	page number to resume from
+@return state to resume from */
+static Encryption::Resume_point encrypt_resume_point(fil_space_t *space,
+                                                     page_no_t &from_page) {
+  DBUG_TRACE;
+  bool encryption_flag = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  from_page = 1;
+
+  if (!encryption_flag) {
+    /* Encryption is not yet started. */
+    return Encryption::Resume_point::INIT;
+  }
+
+  /* Read page 0 and get encryption progress */
+  byte operation;
+  from_page = get_encryption_progress(space, operation) + 1;
+
+  if (operation != Encryption::ENCRYPT_IN_PROGRESS) {
+    ut_ad(operation != Encryption::DECRYPT_IN_PROGRESS);
+    ut_ad(space->encryption_op_in_progress == NONE);
+    /* Encryption is already done. */
+    return Encryption::Resume_point::DONE;
+  }
+
+  ut_ad(space->encryption_op_in_progress == ENCRYPTION);
+
+  if (from_page == space->size) {
+    return Encryption::Resume_point::END;
+  }
+
+  return Encryption::Resume_point::PROCESS;
+}
+
+/** Encrypt all pages of a tablespace.
+@param[in,out]	thd		server session THD
+@param[in]	space_id	Tablespace id
+@param[in]	resume		true if resumed after server restart
+@return innodb error code */
+static dberr_t encrypt_tablespace(THD *thd, space_id_t space_id, bool resume) {
+  DBUG_TRACE;
+
+  dberr_t err = DB_SUCCESS;
+  fil_space_t *space = fil_space_get(space_id);
+
+  Encryption::Resume_point resume_point = Encryption::Resume_point::INIT;
+  page_no_t from_page = 1;
+
+  if (resume) {
+    resume_point = encrypt_resume_point(space, from_page);
+  }
+
+  switch (resume_point) {
+    case Encryption::Resume_point::INIT:
+      /* Set and persist encryption key information. We also persist
+      the initialized progress information together in same mtr (atomic).*/
+      err = encrypt_begin_persist(space);
+
+      ut_ad(err == DB_SUCCESS);
+
+      if (err != DB_SUCCESS) {
+        break; /* purecov: deadcode */
+      }
+      /* Set encryption flag and initialize progress information. */
+      encrypt_begin_memory(space);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::PROCESS:
+      /* Load and flush all pages so that they are all encrypted on disk. */
+      process_all_pages(thd, space, from_page);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::END:
+      /* Reset progress information. */
+      encrypt_end(space);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::DONE:
+      break;
+  }
 
   return err;
 }
 
-static dberr_t init_before_decrypt_processing(fil_space_t *space,
-                                              space_id_t space_id) {
+/** Initialize space decrypt operation and persist in page-0.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t decrypt_begin_persist(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Write Decryption progress and notify clone. Do this before persisting the
+  progress information. Clone needs to identify the state before page-0 is
+  updated. */
+  {
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+    space->encryption_op_in_progress = DECRYPTION;
+  }
+
   dberr_t err = DB_SUCCESS;
 
   mtr_t mtr;
   mtr_start(&mtr);
   /* Write operation type and progress (0 now) on page 0 */
-  if (!fsp_header_write_encryption_progress(space_id, space->flags, 0,
+  if (!fsp_header_write_encryption_progress(space->id, space->flags, 0,
                                             Encryption::DECRYPT_IN_PROGRESS,
                                             true, &mtr)) {
     ut_ad(false);
-    mtr_commit(&mtr);
-    return DB_ERROR;
+    err = DB_ERROR;
   }
 
   mtr_commit(&mtr);
+  return err;
+}
+
+/** Initialize space decrypt memory flags.
+@param[in,out]	space	innodb tablespace */
+static void decrypt_begin_memory(fil_space_t *space) {
+  DBUG_TRACE;
+  /* Notify clone before starting decryption. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                        space->id, false);
+  ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
   space->encryption_op_in_progress = DECRYPTION;
 
-  /* Update In-mem Encryption flag for tablespace */
+  /* Update In-memory Encryption flag for tablespace. We cannot erase Encryption
+  info in page-0 till all pages are decrypted. */
   fsp_flags_unset_encryption(space->flags);
+}
 
-  /* Don't erase Encryption info from page 0 yet */
+/** Finish space decrypt operation.
+@param[in,out]	space	innodb tablespace
+@return innodb error code */
+static dberr_t decrypt_end(fil_space_t *space) {
+  DBUG_TRACE;
+  ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_updating_flags",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  dberr_t err = DB_SUCCESS;
+  {
+    Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL_FLAGS,
+                          space->id, false);
+    ut_ad(!notifier.failed());
+
+    /* Reset encryption in progress flag */
+    space->encryption_op_in_progress = NONE;
+
+    rw_lock_x_lock(&space->latch);
+    /* Reset In-memory encryption for tablespace */
+    err = fil_reset_encryption(space->id);
+    rw_lock_x_unlock(&space->latch);
+    ut_ad(err == DB_SUCCESS);
+  }
+
+  if (err != DB_SUCCESS) {
+    return err; /* purecov: inspected */
+  }
+
+  byte encryption_info[Encryption::INFO_SIZE];
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
+
+  /* Erase encryption information in page-0 and update space flag. Also reset
+  the progress information in same mtr. */
+  mtr_t mtr;
+
+  mtr_start(&mtr);
+
+  if (!fsp_header_write_encryption(space->id, space->flags, encryption_info,
+                                   true, false, &mtr)) {
+    err = DB_ERROR; /* purecov: inspected */
+  }
+
+  /* Crash before resetting progress on page 0 */
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
+                  log_buffer_flush_to_disk();
+                  DBUG_SUICIDE(););
+
+  fsp_header_write_encryption_progress(space->id, space->flags, 0, 0, true,
+                                       &mtr);
+  mtr_commit(&mtr);
+
+  ut_ad(err == DB_SUCCESS);
+  return err;
+}
+
+/** Find out the place to resume the operation.
+@param[in,out]	space		innodb tablespace
+@param[out]	from_page	page number to resume from
+@return state to resume from */
+static Encryption::Resume_point decrypt_resume_point(fil_space_t *space,
+                                                     page_no_t &from_page) {
+  DBUG_TRACE;
+  bool encryption_flag = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+  from_page = 1;
+
+  if (!encryption_flag) {
+    /* Decryption must have finished already. The encryption flag is reset and
+    persisted at very end. */
+    ut_ad(space->encryption_op_in_progress == NONE);
+
+    return Encryption::Resume_point::DONE;
+  }
+
+  /* Read page 0 and get encryption progress */
+  byte operation;
+  from_page = get_encryption_progress(space, operation) + 1;
+
+  if (operation != Encryption::DECRYPT_IN_PROGRESS) {
+    ut_ad(operation != Encryption::ENCRYPT_IN_PROGRESS);
+    ut_ad(space->encryption_op_in_progress == NONE);
+    /* Decryption is not started. */
+    return Encryption::Resume_point::INIT;
+  }
+
+  ut_ad(space->encryption_op_in_progress == DECRYPTION);
+
+  if (from_page == space->size) {
+    return Encryption::Resume_point::END;
+  }
+
+  return Encryption::Resume_point::PROCESS;
+}
+
+/** Decrypt all pages of a tablespace.
+@param[in,out]	thd		server session THD
+@param[in]	space_id	Tablespace id
+@param[in]	resume		true if resumed after server restart
+@return innodb error code */
+static dberr_t decrypt_tablespace(THD *thd, space_id_t space_id, bool resume) {
+  DBUG_TRACE;
+
+  dberr_t err = DB_SUCCESS;
+  fil_space_t *space = fil_space_get(space_id);
+
+  Encryption::Resume_point resume_point = Encryption::Resume_point::INIT;
+  page_no_t from_page = 1;
+
+  if (resume) {
+    resume_point = decrypt_resume_point(space, from_page);
+  }
+
+  /* While resuming we need to initialize the flags as they
+  are not yet persisted. */
+  if (resume_point == Encryption::Resume_point::END) {
+    /* Set encryption flag and progress information. */
+    decrypt_begin_memory(space);
+  }
+
+  switch (resume_point) {
+    case Encryption::Resume_point::INIT:
+      /* Set and persist encryption progress information. */
+      err = decrypt_begin_persist(space);
+
+      ut_ad(err == DB_SUCCESS);
+
+      if (err != DB_SUCCESS) {
+        break; /* purecov: deadcode */
+      }
+      [[fallthrough]];
+
+    case Encryption::Resume_point::PROCESS:
+      /* Set encryption flag and progress information. */
+      decrypt_begin_memory(space);
+
+      /* Load and flush all pages so that they are all encrypted on disk. */
+      process_all_pages(thd, space, from_page);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::END:
+      /* Reset and persist encryption key and progress information. */
+      err = decrypt_end(space);
+      ut_ad(err == DB_SUCCESS);
+      [[fallthrough]];
+
+    case Encryption::Resume_point::DONE:
+      break;
+  }
 
   return err;
 }
 
-static inline dberr_t init_before_processing(fil_space_t *space,
-                                             space_id_t space_id,
-                                             bool to_encrypt) {
-  /* After following call, following would have been done
-  - For encryption, In-mem encryption information set for tablesapace.
-  - For encryption, encryption Info and space updated flags write to page 0.
-  - In-mem space flags update.
-  - Page 0 update to indicate operation type. */
-
-  return (to_encrypt ? init_before_encrypt_processing(space, space_id)
-                     : init_before_decrypt_processing(space, space_id));
-}
-
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                      bool to_encrypt, void *dd_space_in) {
-  dberr_t err = DB_SUCCESS;
-  fil_space_t *space = fil_space_get(space_id);
-  dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
-
   DBUG_TRACE;
 
   /* Make an entry in DDL LOG for this tablespace. If an entry for tablespace
   exists then remove that entry and insert a new one. */
   encryption_op_type op_type_ddl_log = (to_encrypt) ? ENCRYPTION : DECRYPTION;
+
   DDL_Record *old_ddl_rec = log_ddl->find_alter_encrypt_record(space_id);
+
   if (DB_SUCCESS != log_ddl->write_alter_encrypt_space_log(
                         space_id, op_type_ddl_log, old_ddl_rec)) {
     ib::error(ER_IB_MSG_1283) << "Couldn't write DDL LOG for " << space_id;
@@ -4362,157 +4710,24 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_ddl_entry",
                   DBUG_SUICIDE(););
 
-  page_no_t from_page = 1;
-  bool initialize = true;
+  bool resume = (old_ddl_rec != nullptr);
 
-  if (old_ddl_rec != nullptr) {
-    /* Read page 0 and get encryption progress */
-    byte operation;
-    from_page = get_encryption_progress(space, operation) + 1;
+  dberr_t err = DB_SUCCESS;
 
-    /* A corner case when crash happened after last page was processed but
-    page 0 wasn't updated with this information. */
-    if (from_page == space->size) {
-      goto all_done;
-    }
+  if (to_encrypt) {
+    err = encrypt_tablespace(thd, space_id, resume);
 
-    if (from_page == 1) {
-      if ((to_encrypt && FSP_FLAGS_GET_ENCRYPTION(space->flags)) ||
-          (!to_encrypt && !FSP_FLAGS_GET_ENCRYPTION(space->flags))) {
-        /* Crash just before the commit when all the pages have been processed
-        and progress/operation flag was reset. Just update space flags in DD
-        and return. */
-        space->encryption_op_in_progress = NONE;
-
-        /* Update space flags in DD Tablespace object */
-        ut_ad(dd_space != nullptr);
-        dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                        static_cast<uint32>(space->flags));
-
-        if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-          /* Reset In-mem encryption for tablespace */
-          err = fil_reset_encryption(space_id);
-          ut_ad(err == DB_SUCCESS);
-        }
-
-        return err;
-      } else {
-        /* Crash even before the first page could have been processed. In this
-        case, start processing again. */
-        initialize = true;
-      }
-    } else {
-      initialize = false;
-    }
-  }
-
-#ifdef UNIV_DEBUG
-  if (initialize) {
-    if (to_encrypt) {
-      /* Assert that tablespace is not encrypted */
-      ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
-    } else {
-      /* Assert that tablespace is encrypted */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-    }
-    ut_ad(space->encryption_op_in_progress == NONE);
   } else {
-    if (to_encrypt) {
-      /* Updated tablespace flags were written on page 0 before crash. It must
-      say encrypted tablespace. */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-      /* In mem operation should have already been set */
-      ut_ad(space->encryption_op_in_progress == ENCRYPTION);
-    } else {
-      /* Updated tablespace flags were not written on page 0 before crash. It
-      must still say encrypted tablespace. */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-      /* In mem operation should have already been set */
-      ut_ad(space->encryption_op_in_progress == DECRYPTION);
-    }
+    err = decrypt_tablespace(thd, space_id, resume);
   }
-#endif
-
-  if (initialize) {
-    /* Initialize for encrypt/decrypt */
-    err = init_before_processing(space, space_id, to_encrypt);
-    if (err != DB_SUCCESS) {
-      ut_ad(false);
-      return err;
-    }
-  } else {
-    if (!to_encrypt) {
-      /* Update In mem encryption flag for tablespace */
-      fsp_flags_unset_encryption(space->flags);
-      /* Don't erase Encryption information from page 0 yet */
-    }
-  }
-
-  /* Mark all pages in tablespace dirty */
-  mark_all_page_dirty_in_tablespace(thd, space_id, space->flags, space->size,
-                                    from_page);
-
-  /* As DMLs are allowed in parallel, pass false for 'strict' */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                false);
-
-all_done:
-  /* For unencryption, if server crashed, before tablespace flags were flushed
-  on disk. Set them now. */
-  if (old_ddl_rec && !to_encrypt) {
-    fsp_flags_unset_encryption(space->flags);
-  }
-
-  mtr_t mtr;
-
-  /* If it was an Unencryption operation */
-  if (!to_encrypt) {
-    /* Crash before updating tablespace flags on page 0 */
-    DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_updating_flags",
-                    log_buffer_flush_to_disk();
-                    DBUG_SUICIDE(););
-
-    ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    byte encryption_info[Encryption::INFO_SIZE];
-    memset(encryption_info, 0, Encryption::INFO_SIZE);
-    /* Now on page 0
-            - erase Encryption information
-            - write updated Tablespace flag */
-    mtr_start(&mtr);
-    if (!fsp_header_write_encryption(space_id, space->flags, encryption_info,
-                                     true, false, &mtr)) {
-      ut_ad(0);
-    }
-    mtr_commit(&mtr);
-
-    rw_lock_x_lock(&space->latch);
-    /* Reset In-mem encryption for tablespace */
-    err = fil_reset_encryption(space_id);
-    rw_lock_x_unlock(&space->latch);
-    ut_ad(err == DB_SUCCESS);
-  }
-
-  /* Reset encryption in progress flag */
-  space->encryption_op_in_progress = NONE;
 
   /* Update space flags in DD Tablespace object */
+  dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
   ut_ad(dd_space != nullptr);
+  fil_space_t *space = fil_space_get(space_id);
+
   dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
                                   static_cast<uint32>(space->flags));
-
-  /* Crash before resetting progress on page 0 */
-  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
-                  log_buffer_flush_to_disk();
-                  DBUG_SUICIDE(););
-
-  /* Erase Operation type and encryption progress from page 0 */
-  mtr_start(&mtr);
-  fsp_header_write_encryption_progress(space_id, space->flags, 0, 0, true,
-                                       &mtr);
-  mtr_commit(&mtr);
 
   /* Crash before flushing page 0 on disk */
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_flushing_page_0",
@@ -4521,7 +4736,9 @@ all_done:
 
   /* Flush page 0 here because MEB backup needs to read the key from page 0
   before redo log is applied. This is not needed for innodb recovery and
-  ideally we would like to get rid of all such special purpose code. */
+  ideally we would like to get rid of all such special purpose code. We should
+  replace this expensive call to flush all by an interface that would flush only
+  page-0.*/
   buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
 
@@ -4529,7 +4746,6 @@ all_done:
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_flushing_page_0",
                   log_buffer_flush_to_disk();
                   DBUG_SUICIDE(););
-
   return err;
 }
 

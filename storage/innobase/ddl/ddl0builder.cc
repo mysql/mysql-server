@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL build index implementation.
 Created 2020-11-01 by Sunny Bains. */
 
+#include "clone0api.h"
 #include "ddl0fts.h"
 #include "ddl0impl-builder.h"
 #include "ddl0impl-compare.h"
@@ -1920,13 +1921,26 @@ dberr_t Builder::finalize() noexcept {
 
   observer->flush();
 
-  write_redo(m_index);
+  dberr_t err = DB_SUCCESS;
+  auto new_table = m_ctx.m_new_table;
+  auto space_id =
+      new_table != nullptr ? new_table->space : dict_sys_t::s_invalid_space_id;
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+  Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_INPLACE_BULK, space_id,
+                        false);
+  if (notifier.failed()) {
+    err = DB_ERROR;
+  }
 
-  auto err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
+  if (err == DB_SUCCESS) {
+    write_redo(m_index);
 
-  DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_before");
+
+    err = row_log_apply(m_ctx.m_trx, m_index, m_ctx.m_table, m_local_stage);
+
+    DEBUG_SYNC_C_IF_THD(m_ctx.thd(), "row_log_apply_after");
+  }
 
   if (err != DB_SUCCESS) {
     set_error(err);

@@ -69,6 +69,9 @@ extern PSI_statement_key clone_stmt_server_key;
 file to network or destination file. */
 extern uint clone_buffer_size;
 
+/** Clone system variable: If clone should block concurrent DDL */
+extern bool clone_block_ddl;
+
 /** Clone system variable: timeout for DDL lock */
 extern uint clone_ddl_timeout;
 
@@ -122,6 +125,9 @@ const uint32_t CLONE_PROTOCOL_VERSION_V3 = 0x0102;
 
 /**  Clone protocol latest version */
 const uint32_t CLONE_PROTOCOL_VERSION = CLONE_PROTOCOL_VERSION_V3;
+
+/** Special timeout value to indicate no backup lock for DDL. */
+const uint32_t NO_LOCK_TIMEOUT_VALUE = std::numeric_limits<uint32_t>::max();
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */

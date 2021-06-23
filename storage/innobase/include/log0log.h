@@ -1299,7 +1299,7 @@ inline bool log_checkpointer_is_active();
 @param[in]      iv           encryption iv
 @param[in]      is_boot      if it's for bootstrap
 @param[in]      encrypt_key  encrypt with master key */
-bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+bool log_file_header_fill_encryption(byte *buf, const byte *key, const byte *iv,
                                      bool is_boot, bool encrypt_key);
 
 /** Disable redo logging and persist the information.

@@ -1355,8 +1355,14 @@ int Client::serialize_init_cmd(size_t &buf_len) {
   int4store(buf_ptr, m_share->m_protocol_version);
   buf_ptr += 4;
 
-  /* Store DDL timeout */
-  int4store(buf_ptr, clone_ddl_timeout);
+  /* Store DDL timeout value. Default is no lock. */
+  uint32_t timeout_value = NO_LOCK_TIMEOUT_VALUE;
+
+  if (clone_block_ddl) {
+    timeout_value = clone_ddl_timeout;
+  }
+
+  int4store(buf_ptr, timeout_value);
   buf_ptr += 4;
 
   /* Store SE information and Locators */
@@ -1382,9 +1388,11 @@ int Client::receive_response(Command_RPC com, bool use_aux) {
   uint32_t timeout_sec = 0;
 
   /* Need to wait a little more than DDL lock timeout during INIT
-  to avoid network timeout */
+  to avoid network timeout. Other than DDL lock, we currently would
+  need to load the tablespaces [clone_init_tablespaces] and check
+  through all tables for compression in donor[clone_init_compression]. */
   if (com == COM_INIT) {
-    timeout_sec = clone_ddl_timeout + 5;
+    timeout_sec = clone_ddl_timeout + 300;
   }
 
   while (!last_packet) {

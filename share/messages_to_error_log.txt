@@ -11446,6 +11446,21 @@ ER_RPL_INCREMENTING_MEMBER_ACTION_VERSION
 ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER
   eng "The '%s' thread of channel '%s' will error out as this server is a group secondary."
 
+ER_IB_MSG_CLONE_DDL_NTFN
+  eng "Clone DDL Notification: %s"
+
+ER_IB_MSG_CLONE_DDL_APPLY
+  eng "Clone DDL APPLY: %s"
+
+ER_IB_MSG_CLONE_DDL_INVALIDATE
+  eng "Clone DDL Invalidate : %s"
+
+ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED
+  eng "Encryption key is loaded for undo tablespace '%s'."
+
+ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH
+  eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

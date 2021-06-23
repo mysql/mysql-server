@@ -560,6 +560,19 @@ DEFINE_METHOD(int, mysql_clone_get_response,
     err = ER_QUERY_INTERRUPTED;
   }
 
+  /* This error is not relevant for client but is raised by network
+  net_read_raw_loop() as the code is compiled in server MYSQL_SERVER.
+  For clone client we need to set valid client network error. */
+  if (err == ER_CLIENT_INTERACTION_TIMEOUT) {
+    /* purecov: begin inspected */
+    thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
+    net->last_errno = ER_NET_READ_ERROR;
+    err = ER_NET_READ_ERROR;
+    my_error(ER_NET_READ_ERROR, MYF(0));
+    /* purecov: end */
+  }
+
   if (err == 0) {
     net->last_errno = ER_NET_PACKETS_OUT_OF_ORDER;
     err = ER_NET_PACKETS_OUT_OF_ORDER;

@@ -1508,9 +1508,17 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
                           std::get<2>(m_buf_pages.m_pages[i]));
 
     if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
-      write_complete(bpage, flush_type);
-      buf_page_free_stale_during_write(
-          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      /* For async operation, if space is deleted, fil_io already
+      does buf_page_io_complete and returns DB_TABLESPACE_DELETED.
+      buf_page_free_stale_during_write() asserts if not IO fixed
+      and does similar things as buf_page_io_complete(). This is a
+      temp fix to address this situation. Ideally we should handle
+      these errors in single place possibly by one function. */
+      if (bpage->was_io_fixed()) {
+        write_complete(bpage, flush_type);
+        buf_page_free_stale_during_write(
+            bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      }
 
       const file::Block *block = std::get<1>(m_buf_pages.m_pages[i]);
       if (block != nullptr) {
@@ -1729,8 +1737,10 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     err = Double_write::write_to_datafile(bpage, sync, nullptr, 0);
     if (err == DB_PAGE_IS_STALE || err == DB_TABLESPACE_DELETED) {
-      buf_page_free_stale_during_write(
-          bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      if (bpage->was_io_fixed()) {
+        buf_page_free_stale_during_write(
+            bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+      }
       err = DB_SUCCESS;
     } else if (sync) {
       ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE);

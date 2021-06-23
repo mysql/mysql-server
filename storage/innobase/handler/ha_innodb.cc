@@ -14271,10 +14271,8 @@ int innobase_truncate<Table>::rename_tablespace() {
 
   if (err == DB_SUCCESS) {
     dict_sys_mutex_enter();
-    clone_mark_abort(true);
     err = fil_rename_tablespace(m_table->space, old_path, temp_name,
                                 new_path.c_str());
-    clone_mark_active();
     dict_sys_mutex_exit();
 
     if (err == DB_SUCCESS) {
@@ -14775,7 +14773,19 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
 
   if (err != DB_SUCCESS) {
     /* unable to lock the table: do nothing */
-  } else if (discard) {
+    /* purecov: begin inspected */
+    return convert_error_code_to_mysql(err, dict_table->flags, nullptr);
+    /* purecov: end */
+  }
+
+  /* Concurrent clone operation is not supported. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_IMPORT,
+                        dict_sys_t::s_invalid_space_id, false);
+  if (notifier.failed()) {
+    return notifier.get_error();
+  }
+
+  if (discard) {
     /* Discarding an already discarded tablespace should be an
     idempotent operation. Also, if the .ibd file is missing the
     user may want to set the DISCARD flag in order to IMPORT
@@ -15439,10 +15449,8 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_processing",
                   DBUG_SUICIDE(););
 
-  clone_mark_abort(true);
   /* do encryption/unencryption processing now. */
   err = fsp_alter_encrypt_tablespace(thd, space_id, to_encrypt, new_dd_space);
-  clone_mark_active();
 
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_processing",
                   DBUG_SUICIDE(););
@@ -15659,6 +15667,15 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
   error = validate_create_tablespace_info(IBU, thd, alter_info);
   if (error) {
     return error;
+  }
+
+  /* Notify clone about the UNDO DDL and possibly wait. We don't
+  need similar notification for drop which is recoverable with DDL
+  log. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_UNDO_DDL,
+                        dict_sys_t::s_invalid_space_id, false);
+  if (notifier.failed()) {
+    return notifier.get_error();
   }
 
   /* Create the tablespace object. */
@@ -20871,11 +20888,6 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write UNDO pages encrypted from now on. */
   if (target == false) {
-    /* Check and exit if concurrent clone in progress. */
-    if (clone_check_active()) {
-      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-      return (ER_CLONE_IN_PROGRESS);
-    }
     *static_cast<bool *>(save) = false;
     return (0);
   }
@@ -20886,13 +20898,6 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
     return (0);
-  }
-
-  /* Check and exit if concurrent clone in progress. The mark ensures
-  that any new clone waits while we set encryption information. */
-  if (!clone_mark_wait()) {
-    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-    return (ER_CLONE_IN_PROGRESS);
   }
 
   /* UNDO tablespace encryption to be mutually exclusive with any UNDO DDL */
@@ -20907,7 +20912,6 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   }
 
   mutex_exit(&undo::ddl_mutex);
-  clone_mark_free();
   return (0);
 }
 
@@ -20938,11 +20942,6 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   /* If encryption is to be disabled. This will just make sure I/O doesn't
   write REDO encrypted from now on. */
   if (target == false) {
-    /* Check and exit if concurrent clone in progress. */
-    if (clone_check_active()) {
-      my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-      return (ER_CLONE_IN_PROGRESS);
-    }
     *static_cast<bool *>(save) = false;
     return (0);
   }
@@ -20952,13 +20951,6 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
     return (0);
   }
 
-  /* Check and exit if concurrent clone in progress. The mark ensures
-  that any new clone waits while we set encryption information. */
-  if (!clone_mark_wait()) {
-    my_error(ER_CLONE_IN_PROGRESS, MYF(0));
-    return (ER_CLONE_IN_PROGRESS);
-  }
-
   /* Enable encryption for REDO tablespaces */
   bool ret = srv_enable_redo_encryption(false);
 
@@ -20966,7 +20958,6 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
     /* At this point, REDO log is set to be encrypted. */
     *static_cast<bool *>(save) = true;
   }
-  clone_mark_free();
   return (0);
 }
 

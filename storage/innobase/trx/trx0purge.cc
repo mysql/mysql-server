@@ -1425,6 +1425,16 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     return (false);
   }
 
+  Clone_notify notifier(Clone_notify::Type::SPACE_UNDO_DDL, marked_space->id(),
+                        true);
+
+  if (notifier.failed()) {
+    /* purecov: begin inspected */
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
+    return false;
+    /* purecov: end */
+  }
+
   /* Do the truncate.  This will change the space_id of the marked_space. */
   bool success = trx_undo_truncate_tablespace(marked_space);
 
@@ -1501,17 +1511,11 @@ static bool trx_purge_truncate_marked_undo() {
   std::string space_name = marked_space->space_name();
   undo::spaces->s_unlock();
 
-  /* Don't truncate if a concurrent clone is in progress. */
-  if (clone_check_active()) {
-    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
-    return (false);
-  }
-
   ib::info(ER_IB_MSG_UNDO_TRUNCATE_START, space_name.c_str());
 
   ut_d(undo::inject_crash("ib_undo_trunc_before_mdl"));
 
-  /* Get the MDL lock to prevent an ALTER or DROP command from interferring
+  /* Get the MDL lock to prevent an ALTER or DROP command from interfering
   with this undo tablespace while it is being truncated. */
   MDL_ticket *mdl_ticket;
   bool dd_result =
@@ -1536,7 +1540,7 @@ static bool trx_purge_truncate_marked_undo() {
   /* Re-check for clone after acquiring MDL. The Backup MDL from clone
   is released by clone during shutdown while provisioning. We should
   not allow truncate to proceed here. */
-  if (clone_check_active()) {
+  if (clone_check_provisioning()) {
     dd_release_mdl(mdl_ticket);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
     return (false);

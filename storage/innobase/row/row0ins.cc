@@ -2440,6 +2440,8 @@ and return. don't execute actual insert. */
   }
 #endif /* UNIV_DEBUG */
 
+  bool persist_autoinc = false;
+
   /* Write logs for AUTOINC right after index lock has been got and
   before any further resource acquisitions to prevent deadlock.
   No need to log for temporary tables and intermediate tables */
@@ -2451,7 +2453,7 @@ and return. don't execute actual insert. */
     if (counter != 0) {
       /* Always log the counter change first, so it won't
       be affected by any follow-up failure. */
-      dict_table_autoinc_log(index->table, counter, &mtr);
+      persist_autoinc = dict_table_autoinc_log(index->table, counter, &mtr);
     }
   }
 
@@ -2593,6 +2595,12 @@ func_exit:
             << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
             << index->table->name << " return status: " << err;
       });
+
+  /* Persist auto increment value to DD buffer table if requested. Do it after
+  closing the mini transaction and releasing latches. */
+  if (persist_autoinc) {
+    dict_table_persist_to_dd_table_buffer(index->table);
+  }
 
   return err;
 }

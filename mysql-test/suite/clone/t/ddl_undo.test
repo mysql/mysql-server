@@ -1,0 +1,59 @@
+# Test clone with concurrent UNDO DDL
+--source include/have_debug_sync.inc
+
+if ($undo_encryption) {
+  --let $ddl_encryption = 1
+  --source include/have_innodb_max_16k.inc
+  --source ../include/encrypt_begin.inc
+
+  SET GLOBAL innodb_undo_log_encrypt = ON;
+  SHOW VARIABLES LIKE 'innodb_undo_log_encrypt';
+}
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source ../include/create_ddl_schema.inc
+
+--let $dml_stmt_check = CALL execute_dml(1, 0, 100, 100, 10, 0)
+
+--let $dml_stmt1  = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt11 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+
+--let $dml_stmt2 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $dml_stmt21 = CALL execute_dml(0, 0, 100, 100, 10, 0)
+--let $ddl_undo = 1
+
+--echo # 1. CREATE UNDO TABLESPACE while clone in progress
+--let $ddl_undo_create = 1
+--let $ddl_op1 = CREATE UNDO TABLESPACE
+--let $ddl_stmt1 = ADD DATAFILE
+
+--source ../include/ddl_common.inc
+--let $ddl_undo_create =
+
+--echo # 2. TRUNCATE UNDO TABLESPACE while clone in progress
+--let $ddl_undo_empty = 1
+--let $ddl_op1 = ALTER UNDO TABLESPACE
+--let $ddl_stmt1 = SET INACTIVE
+
+--source ../include/ddl_common.inc
+--let $ddl_undo_empty =
+
+--echo # 3. DROP UNDO TABLESPACE while clone in progress
+--let $ddl_op1 = DROP UNDO TABLESPACE
+--let $ddl_stmt1 =
+
+--source ../include/ddl_common.inc
+
+--echo # Cleanup
+--let $ddl_drop_schema_tables = 1
+--let $ddl_drop_tables = 1
+--source ../include/drop_ddl_schema.inc
+
+--echo # Uninstall clone
+UNINSTALL PLUGIN clone;
+
+if ($undo_encryption) {
+  --source ../include/encrypt_end.inc
+}

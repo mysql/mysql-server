@@ -2779,6 +2779,12 @@ bool Fil_shard::open_file(fil_node_t *file, bool extend) {
     return true;
   }
 
+  /* Since we might have released shard mutex temporarily above, the space
+  could have been deleted. */
+  if (m_id != REDO_SHARD && space->is_deleted()) {
+    return false;
+  }
+
   bool read_only_mode;
 
   read_only_mode = !fsp_is_system_temporary(space->id) && srv_read_only_mode;
@@ -3349,13 +3355,6 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
 
   DBUG_EXECUTE_IF("fil_space_create_failure", return nullptr;);
 
-  if (purpose != FIL_TYPE_TEMPORARY) {
-    /* Mark the clone as aborted only while executing a DDL which creates
-    a base table, as any temporary table is ignored while cloning the database.
-    Clone state must be set back to active before returning from function. */
-    clone_mark_abort(true);
-  }
-
   fil_system->mutex_acquire_all();
 
   auto shard = fil_system->shard_by_id(space_id);
@@ -3365,11 +3364,6 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
   if (space == nullptr) {
     /* Duplicate error. */
     fil_system->mutex_release_all();
-
-    if (purpose != FIL_TYPE_TEMPORARY) {
-      clone_mark_active();
-    }
-
     return nullptr;
   }
 
@@ -3389,10 +3383,6 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
   }
 
   fil_system->mutex_release_all();
-
-  if (purpose != FIL_TYPE_TEMPORARY) {
-    clone_mark_active();
-  }
 
   return space;
 }
@@ -4575,6 +4565,21 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     buf_LRU_flush_or_remove_pages(space_id, buf_remove, nullptr);
   }
 
+  /* Ensure that we write redo log for the operation also within the Clone
+  notifier block. This is needed because we don't have any mechanism today
+  to avoid checkpoint crossing the redo log before the actual operation
+  is complete. Make sure we are not holding shard mutex. */
+  ut_ad(!mutex_owned());
+  Clone_notify notifier(Clone_notify::Type::SPACE_DROP, space_id, false);
+
+  if (notifier.failed()) {
+    /* Currently post DDL operations are never rolled back. */
+    /* purecov: begin deadcode */
+    ut_ad(false);
+    ut_free(path);
+    return DB_ERROR;
+    /* purecov: end */
+  }
 #endif /* !UNIV_HOTBACKUP */
 
   /* If it is a delete then also delete any generated files, otherwise
@@ -4616,9 +4621,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
       ut_free(cfp_name);
     }
   }
-
-  /* Must set back to active before returning from function. */
-  clone_mark_abort(true);
 
   mutex_acquire();
 
@@ -4672,9 +4674,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   }
 
   ut_free(path);
-
-  clone_mark_active();
-
   return err;
 }
 
@@ -5299,13 +5298,23 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       close_file(file, false);
     }
 
-    mutex_release();
-
     if (!retry) {
       ut_ad(space->stop_ios);
+      /* Ensure that any file open call is blocked till rename operation is
+      over. "space->stop_ios" variable which is set only here and used to
+      check and wait in "mutex_acquire_and_get_space" (only when file is already
+      opened) doesn't prevent the file being opened concurrently afterwards.
+      "file->in_use" in fact seems sufficient to protect the rename operation
+      and "space->stop_ios" should be possible to remove in future. */
+      ut_ad(!file->is_open);
+      ut_ad(file->in_use == 0);
+      ++file->in_use;
+
+      mutex_release();
       break;
     }
 
+    mutex_release();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     if (flush) {
@@ -5318,6 +5327,21 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   }
 
   ut_ad(space->stop_ios);
+
+#ifndef UNIV_HOTBACKUP
+  /* Make sure we re not holding shard mutex. */
+  ut_ad(!mutex_owned());
+  Clone_notify notifier(Clone_notify::Type::SPACE_RENAME, space_id, false);
+
+  if (notifier.failed()) {
+    mutex_acquire();
+    space->stop_ios = false;
+    --file->in_use;
+    mutex_release();
+
+    return DB_ERROR;
+  }
+#endif /* !UNIV_HOTBACKUP */
 
   char *new_file_name;
 
@@ -5359,6 +5383,9 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   DBUG_INJECT_CRASH("ddl_crash_before_rename_tablespace",
                     crash_injection_rename_tablespace_counter++);
 
+  file = &space->files.front();
+  ut_ad(!file->is_open);
+
   success = os_file_rename(innodb_data_file_key, old_file_name, new_file_name);
 
   DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2", skip_rename
@@ -5383,6 +5410,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
   ut_ad(space->stop_ios);
   space->stop_ios = false;
+  --file->in_use;
 
   mutex_release();
 
@@ -5481,82 +5509,17 @@ dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
   return fil_system->rename_tablespace_name(space_id, old_name, new_name);
 }
 
-/** Create a tablespace (an IBD or IBT) file
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@return DB_SUCCESS or error code */
-static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
-                                     const char *path, uint32_t flags,
-                                     page_no_t size, fil_type_t type) {
-  pfs_os_file_t file;
-  dberr_t err;
-  byte *page;
-  bool success;
-  bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
-  fil_space_t *space = nullptr;
+dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
+                                fil_type_t type, page_no_t size,
+                                const byte *encrypt_info, space_id_t space_id,
+                                uint32_t &space_flags, bool &atomic_write,
+                                bool &punch_hole) {
+  bool success = false;
+  atomic_write = false;
+  punch_hole = false;
 
-  ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
-  ut_a(fsp_flags_is_valid(flags));
-  ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
-
-  const page_size_t page_size(flags);
-
-  /* Create the subdirectories in the path, if they are
-  not there already. */
-  if (!has_shared_space) {
-    err = os_file_create_subdirs_if_needed(path);
-
-    if (err != DB_SUCCESS) {
-      return err;
-    }
-  }
-
-  file = os_file_create(
-      type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
-      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
-      &success);
-
-  if (!success) {
-    /* The following call will print an error message */
-    ulint error = os_file_get_last_error(true);
-
-    ib::error(ER_IB_MSG_301, path);
-
-    switch (error) {
-      case OS_FILE_ALREADY_EXISTS:
-#ifndef UNIV_HOTBACKUP
-        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
-        return DB_TABLESPACE_EXISTS;
-#else  /* !UNIV_HOTBACKUP */
-        return DB_SUCCESS; /* Already existing file not an error here. */
-#endif /* !UNIV_HOTBACKUP */
-
-      case OS_FILE_NAME_TOO_LONG:
-        ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
-        return DB_TOO_LONG_PATH;
-
-      case OS_FILE_DISK_FULL:
-        return DB_OUT_OF_DISK_SPACE;
-
-      default:
-        return DB_ERROR;
-    }
-  }
-
-  bool atomic_write = false;
+  const page_size_t page_size(space_flags);
   const auto sz = ulonglong{size * page_size.physical()};
-
-  ut_a(success);
-  success = false;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   {
@@ -5601,8 +5564,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   }
 
   if (!success) {
-    os_file_close(file);
-    os_file_delete(innodb_data_file_key, path);
     return DB_OUT_OF_DISK_SPACE;
   }
 
@@ -5610,7 +5571,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   be lost after this call, if it succeeds. In this case the file
   should be full of NULs. */
 
-  bool punch_hole = os_is_sparse_file_supported(path, file);
+  punch_hole = os_is_sparse_file_supported(path, file);
 
   /* Should not make large punch hole as initialization of large file,
   for crash-recovery safeness around disk-full. */
@@ -5625,20 +5586,26 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   flush would write to it. */
 
   /* Align the memory for file i/o if we might have O_DIRECT set */
-  page = static_cast<byte *>(
+  auto page = static_cast<byte *>(
       ut::aligned_zalloc(2 * page_size.logical(), page_size.logical()));
 
   /* Add the UNIV_PAGE_SIZE to the table flags and write them to the
   tablespace header. */
-  flags = fsp_flags_set_page_size(flags, page_size);
-  fsp_header_init_fields(page, space_id, flags);
+  space_flags = fsp_flags_set_page_size(space_flags, page_size);
+  fsp_header_init_fields(page, space_id, space_flags);
   mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space_id);
 
   mach_write_to_4(page + FIL_PAGE_SRV_VERSION, DD_SPACE_CURRENT_SRV_VERSION);
   mach_write_to_4(page + FIL_PAGE_SPACE_VERSION,
                   DD_SPACE_CURRENT_SPACE_VERSION);
 
+  if (encrypt_info != nullptr) {
+    auto key_offset = fsp_header_get_encryption_offset(page_size);
+    memcpy(page + key_offset, encrypt_info, Encryption::INFO_SIZE);
+  }
+
   IORequest request(IORequest::WRITE);
+  dberr_t err = DB_SUCCESS;
 
   if (!page_size.is_compressed()) {
     buf_flush_init_for_writing(nullptr, page, nullptr, 0,
@@ -5672,14 +5639,88 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   }
 
   ut::aligned_free(page);
+  return err;
+}
 
+/** Create a tablespace (an IBD or IBT) file
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name in dbname/tablename format.
+                                For general tablespaces, the 'dbname/' part
+                                may be missing.
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	size		Initial size of the tablespace file in pages,
+                                must be >= FIL_IBD_FILE_INITIAL_SIZE
+@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
+@return DB_SUCCESS or error code */
+static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
+                                     const char *path, uint32_t flags,
+                                     page_no_t size, fil_type_t type) {
+  ut_ad(!fsp_is_system_tablespace(space_id));
+  ut_ad(!fsp_is_global_temporary(space_id));
+  ut_a(fsp_flags_is_valid(flags));
+  ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
+
+  bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
+  /* Create the subdirectories in the path, if they are
+  not there already. */
+  if (!has_shared_space) {
+    auto err = os_file_create_subdirs_if_needed(path);
+
+    if (err != DB_SUCCESS) {
+      return err; /* purecov: inspected */
+    }
+  }
+
+  bool success = false;
+
+  auto file = os_file_create(
+      type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
+      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
+      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
+      &success);
+
+  if (!success) {
+    /* purecov: begin inspected */
+    /* The following call will print an error message */
+    ulint error = os_file_get_last_error(true);
+
+    ib::error(ER_IB_MSG_301, path);
+
+    switch (error) {
+      case OS_FILE_ALREADY_EXISTS:
+#ifndef UNIV_HOTBACKUP
+        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
+        return DB_TABLESPACE_EXISTS;
+#else  /* !UNIV_HOTBACKUP */
+        return DB_SUCCESS; /* Already existing file not an error here. */
+#endif /* !UNIV_HOTBACKUP */
+
+      case OS_FILE_NAME_TOO_LONG:
+        ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
+        return DB_TOO_LONG_PATH;
+
+      case OS_FILE_DISK_FULL:
+        return DB_OUT_OF_DISK_SPACE;
+
+      default:
+        return DB_ERROR;
+    }
+    /* purecov: end */
+  }
+
+  bool atomic_write = false;
+  bool punch_hole = false;
+
+  auto err = fil_write_initial_pages(file, path, type, size, nullptr, space_id,
+                                     flags, atomic_write, punch_hole);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_304, path);
 
     os_file_close(file);
     os_file_delete(innodb_data_file_key, path);
 
-    return DB_ERROR;
+    return err;
   }
 
   success = os_file_flush(file);
@@ -5692,7 +5733,17 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     return DB_ERROR;
   }
 
-  space = fil_space_create(name, space_id, flags, type);
+#ifndef UNIV_HOTBACKUP
+  /* Notifier block covers space creation and initialization. */
+  Clone_notify notifier(Clone_notify::Type::SPACE_CREATE, space_id, false);
+
+  if (notifier.failed()) {
+    os_file_close(file);
+    return DB_ERROR;
+  }
+#endif /* !UNIV_HOTBACKUP */
+
+  auto space = fil_space_create(name, space_id, flags, type);
 
   if (space == nullptr) {
     os_file_close(file);
@@ -5734,6 +5785,8 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     ut_ad(err == DB_SUCCESS);
   }
+
+  space->encryption_op_in_progress = NONE;
 
   os_file_close(file);
   if (err != DB_SUCCESS) {
@@ -7584,14 +7637,14 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     return;
   }
 
-  /* For writting redo log, if encryption for redo log is disabled,
+  /* For writing redo log, if encryption for redo log is disabled,
   skip set encryption. */
   if (req_type.is_log() && req_type.is_write() && !srv_redo_log_encrypt) {
     req_type.clear_encrypted();
     return;
   }
 
-  /* For writting undo log, if encryption for undo log is disabled,
+  /* For writing undo log, if encryption for undo log is disabled,
   skip set encryption. */
   if (fsp_is_undo_tablespace(space->id) && !srv_undo_log_encrypt &&
       req_type.is_write()) {
@@ -7917,6 +7970,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       mutex_release();
 
       if (!sync) {
+        ut_d(bpage->take_io_responsibility());
         buf_page_io_complete(bpage, false);
       }
 
@@ -8188,8 +8242,11 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
 #ifdef UNIV_DEBUG
   /* If the error prevented async io, then we haven't actually transfered the
   io responsibility at all, so we revert the debug io responsibility info. */
-  if (err != DB_SUCCESS && !sync) {
-    static_cast<buf_page_t *>(message)->take_io_responsibility();
+  auto bpage = static_cast<buf_page_t *>(message);
+
+  /* When space is deleted, we could have marked the io complete. */
+  if (err != DB_SUCCESS && !sync && bpage->was_io_fixed()) {
+    bpage->take_io_responsibility();
   }
 #endif
   return err;
@@ -11286,8 +11343,6 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
 
   ut_ad(!Fil_path::has_suffix(IBD, name));
 
-  clone_mark_abort(true);
-
   const auto ptr = name.c_str();
 
   dberr_t err =
@@ -11295,8 +11350,6 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
 
   /* Stop recovery if this does not succeed. */
   ut_a(err == DB_SUCCESS);
-
-  clone_mark_active();
 
   return true;
 }
@@ -12090,11 +12143,11 @@ fil_node_t *fil_space_t::get_file_node(page_no_t *page_no) noexcept {
       before we open the file */
       return &f;
     }
-
-    /* The page is outside the current bounds of the file.
-    Return DB_ERROR.  This should not occur for undo tablespaces
-    since each truncation assigns a new space ID. */
-    ut_ad(!fsp_is_undo_tablespace(id));
+    /* The page is outside the current bounds of the file. We should not assert
+    here as we could be loading pages in buffer pool from dump file having pages
+    from dropped tablespaces. Specifically, for undo tablespace it is possible
+    to re-use the dropped space ID and the page could be out of bound. We need
+    to ignore such cases. */
   }
 
   return nullptr;

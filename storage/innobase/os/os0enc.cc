@@ -448,8 +448,9 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 #endif /* !UNIV_HOTBACKUP */
 }
 
-bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                      bool is_boot, bool encrypt_key) noexcept {
+bool Encryption::fill_encryption_info(const byte *key, const byte *iv,
+                                      byte *encrypt_info, bool is_boot,
+                                      bool encrypt_key) noexcept {
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
 
@@ -623,9 +624,10 @@ bool Encryption::decode_encryption_info(space_id_t space_id,
     version = VERSION_3;
   } else {
     /* We don't report an error during recovery, since the
-    encryption info maybe hasn't writen into datafile when
-    the table is newly created. */
-    if (recv_recovery_is_on()) {
+    encryption info maybe hasn't written into datafile when
+    the table is newly created. For clone encryption information
+    should have been already correct. */
+    if (recv_recovery_is_on() && !recv_sys->is_cloned_db) {
       return (true);
     }
 
@@ -773,9 +775,8 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
 
       auto elen = my_aes_encrypt(
           src_ptr + LOG_BLOCK_HDR_SIZE, static_cast<uint32>(main_len),
-          dst_ptr + LOG_BLOCK_HDR_SIZE,
-          reinterpret_cast<unsigned char *>(m_key), static_cast<uint32>(m_klen),
-          my_aes_256_cbc, reinterpret_cast<unsigned char *>(m_iv), false);
+          dst_ptr + LOG_BLOCK_HDR_SIZE, m_key, static_cast<uint32>(m_klen),
+          my_aes_256_cbc, m_iv, false);
 
       if (elen == MY_AES_BAD_DATA) {
         return (false);
@@ -797,12 +798,10 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
       if (remain_len != 0) {
         remain_len = MY_AES_BLOCK_SIZE * 2;
 
-        elen =
-            my_aes_encrypt(dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len,
-                           static_cast<uint32>(remain_len), remain_buf,
-                           reinterpret_cast<unsigned char *>(m_key),
-                           static_cast<uint32>(m_klen), my_aes_256_cbc,
-                           reinterpret_cast<unsigned char *>(m_iv), false);
+        elen = my_aes_encrypt(
+            dst_ptr + LOG_BLOCK_HDR_SIZE + data_len - remain_len,
+            static_cast<uint32>(remain_len), remain_buf, m_key,
+            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv, false);
 
         if (elen == MY_AES_BAD_DATA) {
           return (false);
@@ -948,11 +947,10 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
       const auto chunk_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
       const auto remain_len = data_len - chunk_len;
 
-      auto elen =
-          my_aes_encrypt(src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
-                         dst + FIL_PAGE_DATA, reinterpret_cast<byte *>(m_key),
-                         static_cast<uint32>(m_klen), my_aes_256_cbc,
-                         reinterpret_cast<byte *>(m_iv), false);
+      auto elen = my_aes_encrypt(
+          src + FIL_PAGE_DATA, static_cast<uint32>(chunk_len),
+          dst + FIL_PAGE_DATA, m_key, static_cast<uint32>(m_klen),
+          my_aes_256_cbc, m_iv, false);
 
       if (elen == MY_AES_BAD_DATA) {
         const auto page_id = page_get_page_id(src);
@@ -975,10 +973,9 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
         byte buf[trailer_len];
 
         elen = my_aes_encrypt(dst + FIL_PAGE_DATA + data_len - trailer_len,
-                              static_cast<uint32>(trailer_len), buf,
-                              reinterpret_cast<byte *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<byte *>(m_iv), false);
+                              static_cast<uint32>(trailer_len), buf, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
 
         if (elen == MY_AES_BAD_DATA) {
           const auto page_id = page_get_page_id(src);
@@ -1105,10 +1102,9 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
         memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
         elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
+                              dst + data_len - remain_len, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
         if (elen == MY_AES_BAD_DATA) {
           return (DB_IO_DECRYPT_FAIL);
         }
@@ -1123,10 +1119,9 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
+                            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                            false);
       if (elen == MY_AES_BAD_DATA) {
         return (DB_IO_DECRYPT_FAIL);
       }
@@ -1314,10 +1309,9 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
         memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
         elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              dst + data_len - remain_len,
-                              reinterpret_cast<unsigned char *>(m_key),
-                              static_cast<uint32>(m_klen), my_aes_256_cbc,
-                              reinterpret_cast<unsigned char *>(m_iv), false);
+                              dst + data_len - remain_len, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
 
         if (elen == MY_AES_BAD_DATA) {
           if (block != nullptr) {
@@ -1339,10 +1333,9 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr,
-                            reinterpret_cast<unsigned char *>(m_key),
-                            static_cast<uint32>(m_klen), my_aes_256_cbc,
-                            reinterpret_cast<unsigned char *>(m_iv), false);
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
+                            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                            false);
       if (elen == MY_AES_BAD_DATA) {
         if (block != nullptr) {
           os_free_block(block);
@@ -1483,16 +1476,12 @@ Encryption::Type Encryption::get_type() const { return m_type; }
 
 void Encryption::set_type(Encryption::Type type) { m_type = type; }
 
-byte *Encryption::get_key() const { return m_key; }
-
-void Encryption::set_key(byte *key) { m_key = key; }
+void Encryption::set_key(const byte *key) { m_key = key; }
 
 ulint Encryption::get_key_length() const { return m_klen; }
 
 void Encryption::set_key_length(ulint klen) { m_klen = klen; }
 
-byte *Encryption::get_initial_vector() const { return m_iv; }
-
-void Encryption::set_initial_vector(byte *iv) { m_iv = iv; }
+void Encryption::set_initial_vector(const byte *iv) { m_iv = iv; }
 
 uint32_t Encryption::get_master_key_id() { return s_master_key_id; }

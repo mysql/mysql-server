@@ -5,4 +5,4 @@
 --let $USER = root
 --let remote_clone = 1
 
---source error_ddl.test
+--source ddl_compress_encrypt.test

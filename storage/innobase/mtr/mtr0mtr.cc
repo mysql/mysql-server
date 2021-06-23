@@ -932,18 +932,19 @@ int mtr_t::Logging::disable(THD *) {
     return ER_INNODB_REDO_ARCHIVING_ENABLED;
   }
 
-  /* Concurrent clone is blocked by BACKUP MDL lock except when
-  clone_ddl_timeout = 0. Force any existing clone to abort. */
-  clone_mark_abort(true);
-  ut_ad(!clone_check_active());
+  /* Concurrent clone operation is not supported. */
+  Clone_notify notifier(Clone_notify::Type::SYSTEM_REDO_DISABLE,
+                        dict_sys_t::s_invalid_space_id, false);
+  if (notifier.failed()) {
+    m_state.store(ENABLED);
+    return notifier.get_error();
+  }
 
   /* Mark that it is unsafe to crash going forward. */
   log_persist_disable(*log_sys);
 
   ib::warn(ER_IB_WRN_REDO_DISABLED);
   m_state.store(DISABLED);
-
-  clone_mark_active();
 
   return 0;
 }

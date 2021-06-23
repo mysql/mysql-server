@@ -1,0 +1,6 @@
+# Test remote clone error with concurrent DDL and network error restart
+
+--source include/have_debug.inc
+SET global debug="+d,clone_restart_apply";
+
+--source remote_ddl_truncate.test

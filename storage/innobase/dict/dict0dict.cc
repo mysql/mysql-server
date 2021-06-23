@@ -753,12 +753,7 @@ void dict_table_autoinc_initialize(dict_table_t *table, ib_uint64_t value) {
   table->autoinc = value;
 }
 
-/** Write redo logs for autoinc counter that is to be inserted, or to
-update some existing smaller one to bigger.
-@param[in,out]	table	InnoDB table object
-@param[in]	value	AUTOINC counter to log
-@param[in,out]	mtr	Mini-transaction */
-void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
+bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
   bool log = false;
 
   mutex_enter(table->autoinc_persisted_mutex);
@@ -804,6 +799,9 @@ void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
     persister->write_log(table->id, metadata, mtr);
     /* No need to flush due to performance reason */
   }
+
+  /* Check and return if auto increment is to be persisted. */
+  return (log && dict_persist->check_persist_immediately());
 }
 
 /** Get all the FTS indexes on a table.
@@ -1588,15 +1586,11 @@ dberr_t dict_table_rename_in_cache(
       return (err);
     }
 
-    clone_mark_abort(true);
-
     std::string new_tablespace_name(new_name);
     dict_name::convert_to_space(new_tablespace_name);
 
     dberr_t err = fil_rename_tablespace(table->space, old_path,
                                         new_tablespace_name.c_str(), new_path);
-
-    clone_mark_active();
 
     ut_free(old_path);
     ut_free(new_path);
@@ -3836,6 +3830,8 @@ void dict_persist_init(void) {
 
   dict_persist->num_dirty_tables = 0;
 
+  dict_persist->m_persist_immediately.store(false);
+
   dict_persist->persisters = UT_NEW_NOKEY(Persisters());
   dict_persist->persisters->add(PM_INDEX_CORRUPTED);
   dict_persist->persisters->add(PM_TABLE_AUTO_INC);
@@ -4040,7 +4036,6 @@ void dict_table_load_dynamic_metadata(dict_table_t *table) {
 
   UT_DELETE(readmeta);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
 dirty_dict_tables list if necessary.
@@ -4048,11 +4043,9 @@ dirty_dict_tables list if necessary.
 void dict_table_mark_dirty(dict_table_t *table) {
   ut_ad(!table->is_temporary());
 
-#ifndef UNIV_HOTBACKUP
   /* We should not adding dynamic metadata so late in shutdown phase and
   this data would only be retrieved during recovery. */
   ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
-#endif /* !UNIV_HOTBACKUP */
 
   mutex_enter(&dict_persist->mutex);
 
@@ -4061,17 +4054,14 @@ void dict_table_mark_dirty(dict_table_t *table) {
       break;
     case METADATA_CLEAN:
       /* Not in dirty_tables list, add it now */
-#ifndef UNIV_HOTBACKUP
       UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
-#endif
       ut_d(table->in_dirty_dict_tables_list = true);
       [[fallthrough]];
     case METADATA_BUFFERED:
       table->dirty_status.store(METADATA_DIRTY);
       ++dict_persist->num_dirty_tables;
-#ifndef UNIV_HOTBACKUP
+
       dict_persist_update_log_margin();
-#endif /* !UNIV_HOTBACKUP */
   }
 
   ut_ad(table->in_dirty_dict_tables_list);
@@ -4104,7 +4094,6 @@ void dict_set_corrupted(dict_index_t *index) {
     Persister *persister = dict_persist->persisters->get(PM_INDEX_CORRUPTED);
     ut_ad(persister != nullptr);
 
-#ifndef UNIV_HOTBACKUP
     mtr_t mtr;
 
     mtr.start();
@@ -4113,13 +4102,11 @@ void dict_set_corrupted(dict_index_t *index) {
 
     /* Make sure the corruption bit won't be lost */
     log_write_up_to(*log_sys, mtr.commit_lsn(), true);
-#endif /* !UNIV_HOTBACKUP */
 
     dict_table_mark_dirty(table);
   }
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Write the dirty persistent dynamic metadata for a table to
 DD TABLE BUFFER table. This is the low level function to write back.
 @param[in,out]	table	table to write */
@@ -4150,18 +4137,13 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
 
   ut_ad(dict_persist->num_dirty_tables > 0);
   --dict_persist->num_dirty_tables;
-#ifndef UNIV_HOTBACKUP
   dict_persist_update_log_margin();
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
 to DDTableBuffer
 @param[in,out]	table	table object */
 void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
-  ut_ad(dict_sys != nullptr);
-  ut_ad(dict_sys_mutex_own());
-
   mutex_enter(&dict_persist->mutex);
 
   if (table->dirty_status.load() != METADATA_DIRTY) {
@@ -4177,7 +4159,7 @@ void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
 
   mutex_exit(&dict_persist->mutex);
 }
-#ifndef UNIV_HOTBACKUP
+
 /** Check if any table has any dirty persistent data, if so
 write dirty persistent data of table to mysql.innodb_dynamic_metadata
 accordingly. */
@@ -4278,7 +4260,6 @@ static void dict_persist_update_log_margin() {
     log_set_dict_persist_margin(*log_sys, margin);
   }
 }
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
@@ -4561,6 +4542,12 @@ void dict_resize() {
 
   dict_sys_mutex_exit();
 }
+#else
+/* Dummy implementation for satisfying compiler for MEB. This can be removed
+once the callers in dict0dd.cc is factored out from MEB compilation. */
+/* purecov: begin deadcode */
+void dict_set_corrupted(dict_index_t *index MY_ATTRIBUTE((unused))) {}
+/* purecov: end */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
@@ -6001,4 +5988,20 @@ dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
 
   return err;
 }
+
+dict_persist_t::Enable_immediate::Enable_immediate(dict_persist_t *persister)
+    : m_persister(persister) {
+  /* 1. Make sure all new auto increment operations save metadata to
+  DD buffer table immediately. */
+  m_persister->m_persist_immediately.store(true);
+
+  /* 2. Save all existing metadata to DD buffer table. */
+  dict_persist_to_dd_table_buffer();
+}
+
+dict_persist_t::Enable_immediate::~Enable_immediate() {
+  m_persister->m_persist_immediately.store(false);
+  m_persister = nullptr;
+}
+
 #endif /* !UNIV_HOTBACKUP */
