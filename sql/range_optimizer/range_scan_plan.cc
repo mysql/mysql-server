@@ -581,7 +581,8 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   if (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan = false;
 
-  *mrr_flags = param->force_default_mrr ? HA_MRR_USE_DEFAULT_IMPL : 0;
+  *mrr_flags =
+      (param->order_direction == ORDER_DESC) ? HA_MRR_USE_DEFAULT_IMPL : 0;
   *mrr_flags |= HA_MRR_NO_ASSOCIATION;
   /*
     Pass HA_MRR_SORTED to see if MRR implementation can handle sorting.

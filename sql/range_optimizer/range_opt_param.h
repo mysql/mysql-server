@@ -75,7 +75,6 @@ class RANGE_OPT_PARAM {
   uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH],
       max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
 
-  bool force_default_mrr;
   /**
     Whether index statistics or index dives should be used when
     estimating the number of rows in an equality range. If true, index

@@ -536,7 +536,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.needed_reg = needed_reg;
     param.using_real_indexes = true;
     param.remove_jump_scans = true;
-    param.force_default_mrr = (interesting_order == ORDER_DESC);
     param.order_direction = interesting_order;
     param.use_index_statistics = false;
     /*
