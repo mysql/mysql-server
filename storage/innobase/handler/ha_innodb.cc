@@ -3732,6 +3732,63 @@ static bool predefine_tablespace(dd::cache::Dictionary_client *dd_client,
                                false, dd_space_id));
 }
 
+/** Check if InnoDB is in a mode where the data dictionary is read-only.
+@return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
+static bool innobase_is_dict_readonly() {
+  DBUG_TRACE;
+  return srv_read_only_mode || srv_force_recovery > 0;
+}
+
+#ifndef UNIV_HOTBACKUP
+/** Update metadata for innodb_temporary tablespace at server startup.
+This information is used by the information_schema.files to show the
+filename for the temporary tablespace innodb_temporary.
+@param[in,out]	thd		THD
+@retval false	on success
+@retval true	on failure */
+static bool update_innodb_temporary_metadata(THD *thd) {
+  if (innobase_is_dict_readonly()) {
+    /* Metadata cannot be updated if the server is started in read_only
+    mode. This means that the values for innodb_temp_data_file_path and
+    file_name in information_schema.files will not be in same. */
+    LogErr(WARNING_LEVEL, ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE,
+           "information_schema");
+    return false;
+  }
+
+  /* Get the filename from srv_tmp_space */
+  auto fpath = srv_tmp_space.first_datafile()->filepath();
+  auto &dc = *thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+  const dd::String_type tbsp_name{dict_sys_t::s_temp_space_name};
+  dd::Tablespace *tmp_tbsp{nullptr};
+
+  if (!dc.acquire_for_modification<dd::Tablespace>(tbsp_name, &tmp_tbsp) &&
+      tmp_tbsp != nullptr) {
+    ut_ad(tmp_tbsp->files().size() == 1);
+
+    /* Get the tablespace file for innodb_temporary tablespace. */
+    dd::Tablespace_file *dd_file =
+        const_cast<dd::Tablespace_file *>(*(tmp_tbsp->files().begin()));
+
+    ut_ad(dd_file);
+
+    dd_file->set_filename(fpath);
+
+    if (dc.update(tmp_tbsp)) {
+      /* Unable to update the metadata. */
+      ut_ad(false);
+      return true;
+    }
+  } else {
+    /* Unable to acquire innodb_temporary tablespace for modification. */
+    ut_ad(false);
+    return true;
+  }
+  return false;
+}
+#endif /* !UNIV_HOTBACKUP */
+
 /** Predefine the undo tablespace metadata at server initialization.
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -3885,6 +3942,14 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
   }
 
   srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
+
+#ifndef UNIV_HOTBACKUP
+  /* Update the metadata for innodb_temporary tablespace to reflect
+  the correct filename. */
+  if (update_innodb_temporary_metadata(thd)) {
+    return true;
+  }
+#endif /* !UNIV_HOTBACKUP */
 
   return (fil_open_for_business(srv_read_only_mode) != DB_SUCCESS);
 }
@@ -4118,13 +4183,6 @@ static void innobase_page_track_get_status(
   }
 
   arch_page_sys->get_status(status);
-}
-
-/** Check if InnoDB is in a mode where the data dictionary is read-only.
-@return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
-static bool innobase_is_dict_readonly() {
-  DBUG_TRACE;
-  return srv_read_only_mode || srv_force_recovery > 0;
 }
 
 /** Gives the file extension of an InnoDB single-table tablespace. */
