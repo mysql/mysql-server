@@ -87,8 +87,6 @@ class RANGE_OPT_PARAM {
   Range_optimizer_error_handler error_handler;
 
   bool has_errors() const { return (error_handler.has_errors()); }
-
-  virtual ~RANGE_OPT_PARAM() = default;
 };
 
 class PARAM : public RANGE_OPT_PARAM {
