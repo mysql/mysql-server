@@ -856,8 +856,6 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
     if (opt_type == Item_func::OPTIMIZE_NONE) return nullptr;
   }
 
-  param->cond = cond;
-
   /*
     Notice that all fields that are outer references are const during
     the execution and should not be considered for range analysis like
@@ -1310,7 +1308,7 @@ impossible_cond:
   return true;
 }
 
-static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
+static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
                              Item_func::Functype type, Item *value) {
   const size_t null_bytes = field->is_nullable() ? 1 : 0;
@@ -1371,7 +1369,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     are comparable in the index. Examples of non-comparable
     field/values: different collation, DATETIME vs TIME etc.
   */
-  if (!comparable_in_index(conf_func, field, key_part->image_type, type,
+  if (!comparable_in_index(cond_func, field, key_part->image_type, type,
                            value)) {
     warn_index_not_applicable(param, key_part->key, field);
     goto end;
@@ -1453,7 +1451,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     max_str = min_str + length;
     if (field->is_nullable()) max_str[0] = min_str[0] = 0;
 
-    Item_func_like *like_func = down_cast<Item_func_like *>(param->cond);
+    Item_func_like *like_func = down_cast<Item_func_like *>(cond_func);
 
     // We can only optimize with LIKE if the escape string is known.
     if (!like_func->escape_is_evaluated()) goto end;

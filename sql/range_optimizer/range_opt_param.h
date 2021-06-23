@@ -30,7 +30,6 @@ class RANGE_OPT_PARAM {
   THD *thd;                 /* Current thread handle */
   TABLE *table;             /* Table being analyzed */
   Query_block *query_block; /* Query block the table is part of */
-  Item *cond;               /* Used inside get_mm_tree(). */
 
   /* Array of parts of all keys for which range analysis is performed */
   KEY_PART *key_parts;
