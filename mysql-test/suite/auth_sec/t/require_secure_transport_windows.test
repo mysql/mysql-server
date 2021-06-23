@@ -135,7 +135,10 @@ SET @@global.require_secure_transport = ON;
 
 --echo #Cleanup
 connection default;
-DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1', 'user_requiressl'@'localhost';
 SET @@global.require_secure_transport = OFF;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld_no_echo.inc
 
 

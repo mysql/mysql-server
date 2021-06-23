@@ -62,3 +62,7 @@ DROP DATABASE MYDB;
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing");
 --enable_query_log
+
+# Clean up
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
