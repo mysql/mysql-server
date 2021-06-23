@@ -145,6 +145,10 @@ class Sel_arg_range_sequence {
   PARAM *const param;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
 
+  /* Number of ranges in the last checked tree->key */
+  uint range_count = 0;
+  uint max_key_part;
+
   Sel_arg_range_sequence(PARAM *param_arg) : param(param_arg) { reset(); }
 
   void reset() {
@@ -531,9 +535,8 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     }
   }
 
-  seq->param->range_count++;
-  seq->param->max_key_part =
-      max<uint>(seq->param->max_key_part, key_tree->part);
+  seq->range_count++;
+  seq->max_key_part = max<uint>(seq->max_key_part, key_tree->part);
 
   if (seq->param->skip_records_in_range)
     range->range_flag |= SKIP_RECORDS_IN_RANGE;
@@ -562,9 +565,8 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   seq.keyno = idx;
   seq.real_keyno = keynr;
   seq.start = tree->root;
-
-  param->range_count = 0;
-  param->max_key_part = 0;
+  seq.range_count = 0;
+  seq.max_key_part = 0;
 
   /*
     If there are more equality ranges than specified by the
@@ -588,7 +590,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
 
   bool pk_is_clustered = file->primary_key_is_clustered();
   if (index_only &&
-      (file->index_flags(keynr, param->max_key_part, true) & HA_KEYREAD_ONLY) &&
+      (file->index_flags(keynr, seq.max_key_part, true) & HA_KEYREAD_ONLY) &&
       !(pk_is_clustered && keynr == param->table->s->primary_key))
     *mrr_flags |= HA_MRR_INDEX_ONLY;
 
@@ -603,8 +605,8 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     param->table->quick_rows[keynr] = rows;
     if (update_tbl_stats) {
       param->table->quick_keys.set_bit(keynr);
-      param->table->quick_key_parts[keynr] = param->max_key_part + 1;
-      param->table->quick_n_ranges[keynr] = param->range_count;
+      param->table->quick_key_parts[keynr] = seq.max_key_part + 1;
+      param->table->quick_n_ranges[keynr] = seq.range_count;
       param->table->quick_condition_rows =
           min(param->table->quick_condition_rows, rows);
     }

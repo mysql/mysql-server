@@ -96,9 +96,6 @@ class PARAM : public RANGE_OPT_PARAM {
  public:
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
   longlong baseflag;
-  uint max_key_part;
-  /* Number of ranges in the last checked tree->key */
-  uint range_count;
 
   uint fields_bitmap_size;
   MY_BITMAP needed_fields; /* bitmask of fields needed by the query */
