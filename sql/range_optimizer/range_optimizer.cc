@@ -522,7 +522,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     /* set up parameter that is passed to all functions */
     param.thd = thd;
-    param.baseflag = head->file->ha_table_flags();
     param.table = head;
     param.query_block = query_block;
     param.keys = 0;
