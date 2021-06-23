@@ -3819,7 +3819,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
   if (query_block->is_explicitly_grouped() || query_block->is_ordered() ||
-      join->select_distinct) {
+      join->select_distinct || !join->m_windows.is_empty()) {
     // NOTE: This is distinct from SortWillBeOnRowId(), as it also checks blob
     // fields arising from blob-generating functions on non-blob fields.
     for (Item *item : *join->fields) {
