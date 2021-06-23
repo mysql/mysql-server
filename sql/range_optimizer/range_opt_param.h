@@ -100,8 +100,6 @@ class PARAM : public RANGE_OPT_PARAM {
   /* Number of ranges in the last checked tree->key */
   uint range_count;
 
-  bool quick;  // Don't calulate possible keys
-
   uint fields_bitmap_size;
   MY_BITMAP needed_fields; /* bitmask of fields needed by the query */
   MY_BITMAP tmp_covered_fields;
