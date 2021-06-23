@@ -239,9 +239,10 @@ static const RestApiComponentTest::json_verifiers_t get_expected_status_fields(
   };
 }
 
-static const RestApiComponentTest::json_verifiers_t get_expected_status_fields(
-    const int expected_active_connections, const int expected_total_connections,
-    const int expected_blocked_hosts) {
+static const RestApiComponentTest::json_verifiers_t
+get_expected_routes_status_fields(const int expected_active_connections,
+                                  const int expected_total_connections,
+                                  const int expected_blocked_hosts) {
   return {
       {"/activeConnections",
        [=](const JsonValue *value) {
