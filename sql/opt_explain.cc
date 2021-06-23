@@ -1015,7 +1015,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     return true;
 
   if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE) {
-    uint mrr_flags = ((QUICK_RANGE_SELECT *)(quick))->get_mrr_flags();
+    uint mrr_flags = down_cast<QUICK_RANGE_SELECT *>(quick)->get_mrr_flags();
 
     /*
       During normal execution of a query, multi_range_read_init() is

@@ -58,6 +58,13 @@ using std::min;
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts);
 static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
                                     uint limit);
+static bool get_quick_keys(const KEY *table_key, KEY_PART *key,
+                           SEL_ARG *key_tree, const uchar *base_min_key,
+                           uchar *min_key, uint min_key_flag,
+                           const uchar *base_max_key, uchar *max_key,
+                           uint max_key_flag, uint *desc_flag,
+                           uint num_key_parts, uint *used_key_parts,
+                           Quick_ranges *ranges);
 
 /* MRR range sequence, SEL_ARG* implementation: stack entry */
 struct RANGE_SEQ_ENTRY {
@@ -787,22 +794,25 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
   assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
          key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
 
-  std::unique_ptr<QUICK_RANGE_SELECT> quick;
-  if (table->key_info[keyno].flags & HA_SPATIAL) {
-    quick.reset(new QUICK_RANGE_SELECT_GEOM(thd, table, keyno, parent_alloc,
-                                            mrr_flags, mrr_buf_size, key));
-  } else {
-    quick.reset(new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc,
-                                       mrr_flags, mrr_buf_size, key));
-  }
-
+  Quick_ranges ranges(key_memory_Quick_ranges);
+  unsigned used_key_parts = 0;
   if (key_tree->type == SEL_ROOT::Type::KEY_RANGE) {
-    if (get_quick_keys(quick.get(), key, key_tree->root, min_key, min_key, 0,
-                       max_key, max_key, 0, nullptr, num_key_parts)) {
+    if (get_quick_keys(&table->key_info[keyno], key, key_tree->root, min_key,
+                       min_key, 0, max_key, max_key, 0, nullptr, num_key_parts,
+                       &used_key_parts, &ranges)) {
       return nullptr;
     }
   }
-  return quick.release();
+
+  if (table->key_info[keyno].flags & HA_SPATIAL) {
+    return new QUICK_RANGE_SELECT_GEOM(thd, table, keyno, parent_alloc,
+                                       mrr_flags, mrr_buf_size, key,
+                                       std::move(ranges), used_key_parts);
+  } else {
+    return new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc, mrr_flags,
+                                  mrr_buf_size, key, std::move(ranges),
+                                  used_key_parts);
+  }
 }
 
 void TRP_RANGE::trace_basic_info(const PARAM *param,
@@ -1004,7 +1014,6 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   SYNOPSIS
     get_quick_keys()
 
-  @param quick          Quick range select to generate keys for
   @param key            Generate key values for this key
   @param key_tree       SEL_ARG tree
   @param base_min_key   Start of min key buffer
@@ -1016,6 +1025,7 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   @param desc_flag      Desc flag of the first keypart
   @param num_key_parts  Number of key parts that should be used for
                         creating ranges (see get_quick_select() for details)
+  @param ranges         The ranges to scan
 
   @note Fix this to get all possible sub_ranges
 
@@ -1024,11 +1034,13 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
     false   Ok
 */
 
-bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
-                    const uchar *base_min_key, uchar *min_key,
-                    uint min_key_flag, const uchar *base_max_key,
-                    uchar *max_key, uint max_key_flag, uint *desc_flag,
-                    uint num_key_parts) {
+static bool get_quick_keys(const KEY *table_key, KEY_PART *key,
+                           SEL_ARG *key_tree, const uchar *base_min_key,
+                           uchar *min_key, uint min_key_flag,
+                           const uchar *base_max_key, uchar *max_key,
+                           uint max_key_flag, uint *desc_flag,
+                           uint num_key_parts, uint *used_key_parts,
+                           Quick_ranges *ranges) {
   QUICK_RANGE *range;
   uint flag = 0;
   int min_part = key_tree->part - 1,  // # of keypart values in min_key buffer
@@ -1037,9 +1049,9 @@ bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
   const bool asc = key_tree->is_ascending;
   SEL_ARG *cur_key_tree = asc ? key_tree->left : key_tree->right;
   if (cur_key_tree != null_element)
-    if (get_quick_keys(quick, key, cur_key_tree, base_min_key, min_key,
+    if (get_quick_keys(table_key, key, cur_key_tree, base_min_key, min_key,
                        min_key_flag, base_max_key, max_key, max_key_flag,
-                       desc_flag, num_key_parts))
+                       desc_flag, num_key_parts, used_key_parts, ranges))
       return true;
   uchar *tmp_min_key = min_key, *tmp_max_key = max_key;
   key_tree->store_min_max_values(key[key_tree->part].store_length, &tmp_min_key,
@@ -1056,11 +1068,12 @@ bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
     if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
         memcmp(min_key, max_key, (uint)(tmp_max_key - max_key)) == 0 &&
         key_tree->min_flag == 0 && key_tree->max_flag == 0) {
-      if (get_quick_keys(quick, key, key_tree->next_key_part->root,
+      if (get_quick_keys(table_key, key, key_tree->next_key_part->root,
                          base_min_key, tmp_min_key,
                          min_key_flag | key_tree->get_min_flag(), base_max_key,
                          tmp_max_key, max_key_flag | key_tree->get_max_flag(),
-                         (desc_flag ? desc_flag : &flag), num_key_parts - 1))
+                         (desc_flag ? desc_flag : &flag), num_key_parts - 1,
+                         used_key_parts, ranges))
         return true;
       goto end;  // Ugly, but efficient
     }
@@ -1102,7 +1115,6 @@ bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
     uint length = (uint)(tmp_min_key - base_min_key);
     if (length == (uint)(tmp_max_key - base_max_key) &&
         !memcmp(base_min_key, base_max_key, length)) {
-      const KEY *table_key = quick->head->key_info + quick->index;
       flag |= EQ_RANGE;
       /*
         Note that keys which are extended with PK parts have no
@@ -1135,20 +1147,15 @@ bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
                         key_tree->rkey_func_flag)))
     return true;  // out of memory
 
-  quick->max_used_key_length =
-      std::max(quick->max_used_key_length, uint(range->min_length));
-  quick->max_used_key_length =
-      std::max(quick->max_used_key_length, uint(range->max_length));
-  quick->used_key_parts =
-      std::max(quick->used_key_parts, uint(key_tree->part + 1));
-  if (quick->ranges.push_back(range)) return true;
+  *used_key_parts = std::max(*used_key_parts, uint(key_tree->part + 1));
+  if (ranges->push_back(range)) return true;
 
 end:
   cur_key_tree = asc ? key_tree->right : key_tree->left;
   if (cur_key_tree != null_element)
-    return get_quick_keys(quick, key, cur_key_tree, base_min_key, min_key,
+    return get_quick_keys(table_key, key, cur_key_tree, base_min_key, min_key,
                           min_key_flag, base_max_key, max_key, max_key_flag,
-                          desc_flag, num_key_parts);
+                          desc_flag, num_key_parts, used_key_parts, ranges);
   return false;
 }
 

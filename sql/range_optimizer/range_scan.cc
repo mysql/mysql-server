@@ -51,8 +51,10 @@
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        MEM_ROOT *parent_alloc, uint mrr_flags,
-                                       uint mrr_buf_size, const KEY_PART *key)
-    : ranges(key_memory_Quick_ranges),
+                                       uint mrr_buf_size, const KEY_PART *key,
+                                       Quick_ranges ranges_arg,
+                                       uint used_key_parts_arg)
+    : ranges(std::move(ranges_arg)),
       free_file(false),
       cur_range(nullptr),
       last_range(nullptr),
@@ -62,6 +64,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
       dont_free(false) {
   DBUG_TRACE;
 
+  used_key_parts = used_key_parts_arg;
   in_ror_merged_scan = false;
   index = key_nr;
   head = table;
@@ -79,6 +82,13 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   key_parts = (KEY_PART *)memdup_root(
       parent_alloc ? parent_alloc : alloc.get(), (const char *)key,
       sizeof(KEY_PART) * actual_key_parts(&table->key_info[key_nr]));
+
+  for (const QUICK_RANGE *range : ranges) {
+    max_used_key_length =
+        std::max(max_used_key_length, uint(range->min_length));
+    max_used_key_length =
+        std::max(max_used_key_length, uint(range->max_length));
+  }
 }
 
 void QUICK_RANGE_SELECT::need_sorted_output() { mrr_flags |= HA_MRR_SORTED; }

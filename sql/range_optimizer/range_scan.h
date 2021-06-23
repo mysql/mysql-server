@@ -66,12 +66,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
-  friend bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key,
-                             SEL_ARG *key_tree, const uchar *base_min_key,
-                             uchar *min_key, uint min_key_flag,
-                             const uchar *base_max_key, uchar *max_key,
-                             uint max_key_flag, uint *desc_flag,
-                             uint num_key_parts);
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
@@ -109,7 +103,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg,
                      MEM_ROOT *parent_alloc, uint mrr_flags, uint mrr_buf_size,
-                     const KEY_PART *key);
+                     const KEY_PART *key, Quick_ranges ranges,
+                     uint used_key_parts_arg);
   ~QUICK_RANGE_SELECT() override;
 
   void need_sorted_output() override;
