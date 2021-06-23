@@ -196,7 +196,8 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      HttpStatusCode::MethodNotAllowed, kContentTypeJsonProblem,
      kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     RestApiComponentTest::kProblemJsonMethodNotAllowed, kRouterSwaggerPaths},
+     RestApiComponentTest::get_json_method_not_allowed_verifiers(),
+     kRouterSwaggerPaths},
 };
 
 INSTANTIATE_TEST_SUITE_P(
