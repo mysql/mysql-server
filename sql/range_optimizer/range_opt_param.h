@@ -24,7 +24,6 @@
 #define SQL_RANGE_OPTIMIZER_RANGE_OPT_PARAM_H_
 
 #include "sql/range_optimizer/internal.h"
-#include "sql/uniques.h"
 
 class RANGE_OPT_PARAM {
  public:
@@ -108,9 +107,6 @@ class PARAM : public RANGE_OPT_PARAM {
   MY_BITMAP tmp_covered_fields;
 
   Key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
-
-  // Buffer for index_merge cost estimates.
-  Unique::Imerge_cost_buf_type imerge_cost_buff;
 
   /* true if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;

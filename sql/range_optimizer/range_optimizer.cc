@@ -145,7 +145,8 @@ using std::min;
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    SEL_IMERGE *imerge, const Cost_estimate *cost_est);
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    const Cost_estimate *cost_est);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
@@ -533,7 +534,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.mem_root = &alloc;
     param.old_root = thd->mem_root;
     param.needed_reg = needed_reg;
-    param.imerge_cost_buff.reset();
     param.using_real_indexes = true;
     param.remove_jump_scans = true;
     param.force_default_mrr = (interesting_order == ORDER_DESC);
@@ -794,11 +794,14 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
                                           Opt_trace_context::RANGE_OPTIMIZER);
+
+          // Buffer for index_merge cost estimates.
+          Unique::Imerge_cost_buf_type imerge_cost_buff;
           while ((imerge = it++)) {
             new_conj_trp = get_best_disjunct_quick(
                 &param, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
-                imerge, &best_cost);
+                imerge, &imerge_cost_buff, &best_cost);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -926,7 +929,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    SEL_IMERGE *imerge, const Cost_estimate *cost_est) {
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    const Cost_estimate *cost_est) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
   uint n_child_scans = imerge->trees_next - imerge->trees;
@@ -1076,20 +1080,17 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   unique_calc_buff_size = Unique::get_cost_calc_buff_size(
       (ulong)non_cpk_scan_records, param->table->file->ref_length,
       param->thd->variables.sortbuff_size);
-  if (param->imerge_cost_buff.size() < unique_calc_buff_size) {
-    typedef Unique::Imerge_cost_buf_type::value_type element_type;
-    void *rawmem =
-        param->mem_root->Alloc(unique_calc_buff_size * sizeof(element_type));
-    if (!rawmem) return nullptr;
-    param->imerge_cost_buff = Unique::Imerge_cost_buf_type(
-        static_cast<element_type *>(rawmem), unique_calc_buff_size);
+  if (imerge_cost_buff->size() < unique_calc_buff_size) {
+    *imerge_cost_buff = Unique::Imerge_cost_buf_type::Alloc(
+        param->mem_root, unique_calc_buff_size);
+    if (imerge_cost_buff->array() == nullptr) return nullptr;
   }
 
   {
-    const double dup_removal_cost = Unique::get_use_cost(
-        param->imerge_cost_buff, (uint)non_cpk_scan_records,
-        param->table->file->ref_length, param->thd->variables.sortbuff_size,
-        cost_model);
+    const double dup_removal_cost =
+        Unique::get_use_cost(*imerge_cost_buff, (uint)non_cpk_scan_records,
+                             param->table->file->ref_length,
+                             param->thd->variables.sortbuff_size, cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
     imerge_cost.add_cpu(dup_removal_cost);
