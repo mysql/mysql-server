@@ -844,6 +844,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INTEGER);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
 EXPLAIN
 -> Nested loop left join  (cost=14.94 rows=15) (actual time=N.NNN..N.NNN rows=15 loops=1)
