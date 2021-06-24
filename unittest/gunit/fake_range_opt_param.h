@@ -61,10 +61,8 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
 
     if (number_columns != 0) {
       table = &fake_table;
-      current_table = table->pos_in_table_list->map();
     } else {
       table = nullptr;
-      current_table = 1;
     }
 
     using_real_indexes = true;
