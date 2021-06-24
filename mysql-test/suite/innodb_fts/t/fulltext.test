@@ -693,3 +693,19 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#33041720: REDUNDANT CALL TO INIT_FTFUNCS() IN MULTI-TABLE DELETE
+--echo #
+
+# This test case does not show a problem. It just adds test coverage
+# of multi-table DELETE statements that use full-text search.
+
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER, x VARCHAR(10), FULLTEXT(x));
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1, 'abc'), (2, 'xyz'), (3, 'abc def'), (4, NULL);
+DELETE t1 FROM t1, t2 WHERE t1.id = t2.id AND MATCH (t2.x) AGAINST ('abc');
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1, t2;

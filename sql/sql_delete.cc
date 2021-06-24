@@ -987,8 +987,6 @@ bool Query_result_delete::optimize() {
     *(table_ptr++) = table;
   }
 
-  if (select->has_ft_funcs() && init_ftfuncs(thd, select)) return true;
-
   assert(!thd->is_error());
 
   return false;
