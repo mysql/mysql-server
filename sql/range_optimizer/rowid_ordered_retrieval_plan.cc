@@ -200,6 +200,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, bool, MEM_ROOT *) {
       param    Parameter from test_quick_select function
       idx      Index of key in param->keys
       sel_root Set of intervals for a given key
+      needed_fields  Bitmask of fields needed by the query
 
   RETURN
     NULL - out of memory
@@ -207,7 +208,8 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, bool, MEM_ROOT *) {
 */
 
 static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
-                                    SEL_ROOT *sel_root) {
+                                    SEL_ROOT *sel_root,
+                                    const MY_BITMAP *needed_fields) {
   ROR_SCAN_INFO *ror_scan;
   my_bitmap_map *bitmap_buf1;
   my_bitmap_map *bitmap_buf2;
@@ -243,7 +245,7 @@ static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
   KEY_PART_INFO *key_part_end =
       key_part + param->table->key_info[keynr].user_defined_key_parts;
   for (; key_part != key_part_end; ++key_part) {
-    if (bitmap_is_set(&param->needed_fields, key_part->fieldnr - 1))
+    if (bitmap_is_set(needed_fields, key_part->fieldnr - 1))
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr - 1);
   }
   bitmap_copy(&ror_scan->covered_fields_remaining, &ror_scan->covered_fields);
@@ -296,9 +298,11 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
                            be used in index merge intersection
   @param         end       Pointer past the last index that may be used.
   @param         param     Parameter from test_quick_select function.
+  @param         needed_fields  Bitmask of fields needed by the query.
 */
 static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
-                                 const PARAM *param) {
+                                 const PARAM *param,
+                                 const MY_BITMAP *needed_fields) {
   // nothing to sort if there are only zero or one ROR scans
   if ((start == end) || (start + 1 == end)) return;
 
@@ -313,8 +317,8 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   if (!(map =
             (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     return;
-  bitmap_init(&fields_to_cover, map, param->needed_fields.n_bits);
-  bitmap_copy(&fields_to_cover, &param->needed_fields);
+  bitmap_init(&fields_to_cover, map, needed_fields->n_bits);
+  bitmap_copy(&fields_to_cover, needed_fields);
 
   // Sort ROR scans in [start,...,end-1]
   for (ROR_SCAN_INFO **place = start; place < (end - 1); place++) {
@@ -646,8 +650,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
 
   SYNOPSIS
     ror_intersect_add()
-      param        Parameter from test_quick_select
       info         ROR-intersection structure to add the scan to.
+      needed_fields  Bitmask of fields needed by the query.
       ror_scan     ROR scan info to add.
       is_cpk_scan  If true, add the scan as CPK scan (this can be inferred
                    from other parameters and is passed separately only to
@@ -677,9 +681,10 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
     false  It doesn't make sense to add this ROR scan to this ROR-intersection.
 */
 
-static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
-                              bool is_cpk_scan, Opt_trace_object *trace_costs,
-                              bool ignore_cost) {
+static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
+                              const MY_BITMAP *needed_fields,
+                              ROR_SCAN_INFO *ror_scan, bool is_cpk_scan,
+                              Opt_trace_object *trace_costs, bool ignore_cost) {
   double selectivity_mult = 1.0;
 
   DBUG_TRACE;
@@ -714,7 +719,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
     trace_costs->add("index_scan_cost", ror_scan->index_read_cost);
     bitmap_union(&info->covered_fields, &ror_scan->covered_fields);
     if (!info->is_covering &&
-        bitmap_is_subset(&info->param->needed_fields, &info->covered_fields)) {
+        bitmap_is_subset(needed_fields, &info->covered_fields)) {
       DBUG_PRINT("info", ("ROR-intersect is covering now"));
       info->is_covering = true;
     }
@@ -810,12 +815,10 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
     NULL if out of memory or no suitable plan found.
 */
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
-                                          bool index_merge_intersect_allowed,
-                                          enum_order order_direction,
-                                          SEL_TREE *tree,
-                                          const Cost_estimate *cost_est,
-                                          bool force_index_merge_result) {
+TRP_ROR_INTERSECT *get_best_ror_intersect(
+    const PARAM *param, bool index_merge_intersect_allowed,
+    enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
+    const Cost_estimate *cost_est, bool force_index_merge_result) {
   uint idx;
   Cost_estimate min_cost;
   Opt_trace_context *const trace = &param->thd->opt_trace;
@@ -861,7 +864,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
   for (idx = 0, cur_ror_scan = tree->ror_scans; idx < param->keys; idx++) {
     ROR_SCAN_INFO *scan;
     if (!tree->ror_scans_map.is_set(idx)) continue;
-    if (!(scan = make_ror_scan(param, idx, tree->keys[idx]))) return nullptr;
+    if (!(scan = make_ror_scan(param, idx, tree->keys[idx], needed_fields)))
+      return nullptr;
     if (param->real_keynr[idx] == cpk_no) {
       cpk_scan = scan;
       tree->n_ror_scans--;
@@ -878,7 +882,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
     ROR_SCAN_INFO's.
     Step 2: Get best ROR-intersection using an approximate algorithm.
   */
-  find_intersect_order(tree->ror_scans, tree->ror_scans_end, param);
+  find_intersect_order(tree->ror_scans, tree->ror_scans_end, param,
+                       needed_fields);
 
   DBUG_EXECUTE("info",
                print_ror_scans_arr(param->table, "ordered", tree->ror_scans,
@@ -919,7 +924,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
     }
 
     /* S= S + first(R);  R= R - first(R); */
-    if (!ror_intersect_add(intersect, *cur_ror_scan, false, &trace_idx,
+    if (!ror_intersect_add(intersect, needed_fields, *cur_ror_scan, false,
+                           &trace_idx,
                            force_index_merge && !use_cheapest_index_merge)) {
       trace_idx.add("cumulated_total_cost", intersect->total_cost)
           .add("usable", false)
@@ -987,7 +993,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
     if (cpk_scan && !intersect->is_covering &&
         compound_hint_key_enabled(param->table, cpk_no,
                                   INDEX_MERGE_HINT_ENUM)) {
-      if (ror_intersect_add(intersect, cpk_scan, true, &trace_cpk, true) &&
+      if (ror_intersect_add(intersect, needed_fields, cpk_scan, true,
+                            &trace_cpk, true) &&
           ((intersect->total_cost < min_cost) ||
            (force_index_merge &&
             (!use_cheapest_index_merge ||

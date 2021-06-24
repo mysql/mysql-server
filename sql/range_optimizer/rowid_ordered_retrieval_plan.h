@@ -108,11 +108,9 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
                         Opt_trace_object *trace_object) const override;
 };
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
-                                          bool index_merge_intersect_allowed,
-                                          enum_order order_direction,
-                                          SEL_TREE *tree,
-                                          const Cost_estimate *cost_est,
-                                          bool force_index_merge_result);
+TRP_ROR_INTERSECT *get_best_ror_intersect(
+    const PARAM *param, bool index_merge_intersect_allowed,
+    enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
+    const Cost_estimate *cost_est, bool force_index_merge_result);
 
 #endif  // SQL_RANGE_OPTIMIZER_ROWID_ORDERED_RETRIEVAL_PLAN_H_

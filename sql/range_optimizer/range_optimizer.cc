@@ -145,8 +145,8 @@ using std::min;
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, const MY_BITMAP *needed_fields,
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
@@ -331,7 +331,7 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
 }
 
 /*
-  Fill param->needed_fields with bitmap of fields used in the query.
+  Fill needed_fields with bitmap of fields used in the query.
   SYNOPSIS
     fill_used_fields_bitmap()
       param Parameter from test_quick_select function.
@@ -344,18 +344,18 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
     1  Out of memory.
 */
 
-static int fill_used_fields_bitmap(PARAM *param) {
+static int fill_used_fields_bitmap(PARAM *param, MY_BITMAP *needed_fields) {
   TABLE *table = param->table;
   my_bitmap_map *tmp;
   uint pk;
   param->fields_bitmap_size = table->s->column_bitmap_size;
   if (!(tmp = (my_bitmap_map *)param->mem_root->Alloc(
             param->fields_bitmap_size)) ||
-      bitmap_init(&param->needed_fields, tmp, table->s->fields))
+      bitmap_init(needed_fields, tmp, table->s->fields))
     return 1;
 
-  bitmap_copy(&param->needed_fields, table->read_set);
-  bitmap_union(&param->needed_fields, table->write_set);
+  bitmap_copy(needed_fields, table->read_set);
+  bitmap_union(needed_fields, table->write_set);
 
   pk = param->table->s->primary_key;
   if (pk != MAX_KEY && param->table->file->primary_key_is_clustered()) {
@@ -364,7 +364,7 @@ static int fill_used_fields_bitmap(PARAM *param) {
     KEY_PART_INFO *key_part_end =
         key_part + param->table->key_info[pk].user_defined_key_parts;
     for (; key_part != key_part_end; ++key_part)
-      bitmap_clear_bit(&param->needed_fields, key_part->fieldnr - 1);
+      bitmap_clear_bit(needed_fields, key_part->fieldnr - 1);
   }
   return 0;
 }
@@ -554,9 +554,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
     alloc.set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
-    if (!(param.key_parts =
-              (KEY_PART *)alloc.Alloc(sizeof(KEY_PART) * head->s->key_parts)) ||
-        fill_used_fields_bitmap(&param)) {
+    if (!(param.key_parts = alloc.ArrayAlloc<KEY_PART>(head->s->key_parts))) {
       thd->pop_internal_handler();
       return 0;  // Can't use range
     }
@@ -733,6 +731,11 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       */
       dbug_print_tree("final_tree", tree, &param);
 
+      MY_BITMAP needed_fields;
+      if (fill_used_fields_bitmap(&param, &needed_fields)) {
+        goto free_mem;
+      }
+
       {
         /*
           Calculate cost of single index range scan and possible
@@ -767,7 +770,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           */
           if ((rori_trp = get_best_ror_intersect(
                    &param, index_merge_intersect_allowed, interesting_order,
-                   tree, &best_cost, true))) {
+                   tree, &needed_fields, &best_cost, true))) {
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
           }
@@ -795,7 +798,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             new_conj_trp = get_best_disjunct_quick(
                 &param, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
-                interesting_order, imerge, &imerge_cost_buff, &best_cost);
+                interesting_order, &needed_fields, imerge, &imerge_cost_buff,
+                &best_cost);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -922,8 +926,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, const MY_BITMAP *needed_fields,
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
@@ -1152,7 +1156,7 @@ skip_to_ror_scan:
     TABLE_READ_PLAN *prev_plan = *cur_child;
     if (!(*cur_roru_plan = get_best_ror_intersect(
               param, index_merge_intersect_allowed, interesting_order, *ptree,
-              &scan_cost, false))) {
+              needed_fields, &scan_cost, false))) {
       if (prev_plan->is_ror)
         *cur_roru_plan = prev_plan;
       else
