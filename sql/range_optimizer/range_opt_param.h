@@ -98,8 +98,6 @@ class PARAM : public RANGE_OPT_PARAM {
   bool is_ror_scan;
   /* true if last checked tree->key can be used for index-merge-scan */
   bool is_imerge_scan;
-  /* Number of ranges in the last checked tree->key */
-  uint n_ranges;
 
   /*
      The sort order the range access method must be able
