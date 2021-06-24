@@ -83,7 +83,8 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     uint group_prefix_len_arg, uint group_key_parts_arg,
     uint used_key_parts_arg, KEY *index_info_arg, uint use_index,
     const Cost_estimate *read_cost_arg, ha_rows records_arg,
-    uint key_infix_len_arg, MEM_ROOT *parent_alloc, bool is_index_scan_arg)
+    uint key_infix_len_arg, [[maybe_unused]] MEM_ROOT *parent_alloc,
+    bool is_index_scan_arg)
     : join(join_arg),
       index_info(index_info_arg),
       group_prefix_len(group_prefix_len_arg),

@@ -76,7 +76,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree, uint eq_prefix_len,
     uint eq_prefix_parts, uint used_key_parts_arg,
     const Cost_estimate *read_cost_arg, ha_rows read_records,
-    MEM_ROOT *parent_alloc, bool has_aggregate_function)
+    [[maybe_unused]] MEM_ROOT *parent_alloc, bool has_aggregate_function)
     : join(join),
       index_info(index_info),
       index_range_tree(index_range_tree),
