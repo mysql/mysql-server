@@ -1831,8 +1831,9 @@ TEST_F(OptRangeTest, TreeRootGetsUpdated) {
   opt_param.add_key(opt_param.table->field[0]);
   std::vector<SEL_ARG *> args;
   for (int i = 0; i < 10; ++i) {
-    SEL_TREE *tree = get_mm_tree(&opt_param, 0, 0, m_current_table,
-                                 new_item_equal(opt_param.table->field[0], i));
+    SEL_TREE *tree =
+        get_mm_tree(&opt_param, 0, 0, opt_param.table->pos_in_table_list->map(),
+                    new_item_equal(opt_param.table->field[0], i));
     ASSERT_NE(nullptr, tree);
     SEL_ROOT *root = tree->keys[0];
     ASSERT_EQ(1, root->elements);
