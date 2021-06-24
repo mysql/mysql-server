@@ -83,7 +83,7 @@ namespace classic_protocol {
 namespace message {
 namespace server {
 std::ostream &operator<<(std::ostream &os, const AuthMethodData &v) {
-  os << static_cast<uint16_t>(v.packet_type()) << ", " << v.auth_method_data();
+  os << v.auth_method_data();
   return os;
 }
 }  // namespace server
@@ -102,7 +102,9 @@ TEST_P(CodecMessageServerAuthMethodDataTest, decode) {
 
 const CodecParam<classic_protocol::message::server::AuthMethodData>
     codec_message_server_authmethoddata_param[] = {
-        {"auth_fast_ack", {0x03, ""}, {}, {0x03}},
+        {"caching_sha2_password_public_key", {"\x02"}, {}, {0x01, 0x02}},
+        {"caching_sha2_password_fast_ack", {"\x03"}, {}, {0x01, 0x03}},
+        {"caching_sha2_password_full_handshake", {"\x04"}, {}, {0x01, 0x04}},
 };
 
 INSTANTIATE_TEST_SUITE_P(
