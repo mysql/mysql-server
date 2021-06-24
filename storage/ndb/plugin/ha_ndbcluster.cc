@@ -1121,12 +1121,12 @@ Thd_ndb::Thd_ndb(THD *thd)
       options(0),
       trans_options(0),
       m_ddl_ctx(nullptr),
+      m_batch_mem_root(PSI_INSTRUMENT_ME, BATCH_FLUSH_SIZE / 4),
       global_schema_lock_trans(NULL),
       global_schema_lock_count(0),
       global_schema_lock_error(0),
       schema_locks_count(0),
-      m_last_commit_epoch_session(0),
-      m_batch_mem_root(PSI_INSTRUMENT_ME, BATCH_FLUSH_SIZE / 4) {
+      m_last_commit_epoch_session(0) {
   connection = ndb_get_cluster_connection();
   m_connect_count = connection->get_connect_count();
   ndb = new Ndb(connection, "");
