@@ -4857,8 +4857,14 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       });
   if (error) return nullptr;
   if (changed) {
-    item->set_nullable(true);
     item->update_used_tables();
+    // Since item is now nullable, mark every expression depending on it
+    // as also potentially nullable. (This is a conservative choice; in some
+    // cases, expressions can be proven non-nullable even for NULL arguments.)
+    WalkItem(item, enum_walk::POSTFIX, [](Item *inner_item) {
+      if (inner_item->has_rollup_expr()) inner_item->set_nullable(true);
+      return false;
+    });
   }
   return item;
 }
