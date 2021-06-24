@@ -110,6 +110,7 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
                                           bool index_merge_intersect_allowed,
+                                          enum_order order_direction,
                                           SEL_TREE *tree,
                                           const Cost_estimate *cost_est,
                                           bool force_index_merge_result);

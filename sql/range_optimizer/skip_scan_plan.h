@@ -91,6 +91,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 };
 
 TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
+                                  enum_order order_direction,
                                   bool force_skip_scan);
 
 #endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_PLAN_H_

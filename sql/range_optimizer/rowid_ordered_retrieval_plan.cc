@@ -748,6 +748,8 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
   SYNOPSIS
     get_best_ror_intersect()
       param            Parameter from test_quick_select function.
+      order_direction  The sort order the range access method must be able
+                       to provide. Three-value logic: asc/desc/don't care
       tree             Transformed restriction condition to be used to look
                        for ROR scans.
       cost_est         Do not return read plans with cost > cost_est.
@@ -810,6 +812,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info, ROR_SCAN_INFO *ror_scan,
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
                                           bool index_merge_intersect_allowed,
+                                          enum_order order_direction,
                                           SEL_TREE *tree,
                                           const Cost_estimate *cost_est,
                                           bool force_index_merge_result) {
@@ -837,7 +840,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param,
     return nullptr;
   }
 
-  if (param->order_direction == ORDER_DESC) return nullptr;
+  if (order_direction == ORDER_DESC) return nullptr;
 
   /*
     Step1: Collect ROR-able SEL_ARGs and create ROR_SCAN_INFO for each of

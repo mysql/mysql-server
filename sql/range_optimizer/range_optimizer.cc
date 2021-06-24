@@ -145,7 +145,8 @@ using std::min;
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, SEL_IMERGE *imerge,
+    Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
@@ -530,7 +531,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.needed_reg = needed_reg;
     param.using_real_indexes = true;
     param.remove_jump_scans = true;
-    param.order_direction = interesting_order;
     param.use_index_statistics = false;
     /*
       Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
@@ -685,7 +685,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       Try to construct a QUICK_GROUP_MIN_MAX_SELECT.
       Notice that it can be constructed no matter if there is a range tree.
     */
-    group_trp = get_best_group_min_max(&param, tree, &best_cost);
+    group_trp =
+        get_best_group_min_max(&param, tree, interesting_order, &best_cost);
     if (group_trp) {
       DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost_est.reset(););
       param.table->quick_condition_rows =
@@ -706,7 +707,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         param.thd, param.table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
 
     if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
-      skip_scan_trp = get_best_skip_scan(&param, tree, force_skip_scan);
+      skip_scan_trp =
+          get_best_skip_scan(&param, tree, interesting_order, force_skip_scan);
       if (skip_scan_trp) {
         param.table->quick_condition_rows =
             min(skip_scan_trp->records, head->file->stats.records);
@@ -742,8 +744,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         TRP_ROR_INTERSECT *rori_trp;
 
         /* Get best 'range' plan and prepare data for making other plans */
-        if ((range_trp =
-                 get_key_scans_params(&param, tree, false, true, &best_cost))) {
+        if ((range_trp = get_key_scans_params(&param, tree, false, true,
+                                              interesting_order, &best_cost))) {
           best_trp = range_trp;
           best_cost = best_trp->cost_est;
         }
@@ -763,9 +765,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             Get best non-covering ROR-intersection plan and prepare data for
             building covering ROR-intersection.
           */
-          if ((rori_trp =
-                   get_best_ror_intersect(&param, index_merge_intersect_allowed,
-                                          tree, &best_cost, true))) {
+          if ((rori_trp = get_best_ror_intersect(
+                   &param, index_merge_intersect_allowed, interesting_order,
+                   tree, &best_cost, true))) {
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
           }
@@ -793,7 +795,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             new_conj_trp = get_best_disjunct_quick(
                 &param, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
-                imerge, &imerge_cost_buff, &best_cost);
+                interesting_order, imerge, &imerge_cost_buff, &best_cost);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -920,7 +922,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, SEL_IMERGE *imerge,
+    Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
@@ -968,8 +971,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
                                         "tree in SEL_IMERGE"););
     Opt_trace_object trace_idx(trace);
-    if (!(*cur_child =
-              get_key_scans_params(param, *ptree, true, false, &read_cost))) {
+    if (!(*cur_child = get_key_scans_params(param, *ptree, true, false,
+                                            interesting_order, &read_cost))) {
       /*
         One of index scans in this index_merge is more expensive than entire
         table read for another available option. The entire index_merge (and
@@ -1147,9 +1150,9 @@ skip_to_ror_scan:
       scan_cost = read_cost;
 
     TABLE_READ_PLAN *prev_plan = *cur_child;
-    if (!(*cur_roru_plan =
-              get_best_ror_intersect(param, index_merge_intersect_allowed,
-                                     *ptree, &scan_cost, false))) {
+    if (!(*cur_roru_plan = get_best_ror_intersect(
+              param, index_merge_intersect_allowed, interesting_order, *ptree,
+              &scan_cost, false))) {
       if (prev_plan->is_ror)
         *cur_roru_plan = prev_plan;
       else

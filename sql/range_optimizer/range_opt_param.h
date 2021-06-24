@@ -99,12 +99,6 @@ class PARAM : public RANGE_OPT_PARAM {
   /* true if last checked tree->key can be used for index-merge-scan */
   bool is_imerge_scan;
 
-  /*
-     The sort order the range access method must be able
-     to provide. Three-value logic: asc/desc/don't care
-  */
-  enum_order order_direction;
-
   /// Same value as JOIN_TAB::skip_records_in_range().
   bool skip_records_in_range;
 };

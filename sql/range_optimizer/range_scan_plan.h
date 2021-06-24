@@ -95,8 +95,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
                                (except for clustered PK indexes)
       update_tbl_stats         true <=> update table->quick_* with information
                                about range scans we've evaluated.
-      cost_est                 Maximum cost. i.e. don't create read plans with
-                               cost > cost_est.
+      interesting_order        The sort order the range access method must be
+  able to provide. Three-value logic: asc/desc/don't care cost_est Maximum cost.
+  i.e. don't create read plans with cost > cost_est.
 
   DESCRIPTION
     Find the best "range" table read plan for given SEL_TREE.
@@ -113,6 +114,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
+                                enum_order interesting_order,
                                 const Cost_estimate *cost_est);
 
 /*
@@ -129,6 +131,8 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                         the intervals for the given index.
       update_tbl_stats  true <=> update table->quick_* with information
                         about range scan we've evaluated.
+      order_direction   The sort order the range access method must be able
+                        to provide. Three-value logic: asc/desc/don't care
       mrr_flags   INOUT MRR access flags
       cost        OUT   Scan cost
 
@@ -144,6 +148,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 */
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
-                           uint *mrr_flags, uint *bufsize, Cost_estimate *cost);
+                           enum_order order_direction, uint *mrr_flags,
+                           uint *bufsize, Cost_estimate *cost);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_

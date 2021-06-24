@@ -553,8 +553,8 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
-                           uint *mrr_flags, uint *bufsize,
-                           Cost_estimate *cost) {
+                           enum_order order_direction, uint *mrr_flags,
+                           uint *bufsize, Cost_estimate *cost) {
   Sel_arg_range_sequence seq(param);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next,
                          nullptr};
@@ -588,13 +588,12 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   if (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan = false;
 
-  *mrr_flags =
-      (param->order_direction == ORDER_DESC) ? HA_MRR_USE_DEFAULT_IMPL : 0;
+  *mrr_flags = (order_direction == ORDER_DESC) ? HA_MRR_USE_DEFAULT_IMPL : 0;
   *mrr_flags |= HA_MRR_NO_ASSOCIATION;
   /*
     Pass HA_MRR_SORTED to see if MRR implementation can handle sorting.
   */
-  if (param->order_direction != ORDER_NOT_RELEVANT) *mrr_flags |= HA_MRR_SORTED;
+  if (order_direction != ORDER_NOT_RELEVANT) *mrr_flags |= HA_MRR_SORTED;
 
   bool pk_is_clustered = file->primary_key_is_clustered();
   if (index_only &&
@@ -841,6 +840,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
 TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
+                                enum_order order_direction,
                                 const Cost_estimate *cost_est) {
   uint idx, best_idx = 0;
   SEL_ROOT *key, *key_to_read = nullptr;
@@ -885,7 +885,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
       found_records =
           check_quick_select(param, idx, read_index_only, key, update_tbl_stats,
-                             &mrr_flags, &buf_size, &cost);
+                             order_direction, &mrr_flags, &buf_size, &cost);
 
       if (!compound_hint_key_enabled(param->table, keynr,
                                      INDEX_MERGE_HINT_ENUM)) {
