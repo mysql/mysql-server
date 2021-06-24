@@ -91,7 +91,6 @@ class PARAM : public RANGE_OPT_PARAM {
 
   uint fields_bitmap_size;
   MY_BITMAP needed_fields; /* bitmask of fields needed by the query */
-  MY_BITMAP tmp_covered_fields;
 
   Key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
 
