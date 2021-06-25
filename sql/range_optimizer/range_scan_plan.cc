@@ -841,7 +841,8 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order order_direction,
-                                const Cost_estimate *cost_est) {
+                                const Cost_estimate *cost_est,
+                                Key_map *needed_reg) {
   uint idx, best_idx = 0;
   SEL_ROOT *key, *key_to_read = nullptr;
   ha_rows best_records = 0; /* protected by key_to_read */
@@ -874,7 +875,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       uint mrr_flags = 0, buf_size = 0;
       uint keynr = param->real_keynr[idx];
       if (key->type == SEL_ROOT::Type::MAYBE_KEY || key->root->maybe_flag)
-        param->needed_reg->set_bit(keynr);
+        needed_reg->set_bit(keynr);
 
       bool read_index_only =
           index_read_must_be_used

@@ -147,7 +147,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
     enum_order interesting_order, const MY_BITMAP *needed_fields,
     SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
-    const Cost_estimate *cost_est);
+    const Cost_estimate *cost_est, Key_map *needed_reg);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
@@ -527,7 +527,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.is_ror_scan = false;
     param.mem_root = &alloc;
     param.old_root = thd->mem_root;
-    param.needed_reg = needed_reg;
     param.using_real_indexes = true;
     param.remove_jump_scans = true;
     param.use_index_statistics = false;
@@ -747,7 +746,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
         /* Get best 'range' plan and prepare data for making other plans */
         if ((range_trp = get_key_scans_params(&param, tree, false, true,
-                                              interesting_order, &best_cost))) {
+                                              interesting_order, &best_cost,
+                                              needed_reg))) {
           best_trp = range_trp;
           best_cost = best_trp->cost_est;
         }
@@ -798,7 +798,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                 &param, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
                 interesting_order, &needed_fields, imerge, &imerge_cost_buff,
-                &best_cost);
+                &best_cost, needed_reg);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -860,9 +860,17 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
   Get best plan for a SEL_IMERGE disjunctive expression.
   SYNOPSIS
     get_best_disjunct_quick()
-      param     Parameter from check_quick_select function
-      imerge    Expression to use
-      cost_est  Don't create scans with cost > cost_est
+      param             Parameter from check_quick_select function
+      index_merge_union_allowed
+      index_merge_sort_union_allowed
+      index_merge_intersect_allowed
+      interesting_order The sort order the range access method must be able
+                        to provide. Three-value logic: asc/desc/don't care
+      needed_fields     Bitmap of fields used in the query
+      imerge            Expression to use
+      imerge_cost_buff  Buffer for index_merge cost estimates
+      cost_est          Don't create scans with cost > cost_est
+      needed_reg [out]  Bits for keys with may be used if all prev regs are read
 
   NOTES
     index_merge cost is calculated as follows:
@@ -927,7 +935,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
     enum_order interesting_order, const MY_BITMAP *needed_fields,
     SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
-    const Cost_estimate *cost_est) {
+    const Cost_estimate *cost_est, Key_map *needed_reg) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
   uint n_child_scans = imerge->trees_next - imerge->trees;
@@ -975,7 +983,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
                                         "tree in SEL_IMERGE"););
     Opt_trace_object trace_idx(trace);
     if (!(*cur_child = get_key_scans_params(param, *ptree, true, false,
-                                            interesting_order, &read_cost))) {
+                                            interesting_order, &read_cost,
+                                            needed_reg))) {
       /*
         One of index scans in this index_merge is more expensive than entire
         table read for another available option. The entire index_merge (and

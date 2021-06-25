@@ -96,8 +96,12 @@ class TRP_RANGE : public TABLE_READ_PLAN {
       update_tbl_stats         true <=> update table->quick_* with information
                                about range scans we've evaluated.
       interesting_order        The sort order the range access method must be
-  able to provide. Three-value logic: asc/desc/don't care cost_est Maximum cost.
-  i.e. don't create read plans with cost > cost_est.
+                               able to provide. Three-value logic:
+                               asc/desc/don't care
+      cost_est                 Maximum cost. i.e. don't create read plans with
+                               cost > cost_est.
+      needed_reg               ptr to needed_reg argument
+                               of test_quick_select().
 
   DESCRIPTION
     Find the best "range" table read plan for given SEL_TREE.
@@ -115,7 +119,8 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order interesting_order,
-                                const Cost_estimate *cost_est);
+                                const Cost_estimate *cost_est,
+                                Key_map *needed_reg);
 
 /*
   Calculate estimate of number records that will be retrieved by a range
