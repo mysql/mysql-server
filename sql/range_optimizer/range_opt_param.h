@@ -64,7 +64,7 @@ class RANGE_OPT_PARAM {
     used_key_no -> table_key_no translation table. Only makes sense if
     using_real_indexes==true
   */
-  uint real_keynr[MAX_KEY];
+  uint *real_keynr = nullptr;
 
   /**
     Whether index statistics or index dives should be used when
@@ -79,7 +79,7 @@ class RANGE_OPT_PARAM {
 
   bool has_errors() const { return (error_handler.has_errors()); }
 
-  KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
+  KEY_PART **key = nullptr; /* First key parts of keys used in the query */
 
   /* true if last checked tree->key can be used for ROR-scan */
   bool is_ror_scan;

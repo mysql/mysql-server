@@ -57,7 +57,6 @@ class TABLE_READ_PLAN {
     Create quick select for this plan.
     SYNOPSIS
      make_quick()
-       param               Parameter from test_quick_select
        retrieve_full_rows  If true, created quick select will do full record
                            retrieval.
        return_mem_root     Memory pool to use.
@@ -69,8 +68,7 @@ class TABLE_READ_PLAN {
       created quick select
       NULL on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param,
-                                     bool retrieve_full_rows,
+  virtual QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                                      MEM_ROOT *return_mem_root) = 0;
 
   virtual ~TABLE_READ_PLAN() = default;

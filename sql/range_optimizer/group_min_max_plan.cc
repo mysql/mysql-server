@@ -793,7 +793,8 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   read_plan = new (param->return_mem_root) TRP_GROUP_MIN_MAX(
       have_min, have_max, is_agg_distinct, min_max_arg_part, group_prefix_len,
       used_key_parts, group_key_parts, index_info, index, key_infix_len, tree,
-      best_index_tree, best_param_idx, best_quick_prefix_records);
+      best_index_tree, best_param_idx, best_quick_prefix_records, table, join,
+      param->key[best_param_idx], param->real_keynr[best_param_idx]);
   if (read_plan) {
     if (tree && read_plan->quick_prefix_records == 0) return nullptr;
 
@@ -1418,7 +1419,6 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 
   SYNOPSIS
     TRP_GROUP_MIN_MAX::make_quick()
-    param              Parameter from test_quick_select
     return_mem_root    Memory pool to use.
 
   NOTES
@@ -1433,16 +1433,14 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(RANGE_OPT_PARAM *param, bool,
-                                              MEM_ROOT *return_mem_root) {
+QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
   DBUG_TRACE;
 
   unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
       new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-          param->table, param->query_block->join, have_min, have_max,
-          have_agg_distinct, min_max_arg_part, group_prefix_len,
-          group_key_parts, used_key_parts, index_info, index, &cost_est,
-          records, key_infix_len, return_mem_root, is_index_scan));
+          table, join, have_min, have_max, have_agg_distinct, min_max_arg_part,
+          group_prefix_len, group_key_parts, used_key_parts, index_info, index,
+          &cost_est, records, key_infix_len, return_mem_root, is_index_scan));
   if (!quick) return nullptr;
 
   if (quick->init()) {
@@ -1457,9 +1455,8 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(RANGE_OPT_PARAM *param, bool,
     else {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_query_block =
-          get_quick_select(return_mem_root, param->table, param->key[param_idx],
-                           param->real_keynr[param_idx], index_tree,
-                           HA_MRR_SORTED, 0, group_key_parts);
+          get_quick_select(return_mem_root, table, used_key_part, keyno,
+                           index_tree, HA_MRR_SORTED, 0, group_key_parts);
       if (!quick->quick_prefix_query_block) {
         return nullptr;
       }

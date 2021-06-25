@@ -38,18 +38,20 @@ struct MEM_ROOT;
 */
 
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
-  bool forced_by_hint;
-
  public:
-  explicit TRP_INDEX_MERGE(bool forced_by_hint_arg)
-      : forced_by_hint(forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  TRP_INDEX_MERGE(TABLE *table_arg, bool forced_by_hint_arg)
+      : table(table_arg), forced_by_hint(forced_by_hint_arg) {}
+  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
   TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
   TRP_RANGE **range_scans_end; /* end of the array */
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
+
+ private:
+  TABLE *table;
+  bool forced_by_hint;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_INDEX_MERGE_PLAN_H_

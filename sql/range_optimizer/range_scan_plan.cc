@@ -976,13 +976,13 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                print_sel_tree(param, tree, &tree->ror_scans_map, "ROR scans"););
 
   if (key_to_read) {
-    if ((read_plan = new (param->return_mem_root)
-             TRP_RANGE(key_to_read, best_idx, best_mrr_flags))) {
+    if ((read_plan = new (param->return_mem_root) TRP_RANGE(
+             key_to_read, best_idx, best_mrr_flags, best_buf_size, param->table,
+             param->key[best_idx], param->real_keynr[best_idx]))) {
       read_plan->records = best_records;
       read_plan->is_ror = tree->ror_scans_map.is_set(best_idx);
       read_plan->is_imerge = is_best_idx_imerge_scan;
       read_plan->cost_est = read_cost;
-      read_plan->mrr_buf_size = best_buf_size;
       DBUG_PRINT("info",
                  ("Returning range plan for key %s, cost %g, records %lu",
                   param->table->key_info[param->real_keynr[best_idx]].name,

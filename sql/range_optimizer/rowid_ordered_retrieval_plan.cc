@@ -76,7 +76,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 }
 #endif
 
-void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_roworder_intersect")
       .add("rows", records)
@@ -88,7 +88,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   Opt_trace_array ota(trace, "intersect_of");
   for (ROR_SCAN_INFO **cur_scan = first_scan; cur_scan != last_scan;
        cur_scan++) {
-    const KEY &cur_key = param->table->key_info[(*cur_scan)->keynr];
+    const KEY &cur_key = table->key_info[(*cur_scan)->keynr];
     const KEY_PART_INFO *key_part = cur_key.key_part;
 
     Opt_trace_object trace_isect_idx(trace);
@@ -123,25 +123,24 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
-                                              bool retrieve_full_rows,
+QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                                               MEM_ROOT *return_mem_root) {
-  QUICK_ROR_INTERSECT_SELECT *quick_intrsect;
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
 
-  if ((quick_intrsect = new (return_mem_root) QUICK_ROR_INTERSECT_SELECT(
-           param->table, (retrieve_full_rows ? (!is_covering) : false),
-           return_mem_root))) {
-    DBUG_EXECUTE("info",
-                 print_ror_scans_arr(param->table, "creating ROR-intersect",
-                                     first_scan, last_scan););
+  QUICK_ROR_INTERSECT_SELECT *quick_intrsect = new (return_mem_root)
+      QUICK_ROR_INTERSECT_SELECT(table,
+                                 (retrieve_full_rows ? (!is_covering) : false),
+                                 return_mem_root);
+  if (quick_intrsect) {
+    DBUG_EXECUTE("info", print_ror_scans_arr(table, "creating ROR-intersect",
+                                             first_scan, last_scan););
     for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
          current++) {
       uint idx = (*current)->idx;
-      if (!(quick = get_quick_select(return_mem_root, param->table,
-                                     param->key[idx], param->real_keynr[idx],
-                                     (*current)->sel_root, HA_MRR_SORTED, 0)) ||
+      if (!(quick = get_quick_select(return_mem_root, table, key[idx],
+                                     real_keynr[idx], (*current)->sel_root,
+                                     HA_MRR_SORTED, 0)) ||
           quick_intrsect->push_quick_back(quick)) {
         destroy(quick_intrsect);
         return nullptr;
@@ -149,9 +148,9 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
     }
     if (cpk_scan) {
       uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select(return_mem_root, param->table,
-                                     param->key[idx], param->real_keynr[idx],
-                                     cpk_scan->sel_root, HA_MRR_SORTED, 0))) {
+      if (!(quick = get_quick_select(return_mem_root, table, key[idx],
+                                     real_keynr[idx], cpk_scan->sel_root,
+                                     HA_MRR_SORTED, 0))) {
         destroy(quick_intrsect);
         return nullptr;
       }
@@ -165,8 +164,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
   return quick_intrsect;
 }
 
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
-                                          MEM_ROOT *return_mem_root) {
+QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
   QUICK_ROR_UNION_SELECT *quick_roru;
   TABLE_READ_PLAN **scan;
   QUICK_SELECT_I *quick;
@@ -176,9 +174,9 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
     rows, ignore retrieve_full_rows parameter.
   */
   if ((quick_roru = new (return_mem_root)
-           QUICK_ROR_UNION_SELECT(return_mem_root, param->table))) {
+           QUICK_ROR_UNION_SELECT(return_mem_root, table))) {
     for (scan = first_ror; scan != last_ror; scan++) {
-      if (!(quick = (*scan)->make_quick(param, false, return_mem_root)) ||
+      if (!(quick = (*scan)->make_quick(false, return_mem_root)) ||
           quick_roru->push_quick_back(quick))
         return nullptr;
     }
@@ -810,8 +808,9 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 */
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(
-    THD *thd, const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
-    enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
+    THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
+    bool index_merge_intersect_allowed, enum_order order_direction,
+    SEL_TREE *tree, const MY_BITMAP *needed_fields,
     const Cost_estimate *cost_est, bool force_index_merge_result) {
   uint idx;
   Cost_estimate min_cost;
@@ -820,14 +819,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
 
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
-      idx_merge_hint_state(thd, param->table, &use_cheapest_index_merge);
+      idx_merge_hint_state(thd, table, &use_cheapest_index_merge);
 
   Opt_trace_object trace_ror(trace, "analyzing_roworder_intersect");
 
   min_cost.set_max_cost();
 
   if (tree->n_ror_scans < 2 ||
-      ((!param->table->file->stats.records || !index_merge_intersect_allowed) &&
+      ((!table->file->stats.records || !index_merge_intersect_allowed) &&
        !force_index_merge)) {
     trace_ror.add("usable", false);
     if (tree->n_ror_scans < 2)
@@ -851,9 +850,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   if (!(tree->ror_scans =
             param->temp_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(param->keys)))
     return nullptr;
-  cpk_no = ((param->table->file->primary_key_is_clustered())
-                ? param->table->s->primary_key
-                : MAX_KEY);
+  cpk_no = ((table->file->primary_key_is_clustered()) ? table->s->primary_key
+                                                      : MAX_KEY);
 
   for (idx = 0, cur_ror_scan = tree->ror_scans; idx < param->keys; idx++) {
     ROR_SCAN_INFO *scan;
@@ -868,9 +866,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   }
 
   tree->ror_scans_end = cur_ror_scan;
-  DBUG_EXECUTE("info",
-               print_ror_scans_arr(param->table, "original", tree->ror_scans,
-                                   tree->ror_scans_end););
+  DBUG_EXECUTE("info", print_ror_scans_arr(table, "original", tree->ror_scans,
+                                           tree->ror_scans_end););
   /*
     Ok, [ror_scans, ror_scans_end) is array of ptrs to initialized
     ROR_SCAN_INFO's.
@@ -879,9 +876,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   find_intersect_order(tree->ror_scans, tree->ror_scans_end, param,
                        needed_fields);
 
-  DBUG_EXECUTE("info",
-               print_ror_scans_arr(param->table, "ordered", tree->ror_scans,
-                                   tree->ror_scans_end););
+  DBUG_EXECUTE("info", print_ror_scans_arr(table, "ordered", tree->ror_scans,
+                                           tree->ror_scans_end););
 
   ROR_SCAN_INFO **intersect_scans; /* ROR scans used in index intersection */
   ROR_SCAN_INFO **intersect_scans_end;
@@ -907,10 +903,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   Opt_trace_array trace_isect_idx(trace, "intersecting_indexes");
   while (cur_ror_scan != tree->ror_scans_end && !intersect->is_covering) {
     Opt_trace_object trace_idx(trace);
-    trace_idx.add_utf8("index",
-                       param->table->key_info[(*cur_ror_scan)->keynr].name);
+    trace_idx.add_utf8("index", table->key_info[(*cur_ror_scan)->keynr].name);
 
-    if (!compound_hint_key_enabled(param->table, (*cur_ror_scan)->keynr,
+    if (!compound_hint_key_enabled(table, (*cur_ror_scan)->keynr,
                                    INDEX_MERGE_HINT_ENUM)) {
       trace_idx.add("usable", false).add_alnum("cause", "index_merge_hint");
       cur_ror_scan++;
@@ -971,7 +966,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   }
 
   DBUG_EXECUTE("info",
-               print_ror_scans_arr(param->table, "best ROR-intersection",
+               print_ror_scans_arr(table, "best ROR-intersection",
                                    intersect_scans, intersect_scans_best););
 
   uint best_num = intersect_scans_best - intersect_scans;
@@ -985,8 +980,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   {  // Scope for trace object
     Opt_trace_object trace_cpk(trace, "clustered_pk");
     if (cpk_scan && !intersect->is_covering &&
-        compound_hint_key_enabled(param->table, cpk_no,
-                                  INDEX_MERGE_HINT_ENUM)) {
+        compound_hint_key_enabled(table, cpk_no, INDEX_MERGE_HINT_ENUM)) {
       if (ror_intersect_add(intersect, needed_fields, cpk_scan, true,
                             &trace_cpk, true) &&
           ((intersect->total_cost < min_cost) ||
@@ -1010,8 +1004,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   TRP_ROR_INTERSECT *trp = nullptr;
   if ((min_cost < *cost_est || force_index_merge) &&
       (cpk_scan_used || best_num > 1)) {
-    if (!(trp = new (param->return_mem_root)
-              TRP_ROR_INTERSECT(force_index_merge)))
+    if (!(trp = new (param->return_mem_root) TRP_ROR_INTERSECT(
+              table, force_index_merge, param->key, param->real_keynr)))
       return trp;
     if (!(trp->first_scan =
               param->return_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(best_num)))
@@ -1024,8 +1018,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
     /* Prevent divisons by zero */
     ha_rows best_rows = double2rows(intersect_best->out_rows);
     if (!best_rows) best_rows = 1;
-    param->table->quick_condition_rows =
-        min(param->table->quick_condition_rows, best_rows);
+    table->quick_condition_rows = min(table->quick_condition_rows, best_rows);
     trp->records = best_rows;
     trp->index_scan_cost = intersect_best->index_scan_cost;
     trp->cpk_scan = cpk_scan_used ? cpk_scan : nullptr;

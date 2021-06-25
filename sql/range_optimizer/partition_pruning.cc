@@ -311,7 +311,8 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
 
   range_par->keys = 1;  // one index
   range_par->using_real_indexes = false;
-  range_par->real_keynr[0] = 0;
+  unsigned real_keynr = 0;
+  range_par->real_keynr = &real_keynr;
 
   bitmap_clear_all(&part_info->read_partitions);
 

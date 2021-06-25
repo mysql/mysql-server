@@ -55,7 +55,6 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
   SYNOPSIS
     QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT()
     table              The table being accessed
-    join               Descriptor of the current query
     index_info         The index chosen for data access
     use_index          The id of index_info
     range_part         The keypart belonging to the range condition C
@@ -72,13 +71,12 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
 */
 
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
-    TABLE *table, JOIN *join, KEY *index_info, uint use_index,
-    KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree, uint eq_prefix_len,
-    uint eq_prefix_parts, uint used_key_parts_arg,
-    const Cost_estimate *read_cost_arg, ha_rows read_records,
-    MEM_ROOT *return_mem_root, bool has_aggregate_function)
-    : join(join),
-      index_info(index_info),
+    TABLE *table, KEY *index_info, uint use_index, KEY_PART_INFO *range_part,
+    SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_parts,
+    uint used_key_parts_arg, const Cost_estimate *read_cost_arg,
+    ha_rows read_records, MEM_ROOT *return_mem_root,
+    bool has_aggregate_function)
+    : index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
       eq_prefix_key_parts(eq_prefix_parts),

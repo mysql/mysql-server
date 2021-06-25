@@ -143,11 +143,11 @@ using std::min;
 [[maybe_unused]] static uchar is_null_string[2] = {1, 0};
 
 static TABLE_READ_PLAN *get_best_disjunct_quick(
-    THD *thd, RANGE_OPT_PARAM *param, bool index_merge_union_allowed,
-    bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, bool skip_records_in_range,
-    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
+    bool index_merge_union_allowed, bool index_merge_sort_union_allowed,
+    bool index_merge_intersect_allowed, enum_order interesting_order,
+    bool skip_records_in_range, const MY_BITMAP *needed_fields,
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
@@ -565,8 +565,13 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         thd->variables.range_optimizer_max_mem_size);
     temp_mem_root->set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
-    if (!(param.key_parts =
-              temp_mem_root->ArrayAlloc<KEY_PART>(head->s->key_parts))) {
+
+    // These are being stored in TRPs, so they need to be on return_mem_root.
+    param.real_keynr = return_mem_root->ArrayAlloc<uint>(head->s->keys);
+    param.key = return_mem_root->ArrayAlloc<KEY_PART *>(head->s->keys);
+    param.key_parts = return_mem_root->ArrayAlloc<KEY_PART>(head->s->key_parts);
+    if (param.real_keynr == nullptr || param.key == nullptr ||
+        param.key_parts == nullptr) {
       thd->pop_internal_handler();
       return 0;  // Can't use range
     }
@@ -782,8 +787,8 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
             building covering ROR-intersection.
           */
           TRP_ROR_INTERSECT *rori_trp = get_best_ror_intersect(
-              thd, &param, index_merge_intersect_allowed, interesting_order,
-              tree, &needed_fields, &best_cost, true);
+              thd, &param, table, index_merge_intersect_allowed,
+              interesting_order, tree, &needed_fields, &best_cost, true);
           if (rori_trp) {
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
@@ -810,7 +815,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
           Unique::Imerge_cost_buf_type imerge_cost_buff;
           while ((imerge = it++)) {
             new_conj_trp = get_best_disjunct_quick(
-                thd, &param, index_merge_union_allowed,
+                thd, &param, table, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
                 interesting_order, skip_records_in_range, &needed_fields,
                 imerge, &imerge_cost_buff, &best_cost, needed_reg);
@@ -837,8 +842,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     if (best_trp && (head->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
-      if (!(qck = best_trp->make_quick(&param, true, return_mem_root)) ||
-          qck->init())
+      if (!(qck = best_trp->make_quick(true, return_mem_root)) || qck->init())
         qck = nullptr;
       *quick = qck;
     }
@@ -944,11 +948,11 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
 */
 
 static TABLE_READ_PLAN *get_best_disjunct_quick(
-    THD *thd, RANGE_OPT_PARAM *param, bool index_merge_union_allowed,
-    bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, bool skip_records_in_range,
-    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
+    bool index_merge_union_allowed, bool index_merge_sort_union_allowed,
+    bool index_merge_intersect_allowed, enum_order interesting_order,
+    bool skip_records_in_range, const MY_BITMAP *needed_fields,
+    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg) {
   TRP_INDEX_MERGE *imerge_trp = nullptr;
   uint n_child_scans = imerge->trees_next - imerge->trees;
@@ -957,7 +961,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   Cost_estimate imerge_cost;
   ha_rows cpk_scan_records = 0;
   ha_rows non_cpk_scan_records = 0;
-  bool pk_is_clustered = param->table->file->primary_key_is_clustered();
+  bool pk_is_clustered = table->file->primary_key_is_clustered();
   bool all_scans_ror_able = true;
   bool all_scans_rors = true;
   size_t unique_calc_buff_size;
@@ -965,16 +969,16 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   TABLE_READ_PLAN **cur_roru_plan;
   ha_rows roru_total_records;
   double roru_intersect_part = 1.0;
-  const Cost_model_table *const cost_model = param->table->cost_model();
+  const Cost_model_table *const cost_model = table->cost_model();
   Cost_estimate read_cost = *cost_est;
 
   DBUG_TRACE;
   DBUG_PRINT("info", ("Full table scan cost: %g", cost_est->total_cost()));
 
-  assert(param->table->file->stats.records);
+  assert(table->file->stats.records);
 
-  const bool force_index_merge = hint_table_state(
-      thd, param->table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+  const bool force_index_merge =
+      hint_table_state(thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
@@ -1025,15 +1029,13 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
       imerge_cost += (*cur_child)->cost_est;
       all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
       all_scans_rors &= (*cur_child)->is_ror;
-      if (pk_is_clustered && keynr_in_table == param->table->s->primary_key) {
+      if (pk_is_clustered && keynr_in_table == table->s->primary_key) {
         cpk_scan = cur_child;
         cpk_scan_records = (*cur_child)->records;
       } else
         non_cpk_scan_records += (*cur_child)->records;
 
-      trace_idx
-          .add_utf8("index_to_merge",
-                    param->table->key_info[keynr_in_table].name)
+      trace_idx.add_utf8("index_to_merge", table->key_info[keynr_in_table].name)
           .add("cumulated_cost", imerge_cost);
     }
   }
@@ -1044,7 +1046,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   trace_best_disjunct.add("cost_of_reading_ranges", imerge_cost);
   if (imerge_too_expensive || (((imerge_cost > read_cost) ||
                                 ((non_cpk_scan_records + cpk_scan_records >=
-                                  param->table->file->stats.records) &&
+                                  table->file->stats.records) &&
                                  !read_cost.is_max_cost())) &&
                                !force_index_merge)) {
     /*
@@ -1086,7 +1088,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     Cost_estimate sweep_cost;
     JOIN *join = param->query_block->join;
     const bool is_interrupted = join && join->tables != 1;
-    get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
+    get_sweep_read_cost(table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
     imerge_cost += sweep_cost;
     trace_best_disjunct.add("cost_sort_rowid_and_read_disk", sweep_cost);
@@ -1102,7 +1104,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
 
   /* Add Unique operations cost */
   unique_calc_buff_size = Unique::get_cost_calc_buff_size(
-      (ulong)non_cpk_scan_records, param->table->file->ref_length,
+      (ulong)non_cpk_scan_records, table->file->ref_length,
       thd->variables.sortbuff_size);
   if (imerge_cost_buff->size() < unique_calc_buff_size) {
     *imerge_cost_buff = Unique::Imerge_cost_buf_type::Alloc(
@@ -1111,10 +1113,9 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   }
 
   {
-    const double dup_removal_cost =
-        Unique::get_use_cost(*imerge_cost_buff, (uint)non_cpk_scan_records,
-                             param->table->file->ref_length,
-                             thd->variables.sortbuff_size, cost_model);
+    const double dup_removal_cost = Unique::get_use_cost(
+        *imerge_cost_buff, (uint)non_cpk_scan_records, table->file->ref_length,
+        thd->variables.sortbuff_size, cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
     imerge_cost.add_cpu(dup_removal_cost);
@@ -1124,12 +1125,12 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
                         imerge_cost.total_cost(), read_cost.total_cost()));
   }
   if (imerge_cost < read_cost || force_index_merge) {
-    if ((imerge_trp =
-             new (param->return_mem_root) TRP_INDEX_MERGE(force_index_merge))) {
+    if ((imerge_trp = new (param->return_mem_root)
+             TRP_INDEX_MERGE(table, force_index_merge))) {
       imerge_trp->cost_est = imerge_cost;
       imerge_trp->records = non_cpk_scan_records + cpk_scan_records;
       imerge_trp->records =
-          min(imerge_trp->records, param->table->file->stats.records);
+          min(imerge_trp->records, table->file->stats.records);
       imerge_trp->range_scans = range_scans;
       imerge_trp->range_scans_end = range_scans + n_child_scans;
       read_cost = imerge_cost;
@@ -1174,9 +1175,9 @@ skip_to_ror_scan:
       Cost_estimate scan_cost;
       if ((*cur_child)->is_ror) {
         /* Ok, we have index_only cost, now get full rows scan cost */
-        scan_cost = param->table->file->read_cost(
-            param->real_keynr[(*cur_child)->key_idx], 1,
-            static_cast<double>((*cur_child)->records));
+        scan_cost =
+            table->file->read_cost(param->real_keynr[(*cur_child)->key_idx], 1,
+                                   static_cast<double>((*cur_child)->records));
         scan_cost.add_cpu(
             cost_model->row_evaluate_cost(rows2double((*cur_child)->records)));
       } else
@@ -1184,8 +1185,8 @@ skip_to_ror_scan:
 
       TABLE_READ_PLAN *prev_plan = *cur_child;
       if (!(*cur_roru_plan = get_best_ror_intersect(
-                thd, param, index_merge_intersect_allowed, interesting_order,
-                *ptree, needed_fields, &scan_cost, false))) {
+                thd, param, table, index_merge_intersect_allowed,
+                interesting_order, *ptree, needed_fields, &scan_cost, false))) {
         if (prev_plan->is_ror)
           *cur_roru_plan = prev_plan;
         else
@@ -1197,7 +1198,7 @@ skip_to_ror_scan:
       }
       roru_total_records += (*cur_roru_plan)->records;
       roru_intersect_part *=
-          (*cur_roru_plan)->records / param->table->file->stats.records;
+          (*cur_roru_plan)->records / table->file->stats.records;
     }
   }
   // Note: trace_analyze_ror trace object is closed here
@@ -1210,7 +1211,7 @@ skip_to_ror_scan:
     in disjunction do not share key parts.
   */
   roru_total_records -=
-      (ha_rows)(roru_intersect_part * param->table->file->stats.records);
+      (ha_rows)(roru_intersect_part * table->file->stats.records);
   /* ok, got a ROR read plan for each of the disjuncts
     Calculate cost:
     cost(index_union_scan(scan_1, ... scan_n)) =
@@ -1223,7 +1224,7 @@ skip_to_ror_scan:
   {
     JOIN *join = param->query_block->join;
     const bool is_interrupted = join && join->tables != 1;
-    get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
+    get_sweep_read_cost(table, roru_total_records, is_interrupted,
                         &roru_total_cost);
     roru_total_cost += roru_index_cost;
     roru_total_cost.add_cpu(cost_model->key_compare_cost(
@@ -1234,8 +1235,8 @@ skip_to_ror_scan:
       .add("members", n_child_scans);
   TRP_ROR_UNION *roru;
   if (roru_total_cost < read_cost || force_index_merge) {
-    if ((roru =
-             new (param->return_mem_root) TRP_ROR_UNION(force_index_merge))) {
+    if ((roru = new (param->return_mem_root)
+             TRP_ROR_UNION(table, force_index_merge))) {
       trace_best_disjunct.add("chosen", true);
       roru->first_ror = roru_read_plans;
       roru->last_ror = roru_read_plans + n_child_scans;

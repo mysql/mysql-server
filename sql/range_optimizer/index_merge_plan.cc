@@ -46,13 +46,12 @@ void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(RANGE_OPT_PARAM *param, bool,
-                                            MEM_ROOT *return_mem_root) {
+QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(bool, MEM_ROOT *return_mem_root) {
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
   QUICK_RANGE_SELECT *quick;
   /* index_merge always retrieves full rows, ignore retrieve_full_rows */
   if (!(quick_imerge = new (return_mem_root)
-            QUICK_INDEX_MERGE_SELECT(return_mem_root, param->table)))
+            QUICK_INDEX_MERGE_SELECT(return_mem_root, table)))
     return nullptr;
 
   quick_imerge->records = records;
@@ -61,7 +60,7 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(RANGE_OPT_PARAM *param, bool,
   for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
        range_scan++) {
     if (!(quick = down_cast<QUICK_RANGE_SELECT *>(
-              (*range_scan)->make_quick(param, false, return_mem_root))) ||
+              (*range_scan)->make_quick(false, return_mem_root))) ||
         quick_imerge->push_quick_back(quick)) {
       destroy(quick);
       destroy(quick_imerge);

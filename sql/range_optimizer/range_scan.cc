@@ -62,6 +62,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(TABLE *table, uint key_nr,
       mrr_flags(mrr_flags),
       mrr_buf_size(mrr_buf_size),
       mrr_buf_desc(nullptr),
+      key_parts(key),
       dont_free(false),
       mem_root(return_mem_root) {
   DBUG_TRACE;
@@ -74,10 +75,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(TABLE *table, uint key_nr,
 
   file = head->file;
   record = head->record[0];
-
-  key_parts = (KEY_PART *)memdup_root(
-      return_mem_root, (const char *)key,
-      sizeof(KEY_PART) * actual_key_parts(&table->key_info[key_nr]));
 
   for (const QUICK_RANGE *range : ranges) {
     max_used_key_length =

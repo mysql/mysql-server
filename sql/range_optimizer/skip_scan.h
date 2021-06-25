@@ -63,7 +63,6 @@ struct TABLE;
 
 class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
  private:
-  JOIN *join;                 /* Pointer to JOIN object */
   KEY *index_info;            /* Index for skip scan */
   SEL_ROOT *index_range_tree; /* Range tree for skip scan */
   MY_BITMAP column_bitmap;    /* Map of key parts to be read */
@@ -128,7 +127,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool next_eq_prefix();
 
  public:
-  QUICK_SKIP_SCAN_SELECT(TABLE *table, JOIN *join, KEY *index_info, uint index,
+  QUICK_SKIP_SCAN_SELECT(TABLE *table, KEY *index_info, uint index,
                          KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
                          uint eq_prefix_len, uint eq_prefix_parts,
                          uint used_key_parts,

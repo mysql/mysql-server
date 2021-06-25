@@ -55,6 +55,9 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
       : m_kpis(alloc_arg), fake_table(number_columns, columns_nullable) {
     m_kpis.reserve(64);
 
+    real_keynr = alloc_arg->ArrayAlloc<uint>(MAX_KEY);
+    key = alloc_arg->ArrayAlloc<KEY_PART *>(MAX_KEY);
+
     return_mem_root = alloc_arg;
     temp_mem_root = alloc_arg;
     query_block = thd_arg->lex->current_query_block();

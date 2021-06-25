@@ -54,27 +54,28 @@ QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
 
 class TRP_RANGE : public TABLE_READ_PLAN {
  public:
-  /**
-    Root of red-black tree for intervals over key fields to be used in
-    "range" method retrieval. See SEL_ARG graph description.
-  */
-  SEL_ROOT *key;
   uint key_idx; /* key number in RANGE_OPT_PARAM::key and
                    RANGE_OPT_PARAM::real_keynr */
-  uint mrr_flags;
-  uint mrr_buf_size;
 
-  TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
-      : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
+  // NOTE: used_key_part_arg is stored by pointer, and thus
+  // must live until make_quick().
+  TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg,
+            uint mrr_buf_size_arg, TABLE *table_arg,
+            KEY_PART *used_key_part_arg, uint keyno_arg)
+      : key_idx(idx_arg),
+        key(key_arg),
+        mrr_flags(mrr_flags_arg),
+        mrr_buf_size(mrr_buf_size_arg),
+        table(table_arg),
+        used_key_part(used_key_part_arg),
+        keyno(keyno_arg) {}
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool,
-                             MEM_ROOT *return_mem_root) override {
+  QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(
-             return_mem_root, param->table, param->key[key_idx],
-             param->real_keynr[key_idx], key, mrr_flags, mrr_buf_size))) {
+    if ((quick = get_quick_select(return_mem_root, table, used_key_part, keyno,
+                                  key, mrr_flags, mrr_buf_size))) {
       quick->records = records;
       quick->cost_est = cost_est;
     }
@@ -83,6 +84,24 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
+
+ private:
+  /**
+    Root of red-black tree for intervals over key fields to be used in
+    "range" method retrieval. See SEL_ARG graph description.
+  */
+  SEL_ROOT *key;
+  uint mrr_flags;
+  uint mrr_buf_size;
+
+  // The table scanned.
+  TABLE *table;
+
+  // The key part(s) we are scanning on. Note that this may be an array.
+  KEY_PART *used_key_part;
+
+  // The index in the table.
+  uint keyno;
 };
 
 /*

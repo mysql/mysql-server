@@ -70,6 +70,11 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   SEL_ROOT *index_tree;  ///< The sub-tree corresponding to index_info
   uint param_idx;        ///< Index of used key in param->key
   bool is_index_scan;    ///< Use index_next() instead of random read
+  TABLE *table;
+  JOIN *join;
+  KEY_PART *used_key_part;
+  uint keyno;
+
  public:
   /** Number of records selected by the ranges in index_tree. */
   ha_rows quick_prefix_records;
@@ -85,7 +90,8 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
                     uint group_key_parts_arg, KEY *index_info_arg,
                     uint index_arg, uint key_infix_len_arg, SEL_TREE *tree_arg,
                     SEL_ROOT *index_tree_arg, uint param_idx_arg,
-                    ha_rows quick_prefix_records_arg)
+                    ha_rows quick_prefix_records_arg, TABLE *table_arg,
+                    JOIN *join_arg, KEY_PART *used_key_part_arg, uint keyno_arg)
       : have_min(have_min_arg),
         have_max(have_max_arg),
         have_agg_distinct(have_agg_distinct_arg),
@@ -100,9 +106,13 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         index_tree(index_tree_arg),
         param_idx(param_idx_arg),
         is_index_scan(false),
+        table(table_arg),
+        join(join_arg),
+        used_key_part(used_key_part_arg),
+        keyno(keyno_arg),
         quick_prefix_records(quick_prefix_records_arg) {}
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *mem_root) override;
   void use_index_scan() { is_index_scan = true; }
 };

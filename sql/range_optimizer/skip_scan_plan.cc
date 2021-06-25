@@ -108,7 +108,6 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
 
   SYNOPSIS
     TRP_SKIP_SCAN::make_quick()
-    param              Parameter from test_quick_select
     retrieve_full_rows ignored
     return_mem_root    Memory pool to use
 
@@ -121,15 +120,13 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(RANGE_OPT_PARAM *param, bool,
-                                          MEM_ROOT *return_mem_root) {
-  QUICK_SKIP_SCAN_SELECT *quick = nullptr;
+QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
   DBUG_TRACE;
 
-  quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
-      param->table, param->query_block->join, index_info, index, range_key_part,
-      index_range_tree, eq_prefix_len, eq_prefix_parts, used_key_parts,
-      &cost_est, records, return_mem_root, has_aggregate_function);
+  QUICK_SKIP_SCAN_SELECT *quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
+      table, index_info, index, range_key_part, index_range_tree, eq_prefix_len,
+      eq_prefix_parts, used_key_parts, &cost_est, records, return_mem_root,
+      has_aggregate_function);
 
   if (!quick) return nullptr;
 
@@ -431,9 +428,9 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
 
   /* The query passes all tests, so construct a new TRP object. */
   read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
-      index_info, index, index_range_tree, eq_prefix_len, eq_prefix_parts,
-      range_key_part, range_sel_arg, used_key_parts, force_skip_scan,
-      best_records, has_aggregate_function);
+      table, index_info, index, index_range_tree, eq_prefix_len,
+      eq_prefix_parts, range_key_part, range_sel_arg, used_key_parts,
+      force_skip_scan, best_records, has_aggregate_function);
   if (read_plan) {
     read_plan->cost_est = best_read_cost;
     read_plan->records = best_records;
