@@ -745,13 +745,12 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         */
         Opt_trace_object trace_range_alt(trace, "analyzing_range_alternatives",
                                          Opt_trace_context::RANGE_OPTIMIZER);
-        TRP_RANGE *range_trp;
-        TRP_ROR_INTERSECT *rori_trp;
+        TRP_RANGE *range_trp = get_key_scans_params(
+            thd, &param, tree, false, true, interesting_order,
+            skip_records_in_range, &best_cost, needed_reg);
 
         /* Get best 'range' plan and prepare data for making other plans */
-        if ((range_trp = get_key_scans_params(
-                 thd, &param, tree, false, true, interesting_order,
-                 skip_records_in_range, &best_cost, needed_reg))) {
+        if (range_trp) {
           best_trp = range_trp;
           best_cost = best_trp->cost_est;
         }
@@ -771,10 +770,10 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             Get best non-covering ROR-intersection plan and prepare data for
             building covering ROR-intersection.
           */
-          if ((rori_trp = get_best_ror_intersect(
-                   thd, &param, index_merge_intersect_allowed,
-                   interesting_order, tree, &needed_fields, &best_cost,
-                   true))) {
+          TRP_ROR_INTERSECT *rori_trp = get_best_ror_intersect(
+              thd, &param, index_merge_intersect_allowed, interesting_order,
+              tree, &needed_fields, &best_cost, true);
+          if (rori_trp) {
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
           }
@@ -943,11 +942,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
     Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg) {
-  SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
   uint n_child_scans = imerge->trees_next - imerge->trees;
-  TRP_RANGE **range_scans;
-  TRP_RANGE **cur_child;
   TRP_RANGE **cpk_scan = nullptr;
   bool imerge_too_expensive = false;
   Cost_estimate imerge_cost;
@@ -974,9 +970,11 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
-  if (!(range_scans = (TRP_RANGE **)param->mem_root->Alloc(sizeof(TRP_RANGE *) *
-                                                           n_child_scans)))
+  TRP_RANGE **range_scans =
+      param->mem_root->ArrayAlloc<TRP_RANGE *>(n_child_scans);
+  if (range_scans == nullptr) {
     return nullptr;
+  }
   // Note: to_merge.end() is called to close this object after this for-loop.
   Opt_trace_array to_merge(trace, "indexes_to_merge");
   /*
@@ -984,47 +982,52 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     analyze possibility of ROR scans. Also calculate some values needed by
     other parts of the code.
   */
-  for (ptree = imerge->trees, cur_child = range_scans;
-       ptree != imerge->trees_next; ptree++, cur_child++) {
-    DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
-                                        "tree in SEL_IMERGE"););
-    Opt_trace_object trace_idx(trace);
-    if (!(*cur_child = get_key_scans_params(
-              thd, param, *ptree, true, false, interesting_order,
-              skip_records_in_range, &read_cost, needed_reg))) {
-      /*
-        One of index scans in this index_merge is more expensive than entire
-        table read for another available option. The entire index_merge (and
-        any possible ROR-union) will be more expensive then, too. We continue
-        here only to update SQL_SELECT members.
-      */
-      imerge_too_expensive = true;
+  {
+    TRP_RANGE **cur_child;
+    SEL_TREE **ptree;
+    for (ptree = imerge->trees, cur_child = range_scans;
+         ptree != imerge->trees_next; ptree++, cur_child++) {
+      DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
+                                          "tree in SEL_IMERGE"););
+      Opt_trace_object trace_idx(trace);
+      if (!(*cur_child = get_key_scans_params(
+                thd, param, *ptree, true, false, interesting_order,
+                skip_records_in_range, &read_cost, needed_reg))) {
+        /*
+          One of index scans in this index_merge is more expensive than entire
+          table read for another available option. The entire index_merge (and
+          any possible ROR-union) will be more expensive then, too. We continue
+          here only to update SQL_SELECT members.
+        */
+        imerge_too_expensive = true;
+      }
+
+      if (imerge_too_expensive) {
+        trace_idx.add("chosen", false).add_alnum("cause", "cost");
+        continue;
+      }
+
+      if (!((*cur_child)->is_imerge)) {
+        trace_idx.add("chosen", false)
+            .add_alnum("cause", "index has DESC key part");
+        continue;
+      }
+
+      const uint keynr_in_table = param->real_keynr[(*cur_child)->key_idx];
+      imerge_cost += (*cur_child)->cost_est;
+      all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
+      all_scans_rors &= (*cur_child)->is_ror;
+      if (pk_is_clustered && keynr_in_table == param->table->s->primary_key) {
+        cpk_scan = cur_child;
+        cpk_scan_records = (*cur_child)->records;
+      } else
+        non_cpk_scan_records += (*cur_child)->records;
+
+      trace_idx
+          .add_utf8("index_to_merge",
+                    param->table->key_info[keynr_in_table].name)
+          .add("cumulated_cost", imerge_cost);
     }
-
-    if (imerge_too_expensive) {
-      trace_idx.add("chosen", false).add_alnum("cause", "cost");
-      continue;
-    }
-
-    if (!((*cur_child)->is_imerge)) {
-      trace_idx.add("chosen", false)
-          .add_alnum("cause", "index has DESC key part");
-      continue;
-    }
-
-    const uint keynr_in_table = param->real_keynr[(*cur_child)->key_idx];
-    imerge_cost += (*cur_child)->cost_est;
-    all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
-    all_scans_rors &= (*cur_child)->is_ror;
-    if (pk_is_clustered && keynr_in_table == param->table->s->primary_key) {
-      cpk_scan = cur_child;
-      cpk_scan_records = (*cur_child)->records;
-    } else
-      non_cpk_scan_records += (*cur_child)->records;
-
-    trace_idx
-        .add_utf8("index_to_merge", param->table->key_info[keynr_in_table].name)
-        .add("cumulated_cost", imerge_cost);
   }
 
   // Note: to_merge trace object is closed here
@@ -1145,45 +1148,49 @@ skip_to_ror_scan:
   */
   Opt_trace_array trace_analyze_ror(trace, "analyzing_roworder_scans");
   /* Find 'best' ROR scan for each of trees in disjunction */
-  for (ptree = imerge->trees, cur_child = range_scans;
-       ptree != imerge->trees_next; ptree++, cur_child++, cur_roru_plan++) {
-    Opt_trace_object trp_info(trace);
-    if (unlikely(trace->is_started()))
-      (*cur_child)->trace_basic_info(thd, param, &trp_info);
+  {
+    TRP_RANGE **cur_child;
+    SEL_TREE **ptree;
+    for (ptree = imerge->trees, cur_child = range_scans;
+         ptree != imerge->trees_next; ptree++, cur_child++, cur_roru_plan++) {
+      Opt_trace_object trp_info(trace);
+      if (unlikely(trace->is_started()))
+        (*cur_child)->trace_basic_info(thd, param, &trp_info);
 
-    /*
-      Assume the best ROR scan is the one that has cheapest
-      full-row-retrieval scan cost.
-      Also accumulate index_only scan costs as we'll need them to
-      calculate overall index_intersection cost.
-    */
-    Cost_estimate scan_cost;
-    if ((*cur_child)->is_ror) {
-      /* Ok, we have index_only cost, now get full rows scan cost */
-      scan_cost = param->table->file->read_cost(
-          param->real_keynr[(*cur_child)->key_idx], 1,
-          static_cast<double>((*cur_child)->records));
-      scan_cost.add_cpu(
-          cost_model->row_evaluate_cost(rows2double((*cur_child)->records)));
-    } else
-      scan_cost = read_cost;
+      /*
+        Assume the best ROR scan is the one that has cheapest
+        full-row-retrieval scan cost.
+        Also accumulate index_only scan costs as we'll need them to
+        calculate overall index_intersection cost.
+      */
+      Cost_estimate scan_cost;
+      if ((*cur_child)->is_ror) {
+        /* Ok, we have index_only cost, now get full rows scan cost */
+        scan_cost = param->table->file->read_cost(
+            param->real_keynr[(*cur_child)->key_idx], 1,
+            static_cast<double>((*cur_child)->records));
+        scan_cost.add_cpu(
+            cost_model->row_evaluate_cost(rows2double((*cur_child)->records)));
+      } else
+        scan_cost = read_cost;
 
-    TABLE_READ_PLAN *prev_plan = *cur_child;
-    if (!(*cur_roru_plan = get_best_ror_intersect(
-              thd, param, index_merge_intersect_allowed, interesting_order,
-              *ptree, needed_fields, &scan_cost, false))) {
-      if (prev_plan->is_ror)
-        *cur_roru_plan = prev_plan;
-      else
-        return imerge_trp;
-      roru_index_cost += (*cur_roru_plan)->cost_est;
-    } else {
-      roru_index_cost +=
-          ((TRP_ROR_INTERSECT *)(*cur_roru_plan))->index_scan_cost;
+      TABLE_READ_PLAN *prev_plan = *cur_child;
+      if (!(*cur_roru_plan = get_best_ror_intersect(
+                thd, param, index_merge_intersect_allowed, interesting_order,
+                *ptree, needed_fields, &scan_cost, false))) {
+        if (prev_plan->is_ror)
+          *cur_roru_plan = prev_plan;
+        else
+          return imerge_trp;
+        roru_index_cost += (*cur_roru_plan)->cost_est;
+      } else {
+        roru_index_cost +=
+            ((TRP_ROR_INTERSECT *)(*cur_roru_plan))->index_scan_cost;
+      }
+      roru_total_records += (*cur_roru_plan)->records;
+      roru_intersect_part *=
+          (*cur_roru_plan)->records / param->table->file->stats.records;
     }
-    roru_total_records += (*cur_roru_plan)->records;
-    roru_intersect_part *=
-        (*cur_roru_plan)->records / param->table->file->stats.records;
   }
   // Note: trace_analyze_ror trace object is closed here
   trace_analyze_ror.end();
