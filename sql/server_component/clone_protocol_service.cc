@@ -213,11 +213,11 @@ static int get_utf8_config(THD *thd, std::string config_name,
   auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
                                 &fromcs, val_buf, &val_length);
 
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
   uint dummy_err;
   const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
   utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
+
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   return (0);
 }
 

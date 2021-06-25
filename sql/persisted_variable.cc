@@ -448,10 +448,9 @@ String *Persisted_variables_cache::get_variable_value(THD *thd,
   mysql_mutex_lock(&LOCK_global_system_variables);
   value = get_one_variable(thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
                            val_buf, &val_length, is_null);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-
   /* convert the retrieved value to utf8mb4 */
   str->copy(value, val_length, fromcs, tocs, &dummy_err);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   return str;
 }
 
