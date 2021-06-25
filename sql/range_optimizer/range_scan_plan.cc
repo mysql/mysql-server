@@ -150,6 +150,7 @@ class Sel_arg_range_sequence {
   uint real_keyno; /* Number of the index in tables */
 
   RANGE_OPT_PARAM *const param;
+  uchar *min_key, *max_key;
   const bool skip_records_in_range;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
 
@@ -157,20 +158,23 @@ class Sel_arg_range_sequence {
   uint range_count = 0;
   uint max_key_part;
 
-  Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg,
-                         bool skip_records_in_range_arg)
-      : param(param_arg), skip_records_in_range(skip_records_in_range_arg) {
+  Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg, uchar *min_key_arg,
+                         uchar *max_key_arg, bool skip_records_in_range_arg)
+      : param(param_arg),
+        min_key(min_key_arg),
+        max_key(max_key_arg),
+        skip_records_in_range(skip_records_in_range_arg) {
     reset();
   }
 
   void reset() {
     stack[0].key_tree = nullptr;
-    stack[0].min_key = (uchar *)param->min_key;
+    stack[0].min_key = min_key;
     stack[0].min_key_flag = 0;
     stack[0].min_key_parts = 0;
     stack[0].rkey_func_flag = HA_READ_INVALID;
 
-    stack[0].max_key = (uchar *)param->max_key;
+    stack[0].max_key = max_key;
     stack[0].max_key_flag = 0;
     stack[0].max_key_parts = 0;
     curr_kp = -1;
@@ -369,8 +373,8 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     {
       DBUG_PRINT("info", ("while(): key_tree->part %d", key_tree->part));
       RANGE_SEQ_ENTRY *cur = seq->stack_top();
-      const size_t min_key_total_length = cur->min_key - seq->param->min_key;
-      const size_t max_key_total_length = cur->max_key - seq->param->max_key;
+      const size_t min_key_total_length = cur->min_key - seq->min_key;
+      const size_t max_key_total_length = cur->max_key - seq->max_key;
 
       /*
         Check if more ranges can be added. This is the case if all
@@ -391,8 +395,8 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
       size_t cur_key_length;
 
       if (seq->stack_size() == 1) {
-        min_key_start = seq->param->min_key;
-        max_key_start = seq->param->max_key;
+        min_key_start = seq->min_key;
+        max_key_start = seq->max_key;
         cur_key_length = min_key_total_length;
       } else {
         const RANGE_SEQ_ENTRY prev = cur[-1];
@@ -459,13 +463,13 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   // We now have a full range predicate in seq->stack_top()
   RANGE_SEQ_ENTRY *cur = seq->stack_top();
   RANGE_OPT_PARAM *param = seq->param;
-  size_t min_key_length = cur->min_key - param->min_key;
+  size_t min_key_length = cur->min_key - seq->min_key;
 
   if (cur->min_key_flag & GEOM_FLAG) {
     range->range_flag = cur->min_key_flag;
 
     /* Here minimum contains also function code bits, and maximum is +inf */
-    range->start_key.key = param->min_key;
+    range->start_key.key = seq->min_key;
     range->start_key.length = min_key_length;
     range->start_key.keypart_map = make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag = cur->rkey_func_flag;
@@ -478,14 +482,14 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     const KEY *cur_key_info = &param->table->key_info[seq->real_keyno];
     range->range_flag = cur->min_key_flag | cur->max_key_flag;
 
-    range->start_key.key = param->min_key;
-    range->start_key.length = cur->min_key - param->min_key;
+    range->start_key.key = seq->min_key;
+    range->start_key.length = cur->min_key - seq->min_key;
     range->start_key.keypart_map = make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag =
         (cur->min_key_flag & NEAR_MIN ? HA_READ_AFTER_KEY : HA_READ_KEY_EXACT);
 
-    range->end_key.key = param->max_key;
-    range->end_key.length = cur->max_key - param->max_key;
+    range->end_key.key = seq->max_key;
+    range->end_key.length = cur->max_key - seq->max_key;
     range->end_key.keypart_map = make_prev_keypart_map(cur->max_key_parts);
     range->end_key.flag =
         (cur->max_key_flag & NEAR_MAX ? HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
@@ -502,7 +506,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
         !(cur->min_key_flag & is_open_range) &&              // 1)
         !(cur->max_key_flag & is_open_range) &&              // 1)
         range->start_key.length == range->end_key.length &&  // 2)
-        !memcmp(param->min_key, param->max_key, range->start_key.length);
+        !memcmp(seq->min_key, seq->max_key, range->start_key.length);
 
     if (is_eq_range_pred) {
       range->range_flag = EQ_RANGE;
@@ -560,7 +564,10 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost) {
-  Sel_arg_range_sequence seq(param, skip_records_in_range);
+  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+  uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+
+  Sel_arg_range_sequence seq(param, min_key, max_key, skip_records_in_range);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next,
                          nullptr};
   handler *file = param->table->file;
@@ -765,8 +772,6 @@ static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts) {
       table          Table to scan.
       key
       keyno          Index of used key in table.
-      min_key        Lower limit of scan range.
-      max_key        Upper limit of scan rnage.
       key_tree       SEL_ARG tree for the used key
       mrr_flags      MRR parameter for quick select
       mrr_buf_size   MRR parameter for quick select
@@ -789,14 +794,17 @@ static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts) {
 */
 
 QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
-                                     uint keyno, uchar *min_key, uchar *max_key,
-                                     SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size, MEM_ROOT *parent_alloc,
+                                     uint keyno, SEL_ROOT *key_tree,
+                                     uint mrr_flags, uint mrr_buf_size,
+                                     MEM_ROOT *parent_alloc,
                                      uint num_key_parts) {
   DBUG_TRACE;
 
   assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
          key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
+
+  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+  uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
 
   Quick_ranges ranges(key_memory_Quick_ranges);
   unsigned used_key_parts = 0;

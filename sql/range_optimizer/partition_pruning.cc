@@ -197,6 +197,10 @@ struct PART_PRUNE_PARAM {
   /* Initialized bitmap of num_subparts size */
   MY_BITMAP subparts_bitmap;
 
+  /* Used to store 'current key tuples' */
+  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+  uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+
   uchar *cur_min_key;
   uchar *cur_max_key;
 
@@ -335,8 +339,8 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
     prune_param.cur_part_fields = 0;
     prune_param.cur_subpart_fields = 0;
 
-    prune_param.cur_min_key = prune_param.range_param.min_key;
-    prune_param.cur_max_key = prune_param.range_param.max_key;
+    prune_param.cur_min_key = prune_param.min_key;
+    prune_param.cur_max_key = prune_param.max_key;
     prune_param.cur_min_flag = prune_param.cur_max_flag = 0;
 
     init_all_partitions_iterator(part_info, &prune_param.part_iter);
@@ -584,8 +588,8 @@ static int find_used_partitions_imerge(THD *thd, PART_PRUNE_PARAM *ppar,
     ppar->cur_part_fields = 0;
     ppar->cur_subpart_fields = 0;
 
-    ppar->cur_min_key = ppar->range_param.min_key;
-    ppar->cur_max_key = ppar->range_param.max_key;
+    ppar->cur_min_key = ppar->min_key;
+    ppar->cur_max_key = ppar->max_key;
     ppar->cur_min_flag = ppar->cur_max_flag = 0;
 
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
@@ -714,7 +718,6 @@ static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
   bool set_full_part_if_bad_ret = false;
   bool ignore_part_fields = ppar->ignore_part_fields;
   bool did_set_ignore_part_fields = false;
-  RANGE_OPT_PARAM *range_par = &(ppar->range_param);
 
   if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE, nullptr)) return -1;
 
@@ -808,11 +811,11 @@ static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
       } else
         flag = key_tree->min_flag | key_tree->max_flag;
 
-      if (tmp_min_key != range_par->min_key)
+      if (tmp_min_key != ppar->min_key)
         flag &= ~NO_MIN_RANGE;
       else
         flag |= NO_MIN_RANGE;
-      if (tmp_max_key != range_par->max_key)
+      if (tmp_max_key != ppar->max_key)
         flag &= ~NO_MAX_RANGE;
       else
         flag |= NO_MAX_RANGE;
@@ -835,9 +838,9 @@ static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
         for (i = 0; i < num_keys; i++)
           store_length_array[i] = ppar->key[i].store_length;
         res = ppar->part_info->get_part_iter_for_interval(
-            ppar->part_info, false, store_length_array, range_par->min_key,
-            range_par->max_key, tmp_min_key - range_par->min_key,
-            tmp_max_key - range_par->max_key, flag, &ppar->part_iter);
+            ppar->part_info, false, store_length_array, ppar->min_key,
+            ppar->max_key, tmp_min_key - ppar->min_key,
+            tmp_max_key - ppar->max_key, flag, &ppar->part_iter);
         if (!res)
           goto pop_and_go_right; /* res==0 --> no satisfying partitions */
       } else
@@ -866,8 +869,8 @@ static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
     if (key_tree_part == ppar->last_subpart_partno &&
         (nullptr != ppar->part_info->get_subpart_iter_for_interval)) {
       PARTITION_ITERATOR subpart_iter;
-      DBUG_EXECUTE("info",
-                   dbug_print_segment_range(key_tree, range_par->key_parts););
+      DBUG_EXECUTE("info", dbug_print_segment_range(
+                               key_tree, ppar->range_param.key_parts););
       res = ppar->part_info->get_subpart_iter_for_interval(
           ppar->part_info, true, nullptr, /* Currently not used here */
           key_tree->min_value, key_tree->max_value, 0,
