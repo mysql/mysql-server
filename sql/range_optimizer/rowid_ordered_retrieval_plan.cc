@@ -225,11 +225,11 @@ static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
   ror_scan->sel_root = sel_root;
   ror_scan->records = param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf1 =
-            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
+  if (!(bitmap_buf1 = (my_bitmap_map *)param->mem_root->Alloc(
+            param->table->s->column_bitmap_size)))
     return nullptr;
-  if (!(bitmap_buf2 =
-            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
+  if (!(bitmap_buf2 = (my_bitmap_map *)param->mem_root->Alloc(
+            param->table->s->column_bitmap_size)))
     return nullptr;
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf1,
@@ -314,8 +314,8 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   */
   MY_BITMAP fields_to_cover;
   my_bitmap_map *map;
-  if (!(map =
-            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
+  if (!(map = (my_bitmap_map *)param->mem_root->Alloc(
+            param->table->s->column_bitmap_size)))
     return;
   bitmap_init(&fields_to_cover, map, needed_fields->n_bits);
   bitmap_copy(&fields_to_cover, needed_fields);
@@ -410,8 +410,8 @@ static ROR_INTERSECT_INFO *ror_intersect_init(const PARAM *param) {
             sizeof(ROR_INTERSECT_INFO))))
     return nullptr;
   info->param = param;
-  if (!(buf =
-            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
+  if (!(buf = (my_bitmap_map *)param->mem_root->Alloc(
+            param->table->s->column_bitmap_size)))
     return nullptr;
   if (bitmap_init(&info->covered_fields, buf, param->table->s->fields))
     return nullptr;

@@ -348,9 +348,8 @@ static int fill_used_fields_bitmap(PARAM *param, MY_BITMAP *needed_fields) {
   TABLE *table = param->table;
   my_bitmap_map *tmp;
   uint pk;
-  param->fields_bitmap_size = table->s->column_bitmap_size;
   if (!(tmp = (my_bitmap_map *)param->mem_root->Alloc(
-            param->fields_bitmap_size)) ||
+            table->s->column_bitmap_size)) ||
       bitmap_init(needed_fields, tmp, table->s->fields))
     return 1;
 

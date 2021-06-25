@@ -89,8 +89,6 @@ class PARAM : public RANGE_OPT_PARAM {
  public:
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
 
-  uint fields_bitmap_size;
-
   Key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
 
   /* true if last checked tree->key can be used for ROR-scan */
