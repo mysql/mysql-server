@@ -76,10 +76,7 @@ class RANGE_OPT_PARAM {
   Range_optimizer_error_handler error_handler;
 
   bool has_errors() const { return (error_handler.has_errors()); }
-};
 
-class PARAM : public RANGE_OPT_PARAM {
- public:
   KEY_PART *key[MAX_KEY]; /* First key parts of keys used in the query */
 
   /* true if last checked tree->key can be used for ROR-scan */

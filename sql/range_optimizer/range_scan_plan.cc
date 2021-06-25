@@ -55,7 +55,7 @@ using opt_range::null_element;
 using std::max;
 using std::min;
 
-static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts);
+static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts);
 static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
                                     uint limit);
 static bool get_quick_keys(const KEY *table_key, KEY_PART *key,
@@ -149,7 +149,7 @@ class Sel_arg_range_sequence {
   uint keyno;      /* index of used tree in SEL_TREE structure */
   uint real_keyno; /* Number of the index in tables */
 
-  PARAM *const param;
+  RANGE_OPT_PARAM *const param;
   const bool skip_records_in_range;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
 
@@ -157,7 +157,8 @@ class Sel_arg_range_sequence {
   uint range_count = 0;
   uint max_key_part;
 
-  Sel_arg_range_sequence(PARAM *param_arg, bool skip_records_in_range_arg)
+  Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg,
+                         bool skip_records_in_range_arg)
       : param(param_arg), skip_records_in_range(skip_records_in_range_arg) {
     reset();
   }
@@ -457,7 +458,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 
   // We now have a full range predicate in seq->stack_top()
   RANGE_SEQ_ENTRY *cur = seq->stack_top();
-  PARAM *param = seq->param;
+  RANGE_OPT_PARAM *param = seq->param;
   size_t min_key_length = cur->min_key - param->min_key;
 
   if (cur->min_key_flag & GEOM_FLAG) {
@@ -554,7 +555,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   return 0;
 }
 
-ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
+ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
                            enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
@@ -712,7 +713,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     false  Otherwise
 */
 
-static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts) {
+static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts) {
   KEY *table_key = param->table->key_info + keynr;
 
   /*
@@ -818,7 +819,7 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
   }
 }
 
-void TRP_RANGE::trace_basic_info(const PARAM *param,
+void TRP_RANGE::trace_basic_info(const RANGE_OPT_PARAM *param,
                                  Opt_trace_object *trace_object) const {
   assert(param->using_real_indexes);
   const uint keynr_in_table = param->real_keynr[key_idx];
@@ -841,7 +842,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
                             false);
 }
 
-TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
+TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order order_direction,

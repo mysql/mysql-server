@@ -33,7 +33,7 @@
 #include "sql/sql_const.h"
 
 class Opt_trace_object;
-class PARAM;
+class RANGE_OPT_PARAM;
 class QUICK_SELECT_I;
 class SEL_ROOT;
 class SEL_TREE;
@@ -59,14 +59,15 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     "range" method retrieval. See SEL_ARG graph description.
   */
   SEL_ROOT *key;
-  uint key_idx; /* key number in PARAM::key and PARAM::real_keynr */
+  uint key_idx; /* key number in RANGE_OPT_PARAM::key and
+                   RANGE_OPT_PARAM::real_keynr */
   uint mrr_flags;
   uint mrr_buf_size;
 
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
 
-  QUICK_SELECT_I *make_quick(PARAM *param, bool,
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool,
                              MEM_ROOT *parent_alloc) override {
     DBUG_TRACE;
     QUICK_RANGE_SELECT *quick;
@@ -80,7 +81,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     return quick;
   }
 
-  void trace_basic_info(const PARAM *param,
+  void trace_basic_info(const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 };
 
@@ -116,7 +117,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     NULL if no plan found or error occurred
 */
 
-TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
+TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order interesting_order,
@@ -131,7 +132,8 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
   SYNOPSIS
     check_quick_select()
       param             Parameter from test_quick_select
-      idx               Number of index to use in PARAM::key SEL_TREE::key
+      idx               Number of index to use in RANGE_OPT_PARAM::key
+                        SEL_TREE::key
       index_only        true  - assume only index tuples will be accessed
                         false - assume full table rows will be read
       tree              Transformed selection condition, tree->key[idx] holds
@@ -154,7 +156,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
     Estimate # of records to be retrieved.
     HA_POS_ERROR if estimate calculation failed due to table handler problems.
 */
-ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
+ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
                            enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,

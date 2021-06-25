@@ -26,7 +26,7 @@
 #include "sql/range_optimizer/range_optimizer.h"
 
 class Opt_trace_object;
-class PARAM;
+class RANGE_OPT_PARAM;
 class SEL_ROOT;
 
 /*
@@ -69,7 +69,8 @@ class TABLE_READ_PLAN {
       created quick select
       NULL on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
+  virtual QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param,
+                                     bool retrieve_full_rows,
                                      MEM_ROOT *parent_alloc = nullptr) = 0;
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
@@ -93,7 +94,7 @@ class TABLE_READ_PLAN {
      @param param        Parameters for range analysis of this table
      @param trace_object The optimizer trace object the info is appended to
   */
-  virtual void trace_basic_info(const PARAM *param,
+  virtual void trace_basic_info(const RANGE_OPT_PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
   virtual bool is_forced_by_hint() { return false; }
 };

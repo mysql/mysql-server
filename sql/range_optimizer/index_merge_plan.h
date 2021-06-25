@@ -26,7 +26,7 @@
 #include "sql/range_optimizer/table_read_plan.h"
 
 class Opt_trace_object;
-class PARAM;
+class RANGE_OPT_PARAM;
 class QUICK_SELECT_I;
 class TRP_RANGE;
 struct MEM_ROOT;
@@ -43,12 +43,12 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
  public:
   explicit TRP_INDEX_MERGE(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;
   TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
   TRP_RANGE **range_scans_end; /* end of the array */
 
-  void trace_basic_info(const PARAM *param,
+  void trace_basic_info(const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 };
 

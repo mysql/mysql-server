@@ -76,7 +76,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 }
 #endif
 
-void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
+void TRP_ROR_INTERSECT::trace_basic_info(const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_roworder_intersect")
       .add("rows", records)
@@ -112,7 +112,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
   }
 }
 
-void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
+void TRP_ROR_UNION::trace_basic_info(const RANGE_OPT_PARAM *param,
                                      Opt_trace_object *trace_object) const {
   Opt_trace_context *const trace = &param->thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
@@ -123,7 +123,7 @@ void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
   }
 }
 
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
+QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
                                               bool retrieve_full_rows,
                                               MEM_ROOT *parent_alloc) {
   QUICK_ROR_INTERSECT_SELECT *quick_intrsect;
@@ -169,7 +169,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
   return quick_intrsect;
 }
 
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, bool, MEM_ROOT *) {
+QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
+                                          MEM_ROOT *) {
   QUICK_ROR_UNION_SELECT *quick_roru;
   TABLE_READ_PLAN **scan;
   QUICK_SELECT_I *quick;
@@ -207,7 +208,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, bool, MEM_ROOT *) {
     ROR scan structure containing a scan for {idx, sel_arg}
 */
 
-static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
+static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
                                     SEL_ROOT *sel_root,
                                     const MY_BITMAP *needed_fields) {
   ROR_SCAN_INFO *ror_scan;
@@ -301,7 +302,7 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
   @param         needed_fields  Bitmask of fields needed by the query.
 */
 static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
-                                 const PARAM *param,
+                                 const RANGE_OPT_PARAM *param,
                                  const MY_BITMAP *needed_fields) {
   // nothing to sort if there are only zero or one ROR scans
   if ((start == end) || (start + 1 == end)) return;
@@ -375,7 +376,7 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
 
 /* Auxiliary structure for incremental ROR-intersection creation */
 typedef struct {
-  const PARAM *param;
+  const RANGE_OPT_PARAM *param;
   MY_BITMAP covered_fields; /* union of fields covered by all scans */
   /*
     Fraction of table records that satisfies conditions of all scans.
@@ -403,7 +404,7 @@ typedef struct {
     NULL on error
 */
 
-static ROR_INTERSECT_INFO *ror_intersect_init(const PARAM *param) {
+static ROR_INTERSECT_INFO *ror_intersect_init(const RANGE_OPT_PARAM *param) {
   ROR_INTERSECT_INFO *info;
   my_bitmap_map *buf;
   if (!(info = (ROR_INTERSECT_INFO *)param->mem_root->Alloc(
@@ -816,7 +817,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 */
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(
-    const PARAM *param, bool index_merge_intersect_allowed,
+    const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
     enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
     const Cost_estimate *cost_est, bool force_index_merge_result) {
   uint idx;

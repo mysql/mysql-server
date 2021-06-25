@@ -99,7 +99,7 @@ static SEL_ROOT *sel_add(SEL_ROOT *key1, SEL_ROOT *key2);
    the index cannot be used for range access due to either type conversion or
    different collations on the field used for comparison
 
-   @param param              PARAM from test_quick_select
+   @param param              RANGE_OPT_PARAM from test_quick_select
    @param key_num            Key number
    @param field              Field in the predicate
 */
@@ -121,7 +121,7 @@ static void warn_index_not_applicable(const RANGE_OPT_PARAM *param,
 
   SYNOPSIS
     get_ne_mm_tree()
-      param       PARAM from test_quick_select
+      param       RANGE_OPT_PARAM from test_quick_select
       prev_tables See test_quick_select()
       read_tables See test_quick_select()
       remove_jump_scans See get_mm_tree()
@@ -522,7 +522,7 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
 /**
   Build a SEL_TREE for a simple predicate.
 
-  @param param     PARAM from test_quick_select
+  @param param     RANGE_OPT_PARAM from test_quick_select
   @param remove_jump_scans See get_mm_tree()
   @param predicand field in the predicate
   @param cond_func item for the predicate
@@ -629,7 +629,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
 
   SYNOPSIS
     get_full_func_mm_tree()
-      param       PARAM from test_quick_select
+      param       RANGE_OPT_PARAM from test_quick_select
      prev_tables  See test_quick_select()
      read_tables  See test_quick_select()
       remove_jump_scans See get_mm_tree()

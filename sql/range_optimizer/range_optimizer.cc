@@ -143,7 +143,7 @@ using std::min;
 [[maybe_unused]] static uchar is_null_string[2] = {1, 0};
 
 static TABLE_READ_PLAN *get_best_disjunct_quick(
-    PARAM *param, bool index_merge_union_allowed,
+    RANGE_OPT_PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
     enum_order interesting_order, bool skip_records_in_range,
     const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
@@ -202,7 +202,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
 
   SYNOPSIS
     or_sel_tree_with_checks()
-      param    PARAM from test_quick_select
+      param    RANGE_OPT_PARAM from test_quick_select
       remove_jump_scans See get_mm_tree()
       new_tree SEL_TREE with type KEY or KEY_SMALLER.
 
@@ -348,7 +348,8 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
     1  Out of memory.
 */
 
-static int fill_used_fields_bitmap(PARAM *param, MY_BITMAP *needed_fields) {
+static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
+                                   MY_BITMAP *needed_fields) {
   TABLE *table = param->table;
   my_bitmap_map *tmp;
   uint pk;
@@ -511,16 +512,17 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     SEL_TREE *tree = nullptr;
     KEY_PART *key_parts;
     KEY *key_info;
-    PARAM param;
+    RANGE_OPT_PARAM param;
 
     /*
-      Use the 3 multiplier as range optimizer allocates big PARAM structure
-      and may evaluate a subquery expression
+      Use the 3 multiplier as range optimizer allocates big RANGE_OPT_PARAM
+      structure and may evaluate a subquery expression
       TODO During the optimization phase we should evaluate only inexpensive
            single-lookup subqueries.
     */
     uchar buff[STACK_BUFF_ALLOC];
-    if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(PARAM), buff))
+    if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(RANGE_OPT_PARAM),
+                            buff))
       return 0;  // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
@@ -935,7 +937,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 */
 
 static TABLE_READ_PLAN *get_best_disjunct_quick(
-    PARAM *param, bool index_merge_union_allowed,
+    RANGE_OPT_PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
     enum_order interesting_order, bool skip_records_in_range,
     const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,

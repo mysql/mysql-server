@@ -1039,7 +1039,7 @@ static bool get_range(SEL_ARG **e1, SEL_ARG **e2, const SEL_ROOT *root1) {
    The returned node will not have its use_count increased; you are supposed
    to do that yourself when you connect it to a root.
 
-   @param param    PARAM from test_quick_select
+   @param param    RANGE_OPT_PARAM from test_quick_select
    @param key1     Root of RB-tree of SEL_ARGs to be ORed with key2
    @param key2     Root of RB-tree of SEL_ARGs to be ORed with key1
 */
@@ -2138,7 +2138,7 @@ bool get_sel_root_for_keypart(uint key_part_num, SEL_ROOT *keypart_tree,
 }
 
 #ifndef NDEBUG
-void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
+void print_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                     const char *msg) {
   char buff[1024];
   DBUG_TRACE;

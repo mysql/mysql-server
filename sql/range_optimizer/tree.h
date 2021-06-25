@@ -988,7 +988,7 @@ class SEL_TREE {
 };
 
 #ifndef NDEBUG
-void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
+void print_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                     const char *msg);
 #endif
 
@@ -1030,16 +1030,16 @@ bool get_sel_root_for_keypart(uint key_part_num, SEL_ROOT *keypart_tree,
     get_index_range_tree()
     index     [in]  The ID of the index being looked for
     range_tree[in]  Tree of ranges being searched
-    param     [in]  PARAM from test_quick_select
+    param     [in]  RANGE_OPT_PARAM from test_quick_select
 
   DESCRIPTION
 
     A SEL_TREE contains range trees for all usable indexes. This procedure
     finds the SEL_ROOT tree for 'index'. The members of a SEL_TREE are
-    ordered in the same way as the members of PARAM::key, thus we first find
-    the corresponding index in the array PARAM::key. This index is returned
-    through the variable param_idx, to be used later as argument of
-    check_quick_select().
+    ordered in the same way as the members of RANGE_OPT_PARAM::key, thus we
+    first find the corresponding index in the array RANGE_OPT_PARAM::key.
+    This index is returned through the variable param_idx, to be used later
+    as argument of check_quick_select().
 
   RETURN
     Pointer to the SEL_ROOT tree that corresponds to index.
@@ -1060,7 +1060,7 @@ inline SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree,
 
   @param tree_name   Descriptive name of the tree
   @param tree        The SEL_TREE that will be printed to debug log
-  @param param       PARAM from test_quick_select
+  @param param       RANGE_OPT_PARAM from test_quick_select
 */
 inline void dbug_print_tree([[maybe_unused]] const char *tree_name,
                             [[maybe_unused]] SEL_TREE *tree,

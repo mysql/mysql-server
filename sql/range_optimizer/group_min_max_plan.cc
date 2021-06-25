@@ -70,7 +70,7 @@ struct MEM_ROOT;
 using std::max;
 using std::min;
 
-void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
+void TRP_GROUP_MIN_MAX::trace_basic_info(const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_group")
       .add_utf8("index", index_info->name);
@@ -271,7 +271,8 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
    @retval !NULL Loose index scan table read plan
 */
 
-TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
+TRP_GROUP_MIN_MAX *get_best_group_min_max(RANGE_OPT_PARAM *param,
+                                          SEL_TREE *tree,
                                           enum_order order_direction,
                                           bool skip_records_in_range,
                                           const Cost_estimate *cost_est) {
@@ -1432,7 +1433,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
+QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(RANGE_OPT_PARAM *param, bool,
                                               MEM_ROOT *parent_alloc) {
   QUICK_GROUP_MIN_MAX_SELECT *quick;
   DBUG_TRACE;

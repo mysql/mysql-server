@@ -33,7 +33,7 @@
 #include "sql/range_optimizer/range_optimizer.h"
 
 class KEY_PART_INFO;
-class PARAM;
+class RANGE_OPT_PARAM;
 class SEL_ARG;
 class SEL_ROOT;
 class String;

@@ -65,7 +65,7 @@ struct MEM_ROOT;
 using std::max;
 using std::min;
 
-void TRP_SKIP_SCAN::trace_basic_info(const PARAM *param,
+void TRP_SKIP_SCAN::trace_basic_info(const RANGE_OPT_PARAM *param,
                                      Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "skip_scan")
       .add_utf8("index", index_info->name);
@@ -121,7 +121,7 @@ void TRP_SKIP_SCAN::trace_basic_info(const PARAM *param,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(PARAM *param, bool,
+QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(RANGE_OPT_PARAM *param, bool,
                                           MEM_ROOT *parent_alloc) {
   QUICK_SKIP_SCAN_SELECT *quick = nullptr;
   DBUG_TRACE;
@@ -200,7 +200,7 @@ static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
           otherwise skip index scan table read plan.
 */
 
-TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
+TRP_SKIP_SCAN *get_best_skip_scan(RANGE_OPT_PARAM *param, SEL_TREE *tree,
                                   enum_order order_direction,
                                   bool skip_records_in_range,
                                   bool force_skip_scan) {
