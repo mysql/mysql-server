@@ -109,6 +109,7 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
 
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           enum_order order_direction,
+                                          bool skip_records_in_range,
                                           const Cost_estimate *cost_est);
 
 #endif  // SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_PLAN_H_

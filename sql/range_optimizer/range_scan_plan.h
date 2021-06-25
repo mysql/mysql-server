@@ -98,6 +98,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
       interesting_order        The sort order the range access method must be
                                able to provide. Three-value logic:
                                asc/desc/don't care
+      skip_records_in_range    Same value as JOIN_TAB::skip_records_in_range().
       cost_est                 Maximum cost. i.e. don't create read plans with
                                cost > cost_est.
       needed_reg               ptr to needed_reg argument
@@ -119,6 +120,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order interesting_order,
+                                bool skip_records_in_range,
                                 const Cost_estimate *cost_est,
                                 Key_map *needed_reg);
 
@@ -138,6 +140,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                         about range scan we've evaluated.
       order_direction   The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
+      skip_records_in_range Same value as JOIN_TAB::skip_records_in_range().
       mrr_flags   INOUT MRR access flags
       cost        OUT   Scan cost
 
@@ -153,7 +156,8 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 */
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
-                           enum_order order_direction, uint *mrr_flags,
+                           enum_order order_direction,
+                           bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_

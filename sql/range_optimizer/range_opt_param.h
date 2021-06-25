@@ -86,9 +86,6 @@ class PARAM : public RANGE_OPT_PARAM {
   bool is_ror_scan;
   /* true if last checked tree->key can be used for index-merge-scan */
   bool is_imerge_scan;
-
-  /// Same value as JOIN_TAB::skip_records_in_range().
-  bool skip_records_in_range;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_OPT_PARAM_H_

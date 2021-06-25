@@ -150,13 +150,17 @@ class Sel_arg_range_sequence {
   uint real_keyno; /* Number of the index in tables */
 
   PARAM *const param;
+  const bool skip_records_in_range;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
 
   /* Number of ranges in the last checked tree->key */
   uint range_count = 0;
   uint max_key_part;
 
-  Sel_arg_range_sequence(PARAM *param_arg) : param(param_arg) { reset(); }
+  Sel_arg_range_sequence(PARAM *param_arg, bool skip_records_in_range_arg)
+      : param(param_arg), skip_records_in_range(skip_records_in_range_arg) {
+    reset();
+  }
 
   void reset() {
     stack[0].key_tree = nullptr;
@@ -545,17 +549,17 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   seq->range_count++;
   seq->max_key_part = max<uint>(seq->max_key_part, key_tree->part);
 
-  if (seq->param->skip_records_in_range)
-    range->range_flag |= SKIP_RECORDS_IN_RANGE;
+  if (seq->skip_records_in_range) range->range_flag |= SKIP_RECORDS_IN_RANGE;
 
   return 0;
 }
 
 ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ROOT *tree, bool update_tbl_stats,
-                           enum_order order_direction, uint *mrr_flags,
+                           enum_order order_direction,
+                           bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost) {
-  Sel_arg_range_sequence seq(param);
+  Sel_arg_range_sequence seq(param, skip_records_in_range);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next,
                          nullptr};
   handler *file = param->table->file;
@@ -841,6 +845,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                 bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order order_direction,
+                                bool skip_records_in_range,
                                 const Cost_estimate *cost_est,
                                 Key_map *needed_reg) {
   uint idx, best_idx = 0;
@@ -884,9 +889,9 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
-      found_records =
-          check_quick_select(param, idx, read_index_only, key, update_tbl_stats,
-                             order_direction, &mrr_flags, &buf_size, &cost);
+      found_records = check_quick_select(
+          param, idx, read_index_only, key, update_tbl_stats, order_direction,
+          skip_records_in_range, &mrr_flags, &buf_size, &cost);
 
       if (!compound_hint_key_enabled(param->table, keynr,
                                      INDEX_MERGE_HINT_ENUM)) {
@@ -908,7 +913,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         trace_range.end();  // NOTE: ends the tracing scope
 
         /// No cost calculation when index dive is skipped.
-        if (param->skip_records_in_range)
+        if (skip_records_in_range)
           trace_idx.add_alnum("index_dives_for_range_access",
                               "skipped_due_to_force_index");
         else
@@ -920,7 +925,7 @@ TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
             .add("index_only", read_index_only)
             .add("in_memory", cur_key.in_memory_estimate());
 
-        if (param->skip_records_in_range) {
+        if (skip_records_in_range) {
           trace_idx.add_alnum("rows", "not applicable")
               .add_alnum("cost", "not applicable");
         } else {

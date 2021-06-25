@@ -145,8 +145,9 @@ using std::min;
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, const MY_BITMAP *needed_fields,
-    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, bool skip_records_in_range,
+    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
+    Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg);
 #ifndef NDEBUG
 static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
@@ -549,8 +550,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
-    param.skip_records_in_range = skip_records_in_range;
-
     alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
     alloc.set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
@@ -684,8 +683,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       Try to construct a QUICK_GROUP_MIN_MAX_SELECT.
       Notice that it can be constructed no matter if there is a range tree.
     */
-    group_trp =
-        get_best_group_min_max(&param, tree, interesting_order, &best_cost);
+    group_trp = get_best_group_min_max(&param, tree, interesting_order,
+                                       skip_records_in_range, &best_cost);
     if (group_trp) {
       DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost_est.reset(););
       param.table->quick_condition_rows =
@@ -707,7 +706,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
       skip_scan_trp =
-          get_best_skip_scan(&param, tree, interesting_order, force_skip_scan);
+          get_best_skip_scan(&param, tree, interesting_order,
+                             skip_records_in_range, force_skip_scan);
       if (skip_scan_trp) {
         param.table->quick_condition_rows =
             min(skip_scan_trp->records, head->file->stats.records);
@@ -748,9 +748,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         TRP_ROR_INTERSECT *rori_trp;
 
         /* Get best 'range' plan and prepare data for making other plans */
-        if ((range_trp = get_key_scans_params(&param, tree, false, true,
-                                              interesting_order, &best_cost,
-                                              needed_reg))) {
+        if ((range_trp = get_key_scans_params(
+                 &param, tree, false, true, interesting_order,
+                 skip_records_in_range, &best_cost, needed_reg))) {
           best_trp = range_trp;
           best_cost = best_trp->cost_est;
         }
@@ -800,8 +800,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
             new_conj_trp = get_best_disjunct_quick(
                 &param, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
-                interesting_order, &needed_fields, imerge, &imerge_cost_buff,
-                &best_cost, needed_reg);
+                interesting_order, skip_records_in_range, &needed_fields,
+                imerge, &imerge_cost_buff, &best_cost, needed_reg);
             if (new_conj_trp)
               param.table->quick_condition_rows =
                   min(param.table->quick_condition_rows, new_conj_trp->records);
@@ -869,6 +869,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       index_merge_intersect_allowed
       interesting_order The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
+      skip_records_in_range  Same value as JOIN_TAB::skip_records_in_range().
       needed_fields     Bitmap of fields used in the query
       imerge            Expression to use
       imerge_cost_buff  Buffer for index_merge cost estimates
@@ -936,8 +937,9 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 static TABLE_READ_PLAN *get_best_disjunct_quick(
     PARAM *param, bool index_merge_union_allowed,
     bool index_merge_sort_union_allowed, bool index_merge_intersect_allowed,
-    enum_order interesting_order, const MY_BITMAP *needed_fields,
-    SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
+    enum_order interesting_order, bool skip_records_in_range,
+    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
+    Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg) {
   SEL_TREE **ptree;
   TRP_INDEX_MERGE *imerge_trp = nullptr;
@@ -985,9 +987,9 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
                                         "tree in SEL_IMERGE"););
     Opt_trace_object trace_idx(trace);
-    if (!(*cur_child = get_key_scans_params(param, *ptree, true, false,
-                                            interesting_order, &read_cost,
-                                            needed_reg))) {
+    if (!(*cur_child = get_key_scans_params(
+              param, *ptree, true, false, interesting_order,
+              skip_records_in_range, &read_cost, needed_reg))) {
       /*
         One of index scans in this index_merge is more expensive than entire
         table read for another available option. The entire index_merge (and

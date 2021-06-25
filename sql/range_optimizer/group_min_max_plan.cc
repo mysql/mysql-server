@@ -265,6 +265,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
  @param  cost_est  Best cost so far (=table/index scan time)
  @param  order_direction The sort order the range access method must be able
                    to provide. Three-value logic: asc/desc/don't care
+ @param  skip_records_in_range  Same value as JOIN_TAB::skip_records_in_range().
  @return table read plan
    @retval NULL  Loose index scan not applicable or mem_root == NULL
    @retval !NULL Loose index scan table read plan
@@ -272,6 +273,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           enum_order order_direction,
+                                          bool skip_records_in_range,
                                           const Cost_estimate *cost_est) {
   THD *thd = param->thd;
   JOIN *join = param->query_block->join;
@@ -721,7 +723,8 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
       uint mrr_bufsize = 0;
       cur_quick_prefix_records = check_quick_select(
           param, cur_param_idx, false /*don't care*/, cur_index_tree, true,
-          order_direction, &mrr_flags, &mrr_bufsize, &dummy_cost);
+          order_direction, skip_records_in_range, &mrr_flags, &mrr_bufsize,
+          &dummy_cost);
       if (unlikely(cur_index_tree && trace->is_started())) {
         trace_idx.add("index_dives_for_eq_ranges",
                       !param->use_index_statistics);
