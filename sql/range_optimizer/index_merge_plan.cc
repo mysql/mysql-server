@@ -34,24 +34,24 @@ class Opt_trace_context;
 class QUICK_SELECT_I;
 struct MEM_ROOT;
 
-void TRP_INDEX_MERGE::trace_basic_info(const RANGE_OPT_PARAM *param,
+void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                        Opt_trace_object *trace_object) const {
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
   for (TRP_RANGE **current = range_scans; current != range_scans_end;
        current++) {
     Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(param, &trp_info);
+    (*current)->trace_basic_info(thd, param, &trp_info);
   }
 }
 
-QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(RANGE_OPT_PARAM *param, bool,
-                                            MEM_ROOT *) {
+QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                                            bool, MEM_ROOT *) {
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
   QUICK_RANGE_SELECT *quick;
   /* index_merge always retrieves full rows, ignore retrieve_full_rows */
-  if (!(quick_imerge = new QUICK_INDEX_MERGE_SELECT(param->thd, param->table)))
+  if (!(quick_imerge = new QUICK_INDEX_MERGE_SELECT(thd, param->table)))
     return nullptr;
 
   quick_imerge->records = records;
@@ -61,7 +61,7 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(RANGE_OPT_PARAM *param, bool,
        range_scan++) {
     if (!(quick =
               (QUICK_RANGE_SELECT *)((*range_scan)
-                                         ->make_quick(param, false,
+                                         ->make_quick(thd, param, false,
                                                       &quick_imerge->alloc))) ||
         quick_imerge->push_quick_back(quick)) {
       delete quick;

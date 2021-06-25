@@ -62,7 +62,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 
  public:
-  void trace_basic_info(const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
   TRP_SKIP_SCAN(KEY *index_info, uint index, SEL_ROOT *index_range_tree,
@@ -85,13 +85,14 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
   ~TRP_SKIP_SCAN() override = default;
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                             bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;
   bool is_forced_by_hint() override { return forced_by_hint; }
 };
 
-TRP_SKIP_SCAN *get_best_skip_scan(RANGE_OPT_PARAM *param, SEL_TREE *tree,
-                                  enum_order order_direction,
+TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
+                                  SEL_TREE *tree, enum_order order_direction,
                                   bool skip_records_in_range,
                                   bool force_skip_scan);
 

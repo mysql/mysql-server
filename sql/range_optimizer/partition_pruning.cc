@@ -204,12 +204,13 @@ struct PART_PRUNE_PARAM {
 };
 
 static bool create_partition_index_description(PART_PRUNE_PARAM *prune_par);
-static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ROOT *key_tree);
-static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ROOT::Type type,
-                                SEL_ARG *key_tree);
-static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
+static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
+                                SEL_ROOT *key_tree);
+static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
+                                SEL_ROOT::Type type, SEL_ARG *key_tree);
+static int find_used_partitions_imerge(THD *thd, PART_PRUNE_PARAM *ppar,
                                        SEL_IMERGE *imerge);
-static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
+static int find_used_partitions_imerge_list(THD *thd, PART_PRUNE_PARAM *ppar,
                                             List<SEL_IMERGE> &merges);
 static void mark_all_partitions_as_used(partition_info *part_info);
 
@@ -296,7 +297,6 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   }
 
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
-  range_par->thd = thd;
   range_par->table = table;
   range_par->query_block = query_block;
   /* range_par->cond doesn't need initialization */
@@ -316,7 +316,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   SEL_TREE *tree;
   int res;
 
-  tree = get_mm_tree(range_par, prev_tables, read_tables, current_table,
+  tree = get_mm_tree(thd, range_par, prev_tables, read_tables, current_table,
                      /*remove_jump_scans=*/false, pprune_cond);
   if (!tree) goto all_used;
 
@@ -341,7 +341,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
 
     init_all_partitions_iterator(part_info, &prune_param.part_iter);
     if (!tree->keys[0] ||
-        (-1 == (res = find_used_partitions(&prune_param, tree->keys[0]))))
+        (-1 == (res = find_used_partitions(thd, &prune_param, tree->keys[0]))))
       goto all_used;
   } else {
     if (tree->merges.elements == 1) {
@@ -354,7 +354,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
         conditions that refer to different key parts. For example, we'll get
         here for "partitioning_field=const1 OR subpartitioning_field=const2"
       */
-      if (-1 == (res = find_used_partitions_imerge(&prune_param,
+      if (-1 == (res = find_used_partitions_imerge(thd, &prune_param,
                                                    tree->merges.head())))
         goto all_used;
     } else {
@@ -365,8 +365,8 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
         This is produced for complicated WHERE clauses that range analyzer
         can't really analyze properly.
       */
-      if (-1 ==
-          (res = find_used_partitions_imerge_list(&prune_param, tree->merges)))
+      if (-1 == (res = find_used_partitions_imerge_list(thd, &prune_param,
+                                                        tree->merges)))
         goto all_used;
     }
   }
@@ -521,7 +521,7 @@ static void mark_full_partition_used_with_parts(partition_info *part_info,
     See find_used_partitions()
 */
 
-static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
+static int find_used_partitions_imerge_list(THD *thd, PART_PRUNE_PARAM *ppar,
                                             List<SEL_IMERGE> &merges) {
   MY_BITMAP all_merges;
   uint bitmap_bytes;
@@ -534,7 +534,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
       Fallback, process just the first SEL_IMERGE. This can leave us with more
       partitions marked as used then actually needed.
     */
-    return find_used_partitions_imerge(ppar, merges.head());
+    return find_used_partitions_imerge(thd, ppar, merges.head());
   }
   bitmap_init(&all_merges, bitmap_buf, n_bits);
   bitmap_set_prefix(&all_merges, n_bits);
@@ -542,7 +542,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
   List_iterator<SEL_IMERGE> it(merges);
   SEL_IMERGE *imerge;
   while ((imerge = it++)) {
-    int res = find_used_partitions_imerge(ppar, imerge);
+    int res = find_used_partitions_imerge(thd, ppar, imerge);
     if (!res) {
       /* no used partitions on one ANDed imerge => no used partitions at all */
       return 0;
@@ -576,7 +576,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
     See find_used_partitions().
 */
 
-static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
+static int find_used_partitions_imerge(THD *thd, PART_PRUNE_PARAM *ppar,
                                        SEL_IMERGE *imerge) {
   int res = 0;
   for (SEL_TREE **ptree = imerge->trees; ptree < imerge->trees_next; ptree++) {
@@ -590,7 +590,7 @@ static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
 
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
     SEL_ROOT *key_tree = (*ptree)->keys[0];
-    if (!key_tree || (-1 == (res |= find_used_partitions(ppar, key_tree))))
+    if (!key_tree || (-1 == (res |= find_used_partitions(thd, ppar, key_tree))))
       return -1;
   }
   return res;
@@ -706,7 +706,7 @@ static int find_used_partitions_imerge(PART_PRUNE_PARAM *ppar,
         used) Marking partitions as used is the responsibility of the caller.
 */
 
-static int find_used_partitions(PART_PRUNE_PARAM *ppar,
+static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
                                 SEL_ROOT::Type key_tree_type,
                                 SEL_ARG *key_tree) {
   int res, left_res = 0, right_res = 0;
@@ -716,12 +716,11 @@ static int find_used_partitions(PART_PRUNE_PARAM *ppar,
   bool did_set_ignore_part_fields = false;
   RANGE_OPT_PARAM *range_par = &(ppar->range_param);
 
-  if (check_stack_overrun(range_par->thd, 3 * STACK_MIN_SIZE, nullptr))
-    return -1;
+  if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE, nullptr)) return -1;
 
   if (key_tree->left != null_element) {
-    if (-1 ==
-        (left_res = find_used_partitions(ppar, key_tree_type, key_tree->left)))
+    if (-1 == (left_res = find_used_partitions(thd, ppar, key_tree_type,
+                                               key_tree->left)))
       return -1;
   }
 
@@ -740,7 +739,7 @@ static int find_used_partitions(PART_PRUNE_PARAM *ppar,
       subpartitioning fields.
     */
     if (key_tree->next_key_part)
-      res = find_used_partitions(ppar, key_tree->next_key_part);
+      res = find_used_partitions(thd, ppar, key_tree->next_key_part);
     else
       res = -1;
     goto pop_and_go_right;
@@ -784,7 +783,7 @@ static int find_used_partitions(PART_PRUNE_PARAM *ppar,
           ppar->cur_min_flag |= key_tree->min_flag;
           ppar->cur_max_flag |= key_tree->max_flag;
 
-          res = find_used_partitions(ppar, key_tree->next_key_part);
+          res = find_used_partitions(thd, ppar, key_tree->next_key_part);
 
           /* Restore 'parameters' back */
           ppar->cur_min_key = min_key;
@@ -879,7 +878,7 @@ static int find_used_partitions(PART_PRUNE_PARAM *ppar,
            The only case where we can get "no satisfying subpartitions"
            returned from the above call is when an error has occurred.
         */
-        assert(range_par->thd->is_error());
+        assert(thd->is_error());
         return 0;
       }
 
@@ -981,7 +980,7 @@ static int find_used_partitions(PART_PRUNE_PARAM *ppar,
 
 process_next_key_part:
   if (key_tree->next_key_part)
-    res = find_used_partitions(ppar, key_tree->next_key_part);
+    res = find_used_partitions(thd, ppar, key_tree->next_key_part);
   else
     res = -1;
 
@@ -1021,15 +1020,16 @@ pop_and_go_right:
 
   if (res == -1) return -1;
   if (key_tree->right != null_element) {
-    if (-1 == (right_res =
-                   find_used_partitions(ppar, key_tree_type, key_tree->right)))
+    if (-1 == (right_res = find_used_partitions(thd, ppar, key_tree_type,
+                                                key_tree->right)))
       return -1;
   }
   return (left_res || right_res || res);
 }
 
-static int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ROOT *key_tree) {
-  return find_used_partitions(ppar, key_tree->type, key_tree->root);
+static int find_used_partitions(THD *thd, PART_PRUNE_PARAM *ppar,
+                                SEL_ROOT *key_tree) {
+  return find_used_partitions(thd, ppar, key_tree->type, key_tree->root);
 }
 
 static void mark_all_partitions_as_used(partition_info *part_info) {

@@ -79,14 +79,14 @@ static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE, &null_root, 0);
 
 static uchar is_null_string[2] = {1, 0};
 
-static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, table_map prev_tables,
-                              table_map read_tables, Item_func *cond_func,
-                              Field *field, Item_func::Functype type,
-                              Item *value);
-static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
+static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
+                              table_map prev_tables, table_map read_tables,
+                              Item_func *cond_func, Field *field,
+                              Item_func::Functype type, Item *value);
+static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
                              Item_func::Functype type, Item *value);
-static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
+static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
                                        table_map prev_tables,
                                        table_map read_tables,
                                        table_map current_table,
@@ -99,13 +99,13 @@ static SEL_ROOT *sel_add(SEL_ROOT *key1, SEL_ROOT *key2);
    the index cannot be used for range access due to either type conversion or
    different collations on the field used for comparison
 
-   @param param              RANGE_OPT_PARAM from test_quick_select
-   @param key_num            Key number
-   @param field              Field in the predicate
-*/
-static void warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+   @param thd        Thread handle
+   @param param      RANGE_OPT_PARAM from test_quick_select
+   @param key_num    Key number
+   @param field      Field in the predicate
+ */
+static void warn_index_not_applicable(THD *thd, const RANGE_OPT_PARAM *param,
                                       const uint key_num, const Field *field) {
-  THD *thd = param->thd;
   if (param->using_real_indexes &&
       (thd->lex->is_explain() ||
        thd->variables.option_bits & OPTION_SAFE_UPDATES))
@@ -134,19 +134,19 @@ static void warn_index_not_applicable(const RANGE_OPT_PARAM *param,
     #  Pointer to tree built tree
     0  on error
 */
-static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
-                                table_map read_tables, bool remove_jump_scans,
-                                Item_func *cond_func, Field *field,
-                                Item *lt_value, Item *gt_value) {
+static SEL_TREE *get_ne_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
+                                table_map prev_tables, table_map read_tables,
+                                bool remove_jump_scans, Item_func *cond_func,
+                                Field *field, Item *lt_value, Item *gt_value) {
   SEL_TREE *tree = nullptr;
 
   if (param->has_errors()) return nullptr;
 
-  tree = get_mm_parts(param, prev_tables, read_tables, cond_func, field,
+  tree = get_mm_parts(thd, param, prev_tables, read_tables, cond_func, field,
                       Item_func::LT_FUNC, lt_value);
   if (tree) {
     tree = tree_or(param, remove_jump_scans, tree,
-                   get_mm_parts(param, prev_tables, read_tables, cond_func,
+                   get_mm_parts(thd, param, prev_tables, read_tables, cond_func,
                                 field, Item_func::GT_FUNC, gt_value));
   }
   return tree;
@@ -155,6 +155,7 @@ static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
 /**
   Factory function to build a SEL_TREE from an @<in predicate@>
 
+  @param thd        Thread handle
   @param param      Information on 'just about everything'.
   @param prev_tables See test_quick_select()
   @param read_tables See test_quick_select()
@@ -165,13 +166,13 @@ static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
   @param is_negated If true, the operator is NOT IN, otherwise IN.
 */
 static SEL_TREE *get_func_mm_tree_from_in_predicate(
-    RANGE_OPT_PARAM *param, table_map prev_tables, table_map read_tables,
-    bool remove_jump_scans, Item *predicand, Item_func_in *op,
-    bool is_negated) {
+    THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
+    table_map read_tables, bool remove_jump_scans, Item *predicand,
+    Item_func_in *op, bool is_negated) {
   if (param->has_errors()) return nullptr;
 
   // Populate array as we need to examine its values here
-  if (op->array && !op->populated) op->populate_bisection(param->thd);
+  if (op->array && !op->populated) op->populate_bisection(thd);
 
   if (is_negated) {
     // We don't support row constructors (multiple columns on lhs) here.
@@ -234,7 +235,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
       SEL_TREE *tree = nullptr;
       do {
         op->array->value_to_item(i, value_item);
-        tree = get_mm_parts(param, prev_tables, read_tables, op, field,
+        tree = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                             Item_func::LT_FUNC, value_item);
         if (!tree) break;
         i++;
@@ -248,7 +249,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
         if (op->array->compare_elems(i, i - 1)) {
           /* Get a SEL_TREE for "-inf < X < c_i" interval */
           op->array->value_to_item(i, value_item);
-          tree2 = get_mm_parts(param, prev_tables, read_tables, op, field,
+          tree2 = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                                Item_func::LT_FUNC, value_item);
           if (!tree2) {
             tree = nullptr;
@@ -282,7 +283,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
                   op->array->create_item(param->old_root);
               op->array->value_to_item(i - 1, val_item);
               const int cmp_value =
-                  stored_field_cmp_to_item(param->thd, field, val_item);
+                  stored_field_cmp_to_item(thd, field, val_item);
               if (cmp_value <= 0) new_interval->min_flag = NEAR_MIN;
 
               /*
@@ -325,23 +326,23 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
           Get the SEL_TREE for the last "c_last < X < +inf" interval
           (value_item cotains c_last already)
         */
-        tree2 = get_mm_parts(param, prev_tables, read_tables, op, field,
+        tree2 = get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                              Item_func::GT_FUNC, value_item);
         tree = tree_or(param, remove_jump_scans, tree, tree2);
       }
       return tree;
     } else {
-      SEL_TREE *tree =
-          get_ne_mm_tree(param, prev_tables, read_tables, remove_jump_scans, op,
-                         field, op->arguments()[1], op->arguments()[1]);
+      SEL_TREE *tree = get_ne_mm_tree(thd, param, prev_tables, read_tables,
+                                      remove_jump_scans, op, field,
+                                      op->arguments()[1], op->arguments()[1]);
       if (tree) {
         Item **arg, **end;
         for (arg = op->arguments() + 2, end = arg + op->argument_count() - 2;
              arg < end; arg++) {
           tree = tree_and(
               param, tree,
-              get_ne_mm_tree(param, prev_tables, read_tables, remove_jump_scans,
-                             op, field, *arg, *arg));
+              get_ne_mm_tree(thd, param, prev_tables, read_tables,
+                             remove_jump_scans, op, field, *arg, *arg));
         }
       }
       return tree;
@@ -353,15 +354,16 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
   if (predicand->type() == Item::FIELD_ITEM) {
     // The expression is (<column>) IN (...)
     Field *field = static_cast<Item_field *>(predicand)->field;
-    SEL_TREE *tree = get_mm_parts(param, prev_tables, read_tables, op, field,
-                                  Item_func::EQ_FUNC, op->arguments()[1]);
+    SEL_TREE *tree =
+        get_mm_parts(thd, param, prev_tables, read_tables, op, field,
+                     Item_func::EQ_FUNC, op->arguments()[1]);
     if (tree) {
       Item **arg, **end;
       for (arg = op->arguments() + 2, end = arg + op->argument_count() - 2;
            arg < end; arg++) {
         tree = tree_or(param, remove_jump_scans, tree,
-                       get_mm_parts(param, prev_tables, read_tables, op, field,
-                                    Item_func::EQ_FUNC, *arg));
+                       get_mm_parts(thd, param, prev_tables, read_tables, op,
+                                    field, Item_func::EQ_FUNC, *arg));
       }
     }
     return tree;
@@ -401,8 +403,8 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
 
         Item *value = row->element_index(j);
 
-        SEL_TREE *and_expr = get_mm_parts(param, prev_tables, read_tables, op,
-                                          field, Item_func::EQ_FUNC, value);
+        SEL_TREE *and_expr = get_mm_parts(thd, param, prev_tables, read_tables,
+                                          op, field, Item_func::EQ_FUNC, value);
 
         and_tree = tree_and(param, and_tree, and_expr);
         /*
@@ -434,6 +436,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
                         type
     These conditions are pre-checked in substitute_gc().
   \endverbatim
+  @param thd        Thread handle
   @param param      Information on 'just about everything'.
   @param prev_tables See test_quick_select()
   @param read_tables See test_quick_select()
@@ -447,8 +450,9 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
 */
 
 static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
-    RANGE_OPT_PARAM *param, table_map prev_tables, table_map read_tables,
-    bool remove_jump_scans, Item *predicand, Item_func *op) {
+    THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
+    table_map read_tables, bool remove_jump_scans, Item *predicand,
+    Item_func *op) {
   if (param->has_errors()) return nullptr;
 
   // The expression is JSON_OVERLAPS(<array_field>,<JSON array/scalar>), or
@@ -498,7 +502,7 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
     elt = wr[i++];
     field->coerce_json_value(&elt, true, nullptr);
     SEL_TREE *tree =
-        get_mm_parts(param, prev_tables, read_tables, op, field,
+        get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                      Item_func::EQ_FUNC, static_cast<Item_field *>(predicand));
     // .. and OR with others
     if (tree) {
@@ -506,8 +510,8 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
         elt = wr[i];
         field->coerce_json_value(&elt, true, nullptr);
         tree = tree_or(param, remove_jump_scans, tree,
-                       get_mm_parts(param, prev_tables, read_tables, op, field,
-                                    Item_func::EQ_FUNC,
+                       get_mm_parts(thd, param, prev_tables, read_tables, op,
+                                    field, Item_func::EQ_FUNC,
                                     static_cast<Item_field *>(predicand)));
         if (!tree)  // OOM
           break;
@@ -535,10 +539,10 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
   @todo Remove the appaling hack that 'value' can be a 1 cast to an Item*.
 */
 
-static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
-                                  table_map read_tables, bool remove_jump_scans,
-                                  Item *predicand, Item_func *cond_func,
-                                  Item *value, bool inv) {
+static SEL_TREE *get_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
+                                  table_map prev_tables, table_map read_tables,
+                                  bool remove_jump_scans, Item *predicand,
+                                  Item_func *cond_func, Item *value, bool inv) {
   SEL_TREE *tree = nullptr;
   DBUG_TRACE;
 
@@ -553,8 +557,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       if (predicand->type() == Item::FIELD_ITEM) {
         Field *field = static_cast<Item_field *>(predicand)->field;
         tree =
-            get_ne_mm_tree(param, prev_tables, read_tables, remove_jump_scans,
-                           cond_func, field, value, value);
+            get_ne_mm_tree(thd, param, prev_tables, read_tables,
+                           remove_jump_scans, cond_func, field, value, value);
       }
       break;
 
@@ -564,23 +568,24 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
 
         if (!value) {
           if (inv) {
-            tree = get_ne_mm_tree(
-                param, prev_tables, read_tables, remove_jump_scans, cond_func,
-                field, cond_func->arguments()[1], cond_func->arguments()[2]);
+            tree = get_ne_mm_tree(thd, param, prev_tables, read_tables,
+                                  remove_jump_scans, cond_func, field,
+                                  cond_func->arguments()[1],
+                                  cond_func->arguments()[2]);
           } else {
-            tree =
-                get_mm_parts(param, prev_tables, read_tables, cond_func, field,
-                             Item_func::GE_FUNC, cond_func->arguments()[1]);
+            tree = get_mm_parts(thd, param, prev_tables, read_tables, cond_func,
+                                field, Item_func::GE_FUNC,
+                                cond_func->arguments()[1]);
             if (tree) {
               tree = tree_and(param, tree,
-                              get_mm_parts(param, prev_tables, read_tables,
+                              get_mm_parts(thd, param, prev_tables, read_tables,
                                            cond_func, field, Item_func::LE_FUNC,
                                            cond_func->arguments()[2]));
             }
           }
         } else
           tree = get_mm_parts(
-              param, prev_tables, read_tables, cond_func, field,
+              thd, param, prev_tables, read_tables, cond_func, field,
               (inv ? (value == reinterpret_cast<Item *>(1) ? Item_func::GT_FUNC
                                                            : Item_func::LT_FUNC)
                    : (value == reinterpret_cast<Item *>(1)
@@ -591,14 +596,14 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       break;
     case Item_func::IN_FUNC: {
       Item_func_in *in_pred = down_cast<Item_func_in *>(cond_func);
-      tree = get_func_mm_tree_from_in_predicate(param, prev_tables, read_tables,
-                                                remove_jump_scans, predicand,
-                                                in_pred, inv);
+      tree = get_func_mm_tree_from_in_predicate(thd, param, prev_tables,
+                                                read_tables, remove_jump_scans,
+                                                predicand, in_pred, inv);
     } break;
     case Item_func::JSON_CONTAINS:
     case Item_func::JSON_OVERLAPS: {
       tree = get_func_mm_tree_from_json_overlaps_contains(
-          param, prev_tables, read_tables, remove_jump_scans, predicand,
+          thd, param, prev_tables, read_tables, remove_jump_scans, predicand,
           cond_func);
     } break;
     default:
@@ -616,8 +621,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
             (value != cond_func->arguments()[0])
                 ? cond_func->functype()
                 : ((Item_bool_func2 *)cond_func)->rev_functype();
-        tree = get_mm_parts(param, prev_tables, read_tables, cond_func, field,
-                            func_type, value);
+        tree = get_mm_parts(thd, param, prev_tables, read_tables, cond_func,
+                            field, func_type, value);
       }
   }
 
@@ -697,7 +702,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
     Pointer to the tree representing the built conjunction of SEL_TREEs
 */
 
-static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
+static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
                                        table_map prev_tables,
                                        table_map read_tables,
                                        table_map current_table,
@@ -724,7 +729,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
     Field *field = item_field->field;
 
     if (!((ref_tables | item_field->table_ref->map()) & param_comp))
-      ftree = get_func_mm_tree(param, prev_tables, read_tables,
+      ftree = get_func_mm_tree(thd, param, prev_tables, read_tables,
                                remove_jump_scans, predicand, op, value, inv);
     Item_equal *item_equal = item_field->item_equal;
     if (item_equal != nullptr) {
@@ -732,15 +737,15 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
         Field *f = item.field;
         if (!field->eq(f) &&
             !((ref_tables | item.table_ref->map()) & param_comp)) {
-          tree = get_func_mm_tree(param, prev_tables, read_tables,
+          tree = get_func_mm_tree(thd, param, prev_tables, read_tables,
                                   remove_jump_scans, &item, op, value, inv);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
         }
       }
     }
   } else if (predicand->type() == Item::ROW_ITEM) {
-    ftree = get_func_mm_tree(param, prev_tables, read_tables, remove_jump_scans,
-                             predicand, op, value, inv);
+    ftree = get_func_mm_tree(thd, param, prev_tables, read_tables,
+                             remove_jump_scans, predicand, op, value, inv);
     return ftree;
   }
   return ftree;
@@ -783,7 +788,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   conditions on first keyparts. Such scans are usable when doing partition
   pruning but not regular range optimization.
 */
-SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
+SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                       table_map read_tables, table_map current_table,
                       bool remove_jump_scans, Item *cond) {
   SEL_TREE *tree = nullptr;
@@ -802,7 +807,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       Item *item;
       while ((item = li++)) {
         SEL_TREE *new_tree =
-            get_mm_tree(param, prev_tables, read_tables, current_table,
+            get_mm_tree(thd, param, prev_tables, read_tables, current_table,
                         remove_jump_scans, item);
         if (param->has_errors()) return nullptr;
         tree = tree_and(param, tree, new_tree);
@@ -810,14 +815,14 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
         if (tree && tree->type == SEL_TREE::IMPOSSIBLE) break;
       }
     } else {  // Item OR
-      tree = get_mm_tree(param, prev_tables, read_tables, current_table,
+      tree = get_mm_tree(thd, param, prev_tables, read_tables, current_table,
                          remove_jump_scans, li++);
       if (param->has_errors()) return nullptr;
       if (tree) {
         Item *item;
         while ((item = li++)) {
           SEL_TREE *new_tree =
-              get_mm_tree(param, prev_tables, read_tables, current_table,
+              get_mm_tree(thd, param, prev_tables, read_tables, current_table,
                           remove_jump_scans, item);
           if (new_tree == nullptr || param->has_errors()) return nullptr;
           tree = tree_or(param, remove_jump_scans, tree, new_tree);
@@ -837,12 +842,12 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       item itself. So we have to restore the thread's mem_root here.
     */
     MEM_ROOT *tmp_root = param->mem_root;
-    param->thd->mem_root = param->old_root;
+    thd->mem_root = param->old_root;
     const SEL_TREE::Type type =
         cond->val_int() ? SEL_TREE::ALWAYS : SEL_TREE::IMPOSSIBLE;
     tree = new (tmp_root) SEL_TREE(type, tmp_root, param->keys);
 
-    param->thd->mem_root = tmp_root;
+    thd->mem_root = tmp_root;
     if (param->has_errors()) return nullptr;
     dbug_print_tree("tree_returned", tree, param);
     return tree;
@@ -871,9 +876,9 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       itself. So we have to restore the thread's mem_root here.
     */
     MEM_ROOT *tmp_root = param->mem_root;
-    param->thd->mem_root = param->old_root;
-    Item_func::optimize_type opt_type = cond_func->select_optimize(param->thd);
-    param->thd->mem_root = tmp_root;
+    thd->mem_root = param->old_root;
+    Item_func::optimize_type opt_type = cond_func->select_optimize(thd);
+    thd->mem_root = tmp_root;
     if (opt_type == Item_func::OPTIMIZE_NONE) return nullptr;
   }
 
@@ -889,7 +894,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
         Item_field *field_item = down_cast<Item_field *>(arg_left->real_item());
-        ftree = get_full_func_mm_tree(param, prev_tables, read_tables,
+        ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                       current_table, remove_jump_scans,
                                       field_item, cond_func, nullptr, inv);
       }
@@ -905,8 +910,9 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
             arg->real_item()->type() == Item::FIELD_ITEM) {
           Item_field *field_item = down_cast<Item_field *>(arg->real_item());
           SEL_TREE *tmp = get_full_func_mm_tree(
-              param, prev_tables, read_tables, current_table, remove_jump_scans,
-              field_item, cond_func, reinterpret_cast<Item *>(i), inv);
+              thd, param, prev_tables, read_tables, current_table,
+              remove_jump_scans, field_item, cond_func,
+              reinterpret_cast<Item *>(i), inv);
           if (inv) {
             tree = !tree ? tmp : tree_or(param, remove_jump_scans, tree, tmp);
             if (tree == nullptr) break;
@@ -931,7 +937,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       if (predicand->type() != Item::FIELD_ITEM &&
           predicand->type() != Item::ROW_ITEM)
         return nullptr;
-      ftree = get_full_func_mm_tree(param, prev_tables, read_tables,
+      ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                     current_table, remove_jump_scans, predicand,
                                     cond_func, nullptr, inv);
       break;
@@ -944,7 +950,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
       for (Item_field &field_item : item_equal->get_fields()) {
         Field *field = field_item.field;
         if (!((ref_tables | field_item.table_ref->map()) & param_comp)) {
-          tree = get_mm_parts(param, prev_tables, read_tables, item_equal,
+          tree = get_mm_parts(thd, param, prev_tables, read_tables, item_equal,
                               field, Item_func::EQ_FUNC, value);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
         }
@@ -962,7 +968,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
         Item_field *field_item = down_cast<Item_field *>(arg_left->real_item());
         value = cond_func->arg_count > 1 ? cond_func->arguments()[1] : nullptr;
-        ftree = get_full_func_mm_tree(param, prev_tables, read_tables,
+        ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                       current_table, remove_jump_scans,
                                       field_item, cond_func, value, inv);
       }
@@ -990,7 +996,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
         Item_field *field_item =
             down_cast<Item_field *>(arg_right->real_item());
         value = arg_left;
-        ftree = get_full_func_mm_tree(param, prev_tables, read_tables,
+        ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                       current_table, remove_jump_scans,
                                       field_item, cond_func, value, inv);
       }
@@ -1036,10 +1042,10 @@ static bool is_spatial_operator(Item_func::Functype op_type) {
   }
 }
 
-static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, table_map prev_tables,
-                              table_map read_tables, Item_func *cond_func,
-                              Field *field, Item_func::Functype type,
-                              Item *value) {
+static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
+                              table_map prev_tables, table_map read_tables,
+                              Item_func *cond_func, Field *field,
+                              Item_func::Functype type, Item *value) {
   DBUG_TRACE;
 
   if (param->has_errors()) return nullptr;
@@ -1066,7 +1072,7 @@ static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, table_map prev_tables,
                          SEL_TREE(param->mem_root, param->keys)))
         return nullptr;  // OOM
       if (!value || !(value->used_tables() & ~read_tables)) {
-        sel_root = get_mm_leaf(param, cond_func, key_part->field, key_part,
+        sel_root = get_mm_leaf(thd, param, cond_func, key_part->field, key_part,
                                type, value);
         if (!sel_root) continue;
         if (sel_root->type == SEL_ROOT::Type::IMPOSSIBLE) {
@@ -1080,7 +1086,7 @@ static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, table_map prev_tables,
         */
         if (!comparable_in_index(cond_func, key_part->field,
                                  key_part->image_type, type, value)) {
-          warn_index_not_applicable(param, key_part->key, field);
+          warn_index_not_applicable(thd, param, key_part->key, field);
           return nullptr;
         }
 
@@ -1329,7 +1335,7 @@ impossible_cond:
   return true;
 }
 
-static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
+static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
                              Item_func::Functype type, Item *value) {
   const size_t null_bytes = field->is_nullable() ? 1 : 0;
@@ -1350,7 +1356,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
     the evaluation has the same life span as the item itself.
     TODO: opt_range.cc should not reset thd->mem_root at all.
   */
-  param->thd->mem_root = param->old_root;
+  thd->mem_root = param->old_root;
   if (!value)  // IS NULL or IS NOT NULL
   {
     if (field->table->pos_in_table_list->outer_join)
@@ -1392,7 +1398,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
   */
   if (!comparable_in_index(cond_func, field, key_part->image_type, type,
                            value)) {
-    warn_index_not_applicable(param, key_part->key, field);
+    warn_index_not_applicable(thd, param, key_part->key, field);
     goto end;
   }
 
@@ -1586,8 +1592,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
         /*
           Set NEAR_MAX to read values lesser than the stored value.
         */
-        const int cmp_value =
-            stored_field_cmp_to_item(param->thd, field, value);
+        const int cmp_value = stored_field_cmp_to_item(thd, field, value);
         if ((type == Item_func::LT_FUNC && cmp_value >= 0) ||
             (type == Item_func::LE_FUNC && cmp_value > 0))
           tree->root->max_flag = NEAR_MAX;
@@ -1610,8 +1615,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
         /*
           Set NEAR_MIN to read values greater than the stored value.
         */
-        const int cmp_value =
-            stored_field_cmp_to_item(param->thd, field, value);
+        const int cmp_value = stored_field_cmp_to_item(thd, field, value);
         if ((type == Item_func::GT_FUNC && cmp_value <= 0) ||
             (type == Item_func::GE_FUNC && cmp_value < 0))
           tree->root->min_flag = NEAR_MIN;
@@ -1659,12 +1663,12 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *cond_func,
 
 end:
   if (impossible_cond_cause != nullptr) {
-    Opt_trace_object wrapper(&param->thd->opt_trace);
-    Opt_trace_object(&param->thd->opt_trace, "impossible_condition",
+    Opt_trace_object wrapper(&thd->opt_trace);
+    Opt_trace_object(&thd->opt_trace, "impossible_condition",
                      Opt_trace_context::RANGE_OPTIMIZER)
         .add_alnum("cause", impossible_cond_cause);
   }
-  param->thd->mem_root = alloc;
+  thd->mem_root = alloc;
   return tree;
 }
 

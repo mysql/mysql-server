@@ -28,6 +28,7 @@
 class SEL_TREE;
 class RANGE_OPT_PARAM;
 class Item;
+class THD;
 
 /*
   RangeAnalysisModule
@@ -45,7 +46,7 @@ class Item;
     All direct "users" of this module are located within this file, too.
 
  */
-SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
+SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                       table_map read_tables, table_map current_table,
                       bool remove_jump_scans, Item *cond);
 

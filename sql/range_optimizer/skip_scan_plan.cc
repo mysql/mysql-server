@@ -65,13 +65,13 @@ struct MEM_ROOT;
 using std::max;
 using std::min;
 
-void TRP_SKIP_SCAN::trace_basic_info(const RANGE_OPT_PARAM *param,
+void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
                                      Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "skip_scan")
       .add_utf8("index", index_info->name);
 
   const KEY_PART_INFO *key_part = index_info->key_part;
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   {
     Opt_trace_array trace_keyparts(trace, "key_parts_used_for_access");
     for (uint partno = 0; partno < used_key_parts; partno++) {
@@ -121,7 +121,7 @@ void TRP_SKIP_SCAN::trace_basic_info(const RANGE_OPT_PARAM *param,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(RANGE_OPT_PARAM *param, bool,
+QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(THD *, RANGE_OPT_PARAM *param, bool,
                                           MEM_ROOT *parent_alloc) {
   QUICK_SKIP_SCAN_SELECT *quick = nullptr;
   DBUG_TRACE;
@@ -200,15 +200,15 @@ static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
           otherwise skip index scan table read plan.
 */
 
-TRP_SKIP_SCAN *get_best_skip_scan(RANGE_OPT_PARAM *param, SEL_TREE *tree,
-                                  enum_order order_direction,
+TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
+                                  SEL_TREE *tree, enum_order order_direction,
                                   bool skip_records_in_range,
                                   bool force_skip_scan) {
   JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   const char *cause = nullptr;
   TRP_SKIP_SCAN *read_plan = nullptr;
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   Cost_estimate best_read_cost;
   ha_rows best_records = 0;
   bool has_aggregate_function = false;
@@ -391,10 +391,10 @@ TRP_SKIP_SCAN *get_best_skip_scan(RANGE_OPT_PARAM *param, SEL_TREE *tree,
       /*
         Calculate number of records returned by prefix equality ranges.
       */
-      quick_prefix_records =
-          check_quick_select(param, cur_param_idx, true, cur_index_range_tree,
-                             false, order_direction, skip_records_in_range,
-                             &mrr_flags, &mrr_bufsize, &dummy_cost);
+      quick_prefix_records = check_quick_select(
+          thd, param, cur_param_idx, true, cur_index_range_tree, false,
+          order_direction, skip_records_in_range, &mrr_flags, &mrr_bufsize,
+          &dummy_cost);
     }
     cost_skip_scan(table, cur_index, cur_used_key_parts - 1,
                    quick_prefix_records, &cur_read_cost, &cur_records,

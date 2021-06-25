@@ -67,11 +67,11 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool,
+  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param, bool,
                              MEM_ROOT *parent_alloc) override {
     DBUG_TRACE;
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(param->thd, param->table, param->key[key_idx],
+    if ((quick = get_quick_select(thd, param->table, param->key[key_idx],
                                   param->real_keynr[key_idx], param->min_key,
                                   param->max_key, key, mrr_flags, mrr_buf_size,
                                   parent_alloc))) {
@@ -81,7 +81,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     return quick;
   }
 
-  void trace_basic_info(const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 };
 
@@ -117,8 +117,8 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     NULL if no plan found or error occurred
 */
 
-TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
-                                bool index_read_must_be_used,
+TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
+                                SEL_TREE *tree, bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order interesting_order,
                                 bool skip_records_in_range,
@@ -156,9 +156,9 @@ TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
     Estimate # of records to be retrieved.
     HA_POS_ERROR if estimate calculation failed due to table handler problems.
 */
-ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
-                           SEL_ROOT *tree, bool update_tbl_stats,
-                           enum_order order_direction,
+ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
+                           bool index_only, SEL_ROOT *tree,
+                           bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost);
 

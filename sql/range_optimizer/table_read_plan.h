@@ -69,7 +69,7 @@ class TABLE_READ_PLAN {
       created quick select
       NULL on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param,
+  virtual QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
                                      bool retrieve_full_rows,
                                      MEM_ROOT *parent_alloc = nullptr) = 0;
 
@@ -91,10 +91,11 @@ class TABLE_READ_PLAN {
   /**
      Add basic info for this TABLE_READ_PLAN to the optimizer trace.
 
+     @param thd          Thread handle
      @param param        Parameters for range analysis of this table
      @param trace_object The optimizer trace object the info is appended to
   */
-  virtual void trace_basic_info(const RANGE_OPT_PARAM *param,
+  virtual void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
   virtual bool is_forced_by_hint() { return false; }
 };

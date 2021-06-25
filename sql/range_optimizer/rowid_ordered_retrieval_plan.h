@@ -73,7 +73,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   explicit TRP_ROR_INTERSECT(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                             bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;
 
   /* Array of pointers to ROR range scans used in this intersection */
@@ -83,7 +84,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   bool is_covering;          /* true if no row retrieval phase is necessary */
   Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
 
-  void trace_basic_info(const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 };
 
@@ -99,17 +100,18 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   explicit TRP_ROR_UNION(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                             bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
   TABLE_READ_PLAN **last_ror;  /* end of the above array */
 
-  void trace_basic_info(const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 };
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(
-    const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
+    THD *thd, const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
     enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
     const Cost_estimate *cost_est, bool force_index_merge_result);
 

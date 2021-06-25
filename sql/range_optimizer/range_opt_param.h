@@ -27,7 +27,6 @@
 
 class RANGE_OPT_PARAM {
  public:
-  THD *thd;                 /* Current thread handle */
   TABLE *table;             /* Table being analyzed */
   Query_block *query_block; /* Query block the table is part of */
 

@@ -76,7 +76,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 }
 #endif
 
-void TRP_ROR_INTERSECT::trace_basic_info(const RANGE_OPT_PARAM *param,
+void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_roworder_intersect")
       .add("rows", records)
@@ -84,7 +84,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(const RANGE_OPT_PARAM *param,
       .add("covering", is_covering)
       .add("clustered_pk_scan", cpk_scan != nullptr);
 
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_array ota(trace, "intersect_of");
   for (ROR_SCAN_INFO **cur_scan = first_scan; cur_scan != last_scan;
        cur_scan++) {
@@ -112,18 +112,18 @@ void TRP_ROR_INTERSECT::trace_basic_info(const RANGE_OPT_PARAM *param,
   }
 }
 
-void TRP_ROR_UNION::trace_basic_info(const RANGE_OPT_PARAM *param,
+void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                      Opt_trace_object *trace_object) const {
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
   for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
     Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(param, &trp_info);
+    (*current)->trace_basic_info(thd, param, &trp_info);
   }
 }
 
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
+QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, RANGE_OPT_PARAM *param,
                                               bool retrieve_full_rows,
                                               MEM_ROOT *parent_alloc) {
   QUICK_ROR_INTERSECT_SELECT *quick_intrsect;
@@ -132,8 +132,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
   MEM_ROOT *alloc;
 
   if ((quick_intrsect = new QUICK_ROR_INTERSECT_SELECT(
-           param->thd, param->table,
-           (retrieve_full_rows ? (!is_covering) : false), parent_alloc))) {
+           thd, param->table, (retrieve_full_rows ? (!is_covering) : false),
+           parent_alloc))) {
     DBUG_EXECUTE("info",
                  print_ror_scans_arr(param->table, "creating ROR-intersect",
                                      first_scan, last_scan););
@@ -141,7 +141,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
     for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
          current++) {
       uint idx = (*current)->idx;
-      if (!(quick = get_quick_select(param->thd, param->table, param->key[idx],
+      if (!(quick = get_quick_select(thd, param->table, param->key[idx],
                                      param->real_keynr[idx], param->min_key,
                                      param->max_key, (*current)->sel_root,
                                      HA_MRR_SORTED, 0, alloc)) ||
@@ -152,7 +152,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
     }
     if (cpk_scan) {
       uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select(param->thd, param->table, param->key[idx],
+      if (!(quick = get_quick_select(thd, param->table, param->key[idx],
                                      param->real_keynr[idx], param->min_key,
                                      param->max_key, cpk_scan->sel_root,
                                      HA_MRR_SORTED, 0, alloc))) {
@@ -169,8 +169,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
   return quick_intrsect;
 }
 
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
-                                          MEM_ROOT *) {
+QUICK_SELECT_I *TRP_ROR_UNION::make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                                          bool, MEM_ROOT *) {
   QUICK_ROR_UNION_SELECT *quick_roru;
   TABLE_READ_PLAN **scan;
   QUICK_SELECT_I *quick;
@@ -179,9 +179,10 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
     It is impossible to construct a ROR-union that will not retrieve full
     rows, ignore retrieve_full_rows parameter.
   */
-  if ((quick_roru = new QUICK_ROR_UNION_SELECT(param->thd, param->table))) {
+  if ((quick_roru = new QUICK_ROR_UNION_SELECT(thd, param->table))) {
     for (scan = first_ror; scan != last_ror; scan++) {
-      if (!(quick = (*scan)->make_quick(param, false, &quick_roru->alloc)) ||
+      if (!(quick =
+                (*scan)->make_quick(thd, param, false, &quick_roru->alloc)) ||
           quick_roru->push_quick_back(quick))
         return nullptr;
     }
@@ -817,17 +818,17 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 */
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(
-    const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
+    THD *thd, const RANGE_OPT_PARAM *param, bool index_merge_intersect_allowed,
     enum_order order_direction, SEL_TREE *tree, const MY_BITMAP *needed_fields,
     const Cost_estimate *cost_est, bool force_index_merge_result) {
   uint idx;
   Cost_estimate min_cost;
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   DBUG_TRACE;
 
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
-      idx_merge_hint_state(param->thd, param->table, &use_cheapest_index_merge);
+      idx_merge_hint_state(thd, param->table, &use_cheapest_index_merge);
 
   Opt_trace_object trace_ror(trace, "analyzing_roworder_intersect");
 

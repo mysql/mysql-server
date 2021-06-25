@@ -555,9 +555,9 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   return 0;
 }
 
-ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
-                           SEL_ROOT *tree, bool update_tbl_stats,
-                           enum_order order_direction,
+ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
+                           bool index_only, SEL_ROOT *tree,
+                           bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost) {
   Sel_arg_range_sequence seq(param, skip_records_in_range);
@@ -587,7 +587,7 @@ ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
   */
   uint range_count = 0;
   param->use_index_statistics = eq_ranges_exceeds_limit(
-      tree, &range_count, param->thd->variables.eq_range_index_dive_limit);
+      tree, &range_count, thd->variables.eq_range_index_dive_limit);
   param->is_ror_scan = true;
   param->is_imerge_scan = true;
   if (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR)
@@ -609,7 +609,7 @@ ha_rows check_quick_select(RANGE_OPT_PARAM *param, uint idx, bool index_only,
   if (current_thd->lex->sql_command != SQLCOM_SELECT)
     *mrr_flags |= HA_MRR_SORTED;  // Assumed to give faster ins/upd/del
 
-  *bufsize = param->thd->variables.read_rnd_buff_size;
+  *bufsize = thd->variables.read_rnd_buff_size;
   // Sets is_ror_scan to false for some queries, e.g. multi-ranges
   rows = file->multi_range_read_info_const(keynr, &seq_if, (void *)&seq, 0,
                                            bufsize, mrr_flags, cost);
@@ -819,7 +819,7 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
   }
 }
 
-void TRP_RANGE::trace_basic_info(const RANGE_OPT_PARAM *param,
+void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                  Opt_trace_object *trace_object) const {
   assert(param->using_real_indexes);
   const uint keynr_in_table = param->real_keynr[key_idx];
@@ -831,7 +831,7 @@ void TRP_RANGE::trace_basic_info(const RANGE_OPT_PARAM *param,
       .add_utf8("index", cur_key.name)
       .add("rows", records);
 
-  Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
+  Opt_trace_array trace_range(&thd->opt_trace, "ranges");
 
   // TRP_RANGE should not be created if there are no range intervals
   assert(key);
@@ -842,8 +842,8 @@ void TRP_RANGE::trace_basic_info(const RANGE_OPT_PARAM *param,
                             false);
 }
 
-TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
-                                bool index_read_must_be_used,
+TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
+                                SEL_TREE *tree, bool index_read_must_be_used,
                                 bool update_tbl_stats,
                                 enum_order order_direction,
                                 bool skip_records_in_range,
@@ -856,7 +856,7 @@ TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
   TRP_RANGE *read_plan = nullptr;
   Cost_estimate read_cost = *cost_est;
   DBUG_TRACE;
-  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   /*
     Note that there may be trees that have type SEL_TREE::KEY but contain no
     key reads at all, e.g. tree for expression "key1 is not null" where key1
@@ -871,7 +871,7 @@ TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
   bool is_best_idx_imerge_scan = true;
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
-      idx_merge_hint_state(param->thd, param->table, &use_cheapest_index_merge);
+      idx_merge_hint_state(thd, param->table, &use_cheapest_index_merge);
 
   for (idx = 0; idx < param->keys; idx++) {
     key = tree->keys[idx];
@@ -891,8 +891,8 @@ TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
       found_records = check_quick_select(
-          param, idx, read_index_only, key, update_tbl_stats, order_direction,
-          skip_records_in_range, &mrr_flags, &buf_size, &cost);
+          thd, param, idx, read_index_only, key, update_tbl_stats,
+          order_direction, skip_records_in_range, &mrr_flags, &buf_size, &cost);
 
       if (!compound_hint_key_enabled(param->table, keynr,
                                      INDEX_MERGE_HINT_ENUM)) {
@@ -901,8 +901,8 @@ TRP_RANGE *get_key_scans_params(RANGE_OPT_PARAM *param, SEL_TREE *tree,
       }
 
       // check_quick_select() says don't use range if it returns HA_POS_ERROR
-      if (found_records != HA_POS_ERROR && param->thd->opt_trace.is_started()) {
-        Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
+      if (found_records != HA_POS_ERROR && thd->opt_trace.is_started()) {
+        Opt_trace_array trace_range(&thd->opt_trace, "ranges");
 
         const KEY &cur_key = param->table->key_info[keynr];
         const KEY_PART_INFO *key_part = cur_key.key_part;

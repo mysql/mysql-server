@@ -75,7 +75,7 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   ha_rows quick_prefix_records;
 
  public:
-  void trace_basic_info(const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
   TRP_GROUP_MIN_MAX(bool have_min_arg, bool have_max_arg,
@@ -102,12 +102,13 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         is_index_scan(false),
         quick_prefix_records(quick_prefix_records_arg) {}
 
-  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
+                             bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;
   void use_index_scan() { is_index_scan = true; }
 };
 
-TRP_GROUP_MIN_MAX *get_best_group_min_max(RANGE_OPT_PARAM *param,
+TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
                                           SEL_TREE *tree,
                                           enum_order order_direction,
                                           bool skip_records_in_range,
