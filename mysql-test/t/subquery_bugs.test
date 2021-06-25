@@ -1666,3 +1666,23 @@ WHERE 1 IN ( SELECT a FROM t1 )
 ORDER BY a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33045256: WL#14419: ASSERTION `NULLPTR != DYNAMIC_CAST<TARGET>(ARG)' FAILED
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+
+# Disable the output, since only the hypergraph optimizer can actually run this query.
+--disable_result_log
+--error 0,ER_NOT_SUPPORTED_YET
+SELECT * FROM (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+) AS d1
+WHERE (a,b) IN (
+  SELECT a, JSON_ARRAYAGG(a) OVER () AS b FROM t1
+);
+--enable_result_log
+
+DROP TABLE t1;

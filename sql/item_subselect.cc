@@ -2187,7 +2187,8 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
   uint cols_num = left_expr->cols();
   bool is_having_used = select->having_cond() || select->with_sum_func ||
                         select->group_list.first ||
-                        !select->table_list.elements;
+                        !select->table_list.elements ||
+                        select->m_windows.elements > 0;
 
   DBUG_TRACE;
   OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1, select->select_number,
