@@ -125,6 +125,22 @@ void mysql_extension_bind_free(MYSQL_EXTENSION *ext);
 
 #define ASYNC_DATA(M) \
   (NULL != (M) ? (MYSQL_EXTENSION_PTR(M)->mysql_async_context) : NULL)
+/**
+  Sets the MYSQL_EXTENSION::server_extn attribute by the use of NET_SERVER which
+  contains information about compression context and compression attributes.
+  This attribute needs to be set each time mysql_real_connect() is called to
+  make a connection. When a connection attempt fails or when a connection is
+  closed, as part of the MYSQL handle cleanup, mysql_close_free() is called and
+  that will free MYSQL_EXTENSION::server_extn.
+
+  mysql_close_free() will free all the memory allocated in the MYSQL handle but
+  preserves MYSQL::options. These options are later free'd by
+  mysql_close_free_options() unless the client flag CLIENT_REMEMBER_OPTIONS is
+  set.
+
+  @param mysql  The MYSQL handle
+  @param extn   The NET_SERVER handle that contains compression context info.
+*/
 #ifdef MYSQL_SERVER
 inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
   MYSQL_EXTENSION_PTR(mysql)->server_extn = extn;
