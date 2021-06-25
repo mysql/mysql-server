@@ -878,7 +878,12 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
   path->filter().condition = condition;
   path->filter().child = new_path;
   path->filter().materialize_subqueries = false;
-  path->filter_predicates.Clear();
+
+  // Clear filter_predicates, but keep applied_sargable_join_predicates.
+  MutableOverflowBitset applied_sargable_join_predicates =
+      path->applied_sargable_join_predicates().Clone(thd->mem_root);
+  applied_sargable_join_predicates.ClearBits(0, num_where_predicates);
+  path->filter_predicates = std::move(applied_sargable_join_predicates);
 }
 
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,

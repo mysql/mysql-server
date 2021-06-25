@@ -1888,3 +1888,15 @@ SELECT * FROM
 WHERE NOT EXISTS (SELECT 1 FROM t1 AS inner_t1 WHERE i = d1.i);
 
 DROP TABLE t1;
+
+# Test that more than 64 predicates work well together with
+# sargable predicates _and_ materialized subqueries.
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, c INTEGER, d INTEGER, e INTEGER, f INTEGER, g INTEGER, h INTEGER, i INTEGER, j INTEGER, k INTEGER, l INTEGER, m INTEGER, n INTEGER, o INTEGER, p INTEGER, q INTEGER, r INTEGER, s INTEGER, t INTEGER, u INTEGER, v INTEGER, w INTEGER, KEY (a) );
+
+SELECT 1
+FROM t1 NATURAL JOIN t1 AS t2 NATURAL JOIN t1 AS t3
+WHERE
+  t1.a <> ( SELECT SUM(a) FROM t1 );
+
+DROP TABLE t1;
