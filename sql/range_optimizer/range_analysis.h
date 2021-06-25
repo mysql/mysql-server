@@ -43,9 +43,10 @@ class Item;
     See quick_range_seq_next, find_used_partitions for examples of how to walk
     this structure.
     All direct "users" of this module are located within this file, too.
+
  */
 SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, table_map prev_tables,
                       table_map read_tables, table_map current_table,
-                      Item *cond);
+                      bool remove_jump_scans, Item *cond);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_ANALYSIS_H_

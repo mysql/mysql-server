@@ -136,8 +136,10 @@ class SEL_IMERGE {
         trees_end(trees + PREALLOCED_TREES) {}
   SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param);
   int or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree);
-  int or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree);
-  int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE *imerge);
+  int or_sel_tree_with_checks(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                              SEL_TREE *new_tree);
+  int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                                SEL_IMERGE *imerge);
 };
 
 /*

@@ -69,13 +69,6 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
     key_parts = m_key_parts;
     key_parts_end = m_key_parts;
     keys = 0;
-    /*
-      Controls whether or not ranges that do not have conditions on
-      the first keypart are removed before two trees are ORed in such
-      a way that index merge is required. The value of 'true' means
-      that such ranges are removed.
-    */
-    remove_jump_scans = true;
 
     const Mock_HANDLER *mock_handler = &fake_table.mock_handler;
 

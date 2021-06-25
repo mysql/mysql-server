@@ -53,7 +53,8 @@ using std::min;
 // Note: tree1 and tree2 are not usable by themselves after tree_and() or
 // tree_or().
 SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
-SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
+SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                  SEL_TREE *tree1, SEL_TREE *tree2);
 SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 
@@ -239,13 +240,14 @@ inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2) {
     other Error, both passed lists are unusable
 */
 
-static int imerge_list_or_list(RANGE_OPT_PARAM *param, List<SEL_IMERGE> *im1,
-                               List<SEL_IMERGE> *im2) {
+static int imerge_list_or_list(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                               List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2) {
   SEL_IMERGE *imerge = im1->head();
   im1->clear();
   im1->push_back(imerge);
 
-  return imerge->or_sel_imerge_with_checks(param, im2->head());
+  return imerge->or_sel_imerge_with_checks(param, remove_jump_scans,
+                                           im2->head());
 }
 
 /*
@@ -256,8 +258,8 @@ static int imerge_list_or_list(RANGE_OPT_PARAM *param, List<SEL_IMERGE> *im1,
     true      Error
 */
 
-static bool imerge_list_or_tree(RANGE_OPT_PARAM *param, List<SEL_IMERGE> *im1,
-                                SEL_TREE *tree) {
+static bool imerge_list_or_tree(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                                List<SEL_IMERGE> *im1, SEL_TREE *tree) {
   DBUG_TRACE;
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
@@ -278,7 +280,8 @@ static bool imerge_list_or_tree(RANGE_OPT_PARAM *param, List<SEL_IMERGE> *im1,
         return false;
     }
 
-    int result_or = imerge->or_sel_tree_with_checks(param, or_tree);
+    int result_or =
+        imerge->or_sel_tree_with_checks(param, remove_jump_scans, or_tree);
     if (result_or == 1)
       it.remove();
     else if (result_or == -1)
@@ -650,7 +653,8 @@ static bool remove_nonrange_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
   return !res;
 }
 
-SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
+SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                  SEL_TREE *tree1, SEL_TREE *tree2) {
   DBUG_TRACE;
 
   if (param->has_errors()) return nullptr;
@@ -722,7 +726,7 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
   } else {
     /* ok, two trees have KEY type but cannot be used without index merge */
     if (tree1->merges.is_empty() && tree2->merges.is_empty()) {
-      if (param->remove_jump_scans) {
+      if (remove_jump_scans) {
         bool no_trees = remove_nonrange_trees(param, tree1);
         no_trees = no_trees || remove_nonrange_trees(param, tree2);
         if (no_trees)
@@ -741,7 +745,8 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
       else
         result->type = tree1->type;
     } else if (!tree1->merges.is_empty() && !tree2->merges.is_empty()) {
-      if (imerge_list_or_list(param, &tree1->merges, &tree2->merges))
+      if (imerge_list_or_list(param, remove_jump_scans, &tree1->merges,
+                              &tree2->merges))
         result = new (param->mem_root)
             SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
       else
@@ -750,11 +755,11 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
       /* one tree is index merge tree and another is range tree */
       if (tree1->merges.is_empty()) std::swap(tree1, tree2);
 
-      if (param->remove_jump_scans && remove_nonrange_trees(param, tree2))
+      if (remove_jump_scans && remove_nonrange_trees(param, tree2))
         return new (param->mem_root)
             SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
       /* add tree2 to tree1->merges, checking if it collapses to ALWAYS */
-      if (imerge_list_or_tree(param, &tree1->merges, tree2))
+      if (imerge_list_or_tree(param, remove_jump_scans, &tree1->merges, tree2))
         result = new (param->mem_root)
             SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
       else

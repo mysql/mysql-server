@@ -202,6 +202,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
   SYNOPSIS
     or_sel_tree_with_checks()
       param    PARAM from test_quick_select
+      remove_jump_scans See get_mm_tree()
       new_tree SEL_TREE with type KEY or KEY_SMALLER.
 
   NOTES
@@ -225,11 +226,12 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
 */
 
 int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
+                                        bool remove_jump_scans,
                                         SEL_TREE *new_tree) {
   DBUG_TRACE;
   for (SEL_TREE **tree = trees; tree != trees_next; tree++) {
     if (sel_trees_can_be_ored(*tree, new_tree, param)) {
-      *tree = tree_or(param, *tree, new_tree);
+      *tree = tree_or(param, remove_jump_scans, *tree, new_tree);
       if (!*tree) return 1;
       if (((*tree)->type == SEL_TREE::MAYBE) ||
           ((*tree)->type == SEL_TREE::ALWAYS))
@@ -255,9 +257,10 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
 */
 
 int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
+                                          bool remove_jump_scans,
                                           SEL_IMERGE *imerge) {
   for (SEL_TREE **tree = imerge->trees; tree != imerge->trees_next; tree++) {
-    if (or_sel_tree_with_checks(param, *tree)) return 1;
+    if (or_sel_tree_with_checks(param, remove_jump_scans, *tree)) return 1;
   }
   return 0;
 }
@@ -528,7 +531,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.mem_root = &alloc;
     param.old_root = thd->mem_root;
     param.using_real_indexes = true;
-    param.remove_jump_scans = true;
     param.use_index_statistics = false;
     /*
       Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
@@ -652,7 +654,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
         tree = get_mm_tree(&param, prev_tables | INNER_TABLE_BIT,
                            read_tables | INNER_TABLE_BIT,
-                           head->pos_in_table_list->map(), cond);
+                           head->pos_in_table_list->map(),
+                           /*remove_jump_scans=*/true, cond);
       }
       if (tree) {
         if (tree->type == SEL_TREE::IMPOSSIBLE) {

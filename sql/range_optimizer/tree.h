@@ -48,7 +48,8 @@ struct ROR_SCAN_INFO;
 // Note: tree1 and tree2 are not usable by themselves after tree_and() or
 // tree_or().
 SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
-SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
+SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
+                  SEL_TREE *tree1, SEL_TREE *tree2);
 SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 

@@ -306,7 +306,6 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
 
   range_par->keys = 1;  // one index
   range_par->using_real_indexes = false;
-  range_par->remove_jump_scans = false;
   range_par->real_keynr[0] = 0;
 
   thd->mem_root = &alloc;
@@ -318,7 +317,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   int res;
 
   tree = get_mm_tree(range_par, prev_tables, read_tables, current_table,
-                     pprune_cond);
+                     /*remove_jump_scans=*/false, pprune_cond);
   if (!tree) goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE) {
