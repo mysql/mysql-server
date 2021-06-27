@@ -695,9 +695,8 @@ size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
     to_p =
         my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++) = ' ';
-    to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
-  } else
-    to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
+  }
+  to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
   if (part_name) {
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p = my_stpncpy(to_p, " /* ", end_p - to_p);
