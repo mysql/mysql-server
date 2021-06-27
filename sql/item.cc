@@ -7040,7 +7040,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
 }
 
 bool Item::can_be_substituted_for_gc(bool array) const {
-  switch (type()) {
+  switch (const_cast<Item *>(this)->real_item()->type()) {
     case FUNC_ITEM:
     case COND_ITEM:
       return true;
