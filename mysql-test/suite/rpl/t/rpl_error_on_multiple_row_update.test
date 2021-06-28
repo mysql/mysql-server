@@ -22,7 +22,8 @@
 
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
-
+--let $skip_configuration_privilege_checks_user= 'skip'
+--let $rpl_privilege_checks_user_grant_all= 1
 # 1. Create source-replica topology.
 --source include/master-slave.inc
 
