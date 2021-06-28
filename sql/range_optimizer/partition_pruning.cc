@@ -291,8 +291,9 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
   alloc.set_error_for_capacity_exceeded(true);
   thd->push_internal_handler(&range_par->error_handler);
-  range_par->mem_root = &alloc;
-  range_par->old_root = thd->mem_root;
+  range_par->return_mem_root =
+      &alloc;  // We never use the generated TRPs, if any.
+  range_par->temp_mem_root = &alloc;
 
   if (create_partition_index_description(&prune_param)) {
     mark_all_partitions_as_used(part_info);
@@ -311,8 +312,6 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   range_par->keys = 1;  // one index
   range_par->using_real_indexes = false;
   range_par->real_keynr[0] = 0;
-
-  thd->mem_root = &alloc;
 
   bitmap_clear_all(&part_info->read_partitions);
 
@@ -399,7 +398,6 @@ end:
   thd->pop_internal_handler();
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
-  thd->mem_root = range_par->old_root;
   /* If an error occurred we can return failure after freeing the memroot. */
   if (thd->is_error()) {
     return true;
@@ -532,8 +530,8 @@ static int find_used_partitions_imerge_list(THD *thd, PART_PRUNE_PARAM *ppar,
   my_bitmap_map *bitmap_buf;
   uint n_bits = ppar->part_info->read_partitions.n_bits;
   bitmap_bytes = bitmap_buffer_size(n_bits);
-  if (!(bitmap_buf =
-            (my_bitmap_map *)ppar->range_param.mem_root->Alloc(bitmap_bytes))) {
+  if (!(bitmap_buf = (my_bitmap_map *)ppar->range_param.temp_mem_root->Alloc(
+            bitmap_bytes))) {
     /*
       Fallback, process just the first SEL_IMERGE. This can leave us with more
       partitions marked as used then actually needed.
@@ -1126,7 +1124,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar) {
   }
 
   KEY_PART *key_part;
-  MEM_ROOT *alloc = range_par->mem_root;
+  MEM_ROOT *alloc = range_par->temp_mem_root;
   if (!total_parts ||
       !(key_part = (KEY_PART *)alloc->Alloc(sizeof(KEY_PART) * total_parts)) ||
       !(ppar->arg_stack =

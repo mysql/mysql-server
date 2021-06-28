@@ -32,7 +32,6 @@
 
 class RowIterator;
 class String;
-class THD;
 class Unique;
 struct MY_BITMAP;
 struct TABLE;
@@ -100,7 +99,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   Unique *unique;
 
  public:
-  QUICK_INDEX_MERGE_SELECT(THD *thd, TABLE *table);
+  QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT() override;
 
   int init() override;
@@ -131,8 +130,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   /* true if this select is currently doing a clustered PK scan */
   bool doing_pk_scan;
 
-  MEM_ROOT alloc;
-  THD *thd;
   int read_keys_and_merge();
 
   bool clustered_pk_range() override { return pk_quick_select; }
@@ -160,6 +157,9 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
   /* used to get rows collected in Unique */
   unique_ptr_destroy_only<RowIterator> read_record;
+
+ private:
+  MEM_ROOT *mem_root;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_INDEX_MERGE_H_

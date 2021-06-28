@@ -3328,7 +3328,7 @@ void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
   destroy(filesort);
   filesort = nullptr;
-  if (quick_optim() != quick()) delete quick_optim();
+  if (quick_optim() != quick()) destroy(quick_optim());
 
   TABLE *const t = table();
 
@@ -3378,7 +3378,7 @@ void QEP_shared_owner::qs_cleanup() {
       table_ref->derived_key_list.clear();
     }
   }
-  delete quick();
+  destroy(quick());
 }
 
 uint QEP_TAB::sjm_query_block_id() const {
@@ -5191,7 +5191,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
         QUICK_SELECT_I *reverse_quick;
         if (!skip_quick &&
             (reverse_quick = (*quick)->make_reverse(used_key_parts))) {
-          delete (*quick);
+          destroy(*quick);
           *quick = reverse_quick;
           *need_sort = false;
           return reverse_quick->index;

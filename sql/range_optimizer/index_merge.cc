@@ -52,12 +52,9 @@
 
 struct MY_BITMAP;
 
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param, TABLE *table)
-    : unique(nullptr),
-      pk_quick_select(nullptr),
-      alloc(key_memory_quick_index_merge_root,
-            thd_param->variables.range_alloc_block_size),
-      thd(thd_param) {
+QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
+                                                   TABLE *table)
+    : unique(nullptr), pk_quick_select(nullptr), mem_root(return_mem_root) {
   DBUG_TRACE;
   index = MAX_KEY;
   head = table;
@@ -102,10 +99,10 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
         (0 != (head->key_info[quick->index].flags & HA_MULTI_VALUED_KEY));
     quick->file = nullptr;
   }
-  quick_selects.delete_elements();
+  quick_selects.destroy_elements();
   if (disable_unique_filter)
     head->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
-  delete pk_quick_select;
+  destroy(pk_quick_select);
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
   free_io_cache(head);
@@ -162,7 +159,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   */
   if (cur_quick->init() || cur_quick->reset()) return 1;
 
-  size_t sort_buffer_size = thd->variables.sortbuff_size;
+  size_t sort_buffer_size = current_thd->variables.sortbuff_size;
 #ifndef NDEBUG
   if (DBUG_EVALUATE_IF("sortbuff_size_256", 1, 0)) sort_buffer_size = 256;
 #endif /* NDEBUG */
@@ -171,8 +168,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
     DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(););
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created",
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"););
-    unique = new (*THR_MALLOC) Unique(refpos_order_cmp, (void *)file,
-                                      file->ref_length, sort_buffer_size);
+    unique = new (mem_root) Unique(refpos_order_cmp, (void *)file,
+                                   file->ref_length, sort_buffer_size);
   } else {
     unique->reset();
     head->unique_result.sorted_result.reset();
@@ -208,7 +205,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
       break;
     }
 
-    if (thd->killed) return 1;
+    if (current_thd->killed) return 1;
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
@@ -228,7 +225,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
   read_record.reset();  // Clear out any previous iterator.
-  read_record = init_table_iterator(thd, head,
+  read_record = init_table_iterator(current_thd, head,
                                     /*ignore_not_found_rows=*/false,
                                     /*count_examined_rows=*/false);
   if (read_record == nullptr) return 1;

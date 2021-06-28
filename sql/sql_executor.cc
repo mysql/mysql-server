@@ -3917,10 +3917,22 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
                                            ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_qep_tab(qep_tab),
+      m_mem_root(key_memory_test_quick_select_exec,
+                 thd->variables.range_alloc_block_size),
       m_examined_rows(examined_rows),
       m_read_set_without_base_columns(table->read_set) {
   add_virtual_gcol_base_cols(table, thd->mem_root,
                              &m_read_set_with_base_columns);
+}
+
+DynamicRangeIterator::~DynamicRangeIterator() {
+  // This is owned by our MEM_ROOT.
+  if (m_qep_tab->quick_optim() != m_qep_tab->quick()) {
+    destroy(m_qep_tab->quick_optim());
+  }
+  destroy(m_qep_tab->quick());
+  m_qep_tab->set_quick(nullptr);
+  m_qep_tab->set_quick_optim();
 }
 
 bool DynamicRangeIterator::Init() {
@@ -3937,7 +3949,6 @@ bool DynamicRangeIterator::Init() {
   trace_table.add_utf8_table(m_qep_tab->table_ref);
 
   Key_map needed_reg_dummy;
-  QUICK_SELECT_I *old_qck = m_qep_tab->quick();
   QUICK_SELECT_I *qck;
   // In execution, range estimation is done for each row,
   // so we can access previous tables.
@@ -3945,18 +3956,6 @@ bool DynamicRangeIterator::Init() {
   table_map read_tables =
       m_qep_tab->prefix_tables() & ~m_qep_tab->added_tables();
   DEBUG_SYNC(thd(), "quick_not_created");
-  const int rc = test_quick_select(
-      thd(), m_qep_tab->keys(), const_tables, read_tables, HA_POS_ERROR,
-      false,  // don't force quick range
-      ORDER_NOT_RELEVANT, m_qep_tab->table(),
-      m_qep_tab->skip_records_in_range(), m_qep_tab->condition(),
-      &needed_reg_dummy, &qck, m_qep_tab->table()->force_index,
-      m_qep_tab->join()->query_block);
-  if (thd()->is_error())  // @todo consolidate error reporting of
-                          // test_quick_select
-    return true;
-  assert(old_qck == nullptr || old_qck != qck);
-  m_qep_tab->set_quick(qck);
 
   /*
     EXPLAIN CONNECTION is used to understand why a query is currently taking
@@ -3969,11 +3968,31 @@ bool DynamicRangeIterator::Init() {
   DEBUG_SYNC(thd(), "quick_created_before_mutex");
 
   thd()->lock_query_plan();
+
+  QUICK_SELECT_I *old_qck = m_qep_tab->quick();
+  destroy(old_qck);
+  m_mem_root.ClearForReuse();
+
+  const int rc = test_quick_select(
+      thd(), &m_mem_root, &m_mem_root, m_qep_tab->keys(), const_tables,
+      read_tables, HA_POS_ERROR,
+      false,  // don't force quick range
+      ORDER_NOT_RELEVANT, m_qep_tab->table(),
+      m_qep_tab->skip_records_in_range(), m_qep_tab->condition(),
+      &needed_reg_dummy, &qck, m_qep_tab->table()->force_index,
+      m_qep_tab->join()->query_block);
+  if (thd()->is_error())  // @todo consolidate error reporting of
+                          // test_quick_select
+  {
+    thd()->unlock_query_plan();
+    return true;
+  }
+
+  m_qep_tab->set_quick(qck);
   m_qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
   m_qep_tab->set_quick_optim();
   thd()->unlock_query_plan();
 
-  delete old_qck;
   DEBUG_SYNC(thd(), "quick_droped_after_mutex");
 
   // Clear out and destroy any old iterators before we start constructing

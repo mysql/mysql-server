@@ -44,21 +44,16 @@
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
-QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
-                                                       TABLE *table,
-                                                       bool retrieve_full_rows,
-                                                       MEM_ROOT *parent_alloc)
-    : cpk_quick(nullptr),
-      alloc(key_memory_quick_ror_intersect_select_root,
-            thd_param->variables.range_alloc_block_size),
-      thd(thd_param),
+QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
+    TABLE *table, bool retrieve_full_rows, MEM_ROOT *return_mem_root)
+    : mem_root(return_mem_root),
+      cpk_quick(nullptr),
       need_to_fetch_row(retrieve_full_rows),
       scans_inited(false) {
   index = MAX_KEY;
   head = table;
   record = head->record[0];
-  last_rowid = (uchar *)(parent_alloc ? parent_alloc : &alloc)
-                   ->Alloc(head->file->ref_length);
+  last_rowid = (uchar *)mem_root->Alloc(head->file->ref_length);
 }
 
 /*
@@ -125,8 +120,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
     return 0;
   }
 
-  if (!(file =
-            head->file->clone(head->s->normalized_path.str, thd->mem_root))) {
+  if (!(file = head->file->clone(head->s->normalized_path.str, mem_root))) {
     /*
       Manually set the error flag. Note: there seems to be quite a few
       places where a failure could cause the server to "hang" the client by
@@ -275,23 +269,21 @@ bool QUICK_ROR_INTERSECT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick) {
 
 QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
   DBUG_TRACE;
-  quick_selects.delete_elements();
-  delete cpk_quick;
+  quick_selects.destroy_elements();
+  destroy(cpk_quick);
   if (need_to_fetch_row && head->file->inited) head->file->ha_rnd_end();
 }
 
-QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(THD *thd_param, TABLE *table)
+QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
+                                               TABLE *table)
     : queue(Quick_ror_union_less(this),
             Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
-      alloc(key_memory_quick_ror_union_select_root,
-            thd_param->variables.range_alloc_block_size),
-      thd(thd_param),
+      mem_root(return_mem_root),
       scans_inited(false) {
   index = MAX_KEY;
   head = table;
   rowid_length = table->file->ref_length;
   record = head->record[0];
-  thd_param->mem_root = &alloc;
 }
 
 /*
@@ -310,7 +302,8 @@ int QUICK_ROR_UNION_SELECT::init() {
     return 1;
   }
 
-  if (!(cur_rowid = (uchar *)alloc.Alloc(2 * head->file->ref_length))) return 1;
+  if (!(cur_rowid = (uchar *)mem_root->Alloc(2 * head->file->ref_length)))
+    return 1;
   prev_rowid = cur_rowid + head->file->ref_length;
   return 0;
 }
@@ -333,16 +326,7 @@ int QUICK_ROR_UNION_SELECT::reset() {
   if (!scans_inited) {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick = it++)) {
-      /*
-        Use mem_root of this "QUICK" as using the statement mem_root
-        might result in too many allocations when combined with
-        dynamic range access where range optimizer is invoked many times
-        for a single statement.
-      */
-      MEM_ROOT *saved_root = thd->mem_root;
-      thd->mem_root = &alloc;
       error = quick->init_ror_merged_scan(false);
-      thd->mem_root = saved_root;
       if (error) return 1;
     }
     scans_inited = true;
@@ -382,7 +366,7 @@ bool QUICK_ROR_UNION_SELECT::push_quick_back(QUICK_SELECT_I *quick_sel_range) {
 
 QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
   DBUG_TRACE;
-  quick_selects.delete_elements();
+  quick_selects.destroy_elements();
   if (head->file->inited) head->file->ha_rnd_end();
 }
 

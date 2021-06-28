@@ -187,7 +187,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   join_type type = JT_UNKNOWN;
 
   auto cleanup = create_scope_guard([&quick, table] {
-    delete quick;
+    destroy(quick);
     table->set_keyread(false);
     table->file->ha_index_or_rnd_end();
     free_io_cache(table);
@@ -361,11 +361,13 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
-      no_rows = test_quick_select(thd, keys_to_use, 0, 0, limit, safe_update,
-                                  ORDER_NOT_RELEVANT, table,
-                                  /*skip_records_in_range=*/false, conds,
-                                  &needed_reg_dummy, &quick, table->force_index,
-                                  query_block) < 0;
+      MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                             thd->variables.range_alloc_block_size);
+      no_rows = test_quick_select(
+                    thd, thd->mem_root, &temp_mem_root, keys_to_use, 0, 0,
+                    limit, safe_update, ORDER_NOT_RELEVANT, table,
+                    /*skip_records_in_range=*/false, conds, &needed_reg_dummy,
+                    &quick, table->force_index, query_block) < 0;
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation
       return true;

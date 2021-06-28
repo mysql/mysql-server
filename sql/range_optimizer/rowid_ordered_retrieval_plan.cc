@@ -123,38 +123,36 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, RANGE_OPT_PARAM *param,
+QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(RANGE_OPT_PARAM *param,
                                               bool retrieve_full_rows,
-                                              MEM_ROOT *parent_alloc) {
+                                              MEM_ROOT *return_mem_root) {
   QUICK_ROR_INTERSECT_SELECT *quick_intrsect;
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
-  MEM_ROOT *alloc;
 
-  if ((quick_intrsect = new QUICK_ROR_INTERSECT_SELECT(
-           thd, param->table, (retrieve_full_rows ? (!is_covering) : false),
-           parent_alloc))) {
+  if ((quick_intrsect = new (return_mem_root) QUICK_ROR_INTERSECT_SELECT(
+           param->table, (retrieve_full_rows ? (!is_covering) : false),
+           return_mem_root))) {
     DBUG_EXECUTE("info",
                  print_ror_scans_arr(param->table, "creating ROR-intersect",
                                      first_scan, last_scan););
-    alloc = parent_alloc ? parent_alloc : &quick_intrsect->alloc;
     for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
          current++) {
       uint idx = (*current)->idx;
-      if (!(quick = get_quick_select(
-                thd, param->table, param->key[idx], param->real_keynr[idx],
-                (*current)->sel_root, HA_MRR_SORTED, 0, alloc)) ||
+      if (!(quick = get_quick_select(return_mem_root, param->table,
+                                     param->key[idx], param->real_keynr[idx],
+                                     (*current)->sel_root, HA_MRR_SORTED, 0)) ||
           quick_intrsect->push_quick_back(quick)) {
-        delete quick_intrsect;
+        destroy(quick_intrsect);
         return nullptr;
       }
     }
     if (cpk_scan) {
       uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select(thd, param->table, param->key[idx],
-                                     param->real_keynr[idx], cpk_scan->sel_root,
-                                     HA_MRR_SORTED, 0, alloc))) {
-        delete quick_intrsect;
+      if (!(quick = get_quick_select(return_mem_root, param->table,
+                                     param->key[idx], param->real_keynr[idx],
+                                     cpk_scan->sel_root, HA_MRR_SORTED, 0))) {
+        destroy(quick_intrsect);
         return nullptr;
       }
       quick->file = nullptr;
@@ -167,8 +165,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, RANGE_OPT_PARAM *param,
   return quick_intrsect;
 }
 
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                                          bool, MEM_ROOT *) {
+QUICK_SELECT_I *TRP_ROR_UNION::make_quick(RANGE_OPT_PARAM *param, bool,
+                                          MEM_ROOT *return_mem_root) {
   QUICK_ROR_UNION_SELECT *quick_roru;
   TABLE_READ_PLAN **scan;
   QUICK_SELECT_I *quick;
@@ -177,10 +175,10 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(THD *thd, RANGE_OPT_PARAM *param,
     It is impossible to construct a ROR-union that will not retrieve full
     rows, ignore retrieve_full_rows parameter.
   */
-  if ((quick_roru = new QUICK_ROR_UNION_SELECT(thd, param->table))) {
+  if ((quick_roru = new (return_mem_root)
+           QUICK_ROR_UNION_SELECT(return_mem_root, param->table))) {
     for (scan = first_ror; scan != last_ror; scan++) {
-      if (!(quick =
-                (*scan)->make_quick(thd, param, false, &quick_roru->alloc)) ||
+      if (!(quick = (*scan)->make_quick(param, false, return_mem_root)) ||
           quick_roru->push_quick_back(quick))
         return nullptr;
     }
@@ -216,19 +214,17 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
   uint keynr;
   DBUG_TRACE;
 
-  if (!(ror_scan =
-            (ROR_SCAN_INFO *)param->mem_root->Alloc(sizeof(ROR_SCAN_INFO))))
-    return nullptr;
+  if (!(ror_scan = new (param->return_mem_root) ROR_SCAN_INFO)) return nullptr;
 
   ror_scan->idx = idx;
   ror_scan->keynr = keynr = param->real_keynr[idx];
   ror_scan->sel_root = sel_root;
   ror_scan->records = param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf1 = (my_bitmap_map *)param->mem_root->Alloc(
+  if (!(bitmap_buf1 = (my_bitmap_map *)param->return_mem_root->Alloc(
             param->table->s->column_bitmap_size)))
     return nullptr;
-  if (!(bitmap_buf2 = (my_bitmap_map *)param->mem_root->Alloc(
+  if (!(bitmap_buf2 = (my_bitmap_map *)param->return_mem_root->Alloc(
             param->table->s->column_bitmap_size)))
     return nullptr;
 
@@ -314,7 +310,7 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   */
   MY_BITMAP fields_to_cover;
   my_bitmap_map *map;
-  if (!(map = (my_bitmap_map *)param->mem_root->Alloc(
+  if (!(map = (my_bitmap_map *)param->temp_mem_root->Alloc(
             param->table->s->column_bitmap_size)))
     return;
   bitmap_init(&fields_to_cover, map, needed_fields->n_bits);
@@ -406,11 +402,9 @@ typedef struct {
 static ROR_INTERSECT_INFO *ror_intersect_init(const RANGE_OPT_PARAM *param) {
   ROR_INTERSECT_INFO *info;
   my_bitmap_map *buf;
-  if (!(info = (ROR_INTERSECT_INFO *)param->mem_root->Alloc(
-            sizeof(ROR_INTERSECT_INFO))))
-    return nullptr;
+  if (!(info = new (param->return_mem_root) ROR_INTERSECT_INFO)) return nullptr;
   info->param = param;
-  if (!(buf = (my_bitmap_map *)param->mem_root->Alloc(
+  if (!(buf = (my_bitmap_map *)param->temp_mem_root->Alloc(
             param->table->s->column_bitmap_size)))
     return nullptr;
   if (bitmap_init(&info->covered_fields, buf, param->table->s->fields))
@@ -854,8 +848,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   uint cpk_no;
   bool cpk_scan_used = false;
 
-  if (!(tree->ror_scans = (ROR_SCAN_INFO **)param->mem_root->Alloc(
-            sizeof(ROR_SCAN_INFO *) * param->keys)))
+  if (!(tree->ror_scans =
+            param->temp_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(param->keys)))
     return nullptr;
   cpk_no = ((param->table->file->primary_key_is_clustered())
                 ? param->table->s->primary_key
@@ -891,8 +885,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
 
   ROR_SCAN_INFO **intersect_scans; /* ROR scans used in index intersection */
   ROR_SCAN_INFO **intersect_scans_end;
-  if (!(intersect_scans = (ROR_SCAN_INFO **)param->mem_root->Alloc(
-            sizeof(ROR_SCAN_INFO *) * tree->n_ror_scans)))
+  if (!(intersect_scans = param->temp_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(
+            tree->n_ror_scans)))
     return nullptr;
   intersect_scans_end = intersect_scans;
 
@@ -1016,10 +1010,11 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   TRP_ROR_INTERSECT *trp = nullptr;
   if ((min_cost < *cost_est || force_index_merge) &&
       (cpk_scan_used || best_num > 1)) {
-    if (!(trp = new (param->mem_root) TRP_ROR_INTERSECT(force_index_merge)))
+    if (!(trp = new (param->return_mem_root)
+              TRP_ROR_INTERSECT(force_index_merge)))
       return trp;
-    if (!(trp->first_scan = (ROR_SCAN_INFO **)param->mem_root->Alloc(
-              sizeof(ROR_SCAN_INFO *) * best_num)))
+    if (!(trp->first_scan =
+              param->return_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(best_num)))
       return nullptr;
     memcpy(trp->first_scan, intersect_scans,
            best_num * sizeof(ROR_SCAN_INFO *));

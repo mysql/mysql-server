@@ -65,7 +65,7 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
     used_key_parts_arg Total number of keyparts A_1,...,C
     read_cost_arg      Cost of this access method
     read_records       Number of records returned
-    parent_alloc       Memory pool for this class
+    return_mem_root    Memory pool for this class
 
   RETURN
     None
@@ -76,7 +76,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree, uint eq_prefix_len,
     uint eq_prefix_parts, uint used_key_parts_arg,
     const Cost_estimate *read_cost_arg, ha_rows read_records,
-    [[maybe_unused]] MEM_ROOT *parent_alloc, bool has_aggregate_function)
+    MEM_ROOT *return_mem_root, bool has_aggregate_function)
     : join(join),
       index_info(index_info),
       index_range_tree(index_range_tree),
@@ -84,14 +84,13 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       eq_prefix_key_parts(eq_prefix_parts),
       distinct_prefix(nullptr),
       range_key_part(range_part),
+      mem_root(return_mem_root),
       seen_first_key(false),
       min_range_key(nullptr),
       max_range_key(nullptr),
       min_search_key(nullptr),
       max_search_key(nullptr),
-      has_aggregate_function(has_aggregate_function),
-      alloc(key_memory_quick_group_min_max_select_root,
-            join->thd->variables.range_alloc_block_size) {
+      has_aggregate_function(has_aggregate_function) {
   head = table;
   index = use_index;
   record = head->record[0];
@@ -105,9 +104,8 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
   KEY_PART_INFO *p = index_info->key_part;
 
   my_bitmap_map *bitmap;
-  if (!(bitmap = (my_bitmap_map *)my_malloc(key_memory_my_bitmap_map,
-                                            head->s->column_bitmap_size,
-                                            MYF(MY_WME)))) {
+  if (!(bitmap = (my_bitmap_map *)return_mem_root->Alloc(
+            head->s->column_bitmap_size))) {
     column_bitmap.bitmap = nullptr;
   } else
     bitmap_init(&column_bitmap, bitmap, head->s->fields);
@@ -126,13 +124,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     }
   }
   distinct_prefix_key_parts = used_key_parts - 1;
-
-  /*
-    See QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT
-    for why parent_alloc should be NULL.
-  */
-  assert(!parent_alloc);
-  join->thd->mem_root = &alloc;
 }
 
 /**
@@ -156,10 +147,11 @@ int QUICK_SKIP_SCAN_SELECT::init() {
   if (distinct_prefix) return 0;
 
   assert(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
-  if (!(distinct_prefix = (uchar *)alloc.Alloc(distinct_prefix_len))) return 1;
+  if (!(distinct_prefix = (uchar *)mem_root->Alloc(distinct_prefix_len)))
+    return 1;
 
   if (eq_prefix_len > 0) {
-    eq_prefix = (uchar *)alloc.Alloc(eq_prefix_len);
+    eq_prefix = (uchar *)mem_root->Alloc(eq_prefix_len);
     if (!eq_prefix) return 1;
   } else {
     eq_prefix = nullptr;
@@ -167,13 +159,13 @@ int QUICK_SKIP_SCAN_SELECT::init() {
 
   if (eq_prefix_key_parts > 0) {
     if (!(cur_eq_prefix =
-              (uint *)alloc.Alloc(eq_prefix_key_parts * sizeof(uint))))
+              (uint *)mem_root->Alloc(eq_prefix_key_parts * sizeof(uint))))
       return 1;
-    if (!(eq_key_prefixes =
-              (uchar ***)alloc.Alloc(eq_prefix_key_parts * sizeof(uchar **))))
+    if (!(eq_key_prefixes = (uchar ***)mem_root->Alloc(eq_prefix_key_parts *
+                                                       sizeof(uchar **))))
       return 1;
     if (!(eq_prefix_elements =
-              (uint *)alloc.Alloc(eq_prefix_key_parts * sizeof(uint))))
+              (uint *)mem_root->Alloc(eq_prefix_key_parts * sizeof(uint))))
       return 1;
 
     const SEL_ARG *cur_range = index_range_tree->root->first();
@@ -185,8 +177,8 @@ int QUICK_SKIP_SCAN_SELECT::init() {
       eq_prefix_elements[i] = cur_root->elements;
       cur_root = cur_range->next_key_part;
       assert(eq_prefix_elements[i] > 0);
-      if (!(eq_key_prefixes[i] =
-                (uchar **)alloc.Alloc(eq_prefix_elements[i] * sizeof(uchar *))))
+      if (!(eq_key_prefixes[i] = (uchar **)mem_root->Alloc(
+                eq_prefix_elements[i] * sizeof(uchar *))))
         return 1;
 
       uint j = 0;
@@ -198,7 +190,7 @@ int QUICK_SKIP_SCAN_SELECT::init() {
         //  Store ranges in the reverse order if key part is descending.
         uint pos = cur_range->is_ascending ? j : eq_prefix_elements[i] - j - 1;
 
-        if (!(eq_key_prefixes[i][pos] = (uchar *)alloc.Alloc(field_length)))
+        if (!(eq_key_prefixes[i][pos] = (uchar *)mem_root->Alloc(field_length)))
           return 1;
 
         if (cur_range->maybe_null() && cur_range->min_value[0] &&
@@ -222,8 +214,6 @@ int QUICK_SKIP_SCAN_SELECT::init() {
 QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   DBUG_TRACE;
   if (head->file->inited) head->file->ha_index_or_rnd_end();
-
-  my_free(column_bitmap.bitmap);
 }
 
 /**
@@ -272,15 +262,17 @@ bool QUICK_SKIP_SCAN_SELECT::set_range(SEL_ARG *sel_range) {
 
   // Allocate storage for min/max key if they exist.
   if (!(range_cond_flag & NO_MIN_RANGE)) {
-    if (!(min_range_key = (uchar *)alloc.Alloc(range_key_len))) return false;
-    if (!(min_search_key = (uchar *)alloc.Alloc(max_used_key_length)))
+    if (!(min_range_key = (uchar *)mem_root->Alloc(range_key_len)))
+      return false;
+    if (!(min_search_key = (uchar *)mem_root->Alloc(max_used_key_length)))
       return false;
 
     memcpy(min_range_key, min_value, range_key_len);
   }
   if (!(range_cond_flag & NO_MAX_RANGE)) {
-    if (!(max_range_key = (uchar *)alloc.Alloc(range_key_len))) return false;
-    if (!(max_search_key = (uchar *)alloc.Alloc(max_used_key_length)))
+    if (!(max_range_key = (uchar *)mem_root->Alloc(range_key_len)))
+      return false;
+    if (!(max_search_key = (uchar *)mem_root->Alloc(max_used_key_length)))
       return false;
 
     memcpy(max_range_key, max_value, range_key_len);

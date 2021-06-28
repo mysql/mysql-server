@@ -182,12 +182,17 @@ class DynamicRangeIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   DynamicRangeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                        ha_rows *examined_rows);
+  ~DynamicRangeIterator() override;
 
   bool Init() override;
   int Read() override;
 
  private:
   QEP_TAB *m_qep_tab;
+
+  // All quicks are allocated on this MEM_ROOT, which is cleared out
+  // between every invocation of the range optimizer.
+  MEM_ROOT m_mem_root;
 
   unique_ptr_destroy_only<RowIterator> m_iterator;
 

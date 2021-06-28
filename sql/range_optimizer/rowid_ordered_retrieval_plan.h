@@ -73,9 +73,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   explicit TRP_ROR_INTERSECT(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
 
-  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                             bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc) override;
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+                             MEM_ROOT *return_mem_root) override;
 
   /* Array of pointers to ROR range scans used in this intersection */
   ROR_SCAN_INFO **first_scan;
@@ -100,9 +99,8 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   explicit TRP_ROR_UNION(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                             bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc) override;
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+                             MEM_ROOT *return_mem_root) override;
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
   TABLE_READ_PLAN **last_ror;  /* end of the above array */
 

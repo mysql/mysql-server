@@ -102,9 +102,8 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         is_index_scan(false),
         quick_prefix_records(quick_prefix_records_arg) {}
 
-  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                             bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc) override;
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+                             MEM_ROOT *mem_root) override;
   void use_index_scan() { is_index_scan = true; }
 };
 

@@ -33,9 +33,19 @@ class RANGE_OPT_PARAM {
   /* Array of parts of all keys for which range analysis is performed */
   KEY_PART *key_parts;
   KEY_PART *key_parts_end;
-  MEM_ROOT
-  *mem_root; /* Memory that will be freed when range analysis completes */
-  MEM_ROOT *old_root; /* Memory that will last until the query end */
+  // Memory used for allocating TRPs (TABLE_READ_PLAN objects) and similar
+  // objects that are required for a later call to make_quick(), as well as
+  // QUICK_SELECT_I objects and allocations they need to do themselves.
+  // Typically points to thd->mem_root, but DynamicRangeIterator uses its
+  // own MEM_ROOT here, as it needs to delete all the old data and allocate
+  // new objects. Note that not all data allocated here will indeed be used;
+  // e.g., we may allocate five TRPs here but only choose to use one of them.
+  MEM_ROOT *return_mem_root;
+  // Memory that will be freed when range analysis completes.
+  // In particular, this contains the tree built up to analyze
+  // the input expressions (SEL_TREE), but not the actual scan ranges
+  // decided on and given to the TRPs (Quick_range).
+  MEM_ROOT *temp_mem_root;
   /*
     Number of indexes used in range analysis (In SEL_TREE::keys only first
     #keys elements are not empty)

@@ -172,18 +172,18 @@ class QUICK_RANGE {
 
   The usage scenario is as follows:
   1. Create quick select
-    quick= new QUICK_XXX_SELECT(...);
+    quick = new (mem_root) QUICK_XXX_SELECT(...);
 
   2. Perform lightweight initialization. This can be done in 2 ways:
   2.a: Regular initialization
     if (quick->init())
     {
-      //the only valid action after failed init() call is delete
-      delete quick;
+      //the only valid action after failed init() call is destroy
+      destroy(quick);
     }
   2.b: Special initialization for quick selects merged by QUICK_ROR_*_SELECT
     if (quick->init_ror_merged_scan())
-      delete quick;
+      destroy(quick);
 
   3. Perform zero, one, or more scans.
     while (...)
@@ -192,8 +192,8 @@ class QUICK_RANGE {
       // buffers and/or prefetch rows.
       if (quick->reset())
       {
-        //the only valid action after failed reset() call is delete
-        delete quick;
+        //the only valid action after failed reset() call is destroy
+        destroy(quick);
         //abort query
       }
 
@@ -204,15 +204,8 @@ class QUICK_RANGE {
       } while (res && ...)
     }
 
-  4. Delete the select:
-    delete quick;
-
-  NOTE
-    quick select doesn't use MEM_ROOT allocation because "range
-    checked for each record" functionality may create/destroy
-    O(#records_in_some_table) quick selects during query execution.
-    See Bug#18684036 ELIMINATE LAST FEW HEAP USAGE FROM THE
-    RANGE OPTIMIZER.
+  4. Destroy the select:
+    destroy(quick);
 */
 
 class QUICK_SELECT_I {
@@ -259,10 +252,10 @@ class QUICK_SELECT_I {
 
     init() performs initializations that should have been in constructor if
     it was possible to return errors from constructors. The join optimizer may
-    create and then delete quick selects without retrieving any rows so init()
+    create and then destroy quick selects without retrieving any rows so init()
     must not contain any IO or CPU intensive code.
 
-    If init() call fails the only valid action is to delete this quick select,
+    If init() call fails the only valid action is to destroy this quick select,
     reset() and get_next() must not be called.
 
     RETURN
@@ -422,9 +415,10 @@ class QUICK_SELECT_I {
 typedef Prealloced_array<QUICK_RANGE *, 16> Quick_ranges;
 typedef Prealloced_array<Quick_ranges *, 16> Quick_ranges_array;
 
-int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
-                      table_map read_tables, ha_rows limit,
-                      bool force_quick_range,
+int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
+                      MEM_ROOT *temp_mem_root, Key_map keys_to_use,
+                      table_map prev_tables, table_map read_tables,
+                      ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,

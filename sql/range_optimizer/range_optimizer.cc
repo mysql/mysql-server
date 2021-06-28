@@ -182,11 +182,13 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
   if (trees_next == trees_end) {
     const int realloc_ratio = 2; /* Double size for next round */
     uint old_elements = static_cast<uint>(trees_end - trees);
-    uint old_size = sizeof(SEL_TREE **) * old_elements;
-    uint new_size = old_size * realloc_ratio;
-    SEL_TREE **new_trees;
-    if (!(new_trees = (SEL_TREE **)param->mem_root->Alloc(new_size))) return -1;
-    memcpy(new_trees, trees, old_size);
+    uint new_elements = old_elements * realloc_ratio;
+    SEL_TREE **new_trees =
+        param->temp_mem_root->ArrayAlloc<SEL_TREE *>(new_elements);
+    if (new_trees == nullptr) {
+      return -1;
+    }
+    memcpy(new_trees, trees, old_elements * sizeof(*trees));
     trees = new_trees;
     trees_next = trees + old_elements;
     trees_end = trees + old_elements * realloc_ratio;
@@ -269,8 +271,8 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
 SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param) {
   uint elements = static_cast<uint>(arg->trees_end - arg->trees);
   if (elements > PREALLOCED_TREES) {
-    uint size = elements * sizeof(SEL_TREE **);
-    if (!(trees = (SEL_TREE **)param->mem_root->Alloc(size))) goto mem_err;
+    if (!(trees = param->temp_mem_root->ArrayAlloc<SEL_TREE *>(elements)))
+      goto mem_err;
   } else
     trees = &trees_prealloced[0];
 
@@ -279,7 +281,7 @@ SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param) {
 
   for (SEL_TREE **tree = trees, **arg_tree = arg->trees; tree < trees_end;
        tree++, arg_tree++) {
-    if (!(*tree = new (param->mem_root) SEL_TREE(*arg_tree, param)) ||
+    if (!(*tree = new (param->temp_mem_root) SEL_TREE(*arg_tree, param)) ||
         param->has_errors())
       goto mem_err;
   }
@@ -353,7 +355,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   TABLE *table = param->table;
   my_bitmap_map *tmp;
   uint pk;
-  if (!(tmp = (my_bitmap_map *)param->mem_root->Alloc(
+  if (!(tmp = (my_bitmap_map *)param->return_mem_root->Alloc(
             table->s->column_bitmap_size)) ||
       bitmap_init(needed_fields, tmp, table->s->fields))
     return 1;
@@ -382,6 +384,15 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   SYNOPSIS
     test_quick_select()
       thd               Current thread
+      return_mem_root   MEM_ROOT to allocate TRPs, QUICK_SELECT_Is and
+                        dependent information on (ie., permanent artifacts
+                        that must live on after the range optimizer
+                        has finished executing).
+      temp_mem_root     MEM_ROOT to use for temporary data. Should usually
+                        be empty on entry, as we we will set memory limits
+                        on it. The primary reason why it's declared in the
+                        caller is that DynamicRangeIterator can clear it
+                        and reuse its memory between calls.
       keys_to_use       Keys to use for range retrieval
       prev_tables       Tables assumed to be already read when the scan is
                         performed (but not read at the moment of this call),
@@ -459,9 +470,10 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   by calling QEP_TAB::set_quick() and updating tab->type() if appropriate.
 
 */
-int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
-                      table_map read_tables, ha_rows limit,
-                      bool force_quick_range,
+int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
+                      MEM_ROOT *temp_mem_root, Key_map keys_to_use,
+                      table_map prev_tables, table_map read_tables,
+                      ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
@@ -507,8 +519,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all()) {
-    MEM_ROOT alloc(key_memory_test_quick_select_exec,
-                   thd->variables.range_alloc_block_size);
     SEL_TREE *tree = nullptr;
     KEY_PART *key_parts;
     KEY *key_info;
@@ -530,8 +540,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     param.query_block = query_block;
     param.keys = 0;
     param.is_ror_scan = false;
-    param.mem_root = &alloc;
-    param.old_root = thd->mem_root;
+    param.return_mem_root = return_mem_root;
+    param.temp_mem_root = temp_mem_root;
     param.using_real_indexes = true;
     param.use_index_statistics = false;
     /*
@@ -551,15 +561,16 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
-    alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
-    alloc.set_error_for_capacity_exceeded(true);
+    temp_mem_root->set_max_capacity(
+        thd->variables.range_optimizer_max_mem_size);
+    temp_mem_root->set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
-    if (!(param.key_parts = alloc.ArrayAlloc<KEY_PART>(head->s->key_parts))) {
+    if (!(param.key_parts =
+              temp_mem_root->ArrayAlloc<KEY_PART>(head->s->key_parts))) {
       thd->pop_internal_handler();
       return 0;  // Can't use range
     }
     key_parts = param.key_parts;
-    thd->mem_root = &alloc;
 
     {
       Opt_trace_array trace_idx(trace, "potential_range_indexes",
@@ -817,8 +828,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       }
     }
 
-    thd->mem_root = param.old_root;
-
     /*
       If we got a read plan, create a quick select from it.
 
@@ -828,7 +837,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     if (best_trp && (head->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
-      if (!(qck = best_trp->make_quick(thd, &param, true)) || qck->init())
+      if (!(qck = best_trp->make_quick(&param, true, return_mem_root)) ||
+          qck->init())
         qck = nullptr;
       *quick = qck;
     }
@@ -847,8 +857,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           .add("cost_for_plan", (*quick)->cost_est)
           .add("chosen", true);
     }
-
-    thd->mem_root = param.old_root;
 
     DBUG_EXECUTE("info", print_quick(*quick, needed_reg););
   }
@@ -971,7 +979,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
   TRP_RANGE **range_scans =
-      param->mem_root->ArrayAlloc<TRP_RANGE *>(n_child_scans);
+      param->return_mem_root->ArrayAlloc<TRP_RANGE *>(n_child_scans);
   if (range_scans == nullptr) {
     return nullptr;
   }
@@ -1098,7 +1106,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
       thd->variables.sortbuff_size);
   if (imerge_cost_buff->size() < unique_calc_buff_size) {
     *imerge_cost_buff = Unique::Imerge_cost_buf_type::Alloc(
-        param->mem_root, unique_calc_buff_size);
+        param->temp_mem_root, unique_calc_buff_size);
     if (imerge_cost_buff->array() == nullptr) return nullptr;
   }
 
@@ -1117,7 +1125,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
   }
   if (imerge_cost < read_cost || force_index_merge) {
     if ((imerge_trp =
-             new (param->mem_root) TRP_INDEX_MERGE(force_index_merge))) {
+             new (param->return_mem_root) TRP_INDEX_MERGE(force_index_merge))) {
       imerge_trp->cost_est = imerge_cost;
       imerge_trp->records = non_cpk_scan_records + cpk_scan_records;
       imerge_trp->records =
@@ -1134,8 +1142,8 @@ build_ror_index_merge:
     return imerge_trp;
 
   /* Ok, it is possible to build a ROR-union, try it. */
-  if (!(roru_read_plans = (TABLE_READ_PLAN **)param->mem_root->Alloc(
-            sizeof(TABLE_READ_PLAN *) * n_child_scans)))
+  if (!(roru_read_plans = param->return_mem_root->ArrayAlloc<TABLE_READ_PLAN *>(
+            n_child_scans)))
     return imerge_trp;
 skip_to_ror_scan:
   Cost_estimate roru_index_cost;
@@ -1226,7 +1234,8 @@ skip_to_ror_scan:
       .add("members", n_child_scans);
   TRP_ROR_UNION *roru;
   if (roru_total_cost < read_cost || force_index_merge) {
-    if ((roru = new (param->mem_root) TRP_ROR_UNION(force_index_merge))) {
+    if ((roru =
+             new (param->return_mem_root) TRP_ROR_UNION(force_index_merge))) {
       trace_best_disjunct.add("chosen", true);
       roru->first_ror = roru_read_plans;
       roru->last_ror = roru_read_plans + n_child_scans;

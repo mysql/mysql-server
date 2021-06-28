@@ -179,7 +179,7 @@ static bool all_same(const SEL_ROOT *sa1, const SEL_ROOT *sa2) {
 }
 
 SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param)
-    : keys(param->mem_root, param->keys), n_ror_scans(0) {
+    : keys(param->temp_mem_root, param->keys), n_ror_scans(0) {
   keys_map = arg->keys_map;
   type = arg->type;
   for (uint idx = 0; idx < param->keys; idx++) {
@@ -192,7 +192,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param)
 
   List_iterator<SEL_IMERGE> it(arg->merges);
   for (SEL_IMERGE *el = it++; el; el = it++) {
-    SEL_IMERGE *merge = new (param->mem_root) SEL_IMERGE(el, param);
+    SEL_IMERGE *merge = new (param->temp_mem_root) SEL_IMERGE(el, param);
     if (!merge || merge->trees == merge->trees_next || param->has_errors()) {
       merges.clear();
       return;
@@ -274,7 +274,7 @@ static bool imerge_list_or_tree(RANGE_OPT_PARAM *param, bool remove_jump_scans,
     if (--remaining_trees == 0)
       or_tree = tree;
     else {
-      or_tree = new (param->mem_root) SEL_TREE(tree, param);
+      or_tree = new (param->temp_mem_root) SEL_TREE(tree, param);
       if (!or_tree || param->has_errors()) return true;
       if (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty())
         return false;
@@ -349,7 +349,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
 
   if (param->has_errors()) return nullptr;
 
-  if (!(tmp = new (param->mem_root)
+  if (!(tmp = new (param->temp_mem_root)
             SEL_ARG(field, part, min_value, max_value, min_flag, max_flag,
                     maybe_flag, is_ascending)))
     return nullptr;  // OOM
@@ -478,7 +478,7 @@ SEL_ROOT *SEL_ROOT::clone_tree(RANGE_OPT_PARAM *param) const {
     For other types, just create a new SEL_ROOT object.
   */
   if (type != Type::KEY_RANGE)
-    return new (param->mem_root) SEL_ROOT(param->mem_root, type);
+    return new (param->temp_mem_root) SEL_ROOT(param->temp_mem_root, type);
 
   SEL_ARG tmp_link, *next_arg, *new_root;
   SEL_ROOT *new_tree;
@@ -490,7 +490,8 @@ SEL_ROOT *SEL_ROOT::clone_tree(RANGE_OPT_PARAM *param) const {
     return nullptr;
 
   // Make the SEL_ROOT itself.
-  if (!(new_tree = new (param->mem_root) SEL_ROOT(new_root))) return nullptr;
+  if (!(new_tree = new (param->temp_mem_root) SEL_ROOT(new_root)))
+    return nullptr;
   new_tree->elements = elements;
   next_arg->next = nullptr;       // Fix last link
   tmp_link.next->prev = nullptr;  // Fix first link
@@ -542,7 +543,7 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
           Do not test use_count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size() < 2097152)
+        if (param->temp_mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }
@@ -717,7 +718,7 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
           Do not test use count if there is a large range tree created.
           It takes too much time to traverse the tree.
         */
-        if (param->mem_root->allocated_size() < 2097152)
+        if (param->temp_mem_root->allocated_size() < 2097152)
           new_key->test_use_count(new_key);
 #endif
       }
@@ -730,14 +731,14 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
         bool no_trees = remove_nonrange_trees(param, tree1);
         no_trees = no_trees || remove_nonrange_trees(param, tree2);
         if (no_trees)
-          return new (param->mem_root)
-              SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
+          return new (param->temp_mem_root)
+              SEL_TREE(SEL_TREE::ALWAYS, param->temp_mem_root, param->keys);
       }
       SEL_IMERGE *merge;
       /* both trees are "range" trees, produce new index merge structure */
-      if (!(result =
-                new (param->mem_root) SEL_TREE(param->mem_root, param->keys)) ||
-          !(merge = new (param->mem_root) SEL_IMERGE()) ||
+      if (!(result = new (param->temp_mem_root)
+                SEL_TREE(param->temp_mem_root, param->keys)) ||
+          !(merge = new (param->temp_mem_root) SEL_IMERGE()) ||
           (result->merges.push_back(merge)) ||
           (merge->or_sel_tree(param, tree1)) ||
           (merge->or_sel_tree(param, tree2)))
@@ -747,8 +748,8 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
     } else if (!tree1->merges.is_empty() && !tree2->merges.is_empty()) {
       if (imerge_list_or_list(param, remove_jump_scans, &tree1->merges,
                               &tree2->merges))
-        result = new (param->mem_root)
-            SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
+        result = new (param->temp_mem_root)
+            SEL_TREE(SEL_TREE::ALWAYS, param->temp_mem_root, param->keys);
       else
         result = tree1;
     } else {
@@ -756,12 +757,12 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
       if (tree1->merges.is_empty()) std::swap(tree1, tree2);
 
       if (remove_jump_scans && remove_nonrange_trees(param, tree2))
-        return new (param->mem_root)
-            SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
+        return new (param->temp_mem_root)
+            SEL_TREE(SEL_TREE::ALWAYS, param->temp_mem_root, param->keys);
       /* add tree2 to tree1->merges, checking if it collapses to ALWAYS */
       if (imerge_list_or_tree(param, remove_jump_scans, &tree1->merges, tree2))
-        result = new (param->mem_root)
-            SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
+        result = new (param->temp_mem_root)
+            SEL_TREE(SEL_TREE::ALWAYS, param->temp_mem_root, param->keys);
       else
         result = tree1;
     }
@@ -940,11 +941,11 @@ SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
     if (next && next->type == SEL_ROOT::Type::IMPOSSIBLE)
       next->free_tree();
     else {
-      SEL_ARG *new_arg = e1->clone_and(e2, param->mem_root);
+      SEL_ARG *new_arg = e1->clone_and(e2, param->temp_mem_root);
       if (!new_arg) return nullptr;  // End of memory
       new_arg->set_next_key_part(next);
       if (!new_tree) {
-        new_tree = new (param->mem_root) SEL_ROOT(new_arg);
+        new_tree = new (param->temp_mem_root) SEL_ROOT(new_arg);
       } else
         new_tree->insert(new_arg);
     }
@@ -957,8 +958,8 @@ SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
   key2->free_tree();
   if (!new_tree)
     // Impossible range
-    return new (param->mem_root)
-        SEL_ROOT(param->mem_root, SEL_ROOT::Type::IMPOSSIBLE);
+    return new (param->temp_mem_root)
+        SEL_ROOT(param->temp_mem_root, SEL_ROOT::Type::IMPOSSIBLE);
   return new_tree;
 }
 
@@ -1198,7 +1199,7 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
         */
         SEL_ARG *next_key2 = cur_key2->next;
         if (key2_shared) {
-          if (!(cur_key2 = new (param->mem_root) SEL_ARG(*cur_key2)))
+          if (!(cur_key2 = new (param->temp_mem_root) SEL_ARG(*cur_key2)))
             return nullptr;            // out of memory
           cur_key2->next = next_key2;  // New copy of cur_key2
         }
@@ -1208,8 +1209,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
           key1->free_tree();
           key2->free_tree();
           if (key1->root->maybe_flag)
-            return new (param->mem_root)
-                SEL_ROOT(param->mem_root, SEL_ROOT::Type::MAYBE_KEY);
+            return new (param->temp_mem_root)
+                SEL_ROOT(param->temp_mem_root, SEL_ROOT::Type::MAYBE_KEY);
           return nullptr;
         }
 
@@ -1265,8 +1266,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
             key1->free_tree();
             key2->free_tree();
             if (key1->root->maybe_flag)
-              return new (param->mem_root)
-                  SEL_ROOT(param->mem_root, SEL_ROOT::Type::MAYBE_KEY);
+              return new (param->temp_mem_root)
+                  SEL_ROOT(param->temp_mem_root, SEL_ROOT::Type::MAYBE_KEY);
             return nullptr;
           }
           cur_key2->release_next_key_part();  // Free not used tree
@@ -1288,9 +1289,9 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
           */
           SEL_ARG *next_key2 = cur_key2->next;
           if (key2_shared) {
-            SEL_ARG *cpy =
-                new (param->mem_root) SEL_ARG(*cur_key2);  // Must make copy
-            if (!cpy) return nullptr;                      // OOM
+            SEL_ARG *cpy = new (param->temp_mem_root)
+                SEL_ARG(*cur_key2);    // Must make copy
+            if (!cpy) return nullptr;  // OOM
             key1->insert(cpy);
           } else
             key1->insert(cur_key2);
@@ -1405,8 +1406,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
           key1->free_tree();
           cur_key2->release_next_key_part();
           if (key1->root->maybe_flag)
-            return new (param->mem_root)
-                SEL_ROOT(param->mem_root, SEL_ROOT::Type::MAYBE_KEY);
+            return new (param->temp_mem_root)
+                SEL_ROOT(param->temp_mem_root, SEL_ROOT::Type::MAYBE_KEY);
           return nullptr;
         }
       }
@@ -1466,7 +1467,7 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
                       ^         ^
                       insert    cur_key1
       */
-      SEL_ARG *new_arg = cur_key1->clone_first(cur_key2, param->mem_root);
+      SEL_ARG *new_arg = cur_key1->clone_first(cur_key2, param->temp_mem_root);
       if (!new_arg) return nullptr;  // OOM
       new_arg->set_next_key_part(cur_key1->next_key_part);
       cur_key1->copy_min_to_min(cur_key2);
@@ -1502,7 +1503,7 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
                        ^        ^
                        insert   cur_key1
         */
-        SEL_ARG *new_arg = key2_cpy.clone_first(cur_key1, param->mem_root);
+        SEL_ARG *new_arg = key2_cpy.clone_first(cur_key1, param->temp_mem_root);
         if (!new_arg) return nullptr;  // OOM
         new_arg->set_next_key_part(key2_cpy.next_key_part);
         key1->insert(new_arg);
@@ -1539,7 +1540,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
             No more ranges in key1. Insert key2_cpy and go to "end"
             label to insert remaining ranges in key2 if any.
           */
-          SEL_ARG *new_key1_range = new (param->mem_root) SEL_ARG(key2_cpy);
+          SEL_ARG *new_key1_range =
+              new (param->temp_mem_root) SEL_ARG(key2_cpy);
           if (!new_key1_range) return nullptr;  // OOM
           key1->insert(new_key1_range);
           cur_key2 = cur_key2->next;
@@ -1551,7 +1553,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
             Insert this range into key1 and move on to the next range
             in key2.
           */
-          SEL_ARG *new_key1_range = new (param->mem_root) SEL_ARG(key2_cpy);
+          SEL_ARG *new_key1_range =
+              new (param->temp_mem_root) SEL_ARG(key2_cpy);
           if (!new_key1_range) return nullptr;  // OOM
           key1->insert(new_key1_range);
           break;
@@ -1591,7 +1594,8 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
           key2_cpy.release_next_key_part();  // Free not used tree
           break;
         }
-        SEL_ARG *new_arg = cur_key1->clone_last(&key2_cpy, param->mem_root);
+        SEL_ARG *new_arg =
+            cur_key1->clone_last(&key2_cpy, param->temp_mem_root);
         if (!new_arg) return nullptr;  // OOM
         cur_key1->copy_max_to_min(&key2_cpy);
 
@@ -1614,7 +1618,7 @@ end:
     SEL_ARG *next = cur_key2->next;
     if (key2_shared) {
       SEL_ARG *key2_cpy =
-          new (param->mem_root) SEL_ARG(*cur_key2);  // Must make copy
+          new (param->temp_mem_root) SEL_ARG(*cur_key2);  // Must make copy
       if (!key2_cpy) return nullptr;
       key1->insert(key2_cpy);
     } else

@@ -49,9 +49,10 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
-                                       MEM_ROOT *parent_alloc, uint mrr_flags,
-                                       uint mrr_buf_size, const KEY_PART *key,
+QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(TABLE *table, uint key_nr,
+                                       MEM_ROOT *return_mem_root,
+                                       uint mrr_flags, uint mrr_buf_size,
+                                       const KEY_PART *key,
                                        Quick_ranges ranges_arg,
                                        uint used_key_parts_arg)
     : ranges(std::move(ranges_arg)),
@@ -61,7 +62,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
       mrr_flags(mrr_flags),
       mrr_buf_size(mrr_buf_size),
       mrr_buf_desc(nullptr),
-      dont_free(false) {
+      dont_free(false),
+      mem_root(return_mem_root) {
   DBUG_TRACE;
 
   used_key_parts = used_key_parts_arg;
@@ -70,17 +72,11 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   head = table;
   key_part_info = head->key_info[index].key_part;
 
-  if (!parent_alloc) {
-    // Allocates everything through the internal memroot
-    alloc.reset(new MEM_ROOT(key_memory_quick_range_select_root,
-                             thd->variables.range_alloc_block_size));
-    thd->mem_root = alloc.get();
-  }
   file = head->file;
   record = head->record[0];
 
   key_parts = (KEY_PART *)memdup_root(
-      parent_alloc ? parent_alloc : alloc.get(), (const char *)key,
+      return_mem_root, (const char *)key,
       sizeof(KEY_PART) * actual_key_parts(&table->key_info[key_nr]));
 
   for (const QUICK_RANGE *range : ranges) {
@@ -97,9 +93,9 @@ int QUICK_RANGE_SELECT::init() {
   DBUG_TRACE;
 
   if (column_bitmap.bitmap == nullptr) {
-    /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
-    my_bitmap_map *bitmap = (my_bitmap_map *)my_malloc(
-        key_memory_my_bitmap_map, head->s->column_bitmap_size, MYF(MY_WME));
+    /* Allocate a bitmap for used columns */
+    my_bitmap_map *bitmap =
+        (my_bitmap_map *)mem_root->Alloc(head->s->column_bitmap_size);
     if (bitmap == nullptr) {
       column_bitmap.bitmap = nullptr;
       return true;
@@ -133,7 +129,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
         destroy(file);
       }
     }
-    my_free(column_bitmap.bitmap);
   }
   my_free(mrr_buf_desc);
 }
@@ -540,7 +535,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges() {
 */
 
 QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg) {
-  return new QUICK_SELECT_DESC(this, used_key_parts_arg);
+  return new (mem_root) QUICK_SELECT_DESC(this, used_key_parts_arg);
 }
 
 /*

@@ -68,7 +68,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
     records           Number of records returned
     key_infix_len     Length of the key infix appended to the group prefix
     key_infix         Infix of constants from equality predicates
-    parent_alloc      Memory pool for this and quick_prefix_query_block data
+    return_mem_root   Memory pool for this and quick_prefix_query_block data
     is_index_scan     get the next different key not by jumping on it via
                       index read, but by scanning until the end of the
                       rows with equal key value.
@@ -83,8 +83,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     uint group_prefix_len_arg, uint group_key_parts_arg,
     uint used_key_parts_arg, KEY *index_info_arg, uint use_index,
     const Cost_estimate *read_cost_arg, ha_rows records_arg,
-    uint key_infix_len_arg, [[maybe_unused]] MEM_ROOT *parent_alloc,
-    bool is_index_scan_arg)
+    uint key_infix_len_arg, MEM_ROOT *return_mem_root, bool is_index_scan_arg)
     : join(join_arg),
       index_info(index_info_arg),
       group_prefix_len(group_prefix_len_arg),
@@ -98,8 +97,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       min_max_ranges(PSI_INSTRUMENT_ME),
       key_infix_ranges(PSI_INSTRUMENT_ME),
       is_index_scan(is_index_scan_arg),
-      alloc(key_memory_quick_group_min_max_select_root,
-            join->thd->variables.range_alloc_block_size) {
+      mem_root(return_mem_root) {
   head = table;
   index = use_index;
   record = head->record[0];
@@ -116,13 +114,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       min_max_arg_part ? !(min_max_arg_part->key_part_flag & HA_REVERSE_SORT)
                        : false;
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
-
-  /*
-    We can't have parent_alloc set as the init function can't handle this case
-    yet.
-  */
-  assert(!parent_alloc);
-  join->thd->mem_root = &alloc;
 }
 
 /*
@@ -146,12 +137,13 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
   if (group_prefix) /* Already initialized. */
     return 0;
 
-  if (!(last_prefix = (uchar *)alloc.Alloc(group_prefix_len))) return 1;
+  if (!(last_prefix = (uchar *)mem_root->Alloc(group_prefix_len))) return 1;
   /*
     We may use group_prefix to store keys with all select fields, so allocate
     enough space for it.
   */
-  if (!(group_prefix = (uchar *)alloc.Alloc(real_prefix_len + min_max_arg_len)))
+  if (!(group_prefix =
+            (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
     return 1;
 
   if (key_infix_len > 0) {
@@ -160,28 +152,19 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
       allocate a new buffer and copy the key_infix into it.
     */
     for (uint i = 0; i < key_infix_parts; i++) {
-      Quick_ranges *tmp = new (std::nothrow) Quick_ranges(PSI_INSTRUMENT_ME);
+      Quick_ranges *tmp = new (mem_root) Quick_ranges(PSI_INSTRUMENT_ME);
       key_infix_ranges.push_back(tmp);
     }
   }
 
   if (min_max_arg_part) {
-    if (have_min) {
-      if (!(min_functions = new (*THR_MALLOC) List<Item_sum>)) return 1;
-    } else
-      min_functions = nullptr;
-    if (have_max) {
-      if (!(max_functions = new (*THR_MALLOC) List<Item_sum>)) return 1;
-    } else
-      max_functions = nullptr;
-
     Item_sum *min_max_item;
     Item_sum **func_ptr = join->sum_funcs;
     while ((min_max_item = *(func_ptr++))) {
       if (have_min && (min_max_item->sum_func() == Item_sum::MIN_FUNC))
-        min_functions->push_back(min_max_item);
+        min_functions.push_back(min_max_item);
       else if (have_max && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
-        max_functions->push_back(min_max_item);
+        max_functions.push_back(min_max_item);
     }
   }
 
@@ -199,8 +182,8 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     */
     head->file->ha_index_or_rnd_end();
 
-  for (uint i = 0; i < key_infix_parts; i++) delete key_infix_ranges[i];
-  delete quick_prefix_query_block;
+  for (uint i = 0; i < key_infix_parts; i++) destroy(key_infix_ranges[i]);
+  destroy(quick_prefix_query_block);
 }
 
 /*
@@ -258,7 +241,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range, int idx) {
                  0)
       range_flag |= EQ_RANGE; /* equality condition */
   }
-  range = new (*THR_MALLOC) QUICK_RANGE(
+  range = new (mem_root) QUICK_RANGE(
       sel_range->min_value, key_length, make_keypart_map(sel_range->part),
       sel_range->max_value, key_length, make_keypart_map(sel_range->part),
       range_flag, HA_READ_INVALID);
@@ -765,13 +748,13 @@ void QUICK_GROUP_MIN_MAX_SELECT::reset_group() {
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 
   if (have_min) {
-    for (Item_sum &min_func : *min_functions) {
+    for (Item_sum &min_func : min_functions) {
       min_func.aggregator_clear();
     }
   }
 
   if (have_max) {
-    for (Item_sum &max_func : *max_functions) {
+    for (Item_sum &max_func : max_functions) {
       max_func.aggregator_clear();
     }
   }
@@ -1132,7 +1115,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
-  for (Item_sum &min_func : *min_functions) {
+  for (Item_sum &min_func : min_functions) {
     if (*reset) {
       min_func.aggregator_clear();
       *reset = false;
@@ -1166,7 +1149,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool *reset) {
-  for (Item_sum &max_func : *max_functions) {
+  for (Item_sum &max_func : max_functions) {
     if (*reset) {
       max_func.aggregator_clear();
       *reset = false;

@@ -327,7 +327,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   }
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
-  mem_root_deque<Item_field *> agg_distinct_flds(thd->mem_root);
+  mem_root_deque<Item_field *> agg_distinct_flds(param->temp_mem_root);
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
   if (join->group_list.empty() && /* Neither GROUP BY nor a DISTINCT query. */
@@ -790,7 +790,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   }
 
   /* The query passes all tests, so construct a new TRP object. */
-  read_plan = new (param->mem_root) TRP_GROUP_MIN_MAX(
+  read_plan = new (param->return_mem_root) TRP_GROUP_MIN_MAX(
       have_min, have_max, is_agg_distinct, min_max_arg_part, group_prefix_len,
       used_key_parts, group_key_parts, index_info, index, key_infix_len, tree,
       best_index_tree, best_param_idx, best_quick_prefix_records);
@@ -1418,9 +1418,8 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 
   SYNOPSIS
     TRP_GROUP_MIN_MAX::make_quick()
-    thd                Thread handle
     param              Parameter from test_quick_select
-    parent_alloc       Memory pool to use, if any.
+    return_mem_root    Memory pool to use.
 
   NOTES
     Make_quick ignores the retrieve_full_rows parameter because
@@ -1434,20 +1433,19 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                                              bool, MEM_ROOT *parent_alloc) {
-  QUICK_GROUP_MIN_MAX_SELECT *quick;
+QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(RANGE_OPT_PARAM *param, bool,
+                                              MEM_ROOT *return_mem_root) {
   DBUG_TRACE;
 
-  quick = new QUICK_GROUP_MIN_MAX_SELECT(
-      param->table, param->query_block->join, have_min, have_max,
-      have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
-      used_key_parts, index_info, index, &cost_est, records, key_infix_len,
-      parent_alloc, is_index_scan);
+  unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
+      new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
+          param->table, param->query_block->join, have_min, have_max,
+          have_agg_distinct, min_max_arg_part, group_prefix_len,
+          group_key_parts, used_key_parts, index_info, index, &cost_est,
+          records, key_infix_len, return_mem_root, is_index_scan));
   if (!quick) return nullptr;
 
   if (quick->init()) {
-    delete quick;
     return nullptr;
   }
 
@@ -1459,11 +1457,10 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, RANGE_OPT_PARAM *param,
     else {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_query_block =
-          get_quick_select(thd, param->table, param->key[param_idx],
+          get_quick_select(return_mem_root, param->table, param->key[param_idx],
                            param->real_keynr[param_idx], index_tree,
-                           HA_MRR_SORTED, 0, &quick->alloc, group_key_parts);
+                           HA_MRR_SORTED, 0, group_key_parts);
       if (!quick->quick_prefix_query_block) {
-        delete quick;
         return nullptr;
       }
     }
@@ -1495,7 +1492,6 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, RANGE_OPT_PARAM *param,
         // "Add the range to the QUICK_RANGE_SELECT created above.
         while (cur_range) {
           if (quick->add_range(cur_range, i)) {
-            delete quick;
             return nullptr;
           }
           cur_range = is_ascending ? cur_range->next : cur_range->prev;
@@ -1526,7 +1522,6 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, RANGE_OPT_PARAM *param,
           // differentiate from adding ranges on infix keyparts. Check
           // add_range() for more details.
           if (quick->add_range(min_max_range, -1)) {
-            delete quick;
             return nullptr;
           }
         }
@@ -1538,5 +1533,5 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, RANGE_OPT_PARAM *param,
   quick->update_key_stat();
   quick->adjust_prefix_ranges();
 
-  return quick;
+  return quick.release();
 }

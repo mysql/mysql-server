@@ -39,10 +39,10 @@ class SEL_ROOT;
 class SEL_TREE;
 struct MEM_ROOT;
 
-QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
-                                     uint keyno, SEL_ROOT *key_tree,
-                                     uint mrr_flags, uint mrr_buf_size,
-                                     MEM_ROOT *parent_alloc,
+QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
+                                     KEY_PART *key, uint keyno,
+                                     SEL_ROOT *key_tree, uint mrr_flags,
+                                     uint mrr_buf_size,
                                      uint num_key_parts = MAX_REF_PARTS);
 
 /*
@@ -67,14 +67,14 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
 
-  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param, bool,
-                             MEM_ROOT *parent_alloc) override {
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool,
+                             MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(thd, param->table, param->key[key_idx],
-                                  param->real_keynr[key_idx], key, mrr_flags,
-                                  mrr_buf_size, parent_alloc))) {
+    if ((quick = get_quick_select(
+             return_mem_root, param->table, param->key[key_idx],
+             param->real_keynr[key_idx], key, mrr_flags, mrr_buf_size))) {
       quick->records = records;
       quick->cost_est = cost_est;
     }

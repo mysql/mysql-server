@@ -105,6 +105,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   uint distinct_prefix_key_parts;
 
   KEY_PART_INFO *range_key_part; /* The keypart of range condition 'C'. */
+  MEM_ROOT *mem_root;
   uint range_key_len;
   /*
     Denotes whether the first key for the current equality prefix was
@@ -127,14 +128,12 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool next_eq_prefix();
 
  public:
-  MEM_ROOT alloc; /* Memory pool for data in this class. */
- public:
   QUICK_SKIP_SCAN_SELECT(TABLE *table, JOIN *join, KEY *index_info, uint index,
                          KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
                          uint eq_prefix_len, uint eq_prefix_parts,
                          uint used_key_parts,
                          const Cost_estimate *read_cost_arg, ha_rows records,
-                         MEM_ROOT *parent_alloc, bool has_aggregate_function);
+                         MEM_ROOT *temp_mem_root, bool has_aggregate_function);
   ~QUICK_SKIP_SCAN_SELECT() override;
   bool set_range(SEL_ARG *sel_range);
   int init() override;

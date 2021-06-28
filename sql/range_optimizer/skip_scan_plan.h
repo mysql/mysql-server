@@ -85,9 +85,8 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
   ~TRP_SKIP_SCAN() override = default;
 
-  QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
-                             bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc) override;
+  QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param, bool retrieve_full_rows,
+                             MEM_ROOT *return_mem_root) override;
   bool is_forced_by_hint() override { return forced_by_hint; }
 };
 

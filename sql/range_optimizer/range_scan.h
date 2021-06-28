@@ -94,17 +94,17 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   bool dont_free; /* Used by QUICK_SELECT_DESC */
 
+ private:
+  MEM_ROOT *mem_root;
+
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 
  public:
-  std::shared_ptr<MEM_ROOT> alloc;
-
-  QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg,
-                     MEM_ROOT *parent_alloc, uint mrr_flags, uint mrr_buf_size,
-                     const KEY_PART *key, Quick_ranges ranges,
-                     uint used_key_parts_arg);
+  QUICK_RANGE_SELECT(TABLE *table, uint index_arg, MEM_ROOT *return_mem_root,
+                     uint mrr_flags, uint mrr_buf_size, const KEY_PART *key,
+                     Quick_ranges ranges, uint used_key_parts_arg);
   ~QUICK_RANGE_SELECT() override;
 
   void need_sorted_output() override;

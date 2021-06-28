@@ -60,7 +60,7 @@ class TABLE_READ_PLAN {
        param               Parameter from test_quick_select
        retrieve_full_rows  If true, created quick select will do full record
                            retrieval.
-       parent_alloc        Memory pool to use, if any.
+       return_mem_root     Memory pool to use.
 
     NOTES
       retrieve_full_rows is ignored by some implementations.
@@ -69,23 +69,10 @@ class TABLE_READ_PLAN {
       created quick select
       NULL on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(THD *thd, RANGE_OPT_PARAM *param,
+  virtual QUICK_SELECT_I *make_quick(RANGE_OPT_PARAM *param,
                                      bool retrieve_full_rows,
-                                     MEM_ROOT *parent_alloc = nullptr) = 0;
+                                     MEM_ROOT *return_mem_root) = 0;
 
-  /* Table read plans are allocated on MEM_ROOT and are never deleted */
-  static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg
-                            [[maybe_unused]] = std::nothrow) noexcept {
-    return mem_root->Alloc(size);
-  }
-  static void operator delete(void *ptr [[maybe_unused]],
-                              size_t size [[maybe_unused]]) {
-    TRASH(ptr, size);
-  }
-  static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* Never called */
-  }
   virtual ~TABLE_READ_PLAN() = default;
 
   /**

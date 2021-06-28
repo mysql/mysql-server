@@ -109,20 +109,20 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   Quick_ranges_array key_infix_ranges; /* Array of key infix range arrays.   */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
-  List<Item_sum> *min_functions;
-  List<Item_sum> *max_functions;
+  List<Item_sum> min_functions;
+  List<Item_sum> max_functions;
   /*
     Use index scan to get the next different key instead of jumping into it
     through index read
   */
   bool is_index_scan;
+  MEM_ROOT *mem_root;
 
  public:
   /*
-    The following two members are public to allow easy access from
+    The following member is public to allow easy access from
     TRP_GROUP_MIN_MAX::make_quick()
   */
-  MEM_ROOT alloc; /* Memory pool for this and quick_prefix_query_block data. */
   QUICK_RANGE_SELECT
   *quick_prefix_query_block; /* For retrieval of group prefixes. */
  private:
@@ -144,7 +144,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
                              uint used_key_parts, KEY *index_info,
                              uint use_index, const Cost_estimate *cost_est,
                              ha_rows records, uint key_infix_len,
-                             MEM_ROOT *parent_alloc, bool is_index_scan);
+                             MEM_ROOT *return_mem_root, bool is_index_scan);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool add_range(SEL_ARG *sel_range, int idx);
   void update_key_stat();

@@ -222,11 +222,10 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
         Create one Item_type constant object. We'll need it as
         get_mm_parts only accepts constant values wrapped in Item_Type
         objects.
-        We create the Item on param->old_root which points to
-        per-statement mem_root (while thd->mem_root is currently pointing
-        to mem_root local to range optimizer).
+        We create the Item on thd->mem_root which points to
+        per-statement mem_root.
       */
-      Item_basic_constant *value_item = op->array->create_item(param->old_root);
+      Item_basic_constant *value_item = op->array->create_item(thd->mem_root);
 
       if (!value_item) return nullptr;
 
@@ -280,7 +279,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
               // we need values higher than "0.9" not "1". We check this
               // before we set the flag below.
               Item_basic_constant *val_item =
-                  op->array->create_item(param->old_root);
+                  op->array->create_item(thd->mem_root);
               op->array->value_to_item(i - 1, val_item);
               const int cmp_value =
                   stored_field_cmp_to_item(thd, field, val_item);
@@ -835,19 +834,11 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     return tree;
   }
   if (cond->const_item() && !cond->is_expensive()) {
-    /*
-      During the cond->val_int() evaluation we can come across a subselect
-      item which may allocate memory on the thd->mem_root and assumes
-      all the memory allocated has the same life span as the subselect
-      item itself. So we have to restore the thread's mem_root here.
-    */
-    MEM_ROOT *tmp_root = param->mem_root;
-    thd->mem_root = param->old_root;
     const SEL_TREE::Type type =
         cond->val_int() ? SEL_TREE::ALWAYS : SEL_TREE::IMPOSSIBLE;
-    tree = new (tmp_root) SEL_TREE(type, tmp_root, param->keys);
+    tree = new (param->temp_mem_root)
+        SEL_TREE(type, param->temp_mem_root, param->keys);
 
-    thd->mem_root = tmp_root;
     if (param->has_errors()) return nullptr;
     dbug_print_tree("tree_returned", tree, param);
     return tree;
@@ -860,8 +851,8 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     if ((ref_tables & current_table) ||
         (ref_tables & ~(prev_tables | read_tables)))
       return nullptr;
-    return new (param->mem_root)
-        SEL_TREE(SEL_TREE::MAYBE, param->mem_root, param->keys);
+    return new (param->temp_mem_root)
+        SEL_TREE(SEL_TREE::MAYBE, param->temp_mem_root, param->keys);
   }
 
   Item_func *cond_func = (Item_func *)cond;
@@ -869,16 +860,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
       cond_func->functype() == Item_func::IN_FUNC)
     inv = ((Item_func_opt_neg *)cond_func)->negated;
   else {
-    /*
-      During the cond_func->select_optimize() evaluation we can come across a
-      subselect item which may allocate memory on the thd->mem_root and assumes
-      all the memory allocated has the same life span as the subselect item
-      itself. So we have to restore the thread's mem_root here.
-    */
-    MEM_ROOT *tmp_root = param->mem_root;
-    thd->mem_root = param->old_root;
     Item_func::optimize_type opt_type = cond_func->select_optimize(thd);
-    thd->mem_root = tmp_root;
     if (opt_type == Item_func::OPTIMIZE_NONE) return nullptr;
   }
 
@@ -1068,8 +1050,8 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
         continue;
 
       SEL_ROOT *sel_root = nullptr;
-      if (!tree && !(tree = new (param->mem_root)
-                         SEL_TREE(param->mem_root, param->keys)))
+      if (!tree && !(tree = new (param->temp_mem_root)
+                         SEL_TREE(param->temp_mem_root, param->keys)))
         return nullptr;  // OOM
       if (!value || !(value->used_tables() & ~read_tables)) {
         sel_root = get_mm_leaf(thd, param, cond_func, key_part->field, key_part,
@@ -1090,8 +1072,8 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
           return nullptr;
         }
 
-        if (!(sel_root = new (param->mem_root)
-                  SEL_ROOT(param->mem_root, SEL_ROOT::Type::MAYBE_KEY)))
+        if (!(sel_root = new (param->temp_mem_root)
+                  SEL_ROOT(param->temp_mem_root, SEL_ROOT::Type::MAYBE_KEY)))
           return nullptr;  // OOM
       }
       sel_root->root->part = (uchar)key_part->part;
@@ -1341,22 +1323,13 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
   const size_t null_bytes = field->is_nullable() ? 1 : 0;
   bool optimize_range;
   SEL_ROOT *tree = nullptr;
-  MEM_ROOT *alloc = param->mem_root;
+  MEM_ROOT *const alloc = param->temp_mem_root;
   uchar *str;
   const char *impossible_cond_cause = nullptr;
   DBUG_TRACE;
 
   if (param->has_errors()) goto end;
 
-  /*
-    We need to restore the runtime mem_root of the thread in this
-    function because it evaluates the value of its argument, while
-    the argument can be any, e.g. a subselect. The subselect
-    items, in turn, assume that all the memory allocated during
-    the evaluation has the same life span as the item itself.
-    TODO: opt_range.cc should not reset thd->mem_root at all.
-  */
-  thd->mem_root = param->old_root;
   if (!value)  // IS NULL or IS NOT NULL
   {
     if (field->table->pos_in_table_list->outer_join)
@@ -1368,8 +1341,7 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
     if (!field->is_nullable())  // NOT NULL column
     {
       if (type == Item_func::ISNULL_FUNC)
-        tree =
-            new (alloc) SEL_ROOT(param->mem_root, SEL_ROOT::Type::IMPOSSIBLE);
+        tree = new (alloc) SEL_ROOT(alloc, SEL_ROOT::Type::IMPOSSIBLE);
       goto end;
     }
     uchar *null_string =
@@ -1439,7 +1411,7 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
 
     if (!optimize_range) goto end;
     if (!(res = value->val_str(&tmp))) {
-      tree = new (alloc) SEL_ROOT(param->mem_root, SEL_ROOT::Type::IMPOSSIBLE);
+      tree = new (alloc) SEL_ROOT(alloc, SEL_ROOT::Type::IMPOSSIBLE);
       goto end;
     }
 
@@ -1541,7 +1513,7 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
   */
   if (type != Item_func::EQUAL_FUNC && field->is_real_null()) {
     impossible_cond_cause = "comparison_with_null_always_false";
-    tree = new (alloc) SEL_ROOT(param->mem_root, SEL_ROOT::Type::IMPOSSIBLE);
+    tree = new (alloc) SEL_ROOT(alloc, SEL_ROOT::Type::IMPOSSIBLE);
     goto end;
   }
 
@@ -1668,7 +1640,6 @@ end:
                      Opt_trace_context::RANGE_OPTIMIZER)
         .add_alnum("cause", impossible_cond_cause);
   }
-  thd->mem_root = alloc;
   return tree;
 }
 

@@ -2296,9 +2296,12 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           trace_recest.add_utf8_table(tab->table_ref)
               .add_utf8("index", table->key_info[new_ref_key].name);
           QUICK_SELECT_I *qck;
+          MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                                 thd->variables.range_alloc_block_size);
           const bool no_quick =
               test_quick_select(
-                  thd, new_ref_key_map, 0, 0,  // empty table_map
+                  thd, thd->mem_root, &temp_mem_root, new_ref_key_map, 0,
+                  0,  // empty table_map
                   join->calc_found_rows
                       ? HA_POS_ERROR
                       : join->query_expression()->select_limit_cnt,
@@ -2408,9 +2411,12 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
 
       Key_map keys_to_use;            // Force the creation of quick select
       keys_to_use.set_bit(best_key);  // only best_key.
+      MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                             thd->variables.range_alloc_block_size);
       QUICK_SELECT_I *qck;
       test_quick_select(
-          thd, keys_to_use, 0, 0,  // empty table_map
+          thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
+          0,  // empty table_map
           join->calc_found_rows ? HA_POS_ERROR
                                 : join->query_expression()->select_limit_cnt,
           true,  // force quick range
@@ -2429,7 +2435,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             3 - constructed right above
           In this case we drop quick #2 as #3 is expected to be better.
         */
-        delete tab->quick();
+        destroy(tab->quick());
         tab->set_quick(nullptr);
       }
       /*
@@ -2589,7 +2595,7 @@ check_reverse_order:
           /* purecov: end */
         }
         if (tab->quick() != tmp && tab->quick() != save_quick)
-          delete tab->quick();
+          destroy(tab->quick());
         tab->set_quick(tmp);
         tab->set_type(calc_join_type(tmp->get_type()));
         tab->position()->filter_effect = COND_FILTER_STALE;
@@ -2633,11 +2639,11 @@ fix_ICP:
     }
 
     // Keep current (ordered) tab->quick()
-    if (save_quick != tab->quick()) delete save_quick;
+    if (save_quick != tab->quick()) destroy(save_quick);
   } else {
     // Restore original save_quick
     if (tab->quick() != save_quick) {
-      delete tab->quick();
+      destroy(tab->quick());
       tab->set_quick(save_quick);
     }
   }
@@ -2781,22 +2787,25 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
             trace, "rerunning_range_optimizer_for_single_index");
 
         QUICK_SELECT_I *qck;
+        MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                               thd->variables.range_alloc_block_size);
         if (test_quick_select(
-                thd, new_ref_key_map, 0, 0,  // empty table_map
+                thd, thd->mem_root, &temp_mem_root, new_ref_key_map, 0,
+                0,  // empty table_map
                 tab->join()->row_limit, false, ordering, tab->table(),
                 tab->skip_records_in_range(),
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
                 &tab->needed_reg, &qck, recheck_range,
                 tab->join()->query_block) > 0) {
           if (length < qck->max_used_key_length) {
-            delete tab->quick();
+            destroy(tab->quick());
             tab->set_quick(qck);
             return true;
           } else {
             Opt_trace_object(trace, "access_type_unchanged")
                 .add("ref_key_length", length)
                 .add("range_key_length", qck->max_used_key_length);
-            delete qck;
+            destroy(qck);
           }
         }
       } else
@@ -2870,7 +2879,7 @@ void JOIN::adjust_access_methods() {
         tab->position()->filter_effect = COND_FILTER_STALE;
       } else {
         // Cleanup quick, REF/REF_OR_NULL/EQ_REF, will be clarified later
-        delete tab->quick();
+        ::destroy(tab->quick());
         tab->set_quick(nullptr);
       }
     }
@@ -3076,7 +3085,7 @@ bool JOIN::get_best_combination() {
           We must use the duplicate-eliminating index, so this QUICK is not
           an option.
         */
-        delete tab->quick();
+        ::destroy(tab->quick());
         tab->set_quick(nullptr);
       }
       if (!pos->key) {
@@ -5993,8 +6002,11 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
     QUICK_SELECT_I *qck;
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
+    MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                           thd->variables.range_alloc_block_size);
     int error = test_quick_select(
-        thd, keys_to_use, 0, 0,  // empty table_map
+        thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
+        0,  // empty table_map
         limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
@@ -9395,7 +9407,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             */
             assert(tab->quick()->is_valid());
           } else {
-            delete tab->quick();
+            destroy(tab->quick());
             tab->set_quick(nullptr);
           }
         }
@@ -9553,13 +9565,16 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             bool search_if_impossible = recheck_reason != DONT_RECHECK;
             if (search_if_impossible) {
               if (tab->quick()) {
-                delete tab->quick();
+                destroy(tab->quick());
                 tab->set_type(JT_ALL);
               }
               QUICK_SELECT_I *qck;
+              MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                                     thd->variables.range_alloc_block_size);
               search_if_impossible =
                   test_quick_select(
-                      thd, usable_keys, used_tables & ~tab->table_ref->map(), 0,
+                      thd, thd->mem_root, &temp_mem_root, usable_keys,
+                      used_tables & ~tab->table_ref->map(), 0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,
@@ -9580,13 +9595,16 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 return true;  // No ON, so it's really "impossible WHERE"
               Opt_trace_object trace_without_on(trace, "without_ON_clause");
               if (tab->quick()) {
-                delete tab->quick();
+                destroy(tab->quick());
                 tab->set_type(JT_ALL);
               }
               QUICK_SELECT_I *qck;
+              MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
+                                     thd->variables.range_alloc_block_size);
               const bool impossible_where =
                   test_quick_select(
-                      thd, tab->keys(), used_tables & ~tab->table_ref->map(), 0,
+                      thd, thd->mem_root, &temp_mem_root, tab->keys(),
+                      used_tables & ~tab->table_ref->map(), 0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,

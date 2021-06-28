@@ -61,8 +61,8 @@ struct MY_BITMAP;
 
 class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
  public:
-  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
+  QUICK_ROR_INTERSECT_SELECT(TABLE *table, bool retrieve_full_rows,
+                             MEM_ROOT *return_mem_root);
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   int init() override;
@@ -109,14 +109,13 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
     while ((quick = it++)) quick->get_fields_used(used_fields);
   }
 
+  MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
     select is not used for row retrieval, it is used for row retrieval.
   */
   QUICK_RANGE_SELECT *cpk_quick;
 
-  MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
-  THD *thd;       /* current thread */
   bool need_to_fetch_row; /* if true, do retrieve full table records. */
   /* in top-level quick select, true if merged scans where initialized */
   bool scans_inited;
@@ -149,7 +148,7 @@ struct Quick_ror_union_less {
 
 class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
  public:
-  QUICK_ROR_UNION_SELECT(THD *thd, TABLE *table);
+  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, TABLE *table);
   ~QUICK_ROR_UNION_SELECT() override;
 
   int init() override;
@@ -196,12 +195,11 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
       QUICK_SELECT_I *,
       std::vector<QUICK_SELECT_I *, Malloc_allocator<QUICK_SELECT_I *>>,
       Quick_ror_union_less>
-      queue;      /* Priority queue for merge operation */
-  MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */
+      queue; /* Priority queue for merge operation */
 
-  THD *thd;             /* current thread */
-  uchar *cur_rowid;     /* buffer used in get_next() */
-  uchar *prev_rowid;    /* rowid of last row returned by get_next() */
+  MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */
+  uchar *cur_rowid;   /* buffer used in get_next() */
+  uchar *prev_rowid;  /* rowid of last row returned by get_next() */
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 

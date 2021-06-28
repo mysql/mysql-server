@@ -123,11 +123,6 @@ PSI_memory_key key_memory_prepared_statement_infrastructure;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
 PSI_memory_key key_memory_partitions_prune_exec;
 PSI_memory_key key_memory_queue_item;
-PSI_memory_key key_memory_quick_group_min_max_select_root;
-PSI_memory_key key_memory_quick_index_merge_root;
-PSI_memory_key key_memory_quick_range_select_root;
-PSI_memory_key key_memory_quick_ror_intersect_select_root;
-PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_rm_db_mdl_reqs_root;
 PSI_memory_key key_memory_rm_table_foreach_root;
 PSI_memory_key key_memory_rpl_filter;
@@ -192,16 +187,6 @@ static PSI_memory_info all_server_memory[] = {
      0, "Mem root for objects with same life time as stored program call."},
     {&key_memory_table_mapping_root, "table_mapping::m_mem_root", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_quick_range_select_root, "QUICK_RANGE_SELECT::alloc",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_quick_index_merge_root, "QUICK_INDEX_MERGE_SELECT::alloc",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_quick_ror_intersect_select_root,
-     "QUICK_ROR_INTERSECT_SELECT::alloc", PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_quick_ror_union_select_root, "QUICK_ROR_UNION_SELECT::alloc",
-     PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
-    {&key_memory_quick_group_min_max_select_root,
-     "QUICK_GROUP_MIN_MAX_SELECT::alloc", PSI_FLAG_THREAD, 0, PSI_DOCUMENT_ME},
     {&key_memory_test_quick_select_exec, "test_quick_select", PSI_FLAG_THREAD,
      0, PSI_DOCUMENT_ME},
     {&key_memory_partitions_prune_exec, "Partition::prune_exec", 0, 0,
