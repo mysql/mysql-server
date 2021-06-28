@@ -119,7 +119,7 @@ Vendor:         %{mysql_vendor}
 %if 0%{?compatlib}
 Source7:        %{compatsrc}
 %endif
-Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source10:       @BOOST_DOWNLOAD_URL@
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 %if 0%{?rhel} >= 8
