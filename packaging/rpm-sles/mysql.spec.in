@@ -107,7 +107,7 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source10:       @BOOST_DOWNLOAD_URL@
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  bison >= 2.1
 BuildRequires:  perl

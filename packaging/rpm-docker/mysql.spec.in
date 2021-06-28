@@ -72,7 +72,7 @@ URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
-Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source1:        @BOOST_DOWNLOAD_URL@
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  libtirpc-devel
