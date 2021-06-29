@@ -2679,6 +2679,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
     base_query_block = master()->base_query_block;
     aggr_query_block = master()->aggr_query_block;
     hidden = master()->hidden;
+    set_nullable(master()->is_nullable());
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());
   }
