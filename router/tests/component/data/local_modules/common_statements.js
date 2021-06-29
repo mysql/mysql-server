@@ -41,7 +41,8 @@ var defaults = {
   // mean failures each time the version is bumped up (which we don't even
   // control)
   router_version: "",
-  rest_user_credentials: []
+  rest_user_credentials: [],
+  version: "8.0.24",  // SELECT @@version;
 };
 
 function ensure_type(options, field, expected_type) {
@@ -753,25 +754,54 @@ function get_response(stmt_key, options) {
             "cluster_id=(SELECT cluster_id FROM " +
             "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name='" +
             options.innodb_cluster_name + "')",
-            "result": {
-              "columns":
-                  [
-                    {"type": "STRING", "name": "user"},
-                    {"type": "STRING", "name": "authentication_string"},
-                    {"type": "STRING", "name": "privileges"},
-                    {"type": "STRING", "name": "authentication_method"}
-                  ],
-              "rows": options["rest_user_credentials"].map(function(
-                  currentValue) {
-                return [
-                  currentValue[0],
-                  currentValue[1],
-                  currentValue[2] === "" ? null : currentValue[2],
-                  currentValue[3],
-                ]
-              })
-            }
-      }
+        "result": {
+          "columns": [
+            {"type": "STRING", "name": "user"},
+            {"type": "STRING", "name": "authentication_string"},
+            {"type": "STRING", "name": "privileges"},
+            {"type": "STRING", "name": "authentication_method"}
+          ],
+          "rows": options["rest_user_credentials"].map(function(currentValue) {
+            return [
+              currentValue[0],
+              currentValue[1],
+              currentValue[2] === "" ? null : currentValue[2],
+              currentValue[3],
+            ]
+          })
+        }
+      };
+    case "mysqlsh_select_connection_id":
+      // needed by mysqlsh to start.
+      return {
+        "stmt":
+            "select @@lower_case_table_names, @@version, connection_id(), variable_value " +
+            "from performance_schema.session_status " +
+            "where variable_name = 'mysqlx_ssl_cipher'",
+        "result": {
+          "columns": [
+            {"type": "LONG", "name": "@@lower_case_table_names"},
+            {"type": "VAR_STRING", "name": "@@version"},
+            {"type": "LONG", "name": "connection_id()"},
+            {"type": "VAR_STRING", "name": "variable_value"}
+          ],
+          "rows": [[0, options["version"], 1, mysqld.session.mysqlx_ssl_cipher]]
+        }
+      };
+    case "mysqlsh_select_version_comment":
+      // needed by mysqlsh to start.
+      return {
+        "stmt": "select concat(@@version, ' ', @@version_comment)",
+        "result": {
+          "columns": [
+            {
+              "type": "VAR_STRING",
+              "name": "concat(@@version, ' ', @@version_comment)"
+            },
+          ],
+          "rows": [[options["version"] + " " + options["version_comment"]]]
+        }
+      };
   };
 };
 

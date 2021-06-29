@@ -997,10 +997,19 @@ enum enum_resultset_metadata {
   RESULTSET_METADATA_FULL = 1
 };
 
+#if defined(__clang__)
+// disable -Wdocumentation to workaround
+// https://bugs.llvm.org/show_bug.cgi?id=38905
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#endif
 /**
   The flags used in COM_STMT_EXECUTE.
   @sa @ref Protocol_classic::parse_packet, @ref mysql_int_serialize_param_data
 */
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 enum enum_cursor_type {
   CURSOR_TYPE_NO_CURSOR = 0,
   CURSOR_TYPE_READ_ONLY = 1,

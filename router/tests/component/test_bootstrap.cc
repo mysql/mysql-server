@@ -29,7 +29,7 @@
 #include <fstream>
 #include <string>
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
@@ -47,11 +47,13 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/string_utils.h"  // split_lines
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_test_helpers.h"  // get_file_output
 #include "script_generator.h"
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
@@ -1629,29 +1631,23 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
 
   check_exit_code(router, EXIT_SUCCESS);
 
-  const std::string &conf_file =
+  const std::string conf_file =
       bootstrap_directory.name() + "/mysqlrouter.conf";
-  // check if the valid config option was added to the file
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool {
-        return line == "use_gr_notifications=1";
-      },
-      0ms));
 
-  // check if valid TTL is set (with GR notifications it should be increased to
-  // 60s)
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool { return line == "ttl=60"; }, 0ms));
-
-  // auth_cache_refresh_interval should be adjusted to the ttl value
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool {
-        return line == "auth_cache_refresh_interval=60";
-      },
-      0ms));
+  auto conf_file_content = get_file_output(conf_file);
+  auto conf_lines = mysql_harness::split_string(conf_file_content, '\n');
+  EXPECT_THAT(
+      conf_lines,
+      ::testing::IsSupersetOf({
+          // check if the valid config option was added to the file
+          "use_gr_notifications=1",
+          // check if valid TTL is set (with GR notifications it should be
+          // increased to
+          // 60s)
+          "ttl=60",
+          // auth_cache_refresh_interval should be adjusted to the ttl value
+          "auth_cache_refresh_interval=60",
+      }));
 
   // Stop the mock that was used for bootstrap
   server_mock.send_clean_shutdown_event();
@@ -1709,25 +1705,18 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
   const std::string &conf_file =
       bootstrap_directory.name() + "/mysqlrouter.conf";
   // check if valid config option was added to the file
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool {
-        return line == "use_gr_notifications=0";
-      },
-      0ms));
-
-  // check if valid TTL is set (with no GR notifications it should be 0.5s)
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool { return line == "ttl=0.5"; }, 0ms));
-
-  // auth_cache_refresh_interval should have the default value
-  EXPECT_TRUE(find_in_file(
-      conf_file,
-      [](const std::string &line) -> bool {
-        return line == "auth_cache_refresh_interval=2";
-      },
-      0ms));
+  auto conf_file_content = get_file_output(conf_file);
+  auto conf_lines = mysql_harness::split_string(conf_file_content, '\n');
+  EXPECT_THAT(conf_lines,
+              ::testing::IsSupersetOf({
+                  // check if the valid config option was added to the file
+                  "use_gr_notifications=0",
+                  // check if valid TTL is set (with no GR notifications it
+                  // should be 0.5s)
+                  "ttl=0.5",
+                  // auth_cache_refresh_interval should have the default value
+                  "auth_cache_refresh_interval=2",
+              }));
 
   // Stop the mock that was used for bootstrap
   server_mock.send_clean_shutdown_event();

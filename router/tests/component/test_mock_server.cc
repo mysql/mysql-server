@@ -27,12 +27,50 @@
 
 #include "mysql_session.h"
 #include "mysqlxclient.h"
+#include "mysqlxclient/xerror.h"
+#include "mysqlxclient/xrow.h"
 #include "router_component_test.h"
 #include "router_config.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+
+const char *xcl_column_type_to_string(xcl::Column_type type) {
+  switch (type) {
+    case xcl::Column_type::BIT:
+      return "BIT";
+    case xcl::Column_type::BYTES:
+      return "BYTES";
+    case xcl::Column_type::DATETIME:
+      return "DATETIME";
+    case xcl::Column_type::DECIMAL:
+      return "DECIMAL";
+    case xcl::Column_type::SET:
+      return "SET";
+    case xcl::Column_type::ENUM:
+      return "ENUM";
+    case xcl::Column_type::TIME:
+      return "TIME";
+    case xcl::Column_type::SINT:
+      return "SINT";
+    case xcl::Column_type::UINT:
+      return "UINT";
+    case xcl::Column_type::DOUBLE:
+      return "DOUBLE";
+    case xcl::Column_type::FLOAT:
+      return "FLOAT";
+  }
+
+  return "unknown";
+}
+
+namespace xcl {
+std::ostream &operator<<(std::ostream &os, xcl::Column_type type) {
+  os << xcl_column_type_to_string(type);
+  return os;
+}
+}  // namespace xcl
 
 struct MockServerCLITestParam {
   const char *test_name;
@@ -955,6 +993,58 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          ASSERT_EQ(e.code(), 2026);
        }
+     }},
+    {"xproto_mysqlsh_select_connection_id",
+     {
+         "--filename", "@datadir@/tls_endpoint.js",      //
+         "--module-prefix", "@datadir@",                 //
+         "--xport", "@xport@",                           //
+         "--ssl-mode", "required",                       //
+         "--ssl-ca", "@certdir@/crl-ca-cert.pem",        //
+         "--ssl-key", "@certdir@/crl-server-key.pem",    //
+         "--ssl-cert", "@certdir@/crl-server-cert.pem",  //
+         "--tls-version", "TLSv1.2",                     //
+     },
+     [](const std::map<std::string, std::string> &config) {
+       auto sess = xcl::create_session();
+       ASSERT_THAT(
+           sess->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                  mysqlrouter::MySQLSession::ssl_mode_to_string(
+                                      SSL_MODE_PREFERRED)),
+           ::testing::Truly([](const xcl::XError &xerr) { return !xerr; }));
+       ASSERT_THAT(
+           sess->connect(config.at("hostname").c_str(),
+                         atol(config.at("xport").c_str()), "someuser",
+                         "somepass", ""),
+           ::testing::Truly([](auto const &err) { return err.error() == 0; }));
+       xcl::XError xerr;
+       auto query_result = sess->execute_sql(
+           "select "
+           "@@lower_case_table_names, @@version, connection_id(), "
+           "variable_value "
+           "from performance_schema.session_status "
+           "where variable_name = 'mysqlx_ssl_cipher'",
+           &xerr);
+
+       ASSERT_TRUE(query_result->has_resultset());
+
+       const auto &meta = query_result->get_metadata();
+       ASSERT_THAT(meta, ::testing::SizeIs(::testing::Eq(4)));
+       EXPECT_EQ(meta[0].type,
+                 xcl::Column_type::SINT);  // lower_case_table_names
+       EXPECT_EQ(meta[1].type, xcl::Column_type::BYTES);  // version
+       EXPECT_EQ(meta[2].type, xcl::Column_type::SINT);   // connection_id
+       EXPECT_EQ(meta[3].type, xcl::Column_type::BYTES);  // cipher
+
+       auto row = query_result->get_next_row();
+       ASSERT_TRUE(row);
+       ASSERT_EQ(row->get_number_of_fields(), 4);
+
+       // check if there something like a version-string in field[1]
+       std::string version_string;
+       ASSERT_TRUE(row->get_string(1, &version_string));
+       ASSERT_THAT(version_string,
+                   ::testing::SizeIs(::testing::Gt(5)));  // x.y.z
      }},
 };
 

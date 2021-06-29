@@ -706,8 +706,7 @@ void MySQLXProtocol::encode_resultset(const ResultsetResponse &response) {
                    metadata_msg);
   }
 
-  for (size_t i = 0; i < response.rows.size(); ++i) {
-    auto row = response.rows[i];
+  for (const auto &row : response.rows) {
     if (response.columns.size() != row.size()) {
       throw std::runtime_error(
           std::string("columns_info.size() != row_values.size() ") +
@@ -715,11 +714,14 @@ void MySQLXProtocol::encode_resultset(const ResultsetResponse &response) {
           std::to_string(row.size()));
     }
     Mysqlx::Resultset::Row row_msg;
+
+    size_t col_ndx{};
     for (const auto &field : row) {
       const bool is_null = !field;
       protocol_encoder_.encode_row_field(
           row_msg,
-          protocol_encoder_.column_type_to_x(response.columns[i].type()),
+          protocol_encoder_.column_type_to_x(
+              response.columns[col_ndx++].type()),
           field.value(), is_null);
     }
     encode_message(Mysqlx::ServerMessages::RESULTSET_ROW, row_msg);

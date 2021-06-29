@@ -30,7 +30,7 @@
 #include <fstream>
 #include <string>
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
@@ -53,6 +53,7 @@
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_test_helpers.h"  // get_file_output
 #include "script_generator.h"
 #include "socket_operations.h"
 #include "utils.h"
@@ -649,10 +650,10 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     // expected account name
     if (expect_exists) {
       ASSERT_TRUE(config_file.exists());
-      EXPECT_TRUE(
-          find_in_file(config_file.str(), [&](const std::string &line) -> bool {
-            return line.find("user=" + username) != line.npos;
-          }));
+      auto file_content = get_file_output(config_file.str());
+      auto lines = mysql_harness::split_string(file_content, '\n');
+      EXPECT_THAT(
+          lines, ::testing::Contains(::testing::HasSubstr("user=" + username)));
     } else {
       EXPECT_FALSE(config_file.exists());
     }
