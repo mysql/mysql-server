@@ -539,7 +539,6 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     param.table = head;
     param.query_block = query_block;
     param.keys = 0;
-    param.is_ror_scan = false;
     param.return_mem_root = return_mem_root;
     param.temp_mem_root = temp_mem_root;
     param.using_real_indexes = true;
@@ -1019,7 +1018,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
         continue;
       }
 
-      if (!((*cur_child)->is_imerge)) {
+      if (!((*cur_child)->can_be_used_for_imerge())) {
         trace_idx.add("chosen", false)
             .add_alnum("cause", "index has DESC key part");
         continue;
@@ -1028,7 +1027,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
       const uint keynr_in_table = param->real_keynr[(*cur_child)->key_idx];
       imerge_cost += (*cur_child)->cost_est;
       all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
-      all_scans_rors &= (*cur_child)->is_ror;
+      all_scans_rors &= (*cur_child)->can_be_used_for_ror();
       if (pk_is_clustered && keynr_in_table == table->s->primary_key) {
         cpk_scan = cur_child;
         cpk_scan_records = (*cur_child)->records;
@@ -1173,7 +1172,7 @@ skip_to_ror_scan:
         calculate overall index_intersection cost.
       */
       Cost_estimate scan_cost;
-      if ((*cur_child)->is_ror) {
+      if ((*cur_child)->can_be_used_for_ror()) {
         /* Ok, we have index_only cost, now get full rows scan cost */
         scan_cost =
             table->file->read_cost(param->real_keynr[(*cur_child)->key_idx], 1,
@@ -1183,11 +1182,11 @@ skip_to_ror_scan:
       } else
         scan_cost = read_cost;
 
-      TABLE_READ_PLAN *prev_plan = *cur_child;
+      TRP_RANGE *prev_plan = *cur_child;
       if (!(*cur_roru_plan = get_best_ror_intersect(
                 thd, param, table, index_merge_intersect_allowed,
                 interesting_order, *ptree, needed_fields, &scan_cost, false))) {
-        if (prev_plan->is_ror)
+        if (prev_plan->can_be_used_for_ror())
           *cur_roru_plan = prev_plan;
         else
           return imerge_trp;

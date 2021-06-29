@@ -80,11 +80,6 @@ class RANGE_OPT_PARAM {
   bool has_errors() const { return (error_handler.has_errors()); }
 
   KEY_PART **key = nullptr; /* First key parts of keys used in the query */
-
-  /* true if last checked tree->key can be used for ROR-scan */
-  bool is_ror_scan;
-  /* true if last checked tree->key can be used for index-merge-scan */
-  bool is_imerge_scan;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_OPT_PARAM_H_

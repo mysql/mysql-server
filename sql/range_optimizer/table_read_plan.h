@@ -43,17 +43,6 @@ class TABLE_READ_PLAN {
   ha_rows records; /* estimate of #rows to be examined */
 
   /*
-    If true, the scan returns rows in rowid order. This is used only for
-    scans that can be both ROR and non-ROR.
-  */
-  bool is_ror;
-
-  /*
-    If true, this plan can be used for index merge scan.
-  */
-  bool is_imerge;
-
-  /*
     Create quick select for this plan.
     SYNOPSIS
      make_quick()

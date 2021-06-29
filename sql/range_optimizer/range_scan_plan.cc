@@ -150,6 +150,7 @@ class Sel_arg_range_sequence {
   uint real_keyno; /* Number of the index in tables */
 
   RANGE_OPT_PARAM *const param;
+  bool *is_ror_scan;
   uchar *min_key, *max_key;
   const bool skip_records_in_range;
   SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
@@ -158,9 +159,11 @@ class Sel_arg_range_sequence {
   uint range_count = 0;
   uint max_key_part;
 
-  Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg, uchar *min_key_arg,
-                         uchar *max_key_arg, bool skip_records_in_range_arg)
+  Sel_arg_range_sequence(RANGE_OPT_PARAM *param_arg, bool *is_ror_scan_arg,
+                         uchar *min_key_arg, uchar *max_key_arg,
+                         bool skip_records_in_range_arg)
       : param(param_arg),
+        is_ror_scan(is_ror_scan_arg),
         min_key(min_key_arg),
         max_key(max_key_arg),
         skip_records_in_range(skip_records_in_range_arg) {
@@ -283,9 +286,10 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree) {
 
   IMPLEMENTATION
     The traversal also updates those param members:
-      - is_ror_scan
       - range_count
       - max_key_part
+    as well as:
+      - is_ror_scan
 
   RETURN
     0  Ok
@@ -339,7 +343,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
           the next keypart if any
         */
         seq->stack_push_range(key_tree);
-        seq->param->is_ror_scan = false;
+        *seq->is_ror_scan = false;
         break;
       }
 
@@ -438,7 +442,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
           instead of 1)
 
         */
-        seq->param->is_ror_scan = false;
+        *seq->is_ror_scan = false;
         key_tree->store_next_min_max_keys(
             seq->param->key[seq->keyno], &cur->min_key, &cur->min_key_flag,
             &cur->max_key, &cur->max_key_flag, (int *)&cur->min_key_parts,
@@ -477,7 +481,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
       Spatial operators are only allowed on spatial indexes, and no
       spatial index can at the moment return rows in ROWID order
     */
-    assert(!param->is_ror_scan);
+    assert(!*seq->is_ror_scan);
   } else {
     const KEY *cur_key_info = &param->table->key_info[seq->real_keyno];
     range->range_flag = cur->min_key_flag | cur->max_key_flag;
@@ -529,7 +533,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
         range->range_flag |= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
     }
 
-    if (param->is_ror_scan) {
+    if (*seq->is_ror_scan) {
       const uint key_part_number = key_tree->part + 1;
       /*
         If we get here, the condition on the key was converted to form
@@ -547,7 +551,7 @@ static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
       if ((!is_eq_range_pred &&
            key_part_number <= cur_key_info->user_defined_key_parts) ||
           !is_key_scan_ror(param, seq->real_keyno, key_part_number))
-        param->is_ror_scan = false;
+        *seq->is_ror_scan = false;
     }
   }
 
@@ -563,11 +567,13 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool index_only, SEL_ROOT *tree,
                            bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
-                           uint *bufsize, Cost_estimate *cost) {
+                           uint *bufsize, Cost_estimate *cost,
+                           bool *is_ror_scan, bool *is_imerge_scan) {
   uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
   uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
 
-  Sel_arg_range_sequence seq(param, min_key, max_key, skip_records_in_range);
+  Sel_arg_range_sequence seq(param, is_ror_scan, min_key, max_key,
+                             skip_records_in_range);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next,
                          nullptr};
   handler *file = param->table->file;
@@ -595,10 +601,8 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
   uint range_count = 0;
   param->use_index_statistics = eq_ranges_exceeds_limit(
       tree, &range_count, thd->variables.eq_range_index_dive_limit);
-  param->is_ror_scan = true;
-  param->is_imerge_scan = true;
-  if (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR)
-    param->is_ror_scan = false;
+  *is_imerge_scan = true;
+  *is_ror_scan = !(file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR);
 
   *mrr_flags = (order_direction == ORDER_DESC) ? HA_MRR_USE_DEFAULT_IMPL : 0;
   *mrr_flags |= HA_MRR_NO_ASSOCIATION;
@@ -658,8 +662,8 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
   for (; key_part != key_part_end; ++key_part) {
     if (key_part->key_part_flag & HA_REVERSE_SORT) {
       // ROR will be enabled again for clustered PK, see 'else if' below.
-      param->is_ror_scan = false;  // 2
-      param->is_imerge_scan = false;
+      *is_ror_scan = false;  // 2
+      *is_imerge_scan = false;
       break;
     }
   }
@@ -668,14 +672,14 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
       (file->index_flags(keynr, 0, true) & HA_KEY_SCAN_NOT_ROR) ||  // 3
       param->table->index_contains_some_virtual_gcol(keynr))        // 4
   {
-    param->is_ror_scan = false;
+    *is_ror_scan = false;
   } else if (param->table->s->primary_key == keynr && pk_is_clustered) {
     /*
       Clustered PK scan is always a ROR scan (TODO: same as above).
       This can enable ROR back if it was disabled by multi_range_read_info_const
       call.
     */
-    param->is_ror_scan = true;
+    *is_ror_scan = true;
   }
 
   DBUG_PRINT("exit", ("Records: %lu", (ulong)rows));
@@ -892,9 +896,11 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
 
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
+      bool is_ror_scan, is_imerge_scan;
       found_records = check_quick_select(
           thd, param, idx, read_index_only, key, update_tbl_stats,
-          order_direction, skip_records_in_range, &mrr_flags, &buf_size, &cost);
+          order_direction, skip_records_in_range, &mrr_flags, &buf_size, &cost,
+          &is_ror_scan, &is_imerge_scan);
 
       if (!compound_hint_key_enabled(param->table, keynr,
                                      INDEX_MERGE_HINT_ENUM)) {
@@ -923,7 +929,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
           trace_idx.add("index_dives_for_eq_ranges",
                         !param->use_index_statistics);
 
-        trace_idx.add("rowid_ordered", param->is_ror_scan)
+        trace_idx.add("rowid_ordered", is_ror_scan)
             .add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL))
             .add("index_only", read_index_only)
             .add("in_memory", cur_key.in_memory_estimate());
@@ -936,7 +942,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
         }
       }
 
-      if ((found_records != HA_POS_ERROR) && param->is_ror_scan) {
+      if ((found_records != HA_POS_ERROR) && is_ror_scan) {
         tree->n_ror_scans++;
         tree->ror_scans_map.set_bit(idx);
       }
@@ -958,7 +964,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
         best_idx = idx;
         best_mrr_flags = mrr_flags;
         best_buf_size = buf_size;
-        is_best_idx_imerge_scan = param->is_imerge_scan;
+        is_best_idx_imerge_scan = is_imerge_scan;
       } else {
         trace_idx.add("chosen", false);
         if (found_records == HA_POS_ERROR)
@@ -976,12 +982,12 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                print_sel_tree(param, tree, &tree->ror_scans_map, "ROR scans"););
 
   if (key_to_read) {
+    const bool is_ror = tree->ror_scans_map.is_set(best_idx);
     if ((read_plan = new (param->return_mem_root) TRP_RANGE(
              key_to_read, best_idx, best_mrr_flags, best_buf_size, param->table,
-             param->key[best_idx], param->real_keynr[best_idx]))) {
+             param->key[best_idx], param->real_keynr[best_idx], is_ror,
+             is_best_idx_imerge_scan))) {
       read_plan->records = best_records;
-      read_plan->is_ror = tree->ror_scans_map.is_set(best_idx);
-      read_plan->is_imerge = is_best_idx_imerge_scan;
       read_plan->cost_est = read_cost;
       DBUG_PRINT("info",
                  ("Returning range plan for key %s, cost %g, records %lu",

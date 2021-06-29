@@ -61,14 +61,17 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   // must live until make_quick().
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg,
             uint mrr_buf_size_arg, TABLE *table_arg,
-            KEY_PART *used_key_part_arg, uint keyno_arg)
+            KEY_PART *used_key_part_arg, uint keyno_arg, bool is_ror_arg,
+            bool is_imerge_arg)
       : key_idx(idx_arg),
         key(key_arg),
         mrr_flags(mrr_flags_arg),
         mrr_buf_size(mrr_buf_size_arg),
         table(table_arg),
         used_key_part(used_key_part_arg),
-        keyno(keyno_arg) {}
+        keyno(keyno_arg),
+        is_ror(is_ror_arg),
+        is_imerge(is_imerge_arg) {}
 
   QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
@@ -84,6 +87,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
+
+  bool can_be_used_for_ror() const { return is_ror; }
+  bool can_be_used_for_imerge() const { return is_imerge; }
 
  private:
   /**
@@ -102,6 +108,16 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   // The index in the table.
   uint keyno;
+
+  /*
+    If true, the scan returns rows in rowid order.
+   */
+  const bool is_ror;
+
+  /*
+    If true, this plan can be used for index merge scan.
+   */
+  const bool is_imerge;
 };
 
 /*
@@ -164,10 +180,12 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
       skip_records_in_range Same value as JOIN_TAB::skip_records_in_range().
       mrr_flags   INOUT MRR access flags
       cost        OUT   Scan cost
+      is_ror_scan OUT   Set to reflect if the key scan is a ROR
+                        (see is_key_scan_ror function for more info)
+      is_imerge_scan OUT  Set to reflect if the key scan can be used for
+                        index-merge-scan
 
   NOTES
-    param->is_ror_scan is set to reflect if the key scan is a ROR (see
-    is_key_scan_ror function for more info)
     param->table->quick_*, param->range_count (and maybe others) are
     updated with data of given key scan, see quick_range_seq_next for details.
 
@@ -179,6 +197,7 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool index_only, SEL_ROOT *tree,
                            bool update_tbl_stats, enum_order order_direction,
                            bool skip_records_in_range, uint *mrr_flags,
-                           uint *bufsize, Cost_estimate *cost);
+                           uint *bufsize, Cost_estimate *cost,
+                           bool *is_ror_scan, bool *is_imerge_scan);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_
