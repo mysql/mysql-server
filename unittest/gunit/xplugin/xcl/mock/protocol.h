@@ -60,7 +60,7 @@ class XProtocol : public xcl::XProtocol {
               (override));
   MOCK_METHOD(void, remove_send_message_handler, (Handler_id handler),
               (override));
-  MOCK_METHOD(XConnection &, get_connection, (), (override));
+  MOCK_METHOD(xcl::XConnection &, get_connection, (), (override));
   MOCK_METHOD(XError, recv,
               (Header_message_type_id * out_mid, uint8_t **buffer,
                std::size_t *buffer_size),
