@@ -53,6 +53,7 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(bool, MEM_ROOT *return_mem_root) {
   if (!(quick_imerge = new (return_mem_root)
             QUICK_INDEX_MERGE_SELECT(return_mem_root, table)))
     return nullptr;
+  assert(quick_imerge->index == index);
 
   quick_imerge->records = records;
   quick_imerge->cost_est = cost_est;

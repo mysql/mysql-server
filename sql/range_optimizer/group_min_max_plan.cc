@@ -1443,6 +1443,7 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
           group_prefix_len, group_key_parts, used_key_parts, index_info, index,
           &cost_est, records, key_infix_len, return_mem_root, is_index_scan));
   if (!quick) return nullptr;
+  assert(quick->index == index);
 
   if (quick->init()) {
     return nullptr;

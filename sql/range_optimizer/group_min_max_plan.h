@@ -63,7 +63,6 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   uint used_key_parts;    ///< Number of index key parts used for access
   uint group_key_parts;   ///< Number of index key parts in the group prefix
   KEY *index_info;        ///< The index chosen for data access
-  uint index;             ///< The id of the chosen index
   uchar key_infix[MAX_KEY_LENGTH];  ///< Constants from equality predicates
   uint key_infix_len;               ///< Length of key_infix
   SEL_TREE *range_tree;  ///< Represents all range predicates in the query
@@ -100,7 +99,6 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         used_key_parts(used_key_parts_arg),
         group_key_parts(group_key_parts_arg),
         index_info(index_info_arg),
-        index(index_arg),
         key_infix_len(key_infix_len_arg),
         range_tree(tree_arg),
         index_tree(index_tree_arg),
@@ -110,7 +108,9 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         join(join_arg),
         used_key_part(used_key_part_arg),
         keyno(keyno_arg),
-        quick_prefix_records(quick_prefix_records_arg) {}
+        quick_prefix_records(quick_prefix_records_arg) {
+    index = index_arg;
+  }
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *mem_root) override;

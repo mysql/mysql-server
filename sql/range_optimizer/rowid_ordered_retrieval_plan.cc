@@ -133,6 +133,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                                  (retrieve_full_rows ? (!is_covering) : false),
                                  return_mem_root);
   if (quick_intrsect) {
+    assert(quick_intrsect->index == index);
     DBUG_EXECUTE("info", print_ror_scans_arr(table, "creating ROR-intersect",
                                              first_scan, last_scan););
     for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
@@ -175,6 +176,7 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
   */
   if ((quick_roru = new (return_mem_root)
            QUICK_ROR_UNION_SELECT(return_mem_root, table))) {
+    assert(quick_roru->index == index);
     for (scan = first_ror; scan != last_ror; scan++) {
       if (!(quick = (*scan)->make_quick(false, return_mem_root)) ||
           quick_roru->push_quick_back(quick))

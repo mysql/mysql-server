@@ -43,6 +43,12 @@ class TABLE_READ_PLAN {
   ha_rows records; /* estimate of #rows to be examined */
 
   /*
+    Index this quick select uses, or MAX_KEY for quick selects
+    that use several indexes
+   */
+  uint index = MAX_KEY;
+
+  /*
     Create quick select for this plan.
     SYNOPSIS
      make_quick()

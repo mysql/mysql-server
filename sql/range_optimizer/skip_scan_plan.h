@@ -46,7 +46,6 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
  private:
   TABLE *table;
   KEY *index_info;                ///< The index chosen for data access
-  uint index;                     ///< The id of the chosen index
   uint eq_prefix_len;             ///< Length of the equality prefix
   uint eq_prefix_parts;           ///< Number of parts in the equality prefix
   KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
@@ -66,14 +65,13 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
-  TRP_SKIP_SCAN(TABLE *table, KEY *index_info, uint index,
+  TRP_SKIP_SCAN(TABLE *table, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
                 uint eq_prefix_parts, KEY_PART_INFO *range_key_part,
                 SEL_ARG *range_cond, uint used_key_parts, bool forced_by_hint,
                 ha_rows read_records, bool has_aggregate_function)
       : table(table),
         index_info(index_info),
-        index(index),
         eq_prefix_len(eq_prefix_len),
         eq_prefix_parts(eq_prefix_parts),
         range_key_part(range_key_part),
@@ -82,6 +80,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
         used_key_parts(used_key_parts),
         forced_by_hint(forced_by_hint),
         has_aggregate_function(has_aggregate_function) {
+    index = index_arg;
     records = read_records;
   }
 

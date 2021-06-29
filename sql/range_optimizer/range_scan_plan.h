@@ -69,19 +69,21 @@ class TRP_RANGE : public TABLE_READ_PLAN {
         mrr_buf_size(mrr_buf_size_arg),
         table(table_arg),
         used_key_part(used_key_part_arg),
-        keyno(keyno_arg),
         is_ror(is_ror_arg),
-        is_imerge(is_imerge_arg) {}
+        is_imerge(is_imerge_arg) {
+    index = keyno_arg;
+  }
 
   QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(return_mem_root, table, used_key_part, keyno,
+    if ((quick = get_quick_select(return_mem_root, table, used_key_part, index,
                                   key, mrr_flags, mrr_buf_size))) {
       quick->records = records;
       quick->cost_est = cost_est;
     }
+    assert(quick->index == index);
     return quick;
   }
 
@@ -105,9 +107,6 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   // The key part(s) we are scanning on. Note that this may be an array.
   KEY_PART *used_key_part;
-
-  // The index in the table.
-  uint keyno;
 
   /*
     If true, the scan returns rows in rowid order.

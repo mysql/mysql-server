@@ -130,6 +130,8 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   if (!quick) return nullptr;
 
+  assert(quick->index == index);
+
   if (quick->init()) {
     destroy(quick);
     return nullptr;
