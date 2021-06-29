@@ -26,6 +26,7 @@
 
 #include <algorithm>  // transform
 #include <array>
+#include <cinttypes>
 #include <initializer_list>
 #include <stdexcept>  // invalid_argument
 #include <string>
@@ -35,15 +36,18 @@
 #include "hostname_validator.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql_router_thread.h"         // kDefaultStackSizeInKiloByte
 #include "mysqlrouter/routing.h"         // AccessMode
+#include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
 using namespace stdx::string_view_literals;
+IMPORT_LOG_FUNCTIONS()
 
 static std::string get_log_prefix(const mysql_harness::ConfigSection *section,
                                   const mysql_harness::ConfigOption &option) {
@@ -429,6 +433,26 @@ static std::string get_option_string(
   return res.value();
 }
 
+uint16_t get_option_max_connections(
+    const mysql_harness::ConfigSection *section) {
+  const auto result = get_uint_option<uint16_t>(
+      section, mysql_harness::ConfigOption(
+                   "max_connections"_sv,
+                   std::to_string(routing::kDefaultMaxConnections)));
+
+  auto &routing_component = MySQLRoutingComponent::get_instance();
+
+  if (result != routing::kDefaultMaxConnections &&
+      result > routing_component.max_total_connections()) {
+    log_warning(
+        "Value configured for max_connections > max_total_connections (%u "
+        "> %" PRIu64 "). Will have no effect.",
+        result, routing_component.max_total_connections());
+  }
+
+  return result;
+}
+
 /** @brief Constructor
  *
  * @param section from configuration file provided as ConfigSection
@@ -462,10 +486,7 @@ RoutingPluginConfig::RoutingPluginConfig(
       routing_strategy(get_option_routing_strategy(
           section, mysql_harness::ConfigOption("routing_strategy"_sv), mode,
           metadata_cache_)),
-      max_connections(get_uint_option<uint16_t>(
-          section, mysql_harness::ConfigOption(
-                       "max_connections"_sv,
-                       std::to_string(routing::kDefaultMaxConnections)))),
+      max_connections(get_option_max_connections(section)),
       max_connect_errors(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(

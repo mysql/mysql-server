@@ -1005,11 +1005,10 @@ class Acceptor {
                     r_->get_context().info_active_routes_.load(),
                     r_->get_max_connections());
               } else {
-                log_warning(
-                    "[%s] reached max total active connections (%" PRIu64
-                    " max=%" PRIu64 ")",
-                    r_->get_context().get_name().c_str(),
-                    current_total_connections, max_total_connections);
+                log_warning("[%s] Total connections count=%" PRIu64
+                            " exceeds [DEFAULT].max_total_connections=%" PRIu64,
+                            r_->get_context().get_name().c_str(),
+                            current_total_connections, max_total_connections);
               }
             } else {
               Connector<client_protocol_type>(

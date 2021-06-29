@@ -392,7 +392,7 @@ TEST_F(RouterMaxConnectionsTest, RoutingTotalMaxConnectionsExceeded) {
       "mysqlrouter.conf", "max_total_connections=2");
 
   // launch the router with the created configuration
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -409,9 +409,23 @@ TEST_F(RouterMaxConnectionsTest, RoutingTotalMaxConnectionsExceeded) {
   ASSERT_THROW_LIKE(
       client3.connect("127.0.0.1", router_portA, "root", "fake-pass", "", ""),
       std::runtime_error, "Too many connections to MySQL Router (1040)");
+
+  // The log should contain expected warning message
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "WARNING .* \\[routing:A\\] Total connections count=2 "
+                        "exceeds \\[DEFAULT\\].max_total_connections=2",
+                        5s));
+
   ASSERT_THROW_LIKE(
       client3.connect("127.0.0.1", router_portB, "root", "fake-pass", "", ""),
       std::runtime_error, "Too many connections to MySQL Router (1040)");
+
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "WARNING .* \\[routing:B\\] Total connections count=2 "
+                        "exceeds \\[DEFAULT\\].max_total_connections=2",
+                        5s));
 
   // disconnect the first client, now we should be able to connect again
   client1.disconnect();
@@ -693,6 +707,43 @@ template <class T>
              << ". Actual: non-std exception";
     }
   }
+}
+
+/**
+ * @test Check if the Router logs expected warning if the
+ * routing.max_connections is configured to non-default value that exceeds
+ * max_total_connections
+ */
+TEST_F(RouterMaxConnectionsTest, WarningWhenLocalMaxConGreaterThanTotalMaxCon) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto router_classic_rw_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch the server mock that will terminate all our classic and x
+  // connections
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0);
+
+  // create a configuration with 1 route (classic rw) that has  "local" limit of
+  // 600 max_connections the total_max_connections is default 512
+  const std::string routing_section_classic_rw = get_static_routing_section(
+      "classic_rw", router_classic_rw_port, server_classic_port, "classic",
+      "max_connections=600");
+  TempDirectory conf_dir("conf");
+
+  std::string conf_file = create_config_file(
+      conf_dir.name(), routing_section_classic_rw, nullptr, "mysqlrouter.conf");
+
+  // launch the router with the created configuration
+  auto &router = launch_router({"-c", conf_file});
+
+  // The log should contain expected warning message
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "WARNING .* Value configured for max_connections > max_total_connections "
+      "\\(600 > 512\\)\\. Will have no effect\\.",
+      5s));
 }
 
 #ifndef _WIN32  // named sockets are not supported on Windows;
