@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <cerrno>
 
+#include "digest.h"
 #include "http_auth_error.h"
 #include "kdf_pbkdf2.h"
 #include "kdf_sha_crypt.h"
@@ -135,6 +136,7 @@ std::error_code HttpAuthBackendHtpasswd::from_stream_(std::istream &is) {
 
   // assign creds only after no parse-error
   credentials_ = creds;
+  credentials_cache_.clear();
 
   return {};
 }
@@ -160,11 +162,12 @@ std::error_code HttpAuthBackendHtpasswd::authenticate(
     }
   }
 
-  if (credentials_.count(username) == 0) {
+  const auto it = credentials_.find(username);
+  if (it == credentials_.end()) {
     return make_error_code(McfErrc::kUserNotFound);
   }
 
-  auto mcf_line = credentials_.at(username);
+  auto mcf_line = it->second;
 
   if (mcf_line.size() < 1) return make_error_code(McfErrc::kParseError);
   if (mcf_line[0] != '$') return make_error_code(McfErrc::kParseError);
@@ -176,18 +179,44 @@ std::error_code HttpAuthBackendHtpasswd::authenticate(
 
   try {
     std::string derived;
+    std::string hash = hash_password(password);
+    std::error_code validate_error;
 
-    if (ShaCryptMcfAdaptor::supports_mcf_id(mcf_id)) {
-      return ShaCryptMcfAdaptor::validate(mcf_line, password);
+    const auto cacheIt = credentials_cache_.find(username);
+
+    if (cacheIt != credentials_cache_.end() && cacheIt->second == hash) {
+      return {};
+    } else if (ShaCryptMcfAdaptor::supports_mcf_id(mcf_id)) {
+      validate_error = ShaCryptMcfAdaptor::validate(mcf_line, password);
     } else if (Pbkdf2McfAdaptor::supports_mcf_id(mcf_id)) {
-      return Pbkdf2McfAdaptor::validate(mcf_line, password);
-    }
+      validate_error = Pbkdf2McfAdaptor::validate(mcf_line, password);
+    } else
+      return make_error_code(McfErrc::kUnknownScheme);
 
-    return make_error_code(McfErrc::kUnknownScheme);
+    if (!validate_error) credentials_cache_[username] = hash;
+
+    return validate_error;
   } catch (const std::exception &) {
     // treat all exceptions as parse-errors
     return make_error_code(McfErrc::kParseError);
   }
+}
+
+std::string HttpAuthBackendHtpasswd::hash_password(
+    const std::string &password) {
+  static const uint32_t digest_size = Digest::digest_size(Digest::Type::Sha256);
+  std::string result(digest_size, '\0');
+  Digest sha256(Digest::Type::Sha256);
+
+  sha256.update(password);
+  sha256.finalize(result);
+
+  sha256.reinit();
+
+  sha256.update(result);
+  sha256.finalize(result);
+
+  return result;
 }
 
 HttpAuthBackend::~HttpAuthBackend() = default;
