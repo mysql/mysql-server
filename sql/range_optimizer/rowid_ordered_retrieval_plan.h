@@ -70,8 +70,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
  public:
   TRP_ROR_INTERSECT(TABLE *table_arg, bool forced_by_hint_arg,
                     KEY_PART *const *key_arg, const uint *real_keynr_arg)
-      : table(table_arg),
-        forced_by_hint(forced_by_hint_arg),
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, forced_by_hint_arg),
         key(key_arg),
         real_keynr(real_keynr_arg) {}
 
@@ -89,8 +88,6 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
                         Opt_trace_object *trace_object) const override;
 
  private:
-  TABLE *table;
-  bool forced_by_hint;
   KEY_PART *const *key;
   const uint *real_keynr;
 };
@@ -104,7 +101,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg)
-      : table(table_arg), forced_by_hint(forced_by_hint_arg) {}
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, forced_by_hint_arg) {}
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
@@ -112,10 +109,6 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
-
- private:
-  TABLE *table;
-  bool forced_by_hint;
 };
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(

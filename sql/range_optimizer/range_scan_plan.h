@@ -63,16 +63,14 @@ class TRP_RANGE : public TABLE_READ_PLAN {
             uint mrr_buf_size_arg, TABLE *table_arg,
             KEY_PART *used_key_part_arg, uint keyno_arg, bool is_ror_arg,
             bool is_imerge_arg)
-      : key_idx(idx_arg),
+      : TABLE_READ_PLAN(table_arg, keyno_arg, /*forced_by_hint_arg=*/false),
+        key_idx(idx_arg),
         key(key_arg),
         mrr_flags(mrr_flags_arg),
         mrr_buf_size(mrr_buf_size_arg),
-        table(table_arg),
         used_key_part(used_key_part_arg),
         is_ror(is_ror_arg),
-        is_imerge(is_imerge_arg) {
-    index = keyno_arg;
-  }
+        is_imerge(is_imerge_arg) {}
 
   QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
@@ -101,9 +99,6 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   SEL_ROOT *key;
   uint mrr_flags;
   uint mrr_buf_size;
-
-  // The table scanned.
-  TABLE *table;
 
   // The key part(s) we are scanning on. Note that this may be an array.
   KEY_PART *used_key_part;

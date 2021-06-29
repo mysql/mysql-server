@@ -44,7 +44,6 @@ struct MEM_ROOT;
 
 class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
  private:
-  TABLE *table;
   KEY *index_info;                ///< The index chosen for data access
   uint eq_prefix_len;             ///< Length of the equality prefix
   uint eq_prefix_parts;           ///< Number of parts in the equality prefix
@@ -56,21 +55,21 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
     (on key part C - for more details see description of get_best_skip_scan()).
   */
   SEL_ARG *range_cond;
-  SEL_ROOT *index_range_tree;  ///< The sub-tree corresponding to index_info
-  uint used_key_parts;         ///< Number of index key parts used for access
-  bool forced_by_hint;  ///< TRUE if skip scan is forced by optimizer hint
+  SEL_ROOT *index_range_tree;   ///< The sub-tree corresponding to index_info
+  uint used_key_parts;          ///< Number of index key parts used for access
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 
  public:
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
-  TRP_SKIP_SCAN(TABLE *table, KEY *index_info, uint index_arg,
+  TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
                 uint eq_prefix_parts, KEY_PART_INFO *range_key_part,
-                SEL_ARG *range_cond, uint used_key_parts, bool forced_by_hint,
-                ha_rows read_records, bool has_aggregate_function)
-      : table(table),
+                SEL_ARG *range_cond, uint used_key_parts,
+                bool forced_by_hint_arg, ha_rows read_records,
+                bool has_aggregate_function)
+      : TABLE_READ_PLAN(table_arg, index_arg, forced_by_hint_arg),
         index_info(index_info),
         eq_prefix_len(eq_prefix_len),
         eq_prefix_parts(eq_prefix_parts),
@@ -78,9 +77,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
         range_cond(range_cond),
         index_range_tree(index_range_tree),
         used_key_parts(used_key_parts),
-        forced_by_hint(forced_by_hint),
         has_aggregate_function(has_aggregate_function) {
-    index = index_arg;
     records = read_records;
   }
 
@@ -88,7 +85,6 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
-  bool is_forced_by_hint() override { return forced_by_hint; }
 };
 
 TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,

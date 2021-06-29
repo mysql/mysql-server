@@ -42,11 +42,16 @@ class TABLE_READ_PLAN {
   Cost_estimate cost_est;
   ha_rows records; /* estimate of #rows to be examined */
 
+  // The table scanned.
+  TABLE *const table;
+
   /*
     Index this quick select uses, or MAX_KEY for quick selects
     that use several indexes
    */
-  uint index = MAX_KEY;
+  const uint index;
+
+  const bool forced_by_hint;
 
   /*
     Create quick select for this plan.
@@ -66,6 +71,10 @@ class TABLE_READ_PLAN {
   virtual QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                                      MEM_ROOT *return_mem_root) = 0;
 
+  TABLE_READ_PLAN(TABLE *table_arg, int index_arg, bool forced_by_hint_arg)
+      : table(table_arg),
+        index(index_arg),
+        forced_by_hint(forced_by_hint_arg) {}
   virtual ~TABLE_READ_PLAN() = default;
 
   /**
@@ -77,7 +86,6 @@ class TABLE_READ_PLAN {
   */
   virtual void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
-  virtual bool is_forced_by_hint() { return false; }
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_TABLE_READ_PLAN_H_

@@ -741,7 +741,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       }
     }
 
-    if (tree && (!best_trp || !best_trp->is_forced_by_hint())) {
+    if (tree && (!best_trp || !best_trp->forced_by_hint)) {
       /*
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
