@@ -1,0 +1,41 @@
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+
+--let $debug_point=trx_sys_rw_trx_add_rc
+--let $debug_type=GLOBAL
+--source include/add_debug_point.inc
+
+DELIMITER |;
+CREATE PROCEDURE create_rw_transactions(k INT)
+ BEGIN
+     WHILE 1 DO
+       START TRANSACTION;
+         UPDATE t1 SET v=v+1 WHERE id=k;
+       COMMIT;
+     END WHILE;
+ END|
+DELIMITER ;|
+let $N=120;
+let $i=0;
+while($i<$N){
+    --connect(C$i,localhost,root,,test)
+        --eval INSERT INTO t1 (id,v) VALUES ($i,0)
+        --send_eval CALL create_rw_transactions($i)
+    --inc $i
+}
+--sleep 30
+let $i=0;
+while($i<$N){
+    --disconnect C$i
+    --inc $i
+}
+--connection default
+
+DROP PROCEDURE create_rw_transactions;
+DROP TABLE t1;
+--source include/remove_debug_point.inc
+
+--source include/wait_until_count_sessions.inc

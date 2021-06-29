@@ -573,8 +573,6 @@ void trx_sys_create(void) {
 
   trx_sys->serialisation_min_trx_no.store(0);
 
-  trx_sys->min_active_trx_id.store(0);
-
   ut_d(trx_sys->rw_max_trx_no = 0);
 
   new (&trx_sys->rw_trx_ids)

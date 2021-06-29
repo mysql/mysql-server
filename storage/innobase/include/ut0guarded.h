@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+Copyright (c) 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,36 +24,36 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include/ut0cpu_cache.h
-Utilities related to CPU cache. */
+/** @file include/ut0guarded.h
+The ut::Guarded template which protects access to another class with mutex. */
 
-#ifndef ut0cpu_cache_h
-#define ut0cpu_cache_h
+#ifndef ut0guarded_h
+#define ut0guarded_h
 
-#include "ut0ut.h"
+#ifndef UNIV_LIBRARY
+#include "ut0cpu_cache.h"
+#include "ut0mutex.h"
+#endif
+
 namespace ut {
+// TBD: should latch_id be specified at runtime?
+template <typename Inner, latch_id_t latch_id>
+class Guarded {
+#ifndef UNIV_LIBRARY
+  Cacheline_padded<IB_mutex> mutex{latch_id};
+#endif
+  Inner inner;
 
-/** CPU cache line size */
-#ifdef __powerpc__
-constexpr size_t INNODB_CACHE_LINE_SIZE = 128;
-#else
-constexpr size_t INNODB_CACHE_LINE_SIZE = 64;
-#endif /* __powerpc__ */
+ public:
+  template <typename F>
+  auto latch_and_execute(F &&f, const ut::Location &loc) {
+#ifndef UNIV_LIBRARY
+    IB_mutex_guard guard{&mutex, loc};
+#endif
+    return std::forward<F>(f)(inner);
+  }
 
-/**
-A utility wrapper class, which adds padding at the end of the wrapped structure,
-so that the next object after it is guaranteed to be in the next cache line.
-This is to avoid false-sharing.
-Use this, as opposed to alignas(), to avoid problems with allocators which do
-not handle over-aligned types.
- */
-template <typename T>
-struct Cacheline_padded : public T {
-  char pad[INNODB_CACHE_LINE_SIZE];
-
-  template <class... Args>
-  Cacheline_padded(Args &&... args) : T{std::forward<Args>(args)...} {}
+  const Inner &peek() const { return inner; }
 };
-} /* namespace ut */
-
-#endif /* ut0cpu_cache_h */
+}  // namespace ut
+#endif /* ut0guarded_h */

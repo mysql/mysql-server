@@ -44,8 +44,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <set>
 #include <vector>
 
-//#include <unordered_set>
-
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT IB_ID_FMT
 
@@ -595,36 +593,6 @@ typedef std::priority_queue<
     purge_pq_t;
 
 typedef std::vector<trx_id_t, ut_allocator<trx_id_t>> trx_ids_t;
-
-/** Mapping read-write transactions from id to transaction instance, for
-creating read views and during trx id lookup for MVCC and locking. */
-struct TrxTrack {
-  explicit TrxTrack(trx_id_t id, trx_t *trx = nullptr) : m_id(id), m_trx(trx) {
-    // Do nothing
-  }
-
-  trx_id_t m_id;
-  trx_t *m_trx;
-};
-
-/** Number of shards created for transactions. */
-constexpr size_t TRX_SHARDS_N = 256;
-
-struct TrxTrackHash {
-  size_t operator()(const TrxTrack &key) const {
-    return static_cast<size_t>(key.m_id / TRX_SHARDS_N);
-  }
-};
-
-/**
-Comparator for TrxMap */
-struct TrxTrackHashCmp {
-  bool operator()(const TrxTrack &lhs, const TrxTrack &rhs) const {
-    return (lhs.m_id == rhs.m_id);
-  }
-};
-
-typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
 
 struct TrxVersion {
   TrxVersion(trx_t *trx);
