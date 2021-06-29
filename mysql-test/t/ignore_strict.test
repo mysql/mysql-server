@@ -592,7 +592,10 @@ INSERT INTO t2 VALUES(7);
 --echo #
 --error ER_INVALID_ARGUMENT_FOR_LOGARITHM
 DELETE FROM t1 where a <=> ln(0);
+--disable_warnings
 DELETE IGNORE FROM t1 where a <=> ln(0);
+--enable_warnings
+--skip_if_hypergraph  # Different number of warnings.
 SHOW WARNINGS;
 
 --echo #

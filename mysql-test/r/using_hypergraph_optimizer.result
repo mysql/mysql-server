@@ -181,6 +181,11 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
 WHERE TRACE LIKE '%Constructed hypergraph%';
 COUNT(*)
 1
+DELETE FROM t WHERE x > 0;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
 DROP TABLE t;
 # Clean up for test file using_hypergraph_optimizer
 SET optimizer_trace='enabled=off';

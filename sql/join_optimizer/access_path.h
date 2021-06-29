@@ -1095,6 +1095,7 @@ struct AccessPath {
       bool remove_duplicates;
       bool unwrap_rollup;
       bool use_limit;
+      bool force_sort_rowids;
     } sort;
     struct {
       AccessPath *child;
@@ -1427,6 +1428,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
                                             ha_rows *send_records_override) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::LIMIT_OFFSET;
+  path->immediate_update_delete_table = child->immediate_update_delete_table;
   path->limit_offset().child = child;
   path->limit_offset().limit = limit;
   path->limit_offset().offset = offset;

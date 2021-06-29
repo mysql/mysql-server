@@ -202,6 +202,10 @@ CREATE TABLE t (x INTEGER, y INTEGER);
 DELETE t FROM t WHERE x > 0;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
 WHERE TRACE LIKE '%Constructed hypergraph%';
+# Single-table DELETE should use the hypergraph optimizer.
+DELETE FROM t WHERE x > 0;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
 DROP TABLE t;
 
 --echo # Clean up for test file using_hypergraph_optimizer

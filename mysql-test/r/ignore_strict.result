@@ -808,9 +808,6 @@ INSERT INTO t2 VALUES(7);
 DELETE FROM t1 where a <=> ln(0);
 ERROR 2201E: Invalid argument for logarithm
 DELETE IGNORE FROM t1 where a <=> ln(0);
-Warnings:
-Warning	3020	Invalid argument for logarithm
-Warning	3020	Invalid argument for logarithm
 SHOW WARNINGS;
 Level	Code	Message
 Warning	3020	Invalid argument for logarithm

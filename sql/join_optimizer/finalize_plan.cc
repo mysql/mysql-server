@@ -308,7 +308,7 @@ static void UpdateReferencesToMaterializedItems(
     path->sort().filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables),
                  /*keep_buffers=*/false, path->sort().order, limit_rows,
-                 path->sort().remove_duplicates, /*force_sort_rowids=*/false,
+                 path->sort().remove_duplicates, path->sort().force_sort_rowids,
                  path->sort().unwrap_rollup);
     join->filesorts_to_cleanup.push_back(path->sort().filesort);
     if (!path->sort().filesort->using_addon_fields()) {

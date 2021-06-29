@@ -768,6 +768,15 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     base_table->set_deleted();
   }
 
+  // The hypergraph optimizer has a unified execution path for single-table and
+  // multi-table DELETE, and does not need to distinguish between the two. This
+  // enables it to perform optimizations like sort avoidance and semi-join
+  // flattening even if features specific to single-table DELETE (that is, ORDER
+  // BY and LIMIT) are used.
+  if (lex->using_hypergraph_optimizer) {
+    multitable = true;
+  }
+
   if (!multitable && select->first_inner_query_expression() != nullptr &&
       should_switch_to_multi_table_if_subqueries(thd, select, table_list))
     multitable = true;
@@ -799,8 +808,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     return true;
 
   // Enable the following code if allowing LIMIT with multi-table DELETE
-  assert(sql_command_code() == SQLCOM_DELETE ||
-         select->select_limit == nullptr);
+  assert(lex->sql_command == SQLCOM_DELETE || !select->has_limit());
 
   lex->allow_sum_func = 0;
 

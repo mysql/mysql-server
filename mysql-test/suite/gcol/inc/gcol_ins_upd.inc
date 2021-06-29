@@ -530,6 +530,8 @@ KEY (a(183),b)
 
 INSERT INTO t VALUES(), (), ();
 
+# Different row numbers in old optimizer (always 1) and hypergraph optimizer.
+--replace_regex /row \d$/row 1/
 DELETE IGNORE FROM t;
 
 DROP TABLE t;

@@ -221,6 +221,9 @@ DELETE FROM t_60905 WHERE i = 1;
 DELETE FROM t_60905 WHERE j = 8;
 
 # show the instrument data.
+--skip_if_hypergraph  # Uses PSI batch mode for DELETE, so the DELETEs are
+                      # not counted. The old optimizer uses PSI batch mode
+                      # only in multi-table DELETE.
 SELECT object_schema,
        object_name,
        index_name,

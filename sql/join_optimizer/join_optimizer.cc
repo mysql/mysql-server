@@ -4048,6 +4048,7 @@ AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
   sort_path.sort().remove_duplicates = false;
   sort_path.sort().unwrap_rollup = true;
   sort_path.sort().use_limit = false;
+  sort_path.sort().force_sort_rowids = false;
   EstimateSortCost(&sort_path);
   return sort_path;
 }
@@ -4694,7 +4695,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     int order_by_ordering_idx, int distinct_ordering_idx,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     FunctionalDependencySet fd_set, Query_block *query_block, bool need_rowid,
-    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
+    bool force_sort_rowids, Prealloced_array<AccessPath *, 4> root_candidates,
+    string *trace) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
@@ -4809,6 +4811,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path.sort().unwrap_rollup = false;
         sort_path.sort().use_limit = false;
 
+        // The force_sort_rowids flag is only set for UPDATE and DELETE,
+        // which don't have any syntax for specifying DISTINCT.
+        assert(!force_sort_rowids);
+        sort_path.sort().force_sort_rowids = false;
+
         if (aggregation_is_unordered) {
           // Even though we create a sort node for the distinct operation,
           // the engine does not actually sort the rows. (The deduplication
@@ -4867,6 +4874,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         AccessPath *sort_path = new (thd->mem_root) AccessPath;
         sort_path->type = AccessPath::SORT;
         sort_path->count_examined_rows = false;
+        sort_path->immediate_update_delete_table =
+            root_path->immediate_update_delete_table;
         sort_path->sort().child = root_path;
         sort_path->sort().filesort = nullptr;
         sort_path->sort().remove_duplicates = false;
@@ -4875,6 +4884,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path->sort().order = query_block->order_list.first;
         EstimateSortCost(sort_path,
                          push_limit_to_filesort ? limit_rows : HA_POS_ERROR);
+
+        // If this is a DELETE or UPDATE statement, row IDs must be preserved
+        // through the ORDER BY clause, so that we know which rows to delete or
+        // update.
+        sort_path->sort().force_sort_rowids = force_sort_rowids;
 
         // If we have a LIMIT clause that is not pushed down to the filesort, or
         // if we have an OFFSET clause, we need to add a LIMIT_OFFSET path on
@@ -5777,6 +5791,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         sort_path->sort().remove_duplicates = false;
         sort_path->sort().unwrap_rollup = true;
         sort_path->sort().use_limit = false;
+        sort_path->sort().force_sort_rowids = false;
         sort_path->sort().order = sort_ahead_ordering.order;
         EstimateSortCost(sort_path);
         assert(!aggregation_is_unordered);
@@ -5855,10 +5870,15 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       &root_candidates, &receiver);
 
   if (join->select_distinct || query_block->is_ordered()) {
+    // UPDATE and DELETE must preserve row IDs through ORDER BY in order to keep
+    // track of which rows to update or delete.
+    const bool force_sort_rowids = update_delete_target_tables != 0;
+
     root_candidates = ApplyDistinctAndOrder(
         thd, receiver, orderings, aggregation_is_unordered,
         order_by_ordering_idx, distinct_ordering_idx, sort_ahead_orderings,
-        fd_set, query_block, need_rowid, std::move(root_candidates), trace);
+        fd_set, query_block, need_rowid, force_sort_rowids,
+        std::move(root_candidates), trace);
   }
 
   // Apply LIMIT and OFFSET, if applicable. If the query block is ordered, they

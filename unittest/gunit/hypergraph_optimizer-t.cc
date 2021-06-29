@@ -35,6 +35,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
@@ -193,6 +194,15 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   for (ORDER *cur_group = query_block->order_list.first; cur_group != nullptr;
        cur_group = cur_group->next) {
     ResolveFieldToFakeTable(*cur_group->item);
+  }
+
+  // Set up necessary context for single-table delete.
+  if (m_thd->lex->sql_command == SQLCOM_DELETE) {
+    assert(query_block->context.table_list == nullptr);
+    assert(query_block->context.first_name_resolution_table == nullptr);
+    query_block->context.table_list =
+        query_block->context.first_name_resolution_table =
+            query_block->get_table_list();
   }
 
   query_block->prepare(m_thd, nullptr);
@@ -3956,6 +3966,51 @@ TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {
   // Implicitly grouped queries always return a single row.
   EXPECT_EQ(AccessPath::AGGREGATE, root->type);
   EXPECT_FLOAT_EQ(1.0, root->num_output_rows);
+}
+
+TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithOrderByLimit) {
+  Query_block *query_block =
+      ParseAndResolve("DELETE FROM t1 WHERE t1.x > 0 ORDER BY t1.y LIMIT 2",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  EXPECT_EQ(m_fake_tables["t1"]->pos_in_table_list->map(),
+            root->delete_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::SORT, root->delete_rows().child->type);
+  EXPECT_TRUE(root->delete_rows().child->sort().use_limit);
+  ASSERT_EQ(AccessPath::FILTER, root->delete_rows().child->sort().child->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN,
+            root->delete_rows().child->sort().child->filter().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, SingleTableDeleteWithLimit) {
+  Query_block *query_block =
+      ParseAndResolve("DELETE FROM t1 WHERE t1.x > 0 LIMIT 2",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  EXPECT_EQ(m_fake_tables["t1"]->pos_in_table_list->map(),
+            root->delete_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->delete_rows().child->type);
+  ASSERT_EQ(AccessPath::FILTER,
+            root->delete_rows().child->limit_offset().child->type);
+  EXPECT_EQ(
+      AccessPath::TABLE_SCAN,
+      root->delete_rows().child->limit_offset().child->filter().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 // Delete from a single table using the multi-table delete syntax.
