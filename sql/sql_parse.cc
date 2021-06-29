@@ -1900,6 +1900,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       Parser_state parser_state;
       if (parser_state.init(thd, thd->query().str, thd->query().length)) break;
 
+      parser_state.m_input.m_has_digest = true;
+
       // we produce digest if it's not explicitly turned off
       // by setting maximum digest length to zero
       if (get_max_digest_length() != 0)
@@ -6798,6 +6800,7 @@ class Parser_oom_handler : public Internal_error_handler {
       ... handle error
     }
 
+    parser_state.m_input.m_has_digest= true;
     parser_state.m_input.m_compute_digest= true;
 
     rc= parse_sql(the, &parser_state, ctx);
@@ -6844,21 +6847,37 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
   parser_state->m_digest_psi = nullptr;
   parser_state->m_lip.m_digest = nullptr;
 
-  if (thd->m_digest != nullptr) {
-    /* Start Digest */
-    parser_state->m_digest_psi = MYSQL_DIGEST_START(thd->m_statement_psi);
+  /*
+    Partial parsers (GRAMMAR_SELECTOR_*) are not supposed to compute digests.
+  */
+  assert(!parser_state->m_lip.is_partial_parser() ||
+         !parser_state->m_input.m_has_digest);
 
-    if (parser_state->m_input.m_compute_digest ||
-        (parser_state->m_digest_psi != nullptr)) {
-      /*
-        If either:
-        - the caller wants to compute a digest
-        - the performance schema wants to compute a digest
-        set the digest listener in the lexer.
-      */
-      parser_state->m_lip.m_digest = thd->m_digest;
-      parser_state->m_lip.m_digest->m_digest_storage.m_charset_number =
-          thd->charset()->number;
+  /*
+    Only consider statements that are supposed to have a digest,
+    like top level queries.
+  */
+  if (parser_state->m_input.m_has_digest) {
+    /*
+      For these statements,
+      see if the digest computation is required.
+    */
+    if (thd->m_digest != nullptr) {
+      /* Start Digest */
+      parser_state->m_digest_psi = MYSQL_DIGEST_START(thd->m_statement_psi);
+
+      if (parser_state->m_input.m_compute_digest ||
+          (parser_state->m_digest_psi != nullptr)) {
+        /*
+          If either:
+          - the caller wants to compute a digest
+          - the performance schema wants to compute a digest
+          set the digest listener in the lexer.
+        */
+        parser_state->m_lip.m_digest = thd->m_digest;
+        parser_state->m_lip.m_digest->m_digest_storage.m_charset_number =
+            thd->charset()->number;
+      }
     }
   }
 
