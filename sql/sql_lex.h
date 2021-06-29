@@ -3634,10 +3634,25 @@ public:
 */
 struct Parser_input
 {
+  /**
+    True if the text parsed corresponds to an actual query,
+    and not another text artifact.
+    This flag is used to disable digest parsing of nested:
+    - view definitions
+    - table trigger definitions
+    - table partition definitions
+    - event scheduler event definitions
+  */
+  bool m_has_digest;
+  /**
+    True if the caller needs to compute a digest.
+    This flag is used to request explicitly a digest computation,
+    independently of the performance schema configuration.
+  */
   bool m_compute_digest;
 
   Parser_input()
-    : m_compute_digest(false)
+    : m_has_digest(false), m_compute_digest(false)
   {}
 };
 
