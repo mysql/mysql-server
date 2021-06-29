@@ -1,0 +1,11 @@
+--source include/have_mecab.inc
+
+#
+# WL#6607 : InnoDB FULLTEXT SEARCH: CJK support (mecab parser)
+# Test mecab charset utf8
+#------------------------------------------------------------------------------
+
+let $ipadic_charset=utf-8;
+let $mysql_charset=utf8mb3;
+
+--source suite/innodb_fts/include/mecab.inc
