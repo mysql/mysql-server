@@ -6,6 +6,6 @@
 #------------------------------------------------------------------------------
 
 let $ipadic_charset=utf-8;
-let $mysql_charset=utf8;
+let $mysql_charset=utf8mb4;
 
 --source suite/innodb_fts/include/mecab.inc

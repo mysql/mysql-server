@@ -4,19 +4,19 @@ call mtr.add_suppression("Mecab: createModel.* failed: param.cpp");
 call mtr.add_suppression("Plugin 'mecab' init function returned error");
 SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
-mecab_charset	utf8
-SET NAMES utf8;
+mecab_charset	utf8mb4
+SET NAMES utf8mb3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
-page_title varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT '',
+page_title varchar(255) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
 PRIMARY KEY (page_id),
 FULLTEXT KEY page_title (page_title) WITH PARSER mecab
 ) ENGINE=InnoDB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO page VALUES
 (1,'ﾚﾓﾅ'),
 (2,'SDレモナ'),
@@ -30,7 +30,8 @@ INSERT INTO page VALUES
 (10,'ツル'),
 (11,'鉄道');
 SET GLOBAL innodb_ft_aux_table="test/page";
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 100	7	8	2	7	6
 100	7	8	2	8	0
@@ -102,9 +103,9 @@ page_id	page_title
 6	鉄道100電車
 7	100
 11	鉄道
-ALTER TABLE page add column c1 varchar(100) CHARACTER SET utf8 DEFAULT 'ﾚﾓﾅ';
+ALTER TABLE page add column c1 varchar(100) CHARACTER SET utf8mb3 DEFAULT 'ﾚﾓﾅ';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE page ADD FULLTEXT INDEX idx1 (page_title,c1) WITH PARSER mecab;
 SELECT * FROM page WHERE MATCH(page_title,c1) AGAINST('ﾚﾓﾅ');
 page_id	page_title	c1
@@ -131,8 +132,9 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO page VALUES (1,'日本');
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
-ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'utf8'.
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'utf8mb4'.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
@@ -154,13 +156,14 @@ INSERT INTO page VALUES
 (2,'鉄道😄'),
 (3,'鉄道😊100電車');
 SET GLOBAL innodb_ft_aux_table="test/page";
-SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE
+ORDER BY WORD, DOC_ID, POSITION;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 100	4	4	1	4	10
-ﾚﾓﾅ	2	2	1	2	4
 鉄道	3	4	2	3	0
 鉄道	3	4	2	4	0
 電車	4	4	1	4	13
+ﾚﾓﾅ	2	2	1	2	4
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;
