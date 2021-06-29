@@ -2579,6 +2579,11 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
   DBUG_TRACE;
 
   len = (ulong *)alloc->Alloc(sizeof(ulong) * field);
+  if (!len) {
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    end_server(mysql);
+    return nullptr;
+  }
   size = sizeof(MYSQL_FIELD) * field_count;
 
   if (field_count != (size / sizeof(MYSQL_FIELD))) {
