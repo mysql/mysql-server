@@ -381,11 +381,10 @@ void trx_set_rw_mode(trx_t *trx);
 /**
 Increase the reference count. If the transaction is in state
 TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
-committed and the reference count is not incremented.
+committed and this function fails on assertion.
 @param trx Transaction that is being referenced
-@param do_ref_count Increment the reference iff this is true
-@return transaction instance if it is not committed */
-static inline trx_t *trx_reference(trx_t *trx, bool do_ref_count);
+*/
+static inline void trx_reference(trx_t *trx);
 
 /**
 Release the transaction. Decrease the reference count.

@@ -4933,31 +4933,33 @@ static void rec_queue_validate_latched(const buf_block_t *block,
 
     trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
 
-    Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
+    trx_sys->latch_and_execute_with_active_trx(
+        trx_id,
+        [&](const trx_t *impl_trx) {
+          if (impl_trx != nullptr) {
+            ut_ad(owns_page_shard(block->get_page_id()));
+            /* impl_trx cannot become TRX_STATE_COMMITTED_IN_MEMORY nor removed
+            from active_rw_trxs.by_id until we release Trx_shard's mutex, which
+            means that currently all other threads in the system consider this
+            impl_trx active and thus should respect implicit locks held by
+            impl_trx*/
 
-    const trx_t *impl_trx = trx_rw_is_active_low(trx_id);
-    if (impl_trx != nullptr) {
-      ut_ad(owns_page_shard(block->get_page_id()));
-      /* impl_trx cannot become TRX_STATE_COMMITTED_IN_MEMORY nor removed from
-      rw_trx_set until we release Trx_shard's mutex, which means that currently
-      all other threads in the system consider this impl_trx active and thus
-      should respect implicit locks held by impl_trx*/
+            const lock_t *other_lock = lock_rec_other_has_expl_req(
+                LOCK_S, block, true, heap_no, impl_trx);
 
-      const lock_t *other_lock =
-          lock_rec_other_has_expl_req(LOCK_S, block, true, heap_no, impl_trx);
+            /* The impl_trx is holding an implicit lock on the given 'rec'.
+            So there cannot be another explicit granted lock. Also, there can
+            be another explicit waiting lock only if the impl_trx has an
+            explicit granted lock. */
 
-      /* The impl_trx is holding an implicit lock on the
-      given record 'rec'. So there cannot be another
-      explicit granted lock.  Also, there can be another
-      explicit waiting lock only if the impl_trx has an
-      explicit granted lock. */
-
-      if (other_lock != nullptr) {
-        ut_a(lock_get_wait(other_lock));
-        ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block, heap_no,
-                               impl_trx));
-      }
-    }
+            if (other_lock != nullptr) {
+              ut_a(lock_get_wait(other_lock));
+              ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block, heap_no,
+                                     impl_trx));
+            }
+          }
+        },
+        UT_LOCATION_HERE);
   }
 
   Lock_iter::for_each(rec_id, [&](lock_t *lock) {
@@ -5386,7 +5388,7 @@ void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
                                           const rec_t *rec, dict_index_t *index,
                                           const ulint *offsets, trx_t *trx,
                                           ulint heap_no) {
-  trx_reference(trx, true);
+  trx_reference(trx);
   lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets, trx,
                                         heap_no);
 }
@@ -5605,10 +5607,10 @@ dberr_t lock_clust_rec_read_check_and_lock(
 
     MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
   }
+  DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
 
   ut_d(locksys::rec_queue_latch_and_validate(block, rec, index, offsets));
 
-  DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
   ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||
         err == DB_LOCK_WAIT || err == DB_DEADLOCK || err == DB_SKIP_LOCKED ||
         err == DB_LOCK_NOWAIT);

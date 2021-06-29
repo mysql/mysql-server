@@ -411,19 +411,21 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
   if (ut_rnd_interval(0, 99) == 0) {
     /* Assert that all transaction ids in list are active. */
     for (auto trx_id : trx_ids) {
-      while (true) {
-        {
-          Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
-          trx_t *trx = trx_get_rw_trx_by_id_low(trx_id);
-          if (trx != nullptr) {
-            const auto trx_state = trx->state.load(std::memory_order_relaxed);
-            /* Transaction in rw_trx_ids might only be ACTIVE or PREPARED,
-            before it becomes COMMITTED it is removed from rw_trx_ids. */
-            ut_ad(trx_state == TRX_STATE_ACTIVE ||
-                  trx_state == TRX_STATE_PREPARED);
-            break;
-          }
-        }
+      while (trx_sys->latch_and_execute_with_active_trx(
+          trx_id,
+          [](trx_t *trx) {
+            if (trx != nullptr) {
+              const auto trx_state = trx->state.load(std::memory_order_relaxed);
+              /* Transaction in active_rw_trxs might only be ACTIVE or
+              PREPARED, before it becomes COMMITTED it is removed from
+              active_rw_trxs. */
+              ut_ad(trx_state == TRX_STATE_ACTIVE ||
+                    trx_state == TRX_STATE_PREPARED);
+              return false;
+            }
+            return true;
+          },
+          UT_LOCATION_HERE)) {
         /* It might happen that transaction became added to rw_trx_ids,
         then trx_sys mutex has been released and thread become scheduled
         out before the call to trx_sys_rw_trx_add(trx). We need to wait,

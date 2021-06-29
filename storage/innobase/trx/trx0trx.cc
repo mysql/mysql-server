@@ -783,6 +783,7 @@ static trx_t *trx_resurrect_insert(
   trx->rsegs.m_redo.rseg = rseg;
   *trx->xid = undo->xid;
   trx->id = undo->trx_id;
+  trx_sys_rw_trx_add(trx);
   trx->rsegs.m_redo.insert_undo = undo;
   trx->is_recovered = true;
 
@@ -901,6 +902,7 @@ static void trx_resurrect_update(
     trx->rsegs.m_redo.rseg = rseg;
     *trx->xid = undo->xid;
     trx->id = undo->trx_id;
+    trx_sys_rw_trx_add(trx);
     trx->is_recovered = true;
   }
 
@@ -956,19 +958,15 @@ static void trx_resurrect(trx_rseg_t *rseg) {
   for (auto undo : rseg->insert_undo_list) {
     auto trx = trx_resurrect_insert(undo, rseg);
 
-    trx_sys_rw_trx_add(trx);
-
     trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
   }
 
   /* Ressurrect transactions that were doing updates. */
   for (auto undo : rseg->update_undo_list) {
-    /* Check the rw_trx_set first. */
-    trx_t *trx;
-    {
-      Trx_shard_latch_guard guard{undo->trx_id, UT_LOCATION_HERE};
-      trx = trx_get_rw_trx_by_id_low(undo->trx_id);
-    }
+    /* Check the active_rw_trxs.by_id first. */
+
+    trx_t *trx = trx_sys->latch_and_execute_with_active_trx(
+        undo->trx_id, [](trx_t *trx) { return trx; }, UT_LOCATION_HERE);
 
     if (trx == nullptr) {
       trx = trx_allocate_for_background();
@@ -978,8 +976,6 @@ static void trx_resurrect(trx_rseg_t *rseg) {
     }
 
     trx_resurrect_update(trx, undo, rseg);
-
-    trx_sys_rw_trx_add(trx);
 
     trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
   }
@@ -1035,9 +1031,13 @@ void trx_lists_init_at_db_start(void) {
 
   ut::vector<trx_t *> trxs;
   for (auto &shard : trx_sys->shards) {
-    for (const auto &trx_track : shard.rw_trx_set) {
-      trxs.emplace_back(trx_track.m_trx);
-    }
+    shard.active_rw_trxs.latch_and_execute(
+        [&](const Trx_by_id_with_min &trx_by_id_with_min) {
+          for (const auto &trx_track : trx_by_id_with_min.by_id()) {
+            trxs.emplace_back(trx_track.second);
+          }
+        },
+        UT_LOCATION_HERE);
   }
   std::sort(trxs.begin(), trxs.end(),
             [&](trx_t *a, trx_t *b) { return a->id < b->id; });
@@ -1774,22 +1774,8 @@ static void trx_erase_lists(trx_t *trx) {
   trx_ids_t::iterator it = std::lower_bound(trx_sys->rw_trx_ids.begin(),
                                             trx_sys->rw_trx_ids.end(), trx->id);
 
-  const bool update_min_active = it == trx_sys->rw_trx_ids.begin();
-
   ut_ad(*it == trx->id);
   trx_sys->rw_trx_ids.erase(it);
-
-  /* We update min_active_trx_id only if needed (separate cache line). */
-  if (update_min_active) {
-    trx_id_t min_id =
-        trx_sys->rw_trx_ids.empty()
-            ? trx_sys->rw_max_trx_id.load(std::memory_order_relaxed) + 1
-            : trx_sys->rw_trx_ids.front();
-
-    ut_ad(min_id > trx_sys->min_active_trx_id.load());
-
-    trx_sys->min_active_trx_id.store(min_id);
-  }
 
   if (trx->read_only || trx->rsegs.m_redo.rseg == nullptr) {
     ut_ad(!trx->in_rw_trx_list);
@@ -1801,6 +1787,7 @@ static void trx_erase_lists(trx_t *trx) {
       trx_sys->mvcc->view_close(trx->read_view, true);
     }
   }
+  DEBUG_SYNC_C("after_trx_erase_lists");
 }
 
 static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
@@ -1842,38 +1829,40 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
     trx_sys_mutex_exit();
   }
 
-  size_t trx_shard_no{};
+  auto state_transition = [&]() {
+    trx_mutex_enter(trx);
+    /* Please consider this particular point in time as the moment the trx's
+    implicit locks become released.
+    This change is protected by both Trx_shard's mutex and trx->mutex.
+    Therefore, there are two secure ways to check if the trx still can hold
+    implicit locks:
+    (1) if you only know id of the trx, then you can obtain Trx_shard's mutex
+    and check if trx is still in the Trx_shard's active_rw_trxs. This works,
+        because the removal from the active_rw_trxs is also protected by the
+        same mutex. We use this approach in lock_rec_convert_impl_to_expl() by
+        using trx_rw_is_active()
+    (2) if you have pointer to trx, and you know it is safe to access (say, you
+        hold reference to this trx which prevents it from being freed) then you
+        can obtain trx->mutex and check if trx->state is equal to
+        TRX_STATE_COMMITTED_IN_MEMORY. We use this approach in
+        lock_rec_convert_impl_to_expl_for_trx() when deciding for the final time
+        if we really want to create explicit lock on behalf of implicit lock
+        holder. */
+    trx->state.store(TRX_STATE_COMMITTED_IN_MEMORY, std::memory_order_relaxed);
+    trx_mutex_exit(trx);
+  };
   if (trx->id > 0) {
-    trx_shard_no = trx_get_shard_no(trx->id);
-    trx_sys_shard_mutex_enter(trx_shard_no, UT_LOCATION_HERE);
-  }
-
-  trx_mutex_enter(trx);
-  /* Please consider this particular point in time as the moment the trx's
-  implicit locks become released.
-  This change is protected by both Trx_shard's mutex and trx->mutex.
-  Therefore, there are two secure ways to check if the trx still can hold
-  implicit locks:
-  (1) if you only know id of the trx, then you can obtain Trx_shard's mutex and
-      check if trx is still in the Trx_shard's rw_trx_set. This works, because
-      the removal from the rw_trx_set is also protected by the same mutex.
-      We use this approach in lock_rec_convert_impl_to_expl() by using
-      trx_rw_is_active()
-  (2) if you have pointer to trx, and you know it is safe to access (say, you
-      hold reference to this trx which prevents it from being freed) then you
-      can obtain trx->mutex and check if trx->state is equal to
-      TRX_STATE_COMMITTED_IN_MEMORY. We use this approach in
-      lock_rec_convert_impl_to_expl_for_trx() when deciding for the final time
-      if we really want to create explicit lock on behalf of implicit lock
-      holder. */
-  trx->state.store(TRX_STATE_COMMITTED_IN_MEMORY, std::memory_order_relaxed);
-  trx_mutex_exit(trx);
-
-  if (trx->id > 0) {
-    ut_ad(1 ==
-          trx_sys->shards[trx_shard_no].rw_trx_set.count(TrxTrack(trx->id)));
-    trx_sys->shards[trx_shard_no].rw_trx_set.erase(TrxTrack(trx->id));
-    trx_sys_shard_mutex_exit(trx_shard_no);
+    trx_sys->get_shard_by_trx_id(trx->id).active_rw_trxs.latch_and_execute(
+        [&](Trx_by_id_with_min &trx_by_id_with_min) {
+          state_transition();
+          ut_d(const size_t trx_shard_no = trx_get_shard_no(trx->id));
+          ut_ad(trx_get_shard_no(trx_by_id_with_min.min_id()) == trx_shard_no);
+          trx_by_id_with_min.erase(trx->id);
+          ut_ad(trx_get_shard_no(trx_by_id_with_min.min_id()) == trx_shard_no);
+        },
+        UT_LOCATION_HERE);
+  } else {
+    state_transition();
   }
 
   /* It is important to remove the transaction from the serialisation list

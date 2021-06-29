@@ -1382,7 +1382,6 @@ void row_vers_build_for_semi_consistent_read(
   ut_ad(!vrow || !(*vrow));
 
   for (;;) {
-    const trx_t *version_trx;
     mem_heap_t *heap2;
     rec_t *prev_version;
     trx_id_t version_trx_id;
@@ -1391,21 +1390,7 @@ void row_vers_build_for_semi_consistent_read(
     if (rec == version) {
       rec_trx_id = version_trx_id;
     }
-
-    {
-      Trx_shard_latch_guard guard{version_trx_id, UT_LOCATION_HERE};
-      version_trx = trx_get_rw_trx_by_id_low(version_trx_id);
-      /* Because version_trx is a read-write transaction,
-      its state cannot change from or to NOT_STARTED while
-      we are holding the trx_sys->mutex.  It may change from
-      ACTIVE to PREPARED or COMMITTED. */
-      if (version_trx &&
-          trx_state_eq(version_trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-        version_trx = nullptr;
-      }
-    }
-
-    if (!version_trx) {
+    if (!trx_rw_is_active(version_trx_id, false)) {
     committed_version_trx:
       /* We found a version that belongs to a
       committed transaction: return it. */

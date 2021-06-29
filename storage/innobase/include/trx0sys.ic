@@ -174,19 +174,6 @@ static inline trx_id_t trx_read_trx_id(
   return (mach_read_from_6(ptr));
 }
 
-static inline trx_t *trx_get_rw_trx_by_id_low(trx_id_t trx_id) {
-  ut_ad(trx_id > 0);
-
-  const auto trx_shard_no = trx_get_shard_no(trx_id);
-  ut_ad(trx_sys_shard_mutex_own(trx_shard_no));
-
-  const auto &trx_shard = trx_sys->shards[trx_shard_no];
-
-  const auto it = trx_shard.rw_trx_set.find(TrxTrack(trx_id));
-
-  return it == trx_shard.rw_trx_set.end() ? nullptr : it->m_trx;
-}
-
 /** Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
@@ -219,35 +206,58 @@ static inline trx_id_t trx_rw_min_trx_id(void) {
   return (id);
 }
 
-static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id) {
-  ut_ad(trx_sys_shard_mutex_own(trx_get_shard_no(trx_id)));
-
-  trx_t *const trx = trx_get_rw_trx_by_id_low(trx_id);
-  /* We remove trx from rw_trx_set and change state to
-  TRX_STATE_COMMITTED_IN_MEMORY in a same critical section protected by
-  Trx_shard's mutex, which we happen to hold here, so we expect the state
-  of trx to match its presence in that set */
-  ut_ad(trx == nullptr || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
-
-  return trx;
-}
-
 static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count) {
-  /* Fast checking. If it's smaller than minimal active trx id, just
-  return NULL. */
-  if (trx_sys->min_active_trx_id.load() > trx_id) {
+  /* Fast checking without Trx_shard::mutex to see if trx_id can't be in the
+  Trx_shard::active_rw_trxs because it's too small. This works, because
+  whenever we add or remove an element from Trx_by_id_with_min::m_by_id under
+  Trx_shard::mutex, we also modify the m_min_id to be lower or equal to
+  each of ids inside Trx_by_id_with_min::m_by_id in the same critical
+  section. We assume that trx_id is an identifier of a transaction for which the
+  call to trx_sys_rw_trx_add(trx) happened-before the current call to
+  trx_rw_is_active(trx_id,..) - indeed in current implementation of InnoDB, the
+  trx_id comes from:
+  - a recovered transaction (for which trx_sys_rw_trx_add happened before crash)
+  - a header of a row (stored there by an active transaction which must have
+    finished a call to trx_sys_rw_trx_add before)
+  - a prepared transaction (which must have called trx_sys_rw_trx_add before
+    becoming PREPAREd)
+  so clearly trx_sys_rw_trx_add() happened-before.
+  Under this assumption, if trx_id < Trx_shard::min_id, then the value of
+  Trx_shard::min_id is loaded from a store which must have occurred in a
+  critical section protected by Trx_shard::mutex which happened-after the
+  trx_sys_rw_trx_add(trx) for the trx with trx->id==trx_id - it could not be an
+  earlier critical section, by our assumption, and it couldn't be stored during
+  that particular trx_sys_rw_trx_add(trx) because of the invariant for min_id.
+  Further, given that the loaded value is larger than trx_id, it must be the
+  case that during that critical section the trx with trx->id==trx_id no longer
+  belonged to Trx_shard::active_rw_trxs.m_by_id. In other words, this load of
+  min_id synchronizes with a store, which happens-after Trx_shard::mutex
+  acquisition of a critical section in which trx_id was not in
+  active_rw_trxs.m_by_id. So, if this thread were to check the contents
+  of active_rw_trxs.m_by_id after the if's condition evaluated to true,
+  it would first have to acquire Trx_shard::mutex, which could only succeed
+  *after* that critical section, thus it would not find trx_id in it for sure.
+  NOTE: to appreciate why the assumption is important, observe, that if we call
+  the trx_rw_is_active(trx_id,..) with trx_id for which trx_sys_rw_trx_add(trx)
+  wasn't called yet, then it could happen, that trx_id+TRX_SHARDS_N was already
+  assigned and added to Trx_shard::active_rw_trxs.m_by_id, and Trx_shard::min_id
+  was set to larger than trx_id, so we decide to return nullptr, even though, if
+  we were to repeat the call in just a moment we might get a different result if
+  the trx_sys_rw_trx_add() for the trx_id happens meanwhile. */
+  ut_ad(trx_id < trx_sys_get_next_trx_id_or_no());
+  auto &shard = trx_sys->get_shard_by_trx_id(trx_id);
+  if (trx_id < shard.active_rw_trxs.peek().min_id()) {
     return nullptr;
   }
-
-  Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
-
-  trx_t *trx = trx_rw_is_active_low(trx_id);
-
-  if (trx != nullptr) {
-    trx = trx_reference(trx, do_ref_count);
-  }
-
-  return trx;
+  return trx_sys->latch_and_execute_with_active_trx(
+      trx_id,
+      [&](trx_t *trx) {
+        if (trx != nullptr && do_ref_count) {
+          trx_reference(trx);
+        }
+        return trx;
+      },
+      UT_LOCATION_HERE);
 }
 
 inline bool trx_sys_id_is_corrupted(trx_id_t trx_id) {
@@ -324,11 +334,21 @@ static inline bool trx_sys_need_rollback() {
 }
 
 static inline void trx_sys_rw_trx_add(trx_t *trx) {
-  ut_ad(trx->id != 0);
-  const auto trx_shard_no = trx_get_shard_no(trx->id);
-  trx_sys_shard_mutex_enter(trx_shard_no, UT_LOCATION_HERE);
-  trx_sys->shards[trx_shard_no].rw_trx_set.insert(TrxTrack(trx->id, trx));
-  trx_sys_shard_mutex_exit(trx_shard_no);
+  const trx_id_t trx_id = trx->id;
+  ut_ad(trx_id != 0);
+  const auto trx_shard_no = trx_get_shard_no(trx_id);
+  DBUG_EXECUTE_IF("trx_sys_rw_trx_add_rc", {
+    if (trx_shard_no == 123 && (trx_id / TRX_SHARDS_N) % 3 == 0) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  });
+  trx_sys->shards[trx_shard_no].active_rw_trxs.latch_and_execute(
+      [&](Trx_by_id_with_min &trx_by_id_with_min) {
+        trx_by_id_with_min.insert(*trx);
+        ut_ad(trx_by_id_with_min.min_id() <= trx_id);
+        ut_ad(trx_by_id_with_min.min_id() % TRX_SHARDS_N == trx_shard_no);
+      },
+      UT_LOCATION_HERE);
 }
 
 #endif /* !UNIV_HOTBACKUP */
