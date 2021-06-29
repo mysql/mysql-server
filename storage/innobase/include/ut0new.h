@@ -1132,6 +1132,12 @@ same problems as the standard library malloc.
 
 namespace ut {
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+constexpr bool WITH_PFS_MEMORY = true;
+#else
+constexpr bool WITH_PFS_MEMORY = false;
+#endif
+
 /** Light-weight and type-safe wrapper around the PSI_memory_key
     that eliminates the possibility of introducing silent bugs
     through the course of implicit conversions and makes them
@@ -1182,7 +1188,7 @@ inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
  */
 inline void *aligned_alloc_withkey(PSI_memory_key_t key, std::size_t size,
                                    std::size_t alignment) noexcept {
-  using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
+  using impl = detail::select_alloc_impl_t<WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
   return aligned_alloc_impl::alloc<false>(size, alignment, key());
 }
@@ -1220,7 +1226,7 @@ inline void *aligned_alloc(std::size_t size, std::size_t alignment) noexcept {
  */
 inline void *aligned_zalloc_withkey(PSI_memory_key_t key, std::size_t size,
                                     std::size_t alignment) noexcept {
-  using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
+  using impl = detail::select_alloc_impl_t<WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
   return aligned_alloc_impl::alloc<true>(size, alignment, key());
 }
@@ -1251,7 +1257,7 @@ inline void *aligned_zalloc(std::size_t size, std::size_t alignment) noexcept {
      aligned_free(ptr);
  */
 inline void aligned_free(void *ptr) noexcept {
-  using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
+  using impl = detail::select_alloc_impl_t<WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
   aligned_alloc_impl::free(ptr);
 }
@@ -1514,7 +1520,7 @@ inline T *aligned_new_arr(std::size_t alignment, size_t count) {
  */
 template <typename T>
 inline void aligned_delete_arr(T *ptr) noexcept {
-  using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
+  using impl = detail::select_alloc_impl_t<WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
   const auto data_len = aligned_alloc_impl::datalen(ptr);
   for (size_t offset = 0; offset < data_len; offset += sizeof(T)) {
