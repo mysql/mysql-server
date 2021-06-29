@@ -132,19 +132,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
   int read_keys_and_merge();
 
-  bool is_valid() override {
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    bool valid = true;
-    while ((quick = it++)) {
-      if (!quick->is_valid()) {
-        valid = false;
-        break;
-      }
-    }
-    return valid;
-  }
-
   void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;

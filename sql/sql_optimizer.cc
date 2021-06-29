@@ -9403,7 +9403,6 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               We keep (for now) the QUICK AM calculated in
               get_quick_record_count().
             */
-            assert(tab->quick()->is_valid());
           } else {
             destroy(tab->quick());
             tab->set_quick(nullptr);

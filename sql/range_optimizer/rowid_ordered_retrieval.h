@@ -90,19 +90,6 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   */
   List<QUICK_RANGE_SELECT> quick_selects;
 
-  bool is_valid() override {
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    bool valid = true;
-    while ((quick = it++)) {
-      if (!quick->is_valid()) {
-        valid = false;
-        break;
-      }
-    }
-    return valid;
-  }
-
   void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
@@ -171,19 +158,6 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
   List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
-
-  bool is_valid() override {
-    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-    QUICK_SELECT_I *quick;
-    bool valid = true;
-    while ((quick = it++)) {
-      if (!quick->is_valid()) {
-        valid = false;
-        break;
-      }
-    }
-    return valid;
-  }
 
   void get_fields_used(MY_BITMAP *used_fields) override {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);

@@ -367,13 +367,6 @@ class QUICK_SELECT_I {
   */
   virtual bool is_keys_used(const MY_BITMAP *fields);
 
-  /**
-    Simple sanity check that the quick select has been set up
-    correctly. Function is overridden by quick selects that merge
-    indices.
-   */
-  virtual bool is_valid() { return index != MAX_KEY; }
-
   /*
     rowid of last row retrieved by this quick select. This is used only when
     doing ROR-index_merge selects
