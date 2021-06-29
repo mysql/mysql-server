@@ -10704,7 +10704,8 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
 
           bool result MY_ATTRIBUTE((unused)) = store_create_info(
-              thd, table, &query, create_info, true /* show_database */);
+              thd, table, &query, create_info, true /* show_database */,
+              false /* foreign_db_mode */);
 
           assert(result == 0);  // store_create_info() always return 0
 

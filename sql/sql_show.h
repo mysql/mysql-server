@@ -55,7 +55,8 @@ enum enum_var_type : int;
 enum enum_field_types : int;
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database);
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool foreign_db_mode);
 
 void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,

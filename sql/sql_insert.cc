@@ -3012,7 +3012,8 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
   query.length(0);  // Have to zero it since constructor doesn't
 
   result = store_create_info(thd, &tmp_table_list, &query, create_info,
-                             /* show_database */ true);
+                             /* show_database */ true,
+                             /* foreign_db_mode */ false);
   assert(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open()) {

@@ -1181,9 +1181,12 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
 
   if (table_list->is_view())
     view_store_create_info(thd, table_list, &buffer);
-  else if (store_create_info(thd, table_list, &buffer, nullptr,
-                             false /* show_database */))
-    goto exit;
+  else {
+    bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
+    if (store_create_info(thd, table_list, &buffer, nullptr,
+                          false /* show_database */, foreign_db_mode))
+      goto exit;
+  }
 
   if (table_list->is_view()) {
     field_list.push_back(new Item_empty_string("View", NAME_CHAR_LEN));
@@ -1856,7 +1859,8 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
 */
 
 bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                       HA_CREATE_INFO *create_info_arg, bool show_database) {
+                       HA_CREATE_INFO *create_info_arg, bool show_database,
+                       bool foreign_db_mode) {
   char tmp[MAX_FIELD_WIDTH], buff[128], def_value_buf[MAX_FIELD_WIDTH];
   const char *alias;
   String type(tmp, sizeof(tmp), system_charset_info);
@@ -1869,7 +1873,6 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   TABLE_SHARE *share = table->s;
   HA_CREATE_INFO create_info;
   bool show_table_options = false;
-  bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
   my_bitmap_map *old_map;
   bool error = false;
   DBUG_TRACE;
