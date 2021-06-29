@@ -297,7 +297,6 @@ class QUICK_SELECT_I {
   */
   virtual bool reverse_sort_possible() const = 0;
   virtual bool unique_key_range() { return false; }
-  virtual bool clustered_pk_range() { return false; }
 
   /*
     Request that this quick select produces sorted output.

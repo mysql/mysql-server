@@ -132,8 +132,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
   int read_keys_and_merge();
 
-  bool clustered_pk_range() override { return pk_quick_select; }
-
   bool is_valid() override {
     List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
     QUICK_RANGE_SELECT *quick;
