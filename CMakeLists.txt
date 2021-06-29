@@ -304,20 +304,52 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         FIND_PROGRAM(ALTERNATIVE_GPP g++
           NO_DEFAULT_PATH
           PATHS "${OPT_PATH}/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_LD ld
+          NO_DEFAULT_PATH
+          PATHS "${OPT_PATH}/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_AR ar
+          NO_DEFAULT_PATH
+          PATHS "${OPT_PATH}/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_RANLIB ranlib
+          NO_DEFAULT_PATH
+          PATHS "${OPT_PATH}/root/usr/bin")
         FIND_PROGRAM(ALTERNATIVE_ENABLE enable
           NO_DEFAULT_PATH
           PATHS "${OPT_PATH}")
       ENDFOREACH()
-      IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+      # A missing ALTERNATIVE_LD may generate bad executables.
+      IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP AND ALTERNATIVE_LD)
         SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
         SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+        SET(CMAKE_LINKER ${ALTERNATIVE_LD})
+        SET(CMAKE_LINKER ${ALTERNATIVE_LD} CACHE PATH "Alternative ld")
+        IF(ALTERNATIVE_AR)
+          SET(CMAKE_AR ${ALTERNATIVE_AR})
+          SET(CMAKE_AR ${ALTERNATIVE_AR} CACHE PATH "Alternative ar")
+        ENDIF()
+        IF(ALTERNATIVE_RANLIB)
+          SET(CMAKE_RANLIB ${ALTERNATIVE_RANLIB})
+          SET(CMAKE_RANLIB ${ALTERNATIVE_RANLIB} CACHE PATH "Alternative ranlib")
+        ENDIF()
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
+        IF(LINUX_RHEL6)
+          SET(DEV_PACKAGES
+            "devtoolset-8-gcc devtoolset-8-gcc-c++ devtoolset-8-binutils")
+        ELSEIF(LINUX_RHEL7)
+          SET(DEV_PACKAGES
+            "devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-binutils")
+        ELSEIF(LINUX_RHEL8)
+          SET(DEV_PACKAGES
+            "gcc-toolset-10-gcc gcc-toolset-10-gcc-c++ gcc-toolset-10-binutils")
+        ENDIF()
         MESSAGE(WARNING
-          "Could not find devtoolset compiler in ${ALTERNATIVE_PATHS}")
+          "Could not find devtoolset compiler/linker in ${ALTERNATIVE_PATHS}")
+        MESSAGE(WARNING "You need to install the required packages:\n"
+          " yum install ${DEV_PACKAGES}\n")
         MESSAGE(FATAL_ERROR
-          "Please set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
+          "Or you can set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
 
     ELSEIF(LINUX_UBUNTU_18_04)
@@ -680,6 +712,18 @@ ENDIF()
 
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
+ENDIF()
+
+# Set correct search path for executables, libraries, and data files.
+IF(LINUX_RHEL)
+  IF(ALTERNATIVE_GCC)
+    GET_FILENAME_COMPONENT(GCC_B_PREFIX ${ALTERNATIVE_GCC} DIRECTORY)
+    STRING_PREPEND(CMAKE_C_FLAGS "-B${GCC_B_PREFIX} ")
+  ENDIF()
+  IF(ALTERNATIVE_GPP)
+    GET_FILENAME_COMPONENT(GPP_B_PREFIX ${ALTERNATIVE_GPP} DIRECTORY)
+    STRING_PREPEND(CMAKE_CXX_FLAGS "-B${GPP_B_PREFIX} ")
+  ENDIF()
 ENDIF()
 
 INCLUDE(CMakePushCheckState)
