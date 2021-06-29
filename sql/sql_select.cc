@@ -1635,12 +1635,6 @@ void JOIN::reset() {
         subquery, so resetting key_err is not needed.
       */
       tab->ref().key_err = true;
-      /*
-        If the finished execution used "filesort", it may have reset "quick"
-        or "condition" when it didn't need them anymore. Restore them for the
-        new execution (the new filesort will need them when it starts).
-      */
-      tab->restore_quick_optim_and_condition();
     }
   }
 
@@ -3328,7 +3322,6 @@ void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
   destroy(filesort);
   filesort = nullptr;
-  if (quick_optim() != quick()) destroy(quick_optim());
 
   TABLE *const t = table();
 

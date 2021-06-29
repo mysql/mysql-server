@@ -3927,12 +3927,8 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
 
 DynamicRangeIterator::~DynamicRangeIterator() {
   // This is owned by our MEM_ROOT.
-  if (m_qep_tab->quick_optim() != m_qep_tab->quick()) {
-    destroy(m_qep_tab->quick_optim());
-  }
   destroy(m_qep_tab->quick());
   m_qep_tab->set_quick(nullptr);
-  m_qep_tab->set_quick_optim();
 }
 
 bool DynamicRangeIterator::Init() {
@@ -3990,7 +3986,6 @@ bool DynamicRangeIterator::Init() {
 
   m_qep_tab->set_quick(qck);
   m_qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
-  m_qep_tab->set_quick_optim();
   thd()->unlock_query_plan();
 
   DEBUG_SYNC(thd(), "quick_droped_after_mutex");

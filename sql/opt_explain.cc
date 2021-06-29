@@ -1299,7 +1299,7 @@ bool Explain_join::shallow_explain() {
 bool Explain_join::explain_qep_tab(size_t tabnum) {
   tab = join->qep_tab + tabnum;
   type = tab->type();
-  quick = tab->quick_optim();
+  quick = tab->quick();
   condition = tab->condition_optim();
   dynamic_range = tab->dynamic_range();
   skip_records_in_range = tab->skip_records_in_range();

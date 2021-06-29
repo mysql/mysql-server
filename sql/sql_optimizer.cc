@@ -1209,22 +1209,20 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
    Sets the plan's state of the JOIN. This is always the final step of
    optimization; starting from this call, we expose the plan to other
    connections (via EXPLAIN CONNECTION) so the plan has to be final.
-   QEP_TAB's quick_optim, condition_optim and keyread_optim are set here.
-*/
+   keyread_optim is set here.
+ */
 void JOIN::set_plan_state(enum_plan_state plan_state_arg) {
   // A plan should not change to another plan:
   assert(plan_state_arg == NO_PLAN || plan_state == NO_PLAN);
   if (plan_state == NO_PLAN && plan_state_arg != NO_PLAN) {
     if (qep_tab != nullptr) {
       /*
-        We want to cover primary tables, tmp tables (they may have a sort, so
-        their "quick" and "condition" may change when execution runs the
-        sort), and sj-mat inner tables. Note that make_tmp_tables_info() may
-        have added a sort to the first non-const primary table, so it's
-        important to do those assignments after make_tmp_tables_info().
+        We want to cover primary tables, tmp tables. Note that
+        make_tmp_tables_info() may have added a sort to the first non-const
+        primary table, so it's important to do this assignment after
+        make_tmp_tables_info().
       */
       for (uint i = const_tables; i < tables; ++i) {
-        qep_tab[i].set_quick_optim();
         qep_tab[i].set_condition_optim();
         qep_tab[i].set_keyread_optim();
       }
