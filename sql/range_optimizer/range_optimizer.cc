@@ -105,6 +105,7 @@
 #include "my_sqlcommand.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "scope_guard.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/field_common_properties.h"
@@ -564,6 +565,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         thd->variables.range_optimizer_max_mem_size);
     temp_mem_root->set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
+    auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
 
     // These are being stored in TRPs, so they need to be on return_mem_root.
     param.real_keynr = return_mem_root->ArrayAlloc<uint>(head->s->keys);
@@ -571,7 +573,6 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     param.key_parts = return_mem_root->ArrayAlloc<KEY_PART>(head->s->key_parts);
     if (param.real_keynr == nullptr || param.key == nullptr ||
         param.key_parts == nullptr) {
-      thd->pop_internal_handler();
       return 0;  // Can't use range
     }
     key_parts = param.key_parts;
@@ -675,10 +676,9 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       if (tree) {
         if (tree->type == SEL_TREE::IMPOSSIBLE) {
           trace_range.add("impossible_range", true);
-          records = 0L; /* Return -1 from this function. */
           cost_est.reset();
           cost_est.add_io(static_cast<double>(HA_POS_ERROR));
-          goto free_mem;
+          return -1;
         }
         /*
           If the tree can't be used for range scans, proceed anyway, as we
@@ -750,7 +750,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
 
       MY_BITMAP needed_fields;
       if (fill_used_fields_bitmap(&param, &needed_fields)) {
-        goto free_mem;
+        return 0;
       }
 
       {
@@ -841,13 +841,12 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     if (best_trp && (head->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
-      if (!(qck = best_trp->make_quick(true, return_mem_root)) || qck->init())
-        qck = nullptr;
+      if (!(qck = best_trp->make_quick(true, return_mem_root)) || qck->init()) {
+        return 0;
+      }
       *quick = qck;
     }
 
-  free_mem:
-    thd->pop_internal_handler();
     if (unlikely(*quick && trace->is_started() && best_trp)) {
       // best_trp cannot be NULL if quick is set, done to keep fortify happy
       Opt_trace_object trace_range_summary(trace,
@@ -864,11 +863,11 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     DBUG_EXECUTE("info", print_quick(*quick, needed_reg););
   }
 
-  /*
-    Assume that if the user is using 'limit' we will only need to scan
-    limit rows if we are using a key
-  */
-  return records ? (*quick != nullptr) : -1;
+  if (records == 0) {
+    return -1;
+  } else {
+    return *quick != nullptr;
+  }
 }
 
 /*
