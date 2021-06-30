@@ -2398,17 +2398,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
     return true;
 
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
-  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined)
-  {
-    if((int) tmptab.m_indexType == (int) NdbDictionary::Index::UniqueHashIndex)
-    {
-      BaseString dummy1, dummy2, indexname;
-      dissect_index_name(tablename, dummy1, dummy2, indexname);
-      info << "WARNING: Table " << tmptab.m_primaryTable.c_str() << " contains unique index " << indexname.c_str() << ". ";
-      info << "This can cause ndb_restore failures with duplicate key errors while restoring data. ";
-      info << "To avoid duplicate key errors, use --disable-indexes before restoring data ";
-      info << "and --rebuild-indexes after data is restored." << endl;
-    }
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined) {
     return true;
   }
 
@@ -2428,6 +2418,51 @@ BackupRestore::table_compatible_check(TableS & tableS)
     err << "Unable to find table: " << table_name 
         << " error: " << dict->getNdbError().code << endl;
     return false;
+  }
+
+  /**
+   * Check if target table is restored with --disable-indexes in previous steps.
+   * If it already has indexes, it indicates that --disable-indexes isn't used.
+   * In that case, dispaly a warning that it could lead to duplicate key errors
+   * if the indexes already restored are unique indexes.
+   */
+  {
+    NdbDictionary::Dictionary::List index_list;
+    if (dict->listIndexes(index_list, *tab) != 0) {
+      info <<  "Failed to list indexes due to NDB error ";
+      info <<  dict->getNdbError().code << ": " << dict->getNdbError().message
+             << endl;
+      return false;
+    }
+
+    bool contains_unique_indexes = false;
+    for (unsigned i = 0; i < index_list.count; i++) {
+      const char *index_name = index_list.elements[i].name;
+      const NdbDictionary::Index *index =
+          dict->getIndexGlobal(index_name, *tab);
+      if (!index) {
+        info <<  "Failed to open index " << index_name;
+        info <<  " from NDB due to error ";
+        info <<  dict->getNdbError().code << ": ";
+        info <<  dict->getNdbError().message << endl;
+        return false;
+      }
+      if ((int)index->getType() == (int)NdbDictionary::Index::UniqueHashIndex) {
+        if (!contains_unique_indexes) {
+          info <<  "Unique indexes: " << endl;
+        }
+        info <<  index_name << endl;
+        contains_unique_indexes = true;
+      }
+    }
+
+    if (contains_unique_indexes) {
+      info <<  "WARNING: Table " << tab->getName() << " contains unique ";
+      info <<  "indexes. This can cause ndb_restore failures with duplicate ";
+      info <<  "key errors while restoring data. To avoid duplicate key ";
+      info <<  "errors, use --disable-indexes before restoring data and ";
+      info <<  "--rebuild-indexes after data is restored." << endl;
+    }
   }
 
   /**
