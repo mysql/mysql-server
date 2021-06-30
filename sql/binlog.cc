@@ -7338,9 +7338,9 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
   return error;
 }
 
-bool MYSQL_BIN_LOG::write_dml_directly(THD *thd, const char *stmt,
-                                       size_t stmt_len,
-                                       enum_sql_command sql_command) {
+bool MYSQL_BIN_LOG::write_stmt_directly(THD *thd, const char *stmt,
+                                        size_t stmt_len,
+                                        enum_sql_command sql_command) {
   bool ret = false;
   /* backup the original command */
   enum_sql_command save_sql_command = thd->lex->sql_command;
