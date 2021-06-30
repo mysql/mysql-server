@@ -7506,6 +7506,10 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     do {
       old_size = fields.size();
       for (Item *&select_expr : fields) {
+        // If we have a rollup group item, we need to unwrap it to transform.
+        // E.g. if we have Item_rollup_group_item(subquery), we need to
+        // find the subquery in the outer query block and replace it.
+        select_expr = unwrap_rollup_group(select_expr);
         Item *prev_value = select_expr;
         if (replace_subquery_in_expr(thd, &subquery, tl, &select_expr))
           return true;

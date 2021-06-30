@@ -2735,7 +2735,6 @@ static Item **find_subquery_in_select_list(Query_block *select,
                                            Item_singlerow_subselect *subquery) {
   int item_idx = 0;
   for (Item *item : select->visible_fields()) {
-    item = unwrap_rollup_group(item);
     if (item == subquery) {
       assert(select->base_ref_items[item_idx] == item);
       return &select->base_ref_items[item_idx];
