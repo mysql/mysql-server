@@ -175,6 +175,22 @@ SELECT session.min_examined_row_limit;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT min_examined_row_limit = @@session.min_examined_row_limit;
 ERROR 42S22: Unknown column 'min_examined_row_limit' in 'field list'
+'#---------------------FN_DYNVARS_089_12----------------------#'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.min_examined_row_limit;
+@@session.min_examined_row_limit
+10
+SET @@session.min_examined_row_limit = 1;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.min_examined_row_limit;
+@@session.min_examined_row_limit
+10
+SET @@session.min_examined_row_limit = 1;
+SELECT @@session.min_examined_row_limit;
+@@session.min_examined_row_limit
+1
+DROP USER foo, bar;
 SET @@global.min_examined_row_limit = @start_global_value;
 SELECT @@global.min_examined_row_limit;
 @@global.min_examined_row_limit

@@ -209,6 +209,28 @@ SELECT session.max_error_count;
 --Error ER_BAD_FIELD_ERROR
 SELECT max_error_count = @@session.max_error_count;
 
+--echo '#---------------------FN_DYNVARS_001_12----------------------#'
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.max_error_count;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.max_error_count = 2048;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.max_error_count;
+SET @@session.max_error_count = 2048;
+SELECT @@session.max_error_count;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
+
 
 ####################################
 #     Restore initial value        #

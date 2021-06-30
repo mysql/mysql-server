@@ -155,6 +155,24 @@ SELECT session.select_into_disk_sync_delay;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT select_into_disk_sync_delay = @@session.select_into_disk_sync_delay;
 ERROR 42S22: Unknown column 'select_into_disk_sync_delay' in 'field list'
+'#---------------------FN_DYNVARS_001_12----------------------#'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.select_into_disk_sync_delay;
+@@session.select_into_disk_sync_delay
+10
+SET @@session.select_into_disk_sync_delay = 2000;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.select_into_disk_sync_delay;
+@@session.select_into_disk_sync_delay
+10
+SET @@session.select_into_disk_sync_delay = 2000;
+SET @@global.select_into_disk_sync_delay = 2000;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.select_into_disk_sync_delay;
+@@session.select_into_disk_sync_delay
+2000
+DROP USER foo, bar;
 SET @@global.select_into_disk_sync_delay = @start_global_value;
 SELECT @@global.select_into_disk_sync_delay;
 @@global.select_into_disk_sync_delay

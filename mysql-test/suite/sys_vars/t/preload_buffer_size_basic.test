@@ -203,6 +203,29 @@ SELECT session.preload_buffer_size;
 --Error ER_BAD_FIELD_ERROR
 SELECT preload_buffer_size = @@session.preload_buffer_size;
 
+--echo '#---------------------FN_DYNVARS_129_12----------------------#'
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.preload_buffer_size;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.preload_buffer_size = 2048;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.preload_buffer_size;
+SET @@session.preload_buffer_size = 2048;
+SELECT @@session.preload_buffer_size;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.preload_buffer_size = 2048;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
 
 ####################################
 #     Restore initial value        #
