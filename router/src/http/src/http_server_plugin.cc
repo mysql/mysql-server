@@ -276,6 +276,7 @@ class HttpRequestMainThread : public HttpRequestThread {
         throw std::system_error(sock_release_res.error(), "release() failed");
       }
 
+      accept_fd_ = sock_release_res.value();
       auto handle =
           event_http_.accept_socket_with_handle(sock_release_res.value());
       if (!handle.is_valid()) {
