@@ -83,6 +83,13 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_network_provider_manager
 )
 
+# When binding using IPv6 the way XCom does (dual stack IPv4/IPv6), it
+# does not detect that a port is busy when binding and overruns the
+# previous port. As such, this test cannot run on Solaris
+IF(SOLARIS)
+  LIST(REMOVE_ITEM GCS_XCOM_TESTS xcom/gcs_xcom_network_provider)
+ENDIF()
+
 ###
 ### Configure the tests and add target
 ###
