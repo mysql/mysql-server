@@ -70,7 +70,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
  public:
   TRP_ROR_INTERSECT(TABLE *table_arg, bool forced_by_hint_arg,
                     KEY_PART *const *key_arg, const uint *real_keynr_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, forced_by_hint_arg),
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
+                        forced_by_hint_arg),
         key(key_arg),
         real_keynr(real_keynr_arg) {}
 
@@ -101,7 +102,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, forced_by_hint_arg) {}
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
+                        forced_by_hint_arg) {}
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */

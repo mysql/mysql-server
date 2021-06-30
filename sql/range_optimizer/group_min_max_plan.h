@@ -60,7 +60,6 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   */
   KEY_PART_INFO *min_max_arg_part;
   uint group_prefix_len;  ///< Length of all key parts in the group prefix
-  uint used_key_parts;    ///< Number of index key parts used for access
   uint group_key_parts;   ///< Number of index key parts in the group prefix
   KEY *index_info;        ///< The index chosen for data access
   uchar key_infix[MAX_KEY_LENGTH];  ///< Constants from equality predicates
@@ -90,13 +89,13 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
                     SEL_ROOT *index_tree_arg, uint param_idx_arg,
                     ha_rows quick_prefix_records_arg, TABLE *table_arg,
                     JOIN *join_arg, KEY_PART *used_key_part_arg, uint keyno_arg)
-      : TABLE_READ_PLAN(table_arg, index_arg, /*forced_by_hint_arg=*/false),
+      : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
+                        /*forced_by_hint_arg=*/false),
         have_min(have_min_arg),
         have_max(have_max_arg),
         have_agg_distinct(have_agg_distinct_arg),
         min_max_arg_part(min_max_arg_part_arg),
         group_prefix_len(group_prefix_len_arg),
-        used_key_parts(used_key_parts_arg),
         group_key_parts(group_key_parts_arg),
         index_info(index_info_arg),
         key_infix_len(key_infix_len_arg),

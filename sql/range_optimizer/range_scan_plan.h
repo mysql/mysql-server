@@ -27,6 +27,7 @@
 
 #include "my_dbug.h"
 #include "sql/handler.h"
+#include "sql/range_optimizer/geometry.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/table_read_plan.h"
@@ -38,6 +39,11 @@ class QUICK_SELECT_I;
 class SEL_ROOT;
 class SEL_TREE;
 struct MEM_ROOT;
+
+bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
+                          KEY_PART *key, uint keyno, SEL_ROOT *key_tree,
+                          uint num_key_parts, unsigned *used_key_parts,
+                          Quick_ranges *ranges);
 
 QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
                                      KEY_PART *key, uint keyno,
@@ -57,31 +63,43 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   uint key_idx; /* key number in RANGE_OPT_PARAM::key and
                    RANGE_OPT_PARAM::real_keynr */
 
-  // NOTE: used_key_part_arg is stored by pointer, and thus
-  // must live until make_quick().
+  // NOTE: Both used_key_part_arg and ranges must be allocated on the
+  // return_mem_root, as they need to outlive the range optimizer.
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg,
             uint mrr_buf_size_arg, TABLE *table_arg,
             KEY_PART *used_key_part_arg, uint keyno_arg, bool is_ror_arg,
-            bool is_imerge_arg)
-      : TABLE_READ_PLAN(table_arg, keyno_arg, /*forced_by_hint_arg=*/false),
+            bool is_imerge_arg, Bounds_checked_array<QUICK_RANGE *> ranges_arg,
+            uint used_key_parts_arg)
+      : TABLE_READ_PLAN(table_arg, keyno_arg, used_key_parts_arg,
+                        /*forced_by_hint_arg=*/false),
         key_idx(idx_arg),
         key(key_arg),
         mrr_flags(mrr_flags_arg),
         mrr_buf_size(mrr_buf_size_arg),
         used_key_part(used_key_part_arg),
         is_ror(is_ror_arg),
-        is_imerge(is_imerge_arg) {}
+        is_imerge(is_imerge_arg),
+        ranges(ranges_arg) {}
 
   QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(return_mem_root, table, used_key_part, index,
-                                  key, mrr_flags, mrr_buf_size))) {
+    if (table->key_info[index].flags & HA_SPATIAL) {
+      quick = new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
+          table, index, return_mem_root, mrr_flags, mrr_buf_size, used_key_part,
+          ranges, used_key_parts);
+    } else {
+      quick = new (return_mem_root) QUICK_RANGE_SELECT(
+          table, index, return_mem_root, mrr_flags, mrr_buf_size, used_key_part,
+          ranges, used_key_parts);
+    }
+
+    if (quick != nullptr) {
       quick->records = records;
       quick->cost_est = cost_est;
+      assert(quick->index == index);
     }
-    assert(quick->index == index);
     return quick;
   }
 
@@ -95,7 +113,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   /**
     Root of red-black tree for intervals over key fields to be used in
     "range" method retrieval. See SEL_ARG graph description.
-  */
+
+    Used only for tracing.
+   */
   SEL_ROOT *key;
   uint mrr_flags;
   uint mrr_buf_size;
@@ -112,6 +132,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     If true, this plan can be used for index merge scan.
    */
   const bool is_imerge;
+
+  // The actual ranges we are scanning over (originally derived from “key”).
+  Bounds_checked_array<QUICK_RANGE *> ranges;
 };
 
 /*

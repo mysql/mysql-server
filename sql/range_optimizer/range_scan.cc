@@ -49,13 +49,11 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(TABLE *table, uint key_nr,
-                                       MEM_ROOT *return_mem_root,
-                                       uint mrr_flags, uint mrr_buf_size,
-                                       const KEY_PART *key,
-                                       Quick_ranges ranges_arg,
-                                       uint used_key_parts_arg)
-    : ranges(std::move(ranges_arg)),
+QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
+    TABLE *table, uint key_nr, MEM_ROOT *return_mem_root, uint mrr_flags,
+    uint mrr_buf_size, const KEY_PART *key,
+    Bounds_checked_array<QUICK_RANGE *> ranges_arg, uint used_key_parts_arg)
+    : ranges(ranges_arg),
       free_file(false),
       cur_range(nullptr),
       last_range(nullptr),

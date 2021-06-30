@@ -74,8 +74,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   friend class QUICK_ROR_INTERSECT_SELECT;
   friend class QUICK_GROUP_MIN_MAX_SELECT;
 
-  Quick_ranges ranges; /* ordered array of range ptrs */
-  bool free_file;      /* TRUE <=> this->file is "owned" by this quick select */
+  Bounds_checked_array<QUICK_RANGE *> ranges; /* ordered array of range ptrs */
+  bool free_file; /* TRUE <=> this->file is "owned" by this quick select */
 
   /* Range pointers to be used when not using MRR interface */
   QUICK_RANGE **cur_range; /* current element in ranges  */
@@ -104,7 +104,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_RANGE_SELECT(TABLE *table, uint index_arg, MEM_ROOT *return_mem_root,
                      uint mrr_flags, uint mrr_buf_size, const KEY_PART *key,
-                     Quick_ranges ranges, uint used_key_parts_arg);
+                     Bounds_checked_array<QUICK_RANGE *> ranges,
+                     uint used_key_parts_arg);
   ~QUICK_RANGE_SELECT() override;
 
   QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = delete;

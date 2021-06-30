@@ -767,6 +767,20 @@ static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts) {
   return (key_part == key_part_end);
 }
 
+bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
+                          KEY_PART *key, uint keyno, SEL_ROOT *key_tree,
+                          uint num_key_parts, unsigned *used_key_parts,
+                          Quick_ranges *ranges) {
+  *used_key_parts = 0;
+  if (key_tree->type != SEL_ROOT::Type::KEY_RANGE) {
+    return false;
+  }
+  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+  uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
+  return get_quick_keys(return_mem_root, &table->key_info[keyno], key,
+                        key_tree->root, min_key, min_key, 0, max_key, max_key,
+                        0, nullptr, num_key_parts, used_key_parts, ranges);
+}
 /*
   Create a QUICK_RANGE_SELECT from given key and SEL_ARG tree for that key.
 
@@ -801,27 +815,21 @@ QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
   assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
          key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
 
-  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
-  uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
-
   Quick_ranges ranges(return_mem_root);
-  unsigned used_key_parts = 0;
-  if (key_tree->type == SEL_ROOT::Type::KEY_RANGE) {
-    if (get_quick_keys(return_mem_root, &table->key_info[keyno], key,
-                       key_tree->root, min_key, min_key, 0, max_key, max_key, 0,
-                       nullptr, num_key_parts, &used_key_parts, &ranges)) {
-      return nullptr;
-    }
+  unsigned used_key_parts;
+  if (get_ranges_from_tree(return_mem_root, table, key, keyno, key_tree,
+                           num_key_parts, &used_key_parts, &ranges)) {
+    return nullptr;
   }
 
   if (table->key_info[keyno].flags & HA_SPATIAL) {
     return new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
         table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key,
-        std::move(ranges), used_key_parts);
+        {&ranges[0], ranges.size()}, used_key_parts);
   } else {
     return new (return_mem_root) QUICK_RANGE_SELECT(
         table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key,
-        std::move(ranges), used_key_parts);
+        {&ranges[0], ranges.size()}, used_key_parts);
   }
 }
 
@@ -982,11 +990,22 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                print_sel_tree(param, tree, &tree->ror_scans_map, "ROR scans"););
 
   if (key_to_read) {
+    Quick_ranges ranges(param->return_mem_root);
+    unsigned used_key_parts;
+    if (get_ranges_from_tree(param->return_mem_root, param->table,
+                             param->key[best_idx], param->real_keynr[best_idx],
+                             key_to_read, MAX_REF_PARTS, &used_key_parts,
+                             &ranges)) {
+      return nullptr;
+    }
+
     const bool is_ror = tree->ror_scans_map.is_set(best_idx);
     if ((read_plan = new (param->return_mem_root) TRP_RANGE(
              key_to_read, best_idx, best_mrr_flags, best_buf_size, param->table,
              param->key[best_idx], param->real_keynr[best_idx], is_ror,
-             is_best_idx_imerge_scan))) {
+             is_best_idx_imerge_scan,
+             Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
+             used_key_parts))) {
       read_plan->records = best_records;
       read_plan->cost_est = read_cost;
       DBUG_PRINT("info",

@@ -56,7 +56,6 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   */
   SEL_ARG *range_cond;
   SEL_ROOT *index_range_tree;   ///< The sub-tree corresponding to index_info
-  uint used_key_parts;          ///< Number of index key parts used for access
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 
  public:
@@ -66,17 +65,17 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
                 uint eq_prefix_parts, KEY_PART_INFO *range_key_part,
-                SEL_ARG *range_cond, uint used_key_parts,
+                SEL_ARG *range_cond, uint used_key_parts_arg,
                 bool forced_by_hint_arg, ha_rows read_records,
                 bool has_aggregate_function)
-      : TABLE_READ_PLAN(table_arg, index_arg, forced_by_hint_arg),
+      : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
+                        forced_by_hint_arg),
         index_info(index_info),
         eq_prefix_len(eq_prefix_len),
         eq_prefix_parts(eq_prefix_parts),
         range_key_part(range_key_part),
         range_cond(range_cond),
         index_range_tree(index_range_tree),
-        used_key_parts(used_key_parts),
         has_aggregate_function(has_aggregate_function) {
     records = read_records;
   }

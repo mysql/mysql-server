@@ -51,6 +51,15 @@ class TABLE_READ_PLAN {
    */
   const uint index;
 
+  /*
+    Max. number of (first) key parts this quick select uses for retrieval.
+    eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
+    Applicable if index!= MAX_KEY.
+
+    For QUICK_GROUP_MIN_MAX_SELECT it includes MIN/MAX argument keyparts.
+   */
+  uint used_key_parts;
+
   const bool forced_by_hint;
 
   /*
@@ -71,9 +80,11 @@ class TABLE_READ_PLAN {
   virtual QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                                      MEM_ROOT *return_mem_root) = 0;
 
-  TABLE_READ_PLAN(TABLE *table_arg, int index_arg, bool forced_by_hint_arg)
+  TABLE_READ_PLAN(TABLE *table_arg, int index_arg, uint used_key_parts_arg,
+                  bool forced_by_hint_arg)
       : table(table_arg),
         index(index_arg),
+        used_key_parts(used_key_parts_arg),
         forced_by_hint(forced_by_hint_arg) {}
   virtual ~TABLE_READ_PLAN() = default;
 
