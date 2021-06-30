@@ -831,9 +831,9 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
       classic_protocol::capabilities::plugin_auth |
       classic_protocol::capabilities::connect_attributes |
       // client_auth_method_data_varint
-      classic_protocol::capabilities::expired_passwords
+      classic_protocol::capabilities::expired_passwords |
       // session_track (not yet)
-      // text_result_with_session_tracking (not yet)
+      classic_protocol::capabilities::text_result_with_session_tracking
       // optional_resultset_metadata (not yet)
       // compress_zstd (not yet)
       ;
