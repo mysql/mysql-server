@@ -2203,13 +2203,25 @@ CREATE TABLE t1 ( pk INTEGER );
 # The old optimizer calls both queries COUNT(*); the hypergraph optimizer
 # gets the names f1 and f2 right. We only really care that it doesn't crash,
 # so accept both.
---disable_result_log
 SELECT
   (SELECT COUNT(*) FROM t1) AS f1,
   (SELECT COUNT(*) FROM t1) AS f2
 FROM t1
 GROUP BY f1, f2 WITH ROLLUP;
---enable_result_log
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#33057397: FIELD NAMES ARE DISPLAYED INCORRECTLY WITH ROLLUP AND
+--echo #               SUBQUERY_TO_DERIVED
+
+CREATE TABLE t1 ( f1 INTEGER);
+INSERT INTO t1 VALUES (0);
+
+# Name of the expression should be displayed as "field1".
+# Used to be "min".
+SELECT (SELECT MIN(f1) AS min FROM t1 ) AS field1 FROM t1 GROUP BY
+field1 WITH ROLLUP;
 
 DROP TABLE t1;
 
