@@ -31,7 +31,7 @@
 
 class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
  public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q, uint used_key_parts);
   int get_next() override;
   bool reverse_sorted() const override { return true; }
   bool reverse_sort_possible() const override { return true; }

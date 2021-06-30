@@ -67,7 +67,6 @@ PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 PSI_memory_key key_memory_Owned_gtids_to_string;
 PSI_memory_key key_memory_PROFILE;
 PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
-PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_xa_recovered_transactions;
@@ -344,7 +343,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_xa_recovered_transactions, "XA::recovered_transactions", 0, 0,
      "List infrastructure for recovered XA transactions."},
-    {&key_memory_Quick_ranges, "Quick_ranges", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_File_query_log_name, "File_query_log::name",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
     {&key_memory_thd_timer, "thd_timer", 0, 0, "Thread timer object."},

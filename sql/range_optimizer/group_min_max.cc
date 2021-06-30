@@ -94,8 +94,8 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       seen_first_key(false),
       min_max_arg_part(min_max_arg_part_arg),
       key_infix_len(key_infix_len_arg),
-      min_max_ranges(PSI_INSTRUMENT_ME),
-      key_infix_ranges(PSI_INSTRUMENT_ME),
+      min_max_ranges(return_mem_root),
+      key_infix_ranges(return_mem_root),
       is_index_scan(is_index_scan_arg),
       mem_root(return_mem_root) {
   head = table;
@@ -152,7 +152,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
       allocate a new buffer and copy the key_infix into it.
     */
     for (uint i = 0; i < key_infix_parts; i++) {
-      Quick_ranges *tmp = new (mem_root) Quick_ranges(PSI_INSTRUMENT_ME);
+      Quick_ranges *tmp = new (mem_root) Quick_ranges(mem_root);
       key_infix_ranges.push_back(tmp);
     }
   }

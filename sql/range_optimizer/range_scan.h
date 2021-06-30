@@ -107,6 +107,11 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
                      Quick_ranges ranges, uint used_key_parts_arg);
   ~QUICK_RANGE_SELECT() override;
 
+  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = delete;
+
+  /* Default move ctor used by QUICK_SELECT_DESC */
+  QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
+
   void need_sorted_output() override;
   int init() override;
   int reset(void) override;
@@ -135,10 +140,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
       bitmap_set_bit(used_fields, key_parts[i].field->field_index());
   }
   uint get_mrr_flags() const { return mrr_flags; }
-
- private:
-  /* Default copy ctor used by QUICK_SELECT_DESC */
-  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = default;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_

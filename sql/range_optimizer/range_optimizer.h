@@ -404,8 +404,8 @@ class QUICK_SELECT_I {
   void trace_quick_description(Opt_trace_context *trace);
 };
 
-typedef Prealloced_array<QUICK_RANGE *, 16> Quick_ranges;
-typedef Prealloced_array<Quick_ranges *, 16> Quick_ranges_array;
+using Quick_ranges = Mem_root_array<QUICK_RANGE *>;
+using Quick_ranges_array = Mem_root_array<Quick_ranges *>;
 
 int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       MEM_ROOT *temp_mem_root, Key_map keys_to_use,

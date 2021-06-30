@@ -40,9 +40,9 @@
   for now, this seems to work right at least.
 */
 
-QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
+QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q,
                                      uint used_key_parts_arg)
-    : QUICK_RANGE_SELECT(*q),
+    : QUICK_RANGE_SELECT(std::move(q)),
       rev_it(rev_ranges),
       m_used_key_parts(used_key_parts_arg) {
   QUICK_RANGE *r;
@@ -68,7 +68,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
       r->flag &= ~EQ_RANGE;
   }
   rev_it.rewind();
-  q->dont_free = true;  // Don't free shared mem
+  q.dont_free = true;  // Don't free shared mem
 }
 
 int QUICK_SELECT_DESC::get_next() {

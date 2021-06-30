@@ -804,7 +804,7 @@ QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
   uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
   uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
 
-  Quick_ranges ranges(key_memory_Quick_ranges);
+  Quick_ranges ranges(return_mem_root);
   unsigned used_key_parts = 0;
   if (key_tree->type == SEL_ROOT::Type::KEY_RANGE) {
     if (get_quick_keys(return_mem_root, &table->key_info[keyno], key,

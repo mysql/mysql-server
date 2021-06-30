@@ -532,7 +532,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges() {
 */
 
 QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg) {
-  return new (mem_root) QUICK_SELECT_DESC(this, used_key_parts_arg);
+  return new (mem_root) QUICK_SELECT_DESC(std::move(*this), used_key_parts_arg);
 }
 
 /*
