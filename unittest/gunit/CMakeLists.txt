@@ -321,10 +321,11 @@ SET_TARGET_PROPERTIES(sqlgunitlib
 )
 
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+  ADD_TEST merge_small_tests
+  COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
-  ADD_TEST merge_small_tests)
-TARGET_LINK_LIBRARIES(merge_small_tests-t
-  sqlgunitlib gunit_small)
+  LINK_LIBRARIES sqlgunitlib gunit_small
+  )
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -332,20 +333,19 @@ ENDIF()
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
+  ADD_TEST merge_large_tests
   ENABLE_EXPORTS
-  ADD_TEST merge_large_tests)
-
-TARGET_LINK_LIBRARIES(merge_large_tests-t
-  gunit_large
-  server_unittest_library
+  LINK_LIBRARIES gunit_large server_unittest_library
   )
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
-    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
-  ADD_COMPILE_DEFINITIONS(${test}-t.cc
-    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
-  TARGET_LINK_LIBRARIES(${test}-t sqlgunitlib gunit_small)
+    COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    LINK_LIBRARIES sqlgunitlib gunit_small
+    SKIP_INSTALL
+    )
 ENDFOREACH()
 
 # See comments about __builtin_memcmp in the source file.
@@ -370,11 +370,10 @@ FOREACH(test ${SERVER_TESTS})
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
-    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
-
-  TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large
-    server_unittest_library
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    LINK_LIBRARIES gunit_large server_unittest_library
+    SKIP_INSTALL
     )
 ENDFOREACH()
 
