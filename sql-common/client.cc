@@ -6013,7 +6013,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
       */
       DBUG_PRINT("info", ("IPV6 getaddrinfo error %d", gai_errno));
       set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                               ER_CLIENT(CR_UNKNOWN_HOST), host, errno);
+                               ER_CLIENT(CR_UNKNOWN_HOST), host, gai_errno);
       return STATE_MACHINE_FAILED;
     }
 
