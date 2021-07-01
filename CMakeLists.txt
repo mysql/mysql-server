@@ -2138,6 +2138,14 @@ IF(UNIX)
      ./library_output_directory lib
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
+  # See ./mysql-test/suite/innodb_fts/include/mecab.inc
+  IF(MECAB_IPADIC_PARENT)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "${MECAB_IPADIC_PARENT}" mecab
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+      )
+  ENDIF()
 ENDIF()
 
 # Without any --plugin-dir=<directory name> the server will look in

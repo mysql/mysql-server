@@ -149,6 +149,8 @@ FUNCTION (MYSQL_CHECK_MECAB)
             COMPONENT "Server"
           )
           MESSAGE(STATUS "INSTALL ${MECAB_LIBRARY_LOCATION}/mecab")
+          SET(MECAB_IPADIC_PARENT "${MECAB_LIBRARY_LOCATION}/mecab" CACHE FILEPATH
+            "Location of mecab ipadic dictionary")
         ELSE()
           MESSAGE(STATUS
             "Could not find ${MECAB_LIBRARY_LOCATION}/mecab/dic")
