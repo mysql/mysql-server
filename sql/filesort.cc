@@ -1505,7 +1505,10 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     if (addon_fields->using_packed_addons()) {
       for (const Sort_addon_field &addonf : *addon_fields) {
         Field *field = addonf.field;
-        if (field->table->has_null_row()) continue;
+        if (field->table->has_null_row()) {
+          assert(field->table->is_nullable());
+          continue;
+        }
         if (addonf.null_bit && field->is_null()) {
           nulls[addonf.null_offset] |= addonf.null_bit;
         } else {

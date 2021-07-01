@@ -3554,7 +3554,7 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
     for (size_t window_idx = 0; window_idx < join->m_windows.size();
          ++window_idx) {
       Window *window = join->m_windows[window_idx];
-      if (window->m_ordering_idx == -1 ||
+      if (window->m_ordering_idx == -1 || join->implicit_grouping ||
           orderings.DoesFollowOrder(root_path->ordering_state,
                                     window->m_ordering_idx)) {
         if (trace) {

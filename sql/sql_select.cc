@@ -4188,7 +4188,7 @@ bool JOIN::make_tmp_tables_info() {
 
   /*
     If the plan is constant, we will not do window tmp table processing
-    cf. special code path in do_query_block.
+    cf. special code path for handling const plans.
   */
   m_windowing_steps = m_windows.elements > 0 && !plan_is_const() &&
                       !implicit_grouping && !group_optimized_away;
