@@ -546,8 +546,8 @@ class Applier_module : public Applier_module_interface {
   void awake_applier_module() override {
     mysql_mutex_lock(&suspend_lock);
     suspended = false;
-    mysql_mutex_unlock(&suspend_lock);
     mysql_cond_broadcast(&suspend_cond);
+    mysql_mutex_unlock(&suspend_lock);
   }
 
   /**
