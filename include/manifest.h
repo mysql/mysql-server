@@ -89,7 +89,8 @@ class Manifest_reader final {
       config_file_path_ = path + executable;
     else
       config_file_path_ = executable;
-    std::ifstream file_stream(config_file_path_, std::ios::in | std::ios::ate);
+    std::ifstream file_stream(config_file_path_,
+                              std::ios::in | std::ios::ate | std::ios::binary);
     if (!file_stream.is_open()) return;
     file_present_ = true;
     {
