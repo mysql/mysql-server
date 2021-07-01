@@ -270,11 +270,10 @@ void Table_access::compute_type_and_index() const {
 
           // Temporary assert as we are still investigation the relation between
           // 'quick->index == MAX_KEY' and the different quick_types
-          assert(
-              (quick->index == MAX_KEY) ==
-              ((quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-               (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-               (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
+          assert((quick->index == MAX_KEY) ==
+                 (quick->get_type() == QS_TYPE_INDEX_MERGE ||
+                  quick->get_type() == QS_TYPE_ROR_INTERSECT ||
+                  quick->get_type() == QS_TYPE_ROR_UNION));
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed
           // joins

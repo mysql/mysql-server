@@ -72,7 +72,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   bool reverse_sorted() const override { return false; }
   bool reverse_sort_possible() const override { return false; }
   bool unique_key_range() override { return false; }
-  int get_type() const override { return QS_TYPE_ROR_INTERSECT; }
+  RangeScanType get_type() const override { return QS_TYPE_ROR_INTERSECT; }
   bool is_loose_index_scan() const override { return false; }
   bool is_agg_loose_index_scan() const override { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
@@ -145,7 +145,7 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   bool reverse_sorted() const override { return false; }
   bool reverse_sort_possible() const override { return false; }
   bool unique_key_range() override { return false; }
-  int get_type() const override { return QS_TYPE_ROR_UNION; }
+  RangeScanType get_type() const override { return QS_TYPE_ROR_UNION; }
   bool is_loose_index_scan() const override { return false; }
   bool is_agg_loose_index_scan() const override { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;

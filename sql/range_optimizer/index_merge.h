@@ -109,7 +109,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   bool reverse_sorted() const override { return false; }
   bool reverse_sort_possible() const override { return false; }
   bool unique_key_range() override { return false; }
-  int get_type() const override { return QS_TYPE_INDEX_MERGE; }
+  RangeScanType get_type() const override { return QS_TYPE_INDEX_MERGE; }
   bool is_loose_index_scan() const override { return false; }
   bool is_agg_loose_index_scan() const override { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;

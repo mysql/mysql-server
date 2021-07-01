@@ -142,7 +142,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool reverse_sorted() const override { return false; }
   bool reverse_sort_possible() const override { return false; }
   bool unique_key_range() override { return false; }
-  int get_type() const override { return QS_TYPE_SKIP_SCAN; }
+  RangeScanType get_type() const override { return QS_TYPE_SKIP_SCAN; }
   bool is_loose_index_scan() const override { return true; }
   bool is_agg_loose_index_scan() const override {
     return has_aggregate_function;

@@ -35,7 +35,7 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   int get_next() override;
   bool reverse_sorted() const override { return true; }
   bool reverse_sort_possible() const override { return true; }
-  int get_type() const override { return QS_TYPE_RANGE_DESC; }
+  RangeScanType get_type() const override { return QS_TYPE_RANGE_DESC; }
   bool is_loose_index_scan() const override { return false; }
   bool is_agg_loose_index_scan() const override { return false; }
   QUICK_SELECT_I *make_reverse(uint) override {

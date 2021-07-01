@@ -166,6 +166,16 @@ class QUICK_RANGE {
   }
 };
 
+enum RangeScanType {
+  QS_TYPE_RANGE,
+  QS_TYPE_RANGE_DESC,
+  QS_TYPE_INDEX_MERGE,
+  QS_TYPE_ROR_INTERSECT,
+  QS_TYPE_ROR_UNION,
+  QS_TYPE_GROUP_MIN_MAX,
+  QS_TYPE_SKIP_SCAN
+};
+
 /*
   Quick select interface.
   This class is a parent for all QUICK_*_SELECT classes.
@@ -307,19 +317,9 @@ class QUICK_SELECT_I {
     internals.
   */
   virtual void need_sorted_output() = 0;
-  enum {
-    QS_TYPE_RANGE = 0,
-    QS_TYPE_INDEX_MERGE = 1,
-    QS_TYPE_RANGE_DESC = 2,
-    QS_TYPE_FULLTEXT = 3,
-    QS_TYPE_ROR_INTERSECT = 4,
-    QS_TYPE_ROR_UNION = 5,
-    QS_TYPE_GROUP_MIN_MAX = 6,
-    QS_TYPE_SKIP_SCAN = 7
-  };
 
-  /* Get type of this quick select - one of the QS_TYPE_* values */
-  virtual int get_type() const = 0;
+  /* Get type of this quick select */
+  virtual RangeScanType get_type() const = 0;
   virtual bool is_loose_index_scan() const = 0;
   virtual bool is_agg_loose_index_scan() const = 0;
 

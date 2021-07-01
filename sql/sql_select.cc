@@ -5241,9 +5241,9 @@ uint actual_key_flags(const KEY *key_info) {
 }
 
 join_type calc_join_type(int quick_type) {
-  if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
+  if ((quick_type == QS_TYPE_INDEX_MERGE) ||
+      (quick_type == QS_TYPE_ROR_INTERSECT) ||
+      (quick_type == QS_TYPE_ROR_UNION))
     return JT_INDEX_MERGE;
   else
     return JT_RANGE;

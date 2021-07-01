@@ -157,7 +157,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   bool reverse_sorted() const override { return false; }
   bool reverse_sort_possible() const override { return false; }
   bool unique_key_range() override { return false; }
-  int get_type() const override { return QS_TYPE_GROUP_MIN_MAX; }
+  RangeScanType get_type() const override { return QS_TYPE_GROUP_MIN_MAX; }
   bool is_loose_index_scan() const override { return true; }
   bool is_agg_loose_index_scan() const override { return is_agg_distinct(); }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;

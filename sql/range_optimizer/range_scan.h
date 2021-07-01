@@ -125,7 +125,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   bool unique_key_range() override;
   int init_ror_merged_scan(bool reuse_handler) override;
   void save_last_pos() override { file->position(record); }
-  int get_type() const override { return QS_TYPE_RANGE; }
+  RangeScanType get_type() const override { return QS_TYPE_RANGE; }
   bool is_loose_index_scan() const override { return false; }
   bool is_agg_loose_index_scan() const override { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;

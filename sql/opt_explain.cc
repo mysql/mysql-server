@@ -957,9 +957,9 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
   }
 
   switch (quick_type) {
-    case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
-    case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:
-    case QUICK_SELECT_I::QS_TYPE_INDEX_MERGE: {
+    case QS_TYPE_ROR_UNION:
+    case QS_TYPE_ROR_INTERSECT:
+    case QS_TYPE_INDEX_MERGE: {
       StringBuffer<32> buff(cs);
       quick->add_info_string(&buff);
       if (fmt->is_hierarchical()) {
@@ -1014,7 +1014,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
   if (table->reginfo.not_exists_optimize && push_extra(ET_NOT_EXISTS))
     return true;
 
-  if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE) {
+  if (quick_type == QS_TYPE_RANGE) {
     uint mrr_flags = down_cast<QUICK_RANGE_SELECT *>(quick)->get_mrr_flags();
 
     /*
@@ -1515,7 +1515,7 @@ bool Explain_join::explain_extra() {
 
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
-        (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
+        (quick_type == QS_TYPE_ROR_INTERSECT &&
          !((QUICK_ROR_INTERSECT_SELECT *)quick)->need_to_fetch_row) ||
         /*
           Notice that table->key_read can change on the fly (grep
@@ -1524,12 +1524,12 @@ bool Explain_join::explain_extra() {
           cannot be severe (at worst, wrong EXPLAIN).
         */
         table->key_read || tab->keyread_optim()) {
-      if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) {
+      if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
         QUICK_GROUP_MIN_MAX_SELECT *qgs = (QUICK_GROUP_MIN_MAX_SELECT *)quick;
         StringBuffer<64> buff(cs);
         qgs->append_loose_scan_type(&buff);
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
-      } else if (quick_type == QUICK_SELECT_I::QS_TYPE_SKIP_SCAN) {
+      } else if (quick_type == QS_TYPE_SKIP_SCAN) {
         if (push_extra(ET_USING_INDEX_FOR_SKIP_SCAN)) return true;
       } else {
         if (push_extra(ET_USING_INDEX)) return true;

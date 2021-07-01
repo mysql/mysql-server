@@ -1076,10 +1076,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
              tab->quick()->index == best_ref->key &&  // (2)
              (used_key_parts >=
               table->quick_key_parts[best_ref->key]) &&  // (2)
-             (tab->quick()->get_type() !=
-              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
-             (tab->quick()->get_type() !=
-              QUICK_SELECT_I::QS_TYPE_SKIP_SCAN))  // (2)
+             (tab->quick()->get_type() != QS_TYPE_GROUP_MIN_MAX) &&
+             (tab->quick()->get_type() != QS_TYPE_SKIP_SCAN))  // (2)
   {
     trace_access_scan.add_alnum("access_type", "range");
     tab->quick()->trace_quick_description(trace);
@@ -1088,8 +1086,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   } else if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&  //(3)
              !table->covering_keys.is_clear_all() && best_ref &&          //(3)
              (!tab->quick() ||                                            //(3)
-              (tab->quick()->get_type() ==
-                   QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&  //(3)
+              (tab->quick()->get_type() == QS_TYPE_ROR_INTERSECT &&       //(3)
                best_ref->read_cost <
                    tab->quick()->cost_est.total_cost())))  //(3)
   {
@@ -1730,7 +1727,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
     // Ok, can use the strategy
 
     if (tab->quick() && tab->quick()->index == key &&
-        tab->quick()->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE) {
+        tab->quick()->get_type() == QS_TYPE_RANGE) {
       quick_uses_applicable_index = true;
       quick_max_keypart = max_keypart;
     }
