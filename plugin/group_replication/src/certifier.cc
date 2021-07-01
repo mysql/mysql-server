@@ -1569,6 +1569,8 @@ int Certifier::set_certification_info(
 
 void Certifier::update_certified_transaction_count(bool result,
                                                    bool local_transaction) {
+  mysql_mutex_assert_owner(&LOCK_certification_info);
+
   if (result)
     positive_cert++;
   else
@@ -1576,19 +1578,22 @@ void Certifier::update_certified_transaction_count(bool result,
 
   const Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
-  if (member_status == Group_member_info::MEMBER_ONLINE) {
-    applier_module->get_pipeline_stats_member_collector()
-        ->increment_transactions_certified();
+  assert(member_status == Group_member_info::MEMBER_ONLINE ||
+         member_status == Group_member_info::MEMBER_IN_RECOVERY);
 
-    /*
-      If transaction is local and rolledback
-      increment local negative certifier count
-    */
-    if (local_transaction && !result) {
-      applier_module->get_pipeline_stats_member_collector()
-          ->increment_transactions_local_rollback();
-    }
-  } else if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
+  applier_module->get_pipeline_stats_member_collector()
+      ->increment_transactions_certified();
+
+  /*
+    If transaction is local and rolledback
+    increment local negative certifier count
+  */
+  if (local_transaction && !result) {
+    applier_module->get_pipeline_stats_member_collector()
+        ->increment_transactions_local_rollback();
+  }
+
+  if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
     applier_module->get_pipeline_stats_member_collector()
         ->increment_transactions_certified_during_recovery();
 

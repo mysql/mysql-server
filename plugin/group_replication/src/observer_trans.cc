@@ -195,12 +195,14 @@ int group_replication_trans_before_commit(Trans_param *param) {
     if (!fail_to_lock) {
       const Group_member_info::Group_member_status member_status =
           local_member_info->get_recovery_status();
-      if (Group_member_info::MEMBER_ONLINE == member_status) {
+      if (Group_member_info::MEMBER_ONLINE == member_status ||
+          Group_member_info::MEMBER_IN_RECOVERY == member_status) {
         applier_module->get_pipeline_stats_member_collector()
             ->decrement_transactions_waiting_apply();
         applier_module->get_pipeline_stats_member_collector()
             ->increment_transactions_applied();
-      } else if (Group_member_info::MEMBER_IN_RECOVERY == member_status) {
+      }
+      if (Group_member_info::MEMBER_IN_RECOVERY == member_status) {
         applier_module->get_pipeline_stats_member_collector()
             ->increment_transactions_applied_during_recovery();
       }
