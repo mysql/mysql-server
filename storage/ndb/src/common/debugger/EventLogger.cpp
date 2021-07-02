@@ -836,21 +836,46 @@ static void convert_unit64(Uint64 &data, const char *&unit)
 }
 
 void getTextEventBufferStatus(QQQQ) {
-  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
-  const char *used_unit, *alloc_unit, *max_unit;
-  convert_unit(used, used_unit);
-  convert_unit(alloc, alloc_unit);
-  convert_unit(max_, max_unit);
-  BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status: used=%d%s(%d%%) alloc=%d%s(%d%%) "
-		       "max=%d%s apply_epoch=%u/%u latest_epoch=%u/%u",
-		       used, used_unit,
-		       theData[2] ? (Uint32)((((Uint64)theData[1])*100)/theData[2]) : 0,
-		       alloc, alloc_unit,
-		       theData[3] ? (Uint32)((((Uint64)theData[2])*100)/theData[3]) : 0,
-		       max_, max_unit,
-		       theData[5], theData[4],
-		       theData[7], theData[6]);
+  unsigned used = theData[1], max_ = theData[3];
+
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    unsigned used_pct = max_ ? (Uint32)(((Uint64)used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit(used, used_unit);
+    used_str.appfmt("%u%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
+  }
+
+  unsigned alloc = theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit(alloc, alloc_unit);
+    alloc_str.appfmt("%u%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit(max_, max_unit);
+    max_str.appfmt("%u%s", max_, max_unit);
+  }
+
+  BaseString::snprintf(
+      m_text, m_text_len,
+      "Event buffer status: %s %s %s "
+      "apply_epoch=%u/%u latest_epoch=%u/%u",
+      max_str.c_str(), used_str.c_str(), alloc_str.c_str(),
+      theData[5], theData[4], theData[7], theData[6]);
 }
 
 
@@ -877,74 +902,94 @@ const char* getReason(Uint32 reason)
 }
 
 void getTextEventBufferStatus2(QQQQ) {
-  unsigned used= theData[1], alloc= theData[2], max_= theData[3];
-  const char *used_unit, *alloc_unit, *max_unit;
-  convert_unit(used, used_unit);
-  convert_unit(alloc, alloc_unit);
-  convert_unit(max_, max_unit);
+  unsigned used = theData[1], max_ = theData[3];
 
-  BaseString used_pct_txt;
-  if (alloc != 0)
-  {
-    used_pct_txt.assfmt("(%d%% of alloc)",
-             (Uint32)((((Uint64)theData[1])*100)/theData[2]));
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    unsigned used_pct = max_ ? (Uint32)(((Uint64)used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit(used, used_unit);
+    used_str.appfmt("%u%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
   }
 
-  BaseString allocd_pct_txt;
-  if (max_ != 0)
-  {
-    allocd_pct_txt.assfmt("(%d%% of max)",
-             (Uint32)((((Uint64)theData[2])*100)/theData[3]));
+  unsigned alloc = theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit(alloc, alloc_unit);
+    alloc_str.appfmt("%u%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit(max_, max_unit);
+    max_str.appfmt("%u%s", max_, max_unit);
   }
 
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status (0x%x): used=%d%s%s alloc=%d%s%s "
-		       "max=%d%s%s latest_consumed_epoch=%u/%u "
+                       "Event buffer status (0x%x): %s %s %s"
+                       "latest_consumed_epoch=%u/%u "
                        "latest_buffered_epoch=%u/%u "
                        "report_reason=%s",
-		       theData[8], used, used_unit, used_pct_txt.c_str(),
-		       alloc, alloc_unit, allocd_pct_txt.c_str(),
-		       max_, max_unit, (max_ == 0) ? "(unlimited)" : "",
-		       theData[5], theData[4],
-		       theData[7], theData[6],
-                       getReason(theData[9]));
+                       theData[8], max_str.c_str(), used_str.c_str(),
+                       alloc_str.c_str(), theData[5], theData[4], theData[7],
+                       theData[6], getReason(theData[9]));
 }
 
 void getTextEventBufferStatus3(QQQQ) {
   Uint64 used = ((Uint64)theData[10] << 32) | theData[1];
-  Uint64 alloc = ((Uint64)theData[11] << 32) | theData[2];
   Uint64 max_ = ((Uint64)theData[12] << 32) | theData[3];
 
-  const char *used_unit, *alloc_unit, *max_unit;
-  convert_unit64(used, used_unit);
-  convert_unit64(alloc, alloc_unit);
-  convert_unit64(max_, max_unit);
-
-  BaseString used_pct_txt;
-  if (alloc != 0)
-  {
-    used_pct_txt.assfmt("(%u%% of alloc)",
-             (Uint32)((used*100)/alloc));
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    Uint32 used_pct = max_ ? (Uint32)((used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit64(used, used_unit);
+    used_str.appfmt("%llu%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
   }
 
-  BaseString allocd_pct_txt;
-  if (max_ != 0)
-  {
-    allocd_pct_txt.assfmt("(%u%% of max)",
-             (Uint32)((alloc*100)/max_));
+  Uint64 alloc = ((Uint64)theData[11] << 32) | theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit64(alloc, alloc_unit);
+    alloc_str.appfmt("%llu%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit64(max_, max_unit);
+    max_str.appfmt("%llu%s", max_, max_unit);
   }
 
   BaseString::snprintf(m_text, m_text_len,
-		       "Event buffer status (0x%x): used=%llu%s%s alloc=%llu%s%s "
-		       "max=%llu%s%s latest_consumed_epoch=%u/%u "
+                       "Event buffer status (0x%x): %s %s %s "
+                       "latest_consumed_epoch=%u/%u "
                        "latest_buffered_epoch=%u/%u "
                        "report_reason=%s",
-		       theData[8], used, used_unit, used_pct_txt.c_str(),
-		       alloc, alloc_unit, allocd_pct_txt.c_str(),
-		       max_, max_unit, (max_ == 0) ? "(unlimited)" : "",
-		       theData[5], theData[4],
-		       theData[7], theData[6],
-                       getReason(theData[9]));
+                       theData[8], max_str.c_str(), used_str.c_str(),
+                       alloc_str.c_str(), theData[5], theData[4], theData[7],
+                       theData[6], getReason(theData[9]));
 }
 void getTextWarningEvent(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
