@@ -584,3 +584,12 @@ int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
   if (!plugin || !plugin->options) return 1;
   return plugin->options(option, value);
 }
+
+/* see <mysql/client_plugin.h> for a full description */
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                            const char *option, void *value) {
+  DBUG_TRACE;
+  /* does the plugin support options call? */
+  if (!plugin || !plugin->get_options) return 1;
+  return plugin->get_options(option, value);
+}

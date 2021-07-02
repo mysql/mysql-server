@@ -73,6 +73,17 @@
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
 
+/*
+  In FIDO terminology, relying party is the server where required services are
+  running. Relying party ID is unique name given to server.
+*/
+#define RELYING_PARTY_ID_LENGTH 255
+
+/* Length of random salt sent during fido registration */
+#define CHALLENGE_LENGTH 32
+
+/* Maximum authentication factors server supports */
+#define MAX_AUTH_FACTORS 3
 /**
   Maximum length of comments
 
@@ -717,6 +728,24 @@
 */
 #define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
 
+/* clang-format off */
+/**
+  Enable mandatory session trackers.
+
+  Server
+  ------
+  Can mark session trackers as mandatory or optional.
+
+  Client
+  ------
+  Will report error if it cannot recognize a tracker which is marked mandatory
+  OR ignore tracker information if marked optional.
+  Can initiate 2nd or 3rd factor authentication.
+
+  See @ref sect_protocol_basic_ok_packet_sessinfo_SESSION_CLIENT_PLUGIN_INFO_TRACKER
+*/
+/* clang-format on */
+#define CLIENT_MANDATORY_SESSION_TRACK (1UL << 28)
 /**
   This flag will be reserved to extend the 32bit capabilities structure to
   64bits.
@@ -760,7 +789,8 @@
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
-   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES)
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES |               \
+   CLIENT_MANDATORY_SESSION_TRACK)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and
@@ -1042,14 +1072,16 @@ enum enum_session_state_type {
   SESSION_TRACK_STATE_CHANGE,     /**< track session state changes */
   SESSION_TRACK_GTIDS,            /**< See also: session_track_gtids */
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS, /**< Transaction chistics */
-  SESSION_TRACK_TRANSACTION_STATE            /**< Transaction state */
+  SESSION_TRACK_TRANSACTION_STATE,           /**< Transaction state */
+  /** Track client plugin info during authentication */
+  SESSION_TRACK_CLIENT_PLUGIN_INFO
 };
 
 /** start of ::enum_session_state_type */
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
 /** End of ::enum_session_state_type */
-#define SESSION_TRACK_END SESSION_TRACK_TRANSACTION_STATE
+#define SESSION_TRACK_END SESSION_TRACK_CLIENT_PLUGIN_INFO
 
 /** is T a valid session state type */
 #define IS_SESSION_STATE_TYPE(T) \

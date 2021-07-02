@@ -306,7 +306,9 @@ bool STDCALL mysql_change_user(MYSQL *mysql, const char *user,
     my_free(saved_db);
 
     /* alloc new connect information */
-    mysql->db = db ? my_strdup(PSI_NOT_INSTRUMENTED, db, MYF(MY_WME)) : nullptr;
+    if (!mysql->db)
+      mysql->db =
+          db ? my_strdup(PSI_NOT_INSTRUMENTED, db, MYF(MY_WME)) : nullptr;
   } else {
     /* Free temporary connect information */
     my_free(mysql->user);

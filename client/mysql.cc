@@ -53,6 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "typelib.h"
+#include "user_registration.h"
 #include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
@@ -90,9 +91,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <algorithm>
 #include <new>
 
-#include "sql_common.h"
-
 #include "sql-common/net_ns.h"
+#include "sql_common.h"
 
 using std::max;
 using std::min;
@@ -158,12 +158,12 @@ static bool ignore_errors = false, wait_flag = false, quick = false,
             using_opt_local_infile = false, vertical = false,
             line_numbers = true, column_names = true, opt_html = false,
             opt_xml = false, opt_nopager = true, opt_outfile = false,
-            named_cmds = false, tty_password = false, opt_nobeep = false,
-            opt_reconnect = true, default_pager_set = false,
-            opt_sigint_ignore = false, auto_vertical_output = false,
-            show_warnings = false, executing_query = false,
-            interrupted_query = false, ignore_spaces = false,
-            sigint_received = false, opt_syslog = false, opt_binhex = false;
+            named_cmds = false, opt_nobeep = false, opt_reconnect = true,
+            default_pager_set = false, opt_sigint_ignore = false,
+            auto_vertical_output = false, show_warnings = false,
+            executing_query = false, interrupted_query = false,
+            ignore_spaces = false, sigint_received = false, opt_syslog = false,
+            opt_binhex = false;
 static bool opt_binary_as_hex_set_explicitly = false;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
@@ -183,7 +183,6 @@ static char *current_host;
 static char *dns_srv_name;
 static char *current_db;
 static char *current_user = nullptr;
-static char *opt_password = nullptr;
 static char *current_prompt = nullptr;
 static char *delimiter_str = nullptr;
 static char *opt_init_command = nullptr;
@@ -230,7 +229,10 @@ static char *shared_memory_base_name = 0;
 static uint opt_protocol = 0;
 static const CHARSET_INFO *charset_info = &my_charset_latin1;
 
+static char *opt_fido_register_factor = nullptr;
+
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
@@ -320,8 +322,7 @@ static int com_nopager(String *str, char *), com_pager(String *str, char *),
 
 static int read_and_execute(bool interactive);
 static bool init_connection_options(MYSQL *mysql);
-static int sql_connect(char *host, char *database, char *user, char *password,
-                       uint silent);
+static int sql_connect(char *host, char *database, char *user, uint silent);
 static const char *server_version_string(MYSQL *mysql);
 static int put_info(const char *str, INFO_TYPE info, uint error = 0,
                     const char *sql_state = nullptr);
@@ -1330,8 +1331,7 @@ int main(int argc, char *argv[]) {
   completion_hash_init(&ht, 128);
   memset(&mysql, 0, sizeof(mysql));
   global_attrs = new client_query_attributes();
-  if (sql_connect(current_host, current_db, current_user, opt_password,
-                  opt_silent)) {
+  if (sql_connect(current_host, current_db, current_user, opt_silent)) {
     quick = true;  // Avoid history
     status.exit_status = 1;
     mysql_end(-1);
@@ -1436,6 +1436,7 @@ int main(int argc, char *argv[]) {
           "any more secure.",
           INFO_INFO);
   }
+
   status.exit_status = read_and_execute(!status.batch);
   if (opt_outfile) end_tee();
   mysql_end(0);
@@ -1481,7 +1482,7 @@ void mysql_end(int sig) {
   old_buffer.mem_free();
   processed_prompt.mem_free();
   my_free(server_version);
-  my_free(opt_password);
+  free_passwords();
   my_free(opt_mysql_unix_port);
   my_free(current_db);
   my_free(current_host);
@@ -1581,11 +1582,10 @@ static void kill_query(const char *reason) {
   MYSQL *ret;
   if (dns_srv_name)
     ret = mysql_real_connect_dns_srv(kill_mysql, dns_srv_name, current_user,
-                                     opt_password, "", 0);
+                                     nullptr, "", 0);
   else
-    ret =
-        mysql_real_connect(kill_mysql, current_host, current_user, opt_password,
-                           "", opt_mysql_port, opt_mysql_unix_port, 0);
+    ret = mysql_real_connect(kill_mysql, current_host, current_user, nullptr,
+                             "", opt_mysql_port, opt_mysql_unix_port, 0);
   if (!ret) {
 #ifdef HAVE_SETNS
     if (opt_network_namespace) (void)restore_original_network_namespace();
@@ -1786,11 +1786,7 @@ static struct my_option my_long_options[] = {
      "This option is disabled by default.",
      nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "asked from the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1943,7 +1939,11 @@ static struct my_option my_long_options[] = {
      "Directory path safe for LOAD DATA LOCAL INFILE to read from.",
      &opt_load_data_local_dir, &opt_load_data_local_dir, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-
+    {"fido-register-factor", 0,
+     "Specifies authentication factor, for which registration needs to be "
+     "done.",
+     &opt_fido_register_factor, &opt_fido_register_factor, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -2041,24 +2041,7 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
       else
         one_database = skip_updates = true;
       break;
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x';  // Destroy argument
-        if (*start) start[1] = 0;
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+      PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       debug_info_flag = true;
@@ -2155,7 +2138,6 @@ static int get_options(int argc, char **argv) {
     my_free(current_db);
     current_db = my_strdup(PSI_NOT_INSTRUMENTED, *argv, MYF(MY_WME));
   }
-  if (tty_password) opt_password = get_tty_password(NullS);
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
 
@@ -4174,7 +4156,7 @@ static int com_connect(String *buffer, char *line) {
     buffer->length(0);  // command used
   } else
     opt_rehash = false;
-  error = sql_connect(current_host, current_db, current_user, opt_password, 0);
+  error = sql_connect(current_host, current_db, current_user, 0);
   opt_rehash = save_rehash;
 
   if (connected) {
@@ -4486,8 +4468,8 @@ static int get_quote_count(const char *line) {
   return quote_count;
 }
 
-static int sql_real_connect(char *host, char *database, char *user,
-                            char *password, uint silent) {
+static int sql_real_connect(char *host, char *database, char *user, char *,
+                            uint silent) {
   if (connected) {
     connected = false;
 #ifdef HAVE_SETNS
@@ -4535,11 +4517,11 @@ static int sql_real_connect(char *host, char *database, char *user,
 #endif
   MYSQL *ret;
   if (dns_srv_name)
-    ret = mysql_real_connect_dns_srv(&mysql, dns_srv_name, user, password,
+    ret = mysql_real_connect_dns_srv(&mysql, dns_srv_name, user, nullptr,
                                      database,
                                      connect_flag | CLIENT_MULTI_STATEMENTS);
   else
-    ret = mysql_real_connect(&mysql, host, user, password, database,
+    ret = mysql_real_connect(&mysql, host, user, nullptr, database,
                              opt_mysql_port, opt_mysql_unix_port,
                              connect_flag | CLIENT_MULTI_STATEMENTS);
   if (!ret) {
@@ -4559,6 +4541,15 @@ static int sql_real_connect(char *host, char *database, char *user,
       return ignore_errors ? -1 : 1;  // Abort
     }
     return -1;  // Retryable
+  }
+
+  /* do user registration */
+  if (opt_fido_register_factor) {
+    char errmsg[FN_REFLEN];
+    if (user_device_registration(&mysql, opt_fido_register_factor, errmsg)) {
+      put_info(errmsg, INFO_ERROR);
+      return 1;
+    }
   }
 
 #ifdef HAVE_SETNS
@@ -4692,16 +4683,16 @@ static bool init_connection_options(MYSQL *mysql) {
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
+  set_password_options(mysql);
   return false;
 }
 
-static int sql_connect(char *host, char *database, char *user, char *password,
-                       uint silent) {
+static int sql_connect(char *host, char *database, char *user, uint silent) {
   bool message = false;
   uint count = 0;
   int error;
   for (;;) {
-    if ((error = sql_real_connect(host, database, user, password, wait_flag)) >=
+    if ((error = sql_real_connect(host, database, user, nullptr, wait_flag)) >=
         0) {
       if (count) {
         tee_fputs("\n", stderr);

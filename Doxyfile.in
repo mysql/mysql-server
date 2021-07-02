@@ -2278,6 +2278,7 @@ SEARCH_INCLUDES        = YES
 # This tag requires that the tag SEARCH_INCLUDES is set to YES.
 
 INCLUDE_PATH           = . \
+                         client/include \
                          include \
                          include/mysql \
                          sql

@@ -6596,7 +6596,7 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
   static DYNAMIC_STRING ds_user;
-  static DYNAMIC_STRING ds_password;
+  static DYNAMIC_STRING ds_password1;
   static DYNAMIC_STRING ds_database;
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
@@ -6605,12 +6605,14 @@ static void do_connect(struct st_command *command) {
   static DYNAMIC_STRING ds_shm;
   static DYNAMIC_STRING ds_compression_algorithm;
   static DYNAMIC_STRING ds_zstd_compression_level;
+  static DYNAMIC_STRING ds_password2;
+  static DYNAMIC_STRING ds_password3;
   const struct command_arg connect_args[] = {
       {"connection name", ARG_STRING, true, &ds_connection_name,
        "Name of the connection"},
       {"host", ARG_STRING, true, &ds_host, "Host to connect to"},
       {"user", ARG_STRING, false, &ds_user, "User to connect as"},
-      {"passsword", ARG_STRING, false, &ds_password,
+      {"passsword", ARG_STRING, false, &ds_password1,
        "Password used when connecting"},
       {"database", ARG_STRING, false, &ds_database,
        "Database to select after connect"},
@@ -6625,7 +6627,11 @@ static void do_connect(struct st_command *command) {
       {"default_zstd_compression_level", ARG_STRING, false,
        &ds_zstd_compression_level,
        "Default compression level to use "
-       "when using zstd compression."}};
+       "when using zstd compression."},
+      {"second_passsword", ARG_STRING, false, &ds_password2,
+       "Password used when connecting"},
+      {"third_passsword", ARG_STRING, false, &ds_password3,
+       "Password used when connecting"}};
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("connect: %s", command->first_argument));
@@ -6802,12 +6808,30 @@ static void do_connect(struct st_command *command) {
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&con_cleartext_enable);
 
+  unsigned int factor = 0;
+  if (ds_password1.length) {
+    factor = 1;
+    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
+                   ds_password1.str);
+  }
+  /* set second and third password */
+  if (ds_password2.length) {
+    factor = 2;
+    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
+                   ds_password2.str);
+  }
+  if (ds_password3.length) {
+    factor = 3;
+    mysql_options4(&con_slot->mysql, MYSQL_OPT_USER_PASSWORD, &factor,
+                   ds_password3.str);
+  }
+
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !std::strcmp(ds_database.str, "*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
-                              ds_user.str, ds_password.str, ds_database.str,
+                              ds_user.str, ds_password1.str, ds_database.str,
                               con_port, ds_sock.str)) {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
@@ -6825,7 +6849,7 @@ static void do_connect(struct st_command *command) {
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
   dynstr_free(&ds_user);
-  dynstr_free(&ds_password);
+  dynstr_free(&ds_password1);
   dynstr_free(&ds_database);
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
@@ -6834,6 +6858,8 @@ static void do_connect(struct st_command *command) {
   dynstr_free(&ds_shm);
   dynstr_free(&ds_compression_algorithm);
   dynstr_free(&ds_zstd_compression_level);
+  dynstr_free(&ds_password2);
+  dynstr_free(&ds_password3);
 }
 
 static int do_done(struct st_command *command) {

@@ -225,4 +225,4 @@ static int deinitialize_plugin() {
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_kerberos_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Kerberos Client Authentication Plugin",
     {0, 1, 0}, "PROPRIETARY", nullptr, initialize_plugin, deinitialize_plugin,
-    nullptr, kerberos_authenticate, nullptr mysql_end_client_plugin;
+    nullptr, nullptr, kerberos_authenticate, nullptr mysql_end_client_plugin;

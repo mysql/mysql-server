@@ -138,7 +138,7 @@ class Mysql_connection_options : public Composite_options_provider,
   uint32 m_max_allowed_packet;
   bool m_compress;
   std::optional<std::string> m_user;
-  std::optional<std::string> m_password;
+  std::optional<std::string> m_password[3];
   std::optional<std::string> m_default_charset;
   std::optional<std::string> m_server_public_key;
   bool m_get_server_public_key;

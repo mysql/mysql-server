@@ -460,6 +460,87 @@ MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
   ENDIF()
 ENDMACRO()
 
+MACRO(MYSQL_CHECK_FIDO_DLLS)
+  IF(APPLE AND WITH_FIDO STREQUAL "bundled")
+    ADD_CUSTOM_TARGET(symlink_fido2_dlls)
+
+    # We want libfido2.1.dylib rather than libfido2.1.5.0.dylib below:
+    SET(TARGET_FILE_NAME_fido2      "libfido2.1.dylib")
+
+    ADD_CUSTOM_TARGET(link_fido2_dlls_plugin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+
+      COMMENT "Creating fido2 symlinks in plugin_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_fido2}"
+      )
+    ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin)
+
+    # Create some symlinks from lib/plugin/*.dylib to ../../lib/*.dylib
+    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin")
+    ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_install ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin"
+      )
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${TARGET_FILE_NAME_fido2}"
+      DESTINATION ${INSTALL_PLUGINDIR} COMPONENT SharedLibraries
+      )
+    IF(EXISTS ${DEBUGBUILDDIR})
+      FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug")
+      ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_install_debug ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/${TARGET_FILE_NAME_fido2}" "${TARGET_FILE_NAME_fido2}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug"
+        )
+      ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin_install_debug)
+      INSTALL(FILES
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/${TARGET_FILE_NAME_fido2}"
+        DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+        )
+    ENDIF()
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_TARGET(link_fido2_dlls_plugin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/${TARGET_FILE_NAME_fido2}"
+        "${TARGET_FILE_NAME_fido2}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_fido2_dlls link_fido2_dlls_plugin_xcode)
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+MACRO(ADD_INSTALL_RPATH_FOR_FIDO2 TARGET)
+  MESSAGE(STATUS "ADD_INSTALL_RPATH_FOR_FIDO2 ${TARGET}")
+  IF(APPLE)
+    SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "@loader_path")
+    # install_name_tool [-change old new] input
+
+    SET(LIBFIDO_MAJOR_DYLIB "libfido2.1.dylib")
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND install_name_tool -change
+          "@rpath/${LIBFIDO_MAJOR_DYLIB}"
+          "@loader_path/${LIBFIDO_MAJOR_DYLIB}"
+          "$<TARGET_FILE:${TARGET}>"
+      )
+  ELSEIF(UNIX)
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+
 # For APPLE builds we support
 #   -DWITH_SSL=</path/to/custom/openssl>
 # SSL libraries are installed in lib/

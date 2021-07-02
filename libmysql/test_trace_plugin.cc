@@ -100,6 +100,7 @@ struct st_mysql_client_plugin_TRACE test_trace_plugin = {
     test_trace::plugin_init,
     test_trace::plugin_deinit,
     NULL,  // option handling
+    NULL,
     test_trace::trace_start,
     test_trace::trace_stop,
     test_trace::trace_event};

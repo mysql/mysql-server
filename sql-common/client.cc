@@ -62,6 +62,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base64.h"
 #include "client_async_authentication.h"
 #include "compression.h"  // validate_compression_attributes
 #include "errmsg.h"
@@ -841,6 +842,12 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
           type = (enum enum_session_state_type)net_field_length_ll_safe(
               mysql, &pos, length, &is_error);
           if (is_error) return;
+          bool mandatory_tracker_flag = false;
+          /* check if any tracker is set to mandatory */
+          if (mysql->server_capabilities & CLIENT_MANDATORY_SESSION_TRACK) {
+            mandatory_tracker_flag =
+                net_field_length_ll_safe(mysql, &pos, length, &is_error);
+          }
           switch (type) {
             case SESSION_TRACK_SYSTEM_VARIABLES:
               /* Move past the total length of the changed entity. */
@@ -1023,11 +1030,52 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
               break;
+            case SESSION_TRACK_CLIENT_PLUGIN_INFO:
+
+              /* total payload length */
+              len = net_field_length_ll_safe(mysql, &pos, length, &is_error);
+              if (is_error) return;
+
+              /* Get length of client plugin name */
+              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
+                                                     &is_error);
+              if (is_error) return;
+
+              if (!buffer_check_remaining(mysql, pos, length, len)) return;
+
+              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
+                                   &element, sizeof(LIST), &data,
+                                   sizeof(LEX_STRING), &data_str, len + 1,
+                                   NullS)) {
+                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+                return;
+              }
+              data->str = data_str;
+              memcpy(data->str, (char *)pos, len);
+              data->length = len;
+              pos += len;
+
+              element->data = data;
+              ADD_INFO(info, element, SESSION_TRACK_CLIENT_PLUGIN_INFO);
+
+              break;
             default:
               assert(type <= SESSION_TRACK_END);
               /*
-               Unknown/unsupported type received, get the total length and move
-               past it.
+                we reach here only if client cannot recognize a tracker. If
+                mandatory tracker flag is set for such a tracker then report
+                error.
+              */
+              if (mandatory_tracker_flag) {
+                set_mysql_extended_error(
+                    mysql, CR_MANDATORY_TRACKER_NOT_FOUND, unknown_sqlstate,
+                    ER_CLIENT(CR_MANDATORY_TRACKER_NOT_FOUND),
+                    static_cast<unsigned int>(type));
+                return;
+              }
+              /*
+               Unknown/unsupported type received, get the total length and
+               move past it.
                */
 
               len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
@@ -1040,7 +1088,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
         }
         if (info) {
           int itype;
-          for (itype = SESSION_TRACK_BEGIN; itype < SESSION_TRACK_END;
+          for (itype = SESSION_TRACK_BEGIN; itype <= SESSION_TRACK_END;
                itype++) {
             if (info->info_list[itype].head_node) {
               info->info_list[itype].current_node =
@@ -1673,6 +1721,12 @@ static bool flush_one_result(MYSQL *mysql) {
   return false;
 }
 
+static bool is_OK_packet(MYSQL *mysql, ulong length) {
+  return ((mysql->net.read_pos[0] == 0) ||
+          ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+           mysql->net.read_pos[0] == 254 && length < MAX_PACKET_LENGTH));
+}
+
 /**
   Read a packet from network. If it's an OK packet, flush it.
 
@@ -1690,10 +1744,7 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet) {
   /* cli_safe_read always reads a non-empty packet. */
   assert(packet_length);
 
-  *is_ok_packet =
-      ((mysql->net.read_pos[0] == 0) ||
-       ((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
-        mysql->net.read_pos[0] == 254 && packet_length < MAX_PACKET_LENGTH));
+  *is_ok_packet = is_OK_packet(mysql, packet_length);
   if (*is_ok_packet) {
     read_ok_ex(mysql, packet_length);
 #if defined(CLIENT_PROTOCOL_TRACING)
@@ -3319,6 +3370,16 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
     my_free(mysql->options.extension->load_data_dir);
+    for (unsigned int idx = 0; idx < MAX_AUTHENTICATION_FACTOR; idx++) {
+      if (mysql->options.extension->client_auth_info[idx].plugin_name) {
+        my_free(mysql->options.extension->client_auth_info[idx].plugin_name);
+        mysql->options.extension->client_auth_info[idx].plugin_name = nullptr;
+      }
+      if (mysql->options.extension->client_auth_info[idx].password) {
+        my_free(mysql->options.extension->client_auth_info[idx].password);
+        mysql->options.extension->client_auth_info[idx].password = nullptr;
+      }
+    }
   }
   mysql->options.ssl_key = nullptr;
   mysql->options.ssl_cert = nullptr;
@@ -3792,6 +3853,7 @@ static auth_plugin_t native_password_client_plugin = {
     nullptr,
     nullptr,
     nullptr,
+    nullptr,
     native_password_auth_client,
     native_password_auth_client_nonblocking};
 
@@ -3803,6 +3865,7 @@ static auth_plugin_t clear_password_client_plugin = {
     "Clear password authentication plugin",
     {0, 1, 0},
     "GPL",
+    nullptr,
     nullptr,
     nullptr,
     nullptr,
@@ -3822,6 +3885,7 @@ static auth_plugin_t sha256_password_client_plugin = {
     sha256_password_init,
     sha256_password_deinit,
     nullptr,
+    nullptr,
     sha256_password_auth_client,
     sha256_password_auth_client_nonblocking};
 
@@ -3836,6 +3900,7 @@ static auth_plugin_t caching_sha2_password_client_plugin = {
     nullptr,
     caching_sha2_password_init,
     caching_sha2_password_deinit,
+    nullptr,
     nullptr,
     caching_sha2_password_auth_client,
     caching_sha2_password_auth_client_nonblocking};
@@ -4482,6 +4547,11 @@ static mysql_state_machine_status authsm_run_second_authenticate_user(
 static mysql_state_machine_status authsm_handle_second_authenticate_user(
     mysql_async_auth *ctx);
 static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_init_multi_auth(mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_do_multi_plugin_auth(
+    mysql_async_auth *ctx);
+static mysql_state_machine_status authsm_handle_multi_auth_response(
+    mysql_async_auth *ctx);
 
 /**
   Asynchronous connection phase is divided into several smaller modules
@@ -4950,7 +5020,7 @@ static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf) {
   ulong pkt_len;
 
   /* there are cached data left, feed it to a plugin */
-  if (mpvio->cached_server_reply.pkt) {
+  if (mpvio->cached_server_reply.pkt && mpvio->cached_server_reply.pkt_len) {
     *buf = mpvio->cached_server_reply.pkt;
     mpvio->cached_server_reply.pkt = nullptr;
     mpvio->packets_read++;
@@ -5269,6 +5339,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   ctx.data_plugin = data_plugin;
   ctx.db = db;
   ctx.non_blocking = false;
+  /* set intial auth factor to be first factor */
+  ctx.current_factor_index = 0;
   ctx.state_function = authsm_begin_plugin_auth;
 
   do {
@@ -5314,6 +5386,7 @@ mysql_state_machine_status run_plugin_auth_nonblocking(MYSQL *mysql, char *data,
     ctx->data_plugin = data_plugin;
     ctx->db = db;
     ctx->non_blocking = true;
+    ctx->current_factor_index = 0;
     ctx->state_function = authsm_begin_plugin_auth;
     ASYNC_DATA(mysql)->connect_context->auth_context = ctx;
   }
@@ -5539,8 +5612,12 @@ static mysql_state_machine_status authsm_handle_change_user_result(
 
   if (mysql->net.read_pos[0] == 254) {
     ctx->state_function = authsm_run_second_authenticate_user;
-  } else
-    ctx->state_function = authsm_finish_auth;
+  } else {
+    if (is_OK_packet(mysql, ctx->pkt_length)) {
+      read_ok_ex(mysql, ctx->pkt_length);
+      ctx->state_function = authsm_finish_auth;
+    }
+  }
 
   return STATE_MACHINE_CONTINUE;
 }
@@ -5577,6 +5654,11 @@ static mysql_state_machine_status authsm_run_second_authenticate_user(
 
   MYSQL_TRACE(AUTH_PLUGIN, mysql, (ctx->auth_plugin->name));
 
+  DBUG_EXECUTE_IF("simulate_fido_testing", {
+    bool is_fido_testing = true;
+    mysql_plugin_options((struct st_mysql_client_plugin *)ctx->auth_plugin,
+                         "is_fido_testing", &is_fido_testing);
+  });
   ctx->mpvio.plugin = ctx->auth_plugin;
   ctx->res = ctx->auth_plugin->authenticate_user(
       (struct MYSQL_PLUGIN_VIO *)&ctx->mpvio, mysql);
@@ -5608,11 +5690,17 @@ static mysql_state_machine_status authsm_handle_second_authenticate_user(
 
   if (ctx->res != CR_OK_HANDSHAKE_COMPLETE) {
     /* Read what server thinks about out new auth message report */
-    if (cli_safe_read(mysql, nullptr) == packet_error) {
+    if ((ctx->pkt_length = cli_safe_read(mysql, nullptr)) == packet_error) {
       if (mysql->net.last_errno == CR_SERVER_LOST)
         set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                  ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                  "reading final connect information", errno);
+      return STATE_MACHINE_FAILED;
+    }
+    if (is_OK_packet(mysql, ctx->pkt_length))
+      read_ok_ex(mysql, ctx->pkt_length);
+    else {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
       return STATE_MACHINE_FAILED;
     }
   }
@@ -5631,8 +5719,135 @@ static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx) {
   */
   ctx->res = (mysql->net.read_pos[0] != 0);
 
+  /*
+    If first factor authentication is a success, read OK packet and extract
+    client plugin name from mandatory tracker, if present initiate 2nd factor
+    authentication.
+  */
+  if (!ctx->res) {
+    const char *data = nullptr;
+    size_t data_length = 0;
+    if (!mysql_session_track_get_first(
+            mysql, (enum_session_state_type)SESSION_TRACK_CLIENT_PLUGIN_INFO,
+            &data, &data_length)) {
+      /* get client plugin name */
+      if (data && data_length) {
+        /* update current factor index to point to nth factor */
+        ctx->current_factor_index++;
+        if (mysql->options.extension) {
+          mysql->options.extension->client_auth_info[ctx->current_factor_index]
+              .plugin_name = static_cast<char *>(
+              my_malloc(PSI_NOT_INSTRUMENTED, data_length + 1,
+                        MYF(MY_WME | MY_ZEROFILL)));
+          memcpy(mysql->options.extension
+                     ->client_auth_info[ctx->current_factor_index]
+                     .plugin_name,
+                 data, data_length);
+        }
+        ctx->state_function = authsm_init_multi_auth;
+        return STATE_MACHINE_CONTINUE;
+      }
+    }
+  }
   MYSQL_TRACE(AUTHENTICATED, mysql, ());
   return ctx->res ? STATE_MACHINE_FAILED : STATE_MACHINE_DONE;
+}
+
+/** Start multi factor authentication */
+static mysql_state_machine_status authsm_init_multi_auth(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+
+  if (mysql->options.extension &&
+      mysql->options.extension->client_auth_info[ctx->current_factor_index]
+          .plugin_name) {
+    ctx->auth_plugin_name =
+        mysql->options.extension->client_auth_info[ctx->current_factor_index]
+            .plugin_name;
+    if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+              mysql, ctx->auth_plugin_name,
+              MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
+      my_free(
+          mysql->options.extension->client_auth_info[ctx->current_factor_index]
+              .plugin_name);
+      mysql->options.extension->client_auth_info[ctx->current_factor_index]
+          .plugin_name = 0;
+      return STATE_MACHINE_FAILED;
+    }
+    DBUG_EXECUTE_IF("simulate_fido_testing", {
+      bool is_fido_testing = true;
+      mysql_plugin_options((struct st_mysql_client_plugin *)ctx->auth_plugin,
+                           "is_fido_testing", &is_fido_testing);
+    });
+    /* check if plugin is enabled */
+    if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
+
+    /* reset password for next client auth plugin */
+    if (mysql->passwd) mysql->passwd[0] = 0;
+    /* get password */
+    if (mysql->options.extension->client_auth_info[ctx->current_factor_index]
+            .password) {
+      my_free(mysql->passwd);
+      mysql->passwd = my_strdup(
+          key_memory_MYSQL,
+          mysql->options.extension->client_auth_info[ctx->current_factor_index]
+              .password,
+          MYF(0));
+    }
+  }
+  ctx->state_function = authsm_do_multi_plugin_auth;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/** Invoke client plugins authentication method */
+static mysql_state_machine_status authsm_do_multi_plugin_auth(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+  MYSQL_TRACE(AUTH_PLUGIN, mysql, (ctx->auth_plugin->name));
+
+  ctx->mpvio.plugin = ctx->auth_plugin;
+  ctx->res = ctx->auth_plugin->authenticate_user(
+      (struct MYSQL_PLUGIN_VIO *)&ctx->mpvio, mysql);
+
+  ctx->state_function = authsm_handle_multi_auth_response;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/** Handle response from client plugins authentication method */
+static mysql_state_machine_status authsm_handle_multi_auth_response(
+    mysql_async_auth *ctx) {
+  DBUG_TRACE;
+  MYSQL *mysql = ctx->mysql;
+
+  if (ctx->res > CR_OK) {
+    if (ctx->res > CR_ERROR)
+      set_mysql_error(mysql, ctx->res, unknown_sqlstate);
+    else if (!mysql->net.last_errno)
+      set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
+  }
+
+  if (ctx->res != CR_OK_HANDSHAKE_COMPLETE) {
+    /* Read what server thinks about new auth message report */
+    if ((ctx->pkt_length = cli_safe_read(mysql, nullptr)) == packet_error) {
+      if (mysql->net.last_errno == CR_SERVER_LOST)
+        set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
+                                 ER_CLIENT(CR_SERVER_LOST_EXTENDED),
+                                 "reading final connect information", errno);
+      return STATE_MACHINE_FAILED;
+    }
+    if (is_OK_packet(mysql, ctx->pkt_length))
+      read_ok_ex(mysql, ctx->pkt_length);
+    else {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return STATE_MACHINE_FAILED;
+    }
+  }
+  ctx->state_function = authsm_finish_auth;
+  assert(ctx->current_factor_index < 3);
+  return STATE_MACHINE_CONTINUE;
 }
 
 /** set some default attributes */
@@ -5690,7 +5905,12 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   ctx.port = port;
   ctx.db = db;
   ctx.user = user;
-  ctx.passwd = passwd;
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  /* password will be extracted from mysql options */
+  if (mysql->options.extension->client_auth_info[0].password)
+    ctx.passwd = mysql->options.extension->client_auth_info[0].password;
+  else
+    ctx.passwd = passwd;
   ctx.unix_socket = unix_socket;
   mysql->options.client_flag |= client_flag;
   ctx.client_flag = mysql->options.client_flag;
@@ -5756,7 +5976,12 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ctx->port = port;
     ctx->db = db;
     ctx->user = user;
-    ctx->passwd = passwd;
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    /* password will be extracted from mysql options */
+    if (mysql->options.extension->client_auth_info[0].password)
+      ctx->passwd = mysql->options.extension->client_auth_info[0].password;
+    else
+      ctx->passwd = passwd;
     ctx->unix_socket = unix_socket;
     mysql->options.client_flag |= client_flag;
     ctx->client_flag = mysql->options.client_flag;
@@ -8217,7 +8442,6 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                                             static_cast<const char *>(arg)))
         return 1;
       break;
-
     default:
       return 1;
   }
@@ -8437,7 +8661,6 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
           mysql->options.extension ? mysql->options.extension->load_data_dir
                                    : nullptr;
       break;
-
     case MYSQL_OPT_NAMED_PIPE:          /* This option is deprecated */
     case MYSQL_INIT_COMMAND:            /* Cumulative */
     case MYSQL_OPT_CONNECT_ATTR_RESET:  /* Cumulative */
@@ -8505,7 +8728,34 @@ int STDCALL mysql_options4(MYSQL *mysql, enum mysql_option option,
 
       break;
     }
-
+    case MYSQL_OPT_USER_PASSWORD: {
+      unsigned int factor = *static_cast<const uint *>(arg1) - 1;
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      switch (factor) {
+        case 0:
+          my_free(mysql->options.extension->client_auth_info[0].password);
+          mysql->options.extension->client_auth_info[0].password =
+              my_strdup(key_memory_mysql_options,
+                        static_cast<const char *>(arg2), MYF(MY_FAE));
+          break;
+        case 1:
+          my_free(mysql->options.extension->client_auth_info[1].password);
+          mysql->options.extension->client_auth_info[1].password =
+              my_strdup(key_memory_mysql_options,
+                        static_cast<const char *>(arg2), MYF(MY_FAE));
+          break;
+        case 2:
+          my_free(mysql->options.extension->client_auth_info[2].password);
+          mysql->options.extension->client_auth_info[2].password =
+              my_strdup(key_memory_mysql_options,
+                        static_cast<const char *>(arg2), MYF(MY_FAE));
+          break;
+        default:
+          set_mysql_error(mysql, CR_INVALID_FACTOR_NO, unknown_sqlstate);
+          return 1;
+      }
+      break;
+    }
     default:
       return 1;
   }

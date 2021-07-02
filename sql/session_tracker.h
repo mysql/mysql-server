@@ -39,11 +39,25 @@ enum enum_session_tracker {
   SESSION_SYSVARS_TRACKER, /* Session system variables */
   CURRENT_SCHEMA_TRACKER,  /* Current schema */
   SESSION_STATE_CHANGE_TRACKER,
-  SESSION_GTIDS_TRACKER,   /* Tracks GTIDs */
-  TRANSACTION_INFO_TRACKER /* Transaction state */
+  SESSION_GTIDS_TRACKER,    /* Tracks GTIDs */
+  TRANSACTION_INFO_TRACKER, /* Transaction state */
+  /*
+    There should be a one-to-one mapping between this enum members and the
+    members from enum enum_session_state_type defined in mysql_com.h.
+    TRANSACTION_INFO_TRACKER maps to 2 types of tracker which are:
+    SESSION_TRACK_TRANSACTION_CHARACTERISTICS, SESSION_TRACK_TRANSACTION_STATE.
+    Thus introduced a dummy tracker type on server side to keep trackers in sync
+    between client and server.
+  */
+  TRACK_TRANSACTION_STATE,
+  /*
+    A mandatory tracker sent when both server and client have
+    CLIENT_MANDATORY_SESSION_TRACK capability bit enabled.
+  */
+  SESSION_CLIENT_PLUGIN_INFO_TRACKER
 };
 
-#define SESSION_TRACKER_END TRANSACTION_INFO_TRACKER
+#define SESSION_TRACKER_END SESSION_CLIENT_PLUGIN_INFO_TRACKER
 
 #define TX_TRACKER_GET(a)                                            \
   Transaction_state_tracker *a =                                     \
@@ -78,9 +92,12 @@ class State_tracker {
   /** Has the session state type changed ? */
   bool m_changed;
 
+  /** Is this tracker mandatory ? */
+  bool m_is_mandatory;
+
  public:
   /** Constructor */
-  State_tracker() : m_enabled(false), m_changed(false) {}
+  State_tracker() : m_enabled(false), m_changed(false), m_is_mandatory(false) {}
 
   /** Destructor */
   virtual ~State_tracker() = default;
@@ -89,6 +106,11 @@ class State_tracker {
   bool is_enabled() const { return m_enabled; }
 
   bool is_changed() const { return m_changed; }
+
+  bool is_mandatory() const { return m_is_mandatory; }
+
+  /** Mark the entity as mandatory. */
+  void mark_as_mandatory(bool val);
 
   /** Called in the constructor of THD*/
   virtual bool enable(THD *thd) = 0;
@@ -299,4 +321,44 @@ class Transaction_state_tracker : public State_tracker {
   }
 };
 
+/*
+  Session_client_auth_plugin_info_tracker
+  ------------------------------
+*/
+
+class Auth_plugin_info;
+
+class Session_client_auth_plugin_info_tracker : public State_tracker {
+ private:
+  Auth_plugin_info *m_auth_plugin_info;
+  void reset();
+
+ public:
+  Session_client_auth_plugin_info_tracker();
+  void set_auth_plugin_info(Auth_plugin_info *pi);
+  bool enable(THD *thd) override;
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
+};
+
+/*
+  Auth_plugin_info
+  ------------------------------
+  This tracker class will send authentication information of 2nd or 3rd factor
+  plugins
+*/
+
+class Auth_plugin_info {
+ private:
+  LEX_CSTRING m_client_plugin = {NULL_CSTR};
+  void reset();
+
+ public:
+  Auth_plugin_info() {}
+  bool store(THD *, String &buf);
+
+  void set_client_plugin(const char *s, size_t l);
+};
 #endif /* SESSION_TRACKER_INCLUDED */

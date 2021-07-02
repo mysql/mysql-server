@@ -304,6 +304,7 @@ class ACL_USER : public ACL_ACCESS {
 
   void set_user(MEM_ROOT *mem, const char *user_arg);
   void set_host(MEM_ROOT *mem, const char *host_arg);
+  void set_mfa(MEM_ROOT *mem, I_multi_factor_auth *m);
   size_t get_username_length() const { return user ? strlen(user) : 0; }
   class Password_locked_state {
    public:
@@ -341,6 +342,7 @@ class ACL_USER : public ACL_ACCESS {
     /** The day the account is locked, 0 if not locked */
     long m_daynr_locked;
   } password_locked_state;
+  I_multi_factor_auth *m_mfa;
 };
 
 class ACL_DB : public ACL_ACCESS {

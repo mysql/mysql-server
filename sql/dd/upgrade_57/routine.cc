@@ -372,7 +372,6 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   // Holders for user name and host name used in parse user.
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
-  memset(&user_info, 0, sizeof(LEX_USER));
   user_info.user = {definer_user_name_holder, USERNAME_LENGTH};
   user_info.host = {definer_host_name_holder, HOSTNAME_LENGTH};
 

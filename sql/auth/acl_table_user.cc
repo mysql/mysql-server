@@ -110,6 +110,9 @@ const std::string json_metadata_tag("metadata");
 /** comment tag */
 const std::string json_comment_tag("comment");
 
+/** multi factor authentication methods */
+const std::string json_multi_factor_authentication(
+    "multi_factor_authentication");
 }  // namespace consts
 
 bool replace_user_metadata(THD *thd, const std::string &json_blob,
@@ -124,7 +127,9 @@ static std::map<const User_attribute_type, const std::string>
         {User_attribute_type::RESTRICTIONS, consts::Restrictions},
         {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking},
         {User_attribute_type::METADATA, consts::json_metadata_tag},
-        {User_attribute_type::COMMENT, consts::json_comment_tag}};
+        {User_attribute_type::COMMENT, consts::json_comment_tag},
+        {User_attribute_type::MULTI_FACTOR_AUTHENTICATION,
+         consts::json_multi_factor_authentication}};
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
@@ -136,14 +141,17 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
       m_restrictions(),
       m_global_privs(global_privs),
       m_password_lock(),
+      m_mfa(nullptr),
       m_user_attributes_json(nullptr) {}
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
                                          bool read_restrictions,
                                          Auth_id &auth_id,
-                                         Restrictions *restrictions)
+                                         Restrictions *restrictions,
+                                         I_multi_factor_auth *mfa)
     : Acl_user_attributes(mem_root, read_restrictions, auth_id, ~NO_ACCESS) {
   if (restrictions) m_restrictions = *restrictions;
+  m_mfa = mfa;
 }
 
 Acl_user_attributes::~Acl_user_attributes() { m_restrictions.clear_db(); }
@@ -200,6 +208,28 @@ void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
     the internal container of DB_restrictions
   */
   db_restrictions.remove(0);
+}
+
+bool Acl_user_attributes::deserialize_multi_factor(
+    const Json_object &json_object) {
+  Json_dom *mfa = json_object.get(
+      attribute_type_to_str[User_attribute_type::MULTI_FACTOR_AUTHENTICATION]);
+  if (mfa) {
+    if (mfa->json_type() != enum_json_type::J_ARRAY) return true;
+    Json_array *mfa_arr = down_cast<Json_array *>(mfa);
+    I_multi_factor_auth *i_mfa =
+        (mfa_arr->size() ? new (&global_acl_memory)
+                               Multi_factor_auth_list(&global_acl_memory)
+                         : nullptr);
+    for (uint i = 0; i < mfa_arr->size(); i++) {
+      i_mfa->add_factor(new (&global_acl_memory)
+                            Multi_factor_auth_info(&global_acl_memory));
+      Json_dom *mfa_arr_obj = (*mfa_arr)[i];
+      if (i_mfa->deserialize(i, mfa_arr_obj)) return true;
+    }
+    set_mfa(i_mfa);
+  }
+  return false;
 }
 
 bool Acl_user_attributes::deserialize_password_lock(
@@ -277,7 +307,10 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
     m_restrictions.set_db(db_restrictions);
   }
 
-  return deserialize_password_lock(json_object);
+  if (deserialize_password_lock(json_object)) return true;
+  if (deserialize_multi_factor(json_object)) return true;
+
+  return false;
 }
 
 bool Acl_user_attributes::serialize(Json_object &json_object) const {
@@ -321,7 +354,13 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
     Json_object *obj = down_cast<Json_object *>(m_user_attributes_json.get());
     obj->remove(attribute_type_to_str[User_attribute_type::PASSWORD_LOCKING]);
   }
-
+  if (m_mfa) {
+    Json_array mfa_arr;
+    if (m_mfa->serialize(mfa_arr)) return true;
+    json_object.add_clone(
+        attribute_type_to_str[User_attribute_type::MULTI_FACTOR_AUTHENTICATION],
+        &mfa_arr);
+  }
   if (m_user_attributes_json) {
     Json_dom_ptr copy_attributes = m_user_attributes_json->clone();
     Json_object_ptr tmp(down_cast<Json_object *>(copy_attributes.release()));
@@ -400,7 +439,8 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
       password_change_timestamp(consts::BEGIN_TIMESTAMP),
       second_cred(consts::empty_string),
       restrictions(),
-      password_lock() {}
+      password_lock(),
+      multi_factor(nullptr) {}
 
 /**
   mysql.user table writer constructor
@@ -415,11 +455,13 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
   @param [in] can_create_user  Whether user has ability to create new user
   @param [in] what_to_update   Things to be updated
   @param [in] restrictions     Restrictions of the user, if there is any
+  @param [in] mfa              Interface pointer to Multi factor authentication
+  methods
 */
 Acl_table_user_writer::Acl_table_user_writer(
     THD *thd, TABLE *table, LEX_USER *combo, ulong rights, bool revoke_grant,
     bool can_create_user, Pod_user_what_to_update what_to_update,
-    Restrictions *restrictions = nullptr)
+    Restrictions *restrictions = nullptr, I_multi_factor_auth *mfa = nullptr)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_INSERT),
       m_has_user_application_user_metadata(false),
       m_combo(combo),
@@ -428,7 +470,8 @@ Acl_table_user_writer::Acl_table_user_writer(
       m_can_create_user(can_create_user),
       m_what_to_update(what_to_update),
       m_table_schema(nullptr),
-      m_restrictions(restrictions) {
+      m_restrictions(restrictions),
+      m_mfa(mfa) {
   if (table) {
     User_table_schema_factory user_table_schema_factory;
     m_table_schema = user_table_schema_factory.get_user_table_schema(table);
@@ -482,6 +525,14 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   if ((m_what_to_update.m_what & USER_ATTRIBUTES) &&
       (m_what_to_update.m_user_attributes & USER_ATTRIBUTE_RETAIN_PASSWORD))
     current_password = get_current_credentials();
+
+  /*
+    Set in memory copy of Multi factor authentication details. In case ALTER
+    USER is executed to alter Multi factor authentication attributes,
+    update_user_attributes call will modify the needed data structures, else in
+    case of GRANT/REVOKE in memory copy is returned.
+  */
+  if (m_mfa) return_value.multi_factor = m_mfa;
 
   if (update_authentication_info(return_value) ||
       update_privileges(return_value) || update_ssl_properties() ||
@@ -581,8 +632,10 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           return true;
         }
 
-        optimize_plugin_compare_by_pointer(&m_combo->plugin);
-        builtin_plugin = auth_plugin_is_built_in(m_combo->plugin.str);
+        optimize_plugin_compare_by_pointer(
+            &m_combo->first_factor_auth_info.plugin);
+        builtin_plugin =
+            auth_plugin_is_built_in(m_combo->first_factor_auth_info.plugin.str);
 
         /* The user record was neither present nor the intention was to
          * create it */
@@ -739,10 +792,12 @@ bool Acl_table_user_writer::update_authentication_info(
     bool builtin_plugin;
     if (m_table->s->fields >= m_table_schema->plugin_idx()) {
       m_table->field[m_table_schema->plugin_idx()]->store(
-          m_combo->plugin.str, m_combo->plugin.length, system_charset_info);
+          m_combo->first_factor_auth_info.plugin.str,
+          m_combo->first_factor_auth_info.plugin.length, system_charset_info);
       m_table->field[m_table_schema->plugin_idx()]->set_notnull();
       m_table->field[m_table_schema->authentication_string_idx()]->store(
-          m_combo->auth.str, m_combo->auth.length, &my_charset_utf8_bin);
+          m_combo->first_factor_auth_info.auth.str,
+          m_combo->first_factor_auth_info.auth.length, &my_charset_utf8_bin);
       m_table->field[m_table_schema->authentication_string_idx()]
           ->set_notnull();
     } else {
@@ -750,8 +805,9 @@ bool Acl_table_user_writer::update_authentication_info(
       return true;
     }
     /* If we change user plugin then check if it is builtin plugin */
-    optimize_plugin_compare_by_pointer(&m_combo->plugin);
-    builtin_plugin = auth_plugin_is_built_in(m_combo->plugin.str);
+    optimize_plugin_compare_by_pointer(&m_combo->first_factor_auth_info.plugin);
+    builtin_plugin =
+        auth_plugin_is_built_in(m_combo->first_factor_auth_info.plugin.str);
     /*
       we update the password last changed field whenever there is change
       in auth str and plugin is built in
@@ -1129,7 +1185,7 @@ bool Acl_table_user_writer::update_user_attributes(
       Acl_user_attributes user_attributes(
           m_thd->mem_root,
           !(m_what_to_update.m_user_attributes & USER_ATTRIBUTE_RESTRICTIONS),
-          auth_id, m_restrictions);
+          auth_id, m_restrictions, m_mfa);
       if (m_operation == Acl_table_operation::OP_UPDATE &&
           parse_user_attributes(m_thd, m_table, m_table_schema,
                                 user_attributes))
@@ -1172,6 +1228,13 @@ bool Acl_table_user_writer::update_user_attributes(
             m_combo->alter_status.password_lock_time;
       user_attributes.set_password_lock(return_value.password_lock);
 
+      if (m_what_to_update.m_user_attributes & USER_ATTRIBUTE_UPDATE_MFA) {
+        user_attributes.set_mfa(m_mfa);
+        if (m_mfa) {
+          if (user_attributes.get_mfa()->update_user_attributes()) return true;
+        }
+      }
+      return_value.multi_factor = user_attributes.get_mfa();
       /* Update the column in the table */
       if (write_user_attributes_column(user_attributes)) return true;
 
@@ -1186,7 +1249,7 @@ bool Acl_table_user_writer::update_user_attributes(
     }
   }
   return false;
-}
+}  // namespace acl_table
 
 /**
   Send the function for updating the user metadata JSON code
@@ -1856,6 +1919,7 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
                                       MYSQL_AUTHENTICATION_PLUGIN);
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+
         if (auth->validate_authentication_string(
                 const_cast<char *>(
                     user.credentials[SECOND_CRED].m_auth_string.str),
@@ -1876,6 +1940,9 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
     user.password_locked_state.set_parameters(
         user_attributes.get_password_lock_time_days(),
         user_attributes.get_failed_login_attempts());
+    // details of Multi factor authentication user attributes
+    I_multi_factor_auth *m = user_attributes.get_mfa();
+    user.set_mfa(nullptr, m);
   } else {
     user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
   }
@@ -1919,12 +1986,13 @@ void Acl_table_user_reader::add_row_to_acl_users(ACL_USER &user) {
   password_life.password_lock_time =
       user.password_locked_state.get_password_lock_time_days();
   password_life.update_password_lock_time = true;
+
   acl_users_add_one(user.user, user.host.get_host(), user.ssl_type,
                     user.ssl_cipher, user.x509_issuer, user.x509_subject,
                     &user.user_resource, user.access, user.plugin, auth,
                     second_auth, user.password_last_changed, password_life,
                     false, *m_restrictions, password_life.failed_login_attempts,
-                    password_life.password_lock_time, m_thd);
+                    password_life.password_lock_time, user.m_mfa, m_thd);
 }
 
 /**
@@ -2032,6 +2100,7 @@ Password_lock::Password_lock(Password_lock &&other) {
   std::swap(password_lock_time_days, other.password_lock_time_days);
   std::swap(failed_login_attempts, other.failed_login_attempts);
 }
+
 }  // namespace acl_table
 
 /**
@@ -2046,6 +2115,8 @@ Password_lock::Password_lock(Password_lock &&other) {
   @param [in] what_to_update   Bitmap indicating which attributes need to be
                                updated.
   @param [in] restrictions     Restrictions handle if there is any
+  @param [in] mfa              Interface pointer to Multi factor authentication
+  methods
 
   @return  Operation result
   @retval  0    OK.
@@ -2057,10 +2128,12 @@ Password_lock::Password_lock(Password_lock &&other) {
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
                        acl_table::Pod_user_what_to_update &what_to_update,
-                       Restrictions *restrictions /*= nullptr*/) {
-  acl_table::Acl_table_user_writer user_table(thd, table, combo, rights,
-                                              revoke_grant, can_create_user,
-                                              what_to_update, restrictions);
+                       Restrictions *restrictions /*= nullptr*/,
+                       I_multi_factor_auth *mfa /*= nullptr*/) {
+  acl_table::Acl_table_user_writer user_table(
+      thd, table, combo, rights, revoke_grant, can_create_user, what_to_update,
+      restrictions, mfa);
+
   LEX *lex = thd->lex;
   if (lex->alter_user_attribute !=
       enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
@@ -2090,7 +2163,8 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
   if (!(return_value.error || return_value.skip_cache_update)) {
     bool old_row_exists = (user_table.get_operation_mode() ==
                            acl_table::Acl_table_operation::OP_UPDATE);
-    bool builtin_plugin = auth_plugin_is_built_in(combo->plugin.str);
+    bool builtin_plugin =
+        auth_plugin_is_built_in(combo->first_factor_auth_info.plugin.str);
     bool update_password = (what_to_update.m_what & PLUGIN_ATTR);
 
     /*
@@ -2107,22 +2181,25 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
       password_change_time.time_type = MYSQL_TIMESTAMP_ERROR;
     clear_and_init_db_cache(); /* Clear privilege cache */
     if (old_row_exists) {
-      acl_update_user(combo->user.str, combo->host.str, lex->ssl_type,
-                      lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
-                      &lex->mqh, return_value.updated_rights, combo->plugin,
-                      combo->auth, return_value.second_cred,
-                      password_change_time, combo->alter_status,
-                      return_value.restrictions, what_to_update,
-                      return_value.password_lock.failed_login_attempts,
-                      return_value.password_lock.password_lock_time_days);
+      acl_update_user(
+          combo->user.str, combo->host.str, lex->ssl_type, lex->ssl_cipher,
+          lex->x509_issuer, lex->x509_subject, &lex->mqh,
+          return_value.updated_rights, combo->first_factor_auth_info.plugin,
+          combo->first_factor_auth_info.auth, return_value.second_cred,
+          password_change_time, combo->alter_status, return_value.restrictions,
+          what_to_update, return_value.password_lock.failed_login_attempts,
+          return_value.password_lock.password_lock_time_days,
+          return_value.multi_factor);
     } else
       acl_insert_user(thd, combo->user.str, combo->host.str, lex->ssl_type,
                       lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
-                      &lex->mqh, return_value.updated_rights, combo->plugin,
-                      combo->auth, password_change_time, combo->alter_status,
-                      return_value.restrictions,
+                      &lex->mqh, return_value.updated_rights,
+                      combo->first_factor_auth_info.plugin,
+                      combo->first_factor_auth_info.auth, password_change_time,
+                      combo->alter_status, return_value.restrictions,
                       return_value.password_lock.failed_login_attempts,
-                      return_value.password_lock.password_lock_time_days);
+                      return_value.password_lock.password_lock_time_days,
+                      return_value.multi_factor);
   }
   return return_value.error;
 }

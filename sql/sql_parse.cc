@@ -3595,10 +3595,11 @@ int mysql_execute_command(THD *thd, bool first_level) {
           set_var_password *setpasswd = static_cast<set_var_password *>(var);
           if (setpasswd->has_generated_password()) {
             const LEX_USER *user = setpasswd->get_user();
-            generated_passwords.push_back(
-                {std::string(user->user.str, user->user.length),
-                 std::string(user->host.str, user->host.length),
-                 setpasswd->get_generated_password()});
+            random_password_info p{
+                std::string(user->user.str, user->user.length),
+                std::string(user->host.str, user->host.length),
+                setpasswd->get_generated_password(), 1};
+            generated_passwords.push_back(p);
           }
         }
         if (generated_passwords.size() > 0) {
@@ -4508,11 +4509,22 @@ int mysql_execute_command(THD *thd, bool first_level) {
       Security_context *sctx = thd->security_context();
       bool own_password_expired = sctx->password_expired();
       bool check_permission = true;
+      /* track if it is ALTER USER registration step */
+      bool finish_reg = false;
+      bool init_reg = false;
+      bool unregister = false;
+      bool is_self = false;
 
       List_iterator<LEX_USER> user_list(lex->users_list);
       while ((tmp_user = user_list++)) {
+        LEX_MFA *tmp_lex_mfa;
+        List_iterator<LEX_MFA> mfa_list_it(tmp_user->mfa_list);
+        while ((tmp_lex_mfa = mfa_list_it++)) {
+          finish_reg |= tmp_lex_mfa->finish_registration;
+          init_reg |= tmp_lex_mfa->init_registration;
+          unregister |= tmp_lex_mfa->unregister;
+        }
         bool update_password_only = false;
-        bool is_self = false;
         bool second_password = false;
 
         /* If it is an empty lex_user update it with current user */
@@ -4529,15 +4541,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
         /* copy password expire attributes to individual lex user */
         user->alter_status = thd->lex->alter_password;
-
         /*
           Only self password change is non-privileged operation. To detect the
           same, we find :
           (1) If it is only password change operation
           (2) If this operation is on self
         */
-        if (user->uses_identified_by_clause &&
-            !user->uses_identified_with_clause &&
+        if (user->first_factor_auth_info.uses_identified_by_clause &&
+            !user->first_factor_auth_info.uses_identified_with_clause &&
             !thd->lex->mqh.specified_limits &&
             !user->alter_status.update_account_locked_column &&
             !user->alter_status.update_password_expired_column &&
@@ -4556,6 +4567,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
                           user->user.str) &&
                   !my_strcasecmp(&my_charset_latin1, user->host.str,
                                  sctx->priv_host().str);
+        if (finish_reg || init_reg) {
+          /* Registration step is allowed only for connecting users */
+          if (!is_self) {
+            my_error(ER_INVALID_USER_FOR_REGISTRATION, MYF(0), sctx->user().str,
+                     sctx->priv_host().str);
+            goto error;
+          }
+        }
         /*
           if user executes ALTER statement to change password only
           for himself then skip access check - Provided preference to
@@ -4565,7 +4584,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
         if (user->discard_old_password || user->retain_current_password) {
           second_password = true;
         }
-        if ((update_password_only || user->discard_old_password) && is_self) {
+        if ((update_password_only || user->discard_old_password || init_reg ||
+             finish_reg || unregister) &&
+            is_self) {
           changing_own_password = update_password_only;
           if (second_password) {
             if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), nullptr,
@@ -4589,9 +4610,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
           check_permission = false;
         }
 
-        if (is_self && (user->uses_identified_by_clause ||
-                        user->uses_identified_with_clause ||
-                        user->uses_authentication_string_clause)) {
+        if (is_self &&
+            (user->first_factor_auth_info.uses_identified_by_clause ||
+             user->first_factor_auth_info.uses_identified_with_clause ||
+             user->first_factor_auth_info.uses_authentication_string_clause)) {
           changing_own_password = true;
           break;
         }
@@ -4608,9 +4630,17 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
         goto error;
       }
-
       /* Conditionally writes to binlog */
       res = mysql_alter_user(thd, lex->users_list, lex->drop_if_exists);
+      /*
+        Iterate over list of MFA methods, check if all auth plugin methods
+        which need registration steps have completed, then turn OFF server
+        sandbox mode
+      */
+      tmp_user = lex->users_list[0];
+      if (!res && is_self && finish_reg) {
+        if (turn_off_sandbox_mode(thd, tmp_user)) return true;
+      }
       break;
     }
     default:
@@ -5080,10 +5110,15 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
         lex->set_trg_event_type_for_tables();
 
         int error [[maybe_unused]];
-        if (unlikely(thd->security_context()->password_expired() &&
-                     lex->sql_command != SQLCOM_SET_PASSWORD &&
-                     lex->sql_command != SQLCOM_ALTER_USER)) {
-          my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+        if (unlikely(
+                (thd->security_context()->password_expired() ||
+                 thd->security_context()->is_in_registration_sandbox_mode()) &&
+                lex->sql_command != SQLCOM_SET_PASSWORD &&
+                lex->sql_command != SQLCOM_ALTER_USER)) {
+          if (thd->security_context()->is_in_registration_sandbox_mode())
+            my_error(ER_PLUGIN_REQUIRES_REGISTRATION, MYF(0));
+          else
+            my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
           error = 1;
         } else {
           resourcegroups::Resource_group *src_res_grp = nullptr;
@@ -5109,8 +5144,8 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
     }
   } else {
     /*
-      Log the failed raw query in the Performance Schema. This statement did not
-      parse, so there is no way to tell if it may contain a password of not.
+      Log the failed raw query in the Performance Schema. This statement did
+      not parse, so there is no way to tell if it may contain a password of not.
 
       The tradeoff is:
         a) If we do log the query, a user typing by accident a broken query
@@ -6248,6 +6283,7 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
         Process the kill:
         if thread is not already undergoing any kill connection.
         Killer must have SYSTEM_USER privilege iff killee has the same privilege
+        privilege
       */
       if (tmp->killed != THD::KILL_CONNECTION) {
         if (tmp->is_system_user() && !thd->is_system_user()) {
@@ -6525,12 +6561,12 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
   definer->host.str = sctx->priv_host().str;
   definer->host.length = strlen(definer->host.str);
 
-  definer->plugin = EMPTY_CSTR;
-  definer->auth = NULL_CSTR;
+  definer->first_factor_auth_info.plugin = EMPTY_CSTR;
+  definer->first_factor_auth_info.auth = NULL_CSTR;
   definer->current_auth = NULL_CSTR;
-  definer->uses_identified_with_clause = false;
-  definer->uses_identified_by_clause = false;
-  definer->uses_authentication_string_clause = false;
+  definer->first_factor_auth_info.uses_identified_with_clause = false;
+  definer->first_factor_auth_info.uses_identified_by_clause = false;
+  definer->first_factor_auth_info.uses_authentication_string_clause = false;
   definer->uses_replace_clause = false;
   definer->retain_current_password = false;
   definer->discard_old_password = false;
@@ -6541,7 +6577,7 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
   definer->alter_status.account_locked = false;
   definer->alter_status.update_password_require_current =
       Lex_acl_attrib_udyn::DEFAULT;
-  definer->has_password_generator = false;
+  definer->first_factor_auth_info.has_password_generator = false;
   definer->alter_status.failed_login_attempts = 0;
   definer->alter_status.password_lock_time = 0;
   definer->alter_status.update_failed_login_attempts = false;
@@ -6562,7 +6598,7 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
 LEX_USER *create_default_definer(THD *thd) {
   LEX_USER *definer;
 
-  if (!(definer = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return nullptr;
+  if (!(definer = (LEX_USER *)LEX_USER::alloc(thd))) return nullptr;
 
   thd->get_definer(definer);
 
@@ -6592,23 +6628,25 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user) {
         This is needed because a LEX_USER is both used as a component in an
         AST and as a specifier for a particular user in the ACL subsystem.
       */
-      default_definer->uses_authentication_string_clause =
-          user->uses_authentication_string_clause;
-      default_definer->uses_identified_by_clause =
-          user->uses_identified_by_clause;
-      default_definer->uses_identified_with_clause =
-          user->uses_identified_with_clause;
+      default_definer->first_factor_auth_info
+          .uses_authentication_string_clause =
+          user->first_factor_auth_info.uses_authentication_string_clause;
+      default_definer->first_factor_auth_info.uses_identified_by_clause =
+          user->first_factor_auth_info.uses_identified_by_clause;
+      default_definer->first_factor_auth_info.uses_identified_with_clause =
+          user->first_factor_auth_info.uses_identified_with_clause;
       default_definer->uses_replace_clause = user->uses_replace_clause;
       default_definer->current_auth.str = user->current_auth.str;
       default_definer->current_auth.length = user->current_auth.length;
       default_definer->retain_current_password = user->retain_current_password;
       default_definer->discard_old_password = user->discard_old_password;
-      default_definer->plugin.str = user->plugin.str;
-      default_definer->plugin.length = user->plugin.length;
-      default_definer->auth.str = user->auth.str;
-      default_definer->auth.length = user->auth.length;
+      default_definer->first_factor_auth_info.plugin =
+          user->first_factor_auth_info.plugin;
+      default_definer->first_factor_auth_info.auth =
+          user->first_factor_auth_info.auth;
       default_definer->alter_status = user->alter_status;
-      default_definer->has_password_generator = user->has_password_generator;
+      default_definer->first_factor_auth_info.has_password_generator =
+          user->first_factor_auth_info.has_password_generator;
       return default_definer;
     }
   }

@@ -50,6 +50,16 @@ The following options may be given as the first argument:
  library, for example exit() from libc.so
  -a, --ansi          Use ANSI SQL syntax instead of MySQL syntax. This mode
  will also set transaction isolation level 'serializable'.
+ --authentication-policy=name 
+ Defines policies around how user account can be
+ configured with Multi Factor authentication methods
+ during CREATE/ALTER USER statement. This variable accepts
+ at-most 3 comma separated list of authentication plugin
+ names where each value refers to what authentication
+ plugin should be used in place of 1st Factor
+ Authentication (FA), 2FA and 3FA method. Value *
+ indicates any plugin is allowed for 1FA, 2FA and 3FA
+ method. An empty value means nth FA method is optional.
  --auto-increment-increment[=#] 
  Auto-increment columns are incremented by this
  --auto-increment-offset[=#] 
@@ -1598,6 +1608,7 @@ admin-ssl-crlpath (No default value)
 admin-ssl-key (No default value)
 admin-tls-ciphersuites (No default value)
 allow-suspicious-udfs FALSE
+authentication-policy *,,
 auto-increment-increment 1
 auto-increment-offset 1
 autocommit TRUE

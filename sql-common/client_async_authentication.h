@@ -106,6 +106,7 @@ struct mysql_async_auth {
   /** Used by caching_sha256_password plugin */
   int client_auth_plugin_state;
   authsm_function state_function;
+  uint current_factor_index;
 };
 
 /*

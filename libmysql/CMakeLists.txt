@@ -273,6 +273,9 @@ ENDIF()
 # LDAP authentication SASL client plug-in
 ADD_SUBDIRECTORY(authentication_ldap)
 
+# FIDO authentication client plugin
+ADD_SUBDIRECTORY(authentication_fido)
+
 # authentication kerberos client plug-in
 ADD_SUBDIRECTORY(authentication_kerberos)
 

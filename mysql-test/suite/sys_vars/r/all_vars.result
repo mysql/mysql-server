@@ -16,6 +16,8 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 activate_all_roles_on_login
 activate_all_roles_on_login
+authentication_policy
+authentication_policy
 binlog_encryption
 binlog_encryption
 binlog_rotate_encryption_master_key_at_startup

@@ -489,7 +489,9 @@ void Rewriter_user::append_literal_secret(String *str) const {
 */
 
 void Rewriter_user::append_auth_str(LEX_USER *user, String *str) const {
-  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_auth(user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length,
+                   system_charset_info);
   append_query_string(m_thd, system_charset_info, &from_auth, str);
 }
 /**
@@ -655,8 +657,9 @@ void Rewriter_user::rewrite_account_lock_state(LEX *lex, String *str) const {
 void Rewriter_user::append_plugin_name(const LEX_USER *user,
                                        String *str) const {
   str->append(STRING_WITH_LEN(" WITH "));
-  if (user->plugin.length > 0) {
-    String from_plugin(user->plugin.str, user->plugin.length,
+  if (user->first_factor_auth_info.plugin.length > 0) {
+    String from_plugin(user->first_factor_auth_info.plugin.str,
+                       user->first_factor_auth_info.plugin.length,
                        system_charset_info);
     append_query_string(m_thd, system_charset_info, &from_plugin, str);
   } else {
@@ -664,6 +667,37 @@ void Rewriter_user::append_plugin_name(const LEX_USER *user,
     String default_plugin(def_plugin_name.c_str(), def_plugin_name.length(),
                           system_charset_info);
     append_query_string(m_thd, system_charset_info, &default_plugin, str);
+  }
+}
+
+/**
+  Append the authentication plugin name from LEX_MFA for the user
+
+  @param [in]       user    User to retrieve the plugin string
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::append_mfa_plugin_name(const LEX_MFA *user,
+                                           String *str) const {
+  if (user->plugin.length > 0) {
+    str->append(STRING_WITH_LEN(" WITH "));
+    String from_plugin(user->plugin.str, user->plugin.length,
+                       system_charset_info);
+    append_query_string(m_thd, system_charset_info, &from_plugin, str);
+  }
+}
+
+/**
+  Append the authentication string from LEX_MFA for the user
+
+  @param [in]       user    User to retrieve the plugin string
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::append_mfa_auth_str(const LEX_MFA *user,
+                                        String *str) const {
+  if (user->auth.length > 0) {
+    str->append(STRING_WITH_LEN(" AS "));
+    String auth_str(user->auth.str, user->auth.length, system_charset_info);
+    append_query_string(m_thd, system_charset_info, &auth_str, str);
   }
 }
 /**
@@ -772,21 +806,53 @@ bool Rewriter_create_user::rewrite(String &rlb) const {
 void Rewriter_create_user::append_user_auth_info(LEX_USER *user, bool comma,
                                                  String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  if (user->uses_identified_by_clause || user->uses_identified_with_clause ||
-      user->uses_authentication_string_clause ||
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  LEX_MFA *tmp_mfa;
+  if (user->with_initial_auth) {
+    /*
+      In case of passwordless user, server fiddles with user specified syntax,
+      thus we are expected to write the original syntax.
+      ex:
+      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
+         IDENTIFIED BY 'abc';
+      above sql is converted by server as:
+      CREATE USER foo IDENTIFIED BY 'abc' AND IDENTIFIED WITH
+      authentication_fido;
+
+      This block ensures that query is rewritten in logs as:
+      CREATE USER foo IDENTIFIED WITH authentication_fido INITIAL AUTHENTICATION
+         IDENTIFIED WITH <default auth plugin> AS <auth_hash_string>;
+    */
+    assert(user->mfa_list.size());
+    /* point to 2nd factor which is authentication_fido */
+    tmp_mfa = mfa_list++;
+    str->append(STRING_WITH_LEN(" IDENTIFIED"));
+    append_mfa_plugin_name(tmp_mfa, str);
+    str->append(STRING_WITH_LEN(" INITIAL AUTHENTICATION"));
+  }
+  if (user->first_factor_auth_info.uses_identified_by_clause ||
+      user->first_factor_auth_info.uses_identified_with_clause ||
+      user->first_factor_auth_info.uses_authentication_string_clause ||
       m_consumer_type == Consumer_type::BINLOG) {
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
-    if (user->uses_identified_with_clause ||
+    if (user->first_factor_auth_info.uses_identified_with_clause ||
         m_consumer_type == Consumer_type::BINLOG)
       append_plugin_name(user, str);
 
-    if (user->uses_identified_by_clause &&
+    if (user->first_factor_auth_info.uses_identified_by_clause &&
         m_consumer_type == Consumer_type::TEXTLOG) {
       str->append(STRING_WITH_LEN(" BY "));
       append_literal_secret(str);
-    } else if (user->auth.length > 0) {
+    } else if (user->first_factor_auth_info.auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
+    }
+  }
+  if (user->mfa_list.size() && !user->with_initial_auth) {
+    while ((tmp_mfa = mfa_list++)) {
+      str->append(STRING_WITH_LEN(" AND IDENTIFIED"));
+      append_mfa_plugin_name(tmp_mfa, str);
+      append_mfa_auth_str(tmp_mfa, str);
     }
   }
 }
@@ -847,14 +913,15 @@ bool Rewriter_alter_user::rewrite(String &rlb) const {
 void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
                                                 String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  if (user->uses_identified_by_clause || user->uses_identified_with_clause ||
-      user->uses_authentication_string_clause) {
+  if (user->first_factor_auth_info.uses_identified_by_clause ||
+      user->first_factor_auth_info.uses_identified_with_clause ||
+      user->first_factor_auth_info.uses_authentication_string_clause) {
     str->append(STRING_WITH_LEN(" IDENTIFIED"));
-    if (user->uses_identified_with_clause ||
+    if (user->first_factor_auth_info.uses_identified_with_clause ||
         m_consumer_type == Consumer_type::BINLOG)
       append_plugin_name(user, str);
 
-    if (user->uses_identified_by_clause &&
+    if (user->first_factor_auth_info.uses_identified_by_clause &&
         m_consumer_type == Consumer_type::TEXTLOG) {
       str->append(STRING_WITH_LEN(" BY "));
       append_literal_secret(str);
@@ -862,13 +929,51 @@ void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
       if (user->uses_replace_clause) {
         str->append(STRING_WITH_LEN(" REPLACE <secret>"));
       }
-    } else if (user->auth.length > 0) {
+    } else if (user->first_factor_auth_info.auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
     }
 
     if (user->retain_current_password) {
       str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
+    }
+  }
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  if (user->mfa_list.size()) {
+    LEX_MFA *tmp_mfa;
+    while ((tmp_mfa = mfa_list++)) {
+      if (tmp_mfa->unregister) {
+        str->append(" ");
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR UNREGISTER"));
+      } else if (tmp_mfa->finish_registration || tmp_mfa->modify_factor) {
+        /*
+          ALTER USER foo Nth FACTOR FINISH REGISTRATION;
+          is binlogged as
+          ALTER USER foo MODIFY Nth FACTOR IDENTIFIED WITH <plugin>
+             AS <auth-str>;
+        */
+        str->append(STRING_WITH_LEN(" MODIFY "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+        str->append(STRING_WITH_LEN(" IDENTIFIED"));
+        append_mfa_plugin_name(tmp_mfa, str);
+        append_mfa_auth_str(tmp_mfa, str);
+      } else if (tmp_mfa->drop_factor) {
+        str->append(STRING_WITH_LEN(" DROP "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+      } else if (tmp_mfa->add_factor) {
+        str->append(STRING_WITH_LEN(" ADD "));
+        str->append(std::to_string(tmp_mfa->nth_factor).c_str());
+        str->append(STRING_WITH_LEN(" FACTOR"));
+        if (tmp_mfa->uses_identified_by_clause ||
+            tmp_mfa->uses_identified_with_clause) {
+          str->append(STRING_WITH_LEN(" IDENTIFIED"));
+          append_mfa_plugin_name(tmp_mfa, str);
+          append_mfa_auth_str(tmp_mfa, str);
+        }
+      }
     }
   }
 
@@ -952,16 +1057,22 @@ void Rewriter_show_create_user::rewrite_user_application_user_metadata(
 */
 void Rewriter_show_create_user::append_auth_str(LEX_USER *user,
                                                 String *str) const {
-  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_auth(user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length,
+                   system_charset_info);
 
   if (show_params_ && show_params_->print_identified_with_as_hex_ &&
-      user->auth.length) {
-    for (const char *c = user->auth.str;
-         static_cast<size_t>(c - user->auth.str) < user->auth.length; c++) {
+      user->first_factor_auth_info.auth.length) {
+    for (const char *c = user->first_factor_auth_info.auth.str;
+         static_cast<size_t>(c - user->first_factor_auth_info.auth.str) <
+         user->first_factor_auth_info.auth.length;
+         c++) {
       if (!my_isgraph(system_charset_info, *c)) {
-        from_auth.alloc(user->auth.length * 2 + 3);
-        str_to_hex(from_auth.c_ptr_quick(), user->auth.str, user->auth.length);
-        from_auth.length(user->auth.length * 2 + 2);
+        from_auth.alloc(user->first_factor_auth_info.auth.length * 2 + 3);
+        str_to_hex(from_auth.c_ptr_quick(),
+                   user->first_factor_auth_info.auth.str,
+                   user->first_factor_auth_info.auth.length);
+        from_auth.length(user->first_factor_auth_info.auth.length * 2 + 2);
         str->append(from_auth);
 
         return;
@@ -1001,15 +1112,42 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
                                                       bool comma,
                                                       String *str) const {
   append_auth_id(m_thd, user, comma, str);
+  List_iterator<LEX_MFA> mfa_list(user->mfa_list);
+  LEX_MFA *tmp_mfa;
+  bool is_passwordless = false;
+  if (user->mfa_list.size()) {
+    tmp_mfa = mfa_list++;
+    is_passwordless = tmp_mfa->passwordless;
+    if (is_passwordless) {
+      str->append(STRING_WITH_LEN(" IDENTIFIED"));
+      append_mfa_plugin_name(tmp_mfa, str);
+      str->append(STRING_WITH_LEN(" INITIAL AUTHENTICATION"));
+    }
+  }
   assert(m_thd->lex->contains_plaintext_password == false);
   str->append(STRING_WITH_LEN(" IDENTIFIED"));
   append_plugin_name(user, str);
-  if (user->auth.length > 0) {
+  if (user->first_factor_auth_info.auth.length > 0) {
     str->append(STRING_WITH_LEN(" AS "));
     if (show_params_ && show_params_->hide_password_hash) {
       append_literal_secret(str);
     } else {
       append_auth_str(user, str);
+    }
+  }
+  mfa_list = user->mfa_list;
+  if (user->mfa_list.size() && !is_passwordless) {
+    while ((tmp_mfa = mfa_list++)) {
+      str->append(STRING_WITH_LEN(" AND IDENTIFIED WITH "));
+      String plugin_str(tmp_mfa->plugin.str, tmp_mfa->plugin.length,
+                        system_charset_info);
+      append_query_string(m_thd, system_charset_info, &plugin_str, str);
+      if (tmp_mfa->auth.length > 0) {
+        str->append(STRING_WITH_LEN(" AS "));
+        String auth_str(tmp_mfa->auth.str, tmp_mfa->auth.length,
+                        system_charset_info);
+        append_query_string(m_thd, system_charset_info, &auth_str, str);
+      }
     }
   }
 }
@@ -1078,7 +1216,9 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
                         system_charset_info);
 #endif
     } else {
-      auth_str = String(user->auth.str, user->auth.length, system_charset_info);
+      auth_str =
+          String(user->first_factor_auth_info.auth.str,
+                 user->first_factor_auth_info.auth.length, system_charset_info);
     }
     /*
       Construct :
@@ -1089,7 +1229,7 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
     rlb.append(STRING_WITH_LEN("@"));
     append_query_string(m_thd, system_charset_info, &current_host, &rlb);
     rlb.append(STRING_WITH_LEN(" IDENTIFIED WITH '"));
-    rlb.append(user->plugin.str);
+    rlb.append(user->first_factor_auth_info.plugin.str);
     rlb.append(STRING_WITH_LEN("' AS "));
     append_query_string(m_thd, system_charset_info, &auth_str, &rlb);
     if (user->retain_current_password)

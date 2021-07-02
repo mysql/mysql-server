@@ -2876,8 +2876,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
     get_global_acl_cache()->increase_version();
@@ -3059,8 +3059,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
     get_global_acl_cache()->increase_version();
@@ -3510,9 +3510,10 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
         existing_users.insert(target_user);
       what_to_set.m_what |= ACCESS_RIGHTS_ATTR;
-      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                    user, (!db ? rights : 0), revoke_grant,
-                                    false, what_to_set, &restrictions))) {
+      if ((ret = replace_user_table(
+               thd, tables[ACL_TABLES::TABLE_USER].table, user,
+               (!db ? rights : 0), revoke_grant, false, what_to_set,
+               &restrictions, (this_user ? this_user->m_mfa : nullptr)))) {
         error = true;
         if (ret < 0) break;
 
@@ -3678,8 +3679,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
           mysql_audit_notify(
               thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
               thd->is_error(), existing_user->user.str, existing_user->host.str,
-              existing_user->plugin.str, is_role_id(existing_user), nullptr,
-              nullptr);
+              existing_user->first_factor_auth_info.plugin.str,
+              is_role_id(existing_user), nullptr, nullptr);
       }
     }
 
@@ -5160,9 +5161,9 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
             acl_table::USER_ATTRIBUTE_RESTRICTIONS;
         restrictions.set_db(db_restrictions);
       }
-      if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                                    lex_user, rights, true, false,
-                                    what_to_update, &restrictions))) {
+      if ((ret = replace_user_table(
+               thd, tables[ACL_TABLES::TABLE_USER].table, lex_user, rights,
+               true, false, what_to_update, &restrictions, acl_user->m_mfa))) {
         result = true;
         if (ret < 0) break;
 

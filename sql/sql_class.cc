@@ -2241,10 +2241,8 @@ void THD::get_definer(LEX_USER *definer) {
   if (slave_thread && has_invoker()) {
     definer->user = m_invoker_user;
     definer->host = m_invoker_host;
-    definer->plugin.str = "";
-    definer->plugin.length = 0;
-    definer->auth.str = nullptr;
-    definer->auth.length = 0;
+    definer->first_factor_auth_info.plugin = EMPTY_CSTR;
+    definer->first_factor_auth_info.auth = {};
   } else
     get_default_definer(this, definer);
 }

@@ -352,6 +352,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
+  auth/sql_mfa.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
   auth/partial_revokes.cc

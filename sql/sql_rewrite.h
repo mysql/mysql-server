@@ -159,6 +159,10 @@ class Rewriter_user : public I_rewriter {
   virtual void append_auth_str(LEX_USER *lex, String *str) const;
   /* Append the authentication plugin name for the user */
   void append_plugin_name(const LEX_USER *user, String *str) const;
+  /* Append authentication plugin name from LEX_MFA for the user */
+  void append_mfa_plugin_name(const LEX_MFA *user, String *str) const;
+  /* Append the authentication string from LEX_MFA for the user */
+  void append_mfa_auth_str(const LEX_MFA *user, String *str) const;
 
   /*
     Rewrites some of the user specific properties which are common to

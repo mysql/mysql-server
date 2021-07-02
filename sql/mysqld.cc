@@ -928,8 +928,6 @@ MySQL clients support the protocol:
 #include <atomic>
 #include <functional>
 #include <new>
-#include <string>
-#include <vector>
 
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_LOCK_ORDER
@@ -1110,6 +1108,7 @@ static PSI_mutex_key key_LOCK_tls_ctx_options;
 static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 static PSI_mutex_key key_LOCK_partial_revokes;
+static PSI_mutex_key key_LOCK_authentication_policy;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1470,6 +1469,15 @@ char server_version[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
+char *opt_authentication_policy;
+std::vector<std::string> authentication_policy_list;
+/*
+  keep track of plugin_ref until plugins used in opt_authentication_policy
+  are properly validated and updated. This will ensure that plugin is not
+  unloaded in between check() and update() of authentication_policy variable
+*/
+std::vector<plugin_ref> authentication_policy_plugin_ref;
+
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
 
@@ -1573,6 +1581,12 @@ mysql_mutex_t LOCK_keyring_operations;
   MASTER KEY' and 'SET @@GLOBAL.binlog_encryption=ON/OFF' in parallel.
 */
 mysql_mutex_t LOCK_rotate_binlog_master_key;
+
+/*
+  The below lock protects to execute commands 'CREATE/ALTER USER' and
+  'SET @@GLOBAL.authentication_policy...' in parallel.
+*/
+mysql_mutex_t LOCK_authentication_policy;
 
 bool mysqld_server_started = false;
 /**
@@ -2673,6 +2687,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
+  mysql_mutex_destroy(&LOCK_authentication_policy);
 }
 
 /****************************************************************************
@@ -4489,6 +4504,127 @@ static void init_com_statement_info() {
 #endif
 
 /**
+  Parse @@authentication_policy variable value.
+
+  @param [in]  val            Buffer holding variable value.
+  @param [out] policy_list    Vector holding the parsed values.
+
+  @retval  false    OK
+  @retval  true     Error
+*/
+bool parse_authentication_policy(char *val,
+                                 std::vector<std::string> &policy_list) {
+  std::string token;
+  std::string policy_val(val);
+  std::stringstream policy_str(val);
+  bool is_empty = false;
+  /* count comma */
+  size_t comma_cnt = std::count(policy_val.begin(), policy_val.end(), ',');
+  if (comma_cnt >= MAX_AUTH_FACTORS) return true;
+  /*
+    While parsing ensure that an empty value which means an optional nth factor,
+    should be followed with an empty value only.
+    Below are some invalid values:
+    'caching_sha2_password,,authentication_fido'
+    ',authentication_fido,authentication_ldap_simple'
+    ',authentication_fido,'
+    ',,'
+  */
+  while (getline(policy_str, token, ',')) {
+    std::string s(token);
+    /* trim spaces */
+    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+    if (s.length() && is_empty) {
+      policy_list.clear();
+      return true;
+    };
+    if (!s.length()) is_empty = true;
+    policy_list.push_back(s);
+  }
+  /*
+    Values like 'caching_sha2_password,authentication_fido,' or
+    'caching_sha2_password,,' will not capture the last empty value, thus append
+    an empty value to the list.
+  */
+  if ((comma_cnt == policy_list.size()) &&
+      policy_list.size() < MAX_AUTH_FACTORS)
+    policy_list.push_back("");
+
+  if (policy_list.size() > MAX_AUTH_FACTORS) {
+    policy_list.clear();
+    return true;
+  }
+  return false;
+}
+
+/**
+  Validate @@authentication_policy variable value.
+
+  @param [in]  val    Buffer holding variable value.
+
+  @retval  false    success
+  @retval  true     failure
+*/
+bool validate_authentication_policy(char *val) {
+  std::vector<std::string> list;
+  if (parse_authentication_policy(val, list)) return true;
+  for (auto it = list.begin(); it != list.end(); it++) {
+    /* plugin name in first place holder cannot be empty */
+    if (!it->length()) {
+      if (list.size() == 1 || it == list.begin()) return true;
+    }
+    /* skip special characters like * and <empty> string */
+    if (!it->length()) continue;
+    if (!it->compare("*")) continue;
+    /* validate plugin name */
+    plugin_ref p = my_plugin_lock_by_name(nullptr, to_lex_cstring(it->c_str()),
+                                          MYSQL_AUTHENTICATION_PLUGIN);
+    if (!p) goto error;
+    st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(p)->info;
+    /*
+      ensure 2nd and 3rd factor auth plugins which store password in mysql
+      server are not allowed.
+    */
+    if (it != list.begin() &&
+        auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) {
+      authentication_policy_plugin_ref.push_back(p);
+      goto error;
+    }
+    /*
+      ensure plugin name in first place holder cannot be auth plugin
+      which requires registration step.
+    */
+    if (it == list.begin() &&
+        auth->authentication_flags & AUTH_FLAG_REQUIRES_REGISTRATION) {
+      authentication_policy_plugin_ref.push_back(p);
+      goto error;
+    }
+    authentication_policy_plugin_ref.push_back(p);
+  }
+  return false;
+error:
+  for (auto p : authentication_policy_plugin_ref) plugin_unlock(nullptr, p);
+  authentication_policy_plugin_ref.clear();
+  return true;
+}
+
+/**
+  Update @@authentication_policy variable value.
+
+  @retval  false    success
+  @retval  true     failure
+*/
+bool update_authentication_policy() {
+  std::vector<std::string> list;
+  if (parse_authentication_policy(opt_authentication_policy, list)) return true;
+  /* update the actual policy list only after validation is successfull */
+  authentication_policy_list = list;
+  /* release plugin reference */
+  for (auto p : authentication_policy_plugin_ref) plugin_unlock(nullptr, p);
+  authentication_policy_plugin_ref.clear();
+  return false;
+}
+/**
   Create a replication file name or base for file names.
 
   @param     key Instrumentation key used to track allocations
@@ -4729,7 +4865,15 @@ int init_common_variables() {
   if (!is_help_or_validate_option()) {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
-
+  if (opt_authentication_policy &&
+      validate_authentication_policy(opt_authentication_policy)) {
+    /* --authentication_policy is set to invalid value */
+    LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
+    return 1;
+  } else {
+    /* update the value */
+    update_authentication_policy();
+  }
   if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
@@ -5124,6 +5268,8 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_admin_tls_ctx_options, &LOCK_admin_tls_ctx_options,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_partial_revokes, &LOCK_partial_revokes,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_authentication_policy, &LOCK_authentication_policy,
                    MY_MUTEX_INIT_FAST);
   return 0;
 }
@@ -11222,7 +11368,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_monitor_info_run_lock, "Source_IO_monitor::run_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_delegate_connection_mutex, "LOCK_delegate_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"}
 };
 /* clang-format on */
 

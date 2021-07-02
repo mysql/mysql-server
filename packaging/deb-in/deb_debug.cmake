@@ -101,6 +101,7 @@ SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/debug/authentication_fido_client.so
 usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
@@ -203,6 +204,7 @@ usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/component_test_page_track_component.so
+usr/lib/mysql/plugin/debug/authentication_fido.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 ")
   ENDIF()

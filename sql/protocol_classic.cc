@@ -760,6 +760,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed system variable</td></tr>
@@ -774,7 +777,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
+  00 00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -786,6 +789,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
       <td>name</td>
       <td>name of the changed schema</td></tr>
@@ -798,7 +804,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  01 05 04 74 65 73 74
+  01 00 05 04 74 65 73 74
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
@@ -813,6 +819,9 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
 
   <table>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
   <td>is_tracked</td>
   <td>`0x31` ("1") if state tracking got enabled.</td></tr>
@@ -825,13 +834,28 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   <table><tr>
   <td>
   ~~~~~~~~~~~~~~~~~~~~~
-  03 02 01 31
+  03 02 00 01 31
   ~~~~~~~~~~~~~~~~~~~~~
   </td><td>
   ~~~~~~~~~~~~~~~~~~~~~
   ...1
   ~~~~~~~~~~~~~~~~~~~~~
   </td></tr></table>
+
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_CLIENT_PLUGIN_INFO_TRACKER SESSION_CLIENT_PLUGIN_INFO_TRACKER
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>mandatory flag</td>
+      <td>Defines if this tracker should be mandatory or not</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>name</td>
+      <td>name of client authentication plugin</td></tr>
+  </table>
+
+  Note: mandatory flag indicates client has CLIENT_MANDATORY_SESSION_TRACK capability.
+  This capability also help clients to handle multi factor authentication.
 
   See also net_send_ok()
 */

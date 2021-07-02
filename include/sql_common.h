@@ -150,6 +150,19 @@ inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
 }
 #endif
 
+/*
+  Maximum allowed authentication plugins for a given user account.
+*/
+#define MAX_AUTHENTICATION_FACTOR 3
+/*
+  Placeholder to save plugin name and password of 1st, 2nd and 3rd
+  factor authentication methods.
+*/
+struct client_authentication_info {
+  char *plugin_name;
+  char *password;
+};
+
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
@@ -171,6 +184,7 @@ struct st_mysql_options_extention {
   unsigned int zstd_compression_level;
   bool connection_compressed;
   char *load_data_dir;
+  struct client_authentication_info client_auth_info[MAX_AUTHENTICATION_FACTOR];
 };
 
 struct MYSQL_METHODS {

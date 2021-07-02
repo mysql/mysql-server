@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <string>
+#include <vector>
 
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
@@ -340,6 +342,8 @@ enum enum_binlog_error_action {
   ABORT_SERVER = 1
 };
 extern const char *binlog_error_action_list[];
+extern char *opt_authentication_policy;
+extern std::vector<std::string> authentication_policy_list;
 
 extern ulong stored_program_cache_size;
 extern ulong back_log;
@@ -703,6 +707,7 @@ extern mysql_mutex_t LOCK_tls_ctx_options;
 extern mysql_mutex_t LOCK_admin_tls_ctx_options;
 extern mysql_mutex_t LOCK_rotate_binlog_master_key;
 extern mysql_mutex_t LOCK_partial_revokes;
+extern mysql_mutex_t LOCK_authentication_policy;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -787,6 +792,10 @@ void set_mysqld_partial_revokes(bool value);
 
 bool check_and_update_partial_revokes_sysvar(THD *thd);
 
+bool parse_authentication_policy(char *val,
+                                 std::vector<std::string> &policy_list);
+bool validate_authentication_policy(char *val);
+bool update_authentication_policy();
 #ifdef _WIN32
 
 bool is_windows_service();

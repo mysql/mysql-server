@@ -365,6 +365,7 @@ ACL_USER::ACL_USER() {
   password_reuse_interval = 0;
   use_default_password_reuse_interval = false;
   password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+  m_mfa = nullptr;
   /* Acl_credentials is initialized by its constructor */
 }
 
@@ -474,6 +475,7 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
   dst->password_require_current = password_require_current;
   dst->password_locked_state = password_locked_state;
+  dst->set_mfa(root, m_mfa);
   return dst;
 }
 
@@ -483,6 +485,24 @@ void ACL_USER::set_user(MEM_ROOT *mem, const char *user_arg) {
 
 void ACL_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
   set_hostname(&host, host_arg, mem);
+}
+
+void ACL_USER::set_mfa(MEM_ROOT *mem, I_multi_factor_auth *m) {
+  if (mem && m) {
+    m_mfa = new (mem) Multi_factor_auth_list(mem);
+    Multi_factor_auth_list *auth_list = m->get_multi_factor_auth_list();
+    /*
+      iterate over list of auth factors and make a new copy of each
+      individual auth factors
+    */
+    for (auto m_it : auth_list->get_mfa_list()) {
+      Multi_factor_auth_info *af = m_it->get_multi_factor_auth_info();
+      m_mfa->add_factor(new (mem)
+                            Multi_factor_auth_info(mem, af->get_lex_mfa()));
+    }
+  } else {
+    m_mfa = m;
+  }
 }
 
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
@@ -2675,7 +2695,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
                      acl_table::Pod_user_what_to_update &what_to_update,
-                     uint failed_login_attempts, int password_lock_time) {
+                     uint failed_login_attempts, int password_lock_time,
+                     const I_multi_factor_auth *mfa) {
   DBUG_TRACE;
   assert(assert_acl_cache_write_lock(current_thd));
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
@@ -2818,7 +2839,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           acl_user->password_require_current =
               password_life.update_password_require_current;
         }
-
+        /* get details of Multi factor authentication */
+        acl_user->set_mfa(nullptr, const_cast<I_multi_factor_auth *>(mfa));
         /* search complete: */
         break;
       }
@@ -2835,7 +2857,8 @@ void acl_users_add_one(const char *user, const char *host,
                        const MYSQL_TIME &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
-                       int password_lock_time, THD *thd [[maybe_unused]]) {
+                       int password_lock_time, const I_multi_factor_auth *mfa,
+                       THD *thd [[maybe_unused]]) {
   DBUG_TRACE;
   ACL_USER acl_user;
 
@@ -2923,6 +2946,9 @@ void acl_users_add_one(const char *user, const char *host,
 
   acl_user.password_locked_state.set_parameters(password_lock_time,
                                                 failed_login_attempts);
+  /* get details of Multi factor authentication */
+  acl_user.set_mfa(nullptr, const_cast<I_multi_factor_auth *>(mfa));
+
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())
     allow_all_hosts = true;  // Anyone can connect /* purecov: tested */
@@ -2943,12 +2969,13 @@ void acl_insert_user(THD *thd [[maybe_unused]], const char *user,
                      const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
-                     uint failed_login_attempts, int password_lock_time) {
+                     uint failed_login_attempts, int password_lock_time,
+                     const I_multi_factor_auth *mfa) {
   DBUG_TRACE;
   acl_users_add_one(user, host, ssl_type, ssl_cipher, x509_issuer, x509_subject,
                     mqh, privileges, plugin, auth, EMPTY_CSTR,
                     password_change_time, password_life, true, restrictions,
-                    failed_login_attempts, password_lock_time, thd);
+                    failed_login_attempts, password_lock_time, mfa, thd);
   /*
     acl_users_add_one() has added new entry as the last element in array,
     let us move it to the position which is correct according to sort order.

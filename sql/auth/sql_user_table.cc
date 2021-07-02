@@ -732,9 +732,11 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
               2. If SQLCOM_ALTER_USER, IDENTIFIED WITH clause is not used
               but IDENTIFIED BY is used.
             */
-            if (!extra_user->uses_identified_with_clause &&
+            if (!extra_user->first_factor_auth_info
+                     .uses_identified_with_clause &&
                 (command == SQLCOM_CREATE_USER ||
-                 extra_user->uses_identified_by_clause)) {
+                 extra_user->first_factor_auth_info
+                     .uses_identified_by_clause)) {
               log_user(thd, &warn_user, extra_user, comma);
               comma = true;
               log_warning = true;

@@ -11461,6 +11461,30 @@ ER_IB_MSG_UNDO_ENCRYPTION_INFO_LOADED
 ER_IB_WRN_ENCRYPTION_INFO_SIZE_MISMATCH
   eng "Ignoring encryption INFO size in redo log: %zu, expected: %zu"
 
+ER_INVALID_AUTHENTICATION_POLICY
+  eng "Option --authentication-policy is set to an invalid value. Please check if the specified authentication plugins are valid."
+
+ER_AUTHENTICATION_PLUGIN_REGISTRATION_FAILED
+  eng "Signature verification failed during registration."
+
+ER_AUTHENTICATION_PLUGIN_REGISTRATION_INSUFFICIENT_BUFFER
+  eng "Buffer too small to hold registration challenge response."
+
+ER_AUTHENTICATION_PLUGIN_AUTH_DATA_CORRUPT
+  eng "FIDO device authenticator data corrupt."
+
+ER_AUTHENTICATION_PLUGIN_SIGNATURE_CORRUPT
+  eng "FIDO device signature corrupt."
+
+ER_AUTHENTICATION_PLUGIN_VERIFY_SIGNATURE_FAILED
+  eng "Signature verification failed during authentication."
+
+ER_AUTHENTICATION_PLUGIN_OOM
+  eng "Out of memory."
+
+ER_AUTHENTICATION_PLUGIN_LOG
+  eng "Can't initialize logging service".
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

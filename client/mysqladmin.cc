@@ -56,7 +56,7 @@
 #define MAX_TRUNC_LENGTH 3
 
 const char *host = nullptr;
-char *user = nullptr, *opt_password = nullptr;
+char *user = nullptr;
 const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
@@ -64,7 +64,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval = 0;
 static bool option_force = false, interrupted = false, new_line = false,
             opt_compress = false, opt_relative = false, opt_verbose = false,
-            opt_vertical = false, tty_password = false, opt_nobeep;
+            opt_vertical = false, opt_nobeep;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint tcp_port = 0, option_wait = 0, option_silent = 0, nr_iterations;
 static uint opt_count_iterations = 0, my_end_arg = 0;
@@ -96,6 +96,7 @@ static uint ex_var_count, max_var_length, max_val_length;
 #include "sslopt-vars.h"
 
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 
 static void usage(void);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -228,11 +229,7 @@ static struct my_option my_long_options[] = {
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep,
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "asked from the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -329,24 +326,7 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
     case 'c':
       opt_count_iterations = 1;
       break;
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x'; /* Destroy argument */
-        if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+      PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case 's':
       option_silent++;
       break;
@@ -427,7 +407,6 @@ int main(int argc, char *argv[]) {
   temp_argc = argc;
 
   commands = temp_argv;
-  if (tty_password) opt_password = get_tty_password(NullS);
 
   (void)signal(SIGINT, endprog);  /* Here if abort */
   (void)signal(SIGTERM, endprog); /* Here if abort */
@@ -482,6 +461,8 @@ int main(int argc, char *argv[]) {
 
   set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
+
+  set_password_options(&mysql);
   if (sql_connect(&mysql, option_wait)) {
     /*
       We couldn't get an initial connection and will definitely exit.
@@ -566,7 +547,7 @@ int main(int argc, char *argv[]) {
   }            /* got connection */
 
   mysql_close(&mysql);
-  my_free(opt_password);
+  free_passwords();
   my_free(user);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
@@ -599,7 +580,7 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
   bool info = false;
 
   for (;;) {
-    if (mysql_real_connect(mysql, host, user, opt_password, NullS, tcp_port,
+    if (mysql_real_connect(mysql, host, user, nullptr, NullS, tcp_port,
                            unix_port, CLIENT_REMEMBER_OPTIONS)) {
       mysql->reconnect = true;
       if (info) {

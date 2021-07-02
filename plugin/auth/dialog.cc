@@ -349,5 +349,5 @@ static int init_dialog(char *unused1 [[maybe_unused]],
 
 mysql_declare_client_plugin(AUTHENTICATION) "dialog",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
-    {0, 1, 0}, "GPL", nullptr, init_dialog, nullptr, nullptr, perform_dialog,
-    nullptr mysql_end_client_plugin;
+    {0, 1, 0}, "GPL", nullptr, init_dialog, nullptr, nullptr,
+    nullptr, perform_dialog, nullptr, mysql_end_client_plugin;

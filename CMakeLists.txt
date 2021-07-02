@@ -714,7 +714,7 @@ INCLUDE(curl)
 INCLUDE(rapidjson)
 INCLUDE(fprofile)
 INCLUDE(gloves)
-
+INCLUDE(fido2)
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -808,6 +808,16 @@ ENDIF()
 OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
   ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
+
+IF(WITH_INTERNAL AND (NOT SOLARIS))
+  SET(WITH_AUTHENTICATION_FIDO_DEFAULT ON)
+ELSE()
+  SET(WITH_AUTHENTICATION_FIDO_DEFAULT OFF)
+ENDIF()
+
+OPTION(WITH_AUTHENTICATION_FIDO
+  "Report error if the FIDO authentication plugin cannot be built."
+  ${WITH_AUTHENTICATION_FIDO_DEFAULT})
 
 # On windows we need a non-standard package for CURL.
 IF(WITH_INTERNAL AND UNIX)
@@ -1466,6 +1476,7 @@ SET(SYSTEM_LIBRARIES
   SSL
   ZLIB
   ZSTD
+  FIDO
   )
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
@@ -1645,6 +1656,23 @@ ENDIF()
 # Add RapidJSON library.
 MYSQL_CHECK_RAPIDJSON()
 
+IF(WITH_AUTHENTICATION_FIDO)
+  IF(WITH_FIDO STREQUAL "system" AND
+    NOT WITH_SSL STREQUAL "system")
+      MESSAGE(WARNING "-DWITH_AUTHENTICATION_FIDO=ON")
+      MESSAGE(FATAL_ERROR "Inconsistent options for FIDO/SSL")
+  ENDIF()
+
+  # Add fido2 library
+  MYSQL_CHECK_FIDO()
+  MYSQL_CHECK_FIDO_DLLS()
+
+  IF(NOT FIDO_FOUND)
+    MESSAGE(FATAL_ERROR
+          "-DWITH_AUTHENTICATION_FIDO=ON, but missing required libraries")
+  ENDIF()
+ENDIF()
+
 MACRO(MY_INCLUDE_SYSTEM_DIRECTORIES LIBRARY)
   IF(${WITH_${LIBRARY}} STREQUAL "bundled")
     SET(BEFORE_OR_AFTER "BEFORE")
@@ -1694,11 +1722,27 @@ IF(LINUX)
   HAVE_PTHREAD_SETNAME_NP)
 ENDIF()
 
-IF(WITH_PROTOBUF STREQUAL "bundled")
+IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
-  SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
-  ADD_SUBDIRECTORY(extra/protobuf)
+  IF(WITH_PROTOBUF STREQUAL "bundled")
+    SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
+    ADD_SUBDIRECTORY(extra/protobuf)
+  ENDIF()
+
+  # The Fido library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
+  # INSTALL_RPATH must be set for all binaries linking with libfido2.
+  IF(WITH_FIDO STREQUAL "bundled")
+    SET(INSTALL_RPATH_FOR_FIDO2 1)
+
+    # Silence warning about CMP0075
+    CMAKE_PUSH_CHECK_STATE()
+    SET(CMAKE_REQUIRED_LIBRARIES)
+    ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CBOR_BUNDLE_SRC_PATH})
+    ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH})
+    CMAKE_POP_CHECK_STATE()
+  ENDIF()
+
   IF(NOT APPLE AND NOT WIN32)
     # Debug versions of plugins may be installed to <root>/lib/plugin/debug
     FOREACH(LINK_FLAG

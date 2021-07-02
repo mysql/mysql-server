@@ -155,6 +155,7 @@ class Session_sysvars_tracker : public State_tracker {
   Session_sysvars_tracker(const CHARSET_INFO *char_set) {
     orig_list = new (std::nothrow) vars_list(char_set);
     tool_list = new (std::nothrow) vars_list(char_set);
+    mark_as_mandatory(false);
   }
 
   /** Destructor */
@@ -205,7 +206,10 @@ class Current_schema_tracker : public State_tracker {
 
  public:
   /** Constructor */
-  Current_schema_tracker() { schema_track_inited = false; }
+  Current_schema_tracker() {
+    schema_track_inited = false;
+    mark_as_mandatory(false);
+  }
 
   bool enable(THD *thd) override { return update(thd); }
   bool check(THD *, set_var *) override { return false; }
@@ -240,11 +244,12 @@ class Session_gtids_ctx_encoder {
    This function SHALL encode the collected GTIDs into the buffer.
    @param thd The session context.
    @param buf The buffer that SHALL contain the encoded data.
+   @param val The flag to indicate that this tracker is mandatory
    @return false if the contents were successfully encoded, true otherwise.
            if the return value is true, then the contents of the buffer is
            undefined.
    */
-  virtual bool encode(THD *thd, String &buf) = 0;
+  virtual bool encode(THD *thd, String &buf, bool val) = 0;
 
   /*
    This function SHALL return the encoding specification used in the
@@ -268,7 +273,7 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
 
   ulonglong encoding_specification() override { return 0; }
 
-  bool encode(THD *thd, String &buf) override {
+  bool encode(THD *thd, String &buf, bool val) override {
     const Gtid_set *state = thd->rpl_thd_ctx.session_gtids_ctx().state();
 
     if (!state->is_empty()) {
@@ -279,6 +284,7 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
       */
       ulonglong tracker_type_enclen =
           1 /* net_length_size((ulonglong)SESSION_TRACK_GTIDS); */;
+      ulonglong mandatory_flag_enclen = 1;
       ulonglong encoding_spec_enclen =
           1 /* net_length_size(encoding_specification()); */;
       ulonglong gtids_string_len =
@@ -289,7 +295,7 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
       ulonglong entity_len_enclen = net_length_size(entity_len);
       ulonglong total_enclen = tracker_type_enclen + entity_len_enclen +
                                encoding_spec_enclen + gtids_string_len_enclen +
-                               gtids_string_len;
+                               gtids_string_len + mandatory_flag_enclen;
 
       /* prepare the buffer */
       uchar *to = (uchar *)buf.prep_append(total_enclen, EXTRA_ALLOC);
@@ -300,6 +306,10 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
 
       /* Session state type (SESSION_TRACK_SCHEMA) */
       *to = (uchar)SESSION_TRACK_GTIDS;
+      to++;
+
+      /* mandatory tracker flag */
+      *to = (uchar)val;
       to++;
 
       /* Length of the overall entity. */
@@ -344,7 +354,9 @@ class Session_gtids_tracker
   /** Constructor */
   Session_gtids_tracker()
       : Session_consistency_gtids_ctx::Ctx_change_listener(),
-        m_encoder(nullptr) {}
+        m_encoder(nullptr) {
+    mark_as_mandatory(false);
+  }
 
   ~Session_gtids_tracker() override {
     /*
@@ -666,11 +678,14 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
       length = net_length_size(node->m_sysvar_name.length) +
                node->m_sysvar_name.length + net_length_size(val_length) +
                val_length;
-
-      to = (uchar *)buf.prep_append(net_length_size(length) + 1, EXTRA_ALLOC);
+      /* allocate 2 bytes more for session state type and mandatory flag. */
+      to = (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
 
       /* Session state type (SESSION_TRACK_SYSTEM_VARIABLES) */
       to = net_store_length(to, (ulonglong)SESSION_TRACK_SYSTEM_VARIABLES);
+      /* mandatory tracker flag */
+      *to = (uchar)is_mandatory();
+      to++;
 
       /* Length of the overall entity. */
       net_store_length(to, (ulonglong)length);
@@ -800,11 +815,13 @@ bool Current_schema_tracker::store(THD *thd, String &buf) {
   length += net_length_size(length);
 
   uchar *to =
-      (uchar *)buf.prep_append(net_length_size(length) + 1, EXTRA_ALLOC);
+      (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
 
   /* Session state type (SESSION_TRACK_SCHEMA) */
   to = net_store_length(to, (ulonglong)SESSION_TRACK_SCHEMA);
-
+  /* mandatory tracker flag */
+  *to = (uchar)is_mandatory();
+  to++;
   /* Length of the overall entity. */
   to = net_store_length(to, length);
 
@@ -851,6 +868,7 @@ Transaction_state_tracker::Transaction_state_tracker() {
   tx_curr_state = tx_reported_state = TX_EMPTY;
   tx_read_flags = TX_READ_INHERIT;
   tx_isol_level = TX_ISOL_INHERIT;
+  mark_as_mandatory(false);
 }
 
 /**
@@ -900,10 +918,13 @@ bool Transaction_state_tracker::update(THD *thd) {
 bool Transaction_state_tracker::store(THD *thd, String &buf) {
   /* STATE */
   if (tx_changed & TX_CHG_STATE) {
-    uchar *to = (uchar *)buf.prep_append(11, EXTRA_ALLOC);
+    uchar *to = (uchar *)buf.prep_append(11 + 1, EXTRA_ALLOC);
 
     to = net_store_length((uchar *)to,
                           (ulonglong)SESSION_TRACK_TRANSACTION_STATE);
+    /* mandatory tracker flag */
+    *to = (uchar)is_mandatory();
+    to++;
 
     to = net_store_length((uchar *)to, (ulonglong)9);
     to = net_store_length((uchar *)to, (ulonglong)8);
@@ -1136,14 +1157,16 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
         item we can send!
       */
       length += net_length_size(length);  // ... plus that of its length
-
+      /* allocate extra 2 bytes for session state type and mandatory flag. */
       uchar *to =
-          (uchar *)buf.prep_append(net_length_size(length) + 1, EXTRA_ALLOC);
+          (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
 
       /* Session state type (SESSION_TRACK_TRANSACTION_CHARACTERISTICS) */
       to = net_store_length(
           (uchar *)to, (ulonglong)SESSION_TRACK_TRANSACTION_CHARACTERISTICS);
-
+      /* mandatory tracker flag */
+      *to = (uchar)is_mandatory();
+      to++;
       /* Length of the overall entity. */
       to = net_store_length((uchar *)to, length);
 
@@ -1320,6 +1343,7 @@ void Transaction_state_tracker::set_isol_level(THD *thd,
 /** Constructor */
 Session_state_change_tracker::Session_state_change_tracker() {
   m_changed = false;
+  mark_as_mandatory(false);
 }
 
 /**
@@ -1363,14 +1387,16 @@ bool Session_state_change_tracker::store(THD *, String &buf) {
   /* since its a boolean tracker length is always 1 */
   const ulonglong length = 1;
 
-  uchar *to = (uchar *)buf.prep_append(3, EXTRA_ALLOC);
+  uchar *to = (uchar *)buf.prep_append(4, EXTRA_ALLOC);
 
   /* format of the payload is as follows:
-     [ tracker type] [length] [1 byte flag] */
+     [ tracker type] [1 byte mandatory flag][length] [1 byte flag] */
 
   /* Session state type (SESSION_TRACK_STATE_CHANGE) */
   to = net_store_length(to, (ulonglong)SESSION_TRACK_STATE_CHANGE);
-
+  /* mandatory tracker flag */
+  *to = (uchar)is_mandatory();
+  to++;
   /* Length of the overall entity it is always 1 byte */
   to = net_store_length(to, length);
 
@@ -1418,6 +1444,20 @@ bool Session_state_change_tracker::is_state_changed() { return m_changed; }
 
 ///////////////////////////////////////////////////////////////////////////////
 
+class Session_transaction_state : public State_tracker {
+ public:
+  /** Constructor */
+  Session_transaction_state() { mark_as_mandatory(false); }
+
+  bool enable(THD *) override { return false; }
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *) override { return false; }
+  bool store(THD *, String &) override { return false; }
+  void mark_as_changed(THD *, LEX_CSTRING *) override {}
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
 /**
   @brief Initialize session tracker objects.
 
@@ -1434,6 +1474,10 @@ void Session_tracker::init(const CHARSET_INFO *char_set) {
   m_trackers[SESSION_GTIDS_TRACKER] = new (std::nothrow) Session_gtids_tracker;
   m_trackers[TRANSACTION_INFO_TRACKER] =
       new (std::nothrow) Transaction_state_tracker;
+  m_trackers[TRACK_TRANSACTION_STATE] =
+      new (std::nothrow) Session_transaction_state;
+  m_trackers[SESSION_CLIENT_PLUGIN_INFO_TRACKER] =
+      new (std::nothrow) Session_client_auth_plugin_info_tracker;
 }
 
 void Session_tracker::claim_memory_ownership(bool claim) {
@@ -1623,7 +1667,7 @@ bool Session_gtids_tracker::update(THD *thd) {
 */
 
 bool Session_gtids_tracker::store(THD *thd, String &buf) {
-  if (m_encoder && m_encoder->encode(thd, buf)) return true;
+  if (m_encoder && m_encoder->encode(thd, buf, is_mandatory())) return true;
   reset();
   return false;
 }
@@ -1661,3 +1705,94 @@ void Session_gtids_tracker::reset() {
   }
   m_changed = false;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+/** Constructor */
+Session_client_auth_plugin_info_tracker::
+    Session_client_auth_plugin_info_tracker()
+    : m_auth_plugin_info(nullptr) {
+  m_changed = false;
+  mark_as_mandatory(true);
+}
+
+void Session_client_auth_plugin_info_tracker::set_auth_plugin_info(
+    Auth_plugin_info *pi) {
+  m_auth_plugin_info = pi;
+  m_enabled = true;
+}
+
+bool Session_client_auth_plugin_info_tracker::enable(THD *) { return false; }
+
+bool Session_client_auth_plugin_info_tracker::update(THD *thd) {
+  return enable(thd);
+}
+
+bool Session_client_auth_plugin_info_tracker::store(THD *thd, String &buf) {
+  /*
+    format of the payload is as follows:
+    [tracker type][1 byte mandatory tracker flag][payload of Auth_plugin_info]
+  */
+  uchar *to = (uchar *)buf.prep_append(2, EXTRA_ALLOC);
+  /* Session state type (SESSION_CLIENT_PLUGIN_INFO_TRACKER) */
+  to = net_store_length(to, (ulonglong)SESSION_TRACK_CLIENT_PLUGIN_INFO);
+  /* mandatory tracker flag */
+  *to = (uchar)is_mandatory();
+  to++;
+  /* payload of Auth_plugin_info */
+  if (m_auth_plugin_info) {
+    m_auth_plugin_info->store(thd, buf);
+  }
+  reset();
+  return false;
+}
+
+void Session_client_auth_plugin_info_tracker::mark_as_changed(THD *,
+                                                              LEX_CSTRING *) {
+  m_changed = true;
+}
+
+/**
+  @brief Reset the m_changed flag for next statement.
+*/
+
+void Session_client_auth_plugin_info_tracker::reset() {
+  m_changed = false;
+  m_auth_plugin_info = nullptr;
+}
+
+bool Auth_plugin_info::store(THD *, String &buf) {
+  size_t len = m_client_plugin.length;
+  size_t payload_len = net_length_size(len) + len;
+  /*
+    format of the payload is as follows:
+    [payload length] [client plugin name length] [client plugin name]
+    payload length: total length of payload which is nothing but encoded
+                    length of client plugin name length
+    client plugin name length: string length of client plugin name
+  */
+  uchar *to =
+      (uchar *)buf.prep_append(net_length_size(payload_len), EXTRA_ALLOC);
+  /* total payload length */
+  to = net_store_length(to, (ulonglong)payload_len);
+
+  /* length-encoded string plugin name */
+  store_lenenc_string(buf, m_client_plugin.str, m_client_plugin.length);
+  return false;
+}
+
+void Auth_plugin_info::set_client_plugin(const char *s, size_t l) {
+  m_client_plugin.str = s;
+  m_client_plugin.length = l;
+}
+
+/**
+  This methods can mark a particular session traker type as mandatory.
+  Once a tracker type is set to mandatory by server, client is expected
+  to identify the tracker type and process its payload, else client
+  will report an error.
+
+  @param val       Value which decides if tracker should be mandatory or not
+*/
+void State_tracker::mark_as_mandatory(bool val) { m_is_mandatory = val; }
+///////////////////////////////////////////////////////////////////////////////

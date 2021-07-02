@@ -94,7 +94,12 @@
   or not.
 */
 #define CR_OK_HANDSHAKE_COMPLETE -2
-
+/**
+  Authentication was successful with limited operations.
+  It means that the both client and server side plugins decided to allow
+  authentication with very limited operations ALTER USER to do registration.
+*/
+#define CR_OK_AUTH_IN_SANDBOX_MODE -3
 /**
 Flag to be passed back to server from authentication plugins via
 authenticated_as when proxy mapping should be done by the server.

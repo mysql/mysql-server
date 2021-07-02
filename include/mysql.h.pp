@@ -186,7 +186,8 @@ enum enum_session_state_type {
   SESSION_TRACK_STATE_CHANGE,
   SESSION_TRACK_GTIDS,
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS,
-  SESSION_TRACK_TRANSACTION_STATE
+  SESSION_TRACK_TRANSACTION_STATE,
+  SESSION_TRACK_CLIENT_PLUGIN_INFO
 };
 bool my_net_init(struct NET *net, struct Vio * vio);
 void my_net_local_init(struct NET *net);
@@ -285,7 +286,7 @@ unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
 #include "mysql/client_plugin.h"
 struct st_mysql_client_plugin {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
+   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *); int (*get_options)(const char *option, void *);
 };
 struct MYSQL;
 #include "plugin_auth_common.h"
@@ -319,7 +320,7 @@ typedef struct MYSQL_PLUGIN_VIO {
       int *result);
 } MYSQL_PLUGIN_VIO;
 struct auth_plugin_t {
-  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
+  int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *); int (*get_options)(const char *option, void *);
   int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
   enum net_async_status (*authenticate_user_nonblocking)(MYSQL_PLUGIN_VIO *vio,
                                                          struct MYSQL *mysql,
@@ -339,6 +340,8 @@ struct st_mysql_client_plugin *mysql_client_register_plugin(
     struct MYSQL *mysql, struct st_mysql_client_plugin *plugin);
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
+int mysql_plugin_get_option(struct st_mysql_client_plugin *plugin,
+                         const char *option, void *value);
 #include "mysql_version.h"
 #include "mysql_time.h"
 enum enum_mysql_timestamp_type {
@@ -361,7 +364,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2070)
+  if (client_errno >= 2000 && client_errno <= 2072)
     return client_errors[client_errno - 2000];
   return client_errors[2000 - 2000];
 }
@@ -449,7 +452,8 @@ enum mysql_option {
   MYSQL_OPT_TLS_CIPHERSUITES,
   MYSQL_OPT_COMPRESSION_ALGORITHMS,
   MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
-  MYSQL_OPT_LOAD_DATA_LOCAL_DIR
+  MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
+  MYSQL_OPT_USER_PASSWORD,
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

@@ -110,9 +110,8 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_lock_all_tables = false, opt_set_charset = false,
             opt_dump_date = true, opt_autocommit = false,
             opt_disable_keys = true, opt_xml = false,
-            opt_delete_master_logs = false, tty_password = false,
-            opt_single_transaction = false, opt_comments = false,
-            opt_compact = false, opt_hex_blob = false,
+            opt_delete_master_logs = false, opt_single_transaction = false,
+            opt_comments = false, opt_compact = false, opt_hex_blob = false,
             opt_order_by_primary = false, opt_ignore = false,
             opt_complete_insert = false, opt_drop_database = false,
             opt_replace_into = false, opt_dump_triggers = false,
@@ -128,8 +127,7 @@ static bool insert_pat_inited = false, debug_info_flag = false,
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection, *mysql = nullptr;
 static DYNAMIC_STRING insert_pat;
-static char *opt_password = nullptr, *current_user = nullptr,
-            *current_host = nullptr, *path = nullptr,
+static char *current_user = nullptr, *current_host = nullptr, *path = nullptr,
             *fields_terminated = nullptr, *lines_terminated = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
@@ -160,6 +158,7 @@ static char *opt_mysql_unix_port = nullptr;
 static char *opt_bind_addr = nullptr;
 static int first_error = 0;
 #include "caching_sha2_passwordopt-vars.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "sslopt-vars.h"
 
 FILE *md_result_file = nullptr;
@@ -501,11 +500,7 @@ static struct my_option my_long_options[] = {
      "InnoDB table, but will make the dump itself take considerably longer.",
      &opt_order_by_primary, &opt_order_by_primary, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-    {"password", 'p',
-     "Password to use when connecting to server. If password is not given it's "
-     "solicited on the tty.",
-     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
-     nullptr},
+#include "multi_factor_passwordopt-longopts.h"
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -850,24 +845,7 @@ static void write_footer(FILE *sql_file) {
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
-    case 'p':
-      if (argument == disabled_my_option) {
-        // Don't require password
-        static char empty_password[] = {'\0'};
-        assert(empty_password[0] ==
-               '\0');  // Check that it has not been overwritten
-        argument = empty_password;
-      }
-      if (argument) {
-        char *start = argument;
-        my_free(opt_password);
-        opt_password = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
-        while (*argument) *argument++ = 'x'; /* Destroy argument */
-        if (*start) start[1] = 0;            /* Cut length of argument */
-        tty_password = false;
-      } else
-        tty_password = true;
-      break;
+    PARSE_COMMAND_LINE_PASSWORD_OPTION;
     case 'r':
       if (!(md_result_file =
                 my_fopen(argument, O_WRONLY | MY_FOPEN_BINARY, MYF(MY_WME))))
@@ -1096,7 +1074,6 @@ static int get_options(int *argc, char ***argv) {
     short_usage();
     return EX_USAGE;
   }
-  if (tty_password) opt_password = get_tty_password(NullS);
   return (0);
 } /* get_options */
 
@@ -1477,7 +1454,7 @@ static FILE *open_sql_file_for_table(const char *table, int flags) {
 static void free_resources() {
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
-  my_free(opt_password);
+  free_passwords();
   if (ignore_table != nullptr) {
     delete ignore_table;
     ignore_table = nullptr;
@@ -1561,7 +1538,7 @@ static void maybe_exit(int error) {
   db_connect -- connects to the host and selects DB.
 */
 
-static int connect_to_db(char *host, char *user, char *passwd) {
+static int connect_to_db(char *host, char *user) {
   char buff[20 + FN_REFLEN];
   DBUG_TRACE;
 
@@ -1598,6 +1575,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
                  "mysqldump");
   set_server_public_key(&mysql_connection);
   set_get_server_public_key_option(&mysql_connection);
+  set_password_options(&mysql_connection);
 
   if (opt_compress_algorithm)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
@@ -1618,7 +1596,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
   }
 
   if (!(mysql =
-            mysql_real_connect(&mysql_connection, host, user, passwd, nullptr,
+            mysql_real_connect(&mysql_connection, host, user, nullptr, nullptr,
                                opt_mysql_port, opt_mysql_unix_port, 0))) {
     DB_error(&mysql_connection, "when trying to connect");
     return 1;
@@ -1695,6 +1673,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
           mysql, nullptr,
           "/*!80018 SET SESSION show_create_table_skip_secondary_engine=1 */"))
     return 1;
+
   return 0;
 } /* connect_to_db */
 
@@ -5846,7 +5825,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (connect_to_db(current_host, current_user, opt_password)) {
+  if (connect_to_db(current_host, current_user)) {
     free_resources();
     exit(EX_MYSQLERR);
   }

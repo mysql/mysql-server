@@ -627,6 +627,7 @@ struct MEM_ROOT;
   @sa unknown_accounts
   @subpage page_protocol_connection_phase_packets
   @subpage page_protocol_connection_phase_authentication_methods
+  @subpage page_protocol_multi_factor_authentication_methods
 */
 
 
@@ -751,6 +752,7 @@ struct MEM_ROOT;
    @subpage page_caching_sha2_authentication_exchanges
    @subpage page_protocol_connection_phase_authentication_methods_clear_text_password
    @subpage page_protocol_connection_phase_authentication_methods_authentication_windows
+   @subpage page_fido_authentication_exchanges
 */
 
 /**
@@ -782,6 +784,168 @@ struct MEM_ROOT;
   @subpage page_protocol_connection_phase_packets_protocol_old_auth_switch_request
   @subpage page_protocol_connection_phase_packets_protocol_auth_switch_response
   @subpage page_protocol_connection_phase_packets_protocol_auth_more_data
+*/
+
+/**
+  @page page_fido_authentication_exchanges authentication_fido information
+
+  @section sect_fido_definition Definition
+  <ul>
+  <li>
+  The server side plugin name is *authentication_fido*
+  </li>
+  <li>
+  The client side plugin name is *authentication_fido_client*
+  </li>
+  <li>
+  Account - user account (user-host combination)
+  </li>
+  <li>
+  authentication_string - Transformation of key handle stored in mysql.user table
+  </li>
+  <li>
+  relying party ID - Unique name assigned to server by authentication_fido plugin
+  </li>
+  <li>
+  FIDO authenticator - A hardware token device
+  </li>
+  <li>
+  Nonce - 32 byte long random data
+  </li>
+  <li>
+  Registration mode - Refers to state of connection where only ALTER USER is allowed
+  to do registration steps.
+  </li>
+  </ul>
+
+  @section sect_fido_info How authentication_fido works?
+
+  Plugin authentication_fido works in two phases.
+  <ul>
+   <li>
+    Registration of hardware token device
+   </li>
+   <li>
+    Authentication process
+   </li>
+  </ul>
+
+  Registration process:
+  This is a 2 step process for a given user account.
+  <ul>
+   <li>
+    Initiate registration step.
+   </li>
+   <li>
+    Finish registration step.
+   </li>
+  </ul>
+
+  Initiate registration:
+  User account created with authentication_fido method should first connect to
+  server and initiate the registration step.
+
+  <ol>
+   <li>
+    Client executes ALTER USER .. INITIATE REGISTRATION;
+   </li>
+   <li>
+   Server sends a random challenge, user id, relying party ID to client.
+   </li>
+   <li>
+   Client receives it and saves in MySQL struct.
+   </li>
+  </ol>
+
+  Finish registration:
+  <ol>
+   <li>
+    Client executes ALTER USER .. FINISH REGISTRATION;
+   </li>
+   <li>
+    Client sends random challenge, user id, relying party ID to FIDO authenticator.
+   </li>
+   <li>
+    Once physical human user gesture action (touching the token) is performed,
+    FIDO authenticator generates a public/private key pair, a credential ID(
+    X.509 certificate, signature) and authenticator data.
+   </li>
+   <li>
+    Client sends public key and credential ID to server.
+   </li>
+   <li>
+    Server side fido authentication plugin verifies the signature and responds
+    with an @ref page_protocol_basic_ok_packet or rejects with
+    @ref page_protocol_basic_err_packet
+   </li>
+  </ol>
+       @startuml
+         title Registration
+
+         participant server as "MySQL server"
+         participant client as "Client"
+         participant authenticator as "FIDO authenticator"
+
+         == Initiate registration ==
+
+         client -> server : connect
+         server -> client : OK packet. Connection is in registration mode where only ALTER USER command is allowed
+         client -> server : ALTER USER USER() nth FACTOR INITIATE REGISTRATION
+         server -> client : random challenge, user id, relying party ID
+
+         == Finish registration ==
+
+         client -> server : ALTER USER USER() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE = '?'
+         client -> authenticator : random challenge, user id, relying party ID
+         authenticator -> client : public key, credential ID (X.509 certificate, signature), authenticator data
+         client -> server : public key, credential ID, authenticator data
+         server -> client : Ok packet upon successfull verification of signature
+       @enduml
+
+  Authentication process:
+  Once initial authentication methods defined for user account are successful,
+  server initiates fido authentication process. This includes following steps:
+   <ol>
+    <li>
+     Server sends a random challenge, relying party ID, credential ID to client.
+    </li>
+    <li>
+     Client receives it and sends to FIDO authenticator.
+    </li>
+    <li>
+     FIDO authenticator prompts physical human user to perform gesture action.
+    </li>
+    <li>
+     FIDO authenticator extracts the private key based on relying party ID and
+     signs the challenge.
+    </li>
+    <li>
+     Client sends signed challenge to server.
+    </li>
+    <li>
+     Server side fido authentication plugin verifies the signature with the
+     public key and responds with an @ref page_protocol_basic_ok_packet or with
+     @ref page_protocol_basic_err_packet
+    </li>
+   </ol>
+       @startuml
+         title Authentication
+
+         participant server as "MySQL server"
+         participant client as "Client"
+         participant authenticator as "FIDO authenticator"
+
+         == Authentication ==
+
+         client -> server : connect
+         server -> client : OK packet
+         server -> client : send client side fido authentication plugin name in OK packet
+         server -> client : sends random challenge, relying party ID, credential ID
+         client -> authenticator : sends random challenge, relying party ID, credential ID
+         authenticator -> client : signed challenge
+         client -> server : signed challenge
+         server -> client : verify signed challenge and send OK or ERR packet
+       @enduml
 */
 /* clang-format on */
 
@@ -1147,6 +1311,10 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length) {
           PLUGIN_CACHING_SHA2_PASSWORD, default_auth_plugin_name))
     return 1;
 
+  if (!Cached_authentication_plugins::compare_plugin(
+          PLUGIN_CACHING_SHA2_PASSWORD, default_auth_plugin_name))
+    LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_WITH_REPLACEMENT,
+           "default_authentication_plugin", "authentication_policy");
   return 0;
 }
 /**
@@ -1746,6 +1914,7 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
   user->password_history_length = 0;
   user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
   user->password_locked_state.set_parameters(0, 0);
+  user->m_mfa = nullptr;
 
   if (is_initialized) {
     Auth_id key(user);
@@ -1862,9 +2031,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     return true;
   }
 
-  mpvio->auth_info.auth_string =
+  mpvio->auth_info.multi_factor_auth_info[0].auth_string =
       mpvio->acl_user->credentials[PRIMARY_CRED].m_auth_string.str;
-  mpvio->auth_info.auth_string_length =
+  mpvio->auth_info.multi_factor_auth_info[0].auth_string_length =
       (unsigned long)mpvio->acl_user->credentials[PRIMARY_CRED]
           .m_auth_string.length;
   if (mpvio->acl_user->credentials[SECOND_CRED].m_auth_string.length) {
@@ -1879,11 +2048,43 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   }
   strmake(mpvio->auth_info.authenticated_as,
           mpvio->acl_user->user ? mpvio->acl_user->user : "", USERNAME_LENGTH);
+
+  /* auth_string references to 1st factor auth plugin credential details */
+  mpvio->auth_info.auth_string =
+      mpvio->auth_info.multi_factor_auth_info[0].auth_string;
+  mpvio->auth_info.auth_string_length =
+      mpvio->auth_info.multi_factor_auth_info[0].auth_string_length;
+
   DBUG_PRINT("info",
              ("exit: user=%s, auth_string=%s, authenticated as=%s"
-              ", plugin=%s",
+              ", plugin=%s, authentication factor=%d",
               mpvio->auth_info.user_name, mpvio->auth_info.auth_string,
-              mpvio->auth_info.authenticated_as, mpvio->acl_user->plugin.str));
+              mpvio->auth_info.authenticated_as, mpvio->acl_user->plugin.str,
+              mpvio->auth_info.current_auth_factor));
+
+  /* Copy 2nd and 3rd factor auth string and registration flag into mpvio */
+  if (mpvio->acl_user->m_mfa) {
+    Multi_factor_auth_list *auth_factor =
+        mpvio->acl_user->m_mfa->get_multi_factor_auth_list();
+    uint f = 1;
+    for (auto m_it : auth_factor->get_mfa_list()) {
+      Multi_factor_auth_info *af = m_it->get_multi_factor_auth_info();
+      mpvio->auth_info.multi_factor_auth_info[f].auth_string =
+          af->get_auth_str();
+      mpvio->auth_info.multi_factor_auth_info[f].auth_string_length =
+          af->get_auth_str_len();
+      mpvio->auth_info.multi_factor_auth_info[f].is_registration_required =
+          af->get_requires_registration();
+      DBUG_PRINT(
+          "info",
+          ("exit: user=%s, auth_string=%s, plugin=%s, authentication factor=%d",
+           mpvio->auth_info.user_name,
+           mpvio->auth_info.multi_factor_auth_info[f].auth_string,
+           af->get_plugin_str(), f));
+      f++;
+    }
+  }
+
   return false;
 }
 
@@ -3047,6 +3248,155 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   return res;
 }
 
+/* clang-format off */
+/**
+  @page page_protocol_multi_factor_authentication_methods Multi Factor Authentication
+
+  Assume the client wants to log in via user account U and that user account is defined
+  with multiple authentication methods namely X,Y,Z. Assume default authentication method
+  on both server and client is X.
+
+  @section sect_protocol_multi_factor_authentication_phase Authentication
+
+  A successful authentication path looks as follows:
+
+  1. The client connects to the server
+  2. The server sends @ref page_protocol_connection_phase_packets_protocol_handshake
+  3. The client responds with
+     @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  4. X authentication method packets are exchanged
+  5. The server responds with an @ref page_protocol_basic_ok_packet with
+     SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing client side plugin name of
+     plugin Y.
+  6. Client reads plugin name from SESSION_TRACK_CLIENT_PLUGIN_INFO tracker and
+     loads corresponding client side plugin.
+  7. Y authentication method packets are exchanged
+  8. The server responds with an @ref page_protocol_basic_ok_packet with
+     SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing client side plugin name of
+     plugin Z.
+  9. Client reads plugin name from SESSION_TRACK_CLIENT_PLUGIN_INFO tracker and
+     loads corresponding client side plugin.
+  10.Z authentication method packets are exchanged
+  11.The server responds with an @ref page_protocol_basic_ok_packet
+
+
+  @startuml
+  Client -> Server: Connect
+  Server -> Client: Initial Handshake Packet
+  Client -> Server: Handshake Response Packet
+
+  == X authentication method packets are exchanged ==
+
+  Server -> Client: OK packet with SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing plugin name Y
+
+  == Y authentication method packets are exchanged ==
+
+  Server -> Client: OK packet with SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing plugin name Z
+
+  == Z authentication method packets are exchanged ==
+
+  Server -> Client: OK packet
+
+  == Client and server enter Command Phase ==
+  @enduml
+*/
+/* clang-format on */
+
+/**
+  Perform 2nd and 3rd factor authentication.
+
+  Once 1FA method succeeds, server checks if connecting user requires more
+  authentication methods to do the authentication.
+
+  Refer to @ref page_protocol_multi_factor_authentication_methods
+  for server-client communication in various cases
+
+  @param thd            thread handle
+  @param mpvio          the communications channel
+
+  @retval 0  success
+  @retval 1  error
+*/
+static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
+  DBUG_TRACE;
+  int res = CR_OK;
+  /* user is not configured with Multi factor authentication */
+  if (!mpvio->acl_user->m_mfa) return res;
+  /*
+    If an old client connects to server with user account created with Multi
+    factor authentication methods, then return error.
+  */
+  if (!mpvio->protocol->has_client_capability(CLIENT_MANDATORY_SESSION_TRACK))
+    return CR_AUTH_USER_CREDENTIALS;
+
+  Multi_factor_auth_list *auth_factor =
+      mpvio->acl_user->m_mfa->get_multi_factor_auth_list();
+  for (auto m_it : auth_factor->get_mfa_list()) {
+    Multi_factor_auth_info *af = m_it->get_multi_factor_auth_info();
+    if (af->get_factor() == nthfactor::SECOND_FACTOR)
+      mpvio->auth_info.current_auth_factor = 1;
+    else if (af->get_factor() == nthfactor::THIRD_FACTOR)
+      mpvio->auth_info.current_auth_factor = 2;
+    plugin_ref plugin = my_plugin_lock_by_name(thd, af->plugin_name(),
+                                               MYSQL_AUTHENTICATION_PLUGIN);
+    if (plugin) {
+      mpvio->plugin = plugin;
+      /*
+        Update auth_string, to refer to corresponding factors auth plugin
+        credentials
+      */
+      mpvio->auth_info.auth_string =
+          mpvio->auth_info
+              .multi_factor_auth_info[mpvio->auth_info.current_auth_factor]
+              .auth_string;
+      mpvio->auth_info.auth_string_length =
+          mpvio->auth_info
+              .multi_factor_auth_info[mpvio->auth_info.current_auth_factor]
+              .auth_string_length;
+      /* get client plugin name */
+      const char *client_plugin =
+          ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+              ->client_auth_plugin;
+      Auth_plugin_info *pi = new Auth_plugin_info;
+      pi->set_client_plugin(client_plugin, strlen(client_plugin));
+
+      auto t = down_cast<Session_client_auth_plugin_info_tracker *>(
+          thd->session_tracker.get_tracker(SESSION_CLIENT_PLUGIN_INFO_TRACKER));
+      t->mark_as_changed(thd, nullptr);
+      t->set_auth_plugin_info(pi);
+      thd->get_protocol()->send_ok(thd->server_status, 0, 0, 0, nullptr);
+      thd->get_protocol()->flush();
+      /* once OK packet is sent free auth plugin info */
+      delete pi;
+      st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+      res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+      if (res == CR_OK_AUTH_IN_SANDBOX_MODE) {
+        /*
+          Server allows user account to connect in case registration is
+          required, and set server in sandbox mode.
+        */
+        if (af->get_requires_registration())
+          thd->security_context()->set_registration_sandbox_mode(true);
+        assert(af->get_requires_registration());
+        plugin_unlock(thd, plugin);
+        return CR_OK;
+      }
+
+      plugin_unlock(thd, plugin);
+      if (res != CR_OK) break;
+    } else {
+      /* Server cannot load the required plugin. */
+      Host_errors errors;
+      errors.m_no_auth_plugin = 1;
+      inc_host_errors(mpvio->ip, &errors);
+      my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), af->get_plugin_str());
+      res = CR_ERROR;
+      break;
+    }
+  }
+  return res;
+}
+
 static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
                                     Thd_charset_adapter *charset_adapter) {
   LEX_CSTRING sctx_host_or_ip = thd->security_context()->host_or_ip();
@@ -3060,6 +3410,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip = sctx_host_or_ip.str;
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
   mpvio->auth_info.password_used = PASSWORD_USED_NO;
+  mpvio->auth_info.current_auth_factor = 0;
 
   Vio *vio = thd->get_protocol_classic()->get_vio();
   if (vio->ssl_arg)
@@ -3077,6 +3428,10 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->host = thd->security_context()->host().str;
   mpvio->charset_adapter = charset_adapter;
   mpvio->restrictions = new (mpvio->mem_root) Restrictions();
+
+  mpvio->auth_info.multi_factor_auth_info =
+      new (mpvio->mem_root) auth_factor_desc[MAX_AUTH_FACTORS];
+  memset(mpvio->auth_info.multi_factor_auth_info, 0, sizeof(auth_factor_desc));
 }
 
 static void server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio) {
@@ -3366,6 +3721,10 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                          mpvio.acl_user->plugin.str));
     auth_plugin_name = mpvio.acl_user->plugin;
     res = do_auth_once(thd, auth_plugin_name, &mpvio);
+  }
+
+  if (res == CR_OK) {
+    res = do_multi_factor_auth(thd, &mpvio);
   }
 
   server_mpvio_update_thd(thd, &mpvio);
@@ -5328,7 +5687,8 @@ static struct st_mysql_auth native_password_handler = {
     validate_native_password_hash,
     set_native_salt,
     AUTH_FLAG_USES_INTERNAL_STORAGE,
-    compare_native_password_with_hash};
+    compare_native_password_with_hash,
+};
 
 static struct st_mysql_auth sha256_password_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
@@ -5338,7 +5698,8 @@ static struct st_mysql_auth sha256_password_handler = {
     validate_sha256_password_hash,
     set_sha256_salt,
     AUTH_FLAG_USES_INTERNAL_STORAGE,
-    compare_sha256_password_with_hash};
+    compare_sha256_password_with_hash,
+};
 
 mysql_declare_plugin(mysql_password){
     MYSQL_AUTHENTICATION_PLUGIN, /* type constant    */

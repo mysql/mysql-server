@@ -9583,6 +9583,48 @@ ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION
 ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
   eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
 
+ER_INVALID_MFA_PLUGIN_SPECIFIED
+  eng "Invalid plugin \"%s\" specified as %d factor during \"%s\"."D
+
+ER_IDENTIFIED_BY_UNSUPPORTED
+  eng "IDENTIFIED BY clause during \"%s\" not supported for plugin \"%s\"."
+
+ER_INVALID_PLUGIN_FOR_REGISTRATION
+  eng "This operation is not supported for plugin \"%s\"."
+
+ER_PLUGIN_REQUIRES_REGISTRATION
+  eng "Authentication plugin requires registration. Please refer ALTER USER syntax or set --fido-register-factor command line option to do registration."
+
+ER_MFA_METHOD_EXISTS
+  eng "%d factor authentication method exists. Please do ALTER USER... DROP %d factor before doing this operation OR do ALTER USER... MODIFY %d factor... to modify existing %d factor authentication method."
+
+ER_MFA_METHOD_NOT_EXISTS
+  eng "%d factor authentication method doesn't exist. Please do ALTER USER... ADD %d factor... before doing this operation."
+
+ER_AUTHENTICATION_POLICY_MISMATCH
+  eng "%d factor authentication method does not match against authentication policy. Please refer @@authentication_policy system variable."
+
+ER_PLUGIN_REGISTRATION_DONE
+  eng "The registration for %d factor authentication method is already completed. You cannot perform registration multiple times."
+
+ER_USER_ATTRIBUTES_FOR_MFA_CORRUPT
+  eng "Invalid and/or corrupted multi factor authentication methods in User_attributes column in mysql.user table. \"%s\"."
+
+ER_INVALID_USER_FOR_REGISTRATION
+  eng "The registration operation is not allowed for user '%s'@'%s'. The operation can only be performed in user's own session."
+
+ER_USER_REGISTRATION_FAILED
+  eng "Authentication plugin's registration failed."
+
+ER_MFA_METHODS_INVALID_ORDER
+  eng "%d factor authentication method should be added before %d factor authentication method."
+
+ER_MFA_METHODS_IDENTICAL
+  eng "Authentication factor should be different."
+
+ER_INVALID_MFA_OPERATIONS_FOR_PASSWORDLESS_USER
+  eng "The operation \"%s\" cannot be performed for user '%s'@'%s' configured to connect without a password."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

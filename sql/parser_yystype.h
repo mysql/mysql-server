@@ -369,6 +369,10 @@ union YYSTYPE {
   udf_func *udf;
   LEX_USER *lex_user;
   List<LEX_USER> *user_list;
+  LEX_MFA *lex_mfa;
+  struct {
+    LEX_MFA *mfa2, *mfa3;
+  } lex_mfas;
   sys_var_with_base variable;
   enum_var_type var_type;
   keytype key_type;

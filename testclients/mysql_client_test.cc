@@ -20815,6 +20815,7 @@ static void test_wl11772() {
     char user[32];
     char host[255];
     char password[255];
+    char authfactor[2];
   } Userhostpass;
 
   Userhostpass userhostpass[3];
@@ -20823,6 +20824,7 @@ static void test_wl11772() {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);
+    strcpy(userhostpass[i].authfactor, row[3]);
     ++i;
   }
   mysql_free_result(result);
@@ -20850,6 +20852,7 @@ static void test_wl11772() {
     strcpy(userhostpass[i].user, row[0]);
     strcpy(userhostpass[i].host, row[1]);
     strcpy(userhostpass[i].password, row[2]);
+    strcpy(userhostpass[i].authfactor, row[3]);
     ++i;
   }
   mysql_free_result(result);

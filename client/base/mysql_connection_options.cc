@@ -100,10 +100,20 @@ void Mysql_connection_options::create_options() {
       ->set_value_step(1024)
       ->set_value(1024 * 1024L - 1024);
   this->create_new_password_option(
-          &this->m_password, "password",
+          &this->m_password[0], "password",
           "Password to use when connecting to server. If password is not given,"
           " it's solicited on the tty.")
       ->set_short_character('p');
+  this->create_new_password_option(
+      &this->m_password[0], "password1",
+      "Password for first factor authentication plugin.");
+  this->create_new_password_option(
+      &this->m_password[1], "password2",
+      "Password for second factor authentication plugin.");
+  this->create_new_password_option(
+      &this->m_password[2], "password3",
+      "Password for third factor authentication plugin.");
+
 #ifdef _WIN32
   this->create_new_option("pipe", "Use named pipes to connect to server.")
       ->set_short_character('W')
@@ -191,9 +201,8 @@ MYSQL *Mysql_connection_options::create_connection() {
                                      &this->m_get_server_public_key);
 
   if (!mysql_real_connect(connection, this->get_null_or_string(this->m_host),
-                          this->get_null_or_string(this->m_user),
-                          this->get_null_or_string(this->m_password), nullptr,
-                          this->m_mysql_port,
+                          this->get_null_or_string(this->m_user), nullptr,
+                          nullptr, this->m_mysql_port,
                           this->get_null_or_string(this->m_mysql_unix_port),
                           0)) {
     this->db_error(connection, "while connecting to the MySQL server");
