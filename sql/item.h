@@ -33,6 +33,7 @@
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "decimal.h"
@@ -2360,13 +2361,13 @@ class Item : public Parse_tree_node {
   /** @see WalkItem, CompileItem */
   template <class T>
   auto walk_helper_thunk(uchar *arg) {
-    return (*reinterpret_cast<T *>(arg))(this);
+    return (*reinterpret_cast<std::remove_reference_t<T> *>(arg))(this);
   }
 
   /** See CompileItem */
   template <class T>
   auto analyze_helper_thunk(uchar **arg) {
-    return (*reinterpret_cast<T *>(*arg))(this);
+    return (*reinterpret_cast<std::remove_reference_t<T> *>(*arg))(this);
   }
 
   /**
@@ -3450,10 +3451,10 @@ inline bool WalkItem(Item *item, enum_walk walk, T &&functor) {
  */
 template <class T, class U>
 inline Item *CompileItem(Item *item, T &&analyzer, U &&transformer) {
-  uchar *analyzer_ptr = pointer_cast<uchar *>(&analyzer);
+  uchar *analyzer_ptr = reinterpret_cast<uchar *>(&analyzer);
   return item->compile(&Item::analyze_helper_thunk<T>, &analyzer_ptr,
                        &Item::walk_helper_thunk<U>,
-                       pointer_cast<uchar *>(&transformer));
+                       reinterpret_cast<uchar *>(&transformer));
 }
 
 class sp_head;

@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <initializer_list>
 #include <string>
 #include <unordered_map>
@@ -439,6 +438,10 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
 bool IsFullTextFunction(const Item *item) {
   return item->type() == Item::FUNC_ITEM &&
          down_cast<const Item_func *>(item)->functype() == Item_func::FT_FUNC;
+}
+
+bool HasFullTextFunction(Item *item) {
+  return WalkItem(item, enum_walk::PREFIX, IsFullTextFunction);
 }
 
 /// Returns the MATCH function of a predicate that can be pushed down to a
@@ -2956,10 +2959,7 @@ bool CreateTemporaryTableForFullTextFunctions(
   // If we didn't find any full-text functions that needed materialization, we
   // don't need a temporary table.
   if (std::none_of(items_to_materialize.begin(), items_to_materialize.end(),
-                   [](Item *item) {
-                     return WalkItem(item, enum_walk::PREFIX,
-                                     std::function(IsFullTextFunction));
-                   })) {
+                   HasFullTextFunction)) {
     *temp_table = nullptr;
     return false;
   }
