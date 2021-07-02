@@ -2597,8 +2597,9 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   ut_a(space->purpose != FIL_TYPE_LOG);
 
   /* Align memory for file I/O if we might have O_DIRECT set */
-  auto page =
-      static_cast<byte *>(ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
+  const ulint buf_size =
+      recv_recovery_is_on() ? (UNIV_PAGE_SIZE * 2) : UNIV_PAGE_SIZE;
+  auto page = static_cast<byte *>(ut::aligned_alloc(buf_size, UNIV_PAGE_SIZE));
 
   ut_ad(page == page_align(page));
 
@@ -2607,7 +2608,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   IORequest request(IORequest::READ);
 
   dberr_t err = os_file_read_first_page(request, file->name, file->handle, page,
-                                        UNIV_PAGE_SIZE);
+                                        buf_size);
 
   ut_a(err == DB_SUCCESS);
 
@@ -2718,6 +2719,21 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
     ut_a(free_len < std::numeric_limits<uint32_t>::max());
 
     space->free_len = (uint32_t)free_len;
+
+    /* TODO: Get consistent flag from recovered DD. For that, DD should be
+    recovered already. */
+    /* Set estimated value for space->compression_type
+    during recovery process. */
+
+    if (recv_recovery_is_on() &&
+        (Compression::is_compressed_page(page + page_size.physical()) ||
+         Compression::is_compressed_encrypted_page(page +
+                                                   page_size.physical()))) {
+      ut_ad(buf_size >= (UNIV_PAGE_SIZE * 2));
+      Compression::meta_t header;
+      Compression::deserialize_header(page + page_size.physical(), &header);
+      space->compression_type = header.m_algorithm;
+    }
   }
 
   ut::aligned_free(page);
