@@ -5725,9 +5725,15 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
   if (err == DB_SUCCESS) {
     uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
     const page_size_t page_size(flags);
-    ut_ad(page_size.physical() <= n);
-    err = os_file_read_page(type, file_name, file, buf, 0, page_size.physical(),
-                            nullptr, true);
+    /* TODO: Revert to single page access.
+    Temporally, accepting multiple pages for Fil_shard::get_file_size() during
+    recovery phase, until we can get consistent DD flag at the time.
+    Fil_shard::get_file_size() doesn't need multiple pages access for
+    estimation, if the consistent flag is got from recovered DD. */
+    const size_t read_size = page_size.physical() * (n >> UNIV_PAGE_SIZE_SHIFT);
+    ut_ad(read_size > 0);
+    err = os_file_read_page(type, file_name, file, buf, 0, read_size, nullptr,
+                            true);
   }
   return (err);
 }
