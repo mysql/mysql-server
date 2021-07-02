@@ -5098,7 +5098,7 @@ int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* ndb= GETNDB(step);
   tardy_ndb_ref = ndb->getReference();
 
-  ndb->set_eventbuf_max_alloc(5*1024*1024); // max event buffer size 1024*1024 
+  ndb->set_eventbuf_max_alloc(5*1024*1024); // max event buffer size 5MB
   const Uint32 free_percent = 60;
   ndb->set_eventbuffer_free_percent(free_percent);
 
@@ -5433,25 +5433,17 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus.alloc;
            Uint32 max = le_event.EventBufferStatus.max;
            Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = max ? (Uint32)((((Uint64)used) * 100) / max) : 0;
 
-           g_err << "Parsable str: Event buffer status: ";
-           g_err << "used=" << le_event.EventBufferStatus.usage
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
-                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
-                 << "/" << le_event.EventBufferStatus.apply_gci_h
-                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
-                 << "/" << le_event.EventBufferStatus.latest_gci_h
-                 << endl;
+           g_err << "Parsable str: Event buffer status: "
+                 << "max=" << max << " bytes"
+                 << " used=" << le_event.EventBufferStatus.usage << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
+                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_h
+                 << "/" << le_event.EventBufferStatus.apply_gci_l
+                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_h
+                 << "/" << le_event.EventBufferStatus.latest_gci_l << endl;
          }
          break;
        case NDB_LE_EventBufferStatus2:
@@ -5459,12 +5451,7 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus2.alloc;
            Uint32 max = le_event.EventBufferStatus2.max;
            Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = max ? (Uint32)((((Uint64)used)*100)/max) : 0;
 
            Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
            Uint32 reason = le_event.EventBufferStatus2.report_reason;
@@ -5473,20 +5460,17 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
 
            g_err << "Parsable str: Event buffer status2 "
                  << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << used
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc;
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max
+                 << "max=" << max << " bytes"
+                 << " used=" << used << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
                  << " latest_consumed_epoch "
+                 << le_event.EventBufferStatus2.latest_consumed_epoch_h << "/"
                  << le_event.EventBufferStatus2.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
                  << " latest_buffered_epoch "
+                 << le_event.EventBufferStatus2.latest_buffered_epoch_h << "/"
                  << le_event.EventBufferStatus2.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus2.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
+                 << " reason " << reason << endl;
          }
          break;
        case NDB_LE_EventBufferStatus3:
@@ -5497,12 +5481,7 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            alloc |= le_event.EventBufferStatus3.alloc_l;
            Uint64 max = (Uint64)le_event.EventBufferStatus3.max_h << 32;
            max |= le_event.EventBufferStatus3.max_l;
-           Uint32 used_pct = 0;
-           if (alloc != 0)
-             used_pct = (Uint32)((usage*100)/alloc);
-           Uint32 allocd_pct = 0;
-           if (max != 0)
-             allocd_pct = (Uint32)((alloc*100)/max);
+           Uint32 used_pct = max ? (Uint32)((usage*100)/max) : 0;
 
            Uint32 ndb_ref = le_event.EventBufferStatus3.ndb_reference;
            Uint32 reason = le_event.EventBufferStatus3.report_reason;
@@ -5511,20 +5490,17 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
 
            g_err << "Parsable str: Event buffer status3 "
                  << "(" << hex << ndb_ref << "): " << dec
-                 << "used=" << usage << " bytes"
-                 << "(" << used_pct << "%) "
-                 << "alloc=" << alloc << " bytes";
-           if (max != 0)
-             g_err << "(" << allocd_pct << "%)";
-           g_err << " max=" << max << " bytes"
+                 << "max=" << max << " bytes"
+                 << " used=" << usage << " bytes";
+           if (max != 0) g_err << "(" << used_pct << "% of max)";
+           g_err << " alloc=" << alloc << " bytes"
                  << " latest_consumed_epoch "
+                 << le_event.EventBufferStatus3.latest_consumed_epoch_h << "/"
                  << le_event.EventBufferStatus3.latest_consumed_epoch_l
-                 << "/" << le_event.EventBufferStatus3.latest_consumed_epoch_h
                  << " latest_buffered_epoch "
+                 << le_event.EventBufferStatus3.latest_buffered_epoch_h << "/"
                  << le_event.EventBufferStatus3.latest_buffered_epoch_l
-                 << "/" << le_event.EventBufferStatus3.latest_buffered_epoch_h
-                 << " reason " << reason
-                 << endl;
+                 << " reason " << reason << endl;
          }
          break;
        default:
