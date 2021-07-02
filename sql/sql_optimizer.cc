@@ -778,6 +778,13 @@ bool JOIN::optimize(bool finalize_access_paths) {
     item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   }
 
+  // Also GROUP BY expressions, so that find_in_group_list() doesn't
+  // inadvertently fail because the SELECT list has casts that GROUP BY doesn't.
+  for (ORDER *ord = group_list.order; ord != nullptr; ord = ord->next) {
+    (*ord->item)
+        ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+
   if (rollup_state != RollupState::NONE) {
     /*
       Fields may have been replaced by Item_rollup_group_item, so
