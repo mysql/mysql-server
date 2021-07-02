@@ -768,7 +768,10 @@ retry:
 
 		/* Read the first page of the tablespace */
 
-		buf2 = static_cast<byte*>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+		const ulint buf2_size = recv_recovery_is_on()
+			? (2 * UNIV_PAGE_SIZE) : UNIV_PAGE_SIZE;
+		buf2 = static_cast<byte*>(
+			ut_malloc_nokey(buf2_size + UNIV_PAGE_SIZE));
 
 		/* Align the memory for file i/o if we might have O_DIRECT
 		set */
@@ -778,8 +781,7 @@ retry:
 		IORequest	request(IORequest::READ);
 
 		success = os_file_read(
-			request,
-			node->handle, page, 0, UNIV_PAGE_SIZE);
+			request, node->handle, page, 0, buf2_size);
 
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
@@ -842,6 +844,20 @@ retry:
 			space->size_in_header = size;
 			space->free_limit = free_limit;
 			space->free_len = free_len;
+
+			/* Set estimated value for space->compression_type
+			during recovery process. */
+			if (recv_recovery_is_on()
+			    && (Compression::is_compressed_page(
+					page + page_size.physical())
+			        || Compression::is_compressed_encrypted_page(
+					page + page_size.physical()))) {
+				ut_ad(buf2_size >= (2 * UNIV_PAGE_SIZE));
+				Compression::meta_t header;
+				Compression::deserialize_header(
+					page + page_size.physical(), &header);
+				space->compression_type = header.m_algorithm;
+			}
 		}
 
 		ut_free(buf2);
