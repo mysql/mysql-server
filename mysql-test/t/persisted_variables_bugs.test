@@ -453,4 +453,24 @@ SELECT * FROM performance_schema.persisted_variables
 
 RESET PERSIST;
 
+
+--echo #
+--echo # Bug #32640588: SOURCE FOR SKIP_SLAVE_START DISPLAYED AS COMPILED
+--echo #   WHEN IT IS PERSISTED
+--echo #
+
+--echo # Should both be "COMPILED"
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+SET PERSIST_ONLY skip_replica_start = ON;
+--echo # Should still be "COMPILED" pre-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+--source include/restart_mysqld.inc
+--echo # Success criteria: Should be "PERSISTED" post-restart
+SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
+  WHERE variable_name LIKE 'skip_%_start' ORDER BY 1;
+RESET PERSIST;
+--source include/restart_mysqld.inc
+
 --echo # End of the 8.0 tests
