@@ -19,9 +19,9 @@ select thread_id, event_id, event_name
 from performance_schema.events_waits_current;
 ERROR 42000: SELECT command denied to user 'pfs_user_5'@'localhost' for column 'event_name' in table 'events_waits_current'
 update performance_schema.setup_instruments set name='illegal';
-ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'NAME' in table 'setup_instruments'
+ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'name' in table 'setup_instruments'
 update performance_schema.setup_instruments set timed='NO';
-ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'TIMED' in table 'setup_instruments'
+ERROR 42000: UPDATE command denied to user 'pfs_user_5'@'localhost' for column 'timed' in table 'setup_instruments'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'pfs_user_5'@localhost;
 DROP USER 'pfs_user_5'@localhost;
 flush privileges;

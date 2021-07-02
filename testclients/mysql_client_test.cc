@@ -22195,6 +22195,47 @@ static void test_bug32847269() {
       mysql, "UNINSTALL COMPONENT 'file://component_query_attributes'"));
 }
 
+static void test_bug32892045() {
+  myheader("test_bug32892045");
+
+  char command[100];
+  strcpy(command, "USE ");
+  strcat(command, current_db);
+
+  int rc = mysql_query(mysql, command);
+  myquery(rc);
+
+  rc = mysql_query(mysql,
+                   "CREATE TABLE t1 (AAA INT, BBB INT, CCC INT, DDD INT)");
+  myquery(rc);
+
+  MYSQL_STMT *stmt =
+      mysql_simple_prepare(mysql, "SELECT AAA, bbb, cCc, ddd AS eEe FROM t1");
+  check_stmt(stmt);
+
+  MYSQL_RES *result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "AAA", "AAA", MYSQL_TYPE_LONG, "t1", "t1",
+                       current_db, 11, 0);
+
+  verify_prepare_field(result, 1, "bbb", "BBB", MYSQL_TYPE_LONG, "t1", "t1",
+                       current_db, 11, 0);
+
+  verify_prepare_field(result, 2, "cCc", "CCC", MYSQL_TYPE_LONG, "t1", "t1",
+                       current_db, 11, 0);
+
+  verify_prepare_field(result, 3, "eEe", "DDD", MYSQL_TYPE_LONG, "t1", "t1",
+                       current_db, 11, 0);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  my_print_result_metadata(result);
+
+  myquery(mysql_query(mysql, "DROP TABLE t1"));
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22499,6 +22540,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32372038", test_bug32372038},
     {"test_bug32558782", test_bug32558782},
     {"test_bug32847269", test_bug32847269},
+    {"test_bug32892045", test_bug32892045},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

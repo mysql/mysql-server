@@ -2795,7 +2795,7 @@ void Item_field::set_field(Field *field_par) {
     table_name = m_orig_table_name;
   }
 
-  field_name = field_par->field_name;
+  m_orig_field_name = field_par->field_name;
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   set_data_type(field_par->type());
@@ -2826,22 +2826,25 @@ void Item_field::reset_field(Field *f) {
 }
 
 const char *Item_ident::full_name() const {
+  const char *f_name =
+      m_orig_field_name != nullptr ? m_orig_field_name : field_name;
   char *tmp;
-  if (!table_name || !field_name)
-    return field_name ? field_name
-                      : item_name.is_set() ? item_name.ptr() : "tmp_field";
+  if (table_name == nullptr || f_name == nullptr)
+    return f_name != nullptr
+               ? f_name
+               : item_name.is_set() ? item_name.ptr() : "tmp_field";
   if (db_name && db_name[0]) {
-    tmp = (char *)(*THR_MALLOC)
-              ->Alloc(strlen(db_name) + strlen(table_name) +
-                      strlen(field_name) + 3);
-    strxmov(tmp, db_name, ".", table_name, ".", field_name, NullS);
+    tmp = pointer_cast<char *>(
+        (*THR_MALLOC)
+            ->Alloc(strlen(db_name) + strlen(table_name) + strlen(f_name) + 3));
+    strxmov(tmp, db_name, ".", table_name, ".", f_name, NullS);
   } else {
     if (table_name[0]) {
-      tmp = (char *)(*THR_MALLOC)
-                ->Alloc(strlen(table_name) + strlen(field_name) + 2);
-      strxmov(tmp, table_name, ".", field_name, NullS);
+      tmp = pointer_cast<char *>(
+          (*THR_MALLOC)->Alloc(strlen(table_name) + strlen(f_name) + 2));
+      strxmov(tmp, table_name, ".", f_name, NullS);
     } else
-      return field_name;
+      return f_name;
   }
   return tmp;
 }
@@ -2850,7 +2853,10 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
                        const char *db_name_arg,
                        const char *table_name_arg) const {
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
-  const char *d_name = db_name_arg, *t_name = table_name_arg;
+  const char *d_name = db_name_arg;
+  const char *t_name = table_name_arg;
+  const char *f_name =
+      m_orig_field_name != nullptr ? m_orig_field_name : field_name;
 
   if (lower_case_table_names == 1 ||
       // mode '2' does not apply to aliases:
@@ -2867,9 +2873,9 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
     }
   }
 
-  if (!table_name_arg || !field_name || !field_name[0]) {
-    const char *nm = (field_name && field_name[0])
-                         ? field_name
+  if (table_name_arg == nullptr || f_name == nullptr || !f_name[0]) {
+    const char *nm = (f_name != nullptr && f_name[0])
+                         ? f_name
                          : item_name.is_set() ? item_name.ptr() : "tmp_field";
     append_identifier(thd, str, nm, strlen(nm));
     return;
@@ -2888,7 +2894,7 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
   }
-  append_identifier(thd, str, field_name, strlen(field_name));
+  append_identifier(thd, str, f_name, strlen(f_name));
 }
 
 TYPELIB *Item_field::get_typelib() const {
@@ -5464,10 +5470,9 @@ void Item_field::bind_fields() {
   if (table_ref != nullptr && table_ref->table == nullptr) return;
   if (field == nullptr) {
     field = result_field = table_ref->table->field[field_index];
+    m_orig_field_name = field->field_name;
   }
   if (table_name == nullptr) table_name = *field->table_name;
-  if (field_name == item_name.ptr() || field_name == nullptr)
-    field_name = field->field_name;
 }
 
 Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
@@ -5481,12 +5486,16 @@ void Item_field::cleanup() {
 
   Item_ident::cleanup();
   /*
-    When TABLE is detached from TABLE_LIST, field pointers are invalid.
-    Unless field objects are created as part of statement (placeholder tables).
+    When TABLE is detached from TABLE_LIST, field pointers are invalid,
+    unless field objects are created as part of statement (placeholder tables).
+    Also invalidate the orginal field name, since it is usually determined
+    from the field name in the Field object.
   */
   if (table_ref != nullptr && !table_ref->is_view_or_derived() &&
-      !table_ref->is_recursive_reference())
+      !table_ref->is_recursive_reference()) {
     field = nullptr;
+    m_orig_field_name = nullptr;
+  }
 
   // Restore result field back to the initial value
   result_field = field;
@@ -5497,19 +5506,6 @@ void Item_field::cleanup() {
   */
   if (table_ref == nullptr) table_name = nullptr;
 
-  /*
-    Schema tables are created per execution, so field names must be reassigned.
-    Ordinary base tables have stable metadata as long as version is not bumped
-    (which causes a reprepare).
-    However, DD tables may have MYSQL_OPEN_IGNORE_FLUSH which means metadata
-    is still unstable.
-    To preserve as much of the plan as possible while not within execution,
-    set field_name to be the same as item name here. It is restored in
-    Item_field::bind_fields().
-  */
-  if (table_ref != nullptr) {
-    field_name = item_name.ptr();
-  }
   // Reset field before next optimization (multiple equality analysis)
   item_equal = nullptr;
   item_equal_all_join_nests = nullptr;
@@ -5522,12 +5518,12 @@ void Item_field::cleanup() {
   @todo refactor CREATE TABLE so this is no longer needed.
 */
 void Item_field::reset_field() {
+  assert(table_ref == nullptr);
   fixed = false;
   context = nullptr;
   db_name = m_orig_db_name;
   table_name = m_orig_table_name;
-  field_name = m_orig_field_name;
-  table_ref = nullptr;
+  m_orig_field_name = field_name;
   field = nullptr;
 }
 
@@ -7999,12 +7995,12 @@ Item *Item_ref::get_tmp_table_item(THD *thd) {
   Item_field *item = new Item_field(result_field);
   if (item == nullptr) return nullptr;
 
-  item->set_orig_db_name(m_orig_db_name);
+  item->set_orignal_db_name(m_orig_db_name);
   item->db_name = db_name;
   item->table_name = table_name;
   if (real_item()->type() == Item::FIELD_ITEM)
-    item->set_orig_table_name(
-        down_cast<Item_field *>(real_item())->orig_table_name());
+    item->set_original_table_name(
+        down_cast<Item_field *>(real_item())->original_table_name());
 
   return item;
 }
@@ -8387,6 +8383,10 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   // Needs cached_table for some Item traversal functions:
   cached_table = table_ref;
 
+  // Use same field name as the underlying field:
+  assert(field_name == nullptr);
+  field_name = arg->item_name.ptr();
+
   return false;
 }
 
@@ -8518,6 +8518,10 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
     }
 
     set_field(def_field);
+
+    // Use same field name as the underlying field:
+    assert(field_name == nullptr);
+    field_name = arg->item_name.ptr();
 
     // The VALUES function is deprecated.
     if (m_is_values_function)

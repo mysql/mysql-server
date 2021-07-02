@@ -3813,6 +3813,13 @@ class Item_ident : public Item {
     If column is from a non-aliased base table or view, the name of the
     column in that base table or view.
     If column is from an expression, a string generated from that expression.
+
+    Notice that a column can be aliased in two ways:
+    1. With an explicit column alias, or <as clause>, or
+    2. With only a column name specified, which differs from the table's
+       column name due to case insensitivity.
+    In both cases field_name will differ from m_orig_field_name.
+    field_name is normally identical to Item::item_name.
   */
   const char *field_name;
 
@@ -3874,15 +3881,16 @@ class Item_ident : public Item {
   bool itemize(Parse_context *pc, Item **res) override;
 
   const char *full_name() const override;
-  void set_orig_db_name(const char *name_arg) { m_orig_db_name = name_arg; }
-  void set_orig_table_name(const char *name_arg) {
+  void set_orignal_db_name(const char *name_arg) { m_orig_db_name = name_arg; }
+  void set_original_table_name(const char *name_arg) {
     m_orig_table_name = name_arg;
   }
-  void set_orig_field_name(const char *name_arg) {
+  void set_original_field_name(const char *name_arg) {
     m_orig_field_name = name_arg;
   }
-  const char *orig_db_name() const { return m_orig_db_name; }
-  const char *orig_table_name() const { return m_orig_table_name; }
+  const char *original_db_name() const { return m_orig_db_name; }
+  const char *original_table_name() const { return m_orig_table_name; }
+  const char *original_field_name() const { return m_orig_field_name; }
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
   bool aggregate_check_distinct(uchar *arg) override;

@@ -4924,12 +4924,12 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
         Item_field *ifield = down_cast<Item_field *>(new_item);
         Item_ref *iref = down_cast<Item_ref *>(item);
         ifield->table_name = iref->table_name;
-        ifield->set_orig_db_name(iref->orig_db_name());
+        ifield->set_orignal_db_name(iref->original_db_name());
         ifield->db_name = iref->db_name;
       }
       if (orig_field != nullptr && item != new_item) {
-        down_cast<Item_field *>(new_item)->set_orig_table_name(
-            orig_field->orig_table_name());
+        down_cast<Item_field *>(new_item)->set_original_table_name(
+            orig_field->original_table_name());
       }
     } else {
       new_item = item;

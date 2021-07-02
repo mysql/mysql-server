@@ -568,10 +568,10 @@ class Item_sum : public Item_func {
     Item_field *item = new Item_field(field);
     if (item == nullptr) return nullptr;
     // Aggregated fields have no reference to an underlying table
-    assert(item->orig_db_name() == nullptr &&
-           item->orig_table_name() == nullptr);
+    assert(item->original_db_name() == nullptr &&
+           item->original_table_name() == nullptr);
     // Break the connection to the original field since this is an aggregation
-    item->set_orig_field_name(nullptr);
+    item->set_original_field_name(nullptr);
     return item;
   }
   table_map used_tables() const override {
