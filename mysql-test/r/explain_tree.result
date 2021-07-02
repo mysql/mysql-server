@@ -879,3 +879,19 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SET sql_mode=DEFAULT;
 DROP TABLE t1;
+#
+# Bug #33030136: EXPLAIN: ASSERTION `CURRENT_THD->LEX->USING_HYPERGRAPH_OPTIMIZER' FAILED.
+#
+CREATE TABLE t1 (a INTEGER);
+EXPLAIN FORMAT=tree
+(SELECT 1 FROM t1)
+UNION ALL
+SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
+EXPLAIN
+-> Append
+    -> Stream results  (cost=0.35 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+    -> Stream results  (cost=0.00..0.00 rows=0)
+        -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+DROP TABLE t1;

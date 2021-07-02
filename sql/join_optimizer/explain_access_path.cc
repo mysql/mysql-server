@@ -882,9 +882,21 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
     ++level;
   }
 
+  // If we are crossing into a different query block, but there's a streaming
+  // or materialization node in the way, don't count it as the root; we want
+  // any SELECT printouts to be on the actual root node.
+  // TODO(sgunders): This gives the wrong result if a query block ends in a
+  // materialization.
+  bool delayed_root_of_join = false;
+  if (path->type == AccessPath::STREAM ||
+      path->type == AccessPath::MATERIALIZE) {
+    delayed_root_of_join = is_root_of_join;
+    is_root_of_join = false;
+  }
+
   for (const ExplainData::Child &child : explain.children) {
     JOIN *subjoin = child.join != nullptr ? child.join : join;
-    bool child_is_root_of_join = subjoin != join;
+    bool child_is_root_of_join = subjoin != join || delayed_root_of_join;
     if (!child.description.empty()) {
       ret.append(level * 4, ' ');
       ret.append("-> ");

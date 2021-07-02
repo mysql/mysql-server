@@ -1848,12 +1848,12 @@ EXPLAIN
 -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
--> Select #2 (subquery in projection; dependent)
-    -> Aggregate: count(0)  (cost=1.75 rows=4)
-        -> Nested loop left join  (cost=1.35 rows=4)
-            -> Table scan on t2  (cost=0.45 rows=2)
-            -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
-                -> Table scan on t3  (cost=0.35 rows=2)
+        -> Select #2 (subquery in projection; dependent)
+            -> Aggregate: count(0)  (cost=1.75 rows=4)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
