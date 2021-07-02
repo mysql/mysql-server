@@ -10866,9 +10866,7 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
   /* Get the final size of the file and adjust file->size accordingly. */
   os_offset_t end_fsize = os_file_get_size(file->handle);
 
-  page_no_t pages_added = (end_fsize - initial_fsize) / phy_page_size;
-
-  file->size += pages_added;
+  file->size = end_fsize / phy_page_size;
   space->size = file->size;
 
   fil_flush(space->id);
