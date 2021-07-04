@@ -199,17 +199,14 @@ void Log_Arch_Client_Ctx::release() {
   m_state = ARCH_CLIENT_STATE_INIT;
 }
 
-/** Update checkpoint LSN and related information in redo
-log header block.
-@param[in,out]	header		redo log header buffer
-@param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
+void Arch_Log_Sys::update_header(const Arch_Group *group, byte *header,
+                                 lsn_t checkpoint_lsn) {
   lsn_t start_lsn;
   lsn_t lsn_offset;
   ib_uint64_t file_size;
 
-  start_lsn = m_current_group->get_begin_lsn();
-  file_size = m_current_group->get_file_size();
+  start_lsn = group->get_begin_lsn();
+  file_size = group->get_file_size();
 
   start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
@@ -382,8 +379,11 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   arch_mutex_exit();
 
-  /* Update header with checkpoint LSN. */
-  update_header(header, start_lsn);
+  /* Update header with checkpoint LSN. We need to pass the saved
+  group pointer as arch mutex is released and m_current_group should
+  no longer be accessed. The group cannot be freed as we have already
+  attached to it. */
+  update_header(group, header, start_lsn);
 
   return (0);
 }

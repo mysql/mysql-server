@@ -127,10 +127,15 @@ class Server {
   }
 
  private:
-  /** @return true if clone needs to block concurrent DDl. */
-  bool block_ddl() const {
-    return m_is_master && (m_client_ddl_timeout != NO_LOCK_TIMEOUT_VALUE);
+  /** Extract client ddl timeout and backup lock flag.
+  @param[in]	client_timeout	timeout value received from client */
+  void set_client_timeout(uint32_t client_timeout) {
+    m_backup_lock = ((client_timeout & NO_BACKUP_LOCK_FLAG) == 0);
+    m_client_ddl_timeout = client_timeout & ~NO_BACKUP_LOCK_FLAG;
   }
+
+  /** @return true if clone needs to block concurrent DDL. */
+  bool block_ddl() const { return (m_is_master && m_backup_lock); }
 
   /** Check if network error
   @param[in]	err	error code
@@ -233,6 +238,9 @@ class Server {
 
   /** DDL timeout from client */
   uint32_t m_client_ddl_timeout;
+
+  /** If backup lock should be acquired */
+  bool m_backup_lock;
 };
 
 /** Clone server interface to handle callback from Storage Engine */

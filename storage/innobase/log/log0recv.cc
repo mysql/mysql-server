@@ -1877,13 +1877,15 @@ static byte *recv_parse_or_apply_log_rec_body(
           byte op = mach_read_from_1(page + offset);
           switch (op) {
             case Encryption::ENCRYPT_IN_PROGRESS:
-              space->encryption_op_in_progress = ENCRYPTION;
+              space->encryption_op_in_progress =
+                  Encryption::Progress::ENCRYPTION;
               break;
             case Encryption::DECRYPT_IN_PROGRESS:
-              space->encryption_op_in_progress = DECRYPTION;
+              space->encryption_op_in_progress =
+                  Encryption::Progress::DECRYPTION;
               break;
             default:
-              space->encryption_op_in_progress = NONE;
+              space->encryption_op_in_progress = Encryption::Progress::NONE;
               break;
           }
         }

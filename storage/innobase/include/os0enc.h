@@ -72,6 +72,16 @@ class Encryption {
     VERSION_3 = 2,
   };
 
+  /** Encryption progress type. */
+  enum class Progress {
+    /* Space encryption in progress */
+    ENCRYPTION,
+    /* Space decryption in progress */
+    DECRYPTION,
+    /* Nothing in progress */
+    NONE
+  };
+
   /** Encryption operation resume point after server restart. */
   enum class Resume_point {
     /* Resume from the beginning. */

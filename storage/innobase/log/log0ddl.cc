@@ -1162,7 +1162,7 @@ DDL_Record *Log_DDL::find_alter_encrypt_record(space_id_t space_id) {
 }
 
 dberr_t Log_DDL::write_alter_encrypt_space_log(space_id_t space_id,
-                                               encryption_op_type type,
+                                               Encryption::Progress type,
                                                DDL_Record *existing_rec) {
   /* Missing current_thd, it happens during crash recovery */
   if (!current_thd) {
@@ -1207,24 +1207,22 @@ dberr_t Log_DDL::write_alter_encrypt_space_log(space_id_t space_id,
 
 dberr_t Log_DDL::insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
                                                 space_id_t space_id,
-                                                encryption_op_type type,
+                                                Encryption::Progress type,
                                                 DDL_Record *existing_rec) {
   dberr_t err = DB_SUCCESS;
   trx_t *trx = trx_allocate_for_background();
   trx_start_internal(trx);
   trx->ddl_operation = true;
 
-  ut_ad(type == ENCRYPTION || type == DECRYPTION);
-
   DDL_Record record;
   record.set_id(id);
   record.set_thread_id(thread_id);
-  if (type == ENCRYPTION) {
+
+  if (type == Encryption::Progress::ENCRYPTION) {
     record.set_type(Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG);
-  } else if (type == DECRYPTION) {
-    record.set_type(Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG);
   } else {
-    ut_ad(false);
+    ut_ad(type == Encryption::Progress::DECRYPTION);
+    record.set_type(Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG);
   }
   record.set_space_id(space_id);
 

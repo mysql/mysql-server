@@ -1170,7 +1170,7 @@ void Client::use_other_configs() {
       try {
         int timeout_minutes = std::stoi(key_val.second);
         s_reconnect_timeout = Time_Min(timeout_minutes);
-      } catch (const std::exception &e) {
+      } catch (...) {
         assert(false);
       }
     }
@@ -1356,10 +1356,10 @@ int Client::serialize_init_cmd(size_t &buf_len) {
   buf_ptr += 4;
 
   /* Store DDL timeout value. Default is no lock. */
-  uint32_t timeout_value = NO_LOCK_TIMEOUT_VALUE;
+  uint32_t timeout_value = clone_ddl_timeout;
 
-  if (clone_block_ddl) {
-    timeout_value = clone_ddl_timeout;
+  if (!clone_block_ddl) {
+    timeout_value |= NO_BACKUP_LOCK_FLAG;
   }
 
   int4store(buf_ptr, timeout_value);

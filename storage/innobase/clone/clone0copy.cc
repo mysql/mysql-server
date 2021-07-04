@@ -703,7 +703,7 @@ bool Clone_Snapshot::file_ctx_changed(const fil_node_t *node,
 
   /* Check if encryption property has changed. */
   if (file_meta->m_encrypt_type != space->encryption_type ||
-      space->encryption_op_in_progress != NONE) {
+      space->encryption_op_in_progress != Encryption::Progress::NONE) {
     return true;
   }
 
@@ -784,10 +784,11 @@ int Clone_Snapshot::add_file(const char *name, uint64_t size_bytes,
   /* Modify file meta encryption flag if space encryption or decryption
   already started. This would allow clone to send pages accordingly
   during page copy and persist the flag. */
-  if (space->encryption_op_in_progress == DECRYPTION) {
+  if (space->encryption_op_in_progress == Encryption::Progress::DECRYPTION) {
     fsp_flags_unset_encryption(file_meta->m_fsp_flags);
 
-  } else if (space->encryption_op_in_progress == ENCRYPTION) {
+  } else if (space->encryption_op_in_progress ==
+             Encryption::Progress::ENCRYPTION) {
     fsp_flags_set_encryption(file_meta->m_fsp_flags);
   }
 

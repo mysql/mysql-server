@@ -226,9 +226,6 @@ struct fil_node_t {
   size_t magic_n;
 };
 
-/* Type of (un)encryption operation in progress for Tablespace. */
-enum encryption_op_type { ENCRYPTION = 1, DECRYPTION = 2, NONE };
-
 /** Tablespace or log data space */
 struct fil_space_t {
   using List_node = UT_LIST_NODE_T(fil_space_t);
@@ -504,7 +501,7 @@ struct fil_space_t {
   byte encryption_iv[Encryption::KEY_LEN];
 
   /** Encryption is in progress */
-  encryption_op_type encryption_op_in_progress;
+  Encryption::Progress encryption_op_in_progress{Encryption::Progress::NONE};
 
   /** Flush lsn of header page. It is used only during recovery */
   lsn_t m_header_page_flush_lsn;

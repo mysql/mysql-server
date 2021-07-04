@@ -1242,8 +1242,7 @@ dberr_t Clone_Handle::punch_holes(os_file_t file, const byte *buffer,
     auto page_type = mach_read_from_2(buffer + FIL_PAGE_TYPE);
     if (page_type == FIL_PAGE_COMPRESSED ||
         page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-      os_offset_t comp_len =
-          mach_read_from_2(buffer + FIL_PAGE_COMPRESS_SIZE_V1);
+      uint32_t comp_len = mach_read_from_2(buffer + FIL_PAGE_COMPRESS_SIZE_V1);
       comp_len += FIL_PAGE_DATA;
 
       /* Align compressed length */
@@ -1725,7 +1724,10 @@ int Clone_Snapshot::extend_and_flush_files(bool flush_redo) {
     if (file_meta->m_fsp_flags != UINT32_UNDEFINED) {
       page_size_t page_size(file_meta->m_fsp_flags);
       auto extent_size = page_size.physical() * FSP_EXTENT_SIZE;
-      aligned_size = ut_calc_align(file_size, extent_size);
+      /* Skip extending files smaller than one extent. */
+      if (file_size > extent_size) {
+        aligned_size = ut_uint64_align_up(file_size, extent_size);
+      }
     }
 
     if (file_size < file_meta->m_file_size) {

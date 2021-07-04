@@ -41,7 +41,8 @@ Server::Server(THD *thd, MYSQL_SOCKET socket)
       m_pfs_initialized(false),
       m_acquired_backup_lock(false),
       m_protocol_version(CLONE_PROTOCOL_VERSION),
-      m_client_ddl_timeout() {
+      m_client_ddl_timeout(),
+      m_backup_lock(true) {
   m_ext_link.set_socket(socket);
   m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
 
@@ -163,13 +164,20 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   }
   m_pfs_initialized = true;
 
+  /* Work around to use client DDL timeout while waiting for backup
+  lock in clone_init_tablespaces if required. */
+  auto saved_donor_timeout = clone_ddl_timeout;
+  clone_ddl_timeout = m_client_ddl_timeout;
+
   /* Get server locators */
   err = hton_clone_begin(get_thd(), get_storage_vector(), m_tasks,
                          HA_CLONE_HYBRID, mode);
   if (err != 0) {
+    clone_ddl_timeout = saved_donor_timeout;
     return (err);
   }
   m_storage_initialized = true;
+  clone_ddl_timeout = saved_donor_timeout;
 
   if (m_is_master && mode == HA_CLONE_MODE_START) {
     /* Validate local configurations. */
@@ -347,9 +355,13 @@ int Server::deserialize_init_buffer(const uchar *init_buf, size_t init_len) {
   init_len -= 4;
 
   /* Extract DDL timeout */
-  m_client_ddl_timeout = uint4korr(init_buf);
-  init_buf += 4;
-  init_len -= 4;
+  {
+    uint32_t client_ddl_timeout = uint4korr(init_buf);
+    init_buf += 4;
+    init_len -= 4;
+
+    set_client_timeout(client_ddl_timeout);
+  }
 
   /* Initialize locators */
   while (init_len > 0) {

@@ -429,9 +429,12 @@ class Clone_Snapshot {
   /** Detach from snapshot. */
   void detach();
 
-  /** End current snapshot. Used in error cases before exiting clone to make
-  sure any DDL notifier exits waiting. */
-  void end();
+  /** Set current snapshot aborted state. Used in error cases before exiting
+  clone to make sure any DDL notifier exits waiting. */
+  void set_abort();
+
+  /** @return true, iff clone has aborted. */
+  bool is_aborted() const;
 
   /** Start transition to new state
   @param[in]	state_desc	descriptor for next state
@@ -583,7 +586,7 @@ class Clone_Snapshot {
   const static uint32_t S_MAX_BLOCKS_PIN = 1;
 
   /** File name allocation size base. */
-  const static uint32_t S_FILE_NAME_BASE_LEN = 256;
+  const static size_t S_FILE_NAME_BASE_LEN = 256;
 
   /** Various wait types related to snapshot state. */
   enum class Wait_type {
@@ -961,6 +964,9 @@ class Clone_Snapshot {
 
   /** Number of blockers for state change. Usually DDLs for short duration. */
   uint32_t m_num_blockers;
+
+  /** Set to TRUE only if clone is aborted after error. */
+  bool m_aborted;
 
   /** Number of clones attached to this snapshot */
   uint m_num_clones;

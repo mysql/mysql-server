@@ -878,28 +878,27 @@ page of a tablespace.
 @param[in]	page_size	tablespace page size
 @return operation type
 */
-encryption_op_type fsp_header_encryption_op_type_in_progress(
+Encryption::Progress fsp_header_encryption_op_type_in_progress(
     const page_t *page, page_size_t page_size) {
-  ulint offset;
-  encryption_op_type op;
-  offset = fsp_header_get_encryption_progress_offset(page_size);
+  auto offset = fsp_header_get_encryption_progress_offset(page_size);
   ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
 
+  auto op = Encryption::Progress::NONE;
   /* Read operation type (1 byte) */
   byte operation = mach_read_from_1(page + offset);
   switch (operation) {
     case Encryption::ENCRYPT_IN_PROGRESS:
-      op = ENCRYPTION;
+      op = Encryption::Progress::ENCRYPTION;
       break;
     case Encryption::DECRYPT_IN_PROGRESS:
-      op = DECRYPTION;
+      op = Encryption::Progress::DECRYPTION;
       break;
     default:
-      op = NONE;
+      op = Encryption::Progress::NONE;
       break;
   }
 
-  return (op);
+  return op;
 }
 
 /** Write the encryption info into the space header.
@@ -1118,7 +1117,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
       memcpy(page + offset, encryption_info, Encryption::INFO_SIZE);
     });
   }
-  space->encryption_op_in_progress = NONE;
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   if (space_id == TRX_SYS_SPACE) {
     if (btr_create(DICT_CLUSTERED | DICT_IBUF, 0, univ_page_size,
@@ -4355,7 +4354,7 @@ static void encrypt_begin_memory(fil_space_t *space) {
   ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
-  space->encryption_op_in_progress = ENCRYPTION;
+  space->encryption_op_in_progress = Encryption::Progress::ENCRYPTION;
 
   /* Update In-mem Encryption flag for tablespace */
   fsp_flags_set_encryption(space->flags);
@@ -4401,7 +4400,7 @@ static void encrypt_end(fil_space_t *space) {
   ut_ad(!notifier.failed());
 
   /* Reset encryption in progress flag */
-  space->encryption_op_in_progress = NONE;
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
 }
 
 /** Find out the place to resume the operation.
@@ -4425,12 +4424,12 @@ static Encryption::Resume_point encrypt_resume_point(fil_space_t *space,
 
   if (operation != Encryption::ENCRYPT_IN_PROGRESS) {
     ut_ad(operation != Encryption::DECRYPT_IN_PROGRESS);
-    ut_ad(space->encryption_op_in_progress == NONE);
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
     /* Encryption is already done. */
     return Encryption::Resume_point::DONE;
   }
 
-  ut_ad(space->encryption_op_in_progress == ENCRYPTION);
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::ENCRYPTION);
 
   if (from_page == space->size) {
     return Encryption::Resume_point::END;
@@ -4501,7 +4500,7 @@ static dberr_t decrypt_begin_persist(fil_space_t *space) {
     Clone_notify notifier(Clone_notify::Type::SPACE_ALTER_ENCRYPT_GENERAL,
                           space->id, false);
     ut_ad(!notifier.failed());
-    space->encryption_op_in_progress = DECRYPTION;
+    space->encryption_op_in_progress = Encryption::Progress::DECRYPTION;
   }
 
   dberr_t err = DB_SUCCESS;
@@ -4530,7 +4529,7 @@ static void decrypt_begin_memory(fil_space_t *space) {
   ut_ad(!notifier.failed());
 
   /* Set encryption operation in progress flag */
-  space->encryption_op_in_progress = DECRYPTION;
+  space->encryption_op_in_progress = Encryption::Progress::DECRYPTION;
 
   /* Update In-memory Encryption flag for tablespace. We cannot erase Encryption
   info in page-0 till all pages are decrypted. */
@@ -4555,7 +4554,7 @@ static dberr_t decrypt_end(fil_space_t *space) {
     ut_ad(!notifier.failed());
 
     /* Reset encryption in progress flag */
-    space->encryption_op_in_progress = NONE;
+    space->encryption_op_in_progress = Encryption::Progress::NONE;
 
     rw_lock_x_lock(&space->latch);
     /* Reset In-memory encryption for tablespace */
@@ -4608,7 +4607,7 @@ static Encryption::Resume_point decrypt_resume_point(fil_space_t *space,
   if (!encryption_flag) {
     /* Decryption must have finished already. The encryption flag is reset and
     persisted at very end. */
-    ut_ad(space->encryption_op_in_progress == NONE);
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
 
     return Encryption::Resume_point::DONE;
   }
@@ -4619,12 +4618,12 @@ static Encryption::Resume_point decrypt_resume_point(fil_space_t *space,
 
   if (operation != Encryption::DECRYPT_IN_PROGRESS) {
     ut_ad(operation != Encryption::ENCRYPT_IN_PROGRESS);
-    ut_ad(space->encryption_op_in_progress == NONE);
+    ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
     /* Decryption is not started. */
     return Encryption::Resume_point::INIT;
   }
 
-  ut_ad(space->encryption_op_in_progress == DECRYPTION);
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::DECRYPTION);
 
   if (from_page == space->size) {
     return Encryption::Resume_point::END;
@@ -4697,7 +4696,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
 
   /* Make an entry in DDL LOG for this tablespace. If an entry for tablespace
   exists then remove that entry and insert a new one. */
-  encryption_op_type op_type_ddl_log = (to_encrypt) ? ENCRYPTION : DECRYPTION;
+  auto op_type_ddl_log = (to_encrypt) ? Encryption::Progress::ENCRYPTION
+                                      : Encryption::Progress::DECRYPTION;
 
   DDL_Record *old_ddl_rec = log_ddl->find_alter_encrypt_record(space_id);
 
@@ -4766,7 +4766,7 @@ static void validate_tablespace_encryption(fil_space_t *space) {
     ut_ad(space->encryption_klen == 0);
     ut_ad(space->encryption_type == Encryption::NONE);
   }
-  ut_ad(space->encryption_op_in_progress == NONE);
+  ut_ad(space->encryption_op_in_progress == Encryption::Progress::NONE);
 }
 #endif
 
@@ -4815,12 +4815,13 @@ static const std::string enc("ENCRYPTION");
 static const std::string dec("DECRYPTION");
 static const std::string none("NONE");
 
-static inline const std::string &get_encryption_op_str(encryption_op_type op) {
+static inline const std::string &get_encryption_op_str(
+    Encryption::Progress op) {
   switch (op) {
-    case ENCRYPTION:
+    case Encryption::Progress::ENCRYPTION:
       return enc;
       break;
-    case DECRYPTION:
+    case Encryption::Progress::DECRYPTION:
       return dec;
       break;
     default:
@@ -4851,7 +4852,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
     /* If encryption was going on, make sure encryption information is
     read/loaded from disk. */
-    if (it->get_encryption_type() == ENCRYPTION &&
+    if (it->get_encryption_type() == Encryption::Progress::ENCRYPTION &&
         space->encryption_type == Encryption::NONE) {
       if (load_encryption_from_header(space)) {
         ib::error() << "Encryption information can't be read for tablesapce "
@@ -4885,7 +4886,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
   std::list<MDL_ticket *>::iterator mdl_it = shared_mdl_list.begin();
   for (auto it : ts_encrypt_ddl_records) {
-    ut_ad(it->get_encryption_type() != NONE);
+    ut_ad(it->get_encryption_type() != Encryption::Progress::NONE);
     ut_ad(mdl_it != shared_mdl_list.end());
 
     space_id_t space_id = it->get_space_id();
@@ -4906,7 +4907,8 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
     /* Call server API to resume operation */
     bool res = dd::alter_tablespace_encryption(
-        thd, space->name, (it->get_encryption_type() == ENCRYPTION));
+        thd, space->name,
+        (it->get_encryption_type() == Encryption::Progress::ENCRYPTION));
     if (res) {
       ib::error(ER_IB_MSG_1280)
           << get_encryption_op_str(it->get_encryption_type())

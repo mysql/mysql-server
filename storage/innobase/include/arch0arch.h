@@ -1365,9 +1365,11 @@ class Arch_Log_Sys {
 
   /** Update checkpoint LSN and related information in redo
   log header block.
-  @param[in,out]	header		redo log header buffer
+  @param[in]		group	archiving group
+  @param[in,out]	header	redo log header buffer
   @param[in]	checkpoint_lsn	checkpoint LSN for recovery */
-  void update_header(byte *header, lsn_t checkpoint_lsn);
+  void update_header(const Arch_Group *group, byte *header,
+                     lsn_t checkpoint_lsn);
 
   /** Check and set log archive system state and output the
   amount of redo log available for archiving.

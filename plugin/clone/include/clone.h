@@ -126,8 +126,9 @@ const uint32_t CLONE_PROTOCOL_VERSION_V3 = 0x0102;
 /**  Clone protocol latest version */
 const uint32_t CLONE_PROTOCOL_VERSION = CLONE_PROTOCOL_VERSION_V3;
 
-/** Special timeout value to indicate no backup lock for DDL. */
-const uint32_t NO_LOCK_TIMEOUT_VALUE = std::numeric_limits<uint32_t>::max();
+/** Flag to indicate no backup lock for DDL. This is multiplexed with
+clone_ddl_timeout and sent to donor server. */
+const uint32_t NO_BACKUP_LOCK_FLAG = 1ULL << 31;
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */

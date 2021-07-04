@@ -1,5 +1,6 @@
 # Test clone error cases with concurrent DDL
 --source include/have_debug_sync.inc
+--source include/have_log_bin.inc
 --source include/count_sessions.inc
 
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new

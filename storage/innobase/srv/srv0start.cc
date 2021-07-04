@@ -2623,6 +2623,15 @@ files_checked:
 
       log_stop_background_threads(*log_sys);
 
+      /* Make sure redo log is flushed after checkpoint thread is stopped. On
+      windows, Fil_shard::close_file intermittently hits mismatching
+      modification_counter and flush_counter assert while closing redo files.
+      This is likely because we flush redo in log_fsync (during checkpoint)
+      conditionally based on flush mode. Thus flush counter could remain behind
+      if checkpoint occurs after flush in srv_prepare_to_delete_redo_log_files.
+      This call is idempotent and should be harmless here. */
+      fil_flush_file_redo();
+
       /* Prohibit redo log writes from any other
       threads until creating a log checkpoint at the
       end of create_log_files(). */

@@ -3341,6 +3341,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
   space->magic_n = FIL_SPACE_MAGIC_N;
 
   space->encryption_type = Encryption::NONE;
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
@@ -5802,7 +5803,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     ut_ad(err == DB_SUCCESS);
   }
 
-  space->encryption_op_in_progress = NONE;
+  space->encryption_op_in_progress = Encryption::Progress::NONE;
 
   os_file_close(file);
   if (err != DB_SUCCESS) {
@@ -7646,7 +7647,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
-  if ((space->encryption_op_in_progress == DECRYPTION && req_type.is_write()) ||
+  if ((space->encryption_op_in_progress == Encryption::Progress::DECRYPTION &&
+       req_type.is_write()) ||
       space->encryption_type == Encryption::NONE ||
       (page_id.page_no() == 0 && !req_type.is_log())) {
     req_type.clear_encrypted();
@@ -10274,7 +10276,8 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
 
   if (status == FIL_LOAD_OK) {
     if ((FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
-         space->encryption_op_in_progress == ENCRYPTION) &&
+         space->encryption_op_in_progress ==
+             Encryption::Progress::ENCRYPTION) &&
         recv_sys->keys != nullptr) {
       fil_tablespace_encryption_init(space);
     }

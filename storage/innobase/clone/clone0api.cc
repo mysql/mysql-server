@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sql/clone_handler.h"
 #include "sql/mysqld.h"
+#include "sql/sql_backup_lock.h"
 #include "sql/sql_class.h"
 #include "sql/sql_prepare.h"
 #include "sql/sql_table.h"
@@ -269,8 +270,9 @@ user opens a table. Clone needs to read this from innodb space object.
 static void clone_init_compression(THD *thd);
 
 /** Open all Innodb tablespaces.
-@param[in,out]	thd	session THD */
-static void clone_init_tablespaces(THD *thd);
+@param[in,out]	thd	session THD
+@return error code. */
+static int clone_init_tablespaces(THD *thd);
 
 /** Set security context to skip privilege check.
 @param[in,out]	thd	session THD
@@ -292,6 +294,82 @@ void innodb_clone_get_capability(Ha_clone_flagset &flags) {
   flags.set(HA_CLONE_RESTART);
 }
 
+/** Check if clone can be started.
+@param[in,out]	thd	session THD
+@return error code. */
+static int clone_begin_check(THD *thd) {
+  ut_ad(mutex_own(clone_sys->get_mutex()));
+  int err = 0;
+
+  if (!mtr_t::s_logging.is_enabled()) {
+    err = ER_INNODB_REDO_DISABLED;
+
+  } else if (Clone_Sys::s_clone_sys_state == CLONE_SYS_ABORT) {
+    err = ER_CLONE_DDL_IN_PROGRESS;
+  }
+
+  if (err != 0 && thd != nullptr) {
+    my_error(err, MYF(0));
+  }
+  return err;
+}
+
+/** Get clone timeout configuration value.
+@param[in,out]	thd		server thread handle
+@param[in]	config_name	timeout configuration name
+@param[out]	timeout		timeout value
+@return true iff successful. */
+static bool get_clone_timeout_config(THD *thd, const std::string &config_name,
+                                     int &timeout) {
+  timeout = 0;
+
+  ut_ad(clone_protocol_svc != nullptr);
+  if (clone_protocol_svc == nullptr) {
+    return false;
+  }
+
+  /* Get timeout configuration in string format and convert to integer.
+  Currently there is no interface to get the integer value directly. The
+  variable is in clone plugin and innodb cannot access it directly. */
+  Mysql_Clone_Key_Values timeout_confs = {{config_name, ""}};
+
+  auto err = clone_protocol_svc->mysql_clone_get_configs(thd, timeout_confs);
+
+  std::string err_str("Error reading configuration: ");
+  err_str.append(config_name);
+
+  if (err != 0) {
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    return false;
+  }
+
+  try {
+    timeout = std::stoi(timeout_confs[0].second);
+  } catch (const std::exception &e) {
+    err_str.append(" Exception: ");
+    err_str.append(e.what());
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    ut_ad(false);
+    return false;
+  }
+
+  return true;
+}
+
+/** Timeout while waiting for DDL commands.
+@param[in,out]	thd	server thread handle
+@return donor timeout in seconds. */
+static int get_ddl_timeout(THD *thd) {
+  int timeout = 0;
+  std::string config_timeout("clone_ddl_timeout");
+
+  if (!get_clone_timeout_config(thd, config_timeout, timeout)) {
+    /* Default to five minutes in case error reading configuration. */
+    timeout = 300;
+  }
+  return timeout;
+}
+
 int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
                        uint &loc_len, uint &task_id, Ha_clone_type type,
                        Ha_clone_mode mode) {
@@ -307,25 +385,14 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
   IB_mutex_guard sys_mutex(clone_sys->get_mutex());
 
   /* Check if concurrent ddl has marked abort. */
-  if (Clone_Sys::s_clone_sys_state == CLONE_SYS_ABORT) {
-    if (thd != nullptr) {
-      my_error(ER_CLONE_DDL_IN_PROGRESS, MYF(0));
-    }
+  int err = clone_begin_check(thd);
 
-    return (ER_CLONE_DDL_IN_PROGRESS);
-  }
-
-  if (!mtr_t::s_logging.is_enabled()) {
-    if (thd != nullptr) {
-      my_error(ER_INNODB_REDO_DISABLED, MYF(0));
-    }
-    return (ER_INNODB_REDO_DISABLED);
+  if (err != 0) {
+    return err;
   }
 
   /* Check of clone is already in progress for the reference locator. */
   auto clone_hdl = clone_sys->find_clone(loc, loc_len, CLONE_HDL_COPY);
-
-  int err = 0;
 
   switch (mode) {
     case HA_CLONE_MODE_RESTART:
@@ -403,7 +470,18 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
 
     /* Check and wait if clone is marked for wait. */
     if (err == 0) {
+      auto timeout = get_ddl_timeout(thd);
+      /* zero timeout is special mode when DDL can abort running clone. */
+      if (timeout == 0) {
+        clone_hdl->set_ddl_abort();
+      }
       err = clone_sys->wait_for_free(thd);
+    }
+
+    /* Re-check for initial errors as we could have released sys mutex
+    before allocating clone handle. */
+    if (err == 0) {
+      err = clone_begin_check(thd);
     }
 
     if (err != 0) {
@@ -423,8 +501,11 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     /* 1. Open all tablespaces in Innodb if not done during bootstrap.
        2. Initialize compression option for all compressed tablesapces. */
     if (err == 0 && task_id == 0) {
-      clone_init_tablespaces(thd);
-      clone_init_compression(thd);
+      err = clone_init_tablespaces(thd);
+
+      if (err == 0) {
+        clone_init_compression(thd);
+      }
     }
 
     mutex_enter(clone_sys->get_mutex());
@@ -521,39 +602,13 @@ int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
 @param[in,out]	thd	server thread handle
 @return donor timeout in minutes. */
 static Clone_Min get_donor_timeout(THD *thd) {
-  int timeout = 5;
+  int timeout = 0;
+  std::string config_timeout("clone_donor_timeout_after_network_failure");
 
-  ut_ad(clone_protocol_svc != nullptr);
-  if (clone_protocol_svc == nullptr) {
-    return Clone_Min(timeout);
-  }
-
-  /* Get timeout configuration in string format and convert to integer.
-  Currently there is no interface to get the integer value directly. The
-  variable is in clone plugin and innodb cannot access it directly. */
-  Mysql_Clone_Key_Values timeout_confs = {
-      {"clone_donor_timeout_after_network_failure", ""}};
-
-  auto err = clone_protocol_svc->mysql_clone_get_configs(thd, timeout_confs);
-
-  std::string err_str(
-      "Error reading clone_donor_timeout_after_network_failure"
-      " configuration");
-  if (err != 0) {
-    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
-    return Clone_Min(timeout);
-  }
-
-  try {
-    timeout = std::stoi(timeout_confs[0].second);
-  } catch (const std::exception &e) {
-    err_str.append(" Exception: ");
-    err_str.append(e.what());
-    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
-    ut_ad(false);
+  if (!get_clone_timeout_config(thd, config_timeout, timeout)) {
+    /* Default to five minutes in case error reading configuration. */
     timeout = 5;
   }
-
   return Clone_Min(timeout);
 }
 
@@ -586,7 +641,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
       if (is_abort) {
         ib::info(ER_IB_CLONE_RESTART)
             << "Clone Master aborted by concurrent clone";
-
+        clone_hdl->set_abort();
       } else if (in_err != 0) {
         /* Make sure re-start attempt fails immediately */
         clone_hdl->set_abort();
@@ -2416,18 +2471,35 @@ Clone_notify::Clone_notify(Clone_notify::Type type, space_id_t space,
   std::string ntfn_mesg;
   IB_mutex_guard sys_mutex(clone_sys->get_mutex());
 
+  bool clone_active = false;
+  Clone_Handle *clone_donor = nullptr;
+
+  std::tie(clone_active, clone_donor) = clone_sys->check_active_clone();
+
+  /* This is for special case when clone_ddl_timeout is set to zero. DDL
+  needs to abort any running clone in this case. */
+  if (clone_active && clone_donor->abort_by_ddl()) {
+    clone_sys->mark_abort(true);
+    m_wait = Wait_at::ABORT;
+    return;
+  }
+
   if (type == Type::SYSTEM_REDO_DISABLE || type == Type::SPACE_IMPORT) {
-    if (clone_sys->check_active_clone(false)) {
+    if (clone_active) {
       get_mesg(true, ntfn_mesg);
       ib::info(ER_IB_MSG_CLONE_DDL_NTFN) << ntfn_mesg;
 
       m_error = ER_CLONE_IN_PROGRESS;
       my_error(ER_CLONE_IN_PROGRESS, MYF(0));
+      return;
     }
+
+    clone_sys->mark_abort(false);
+    m_wait = Wait_at::ABORT;
     return;
   }
 
-  if (!clone_sys->check_active_clone(false)) {
+  if (!clone_active) {
     /* Let any new clone block at the beginning. */
     clone_sys->mark_wait();
     m_wait = Wait_at::ENTER;
@@ -2578,21 +2650,35 @@ void Clone_notify::get_mesg(bool begin, std::string &mesg) {
   mesg.append(file.name);
 }
 
-static void clone_init_tablespaces(THD *thd) {
+static int clone_init_tablespaces(THD *thd) {
   if (clone_sys->is_space_initialized()) {
-    return;
+    return 0;
   }
+
+  /* We need to acquire X backup lock here to prevent DDLs. Clone by default
+  skips DDL lock. The API can handle recursive calls and it is not an issue
+  if clone has already acquired backup lock. */
+  auto timeout = static_cast<ulong>(get_ddl_timeout(thd));
+
+  if (acquire_exclusive_backup_lock(thd, timeout, false)) {
+    /* Timeout on backup lock. */
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return ER_LOCK_WAIT_TIMEOUT;
+  }
+
   ib::info(ER_IB_CLONE_SQL) << "Clone: Started loading tablespaces";
   auto dc = dd::get_dd_client(thd);
   Releaser releaser(dc);
 
-  /* We don't bother about MDL lock here as clone holds X backup lock
-  preventing all DDL. */
   DD_Objs<dd::Tablespace> dd_spaces;
 
   if (dc->fetch_global_components(&dd_spaces)) {
     ut_ad(false);
-    return;
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Innodb Clone failed to load tablespaces");
+
+    release_backup_lock(thd);
+    return ER_INTERNAL_ERROR;
   }
 
   for (auto dd_space : dd_spaces) {
@@ -2663,6 +2749,9 @@ static void clone_init_tablespaces(THD *thd) {
 
   clone_sys->set_space_initialized();
   ib::info(ER_IB_CLONE_SQL) << "Clone: Finished loading tablespaces";
+
+  release_backup_lock(thd);
+  return 0;
 }
 
 Clone_Sys::Wait_stage::Wait_stage(const char *new_info) {

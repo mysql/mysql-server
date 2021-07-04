@@ -744,6 +744,12 @@ class Clone_Handle {
   @return error code */
   int send_keep_alive(Clone_Task *task, Ha_clone_cbk *callback);
 
+  /** @return true iff DDL should abort running clone. */
+  bool abort_by_ddl() const { return m_abort_ddl; }
+
+  /** Allow concurrent DDL to abort clone. */
+  void set_ddl_abort() { m_abort_ddl = true; }
+
 #ifdef UNIV_DEBUG
   /** Close master task file if open and unpin. */
   void close_master_file();
@@ -1030,6 +1036,9 @@ class Clone_Handle {
   /** Allow restart of clone operation after network failure */
   bool m_allow_restart;
 
+  /** If concurrent DDL should abort clone. */
+  bool m_abort_ddl;
+
   /** Clone data directory */
   const char *m_clone_dir;
 
@@ -1272,6 +1281,10 @@ class Clone_Sys {
   @return true, if concurrent clone in progress */
   bool check_active_clone(bool print_alert);
 
+  /** Check if any active clone is running.
+  @return (true, handle) if concurrent clone in progress */
+  std::tuple<bool, Clone_Handle *> check_active_clone();
+
   /** @return GTID persistor */
   Clone_persist_gtid &get_gtid_persistor() { return (m_gtid_persister); }
 
@@ -1282,10 +1295,6 @@ class Clone_Sys {
   bool is_space_initialized() const { return m_space_initialized.load(); }
 
  private:
-  /** Check if any active clone is running.
-  @return (true, handle) if concurrent clone in progress */
-  std::tuple<bool, Clone_Handle *> check_active_clone();
-
   /** Find free index to allocate new clone handle.
   @param[in]	hdl_type	clone handle type
   @param[out]	free_index	free index in array

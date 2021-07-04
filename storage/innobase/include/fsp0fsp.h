@@ -433,7 +433,7 @@ page of a tablespace.
 @param[in]	page_size	tablespace page size
 @return operation type
 */
-encryption_op_type fsp_header_encryption_op_type_in_progress(
+Encryption::Progress fsp_header_encryption_op_type_in_progress(
     const page_t *page, page_size_t page_size);
 
 /** Check if the tablespace size information is valid.

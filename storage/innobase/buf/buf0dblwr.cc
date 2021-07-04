@@ -1658,7 +1658,7 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage,
   }
 
   fil_space_t *space = bpage->get_space();
-  if (space->encryption_op_in_progress == DECRYPTION ||
+  if (space->encryption_op_in_progress == Encryption::Progress::DECRYPTION ||
       !space->is_encrypted()) {
     return nullptr;
   }

@@ -196,7 +196,13 @@ int Clone_Sys::find_free_index(Clone_Handle_Type hdl_type, uint &free_index) {
           return (ER_CLONE_DDL_IN_PROGRESS);
 
         } else if (result) {
-          ut_ad(current_clone->is_abort());
+          if (!current_clone->is_abort()) {
+            /* Another clone has taken over the free index. */
+            ib::info(ER_IB_CLONE_START_STOP)
+                << "Clone Begin Master wait for abort interrupted";
+            my_error(ER_QUERY_INTERRUPTED, MYF(0));
+            return ER_QUERY_INTERRUPTED;
+          }
         }
 
         if (!result) {
@@ -701,9 +707,8 @@ void Clone_Task_Manager::debug_wait(uint chunk_num, Clone_Task *task) {
   after blocking here. The test need to ensure that it is local clone so that
   donor master task context can be found. This is in recipient path. */
   DBUG_EXECUTE_IF("local_release_clone_file_pin", {
-    ib::info(ER_IB_CLONE_OPERATION) << " BEGIN close master file.";
     clone_sys->close_donor_master_file();
-    ib::info(ER_IB_CLONE_OPERATION) << " END close master file.";
+    ib::info(ER_IB_CLONE_OPERATION) << "Clone debug close donor master file";
   });
 
   if (state == CLONE_SNAPSHOT_FILE_COPY) {
@@ -1914,6 +1919,7 @@ Clone_Handle::Clone_Handle(Clone_Handle_Type handle_type, uint clone_version,
       m_clone_id(),
       m_ref_count(),
       m_allow_restart(false),
+      m_abort_ddl(false),
       m_clone_dir(),
       m_clone_task_manager() {
   mutex_create(LATCH_ID_CLONE_TASK, m_clone_task_manager.get_mutex());
@@ -2210,9 +2216,11 @@ void Clone_Handle::set_abort() {
   Clone_Snapshot *snapshot = m_clone_task_manager.get_snapshot();
 
   /* Clone is set to abort state and snapshot can never be reused. It is
-  safe to end the snapshot to let any waiting DDL exit. */
+  safe to mark the snapshot aborted to let any waiting DDL exit. There
+  could be other tasks on their way to exit and we should not change
+  the snapshot state yet. */
   if (snapshot != nullptr) {
-    snapshot->end();
+    snapshot->set_abort();
   }
 }
 

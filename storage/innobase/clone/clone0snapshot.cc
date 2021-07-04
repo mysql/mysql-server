@@ -48,6 +48,7 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
       m_snapshot_id(snap_id),
       m_snapshot_arr_idx(arr_idx),
       m_num_blockers(),
+      m_aborted(false),
       m_num_clones(),
       m_num_clones_transit(),
       m_snapshot_state(CLONE_SNAPSHOT_INIT),
@@ -235,10 +236,15 @@ void Clone_Snapshot::detach() {
   mutex_exit(&m_snapshot_mutex);
 }
 
-void Clone_Snapshot::end() {
+bool Clone_Snapshot::is_aborted() const {
+  ut_ad(mutex_own(&m_snapshot_mutex));
+  return m_aborted;
+}
+
+void Clone_Snapshot::set_abort() {
   IB_mutex_guard guard(&m_snapshot_mutex);
-  m_snapshot_state = CLONE_SNAPSHOT_DONE;
-  ib::info(ER_IB_CLONE_OPERATION) << "Clone State END ";
+  m_aborted = true;
+  ib::info(ER_IB_CLONE_OPERATION) << "Clone Snapshot aborted";
 }
 
 Clone_Snapshot::State_transit::State_transit(Clone_Snapshot *snapshot,
@@ -1255,7 +1261,7 @@ const char *Clone_Snapshot::wait_string(Wait_type wait_type) const {
       wait_info = "Waiting for clone state transition";
       break;
 
-    /* DDL wating till Clone PAGE COPY state is over. */
+    /* DDL waiting till Clone PAGE COPY state is over. */
     case Wait_type::STATE_END_PAGE_COPY:
       wait_info = "Waiting for clone PAGE_COPY state";
       break;
@@ -1307,7 +1313,8 @@ int Clone_Snapshot::wait(Wait_type wait_type, const Clone_file_ctx *ctx,
         wait = in_transit_state();
         break;
       case Wait_type::STATE_END_PAGE_COPY:
-        wait = (get_state() == CLONE_SNAPSHOT_PAGE_COPY);
+        /* If clone has aborted, don't wait for state to end. */
+        wait = !is_aborted() && (get_state() == CLONE_SNAPSHOT_PAGE_COPY);
         DBUG_EXECUTE_IF("clone_ddl_abort_wait_page_copy", {
           if (wait) {
             my_error(ER_INTERNAL_ERROR, MYF(0), "Simulated Clone DDL error");
