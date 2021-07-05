@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4621,7 +4621,8 @@ Suma::get_responsible_node(Uint32 bucket) const
 
   jam();
   Uint32 node;
-  const Bucket* ptr= c_buckets + bucket;
+  ndbrequire(bucket < NO_OF_BUCKETS);
+  const Bucket* ptr = c_buckets + bucket;
   for(Uint32 i = 0; i<MAX_REPLICAS; i++)
   {
     node= ptr->m_nodes[i];
@@ -4644,7 +4645,8 @@ Suma::get_responsible_node(Uint32 bucket, const NdbNodeBitmask& mask) const
 {
   jam();
   Uint32 node;
-  const Bucket* ptr= c_buckets + bucket;
+  ndbrequire(bucket < NO_OF_BUCKETS);
+  const Bucket* ptr = c_buckets + bucket;
   for(Uint32 i = 0; i<MAX_REPLICAS; i++)
   {
     node= ptr->m_nodes[i];
@@ -6467,7 +6469,8 @@ Uint32*
 Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
 {
   sz += 1; // len
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
 
   Buffer_page* page = 0;
@@ -6576,7 +6579,8 @@ Suma::out_of_buffer(Signal* signal)
 void
 Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
   
   if(tail != RNIL)
@@ -6690,7 +6694,8 @@ Suma::free_page(Uint32 page_id, Buffer_page* page)
 void
 Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
   Page_pos head= bucket->m_buffer_head;
   Uint64 max_acked = bucket->m_max_acked_gci;
@@ -6776,7 +6781,8 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   /**
    * Resend from m_max_acked_gci + 1 until max_gci + 1
    */
-  Bucket* bucket= c_buckets + buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
 
   if(m_out_of_buffer_gci)
@@ -6848,7 +6854,8 @@ void
 Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
 		    Uint32 pos, Uint64 last_gci)
 {
-  Bucket* bucket= c_buckets+buck;
+  ndbrequire(buck < NO_OF_BUCKETS);
+  Bucket* bucket = c_buckets + buck;
   Uint32 tail= bucket->m_buffer_tail;
 
   Buffer_page* page= c_page_pool.getPtr(tail);
