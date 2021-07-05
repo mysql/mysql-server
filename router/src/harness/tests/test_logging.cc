@@ -849,7 +849,64 @@ void expect_log(void (*func)(const char *, ...)
   EXPECT_THAT(log, HasSubstr(MYSQL_ROUTER_LOG_DOMAIN));
 }
 
-TEST(FunctionalTest, Handlers) {
+// Macros for log expectance at different log levels
+#define EXPECT_LOG_LEVEL_DEBUG(buffer)        \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_log(log_note, buffer, "NOTE");       \
+  expect_log(log_debug, buffer, "DEBUG");
+
+#define EXPECT_LOG_LEVEL_NOTE(buffer)         \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_log(log_note, buffer, "NOTE");       \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_INFO(buffer)         \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_log(log_info, buffer, "INFO");       \
+  expect_no_log(log_note, buffer);            \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_WARNING(buffer)      \
+  expect_log(log_system, buffer, "SYSTEM");   \
+  expect_log(log_error, buffer, "ERROR");     \
+  expect_log(log_warning, buffer, "WARNING"); \
+  expect_no_log(log_info, buffer);            \
+  expect_no_log(log_note, buffer);            \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_ERROR(buffer)      \
+  expect_log(log_system, buffer, "SYSTEM"); \
+  expect_log(log_error, buffer, "ERROR");   \
+  expect_no_log(log_warning, buffer);       \
+  expect_no_log(log_info, buffer);          \
+  expect_no_log(log_note, buffer);          \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_SYSTEM(buffer)     \
+  expect_log(log_system, buffer, "SYSTEM"); \
+  expect_no_log(log_error, buffer);         \
+  expect_no_log(log_warning, buffer);       \
+  expect_no_log(log_info, buffer);          \
+  expect_no_log(log_note, buffer);          \
+  expect_no_log(log_debug, buffer);
+
+#define EXPECT_LOG_LEVEL_NOT_SET(buffer) \
+  expect_no_log(log_system, buffer);     \
+  expect_no_log(log_error, buffer);      \
+  expect_no_log(log_warning, buffer);    \
+  expect_no_log(log_info, buffer);       \
+  expect_no_log(log_note, buffer);       \
+  expect_no_log(log_debug, buffer);
+
+TEST(FunctionalTest, Loggers) {
   // The loader creates these modules during start, so tests of the
   // logger that involves the loader are inside the loader unit
   // test. Here we instead call these functions directly.
@@ -861,54 +918,71 @@ TEST(FunctionalTest, Handlers) {
   attach_handler_to_all_loggers(*g_registry, StreamHandler::kDefaultName);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kDebug);
-  expect_log(log_system, buffer, "SYSTEM");
-  expect_log(log_error, buffer, "ERROR");
-  expect_log(log_warning, buffer, "WARNING");
-  expect_log(log_info, buffer, "INFO");
-  expect_log(log_note, buffer, "NOTE");
-  expect_log(log_debug, buffer, "DEBUG");
+  EXPECT_LOG_LEVEL_DEBUG(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kNote);
-  expect_log(log_system, buffer, "SYSTEM");
-  expect_log(log_error, buffer, "ERROR");
-  expect_log(log_warning, buffer, "WARNING");
-  expect_log(log_info, buffer, "INFO");
-  expect_log(log_note, buffer, "NOTE");
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_NOTE(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kError);
-  expect_log(log_system, buffer, "SYSTEM");
-  expect_log(log_error, buffer, "ERROR");
-  expect_no_log(log_warning, buffer);
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_note, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_ERROR(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kWarning);
-  expect_log(log_system, buffer, "SYSTEM");
-  expect_log(log_error, buffer, "ERROR");
-  expect_log(log_warning, buffer, "WARNING");
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_note, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_WARNING(buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kSystem);
-  expect_log(log_system, buffer, "SYSTEM");
-  expect_no_log(log_error, buffer);
-  expect_no_log(log_warning, buffer);
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_note, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer);
 
   // Check that nothing is logged when the handler is unregistered.
   g_registry->remove_handler(StreamHandler::kDefaultName);
   set_log_level_for_all_loggers(*g_registry, LogLevel::kNotSet);
-  expect_no_log(log_system, buffer);
-  expect_no_log(log_error, buffer);
-  expect_no_log(log_warning, buffer);
-  expect_no_log(log_info, buffer);
-  expect_no_log(log_note, buffer);
-  expect_no_log(log_debug, buffer);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer);
+
+  ASSERT_NO_THROW(g_registry->remove_logger(MYSQL_ROUTER_LOG_DOMAIN));
+}
+
+TEST(FunctionalTest, Handlers) {
+  // The loader creates these modules during start, so tests of the
+  // logger that involves the loader are inside the loader unit
+  // test. Here we instead call these functions directly.
+  ASSERT_NO_THROW(g_registry->create_logger(MYSQL_ROUTER_LOG_DOMAIN));
+
+  std::stringstream buffer;
+  std::stringstream buffer2;
+  auto handler = std::make_shared<StreamHandler>(buffer);
+  auto handler2 = std::make_shared<StreamHandler>(buffer2);
+  g_registry->add_handler("stream1", handler);
+  g_registry->add_handler("stream2", handler2);
+  attach_handler_to_all_loggers(*g_registry, "stream1");
+  attach_handler_to_all_loggers(*g_registry, "stream2");
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kDebug);
+  EXPECT_LOG_LEVEL_DEBUG(buffer);
+  EXPECT_LOG_LEVEL_DEBUG(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kNote);
+  EXPECT_LOG_LEVEL_NOTE(buffer);
+  EXPECT_LOG_LEVEL_NOTE(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kError);
+  EXPECT_LOG_LEVEL_ERROR(buffer);
+  EXPECT_LOG_LEVEL_ERROR(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kWarning);
+  EXPECT_LOG_LEVEL_WARNING(buffer);
+  EXPECT_LOG_LEVEL_WARNING(buffer2);
+
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kSystem);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer);
+  EXPECT_LOG_LEVEL_SYSTEM(buffer2);
+
+  // Check that nothing is logged when the handlers are unregistered.
+  g_registry->remove_handler("stream1");
+  g_registry->remove_handler("stream2");
+  set_log_level_for_all_handlers(*g_registry, LogLevel::kNotSet);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer);
+  EXPECT_LOG_LEVEL_NOT_SET(buffer2);
+
+  ASSERT_NO_THROW(g_registry->remove_logger(MYSQL_ROUTER_LOG_DOMAIN));
 }
 
 int main(int argc, char *argv[]) {
