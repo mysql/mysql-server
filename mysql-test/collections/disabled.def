@@ -102,5 +102,4 @@ group_replication.gr_join_with_suspect_member : BUG#31704262 XCOM CREATES NODES 
 group_replication.gr_leave_with_suspect_member : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_majority_loss_restored_after_timeout : BUG#31704262 XCOM CREATES NODES WITH PAST GHOST VIEWS
 group_replication.gr_suspect_member_resumes_after_crash_join_retries : BUG#32458239 GR_SUSPECT_MEMBER_RESUMES_AFTER_CRASH_JOIN_RETRIES IS NOT STABLE
-group_replication.gr_majority_loss_5_to_2 @windows : Bug#32860569 SPORADIC GROUP REPLICATION MAJORITY TEST FAILURES IN WINDOWS
-group_replication.gr_majority_loss_5_to_2_recovery @windows : Bug#32860569 SPORADIC GROUP REPLICATION MAJORITY TEST FAILURES IN WINDOWS
+

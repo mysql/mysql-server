@@ -1401,6 +1401,11 @@ int xcom_taskmain2(xcom_port listen_port) {
     task_new(incoming_connection_task, int_arg(tcp_fd.val), "tcp_server",
              XCOM_THREAD_DEBUG);
     task_new(tcp_reaper_task, null_arg, "tcp_reaper_task", XCOM_THREAD_DEBUG);
+#if defined(_WIN32)
+    task_new(tcp_reconnection_task, null_arg, "tcp_reconnection_task",
+             XCOM_THREAD_DEBUG);
+#endif
+
     IFDBG(D_BUG, FN; STRLIT("XCOM is listening on "); NPUT(listen_port, d));
   }
 
@@ -5561,7 +5566,7 @@ int reply_handler_task(task_arg arg) {
       if (xcom_shutdown) {
         TERMINATE;
       }
-      ep->dtime *= CONNECT_WAIT_INCREASE; /* Increase wait time for next try */
+      ep->dtime += CONNECT_WAIT_INCREASE; /* Increase wait time for next try */
       if (ep->dtime > MAX_CONNECT_WAIT) {
         ep->dtime = MAX_CONNECT_WAIT;
       }

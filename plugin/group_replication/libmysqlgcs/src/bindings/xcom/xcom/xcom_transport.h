@@ -128,6 +128,7 @@ int shutdown_servers();
 int srv_ref(server *s);
 int srv_unref(server *s);
 int tcp_reaper_task(task_arg arg);
+int tcp_reconnection_task(task_arg arg);
 int incoming_connection_task(task_arg arg);
 uint32_t crc32c_hash(char *buf, char *end);
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,

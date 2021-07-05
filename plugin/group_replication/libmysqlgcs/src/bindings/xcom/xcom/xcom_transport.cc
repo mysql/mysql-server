@@ -605,6 +605,10 @@ static server *mksrv(char *srv, xcom_port port) {
   s->detected = 0.0;
   s->last_ping_received = 0.0;
   s->number_of_pings_received = 0;
+#if defined(_WIN32)
+  s->reconnect = false;
+#endif
+
   channel_init(&s->outgoing, TYPE_HASH("msg_link"));
   IFDBG(D_NONE, FN; STREXP(srv); NDBG(port, d));
 
@@ -1417,6 +1421,9 @@ int sender_task(task_arg arg) {
   unsigned int tag;
   double dtime;
   double channel_empty_time;
+#if defined(_WIN32)
+  bool was_connected;
+#endif
   END_ENV;
 
   TASK_BEGIN
@@ -1424,6 +1431,9 @@ int sender_task(task_arg arg) {
   ep->channel_empty_time = task_now();
   ep->dtime = INITIAL_CONNECT_WAIT; /* Initial wait is short, to avoid
                                        unnecessary waiting */
+#if defined(_WIN32)
+  ep->was_connected = false;
+#endif
   ep->s = (server *)get_void_arg(arg);
   ep->link = NULL;
   ep->tag = TAG_START;
@@ -1433,7 +1443,15 @@ int sender_task(task_arg arg) {
     /* Loop until connected */
     G_MESSAGE("Connecting to %s:%d", ep->s->srv, ep->s->port);
     for (;;) {
-      TASK_CALL(dial(ep->s));
+#if defined(_WIN32)
+      if (!ep->was_connected) {
+#endif
+        TASK_CALL(dial(ep->s));
+#if defined(_WIN32)
+      } else {
+        ep->s->reconnect = true;
+      }
+#endif
       if (is_connected(ep->s->con)) break;
 
       if (ep->dtime < MAX_CONNECT_WAIT) {
@@ -1456,6 +1474,10 @@ int sender_task(task_arg arg) {
 
     G_MESSAGE("Connected to %s:%d", ep->s->srv, ep->s->port);
     ep->dtime = INITIAL_CONNECT_WAIT;
+#if defined(_WIN32)
+    ep->was_connected = true;
+    ep->s->reconnect = false;
+#endif
     reset_srv_buf(&ep->s->out_buf);
 
     /* We are ready to start sending messages.
@@ -1557,6 +1579,41 @@ int sender_task(task_arg arg) {
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
+
+#if defined(_WIN32)
+/* Reconnect tcp connections on windows to avoid task starvation */
+int tcp_reconnection_task(task_arg arg [[maybe_unused]]) {
+  DECL_ENV
+  int dummy;
+  server *s;
+  int i;
+  END_ENV;
+  TASK_BEGIN
+
+  ep->s = nullptr;
+  ep->i = 0;
+
+  while (!xcom_shutdown) {
+    {
+      ep->s = nullptr;
+      for (ep->i = 0; ep->i < maxservers; ep->i++) {
+        ep->s = all_servers[ep->i];
+        if (ep->s && ep->s->reconnect && !is_connected(ep->s->con)) {
+          TASK_CALL(dial(ep->s));
+          if (is_connected(ep->s->con)) {
+            ep->s->reconnect = false;
+          }
+          TASK_DELAY(2.0)
+        }
+      }
+    }
+    TASK_DELAY(2.0);
+  }
+  FINALLY
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
+  TASK_END;
+}
+#endif
 
 /* Fetch messages from queue and send to self.
    Having a separate mechanism for internal communication

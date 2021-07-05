@@ -50,6 +50,9 @@ struct server {
   int invalid;
   int number_of_pings_received; /* Number of pings received from this server */
   double last_ping_received;    /* Last received ping timestamp */
+#if defined(_WIN32)
+  bool reconnect; /*States if the server should be reconnected*/
+#endif
 };
 
 typedef struct server server;

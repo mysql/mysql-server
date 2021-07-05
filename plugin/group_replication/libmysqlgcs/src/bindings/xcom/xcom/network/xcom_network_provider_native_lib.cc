@@ -375,9 +375,24 @@ int Xcom_network_provider_library::timed_connect_msec(
     }
 
     SET_OS_ERR(0);
-    while ((sysret = poll(&fds, 1, timeout)) < 0) {
+
+    int poll_timeout = timeout;
+#if defined(_WIN32)
+    // Windows does not detect connect failures on connect
+    // It needs to go to poll, that also does not detect them.
+    // Lets add a very shot timeout on Windows to make it easier
+    // to detect these situations
+    constexpr int first_poll_timeout = 50;
+    poll_timeout = first_poll_timeout;
+#endif
+    while ((sysret = poll(&fds, 1, poll_timeout)) < 0) {
       syserr = GET_OS_ERR;
       if (syserr != SOCK_EINTR && syserr != SOCK_EINPROGRESS) break;
+#if defined(_WIN32)
+      else
+        poll_timeout = timeout;
+#endif
+
       SET_OS_ERR(0);
     }
 
