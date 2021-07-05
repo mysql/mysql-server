@@ -1940,3 +1940,32 @@ SELECT COALESCE(18446744073709551614, COUNT(ST_AREA(ST_ASWKT(a))))
 ) WITH ROLLUP;
 ERROR 22023: Invalid GIS data provided to function st_astext.
 DROP TABLE t1;
+#
+# Bug #33076462: PB2: FAILURE IN RQG_MULTI_UPDATE_DELETE TEST
+#
+CREATE TABLE t1 ( c INTEGER, KEY (c) );
+CREATE TABLE t2 ( pk INTEGER );
+INSERT INTO t2 VALUES (7);
+CREATE TABLE t3 (
+a INTEGER,
+b INTEGER,
+c INTEGER,
+KEY (a)
+);
+INSERT INTO t3 VALUES (3,4,NULL);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+UPDATE t1, t2
+SET t1.c = 0
+WHERE t1.c <> (
+SELECT
+t3.c
+FROM
+t3
+JOIN t3 AS t3_b ON t3_b.a > t3.a
+WHERE t3.b <= t3.b XOR t2.pk = 3
+);
+DROP TABLE t1, t2, t3;

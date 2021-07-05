@@ -3963,7 +3963,15 @@ bool DynamicRangeIterator::Init() {
 
   DEBUG_SYNC(thd(), "quick_created_before_mutex");
 
+  // We're about to destroy the MEM_ROOT containing the old quick, below.
+  // But we cannot run test_quick_select() under the plan lock, since it might
+  // want to evaluate a subquery that in itself has a DynamicRangeIterator(),
+  // and the plan lock is not recursive. So we set a different plan temporarily
+  // while we are calculating the new one, so that EXPLAIN FOR CONNECTION
+  // does not read bad data.
   thd()->lock_query_plan();
+  m_qep_tab->set_type(JT_UNKNOWN);
+  thd()->unlock_query_plan();
 
   QUICK_SELECT_I *old_qck = m_qep_tab->quick();
   destroy(old_qck);
@@ -3980,10 +3988,10 @@ bool DynamicRangeIterator::Init() {
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
   {
-    thd()->unlock_query_plan();
     return true;
   }
 
+  thd()->lock_query_plan();
   m_qep_tab->set_quick(qck);
   m_qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
   thd()->unlock_query_plan();
