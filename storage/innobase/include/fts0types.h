@@ -169,15 +169,17 @@ struct fts_cache_t {
                          the document from the table. Each
                          element is of type fts_doc_t */
 
-  ulint total_size;      /*!< total size consumed by the ilist
-                         field of all nodes. SYNC is run
-                         whenever this gets too big */
-  fts_sync_t *sync;      /*!< sync structure to sync data to
-                         disk */
-  ib_alloc_t *sync_heap; /*!< The heap allocator, for indexes
-                         and deleted_doc_ids, ie. transient
-                         objects, they are recreated after
-                         a SYNC is completed */
+  ulint total_size;                /*!< total size consumed by the ilist
+                                   field of all nodes. SYNC is run
+                                   whenever this gets too big */
+  uint64_t total_size_before_sync; /*!< total size of fts cache,
+                                   when last SYNC request was sent */
+  fts_sync_t *sync;                /*!< sync structure to sync data to
+                                   disk */
+  ib_alloc_t *sync_heap;           /*!< The heap allocator, for indexes
+                                   and deleted_doc_ids, ie. transient
+                                   objects, they are recreated after
+                                   a SYNC is completed */
 
   ib_alloc_t *self_heap; /*!< This heap is the heap out of
                          which an instance of the cache itself
