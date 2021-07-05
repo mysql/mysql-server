@@ -2523,6 +2523,30 @@ TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
   query_block->cleanup(m_thd, /*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, NoSortAheadOnNondeterministicFunction) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x, t2.x FROM t1, t2 ORDER BY t1.x + RAND()",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should _not_ be pushed to t1, but kept at the top.
+  // We don't care about the rest of the plan.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
 TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
   Query_block *query_block = ParseAndResolve(
       "SELECT t1.x, t2.x FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x, t2.x "

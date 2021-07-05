@@ -40,6 +40,7 @@ using std::lower_bound;
 using std::make_pair;
 using std::max;
 using std::move;
+using std::none_of;
 using std::pair;
 using std::sort;
 using std::string;
@@ -1270,19 +1271,31 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
   OrderElement *tmpbuf2 =
       thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
   for (size_t state_idx = 0; state_idx < m_states.size(); ++state_idx) {
-    {
-      Ordering old_ordering = m_states[state_idx].satisfied_ordering;
-      if (!IsGrouping(old_ordering)) {
-        // Apply the special decay FD; first to shorten the ordering,
-        // then to convert it to a grouping.
-        if (old_ordering.size() > 1) {
-          AddEdge(thd, state_idx, /*required_fd_idx=*/0,
-                  old_ordering.without_back());
-        }
-        if (!old_ordering.empty()) {
-          AddGroupingFromOrdering(thd, state_idx, old_ordering, tmpbuf);
-        }
-      }
+    // Refuse to apply FDs for nondeterministic orderings other than possibly
+    // ordering -> grouping; ie., (a) can _not_ be satisfied by (a, rand()).
+    // This is to avoid evaluating such a nondeterministic function unexpectedly
+    // early, e.g. in GROUP BY when the user didn't expect it to be used in
+    // ORDER BY. (We still allow it on exact matches, though.See also comments
+    // on RAND_TABLE_BIT in SortAheadOrdering.)
+    Ordering old_ordering = m_states[state_idx].satisfied_ordering;
+    const bool deterministic = none_of(
+        old_ordering.begin(), old_ordering.end(), [this](OrderElement element) {
+          return Overlaps(m_items[element.item].item->used_tables(),
+                          RAND_TABLE_BIT);
+        });
+
+    // Apply the special decay FD; first to convert it into a grouping
+    // (which we always allow, even for nondeterministic items),
+    // then to shorten the ordering.
+    if (!IsGrouping(old_ordering) && !old_ordering.empty()) {
+      AddGroupingFromOrdering(thd, state_idx, old_ordering, tmpbuf);
+    }
+    if (!deterministic) {
+      continue;
+    }
+    if (!IsGrouping(old_ordering) && old_ordering.size() > 1) {
+      AddEdge(thd, state_idx, /*required_fd_idx=*/0,
+              old_ordering.without_back());
     }
 
     if (m_states.size() >= kMaxNFSMStates) {
@@ -1296,7 +1309,6 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
 
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
       const FunctionalDependency &fd = m_fds[fd_idx];
-      Ordering old_ordering = m_states[state_idx].satisfied_ordering;
 
       int start_point;
       if (!FunctionalDependencyApplies(fd, old_ordering, &start_point)) {

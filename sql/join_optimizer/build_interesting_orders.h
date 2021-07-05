@@ -38,7 +38,9 @@ struct ORDER;
 struct TABLE;
 
 // An ordering that we could be doing sort-ahead by; typically either an
-// interesting ordering or an ordering homogenized from one.
+// interesting ordering or an ordering homogenized from one. It also includes
+// orderings that are used for sort-for-grouping, i.e. for GROUP BY,
+// PARTITION BY or DISTINCT.
 struct SortAheadOrdering {
   // Pointer to an ordering in LogicalOrderings.
   int ordering_idx;
@@ -46,6 +48,23 @@ struct SortAheadOrdering {
   // Which tables must be present in the join before one can apply
   // this sort (usually because the elements we sort by are contained
   // in these tables).
+  //
+  // The presence of RAND_TABLE_BIT means that the ordering contains
+  // at least one nondeterminstic item; we never allow pushing such
+  // orderings into the join (implicitly: sortahead during joins check
+  // required_nodes, and never include RAND_TABLE_BIT). This makes sure that we
+  // cannot push e.g. ORDER BY rand() into the left side of a join, which would
+  // make rows shuffled on that table only, which isn't what the user would
+  // expect. We also have special logic to disallow satisfying nondeterministic
+  // groupings/orderings others (both in the logic for group covers, and in NFSM
+  // construction), so that
+  //
+  //   GROUP BY a ORDER BY a, func()
+  //
+  // cannot be done by evaluating func() too early, but we do allow exact
+  // matches, so that e.g. GROUP BY func() ORDER BY func() can be done as only
+  // one sort (which isn't too unreasonable). This may be a bit conservative
+  // or it may be a bit aggressive, depending on who you ask.
   hypergraph::NodeMap required_nodes;
 
   // Whether aggregates must be computed before one can apply this sort

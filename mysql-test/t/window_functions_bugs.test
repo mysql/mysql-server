@@ -782,3 +782,19 @@ SELECT MIN(a), LEAD(a, 5, 7) OVER (ORDER BY b) AS field1 FROM t1 WHERE b IN ( SE
 
 SET sql_mode=DEFAULT;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #33075752: WL#14419: ASSERTION `N < SIZE()' FAILED|INCLUDE/PREALLOCED_ARRAY.H
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT DISTINCT
+  0 AS field1,
+  RANK() OVER (ORDER BY a) AS field2,
+  LAST_VALUE(a) OVER (ORDER BY a + 1) AS field3
+FROM t1
+GROUP BY a, field1 WITH ROLLUP
+ORDER BY field1, field2, field3;
+
+DROP TABLE t1;

@@ -255,11 +255,9 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
 
 static Ordering CollectInterestingOrder(THD *thd, ORDER *order, int order_len,
                                         bool unwrap_rollup,
-                                        LogicalOrderings *orderings,
-                                        table_map *used_tables) {
+                                        LogicalOrderings *orderings) {
   Ordering ordering = Ordering::Alloc(thd->mem_root, order_len);
   int i = 0;
-  *used_tables = 0;
   for (; order != nullptr; order = order->next, ++i) {
     Item *item = *order->item;
     if (unwrap_rollup) {
@@ -267,7 +265,6 @@ static Ordering CollectInterestingOrder(THD *thd, ORDER *order, int order_len,
     }
     ordering[i].item = orderings->GetHandle(item);
     ordering[i].direction = order->direction;
-    *used_tables |= item->used_tables();
   }
   return ordering;
 }
@@ -276,10 +273,9 @@ static Ordering CollectInterestingOrder(THD *thd, ORDER *order, int order_len,
 static Ordering CollectInterestingOrder(THD *thd,
                                         const SQL_I_List<ORDER> &order_list,
                                         bool unwrap_rollup,
-                                        LogicalOrderings *orderings,
-                                        table_map *used_tables) {
+                                        LogicalOrderings *orderings) {
   return CollectInterestingOrder(thd, order_list.first, order_list.size(),
-                                 unwrap_rollup, orderings, used_tables);
+                                 unwrap_rollup, orderings);
 }
 
 // Build an ORDER * that we can give to Filesort. It is only suitable for
@@ -307,40 +303,15 @@ ORDER *BuildSortAheadOrdering(THD *thd, const LogicalOrderings *orderings,
   return order;
 }
 
-static int AddOrdering(
-    THD *thd, const JoinHypergraph *graph, Ordering ordering,
-    ORDER *order_for_filesort, bool used_at_end, table_map homogenize_tables,
-    table_map used_tables, LogicalOrderings *orderings,
-    Mem_root_array<SortAheadOrdering> *sort_ahead_orderings) {
+static int AddOrdering(THD *thd, Ordering ordering, bool used_at_end,
+                       table_map homogenize_tables,
+                       LogicalOrderings *orderings) {
   if (ordering.empty()) {
     return 0;
   }
 
-  const int old_num_orderings = orderings->num_orderings();
-  const int ordering_idx = orderings->AddOrdering(
-      thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
-  if (ordering_idx < old_num_orderings) {
-    // A duplicate, so we don't add anything new to sort_ahead_orderings.
-    return ordering_idx;
-  }
-
-  // See if we can use this for sort-ahead. (For groupings, LogicalOrderings
-  // will create its own sort-ahead orderings for us, so we shouldn't do it
-  // here.)
-  if (!Overlaps(used_tables, RAND_TABLE_BIT) && !IsGrouping(ordering)) {
-    NodeMap required_nodes = GetNodeMapFromTableMap(
-        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-    if (order_for_filesort == nullptr) {
-      order_for_filesort = BuildSortAheadOrdering(thd, orderings, ordering);
-    }
-    // aggregates_required will be unset to begin with, since the ordering
-    // might get shortened after Build(). We'll set it afterwards.
-    sort_ahead_orderings->push_back(
-        SortAheadOrdering{ordering_idx, required_nodes,
-                          /*aggregates_required=*/false, order_for_filesort});
-  }
-
-  return ordering_idx;
+  return orderings->AddOrdering(thd, ordering, /*interesting=*/true,
+                                used_at_end, homogenize_tables);
 }
 
 static void CanonicalizeGrouping(Ordering *ordering) {
@@ -364,29 +335,24 @@ void BuildInterestingOrders(
     Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
-    table_map used_tables;
-    Ordering ordering = CollectInterestingOrder(thd, query_block->order_list,
-                                                /*unwrap_rollup=*/false,
-                                                orderings, &used_tables);
+    Ordering ordering =
+        CollectInterestingOrder(thd, query_block->order_list,
+                                /*unwrap_rollup=*/false, orderings);
     *order_by_ordering_idx =
-        AddOrdering(thd, graph, ordering,
-                    /*order_for_filesort=*/nullptr,
-                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
-                    orderings, sort_ahead_orderings);
+        AddOrdering(thd, ordering,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, orderings);
   }
 
   // Collect grouping from GROUP BY.
   if (query_block->is_explicitly_grouped()) {
-    table_map used_tables;
-    Ordering ordering = CollectInterestingOrder(thd, query_block->group_list,
-                                                /*unwrap_rollup=*/true,
-                                                orderings, &used_tables);
+    Ordering ordering =
+        CollectInterestingOrder(thd, query_block->group_list,
+                                /*unwrap_rollup=*/true, orderings);
     CanonicalizeGrouping(&ordering);
 
     *group_by_ordering_idx =
-        AddOrdering(thd, graph, ordering, query_block->group_list.first,
-                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
-                    orderings, sort_ahead_orderings);
+        AddOrdering(thd, ordering,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, orderings);
   }
 
   // Collect orderings/groupings from window functions.
@@ -421,18 +387,15 @@ void BuildInterestingOrders(
       ++order_len;
     }
 
-    table_map used_tables;
-    Ordering ordering = CollectInterestingOrder(thd, order, order_len,
-                                                /*unwrap_rollup=*/false,
-                                                orderings, &used_tables);
+    Ordering ordering =
+        CollectInterestingOrder(thd, order, order_len,
+                                /*unwrap_rollup=*/false, orderings);
     if (window.effective_order_by() == nullptr) {
       CanonicalizeGrouping(&ordering);
     }
     window.m_ordering_idx =
-        AddOrdering(thd, graph, ordering,
-                    /*order_for_filesort=*/order,
-                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
-                    orderings, sort_ahead_orderings);
+        AddOrdering(thd, ordering,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, orderings);
   }
 
   // Collect grouping from DISTINCT.
@@ -454,17 +417,14 @@ void BuildInterestingOrders(
       ++order_len;
     }
 
-    table_map used_tables;
-    Ordering ordering = CollectInterestingOrder(thd, order, order_len,
-                                                /*unwrap_rollup=*/false,
-                                                orderings, &used_tables);
+    Ordering ordering =
+        CollectInterestingOrder(thd, order, order_len,
+                                /*unwrap_rollup=*/false, orderings);
 
     CanonicalizeGrouping(&ordering);
     *distinct_ordering_idx =
-        AddOrdering(thd, graph, ordering,
-                    /*order_for_filesort=*/order,
-                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
-                    orderings, sort_ahead_orderings);
+        AddOrdering(thd, ordering,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, orderings);
   }
 
   // Collect groupings from semijoins (because we might want to do duplicate
@@ -513,10 +473,9 @@ void BuildInterestingOrders(
     }
     CanonicalizeGrouping(&ordering);
 
-    pred.ordering_idx_needed_for_semijoin_rewrite =
-        AddOrdering(thd, graph, ordering, /*order_for_filesort=*/nullptr,
-                    /*used_at_end=*/false, /*homogenize_tables=*/inner_tables,
-                    used_tables, orderings, sort_ahead_orderings);
+    pred.ordering_idx_needed_for_semijoin_rewrite = AddOrdering(
+        thd, ordering,
+        /*used_at_end=*/false, /*homogenize_tables=*/inner_tables, orderings);
   }
 
   // Collect list of all active indexes. We will be needing this for ref access
@@ -710,12 +669,6 @@ void BuildInterestingOrders(
     }
   }
 
-  // Get the updated ordering indexes, since Build() may have moved them around.
-  for (SortAheadOrdering &ordering : *sort_ahead_orderings) {
-    ordering.ordering_idx =
-        orderings->RemapOrderingIndex(ordering.ordering_idx);
-  }
-
   for (JoinPredicate &pred : graph->edges) {
     if (pred.ordering_idx_needed_for_semijoin_rewrite != -1) {
       pred.ordering_idx_needed_for_semijoin_rewrite =
@@ -742,41 +695,29 @@ void BuildInterestingOrders(
     info.order = orderings->RemapOrderingIndex(info.order);
   }
 
-  // After Build(), there may be more interesting orders that we can try
-  // as sort-ahead; in particular homogenized orderings. (The ones we already
-  // added will not have moved around, as per the contract.) Scan for them,
-  // create orders that filesort can use, and add them to the list.
-  for (int ordering_idx = sort_ahead_orderings->size();
-       ordering_idx < orderings->num_orderings(); ++ordering_idx) {
+  // Now collect all orderings we have that we can try as sort-ahead,
+  // including both the orderings we originally added, group covers,
+  // and homogenized orders.
+  for (int ordering_idx = 0; ordering_idx < orderings->num_orderings();
+       ++ordering_idx) {
     if (!orderings->ordering_is_relevant_for_sortahead(ordering_idx)) {
       continue;
     }
 
     table_map used_tables = 0;
+    bool aggregates_required = false;
     for (OrderElement element : orderings->ordering(ordering_idx)) {
       Item *item = orderings->item(element.item);
       used_tables |= item->used_tables();
+      aggregates_required |= (item->has_aggregation() || item->has_wf());
     }
     NodeMap required_nodes = GetNodeMapFromTableMap(
-        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
+        used_tables & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT),
+        graph->table_num_to_node_num);
 
     ORDER *order = BuildSortAheadOrdering(thd, orderings,
                                           orderings->ordering(ordering_idx));
     sort_ahead_orderings->push_back(SortAheadOrdering{
-        ordering_idx, required_nodes, /*aggregates_required=*/false, order});
-  }
-
-  // Now figure out which orderings require aggregates, after they have been
-  // properly pre-reduced and/or merged.
-  for (SortAheadOrdering &sort_ahead_ordering : *sort_ahead_orderings) {
-    assert(!sort_ahead_ordering.aggregates_required);
-    for (OrderElement element :
-         orderings->ordering(sort_ahead_ordering.ordering_idx)) {
-      Item *item = orderings->item(element.item);
-      if (item->has_aggregation() || item->has_wf()) {
-        sort_ahead_ordering.aggregates_required = true;
-        break;
-      }
-    }
+        ordering_idx, required_nodes, aggregates_required, order});
   }
 }

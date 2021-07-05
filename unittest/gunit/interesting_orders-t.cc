@@ -1179,6 +1179,43 @@ TEST_F(InterestingOrderingTableTest, GroupCover) {
               testing::ElementsAre(OrderElement{d, ORDER_ASC}));
 }
 
+TEST_F(InterestingOrderingTableTest, NoGroupCoverWithNondeterminism) {
+  THD *thd = m_initializer.thd();
+
+  Item_func *r_item =
+      new Item_func_plus(new Item_int(2),
+                         new Item_int(2));  // Guaranteed random.
+  r_item->set_used_tables(RAND_TABLE_BIT);  // Chosen by fair die roll.
+  ItemHandle r = m_orderings->GetHandle(r_item);
+
+  // Interesting orders are {ra} and (a).
+  array<OrderElement, 2> group_ra{OrderElement{r, ORDER_NOT_RELEVANT},
+                                  OrderElement{a, ORDER_NOT_RELEVANT}};
+  array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
+
+  int group_ra_idx =
+      AddOrdering(thd, group_ra, /*interesting=*/true, m_orderings.get());
+  int a_idx =
+      AddOrdering(thd, order_a, /*interesting=*/true, m_orderings.get());
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // We will have covered {ra} with (ar), but that ordering should
+  // _not_ be used to satisfy (a). In this case, (ra) would also be
+  // an acceptable cover, but we don't constrain the cover logic;
+  // there's not really any need.
+  ASSERT_EQ(4, m_orderings->num_orderings());
+  EXPECT_THAT(m_orderings->ordering(3),
+              testing::ElementsAre(OrderElement{a, ORDER_ASC},
+                                   OrderElement{r, ORDER_ASC}));
+
+  int idx = m_orderings->SetOrder(3);
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_ra_idx));
+  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, a_idx));
+}
+
 TEST_F(InterestingOrderingTableTest, GroupReordering) {
   THD *thd = m_initializer.thd();
 
