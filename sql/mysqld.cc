@@ -4830,13 +4830,6 @@ int init_common_variables() {
       line or configuration file.
     */
     if (!log_replica_updates_supplied) opt_log_replica_updates = false;
-    /*
-      The replica-preserve-commit-order should be disabled if binary log is
-      disabled and --replica-preserve-commit-order option is not set
-      explicitly on command line or configuration file.
-    */
-    if (!replica_preserve_commit_order_supplied)
-      opt_replica_preserve_commit_order = false;
   }
 
   if (opt_protocol_compression_algorithms) {

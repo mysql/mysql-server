@@ -26,15 +26,18 @@ connection slave;
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 SET @save_replica_transaction_retries= @@global.replica_transaction_retries;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 
 --echo # Test for PARALLEL_DATABASE
 SET GLOBAL replica_parallel_type = 'DATABASE';
 SET @@global.replica_parallel_workers= 4;
+SET @@global.replica_preserve_commit_order=0;
 --source extra/rpl_tests/rpl_seconds_behind_master_mts_type_database.test
 
 --echo # Test for LOGICAL_CLOCK
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_preserve_commit_order=1;
 --source extra/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test
 
 #Cleanup
@@ -43,6 +46,7 @@ SET GLOBAL replica_parallel_workers = 3;
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.replica_transaction_retries= @save_replica_transaction_retries;
+SET @@global.replica_preserve_commit_order= @save_replica_preserve_commit_order;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

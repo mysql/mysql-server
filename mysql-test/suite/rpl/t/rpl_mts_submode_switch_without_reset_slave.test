@@ -13,8 +13,9 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 # save  MTS submode
 --let $saved_submode= `SELECT @@replica_parallel_type`
-
+SET @saved_rpco= @@GLOBAL.replica_preserve_commit_order;
 --source include/stop_slave.inc
+SET GLOBAL replica_preserve_commit_order=OFF;
 
 #setup 2 connections to master
 --connect(m1, localhost,root,,,$MASTER_MYPORT)
@@ -87,6 +88,7 @@ DROP DATABASE db1;
 --disable_query_log
 --disable_result_log
 --eval SET GLOBAL replica_parallel_type= '$saved_submode'
+SET GLOBAL replica_preserve_commit_order=@saved_rpco;
 --source include/start_slave.inc
 --connection master
 --eval SET GLOBAL DEBUG='$saved_debug'

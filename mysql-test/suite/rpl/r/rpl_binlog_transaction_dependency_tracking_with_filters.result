@@ -12,6 +12,8 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 REPLICATE_IGNORE_DB=(nodb);
 include/start_slave.inc
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 0;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 [connection master]
 #
@@ -99,6 +101,7 @@ include/sync_slave_sql_with_master.inc
 [On Slave]
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();
 include/start_slave.inc

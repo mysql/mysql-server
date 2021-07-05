@@ -6,12 +6,14 @@
 # instances when MTR runs rpl tests with parallel 4 or more.
 
 [mysqld.2]
+replica-parallel-workers=0
 
 [mysqld.3]
 replicate-same-server-id=1
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-replica-updates=OFF
+replica-parallel-workers=0
 
 [ENV]
 SERVER_MYPORT_3=		@mysqld.3.port

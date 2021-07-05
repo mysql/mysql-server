@@ -170,6 +170,11 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
 connection master;
 drop table t1, t2;
 
+connection slave;
+# Execute RESET REPLICA before calling rpl_reset.inc
+# To avoid failure in MTS and rpl-priv_checks_user runs
+--source include/stop_slave_io.inc
+RESET REPLICA;
 # BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
 # replication aborts
 -- let $rpl_only_running_threads= 1

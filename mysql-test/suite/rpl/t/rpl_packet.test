@@ -14,11 +14,6 @@
 --source include/not_group_replication_plugin.inc
 source include/have_binlog_format_row.inc;
 
-# TODO: Fixing is handed over to Sergei.
-# The test runs slow in MTS mode because of state of MTS at time of the graceful stop.
-# In this case MTS can't stop immediately if there is a Worker that received a BEGIN but never COMMIT.
--- source include/not_mts_replica_parallel_workers.inc
-
 source include/master-slave.inc;
 
 call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
@@ -39,6 +34,7 @@ SET @@global.net_buffer_length=1024;
 
 --source include/sync_slave_sql_with_master.inc
 # Restart slave for setting to take effect
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 source include/stop_slave.inc;
 source include/start_slave.inc;
 
@@ -106,6 +102,7 @@ connection master;
 CREATE TABLE `t1` (`f1` LONGTEXT);
 
 --source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
 
 connection master;
 
@@ -123,9 +120,6 @@ connection slave;
 --let $slave_io_errno= 13125
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
-
-# TODO: this is needed because of BUG#55790. Remove once that is fixed.
---source include/stop_slave_sql.inc
 
 #
 # Bug#42914: On the master, if a binary log event is larger than
@@ -301,8 +295,9 @@ DROP TABLE t1;
 
 # Clear Last_IO_Error
 
---source include/stop_slave_sql.inc
+STOP REPLICA;
 RESET SLAVE;
 
+--let $rpl_only_running_threads=1
 --source include/rpl_end.inc
 # End of tests

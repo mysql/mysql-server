@@ -5075,13 +5075,19 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
     // TODO: address the middle-group killing in MTS case
 
-    DBUG_EXECUTE_IF(
-        "stop_replica_middle_group",
-        if (strcmp("COMMIT", query) != 0 && strcmp("BEGIN", query) != 0) {
-          if (thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::SESSION))
-            const_cast<Relay_log_info *>(rli)->abort_slave = 1;
-        };);
+    DBUG_EXECUTE_IF("stop_replica_middle_group", {
+      if (strcmp("COMMIT", query) != 0 && strcmp("BEGIN", query) != 0) {
+        if (thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::SESSION)) {
+          auto thd_rli = (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL
+                              ? const_cast<Relay_log_info *>(rli)
+                              : static_cast<Slave_worker *>(
+                                    const_cast<Relay_log_info *>(rli))
+                                    ->c_rli);
+          thd_rli->abort_slave = 1;
+        }
+      }
+    };);
   }
 
 end:
@@ -6133,6 +6139,10 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
                   sql_print_information("Crashing crash_before_update_pos.");
                   DBUG_SUICIDE(););
 
+  DBUG_EXECUTE_IF("simulate_commit_failure", {
+    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_IDLE);
+  });
+
   ulong gaq_idx = mts_group_idx;
   Slave_job_group *ptr_group = coordinator_gaq->get_job_group(gaq_idx);
 
@@ -6165,8 +6175,15 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
   error = do_commit(thd);
   if (error) {
     if (!skipped_commit_pos) w->rollback_positions(ptr_group);
-  } else if (skipped_commit_pos)
-    error = w->commit_positions(this, ptr_group, w->is_transactional());
+  } else {
+    DBUG_EXECUTE_IF(
+        "crash_after_commit_before_update_pos",
+        sql_print_information("Crashing "
+                              "crash_after_commit_before_update_pos.");
+        DBUG_SUICIDE(););
+    if (skipped_commit_pos)
+      error = w->commit_positions(this, ptr_group, w->is_transactional());
+  }
 err:
   return error;
 }
@@ -10013,11 +10030,17 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         The sql thread receives the killed status and will proceed
         to shutdown trying to finish incomplete events group.
        */
-      DBUG_EXECUTE_IF(
-          "stop_replica_middle_group",
-          if (thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::SESSION)) const_cast<Relay_log_info *>(rli)
-              ->abort_slave = 1;);
+      DBUG_EXECUTE_IF("stop_replica_middle_group", {
+        if (thd->get_transaction()->cannot_safely_rollback(
+                Transaction_ctx::SESSION)) {
+          auto thd_rli = (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL
+                              ? const_cast<Relay_log_info *>(rli)
+                              : static_cast<Slave_worker *>(
+                                    const_cast<Relay_log_info *>(rli))
+                                    ->c_rli);
+          thd_rli->abort_slave = 1;
+        }
+      };);
     }
 
     if ((error = do_after_row_operations(rli, error)) &&

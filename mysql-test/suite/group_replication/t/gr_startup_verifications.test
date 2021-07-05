@@ -23,7 +23,6 @@
 # 4. Restore the old configuration values.
 ################################################################################
 
---source include/not_mts_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 
 --connection server1
@@ -64,6 +63,7 @@ START GROUP_REPLICATION;
 --echo #
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
 SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
+SET @replica_preserve_commit_order= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
@@ -72,11 +72,13 @@ START GROUP_REPLICATION;
 
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @replica_preserve_commit_order;
 
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Extraction of transaction write sets requires*");

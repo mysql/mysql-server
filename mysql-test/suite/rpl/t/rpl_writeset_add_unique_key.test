@@ -34,7 +34,8 @@
 --let $option_operator = >
 --let $option_value = 2
 --source include/only_with_option.inc
-
+--let $skip_configuration_privilege_checks_user= 'skip'
+--let $rpl_privilege_checks_user_grant_all= 1
 --echo #
 --echo # 1. Create source-replica topology.
 --source include/master-slave.inc

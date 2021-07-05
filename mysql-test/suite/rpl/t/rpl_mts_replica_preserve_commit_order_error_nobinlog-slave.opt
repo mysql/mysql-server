@@ -1,3 +1,2 @@
---replica-parallel-workers=4 --replica-parallel-type='logical_clock'
---replica-transaction-retries=0 --replica-preserve-commit-order=1
+--replica-transaction-retries=0
 --skip-log-bin --log-replica-updates=0

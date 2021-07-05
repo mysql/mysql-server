@@ -20,8 +20,8 @@ perl mysql-test-run.pl --force --timer    --comment=ndb-ps --vardir=var-ndb-ps -
 perl mysql-test-run.pl --timer  --force  --comment=innodb_4k --vardir=var-innodb-4k  --suite=innodb_undo,innodb_zip,innodb --initialize=--innodb-page-size=4k --no-skip --max-test-fail=30
 perl mysql-test-run.pl --timer  --force  --comment=innodb_64k --vardir=var-innodb-64k  --suite=innodb_undo,innodb_zip,innodb --initialize=--innodb-page-size=64k --no-skip --max-test-fail=30
 
-# Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force  --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed  --mysqld=--replica-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30
+# Additional modes for rpl. Single-Threaded Applier
+perl mysql-test-run.pl --timer  --force  --comment=rpl_binlog_n_mix_STA --vardir=var-sta-rpl-binlog-n_mix --mysqld=--binlog-format=mixed  --mysqld=--replica-parallel-workers=0 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30
 
 # Run the suites that are not part of the default - funcs_1, funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer --testcase-timeout=60     --comment=funcs1  --vardir=var-funcs1 --suite=funcs_1 --no-skip --max-test-fail=30

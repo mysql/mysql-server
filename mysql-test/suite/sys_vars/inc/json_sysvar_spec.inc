@@ -324,7 +324,7 @@ let $sysvar_specs =
     "name": "replica_parallel_type",
     "alias": "slave_parallel_type",
     $persist_as_readonly,
-    "default": "DATABASE",
+    "default": "LOGICAL_CLOCK",
     "values": ["LOGICAL_CLOCK", "'DATABASE'", "'LOGICAL_CLOCK'", 0, 1],
     "invalid": [$enum_invalid, -1, 2],
     "value_map": {"'LOGICAL_CLOCK'": "LOGICAL_CLOCK", "'DATABASE'": "DATABASE", "0": "DATABASE", "1": "LOGICAL_CLOCK"},
@@ -334,7 +334,7 @@ let $sysvar_specs =
     "name": "replica_parallel_workers",
     "alias": "slave_parallel_workers",
     $persist_as_readonly,
-    "default": 0,
+    "default": 4,
     "values": [1, 2, 100],
     "min": 0,
     "max": 1024,
@@ -354,7 +354,7 @@ let $sysvar_specs =
     "name": "replica_preserve_commit_order",
     "alias": "slave_preserve_commit_order",
     $persist_as_readonly,
-    "default": 0,
+    "default": 1,
     $bool
   },
   {

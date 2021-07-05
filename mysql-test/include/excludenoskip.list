@@ -205,6 +205,7 @@ only_mts_replica_parallel_workers.inc
 only_mts_replica_parallel_type_logical_clock.inc
 only_mts_replica_parallel_type_database.inc
 not_mts_replica_parallel_workers.inc
+only_replica_preserve_commit_order.inc
 # 14.2 rpl misc files
 have_slave_repository_type_table.inc
 not_relay_log_info_file.inc

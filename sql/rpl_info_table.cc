@@ -758,7 +758,6 @@ bool Rpl_info_table::do_update_is_transactional() {
   Open_tables_backup backup;
 
   DBUG_TRACE;
-  DBUG_EXECUTE_IF("simulate_update_is_transactional_error", { return true; });
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;

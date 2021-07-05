@@ -69,11 +69,11 @@ perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication 
 # Add runs of rpl and binlog test suites with additional
 # MTR or mysqld options in this section
 
-# Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --do-suite=rpl --no-skip --exclude-platform=windows
-perl mysql-test-run.pl --timer  --force  --parallel=8 --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --do-suite=rpl --no-skip --platform=windows
-perl mysql-test-run.pl --timer  --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --do-suite=rpl --no-skip --exclude-platform=windows
-perl mysql-test-run.pl --timer  --parallel=8 --force  --comment=rpl_MTS_LC --vardir=var-rpl_mts_LC --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --do-suite=rpl --no-skip --platform=windows
+# Additional modes for rpl. DATABASE Multi-Threaded Applier and Single-Threaded Applier
+perl mysql-test-run.pl --timer  --force  --comment=rpl_MTA_db_part --vardir=var-mta-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --mysqld=--replica-preserve-commit-order=0  --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --force  --parallel=8 --comment=rpl_MTA_db_part --vardir=var-mta-rpl_db --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=database --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip --platform=windows
+perl mysql-test-run.pl --timer  --force  --comment=rpl_STA --vardir=var-rpl_sta --mysqld=--replica-parallel-workers=0 --do-suite=rpl --no-skip --exclude-platform=windows
+perl mysql-test-run.pl --timer  --parallel=8 --force  --comment=rpl_STA --vardir=var-rpl_sta --mysqld=--replica-parallel-workers=0 --do-suite=rpl --no-skip --platform=windows
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --exclude-platform=windows

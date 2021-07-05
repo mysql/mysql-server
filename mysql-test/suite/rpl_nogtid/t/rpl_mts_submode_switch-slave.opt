@@ -1,1 +1,2 @@
---replica-parallel-workers=4 --replica-transaction-retries=0
+--replica-transaction-retries=0
+--replica-preserve-commit-order=OFF

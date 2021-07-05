@@ -39,7 +39,9 @@ CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2)),
 --source include/start_slave.inc
 # Take backup of variables.
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 # Set variables.
+SET GLOBAL replica_parallel_workers = 0;
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --source include/rpl_connection_master.inc
@@ -168,6 +170,7 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_de
 --let $dont_print_logical_timestamps=
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.replica_parallel_workers = @save_replica_parallel_workers;
 
 --source include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(), REPLICATE_IGNORE_DB=();

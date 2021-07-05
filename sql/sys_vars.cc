@@ -3964,15 +3964,17 @@ static const char *mts_parallel_type_names[] = {"DATABASE", "LOGICAL_CLOCK",
 static Sys_var_enum Sys_replica_parallel_type(
     "replica_parallel_type",
     "The method used by the replication applier to parallelize "
-    "transactions. DATABASE, which is the default, indicates that it "
+    "transactions. DATABASE, indicates that it "
     "may apply transactions in parallel in case they update different "
-    "databases. LOGICAL_CLOCK indicates that it decides whether two "
+    "databases. LOGICAL_CLOCK, which is the default, indicates that it decides "
+    "whether two "
     "transactions can be applied in parallel using the logical timestamps "
     "computed by the source, according to "
     "binlog_transaction_dependency_tracking.",
     PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
-    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_DB_NAME), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr));
+    mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_LOGICAL_CLOCK),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
+    ON_UPDATE(nullptr));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_type(
     "slave_parallel_type", Sys_replica_parallel_type);
@@ -4030,9 +4032,9 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
 static Sys_var_bool Sys_replica_preserve_commit_order(
     "replica_preserve_commit_order",
     "Force replication worker threads to commit in the same order as on the "
-    "source.",
+    "source. Enabled by default",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_replica_preserve_commit_order),
-    CMD_LINE(OPT_ARG, OPT_REPLICA_PRESERVE_COMMIT_ORDER), DEFAULT(false),
+    CMD_LINE(OPT_ARG, OPT_REPLICA_PRESERVE_COMMIT_ORDER), DEFAULT(true),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
     ON_UPDATE(nullptr));
 
@@ -6157,7 +6159,7 @@ static Sys_var_ulong Sys_replica_parallel_workers(
     "replica_parallel_workers",
     "Number of worker threads for executing events in parallel ",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_replica_parallel_workers),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(4),
     BLOCK_SIZE(1));
 
 static Sys_var_deprecated_alias Sys_slave_parallel_workers(

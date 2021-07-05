@@ -88,7 +88,7 @@ IF (VARIABLE_VALUE = @slave_sql_pid, "same", "different") as 'test'
   from performance_schema.variables_by_thread
 where VARIABLE_NAME = 'pseudo_thread_id' and THREAD_ID = @slave_sql_tid;
 VARIABLE_NAME	test
-pseudo_thread_id	different
+pseudo_thread_id	same
 select VARIABLE_NAME, VARIABLE_VALUE
 from performance_schema.status_by_thread
 where VARIABLE_NAME = 'Compression_level' and THREAD_ID = @slave_sql_tid;

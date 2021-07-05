@@ -7,9 +7,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
 SET @save_replica_transaction_retries= @@global.replica_transaction_retries;
+SET @save_replica_preserve_commit_order= @@global.replica_preserve_commit_order;
 # Test for PARALLEL_DATABASE
 SET GLOBAL replica_parallel_type = 'DATABASE';
 SET @@global.replica_parallel_workers= 4;
+SET @@global.replica_preserve_commit_order=0;
 include/start_slave.inc
 # Scenario 1: With two workers, check if Seconds_Behind_Master is
 # calculated correctly when all the workers are waiting.
@@ -110,6 +112,7 @@ include/stop_slave.inc
 # Test for LOGICAL_CLOCK
 SET GLOBAL replica_parallel_type = 'LOGICAL_CLOCK';
 SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_preserve_commit_order=1;
 include/start_slave.inc
 # Scenario 1: With two workers, check if Seconds_Behind_Master is
 # calculated correctly when two statements are applied in parallel on
@@ -224,5 +227,6 @@ include/stop_slave.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.replica_transaction_retries= @save_replica_transaction_retries;
+SET @@global.replica_preserve_commit_order= @save_replica_preserve_commit_order;
 include/start_slave.inc
 include/rpl_end.inc

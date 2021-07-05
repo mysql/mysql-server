@@ -7,12 +7,11 @@
 SHOW BINARY LOGS;
 
 --echo #
---echo # Verify that The log-replica-updates and replica-preserve-commit-order
---echo # are disabled if binary log is disabled.
+--echo # Verify that The log-replica-updates
+--echo # is disabled if binary log is disabled.
 --echo #
 SELECT @@GLOBAL.log_bin;
 SELECT @@GLOBAL.log_replica_updates;
-SELECT @@GLOBAL.replica_preserve_commit_order;
 
 --echo #
 --echo # Bug#32234194: DDL: DIAGNOSTICS_AREA::SET_OK_STATUS: ASSERTION `!IS_SET()'

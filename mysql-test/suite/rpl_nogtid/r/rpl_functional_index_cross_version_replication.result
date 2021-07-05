@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # TC1. Apply OLD-generated relay log on NEW server
 #
 [connection slave]
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
 include/setup_fake_relay_log.inc
 Setting up fake replication from MYSQL_TEST_DIR/std_data/rpl_unfiltered_hidden_gcol.000001
 START SLAVE SQL_THREAD;

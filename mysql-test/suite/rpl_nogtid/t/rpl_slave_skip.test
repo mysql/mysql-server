@@ -5,8 +5,6 @@
 # Skip in valgrind because of bug#20952953
 --source include/not_valgrind.inc
 source include/have_binlog_format_mixed.inc;
-# UNTIL is not supported yet (TODO: support and remove the guard)
--- source include/not_mts_replica_parallel_workers.inc
 
 source include/master-slave.inc;
 source include/have_myisam.inc;

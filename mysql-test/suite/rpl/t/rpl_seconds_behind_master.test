@@ -4,10 +4,6 @@
 # on SHOW PROCESS LIST output in some of the tests)
 --source include/have_binlog_format_statement.inc
 
-# this test logics requires adaption to MTS policies for SBM
-# (see rpl_parallel_seconds_behind_master.test)
---source include/not_mts_replica_parallel_workers.inc
-
 --source include/master-slave.inc
 
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');

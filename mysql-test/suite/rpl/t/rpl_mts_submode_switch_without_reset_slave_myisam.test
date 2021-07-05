@@ -15,6 +15,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 # save  MTS submode
 --let $saved_submode= `SELECT @@replica_parallel_type`
+SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 
 --source include/stop_slave.inc
 
@@ -36,6 +37,8 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # DEFAULT  ========> DATABASE
 --connection slave
 SET GLOBAL replica_parallel_type='DATABASE';
+# Switching off replica-preserve-commit-order
+SET GLOBAL replica_preserve_commit_order=0;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -53,6 +56,8 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 # DATABASE  ========> LOGICAL_CLOCK
 --connection slave
 SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
+# Switching on replica-preserve-commit-order
+SET GLOBAL replica_preserve_commit_order=1;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -70,6 +75,8 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 # LOGICAL_CLOCK  ========> DATABASE
 --connection slave
 SET GLOBAL replica_parallel_type='DATABASE';
+# Switching off replica-preserve-commit-order
+SET GLOBAL replica_preserve_commit_order=0;
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -88,6 +95,7 @@ DROP DATABASE db2;
 --disable_query_log
 --disable_result_log
 --eval SET GLOBAL replica_parallel_type= '$saved_submode'
+SET GLOBAL replica_preserve_commit_order=@slave_preserver_commit_order_saved;
 --source include/start_slave.inc
 --connection master
 --eval SET GLOBAL DEBUG='$saved_debug'

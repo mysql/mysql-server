@@ -3,7 +3,6 @@
 #
 
 --source include/have_binlog_format_row.inc
---source include/no_replica_preserve_commit_order.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_master.inc
@@ -16,12 +15,13 @@ SET @@session.binlog_transaction_compression = ON;
 --let $saved_replica_parallel_workers = `SELECT @@global.replica_parallel_workers`
 --let $saved_replica_parallel_type = `SELECT @@global.replica_parallel_type`
 --let $saved_binlog_transaction_compression = `SELECT @@global.binlog_transaction_compression`
-
+--let $saved_replica_preserve_commit_order = `SELECT @@global.replica_preserve_commit_order`
 --source include/stop_slave_sql.inc
 SET @@global.replica_transaction_retries= 200;
 SET @@global.innodb_lock_wait_timeout= 5;
 SET @@global.binlog_transaction_compression = ON;
 SET @@global.replica_parallel_workers = 4;
+SET @@global.replica_preserve_commit_order = OFF;
 --source include/start_slave_sql.inc
 
 --let $j = 3
@@ -137,7 +137,8 @@ while ($j > 0) {
 --eval SET @@global.replica_parallel_workers = $saved_replica_parallel_workers
 --replace_result $saved_replica_parallel_type SAVED
 --eval SET @@global.replica_parallel_type = '$saved_replica_parallel_type'
-
+--replace_result $saved_replica_preserve_commit_order SAVED
+--eval SET @@global.replica_preserve_commit_order = $saved_replica_preserve_commit_order
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

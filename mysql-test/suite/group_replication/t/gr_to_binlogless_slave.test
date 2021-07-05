@@ -24,7 +24,6 @@
 # 6. Ensure that the test is cleaned up and closed.
 ################################################################################
 
---source include/not_mts_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 4

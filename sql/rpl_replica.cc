@@ -5037,8 +5037,6 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
           if ((ev->get_type_code() == binary_log::XID_EVENT) ||
               ((ev->get_type_code() == binary_log::QUERY_EVENT) &&
                strcmp("COMMIT", ((Query_log_event *)ev)->query) == 0)) {
-            assert(thd->get_transaction()->cannot_safely_rollback(
-                Transaction_ctx::SESSION));
             rli->abort_slave = 1;
             mysql_mutex_unlock(&rli->data_lock);
             delete ev;
@@ -7091,7 +7089,9 @@ extern "C" void *handle_slave_sql(void *arg) {
       }
     }
 
-    if (rli->update_is_transactional()) {
+    if (rli->update_is_transactional() ||
+        DBUG_EVALUATE_IF("simulate_update_is_transactional_error", true,
+                         false)) {
       mysql_cond_broadcast(&rli->start_cond);
       mysql_mutex_unlock(&rli->run_lock);
       rli->report(

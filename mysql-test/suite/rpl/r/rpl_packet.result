@@ -10,6 +10,7 @@ create database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 include/sync_slave_sql_with_master.inc
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 include/stop_slave.inc
 include/start_slave.inc
 select @@net_buffer_length, @@max_allowed_packet;
@@ -34,10 +35,10 @@ include/stop_slave.inc
 include/start_slave.inc
 CREATE TABLE `t1` (`f1` LONGTEXT);
 include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
 INSERT INTO t1 VALUES (REPEAT('a', @@global.max_allowed_packet));
 include/wait_for_slave_io_error.inc [errno=13125]
 Last_IO_Error = 'Got a packet bigger than 'replica_max_allowed_packet' bytes'
-include/stop_slave_sql.inc
 include/rpl_reset.inc
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
@@ -96,7 +97,7 @@ SET @@global.net_buffer_length= 1024;
 SET @@global.replica_max_allowed_packet= 4096;
 SET @@global.max_allowed_packet= 2048;
 DROP TABLE t1;
-include/stop_slave_sql.inc
+STOP REPLICA;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

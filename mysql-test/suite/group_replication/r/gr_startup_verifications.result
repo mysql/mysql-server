@@ -22,16 +22,19 @@ SET GLOBAL binlog_transaction_dependency_tracking= BINLOG_TRANSACTION_DEPENDENCY
 #
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
 SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
+SET @replica_preserve_commit_order= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "DATABASE";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= "LOGICAL_CLOCK";
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= OFF;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET @@GLOBAL.REPLICA_PARALLEL_TYPE= @replica_parallel_type_saved;
 SET @@GLOBAL.REPLICA_PARALLEL_WORKERS= @replica_parallel_workers_saved;
+SET @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER= @replica_preserve_commit_order;
 call mtr.add_suppression("Binlog format should be ROW for Group Replication");
 call mtr.add_suppression("Extraction of transaction write sets requires*");
 call mtr.add_suppression("In order to use parallel applier on Group Replication, parameter replica-parallel-type must be set to 'LOGICAL_CLOCK'");

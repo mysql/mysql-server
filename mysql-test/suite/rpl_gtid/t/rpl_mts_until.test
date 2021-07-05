@@ -7,6 +7,8 @@
 ################################################################################
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
@@ -26,6 +28,7 @@ CREATE VIEW db1.v1 AS SELECT * FROM db1.t1 WHERE c1 <= 4;
 --source include/stop_slave_sql.inc
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET @saved_replica_preserve_commit_order = @@GLOBAL.replica_preserve_commit_order;
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_relay_log_purge = @@GLOBAL.relay_log_purge;
 
@@ -35,6 +38,7 @@ SET GLOBAL relay_log_purge = FALSE;
 
 SET GLOBAL replica_parallel_type = "LOGICAL_CLOCK";
 SET GLOBAL replica_parallel_workers = 4;
+SET GLOBAL replica_preserve_commit_order=0;
 
 --let $until_type= SOURCE_POS
 --source extra/rpl_tests/rpl_mts_until.inc
@@ -75,6 +79,7 @@ DROP DATABASE db3;
 --source include/stop_slave_sql.inc
 SET GLOBAL replica_parallel_type = @saved_replica_parallel_type;
 SET GLOBAL replica_parallel_workers = @saved_replica_parallel_workers;
+SET GLOBAL replica_preserve_commit_order= @saved_replica_preserve_commit_order;
 # Set it a long time to guarantee it doens't report an timeout error
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL relay_log_purge = @saved_relay_log_purge;

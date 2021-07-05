@@ -21,18 +21,22 @@
 # 6. Stop applier thread. Test with default REPLICA_PARALLEL_TYPE and default
 #    REPLICA_PARALLEL_WORKERS. Start applier thread should succeed.
 ################################################################################
---source include/not_mts_replica_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
 # If these assert fails there is no point in continue the test,
 # since it relies on DATABASE as default value.
---let $assert_text= Default slave parallel type must be DATABASE
---let $assert_cond= "[SELECT @@GLOBAL.REPLICA_PARALLEL_TYPE]" = "DATABASE"
+--let $assert_text= Default slave parallel type must be LOGICAL_CLOCK
+--let $assert_cond= "[SELECT @@GLOBAL.REPLICA_PARALLEL_TYPE]" = "LOGICAL_CLOCK"
 --source include/assert.inc
 
---let $assert_text= Default slave parallel workers must be 0
---let $assert_cond= [SELECT @@GLOBAL.REPLICA_PARALLEL_WORKERS] = 0
+--let $assert_text= Default slave parallel workers must be 4
+--let $assert_cond= [SELECT @@GLOBAL.REPLICA_PARALLEL_WORKERS] = 4
+--source include/assert.inc
+
+--let $assert_text= Default slave preserve commit order 1
+--let $assert_cond= [SELECT @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER] = 1
 --source include/assert.inc
 
 # Save defaults.

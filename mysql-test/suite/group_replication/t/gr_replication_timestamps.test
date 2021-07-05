@@ -34,8 +34,6 @@
 ## WL#7374 Performance schema tables to monitor replication lags and queue
 
 
-# accesses to some tables in the test require only one applier thread (worker)
---source include/not_mts_replica_parallel_workers.inc
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

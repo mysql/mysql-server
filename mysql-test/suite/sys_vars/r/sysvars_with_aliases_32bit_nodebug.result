@@ -2546,14 +2546,14 @@ sysvar:
 - min=
 - max=
 - block_size=1
-- default=DATABASE
+- default=LOGICAL_CLOCK
 - values=["LOGICAL_CLOCK", "'DATABASE'", "'LOGICAL_CLOCK'", 0, 1]
 ==== Testing SET @@global.replica_parallel_type [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 # Valid values for variable
 SET @@global.replica_parallel_type=LOGICAL_CLOCK;
 include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
@@ -2582,10 +2582,10 @@ include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
 include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 # Setting default value for variable
 SET @@global.replica_parallel_type = DEFAULT;
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 # Invalid values
 SET @@global.replica_parallel_type = 1.5;
 Got one of the listed errors
@@ -2603,10 +2603,10 @@ SET @@global.replica_parallel_type = 2;
 Got one of the listed errors
 # Restore default
 SET @@global.replica_parallel_type = DEFAULT;
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 ==== Testing SET @@session.replica_parallel_type [invalid scope] ====
 SET @@session.replica_parallel_type = DEFAULT;
 ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
@@ -2636,14 +2636,14 @@ SELECT @@session.replica_parallel_type;
 ERROR HY000: Variable 'replica_parallel_type' is a GLOBAL variable
 SELECT @@replica_parallel_type;
 @@replica_parallel_type
-DATABASE
+LOGICAL_CLOCK
 include/assert.inc [Variable replica_parallel_type should exist in performance_schema.session_variables]
 ==== Testing SET @@global.slave_parallel_type [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 # Valid values for variable
 SET @@global.slave_parallel_type=LOGICAL_CLOCK;
 Warnings:
@@ -2684,10 +2684,10 @@ include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_
 SET @@global.slave_parallel_type = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 # Invalid values
 SET @@global.slave_parallel_type = 1.5;
 Got one of the listed errors
@@ -2707,10 +2707,10 @@ Got one of the listed errors
 SET @@global.slave_parallel_type = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
-include/assert.inc [@@global.slave_parallel_type should be DATABASE]
-include/assert.inc [slave_parallel_type should be DATABASE in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_type should be DATABASE]
-include/assert.inc [replica_parallel_type should be DATABASE in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [slave_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_type should be LOGICAL_CLOCK]
+include/assert.inc [replica_parallel_type should be LOGICAL_CLOCK in P_S.global_variables]
 ==== Testing SET @@session.slave_parallel_type [invalid scope] ====
 SET @@session.slave_parallel_type = DEFAULT;
 ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
@@ -2740,7 +2740,7 @@ SELECT @@session.slave_parallel_type;
 ERROR HY000: Variable 'slave_parallel_type' is a GLOBAL variable
 SELECT @@slave_parallel_type;
 @@slave_parallel_type
-DATABASE
+LOGICAL_CLOCK
 Warnings:
 Warning	1287	'@@slave_parallel_type' is deprecated and will be removed in a future release. Please use replica_parallel_type instead.
 include/assert.inc [Variable slave_parallel_type should exist in performance_schema.session_variables]
@@ -2757,14 +2757,14 @@ sysvar:
 - min=0
 - max=1024
 - block_size=1
-- default=0
+- default=4
 - values=[1, 2, 100]
 ==== Testing SET @@global.replica_parallel_workers [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
 # Valid values for variable
 SET @@global.replica_parallel_workers=1;
 include/assert.inc [@@global.replica_parallel_workers should be 1]
@@ -2783,10 +2783,10 @@ include/assert.inc [@@global.slave_parallel_workers should be 100]
 include/assert.inc [slave_parallel_workers should be 100 in P_S.global_variables]
 # Setting default value for variable
 SET @@global.replica_parallel_workers = DEFAULT;
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
 # Minimum value
 SET @@global.replica_parallel_workers = 0;
 include/assert.inc [@@global.replica_parallel_workers should be 0]
@@ -2828,10 +2828,10 @@ SET @@global.replica_parallel_workers = NULL;
 Got one of the listed errors
 # Restore default
 SET @@global.replica_parallel_workers = DEFAULT;
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
 ==== Testing SET @@session.replica_parallel_workers [invalid scope] ====
 SET @@session.replica_parallel_workers = DEFAULT;
 ERROR HY000: Variable 'replica_parallel_workers' is a GLOBAL variable and should be set with SET GLOBAL
@@ -2853,14 +2853,14 @@ SELECT @@session.replica_parallel_workers;
 ERROR HY000: Variable 'replica_parallel_workers' is a GLOBAL variable
 SELECT @@replica_parallel_workers;
 @@replica_parallel_workers
-0
+4
 include/assert.inc [Variable replica_parallel_workers should exist in performance_schema.session_variables]
 ==== Testing SET @@global.slave_parallel_workers [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
 # Valid values for variable
 SET @@global.slave_parallel_workers=1;
 Warnings:
@@ -2887,10 +2887,10 @@ include/assert.inc [replica_parallel_workers should be 100 in P_S.global_variabl
 SET @@global.slave_parallel_workers = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
 # Minimum value
 SET @@global.slave_parallel_workers = 0;
 Warnings:
@@ -2940,10 +2940,10 @@ Got one of the listed errors
 SET @@global.slave_parallel_workers = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
-include/assert.inc [@@global.slave_parallel_workers should be 0]
-include/assert.inc [slave_parallel_workers should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_parallel_workers should be 0]
-include/assert.inc [replica_parallel_workers should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_parallel_workers should be 4]
+include/assert.inc [slave_parallel_workers should be 4 in P_S.global_variables]
+include/assert.inc [@@global.replica_parallel_workers should be 4]
+include/assert.inc [replica_parallel_workers should be 4 in P_S.global_variables]
 ==== Testing SET @@session.slave_parallel_workers [invalid scope] ====
 SET @@session.slave_parallel_workers = DEFAULT;
 ERROR HY000: Variable 'slave_parallel_workers' is a GLOBAL variable and should be set with SET GLOBAL
@@ -2965,7 +2965,7 @@ SELECT @@session.slave_parallel_workers;
 ERROR HY000: Variable 'slave_parallel_workers' is a GLOBAL variable
 SELECT @@slave_parallel_workers;
 @@slave_parallel_workers
-0
+4
 Warnings:
 Warning	1287	'@@slave_parallel_workers' is deprecated and will be removed in a future release. Please use replica_parallel_workers instead.
 include/assert.inc [Variable slave_parallel_workers should exist in performance_schema.session_variables]
@@ -3254,14 +3254,14 @@ sysvar:
 - min=
 - max=
 - block_size=1
-- default=0
+- default=1
 - values=["ON", "OFF", 1, 0, "TRUE", "FALSE", "'ON'", "'OFF'"]
 ==== Testing SET @@global.replica_preserve_commit_order [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
 # Valid values for variable
 SET @@global.replica_preserve_commit_order=ON;
 include/assert.inc [@@global.replica_preserve_commit_order should be 1]
@@ -3305,10 +3305,10 @@ include/assert.inc [@@global.slave_preserve_commit_order should be 0]
 include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
 # Setting default value for variable
 SET @@global.replica_preserve_commit_order = DEFAULT;
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
 # Invalid values
 SET @@global.replica_preserve_commit_order = 0.1;
 Got one of the listed errors
@@ -3328,10 +3328,10 @@ SET @@global.replica_preserve_commit_order = NULL;
 Got one of the listed errors
 # Restore default
 SET @@global.replica_preserve_commit_order = DEFAULT;
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
 ==== Testing SET @@session.replica_preserve_commit_order [invalid scope] ====
 SET @@session.replica_preserve_commit_order = DEFAULT;
 ERROR HY000: Variable 'replica_preserve_commit_order' is a GLOBAL variable and should be set with SET GLOBAL
@@ -3373,14 +3373,14 @@ SELECT @@session.replica_preserve_commit_order;
 ERROR HY000: Variable 'replica_preserve_commit_order' is a GLOBAL variable
 SELECT @@replica_preserve_commit_order;
 @@replica_preserve_commit_order
-0
+1
 include/assert.inc [Variable replica_preserve_commit_order should exist in performance_schema.session_variables]
 ==== Testing SET @@global.slave_preserve_commit_order [allowed values, range, invalid values] ====
 # Initial value is default
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
 # Valid values for variable
 SET @@global.slave_preserve_commit_order=ON;
 Warnings:
@@ -3442,10 +3442,10 @@ include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_vari
 SET @@global.slave_preserve_commit_order = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
 # Invalid values
 SET @@global.slave_preserve_commit_order = 0.1;
 Got one of the listed errors
@@ -3467,10 +3467,10 @@ Got one of the listed errors
 SET @@global.slave_preserve_commit_order = DEFAULT;
 Warnings:
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
-include/assert.inc [@@global.slave_preserve_commit_order should be 0]
-include/assert.inc [slave_preserve_commit_order should be 0 in P_S.global_variables]
-include/assert.inc [@@global.replica_preserve_commit_order should be 0]
-include/assert.inc [replica_preserve_commit_order should be 0 in P_S.global_variables]
+include/assert.inc [@@global.slave_preserve_commit_order should be 1]
+include/assert.inc [slave_preserve_commit_order should be 1 in P_S.global_variables]
+include/assert.inc [@@global.replica_preserve_commit_order should be 1]
+include/assert.inc [replica_preserve_commit_order should be 1 in P_S.global_variables]
 ==== Testing SET @@session.slave_preserve_commit_order [invalid scope] ====
 SET @@session.slave_preserve_commit_order = DEFAULT;
 ERROR HY000: Variable 'slave_preserve_commit_order' is a GLOBAL variable and should be set with SET GLOBAL
@@ -3512,7 +3512,7 @@ SELECT @@session.slave_preserve_commit_order;
 ERROR HY000: Variable 'slave_preserve_commit_order' is a GLOBAL variable
 SELECT @@slave_preserve_commit_order;
 @@slave_preserve_commit_order
-0
+1
 Warnings:
 Warning	1287	'@@slave_preserve_commit_order' is deprecated and will be removed in a future release. Please use replica_preserve_commit_order instead.
 include/assert.inc [Variable slave_preserve_commit_order should exist in performance_schema.session_variables]

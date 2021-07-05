@@ -11,6 +11,7 @@ SET @@global.replica_transaction_retries= 200;
 SET @@global.innodb_lock_wait_timeout= 5;
 SET @@global.binlog_transaction_compression = ON;
 SET @@global.replica_parallel_workers = 4;
+SET @@global.replica_preserve_commit_order = OFF;
 include/start_slave_sql.inc
 include/stop_slave_sql.inc
 SET @@global.replica_parallel_workers = 8;
@@ -195,6 +196,7 @@ SET @@global.innodb_lock_wait_timeout= SAVED;
 SET @@global.binlog_transaction_compression = SAVED;
 SET @@global.replica_parallel_workers = SAVED;
 SET @@global.replica_parallel_type = 'SAVED';
+SET @@global.replica_preserve_commit_order = SAVED;
 include/start_slave.inc
 [connection master]
 SET @@session.binlog_transaction_compression = SAVED;

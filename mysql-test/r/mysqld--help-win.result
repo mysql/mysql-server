@@ -1137,11 +1137,11 @@ The following options may be given as the first argument:
  replication connection before aborting the read.
  --replica-parallel-type=name 
  The method used by the replication applier to parallelize
- transactions. DATABASE, which is the default, indicates
- that it may apply transactions in parallel in case they
- update different databases. LOGICAL_CLOCK indicates that
- it decides whether two transactions can be applied in
- parallel using the logical timestamps computed by the
+ transactions. DATABASE, indicates that it may apply
+ transactions in parallel in case they update different
+ databases. LOGICAL_CLOCK, which is the default, indicates
+ that it decides whether two transactions can be applied
+ in parallel using the logical timestamps computed by the
  source, according to
  binlog_transaction_dependency_tracking.
  --replica-parallel-workers=# 
@@ -1153,7 +1153,8 @@ The following options may be given as the first argument:
  the limit.
  --replica-preserve-commit-order 
  Force replication worker threads to commit in the same
- order as on the source.
+ order as on the source. Enabled by default
+ (Defaults to on; use --skip-replica-preserve-commit-order to disable.)
  --replica-skip-errors=name 
  Comma-separated list of error numbers. If an applier
  thread on this replica encounters one of these errors
@@ -1407,6 +1408,7 @@ The following options may be given as the first argument:
  --slave-preserve-commit-order 
  This option is deprecated. Use
  replica_preserve_commit_order instead.
+ (Defaults to on; use --skip-slave-preserve-commit-order to disable.)
  --slave-rows-search-algorithms=name 
  The set of algorithms used by the replication applier
  while searching the table for rows to update or delete.
@@ -1906,10 +1908,10 @@ replica-compressed-protocol FALSE
 replica-exec-mode STRICT
 replica-max-allowed-packet 1073741824
 replica-net-timeout 60
-replica-parallel-type DATABASE
-replica-parallel-workers 0
+replica-parallel-type LOGICAL_CLOCK
+replica-parallel-workers 4
 replica-pending-jobs-size-max 134217728
-replica-preserve-commit-order FALSE
+replica-preserve-commit-order TRUE
 replica-skip-errors (No default value)
 replica-sql-verify-checksum TRUE
 replica-transaction-retries 10
@@ -1958,10 +1960,10 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
 slave-net-timeout 60
-slave-parallel-type DATABASE
-slave-parallel-workers 0
+slave-parallel-type LOGICAL_CLOCK
+slave-parallel-workers 4
 slave-pending-jobs-size-max 134217728
-slave-preserve-commit-order FALSE
+slave-preserve-commit-order TRUE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE

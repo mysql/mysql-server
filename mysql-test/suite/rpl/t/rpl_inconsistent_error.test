@@ -28,7 +28,6 @@
 # Bug#24753281: REQUEST FOR REPLICA_SKIP_ERRORS = ER_INCONSISTENT_ERROR
 
 --source include/have_binlog_format_statement.inc
---source include/not_mts_replica_parallel_workers.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/master-slave.inc

@@ -3,8 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
-include/assert.inc [Default slave parallel type must be DATABASE]
-include/assert.inc [Default slave parallel workers must be 0]
+include/assert.inc [Default slave parallel type must be LOGICAL_CLOCK]
+include/assert.inc [Default slave parallel workers must be 4]
+include/assert.inc [Default slave preserve commit order 1]
 SET @replica_parallel_type_saved= @@GLOBAL.REPLICA_PARALLEL_TYPE;
 SET @replica_parallel_workers_saved= @@GLOBAL.REPLICA_PARALLEL_WORKERS;
 SET @slave_preserver_commit_order_saved= @@GLOBAL.REPLICA_PRESERVE_COMMIT_ORDER;
