@@ -7712,6 +7712,7 @@ Qmgr::execPROCESSINFO_REP(Signal *signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr pathSectionPtr, hostSectionPtr;
 
+  ndbrequire(report->node_id < MAX_NODES);
   ProcessInfo * processInfo = getProcessInfo(report->node_id);
   if(processInfo)
   {
