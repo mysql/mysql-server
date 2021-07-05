@@ -2516,6 +2516,9 @@ void fts_optimize_request_sync_table(dict_table_t *table) {
   msg->ptr = table_id;
 
   ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+  DBUG_EXECUTE_IF(
+      "fts_optimize_wq_count_check",
+      if (ib_wqueue_get_count(fts_optimize_wq) > 1000) { DBUG_SUICIDE(); });
 }
 
 /** Find the slot for a particular table.

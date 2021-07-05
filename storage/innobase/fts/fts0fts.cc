@@ -504,6 +504,7 @@ void fts_cache_init(fts_cache_t *cache) /*!< in: cache to initialize */
   cache->sync_heap->arg = mem_heap_create(1024);
 
   cache->total_size = 0;
+  cache->total_size_before_sync = 0;
 
   mutex_enter((ib_mutex_t *)&cache->deleted_lock);
   cache->deleted_doc_ids =
@@ -3684,9 +3685,12 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
                           doc.tokens);
 
         bool need_sync = false;
-        if ((cache->total_size > fts_max_cache_size / 10 || fts_need_sync) &&
+        if ((cache->total_size - cache->total_size_before_sync >
+                 fts_max_cache_size / 10 ||
+             fts_need_sync) &&
             !cache->sync->in_progress) {
           need_sync = true;
+          cache->total_size_before_sync = cache->total_size;
         }
 
         rw_lock_x_unlock(&table->fts->cache->lock);
