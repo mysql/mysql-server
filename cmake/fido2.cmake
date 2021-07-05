@@ -45,6 +45,7 @@ MACRO (FIND_SYSTEM_UDEV_OR_HID)
   ENDIF()
 ENDMACRO()
 
+# Look for system fido2. If we find it, there is no need to look for libudev.
 MACRO (FIND_SYSTEM_FIDO)
   FIND_PATH(FIDO_INCLUDE_DIR fido.h PATHS ${INCLUDE_PATH})
   IF (NOT FIDO_INCLUDE_DIR)
