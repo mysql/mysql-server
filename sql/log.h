@@ -1443,12 +1443,12 @@ enum enum_iso8601_tzmode {
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
   Accepts the log_timestamps global variable in its third parameter.
 
-  @param         buf         A buffer of at least 26 bytes to store
-                             the timestamp in (19 + tzinfo tail + \0)
-  @param         utime       Microseconds since the epoch
-  @param         mode        if 0, use UTC; if 1, use local time
+  @param buf       A buffer of at least iso8601_size bytes to store
+                   the timestamp in. The timestamp will be \0 terminated.
+  @param utime     Microseconds since the epoch
+  @param mode      if 0, use UTC; if 1, use local time
 
-  @retval                    length of timestamp (excluding \0)
+  @retval          length of timestamp (excluding \0)
 */
 int make_iso8601_timestamp(char *buf, ulonglong utime,
                            enum enum_iso8601_tzmode mode);
