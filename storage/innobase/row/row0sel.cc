@@ -686,7 +686,7 @@ static inline void sel_enqueue_prefetched_row(
 
 /** Builds a previous version of a clustered index record for a consistent read
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_build_prev_vers(
+[[nodiscard]] static dberr_t row_sel_build_prev_vers(
     ReadView *read_view,        /*!< in: read view */
     dict_index_t *index,        /*!< in: plan node for table */
     rec_t *rec,                 /*!< in: record in a clustered index */
@@ -791,7 +791,7 @@ static inline ibool row_sel_test_other_conds(
 /** Retrieves the clustered index record corresponding to a record in a
  non-clustered index. Does the necessary locking.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
+[[nodiscard]] static dberr_t row_sel_get_clust_rec(
     sel_node_t *node, /*!< in: select_node */
     plan_t *plan,     /*!< in: plan node for table */
     rec_t *rec,       /*!< in: record in a non-clustered index */
@@ -1435,9 +1435,8 @@ func_exit:
 
 /** Performs a select step.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_sel(sel_node_t *node, /*!< in: select node */
-            que_thr_t *thr)   /*!< in: query thread */
+[[nodiscard]] static dberr_t row_sel(sel_node_t *node, /*!< in: select node */
+                                     que_thr_t *thr)   /*!< in: query thread */
 {
   dict_index_t *index;
   plan_t *plan;
@@ -2759,7 +2758,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
 @param[in]      lob_undo        the LOB undo information.
 @param[in,out]  blob_heap       If not null then use this heap for BLOBs */
 // clang-format on
-static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
+[[nodiscard]] static bool row_sel_store_mysql_field_func(
     byte *mysql_rec, row_prebuilt_t *prebuilt, const rec_t *rec,
     const dict_index_t *rec_index, const dict_index_t *prebuilt_index,
     const ulint *offsets, ulint field_no, const mysql_row_templ_t *templ,
@@ -3089,14 +3088,11 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 @param[in]	mtr		the mini-transaction context.
 @param[in,out]	lob_undo	Undo information for BLOBs.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_sel_build_prev_vers_for_mysql(ReadView *read_view,
-                                      dict_index_t *clust_index,
-                                      row_prebuilt_t *prebuilt,
-                                      const rec_t *rec, ulint **offsets,
-                                      mem_heap_t **offset_heap,
-                                      rec_t **old_vers, const dtuple_t **vrow,
-                                      mtr_t *mtr, lob::undo_vers_t *lob_undo) {
+[[nodiscard]] static dberr_t row_sel_build_prev_vers_for_mysql(
+    ReadView *read_view, dict_index_t *clust_index, row_prebuilt_t *prebuilt,
+    const rec_t *rec, ulint **offsets, mem_heap_t **offset_heap,
+    rec_t **old_vers, const dtuple_t **vrow, mtr_t *mtr,
+    lob::undo_vers_t *lob_undo) {
   DBUG_TRACE;
 
   dberr_t err;
@@ -3153,8 +3149,8 @@ class Row_sel_get_clust_rec_for_mysql {
 /** Retrieve the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
   @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-MY_ATTRIBUTE((warn_unused_result))
-dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
+
+[[nodiscard]] dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     row_prebuilt_t *prebuilt, dict_index_t *sec_index, const rec_t *rec,
     que_thr_t *thr, const rec_t **out_rec, ulint **offsets,
     mem_heap_t **offset_heap, const dtuple_t **vrow, mtr_t *mtr,

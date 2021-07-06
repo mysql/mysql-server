@@ -4156,8 +4156,7 @@ funct_exit:
   return err;
 }
 
-MY_ATTRIBUTE((warn_unused_result))
-bool row_is_mysql_tmp_table_name(const char *name) {
+[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name) {
   return (strstr(name, "/" TEMP_FILE_PREFIX) != nullptr);
   /* return(strstr(name, "/@0023sql") != NULL); */
 }

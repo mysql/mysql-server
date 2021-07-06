@@ -58,7 +58,7 @@ class mpmc_bq {
   /** Enqueue an element
   @param[in]	data		Element to insert, it will be copied
   @return true on success */
-  bool enqueue(T const &data) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool enqueue(T const &data) {
     /* m_enqueue_pos only wraps at MAX(m_enqueue_pos), instead
     we use the capacity to convert the sequence to an array
     index. This is why the ring buffer must be a size which
@@ -113,7 +113,7 @@ class mpmc_bq {
   /** Dequeue an element
   @param[out]	data		Element read from the queue
   @return true on success */
-  bool dequeue(T &data) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool dequeue(T &data) {
     Cell *cell;
     size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
 
@@ -156,12 +156,10 @@ class mpmc_bq {
   }
 
   /** @return the capacity of the queue */
-  size_t capacity() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_capacity + 1);
-  }
+  [[nodiscard]] size_t capacity() const { return (m_capacity + 1); }
 
   /** @return true if the queue is empty. */
-  bool empty() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool empty() const {
     size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
 
     for (;;) {

@@ -78,18 +78,17 @@ static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
 /** Check if a table id belongs to old innodb internal system table.
 @param[in]	id		table id
 @return true if the table id belongs to a system table. */
-static inline bool dict_is_old_sys_table(table_id_t id)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool dict_is_old_sys_table(table_id_t id);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Initializes the data dictionary memory structures when the database is
  started. This function is also called when the data dictionary is created.
  @return DB_SUCCESS or error code. */
-dberr_t dict_boot(void) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_boot(void);
 
 /** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
-dberr_t dict_create(void) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_create(void);
 
 /* Space id and page no where the dictionary header resides */
 #define DICT_HDR_SPACE 0 /* the SYSTEM tablespace */

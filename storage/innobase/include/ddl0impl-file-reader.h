@@ -63,16 +63,15 @@ struct File_reader : private ut::Non_copyable {
 
   /** Prepare the file for reading.
   @return DB_SUCCESS or error code. */
-  dberr_t prepare() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t prepare() noexcept;
 
   /** The current row as a tuple. Note: the tuple only does a shallow copy.
   @param[in,out] builder        Index builder instance.
   @param[in,out] heap           Heap to use for allocation.
   @param[out] dtuple            Row converted to a tuple.
   @return DB_SUCCESS or error code. */
-  dberr_t get_tuple(Builder *builder, mem_heap_t *heap,
-                    dtuple_t *&dtuple) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t get_tuple(Builder *builder, mem_heap_t *heap,
+                                  dtuple_t *&dtuple) noexcept;
 
   /** Seek to the offset and read the page in.
   @param[in] offset              Offset to read in.
@@ -84,12 +83,10 @@ struct File_reader : private ut::Non_copyable {
   void set_offset(os_offset_t offset) noexcept { m_offset = offset; }
 
   /** @return true if the range first == second. */
-  bool eof() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_offset == m_size;
-  }
+  [[nodiscard]] bool eof() const noexcept { return m_offset == m_size; }
 
   /** @return the number of rows read from the file. */
-  uint64_t get_n_rows_read() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] uint64_t get_n_rows_read() const noexcept {
     return m_n_rows_read;
   }
 
@@ -97,15 +94,15 @@ struct File_reader : private ut::Non_copyable {
   /** Seek to the start of the range and load load the page.
   @param[in] offset              Offset to read in.
   @return DB_SUCCESS or error code. */
-  dberr_t seek(os_offset_t offset) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t seek(os_offset_t offset) noexcept;
 
   /** Advance page number to the next and read in.
   @return DB_SUCCESS or error code. */
-  dberr_t read_next() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t read_next() noexcept;
 
   /** Advance the "cursor".
   @return DB_SUCCESS or error code. */
-  dberr_t next() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t next() noexcept;
 
  public:
   using Offsets = std::vector<ulint, ut_allocator<ulint>>;

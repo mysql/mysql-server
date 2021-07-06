@@ -279,8 +279,9 @@ inline const char *get_row_format_name(enum row_type row_format) {
 @param[in]	table	table name
 @retval false if acquired
 @retval true if failed (my_error() will have been called) */
-static inline MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
-    THD *thd, MDL_ticket **mdl, const char *db, const char *table) {
+[[nodiscard]] static inline bool dd_mdl_acquire(THD *thd, MDL_ticket **mdl,
+                                                const char *db,
+                                                const char *table) {
   bool ret = false;
   char table_name[MAX_TABLE_NAME_LEN + 1];
   const char *table_p = table;

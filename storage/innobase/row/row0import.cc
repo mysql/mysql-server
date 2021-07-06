@@ -2332,7 +2332,7 @@ static void row_import_discard_changes(
 }
 
 /** Clean up after import tablespace. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_cleanup(
+[[nodiscard]] static dberr_t row_import_cleanup(
     row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from handler */
     trx_t *trx,               /*!< in/out: transaction for import */
     dberr_t err)              /*!< in: error code */
@@ -2366,7 +2366,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_cleanup(
 }
 
 /** Report error during tablespace import. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_error(
+[[nodiscard]] static dberr_t row_import_error(
     row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from handler */
     trx_t *trx,               /*!< in/out: transaction for import */
     dberr_t err)              /*!< in: error code */
@@ -2387,15 +2387,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_error(
 /** Adjust the root page index node and leaf node segment headers, update
  with the new space id. For all the table's secondary indexes.
  @return error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_adjust_root_pages_of_secondary_indexes(
-        row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from
-                                  handler */
-        trx_t *trx,               /*!< in: transaction used for
-                                  the import */
-        dict_table_t *table,      /*!< in: table the indexes
-                                  belong to */
-        const row_import &cfg)    /*!< Import context */
+[[nodiscard]] static dberr_t row_import_adjust_root_pages_of_secondary_indexes(
+    row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from
+                              handler */
+    trx_t *trx,               /*!< in: transaction used for
+                              the import */
+    dict_table_t *table,      /*!< in: table the indexes
+                              belong to */
+    const row_import &cfg)    /*!< Import context */
 {
   dict_index_t *index;
   ulint n_rows_in_table;
@@ -2483,7 +2482,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
  @return error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_set_sys_max_row_id(
+[[nodiscard]] static dberr_t row_import_set_sys_max_row_id(
     row_prebuilt_t *prebuilt, /*!< in/out: prebuilt from
                               handler */
     dict_table_t *table)      /*!< in: table to import */
@@ -2612,12 +2611,11 @@ static dberr_t row_import_cfg_read_string(
 
 /** Write the meta data (index user fields) config file.
  @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_cfg_read_index_fields(
-        FILE *file,         /*!< in: file to write to */
-        THD *thd,           /*!< in/out: session */
-        row_index_t *index, /*!< Index being read in */
-        row_import *cfg)    /*!< in/out: meta-data read */
+[[nodiscard]] static dberr_t row_import_cfg_read_index_fields(
+    FILE *file,         /*!< in: file to write to */
+    THD *thd,           /*!< in/out: session */
+    row_index_t *index, /*!< Index being read in */
+    row_import *cfg)    /*!< in/out: meta-data read */
 {
   /* v4 row will have prefix_len, fixed_len, is_ascending, name length */
   byte row[sizeof(ib_uint32_t) * 4];
@@ -2703,10 +2701,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 /** Read the index names and root page numbers of the indexes and set the
  values. Row format [root_page_no, len of str, str ... ]
  @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_read_index_data(FILE *file,      /*!< in: File to read from */
-                               THD *thd,        /*!< in: session */
-                               row_import *cfg) /*!< in/out: meta-data read */
+[[nodiscard]] static dberr_t row_import_read_index_data(
+    FILE *file,      /*!< in: File to read from */
+    THD *thd,        /*!< in: session */
+    row_import *cfg) /*!< in/out: meta-data read */
 {
   byte *ptr;
   row_index_t *cfg_index;
@@ -2884,8 +2882,7 @@ static dberr_t row_import_read_indexes(
 @param[in]	file	file to read from
 @param[in]	length	length of bytes to read
 @return	the bytes stream, caller has to free the memory if not nullptr */
-static MY_ATTRIBUTE((warn_unused_result)) byte *row_import_read_bytes(
-    FILE *file, size_t length) {
+[[nodiscard]] static byte *row_import_read_bytes(FILE *file, size_t length) {
   size_t read = 0;
   byte *r = UT_NEW_ARRAY_NOKEY(byte, length);
 
@@ -2920,9 +2917,10 @@ Refer to row_quiesce_write_default_value() for the format details.
 @param[in,out]	col	column whose default value to read
 @param[in,out]  heap    memory heap to store default value
 @param[in,out]	read	true if default value read */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_read_default_values(FILE *file, dict_col_t *col,
-                                   mem_heap_t **heap, bool *read) {
+[[nodiscard]] static dberr_t row_import_read_default_values(FILE *file,
+                                                            dict_col_t *col,
+                                                            mem_heap_t **heap,
+                                                            bool *read) {
   byte *str;
 
   /* Instant or not byte */
@@ -2981,10 +2979,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Read the meta data (table columns) config file. Deserialise the contents of
  dict_col_t structure, along with the column name. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_read_columns(FILE *file,      /*!< in: file to write to */
-                            THD *thd,        /*!< in/out: session */
-                            row_import *cfg) /*!< in/out: meta-data read */
+[[nodiscard]] static dberr_t row_import_read_columns(
+    FILE *file,      /*!< in: file to write to */
+    THD *thd,        /*!< in/out: session */
+    row_import *cfg) /*!< in/out: meta-data read */
 {
   dict_col_t *col;
   byte row[sizeof(ib_uint32_t) * 8];
@@ -3114,10 +3112,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Read the contents of the @<tablespace@>.cfg file.
  @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_read_v1(FILE *file,      /*!< in: File to read from */
-                       THD *thd,        /*!< in: session */
-                       row_import *cfg) /*!< out: meta data */
+[[nodiscard]] static dberr_t row_import_read_v1(
+    FILE *file,      /*!< in: File to read from */
+    THD *thd,        /*!< in: session */
+    row_import *cfg) /*!< out: meta data */
 {
   byte value[sizeof(ib_uint32_t)];
 
@@ -3277,7 +3275,7 @@ file.
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
+[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_import_read_v2(FILE *file, THD *thd, row_import *cfg) {
   byte value[sizeof(uint32_t)];
 
@@ -3318,7 +3316,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
+[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_import_read_common(FILE *file, THD *thd, row_import *cfg) {
   dberr_t err;
   if ((err = row_import_read_columns(file, thd, cfg)) != DB_SUCCESS) {
@@ -3335,7 +3333,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 /**
 Read the contents of the @<tablespace@>.cfg file.
 @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
+[[nodiscard]] static dberr_t row_import_read_meta_data(
     dict_table_t *table, /*!< in: table */
     FILE *file,          /*!< in: File to read from */
     THD *thd,            /*!< in: session */
@@ -3396,9 +3394,9 @@ Read the contents of the @<tablename@>.cfg file.
 @param[in]	thd		session
 @param[in,out]	cfg		contents of the .cfg file
 @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_import_read_cfg(dict_table_t *table, dd::Table *table_def, THD *thd,
-                        row_import &cfg) {
+[[nodiscard]] static dberr_t row_import_read_cfg(dict_table_t *table,
+                                                 dd::Table *table_def, THD *thd,
+                                                 row_import &cfg) {
   dberr_t err;
   char name[OS_FILE_MAX_PATH];
 

@@ -75,21 +75,18 @@ struct Merge_file_sort {
   @param[in,out] builder        Builder instance used for building index.
   @param[in,out] offsets        Offsets from where to start the merge.
   @return DB_SUCCESS or error code. */
-  dberr_t sort(Builder *builder, Merge_offsets &offsets) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t sort(Builder *builder, Merge_offsets &offsets) noexcept;
 
   /** @return the number of rows in the sorted file. */
-  uint64_t get_n_rows() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_n_rows;
-  }
+  [[nodiscard]] uint64_t get_n_rows() const noexcept { return m_n_rows; }
 
  private:
   /** Merge the rows.
   @param[in,out] cursor         To iterate over the rows to merge.
   @param[in,out] output_file    Output file to write the merged rows.
   @return DB_SUCCESS or error code. */
-  dberr_t merge_rows(Cursor &cursor, Output_file &output_file) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t merge_rows(Cursor &cursor,
+                                   Output_file &output_file) noexcept;
 
   /** Merge the blocks in the ranges.
   @param[in,out] cursor         To iterate over the rows to merge.
@@ -97,9 +94,9 @@ struct Merge_file_sort {
   @param[in,out] output_file    Output file to write the merged rows.
   @param[in] buffer_size        IO buffer size for reads.
   @return DB_SUCCESS or error code. */
-  dberr_t merge_ranges(Cursor &cursor, Merge_offsets &offsets,
-                       Output_file &output_file, size_t buffer_size) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t merge_ranges(Cursor &cursor, Merge_offsets &offsets,
+                                     Output_file &output_file,
+                                     size_t buffer_size) noexcept;
 
   /** Move to the next range of pages to merge.
   @param[in,out] offsets         Current offsets to start the merge from.

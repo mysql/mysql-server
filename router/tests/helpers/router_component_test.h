@@ -63,10 +63,9 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    * @return bool value indicating if the pattern was found in the log file or
    * not
    */
-  STDX_NODISCARD
-  bool wait_log_contains(const ProcessWrapper &process,
-                         const std::string &pattern,
-                         std::chrono::milliseconds timeout);
+  [[nodiscard]] bool wait_log_contains(const ProcessWrapper &process,
+                                       const std::string &pattern,
+                                       std::chrono::milliseconds timeout);
 
   /** @brief Sleep for a duration given as a parameter. The duration is
    * increased 10 times for the run with VALGRIND.

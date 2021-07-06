@@ -701,6 +701,7 @@ MySQL clients support the protocol:
 #include "my_base.h"
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_command.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"  // print_defaults
 #include "my_dir.h"

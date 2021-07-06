@@ -72,9 +72,8 @@ static inline void dict_stats_set_persistent(dict_table_t *table, ibool ps_on,
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-static inline ibool dict_stats_is_persistent_enabled(
-    const dict_table_t *table) /*!< in: table */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool dict_stats_is_persistent_enabled(
+    const dict_table_t *table); /*!< in: table */
 
 /** Set the auto recalc flag for a given table (only honored for a persistent
 stats enabled table). The flag is set only in the in-memory table object and is
@@ -145,12 +144,11 @@ dberr_t dict_stats_rename_table(const char *old_name, /*!< in: old table name */
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code. DB_STATS_DO_NOT_EXIST will be returned
  if the persistent stats do not exist. */
-dberr_t dict_stats_rename_index(
-    const dict_table_t *table,  /*!< in: table whose index
-                                is renamed */
-    const char *old_index_name, /*!< in: old index name */
-    const char *new_index_name) /*!< in: new index name */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t dict_stats_rename_index(
+    const dict_table_t *table,   /*!< in: table whose index
+                                 is renamed */
+    const char *old_index_name,  /*!< in: old index name */
+    const char *new_index_name); /*!< in: new index name */
 
 /** Evict the stats tables if they loaded in tablespace cache and also
 close the stats .ibd files. We have to close stats tables because

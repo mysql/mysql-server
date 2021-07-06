@@ -1329,7 +1329,7 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
 
 /** Rename a single auxiliary table due to database name change.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
+[[nodiscard]] static dberr_t fts_rename_one_aux_table(
     const char *new_name,           /*!< in: new parent tbl name */
     const char *fts_table_old_name, /*!< in: old aux tbl name */
     trx_t *trx,                     /*!< in: transaction */
@@ -1447,9 +1447,9 @@ before this.
 @param[in,out]	fts_table	table with fts index
 @param[in,out]	aux_vec		fts table name vector
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_drop_common_tables(trx_t *trx, fts_table_t *fts_table,
-                           aux_name_vec_t *aux_vec) {
+[[nodiscard]] static dberr_t fts_drop_common_tables(trx_t *trx,
+                                                    fts_table_t *fts_table,
+                                                    aux_name_vec_t *aux_vec) {
   ulint i;
   dberr_t error = DB_SUCCESS;
 
@@ -1611,8 +1611,8 @@ before this.
 @param[in]	fts	fts instance
 @param[in,out]	aux_vec	fts aux table name vector
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_drop_all_index_tables(trx_t *trx, fts_t *fts, aux_name_vec_t *aux_vec) {
+[[nodiscard]] static dberr_t fts_drop_all_index_tables(
+    trx_t *trx, fts_t *fts, aux_name_vec_t *aux_vec) {
   dberr_t error = DB_SUCCESS;
 
   for (ulint i = 0; fts->indexes != nullptr && i < ib_vector_size(fts->indexes);
@@ -1659,8 +1659,8 @@ dberr_t fts_drop_tables(trx_t *trx, dict_table_t *table,
 @param[in]	thd	thread locking the AUX table
 @param[in,out]	fts_table	table with fts index
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_lock_common_tables(THD *thd, fts_table_t *fts_table) {
+[[nodiscard]] static dberr_t fts_lock_common_tables(THD *thd,
+                                                    fts_table_t *fts_table) {
   for (ulint i = 0; fts_common_tables[i] != nullptr; ++i) {
     fts_table->suffix = fts_common_tables[i];
 
@@ -1714,8 +1714,7 @@ dberr_t fts_lock_index_tables(THD *thd, dict_index_t *index) {
 @param[in]	thd	thread locking the AUX table
 @param[in]	fts	fts instance
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_lock_all_index_tables(THD *thd, fts_t *fts) {
+[[nodiscard]] static dberr_t fts_lock_all_index_tables(THD *thd, fts_t *fts) {
   dberr_t error = DB_SUCCESS;
 
   for (ulint i = 0; fts->indexes != nullptr && i < ib_vector_size(fts->indexes);
@@ -3022,9 +3021,9 @@ static void fts_add(fts_trx_table_t *ftt, fts_trx_row_t *row) {
 
 /** Do commit-phase steps necessary for the deletion of a row.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_delete(fts_trx_table_t *ftt, /*!< in: FTS trx table */
-               fts_trx_row_t *row)   /*!< in: row */
+[[nodiscard]] static dberr_t fts_delete(
+    fts_trx_table_t *ftt, /*!< in: FTS trx table */
+    fts_trx_row_t *row)   /*!< in: row */
 {
   que_t *graph;
   fts_table_t fts_table;
@@ -3111,9 +3110,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Do commit-phase steps necessary for the modification of a row.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_modify(fts_trx_table_t *ftt, /*!< in: FTS trx table */
-               fts_trx_row_t *row)   /*!< in: row */
+[[nodiscard]] static dberr_t fts_modify(
+    fts_trx_table_t *ftt, /*!< in: FTS trx table */
+    fts_trx_row_t *row)   /*!< in: row */
 {
   dberr_t error;
 
@@ -3173,8 +3172,8 @@ dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
 /** The given transaction is about to be committed; do whatever is necessary
  from the FTS system's POV.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_commit_table(fts_trx_table_t *ftt) /*!< in: FTS table to commit*/
+[[nodiscard]] static dberr_t fts_commit_table(
+    fts_trx_table_t *ftt) /*!< in: FTS table to commit*/
 {
   const ib_rbt_node_t *node;
   ib_rbt_t *rows;
@@ -4009,9 +4008,9 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
 
 /** Add rows to the DELETED_CACHE table.
  @return DB_SUCCESS if all went well else error code*/
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_sync_add_deleted_cache(fts_sync_t *sync,     /*!< in: sync state */
-                               ib_vector_t *doc_ids) /*!< in: doc ids to add */
+[[nodiscard]] static dberr_t fts_sync_add_deleted_cache(
+    fts_sync_t *sync,     /*!< in: sync state */
+    ib_vector_t *doc_ids) /*!< in: doc ids to add */
 {
   ulint i;
   pars_info_t *info;
@@ -4064,7 +4063,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 @param[in]      sync_start_time Holds the timestamp of start of sync
                                 for deducing the length of sync time
 @return DB_SUCCESS if all went well else error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
+[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     fts_sync_write_words(trx_t *trx, fts_index_cache_t *index_cache,
                          bool unlock_cache, ib_time_t sync_start_time) {
   fts_table_t fts_table;
@@ -4196,9 +4195,9 @@ static void fts_sync_begin(fts_sync_t *sync) /*!< in: sync state */
 /** Run SYNC on the table, i.e., write out data from the index specific
  cache to the FTS aux INDEX table and FTS aux doc id stats table.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_sync_index(fts_sync_t *sync,               /*!< in: sync state */
-                   fts_index_cache_t *index_cache) /*!< in: index cache */
+[[nodiscard]] static dberr_t fts_sync_index(
+    fts_sync_t *sync,               /*!< in: sync state */
+    fts_index_cache_t *index_cache) /*!< in: index cache */
 {
   trx_t *trx = sync->trx;
 
@@ -4256,8 +4255,7 @@ static void fts_sync_index_reset(fts_index_cache_t *index_cache) {
 /** Commit the SYNC, change state of processed doc ids etc.
 @param[in,out]	sync	sync state
 @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_sync_commit(fts_sync_t *sync) {
+[[nodiscard]] static dberr_t fts_sync_commit(fts_sync_t *sync) {
   dberr_t error;
   trx_t *trx = sync->trx;
   fts_cache_t *cache = sync->table->fts->cache;

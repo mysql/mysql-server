@@ -278,8 +278,7 @@ struct FTS::Inserter {
   @param[in,out] builder        Index builder.
   @param[in,out] handler        Insert handler.
   @return DB_SUCCESS or error number */
-  dberr_t insert(Builder *builder, Handler *handler) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t insert(Builder *builder, Handler *handler) noexcept;
 
   /** Add a file to the handler for merging and inserting.
   @param[in] id                 Aux index ID.

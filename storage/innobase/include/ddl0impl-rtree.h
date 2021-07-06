@@ -51,15 +51,13 @@ class RTree_inserter {
   ~RTree_inserter() noexcept;
 
   /** @return true if initialization succeeded . */
-  bool is_initialized() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_initialized() noexcept {
     return m_dtuple_heap != nullptr && m_dml_heap != nullptr;
   }
 
   /** Get the index instance.
   @return the index instance. */
-  dict_index_t *get_index() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_index;
-  }
+  [[nodiscard]] dict_index_t *get_index() noexcept { return m_index; }
 
   /** Caches an index row into index tuple vector
   @param[in] row	              Table row
@@ -71,8 +69,8 @@ class RTree_inserter {
   @param[in]	trx_id		        Transaction id.
   @param[in,out] latch_release  Called when a log free check is required.
   @return DB_SUCCESS if successful, else error number */
-  dberr_t batch_insert(trx_id_t trx_id, Latch_release &&latch_release) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t batch_insert(trx_id_t trx_id,
+                                     Latch_release &&latch_release) noexcept;
 
   /** Deep copy the fields pointing to the clustered index record. */
   void deep_copy_tuples() noexcept { deep_copy_tuples(m_dtuples->begin()); }

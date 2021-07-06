@@ -1864,8 +1864,8 @@ const char *thd_innodb_tmpdir(THD *thd) {
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
-MY_ATTRIBUTE((warn_unused_result))
-innodb_session_t *&thd_to_innodb_session(THD *thd) {
+
+[[nodiscard]] innodb_session_t *&thd_to_innodb_session(THD *thd) {
   innodb_session_t *&innodb_session =
       *(innodb_session_t **)thd_ha_data(thd, innodb_hton_ptr);
 
@@ -1880,8 +1880,8 @@ innodb_session_t *&thd_to_innodb_session(THD *thd) {
 /** Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
-MY_ATTRIBUTE((warn_unused_result))
-trx_t *&thd_to_trx(THD *thd) {
+
+[[nodiscard]] trx_t *&thd_to_trx(THD *thd) {
   innodb_session_t *&innodb_session = thd_to_innodb_session(thd);
   ut_ad(innodb_session != nullptr);
 
@@ -3107,9 +3107,9 @@ static int innodb_init_abort() {
 @param[in]	dict_init_mode	whether to create or open the files
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
-static int innobase_init_files(dict_init_mode_t dict_init_mode,
-                               List<const Plugin_tablespace> *tablespaces)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static int innobase_init_files(
+    dict_init_mode_t dict_init_mode,
+    List<const Plugin_tablespace> *tablespaces);
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -3215,8 +3215,7 @@ class Validate_files {
   any DD tablespace not already open using a Parallel For Loop (par_for).
   @param[in]	tablespaces	Tablespace files read from the DD
   @return DB_SUCCESS if all OK */
-  dberr_t validate(const DD_tablespaces &tablespaces)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t validate(const DD_tablespaces &tablespaces);
 
  private:
   /** Validate a range of tablespaces from the DD.
@@ -3675,7 +3674,7 @@ dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
 @param[in,out]	thd		thread handle
 @retval	true	on error
 @retval	false	on success */
-static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(THD *thd) {
+[[nodiscard]] static bool boot_tablespaces(THD *thd) {
   auto dc = dd::get_dd_client(thd);
 
   using DD_tablespaces = std::vector<const dd::Tablespace *>;
@@ -11100,8 +11099,8 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 /** Create a table definition to an InnoDB database.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
 @return HA_* level error */
-inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
-    create_table_def(const dd::Table *dd_table) {
+[[nodiscard]] inline int create_table_info_t::create_table_def(
+    const dd::Table *dd_table) {
   dict_table_t *table;
   ulint n_cols;
   dberr_t err;
@@ -20791,8 +20790,7 @@ static char *srv_buffer_pool_evict;
 /** Evict all uncompressed pages of compressed tables from the buffer pool.
 Keep the compressed pages in the buffer pool.
 @return whether all uncompressed pages were evicted */
-static MY_ATTRIBUTE(
-    (warn_unused_result)) bool innodb_buffer_pool_evict_uncompressed(void) {
+[[nodiscard]] static bool innodb_buffer_pool_evict_uncompressed(void) {
   bool all_evicted = true;
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {

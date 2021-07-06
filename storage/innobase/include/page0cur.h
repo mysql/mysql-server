@@ -113,17 +113,16 @@ static inline void page_cur_move_to_prev(
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return pointer to record if succeed, NULL otherwise */
-static inline rec_t *page_cur_tuple_insert(
+[[nodiscard]] static inline rec_t *page_cur_tuple_insert(
     page_cur_t *cursor,    /*!< in/out: a page cursor */
     const dtuple_t *tuple, /*!< in: pointer to a data tuple */
     dict_index_t *index,   /*!< in: record descriptor */
     ulint **offsets,       /*!< out: offsets on *rec */
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
     mtr_t *mtr,            /*!< in: mini-transaction handle, or NULL */
-    bool use_cache = false)
-    /*!< in: if true, then use record cache to
-    hold the tuple converted record. */
-    MY_ATTRIBUTE((warn_unused_result));
+    bool use_cache = false);
+/*!< in: if true, then use record cache to
+hold the tuple converted record. */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inserts a record next to page cursor. Returns pointer to inserted record
@@ -150,14 +149,13 @@ static inline rec_t *page_cur_rec_insert(page_cur_t *cursor, const rec_t *rec,
  Returns pointer to inserted record if succeed, i.e., enough
  space available, NULL otherwise. The cursor stays at the same position.
  @return pointer to record if succeed, NULL otherwise */
-rec_t *page_cur_insert_rec_low(
+[[nodiscard]] rec_t *page_cur_insert_rec_low(
     rec_t *current_rec,  /*!< in: pointer to current record after
                      which the new record is inserted */
     dict_index_t *index, /*!< in: record descriptor */
     const rec_t *rec,    /*!< in: pointer to a physical record */
     ulint *offsets,      /*!< in/out: rec_get_offsets(rec, index) */
-    mtr_t *mtr)          /*!< in: mini-transaction handle, or NULL */
-    MY_ATTRIBUTE((warn_unused_result));
+    mtr_t *mtr);         /*!< in: mini-transaction handle, or NULL */
 
 /** Inserts a record next to page cursor on an uncompressed page.
 @param[in]	current_rec	Pointer to current record after which
@@ -183,13 +181,12 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return pointer to record if succeed, NULL otherwise */
-rec_t *page_cur_insert_rec_zip(
+[[nodiscard]] rec_t *page_cur_insert_rec_zip(
     page_cur_t *cursor,  /*!< in/out: page cursor */
     dict_index_t *index, /*!< in: record descriptor */
     const rec_t *rec,    /*!< in: pointer to a physical record */
     ulint *offsets,      /*!< in/out: rec_get_offsets(rec, index) */
-    mtr_t *mtr)          /*!< in: mini-transaction handle, or NULL */
-    MY_ATTRIBUTE((warn_unused_result));
+    mtr_t *mtr);         /*!< in: mini-transaction handle, or NULL */
 /** Copies records from page to a newly created page, from a given record
  onward, including that record. Infimum and supremum records are not copied.
 

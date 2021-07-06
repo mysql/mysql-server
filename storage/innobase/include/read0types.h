@@ -159,8 +159,8 @@ class ReadView {
   @param[in]	id	transaction id to check against the view
   @param[in]	name	table name
   @return whether the view sees the modifications of id. */
-  bool changes_visible(trx_id_t id, const table_name_t &name) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool changes_visible(trx_id_t id,
+                                     const table_name_t &name) const {
     ut_ad(id > 0);
 
     if (id < m_up_limit_id || id == m_creator_trx_id) {

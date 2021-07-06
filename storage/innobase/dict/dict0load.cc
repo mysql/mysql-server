@@ -2705,23 +2705,23 @@ static void dict_load_foreign_cols(
 /** Loads a foreign key constraint to the dictionary cache. If the referenced
  table is not yet loaded, it is added in the output parameter (fk_tables).
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    dict_load_foreign(const char *id,
-                      /*!< in: foreign constraint id, must be
-                      '\0'-terminated */
-                      const char **col_names,
-                      /*!< in: column names, or NULL
-                      to use foreign->foreign_table->col_names */
-                      bool check_recursive,
-                      /*!< in: whether to record the foreign table
-                      parent count to avoid unlimited recursive
-                      load of chained foreign tables */
-                      bool check_charsets,
-                      /*!< in: whether to check charset
-                      compatibility */
-                      dict_err_ignore_t ignore_err,
-                      /*!< in: error to be ignored */
-                      dict_names_t &fk_tables)
+[[nodiscard]] static dberr_t dict_load_foreign(
+    const char *id,
+    /*!< in: foreign constraint id, must be
+    '\0'-terminated */
+    const char **col_names,
+    /*!< in: column names, or NULL
+    to use foreign->foreign_table->col_names */
+    bool check_recursive,
+    /*!< in: whether to record the foreign table
+    parent count to avoid unlimited recursive
+    load of chained foreign tables */
+    bool check_charsets,
+    /*!< in: whether to check charset
+    compatibility */
+    dict_err_ignore_t ignore_err,
+    /*!< in: error to be ignored */
+    dict_names_t &fk_tables)
 /*!< out: the foreign key constraint is added
 to the dictionary cache only if the referenced
 table is already in cache.  Otherwise, the

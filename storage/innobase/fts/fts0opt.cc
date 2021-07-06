@@ -741,7 +741,7 @@ static void fts_zip_deflate_end(
 /** Read the words from the FTS INDEX.
  @return DB_SUCCESS if all OK, DB_TABLE_NOT_FOUND if no more indexes
          to search else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_index_fetch_words(
+[[nodiscard]] static dberr_t fts_index_fetch_words(
     fts_optimize_t *optim,    /*!< in: optimize scratch pad */
     const fts_string_t *word, /*!< in: get words greater than this
                                word */
@@ -1206,7 +1206,7 @@ static dberr_t fts_optimize_node(
 
 /** Determine the starting pos within the deleted doc id vector for a word.
  @return delete position */
-static MY_ATTRIBUTE((warn_unused_result)) int fts_optimize_deleted_pos(
+[[nodiscard]] static int fts_optimize_deleted_pos(
     fts_optimize_t *optim, /*!< in: optimize state data */
     fts_word_t *word)      /*!< in: the word data to check */
 {
@@ -1320,7 +1320,7 @@ static ib_vector_t *fts_optimize_word(
 
 /** Update the FTS index table. This is a delete followed by an insert.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_write_word(
+[[nodiscard]] static dberr_t fts_optimize_write_word(
     trx_t *trx,             /*!< in: transaction */
     fts_table_t *fts_table, /*!< in: table of FTS index */
     fts_string_t *word,     /*!< in: word data to write */
@@ -1412,7 +1412,7 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
 
 /** Optimize the word ilist and rewrite data to the FTS index.
  @return status one of RESTART, EXIT, ERROR */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_compact(
+[[nodiscard]] static dberr_t fts_optimize_compact(
     fts_optimize_t *optim,          /*!< in: optimize state data */
     dict_index_t *index,            /*!< in: current FTS being optimized */
     ib_time_monotonic_t start_time) /*!< in: optimize start time */
@@ -1495,11 +1495,10 @@ static fts_optimize_t *fts_optimize_create(
 #ifdef FTS_OPTIMIZE_DEBUG
 /** Get optimize start time of an FTS index.
  @return DB_SUCCESS if all OK else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_get_index_start_time(
-        trx_t *trx,            /*!< in: transaction */
-        dict_index_t *index,   /*!< in: FTS index */
-        ib_time_t *start_time) /*!< out: time in secs */
+[[nodiscard]] static dberr_t fts_optimize_get_index_start_time(
+    trx_t *trx,            /*!< in: transaction */
+    dict_index_t *index,   /*!< in: FTS index */
+    ib_time_t *start_time) /*!< out: time in secs */
 {
   return (fts_config_get_index_ulint(trx, index, FTS_OPTIMIZE_START_TIME,
                                      (ulint *)start_time));
@@ -1507,11 +1506,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Set the optimize start time of an FTS index.
  @return DB_SUCCESS if all OK else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_set_index_start_time(
-        trx_t *trx,           /*!< in: transaction */
-        dict_index_t *index,  /*!< in: FTS index */
-        ib_time_t start_time) /*!< in: start time */
+[[nodiscard]] static dberr_t fts_optimize_set_index_start_time(
+    trx_t *trx,           /*!< in: transaction */
+    dict_index_t *index,  /*!< in: FTS index */
+    ib_time_t start_time) /*!< in: start time */
 {
   return (fts_config_set_index_ulint(trx, index, FTS_OPTIMIZE_START_TIME,
                                      (ulint)start_time));
@@ -1519,11 +1517,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Get optimize end time of an FTS index.
  @return DB_SUCCESS if all OK else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_get_index_end_time(
-        trx_t *trx,          /*!< in: transaction */
-        dict_index_t *index, /*!< in: FTS index */
-        ib_time_t *end_time) /*!< out: time in secs */
+[[nodiscard]] static dberr_t fts_optimize_get_index_end_time(
+    trx_t *trx,          /*!< in: transaction */
+    dict_index_t *index, /*!< in: FTS index */
+    ib_time_t *end_time) /*!< out: time in secs */
 {
   return (fts_config_get_index_ulint(trx, index, FTS_OPTIMIZE_END_TIME,
                                      (ulint *)end_time));
@@ -1531,10 +1528,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Set the optimize end time of an FTS index.
  @return DB_SUCCESS if all OK else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_set_index_end_time(trx_t *trx,          /*!< in: transaction */
-                                    dict_index_t *index, /*!< in: FTS index */
-                                    ib_time_t end_time)  /*!< in: end time */
+[[nodiscard]] static dberr_t fts_optimize_set_index_end_time(
+    trx_t *trx,          /*!< in: transaction */
+    dict_index_t *index, /*!< in: FTS index */
+    ib_time_t end_time)  /*!< in: end time */
 {
   return (fts_config_set_index_ulint(trx, index, FTS_OPTIMIZE_END_TIME,
                                      (ulint)end_time));
@@ -1686,7 +1683,7 @@ static void fts_optimize_words(
 /** Optimize is complete. Set the completion time, and reset the optimize
  start string for this FTS index to "".
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_index_completed(
+[[nodiscard]] static dberr_t fts_optimize_index_completed(
     fts_optimize_t *optim, /*!< in: optimize instance */
     dict_index_t *index)   /*!< in: table with one FTS index */
 {
@@ -1721,7 +1718,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_index_completed(
 /** Read the list of words from the FTS auxiliary index that will be
  optimized in this pass.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_index_read_words(
+[[nodiscard]] static dberr_t fts_optimize_index_read_words(
     fts_optimize_t *optim, /*!< in: optimize instance */
     dict_index_t *index,   /*!< in: table with one FTS index */
     fts_string_t *word)    /*!< in: buffer to use */
@@ -1764,9 +1761,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_index_read_words(
 /** Run OPTIMIZE on the given FTS index. Note: this can take a very long
  time (hours).
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_index(fts_optimize_t *optim, /*!< in: optimize instance */
-                       dict_index_t *index) /*!< in: table with one FTS index */
+[[nodiscard]] static dberr_t fts_optimize_index(
+    fts_optimize_t *optim, /*!< in: optimize instance */
+    dict_index_t *index)   /*!< in: table with one FTS index */
 {
   fts_string_t word;
   dberr_t error;
@@ -1829,9 +1826,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Delete the document ids in the delete, and delete cache tables.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_purge_deleted_doc_ids(
-        fts_optimize_t *optim) /*!< in: optimize instance */
+[[nodiscard]] static dberr_t fts_optimize_purge_deleted_doc_ids(
+    fts_optimize_t *optim) /*!< in: optimize instance */
 {
   ulint i;
   pars_info_t *info;
@@ -1925,9 +1921,8 @@ func_exit:
 
 /** Delete the document ids in the pending delete, and delete tables.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_purge_deleted_doc_id_snapshot(
-        fts_optimize_t *optim) /*!< in: optimize instance */
+[[nodiscard]] static dberr_t fts_optimize_purge_deleted_doc_id_snapshot(
+    fts_optimize_t *optim) /*!< in: optimize instance */
 {
   dberr_t error = DB_SUCCESS;
   que_t *graph;
@@ -2009,9 +2004,8 @@ static ulint fts_optimize_being_deleted_count(
  to the being deleted FTS auxiliary tables. The transaction is committed
  upon successful copy and rolled back on DB_DUPLICATE_KEY error.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_create_deleted_doc_id_snapshot(
-        fts_optimize_t *optim) /*!< in: optimize instance */
+[[nodiscard]] static dberr_t fts_optimize_create_deleted_doc_id_snapshot(
+    fts_optimize_t *optim) /*!< in: optimize instance */
 {
   dberr_t error = DB_SUCCESS;
   que_t *graph;
@@ -2119,9 +2113,8 @@ func_exit:
 /** Read in the document ids that are to be purged during optimize. The
  transaction is committed upon successfully read.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_read_deleted_doc_id_snapshot(
-        fts_optimize_t *optim) /*!< in: optimize instance */
+[[nodiscard]] static dberr_t fts_optimize_read_deleted_doc_id_snapshot(
+    fts_optimize_t *optim) /*!< in: optimize instance */
 {
   dberr_t error;
 
@@ -2151,8 +2144,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
  optimized, since the FTS auxiliary indexes are not guaranteed to be
  of the same cardinality.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_optimize_indexes(fts_optimize_t *optim) /*!< in: optimize instance */
+[[nodiscard]] static dberr_t fts_optimize_indexes(
+    fts_optimize_t *optim) /*!< in: optimize instance */
 {
   ulint i;
   dberr_t error = DB_SUCCESS;
@@ -2213,7 +2206,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Cleanup the snapshot tables and the master deleted table.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_purge_snapshot(
+[[nodiscard]] static dberr_t fts_optimize_purge_snapshot(
     fts_optimize_t *optim) /*!< in: optimize instance */
 {
   dberr_t error;
@@ -2238,7 +2231,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_purge_snapshot(
 
 /** Reset the start time to 0 so that a new optimize can be started.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_reset_start_time(
+[[nodiscard]] static dberr_t fts_optimize_reset_start_time(
     fts_optimize_t *optim) /*!< in: optimize instance */
 {
   dberr_t error = DB_SUCCESS;

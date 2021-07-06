@@ -966,8 +966,8 @@ static dberr_t recv_log_recover_pre_8_0_4(log_t &log,
 @param[in,out]	log		redo log
 @param[out]	max_field	LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
 @return error code or DB_SUCCESS */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    recv_find_max_checkpoint(log_t &log, ulint *max_field) {
+[[nodiscard]] static dberr_t recv_find_max_checkpoint(log_t &log,
+                                                      ulint *max_field) {
   bool found_checkpoint = false;
 
   *max_field = 0;

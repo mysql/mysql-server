@@ -174,8 +174,7 @@ void init_windows_sockets();
  *
  * @returns true if the selected port accepts connections, false otherwise
  */
-STDX_NODISCARD
-bool wait_for_port_ready(
+[[nodiscard]] bool wait_for_port_ready(
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
 
@@ -185,8 +184,7 @@ bool wait_for_port_ready(
  *
  * @returns true if the selected port is available, false otherwise
  */
-STDX_NODISCARD
-bool is_port_available(const uint16_t port);
+[[nodiscard]] bool is_port_available(const uint16_t port);
 
 /**
  * Wait until the port is not available (is used by any application).
@@ -197,8 +195,7 @@ bool is_port_available(const uint16_t port);
  * @return false if the port is still available after the timeout expiry,
  *         true otherwise.
  */
-STDX_NODISCARD
-bool wait_for_port_not_available(
+[[nodiscard]] bool wait_for_port_not_available(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
@@ -211,8 +208,7 @@ bool wait_for_port_not_available(
  * @return false if the port is still not available after the timeout expiry,
  *         true otherwise.
  */
-STDX_NODISCARD
-bool wait_for_port_available(
+[[nodiscard]] bool wait_for_port_available(
     const uint16_t port,
     std::chrono::milliseconds timeout = std::chrono::seconds(10));
 

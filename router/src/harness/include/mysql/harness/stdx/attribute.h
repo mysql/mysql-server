@@ -45,13 +45,4 @@
 #define STDX_NONNULL
 #endif
 
-// STDX_NODISCARD
-#if __has_cpp_attribute(nodiscard)
-#define STDX_NODISCARD [[nodiscard]]
-#elif __has_cpp_attribute(gnu::warn_unused_result)
-#define STDX_NODISCARD [[gnu::warn_unused_result]]
-#else
-#define STDX_NODISCARD
-#endif
-
 #endif

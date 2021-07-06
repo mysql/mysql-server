@@ -583,11 +583,9 @@ the file, in case the file was somehow truncated in the crash.
                                 index. can be committed and restarted.
 @param[in]	op		operation code
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
-                                        const upd_t *upd, ulint *offsets,
-                                        const big_rec_t *big_rec_vec,
-                                        mtr_t *btr_mtr, opcode op)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t btr_store_big_rec_extern_fields(
+    trx_t *trx, btr_pcur_t *pcur, const upd_t *upd, ulint *offsets,
+    const big_rec_t *big_rec_vec, mtr_t *btr_mtr, opcode op);
 
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	trx		the current transaction.

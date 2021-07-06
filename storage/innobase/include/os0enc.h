@@ -180,39 +180,34 @@ class Encryption {
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
   @return true if it is an encrypted page */
-  static bool is_encrypted_page(const byte *page) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_encrypted_page(const byte *page) noexcept;
 
   /** Check if a log block is encrypted or not
   @param[in]  block block which need to check
   @return true if it is an encrypted block */
-  static bool is_encrypted_log(const byte *block) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_encrypted_log(const byte *block) noexcept;
 
   /** Check the encryption option and set it
   @param[in]      option      encryption option
   @param[in,out]  type        The encryption type
   @return DB_SUCCESS or DB_UNSUPPORTED */
-  dberr_t set_algorithm(const char *option, Encryption *type) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t set_algorithm(const char *option,
+                                      Encryption *type) noexcept;
 
   /** Validate the algorithm string.
   @param[in]  option  Encryption option
   @return DB_SUCCESS or error code */
-  static dberr_t validate(const char *option) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static dberr_t validate(const char *option) noexcept;
 
   /** Convert to a "string".
   @param[in]  type  The encryption type
   @return the string representation */
-  static const char *to_string(Type type) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static const char *to_string(Type type) noexcept;
 
   /** Check if the string is "empty" or "none".
   @param[in]  algorithm  Encryption algorithm to check
   @return true if no algorithm requested */
-  static bool is_none(const char *algorithm) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool is_none(const char *algorithm) noexcept;
 
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */
@@ -295,8 +290,8 @@ class Encryption {
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return buffer data, dst_len will have the length of the data */
-  byte *encrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                ulint *dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] byte *encrypt(const IORequest &type, byte *src, ulint src_len,
+                              byte *dst, ulint *dst_len) noexcept;
 
   /** Decrypt the log block.
   @param[in]      type  IORequest
@@ -329,8 +324,8 @@ class Encryption {
   @param[in,out]  dst     scratch area to use for decrypt
   @param[in]  dst_len     size of the scratch area in bytes
   @return DB_SUCCESS or error code */
-  dberr_t decrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                  ulint dst_len) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t decrypt(const IORequest &type, byte *src, ulint src_len,
+                                byte *dst, ulint dst_len) noexcept;
 
   /** Check if keyring plugin loaded. */
   static bool check_keyring() noexcept;
@@ -341,9 +336,7 @@ class Encryption {
 
   /** Check if the encryption algorithm is NONE.
   @return true if no algorithm is set, false otherwise. */
-  bool is_none() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_type == NONE;
-  }
+  [[nodiscard]] bool is_none() const noexcept { return m_type == NONE; }
 
   /** Set encryption type
   @param[in]  type  encryption type **/
@@ -378,8 +371,8 @@ class Encryption {
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
-  bool encrypt_low(byte *src, ulint src_len, byte *dst, ulint *dst_len) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool encrypt_low(byte *src, ulint src_len, byte *dst,
+                                 ulint *dst_len) noexcept;
 
   /** Encrypt type */
   Type m_type;

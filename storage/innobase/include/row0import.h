@@ -47,8 +47,8 @@ of the table in the data dictionary.
 @param[in]	table_def	dd table
 @param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
-dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
-                             row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_import_for_mysql(dict_table_t *table,
+                                           dd::Table *table_def,
+                                           row_prebuilt_t *prebuilt);
 
 #endif /* row0import_h */

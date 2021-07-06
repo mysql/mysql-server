@@ -197,7 +197,7 @@ size_t meb_heap_used();
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
-static inline bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool recv_recovery_is_on();
 
 /** Returns true if the page is brand new (the next log record is init_file_page
 or no records to apply).
@@ -211,15 +211,15 @@ bool recv_page_is_brand_new(buf_block_t *block);
 @param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
                                 of first system tablespace page
 @return error code or DB_SUCCESS */
-dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
+                                                          lsn_t flush_lsn);
 
 /** Complete the recovery from the latest checkpoint.
 @param[in,out]	log		redo log
 @param[in]	aborting	true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
-MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log, bool aborting)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] MetadataRecover *recv_recovery_from_checkpoint_finish(
+    log_t &log, bool aborting);
 
 /** Creates the recovery system. */
 void recv_sys_create();

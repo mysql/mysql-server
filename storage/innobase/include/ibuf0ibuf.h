@@ -197,8 +197,8 @@ static inline ibool ibuf_should_try(dict_index_t *index,
  For instance, a read-ahead of non-ibuf pages is forbidden by threads
  that are executing an insert buffer routine.
  @return true if inside an insert buffer routine */
-static inline ibool ibuf_inside(const mtr_t *mtr) /*!< in: mini-transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool ibuf_inside(
+    const mtr_t *mtr); /*!< in: mini-transaction */
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
@@ -223,12 +223,12 @@ bitmap page) */
 bitmap page if the page is not one of the fixed address ibuf pages, or NULL,
 in which case a new transaction is created.
 @return true if level 2 or level 3 page */
-ibool ibuf_page_low(const page_id_t &page_id, const page_size_t &page_size,
+[[nodiscard]] ibool ibuf_page_low(const page_id_t &page_id,
+                                  const page_size_t &page_size,
 #ifdef UNIV_DEBUG
-                    ibool x_latch,
+                                  ibool x_latch,
 #endif /* UNIV_DEBUG */
-                    const char *file, ulint line, mtr_t *mtr)
-    MY_ATTRIBUTE((warn_unused_result));
+                                  const char *file, ulint line, mtr_t *mtr);
 
 #ifdef UNIV_DEBUG
 
@@ -349,10 +349,9 @@ void ibuf_close(void);
 
 /** Checks the insert buffer bitmaps on IMPORT TABLESPACE.
  @return DB_SUCCESS or error code */
-dberr_t ibuf_check_bitmap_on_import(
-    const trx_t *trx,    /*!< in: transaction */
-    space_id_t space_id) /*!< in: tablespace identifier */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t ibuf_check_bitmap_on_import(
+    const trx_t *trx,     /*!< in: transaction */
+    space_id_t space_id); /*!< in: tablespace identifier */
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page

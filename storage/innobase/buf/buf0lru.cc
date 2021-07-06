@@ -153,8 +153,9 @@ If a compressed page is freed other compressed pages may be relocated.
 caller needs to free the page to the free list
 @retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
 this case the block is already returned to the buddy allocator. */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_LRU_block_remove_hashed(
-    buf_page_t *bpage, bool zip, bool ignore_content);
+[[nodiscard]] static bool buf_LRU_block_remove_hashed(buf_page_t *bpage,
+                                                      bool zip,
+                                                      bool ignore_content);
 
 /** Puts a file page whose has no hash index to the free list.
 @param[in,out] block            Must contain a file page and be in a state
@@ -391,7 +392,7 @@ static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
  flush list mutexes and do a thread yield. Set the current page
  to "sticky" so that it is not relocated during the yield.
  @return true if yielded */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
+[[nodiscard]] static bool buf_flush_try_yield(
     buf_pool_t *buf_pool, /*!< in/out: buffer pool instance */
     buf_page_t *bpage,    /*!< in/out: bpage to remove */
     ulint processed,      /*!< in: number of pages processed */
@@ -461,8 +462,10 @@ buffer pool instance.
                                 else remove without flushing to disk
 @param[in,out]	must_restart	flag if must restart the flush list scan
 @return true if page was removed. */
-static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
-    buf_pool_t *buf_pool, buf_page_t *bpage, bool flush, bool *must_restart) {
+[[nodiscard]] static bool buf_flush_or_remove_page(buf_pool_t *buf_pool,
+                                                   buf_page_t *bpage,
+                                                   bool flush,
+                                                   bool *must_restart) {
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
@@ -549,10 +552,11 @@ the list as they age towards the tail of the LRU.
 @retval DB_SUCCESS if all freed
 @retval DB_FAIL if not all freed
 @retval DB_INTERRUPTED if the transaction was interrupted */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    buf_flush_or_remove_pages(buf_pool_t *buf_pool, space_id_t id,
-                              Flush_observer *observer, bool flush,
-                              const trx_t *trx) {
+[[nodiscard]] static dberr_t buf_flush_or_remove_pages(buf_pool_t *buf_pool,
+                                                       space_id_t id,
+                                                       Flush_observer *observer,
+                                                       bool flush,
+                                                       const trx_t *trx) {
   buf_page_t *prev;
   buf_page_t *bpage;
   ulint processed = 0;

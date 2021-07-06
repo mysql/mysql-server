@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -41,8 +42,8 @@
 #include "my_alloc.h"
 #include "my_base.h"  // ha_storage_media
 #include "my_bitmap.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"  // MYSQL_TIME_NOTE_TRUNCATED
@@ -2663,8 +2664,7 @@ class Field_temporal : public Field {
 
     @note STRICT mode can convert warnings to error.
    */
-  bool set_warnings(const ErrConvString &str, int warnings)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool set_warnings(const ErrConvString &str, int warnings);
 
   /**
     Flags that are passed as "flag" argument to
@@ -2707,11 +2707,10 @@ class Field_temporal : public Field {
     truncated fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
       for current thread.
   */
-  bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
-                            const ErrConvString &val,
-                            enum_mysql_timestamp_type ts_type,
-                            int truncate_increment)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool set_datetime_warning(
+      Sql_condition::enum_severity_level level, uint code,
+      const ErrConvString &val, enum_mysql_timestamp_type ts_type,
+      int truncate_increment);
 
  public:
   /**

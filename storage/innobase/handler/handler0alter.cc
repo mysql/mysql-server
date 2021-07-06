@@ -644,7 +644,7 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
 /** Determine if ALTER TABLE needs to rebuild the table.
 @param[in]	ha_alter_info	The DDL operation
 @return whether it is necessary to rebuild the table */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_need_rebuild(
+[[nodiscard]] static bool innobase_need_rebuild(
     const Alter_inplace_info *ha_alter_info) {
   if (is_instant(ha_alter_info)) {
     return (false);
@@ -1052,7 +1052,7 @@ could fail, so it's better to do it earlier, to prevent a late rollback
 @return	false	On success
 @retval	true	On failure */
 template <typename Table>
-static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
+[[nodiscard]] static bool dd_prepare_inplace_alter_table(
     THD *thd, const dict_table_t *old_table, dict_table_t *new_table,
     const Table *old_dd_tab, Table *new_dd_tab);
 
@@ -1451,7 +1451,7 @@ static bool innobase_init_foreign(
 
 /** Check whether the foreign key options is legit
  @return true if it is */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_fk_option(
+[[nodiscard]] static bool innobase_check_fk_option(
     const dict_foreign_t *foreign) /*!< in: foreign key */
 {
   if (!foreign->foreign_index) {
@@ -1475,7 +1475,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_fk_option(
 
 /** Set foreign key options
  @return true if successfully set */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_set_foreign_key_option(
+[[nodiscard]] static bool innobase_set_foreign_key_option(
     dict_foreign_t *foreign,        /*!< in:InnoDB Foreign key */
     const Foreign_key_spec *fk_key) /*!< in: Foreign key info from
                                     MySQL */
@@ -1520,7 +1520,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_set_foreign_key_option(
 /** Check if a foreign key constraint can make use of an index
  that is being created.
  @return useable index, or NULL if none found */
-static MY_ATTRIBUTE((warn_unused_result)) const KEY *innobase_find_equiv_index(
+[[nodiscard]] static const KEY *innobase_find_equiv_index(
     const char *const *col_names,
     /*!< in: column names */
     uint n_cols,     /*!< in: number of columns */
@@ -1574,7 +1574,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const KEY *innobase_find_equiv_index(
 /** Find an index whose first fields are the columns in the array
  in the same order and is not marked for deletion
  @return matching index, NULL if not found */
-static MY_ATTRIBUTE((warn_unused_result)) dict_index_t *innobase_find_fk_index(
+[[nodiscard]] static dict_index_t *innobase_find_fk_index(
     Alter_inplace_info *ha_alter_info,
     /*!< in: alter table info */
     dict_table_t *table, /*!< in: table */
@@ -1678,7 +1678,7 @@ added
 @param[in]	s_cols		list of stored column information
 @retval true if successful
 @retval false on error (will call my_error()) */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
+[[nodiscard]] static bool innobase_get_foreign_key_info(
     Alter_inplace_info *ha_alter_info, const TABLE_SHARE *table_share,
     dict_table_t *table, const char **col_names, dict_index_t **drop_index,
     ulint n_drop_index, dict_foreign_t **add_fk, ulint *n_add_fk,
@@ -2124,7 +2124,7 @@ void innobase_rec_reset(TABLE *table) /*!< in/out: MySQL table */
 
 /** This function checks that index keys are sensible.
  @return 0 or error number */
-static MY_ATTRIBUTE((warn_unused_result)) int innobase_check_index_keys(
+[[nodiscard]] static int innobase_check_index_keys(
     const Alter_inplace_info *info,
     /*!< in: indexes to be created or dropped */
     const dict_table_t *innodb_table)
@@ -2682,7 +2682,7 @@ enum fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
 
  @return key definitions */
 template <typename Table>
-static MY_ATTRIBUTE((warn_unused_result, malloc)) ddl::Index_defn
+[[nodiscard]] static MY_ATTRIBUTE((malloc)) ddl::Index_defn
     *innobase_create_key_defs(mem_heap_t *heap,
                               /*!< in/out: memory heap where space for key
                               definitions are allocated */
@@ -2877,7 +2877,7 @@ index for FTS index */
 
 /** Check each index column size, make sure they do not exceed the max limit
  @return true if index column size exceeds limit */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_column_length(
+[[nodiscard]] static bool innobase_check_column_length(
     ulint max_col_len,   /*!< in: maximum column length */
     const KEY *key_info) /*!< in: Indexes to be created */
 {
@@ -2991,7 +2991,7 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
 @param drop_fk constraints being dropped
 @param n_drop_fk number of constraints that are being dropped
 @return whether the constraint is being dropped */
-inline MY_ATTRIBUTE((warn_unused_result)) bool innobase_dropping_foreign(
+[[nodiscard]] inline bool innobase_dropping_foreign(
     const dict_foreign_t *foreign, dict_foreign_t **drop_fk, ulint n_drop_fk) {
   while (n_drop_fk--) {
     if (*drop_fk++ == foreign) {
@@ -3037,7 +3037,7 @@ adding columns.
 @param heap Memory heap where allocated
 @return array of integers, mapping column numbers in the table
 to column numbers in altered_table */
-static MY_ATTRIBUTE((warn_unused_result)) const ulint *innobase_build_col_map(
+[[nodiscard]] static const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
     const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
@@ -3174,7 +3174,7 @@ static dberr_t innobase_drop_fts_index_table(dict_table_t *table, trx_t *trx) {
 @param user_table	InnoDB table as it is before the ALTER operation
 @param heap		Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
-static MY_ATTRIBUTE((warn_unused_result)) const char **innobase_get_col_names(
+[[nodiscard]] static const char **innobase_get_col_names(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *user_table, mem_heap_t *heap) {
   const char **cols;
@@ -3287,7 +3287,7 @@ PK columns follows rule(2);
 @param[in]	new_clust_index index to be compared
 @retval true if both indexes have same order.
 @retval false. */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_pk_order_preserved(
+[[nodiscard]] static bool innobase_pk_order_preserved(
     const ulint *col_map, const dict_index_t *old_clust_index,
     const dict_index_t *new_clust_index) {
   ulint old_n_uniq = dict_index_get_n_ordering_defined_by_user(old_clust_index);
@@ -3834,7 +3834,7 @@ could fail, so it's better to do it earlier, to prevent a late rollback
 @return	false	On success
 @retval	true	On failure */
 template <typename Table>
-static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
+[[nodiscard]] static bool dd_prepare_inplace_alter_table(
     THD *thd, const dict_table_t *old_table, dict_table_t *new_table,
     const Table *old_dd_tab, Table *new_dd_tab) {
   if (new_table->is_temporary() || old_table == new_table) {
@@ -4241,7 +4241,7 @@ while preparing ALTER TABLE.
 @retval true Failure
 @retval false Success */
 template <typename Table>
-static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
+[[nodiscard]] static bool prepare_inplace_alter_table_dict(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *old_table, const Table *old_dd_tab, Table *new_dd_tab,
     const char *table_name, uint32_t flags, uint32_t flags2,
@@ -5042,7 +5042,7 @@ err_exit:
 /* Check whether an index is needed for the foreign key constraint.
 If so, if it is dropped, is there an equivalent index can play its role.
 @return true if the index is needed and can't be dropped */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreign_key_index(
+[[nodiscard]] static bool innobase_check_foreign_key_index(
     Alter_inplace_info *ha_alter_info, /*!< in: Structure describing
                                        changes to be done by ALTER
                                        TABLE */
@@ -6319,7 +6319,7 @@ during prepare, but might not be during commit).
 @retval true Failure
 @retval false Success
 */
-inline MY_ATTRIBUTE((warn_unused_result)) bool rollback_inplace_alter_table(
+[[nodiscard]] inline bool rollback_inplace_alter_table(
     const Alter_inplace_info *ha_alter_info, const TABLE *table,
     row_prebuilt_t *prebuilt) {
   bool fail = false;
@@ -6490,9 +6490,10 @@ static void innobase_rename_or_enlarge_columns_cache(
 @param[in] old_table MySQL table as it is before the ALTER operation
 @retval true Failure
 @retval false Success*/
-static MY_ATTRIBUTE((warn_unused_result)) bool commit_get_autoinc(
-    Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
-    const TABLE *altered_table, const TABLE *old_table) {
+[[nodiscard]] static bool commit_get_autoinc(Alter_inplace_info *ha_alter_info,
+                                             ha_innobase_inplace_ctx *ctx,
+                                             const TABLE *altered_table,
+                                             const TABLE *old_table) {
   DBUG_TRACE;
 
   if (!altered_table->found_next_number_field) {
@@ -6582,7 +6583,7 @@ but do not touch the data dictionary cache.
 @retval true Failure
 @retval false Success
 */
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_update_foreign_try(
+[[nodiscard]] static bool innobase_update_foreign_try(
     ha_innobase_inplace_ctx *ctx, trx_t *trx, const char *table_name) {
   ulint foreign_id;
   ulint i;
@@ -6641,9 +6642,8 @@ after the changes to data dictionary tables were committed.
 @param[in]	user_thd	MySQL connection
 @param[in,out]	dd_table	dd table instance
 @return		InnoDB error code (should always be DB_SUCCESS) */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    innobase_update_foreign_cache(ha_innobase_inplace_ctx *ctx, THD *user_thd,
-                                  dd::Table *dd_table) {
+[[nodiscard]] static dberr_t innobase_update_foreign_cache(
+    ha_innobase_inplace_ctx *ctx, THD *user_thd, dd::Table *dd_table) {
   dict_table_t *user_table;
   dberr_t err = DB_SUCCESS;
 
@@ -6810,10 +6810,11 @@ when rebuilding the table.
 @retval true Failure
 @retval false Success
 */
-inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_rebuild(
-    Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
-    TABLE *altered_table, const TABLE *old_table, trx_t *trx,
-    const char *table_name) {
+[[nodiscard]] inline bool commit_try_rebuild(Alter_inplace_info *ha_alter_info,
+                                             ha_innobase_inplace_ctx *ctx,
+                                             TABLE *altered_table,
+                                             const TABLE *old_table, trx_t *trx,
+                                             const char *table_name) {
   dict_table_t *rebuilt_table = ctx->new_table;
   dict_table_t *user_table = ctx->old_table;
 
@@ -7035,7 +7036,7 @@ the table.
 @param[in]	table_name	Table name in MySQL
 @retval true Failure
 @retval false Success */
-inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_norebuild(
+[[nodiscard]] inline bool commit_try_norebuild(
     Alter_inplace_info *ha_alter_info, ha_innobase_inplace_ctx *ctx,
     TABLE *altered_table, const TABLE *old_table, trx_t *trx,
     const char *table_name) {
@@ -7095,8 +7096,9 @@ after a successful commit_try_norebuild() call.
 @param trx Data dictionary transaction object
 (will be started and committed)
 @return whether all replacements were found for dropped indexes */
-inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
-    ha_innobase_inplace_ctx *ctx, const TABLE *table, trx_t *trx) {
+[[nodiscard]] inline bool commit_cache_norebuild(ha_innobase_inplace_ctx *ctx,
+                                                 const TABLE *table,
+                                                 trx_t *trx) {
   DBUG_TRACE;
 
   bool found = true;

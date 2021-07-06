@@ -311,10 +311,10 @@ type QUE_FORK_MYSQL_INTERFACE.
 @param[in]	heap		memory heap from which allocated
 @param[in]	prebuilt	row prebuilt structure
 @return query thread node to run */
-que_thr_t *pars_complete_graph_for_exec(que_node_t *node, trx_t *trx,
-                                        mem_heap_t *heap,
-                                        row_prebuilt_t *prebuilt)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] que_thr_t *pars_complete_graph_for_exec(que_node_t *node,
+                                                      trx_t *trx,
+                                                      mem_heap_t *heap,
+                                                      row_prebuilt_t *prebuilt);
 
 /** Create parser info struct.
  @return own: info struct */

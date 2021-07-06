@@ -88,7 +88,7 @@ struct Fetch_sequence : public Context::FTS::Sequence {
 
   /** Not supported.
   @return the current document ID. */
-  doc_id_t current() noexcept override MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] doc_id_t current() noexcept override {
     ut_error;
     return 0;
   }
@@ -99,8 +99,7 @@ struct Fetch_sequence : public Context::FTS::Sequence {
   /** Get the next document ID.
   @param[in] dtuple             Row from which to fetch ID.
   @return the document ID from the row. */
-  doc_id_t fetch(const dtuple_t *dtuple) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] doc_id_t fetch(const dtuple_t *dtuple) noexcept override;
 
   /** @return the number of document IDs generated. */
   doc_id_t generated_count() const noexcept override {
@@ -109,16 +108,12 @@ struct Fetch_sequence : public Context::FTS::Sequence {
   }
 
   /** @return the maximum document ID seen so far. */
-  doc_id_t max_doc_id() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] doc_id_t max_doc_id() const noexcept override {
     return m_max_doc_id;
   }
 
   /** @return false, because we never generate the document ID. */
-  bool is_generated() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result)) {
-    return false;
-  }
+  [[nodiscard]] bool is_generated() const noexcept override { return false; }
 
   /** The document ID index. */
   dict_index_t *m_index{};
@@ -143,8 +138,8 @@ struct Row {
   @param[in,out] heap           Heap to use for allocation.
   @param[in] type               Copy pointers or copy data.
   @return DB_SUCCESS or error code. */
-  dberr_t build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
-                size_t type) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t build(ddl::Context &ctx, dict_index_t *index,
+                              mem_heap_t *heap, size_t type) noexcept;
 
   /** Externally stored fields. */
   row_ext_t *m_ext{};
@@ -166,8 +161,7 @@ struct Row {
 @param[out] file                Temporary generated during DDL.
 @param[in] path                 Location for creating temporary file
 @return file descriptor, or OS_FD_CLOSED  on failure */
-os_fd_t file_create(file_t *file, const char *path) noexcept
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] os_fd_t file_create(file_t *file, const char *path) noexcept;
 
 /** Write a merge block to the file system.
 @param[in] fd                   File descriptor
@@ -183,8 +177,8 @@ dberr_t pwrite(os_fd_t fd, void *ptr, size_t size, os_offset_t offset) noexcept;
 @param[in] len                  Number of bytes to read.
 @param[in] offset               Byte offset to start reading from.
 @return DB_SUCCESS or error code */
-dberr_t pread(os_fd_t fd, void *ptr, size_t len, os_offset_t offset) noexcept
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t pread(os_fd_t fd, void *ptr, size_t len,
+                            os_offset_t offset) noexcept;
 
 /** Destroy a merge file.
 @param[out] file                Temporary generated during DDL. */

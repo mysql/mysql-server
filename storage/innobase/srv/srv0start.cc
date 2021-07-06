@@ -283,9 +283,9 @@ static void io_handler_thread(ulint segment) {
 
 /** Creates a log file.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    create_log_file(pfs_os_file_t *file, /*!< out: file handle */
-                    const char *name)    /*!< in: log file name */
+[[nodiscard]] static dberr_t create_log_file(
+    pfs_os_file_t *file, /*!< out: file handle */
+    const char *name)    /*!< in: log file name */
 {
   bool ret;
 
@@ -530,10 +530,10 @@ static void create_log_files_rename(
 
 /** Opens a log file.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    open_log_file(pfs_os_file_t *file, /*!< out: file handle */
-                  const char *name,    /*!< in: log file name */
-                  os_offset_t *size)   /*!< out: file size */
+[[nodiscard]] static dberr_t open_log_file(
+    pfs_os_file_t *file, /*!< out: file handle */
+    const char *name,    /*!< in: log file name */
+    os_offset_t *size)   /*!< out: file size */
 {
   bool ret;
 

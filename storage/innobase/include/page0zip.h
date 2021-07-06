@@ -87,10 +87,8 @@ static inline void page_zip_set_size(page_zip_des_t *page_zip, ulint size);
 tablespace is not compressed
 @param[in]	page_size	page size
 @return false if the entire record can be stored locally on the page */
-static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
-                                           ulint n_fields,
-                                           const page_size_t &page_size)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool page_zip_rec_needs_ext(
+    ulint rec_size, ulint comp, ulint n_fields, const page_size_t &page_size);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the guaranteed free space on an empty page.
@@ -174,20 +172,18 @@ ibool page_zip_validate(
 /** Determine how big record can be inserted without recompressing the page.
  @return a positive number indicating the maximum size of a record
  whose insertion is guaranteed to succeed, or zero or negative */
-static inline lint page_zip_max_ins_size(
+[[nodiscard]] static inline lint page_zip_max_ins_size(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    ibool is_clust)                 /*!< in: TRUE if clustered index */
-    MY_ATTRIBUTE((warn_unused_result));
+    ibool is_clust);                /*!< in: TRUE if clustered index */
 
 /** Determine if enough space is available in the modification log.
  @return true if page_zip_write_rec() will succeed */
-static inline ibool page_zip_available(
+[[nodiscard]] static inline ibool page_zip_available(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
     bool is_clust,                  /*!< in: TRUE if clustered index */
     ulint length,                   /*!< in: combined size of the record */
-    ulint create)                   /*!< in: nonzero=add the record to
-                                    the heap */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint create);                  /*!< in: nonzero=add the record to
+                                   the heap */
 
 /** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.

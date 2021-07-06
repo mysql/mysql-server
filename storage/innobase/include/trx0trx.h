@@ -283,9 +283,8 @@ void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
 
 /** Determine if a transaction is a dictionary operation.
  @return dictionary operation mode */
-static inline enum trx_dict_op_t trx_get_dict_operation(
-    const trx_t *trx) /*!< in: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline enum trx_dict_op_t trx_get_dict_operation(
+    const trx_t *trx); /*!< in: transaction */
 
 /** Flag a transaction a dictionary operation.
 @param[in,out]	trx	transaction
@@ -297,9 +296,9 @@ static inline void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
  that is serving a running transaction.
  A running RW transaction must be in trx_sys->rw_trx_list.
  @return true if trx->state == state */
-static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
-                                trx_state_t state) /*!< in: state */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool trx_state_eq(
+    const trx_t *trx,   /*!< in: transaction */
+    trx_state_t state); /*!< in: state */
 #ifdef UNIV_DEBUG
 /** Determines if trx can be handled by current thread, which is when
 trx->mysql_thd is nullptr (a "background" trx) or equals current_thd.
@@ -319,9 +318,9 @@ bool trx_can_be_handled_by_current_thread_or_is_hp_victim(const trx_t *trx);
 /** Asserts that a transaction has been started.
  The caller must hold trx_sys->mutex.
  @return true if started */
-ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
+[[nodiscard]] ibool trx_assert_started(
+    const trx_t *trx); /*!< in: transaction */
+#endif                 /* UNIV_DEBUG */
 
 /** Determines if the currently running transaction has been interrupted.
  @return true if interrupted */

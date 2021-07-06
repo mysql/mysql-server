@@ -165,21 +165,22 @@ bool fts_ast_node_check_union(fts_ast_node_t *node);
 
 /** Traverse the AST - in-order traversal.
  @return DB_SUCCESS if all went well */
-dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: FTS operator */
-                      fts_ast_node_t *node,     /*!< in: instance to traverse*/
-                      fts_ast_callback visitor, /*!< in: callback */
-                      void *arg,                /*!< in: callback arg */
-                      bool *has_ignore)         /*!< out: whether we encounter
-                                                and ignored processing an
-                                                operator, currently we only
-                                                ignore FTS_IGNORE operator */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_ast_visit(
+    fts_ast_oper_t oper,      /*!< in: FTS operator */
+    fts_ast_node_t *node,     /*!< in: instance to traverse*/
+    fts_ast_callback visitor, /*!< in: callback */
+    void *arg,                /*!< in: callback arg */
+    bool *has_ignore);        /*!< out: whether we encounter
+                             and ignored processing an
+                             operator, currently we only
+                             ignore FTS_IGNORE operator */
 /********************************************************************
 Create a lex instance.*/
-fts_lexer_t *fts_lexer_create(ibool boolean_mode, /*!< in: query type */
-                              const byte *query,  /*!< in: query string */
-                              ulint query_len)    /*!< in: query string len */
-    MY_ATTRIBUTE((malloc, warn_unused_result));
+[[nodiscard]] fts_lexer_t *fts_lexer_create(
+    ibool boolean_mode, /*!< in: query type */
+    const byte *query,  /*!< in: query string */
+    ulint query_len)    /*!< in: query string len */
+    MY_ATTRIBUTE((malloc));
 /********************************************************************
 Free an fts_lexer_t instance.*/
 void fts_lexer_free(fts_lexer_t *fts_lexer); /*!< in: lexer instance to

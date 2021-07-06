@@ -393,7 +393,7 @@ static buf_block_t *btr_page_alloc_for_ibuf(
  @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
  (init_mtr == mtr, or the page was not previously freed in mtr),
  returned block is not allocated nor initialized otherwise */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
+[[nodiscard]] static buf_block_t *btr_page_alloc_low(
     dict_index_t *index,    /*!< in: index */
     page_no_t hint_page_no, /*!< in: hint of a good page */
     byte file_direction,    /*!< in: direction where a possible
@@ -811,7 +811,7 @@ static void btr_free_root_invalidate(buf_block_t *block, mtr_t *mtr) {
 @param[in,out]	mtr		Mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_free_root_check(
+[[nodiscard]] static buf_block_t *btr_free_root_check(
     const page_id_t &page_id, const page_size_t &page_size,
     space_index_t index_id, mtr_t *mtr) {
   ut_ad(!fsp_is_system_temporary(page_id.space()));
@@ -1871,7 +1871,7 @@ func_exit:
 /** Returns TRUE if the insert fits on the appropriate half-page with the
  chosen split_rec.
  @return true if fits */
-static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_insert_fits(
+[[nodiscard]] static bool btr_page_insert_fits(
     btr_cur_t *cursor,      /*!< in: cursor at which insert
                             should be made */
     const rec_t *split_rec, /*!< in: suggestion for first record
@@ -2159,7 +2159,7 @@ static void btr_attach_half_pages(
 
 /** Determine if a tuple is smaller than any record on the page.
  @return true if smaller */
-static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_tuple_smaller(
+[[nodiscard]] static bool btr_page_tuple_smaller(
     btr_cur_t *cursor,     /*!< in: b-tree cursor */
     const dtuple_t *tuple, /*!< in: tuple to consider */
     ulint **offsets,       /*!< in/out: temporary storage */

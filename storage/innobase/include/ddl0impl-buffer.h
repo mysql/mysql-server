@@ -155,42 +155,34 @@ struct Key_sort_buffer : private ut::Non_copyable {
   void clear() noexcept;
 
   /** @return true if the index is clustered. */
-  bool is_clustered() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_clustered() const noexcept {
     return m_index->is_clustered();
   }
 
   /** @return true if the index is an FTS index. */
-  bool is_fts() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_fts() const noexcept {
     return m_index->type & DICT_FTS;
   }
 
   /** @return true if the index has a unique constraint. */
-  bool is_unique() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_unique() const noexcept {
     return dict_index_is_unique(m_index);
   }
 
   /** @return the heap to use. */
-  mem_heap_t *heap() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_heap;
-  }
+  [[nodiscard]] mem_heap_t *heap() noexcept { return m_heap; }
 
   /** @return number of tuples stored so far. */
-  size_t size() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_n_tuples;
-  }
+  [[nodiscard]] size_t size() const noexcept { return m_n_tuples; }
 
   /** @return true if the buffer is full. */
-  bool full() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return size() >= m_max_tuples;
-  }
+  [[nodiscard]] bool full() const noexcept { return size() >= m_max_tuples; }
 
   /** @return true if the buffer is empty. */
-  bool empty() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return size() == 0;
-  }
+  [[nodiscard]] bool empty() const noexcept { return size() == 0; }
 
   /** @return a references to the last element. */
-  dfield_t *&back() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] dfield_t *&back() noexcept {
     ut_a(!empty());
     return m_dtuples[size() - 1];
   }
@@ -227,8 +219,8 @@ struct Key_sort_buffer : private ut::Non_copyable {
   @retval +ve - if lhs > rhs
   @retval -ve - if lhs < rhs
   @retval 0 - if lhs == rhs */
-  static int compare(const dfield_t *lhs, const dfield_t *rhs,
-                     Dup *dup) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static int compare(const dfield_t *lhs, const dfield_t *rhs,
+                                   Dup *dup) noexcept;
 
   using DTuple = dfield_t *;
   using DTuples = std::vector<DTuple, ut_allocator<DTuple>>;

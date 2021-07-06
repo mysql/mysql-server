@@ -102,9 +102,7 @@ class Block {
 
       @retval byte[] The byte array of size  QUEUE_BLOCK_SIZE in this
       object. */
-  const byte *get_queue_block() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_block;
-  }
+  [[nodiscard]] const byte *get_queue_block() const { return m_block; }
 
   /** Copy a log block from the given position inside the input byte array. Note
       that a complete log block is of size OS_FILE_LOG_BLOCK_SIZE. A log block
@@ -119,8 +117,7 @@ class Block {
       @retval true if a complete redo log block (multiple of
                    OS_FILE_LOG_BLOCK_SIZE) was copied.
       @retval false otherwise. */
-  bool put_log_block(const byte block[], const size_t pos)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool put_log_block(const byte block[], const size_t pos) {
     ut_ad(!full());
 
     size_t size = log_block_get_data_len(block + pos);
@@ -144,9 +141,7 @@ class Block {
 
       @retval true if the is_final_block flag is true.
               false if the is_final_block flag is false. */
-  bool get_is_final_block() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_is_final_block;
-  }
+  [[nodiscard]] bool get_is_final_block() const { return m_is_final_block; }
 
   /** Set the is_final_block flag.
 
@@ -165,7 +160,7 @@ class Block {
 
       @retval true if the log block has QUEUE_BLOCK_SIZE bytes.
       @retval false otherwise. */
-  bool full() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool full() const {
     return (m_offset > QUEUE_BLOCK_SIZE - OS_FILE_LOG_BLOCK_SIZE);
   }
 

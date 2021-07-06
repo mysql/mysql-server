@@ -164,9 +164,9 @@ static inline void page_header_set_field(page_t *page, page_zip_des_t *page_zip,
 
 /** Returns the offset stored in the given header field.
  @return offset from the start of the page, or 0 */
-static inline ulint page_header_get_offs(const page_t *page, /*!< in: page */
-                                         ulint field) /*!< in: PAGE_FREE, ... */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint page_header_get_offs(
+    const page_t *page, /*!< in: page */
+    ulint field);       /*!< in: PAGE_FREE, ... */
 
 /** Returns the pointer stored in the given header field, or NULL. */
 #define page_header_get_ptr(page, field)          \
@@ -209,26 +209,25 @@ static inline ulint page_get_supremum_offset(
 /** Returns the nth record of the record list.
  This is the inverse function of page_rec_get_n_recs_before().
  @return nth record */
-const rec_t *page_rec_get_nth_const(const page_t *page, /*!< in: page */
-                                    ulint nth)          /*!< in: nth record */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] const rec_t *page_rec_get_nth_const(
+    const page_t *page, /*!< in: page */
+    ulint nth);         /*!< in: nth record */
 
 /** Returns the nth record of the record list.
 This is the inverse function of page_rec_get_n_recs_before().
 @param[in]	page	page
 @param[in]	nth	nth record
 @return nth record */
-static inline rec_t *page_rec_get_nth(page_t *page, ulint nth)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline rec_t *page_rec_get_nth(page_t *page, ulint nth);
 
 #ifndef UNIV_HOTBACKUP
 /** Returns the middle record of the records on the page. If there is an
  even number of records in the list, returns the first record of the
  upper half-list.
  @return middle record */
-static inline rec_t *page_get_middle_rec(page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
+[[nodiscard]] static inline rec_t *page_get_middle_rec(
+    page_t *page); /*!< in: page */
+#endif             /* !UNIV_HOTBACKUP */
 /** Gets the page number.
  @return page number */
 static inline page_no_t page_get_page_no(const page_t *page); /*!< in: page */
@@ -338,21 +337,20 @@ static inline ulint page_rec_get_heap_no(
     const rec_t *rec); /*!< in: the physical record */
 /** Determine whether the page is a B-tree leaf.
  @return true if the page is a B-tree leaf (PAGE_LEVEL = 0) */
-static inline bool page_is_leaf(const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_is_leaf(
+    const page_t *page); /*!< in: page */
 /** Determine whether the page is empty.
  @return true if the page is empty (PAGE_N_RECS = 0) */
-static inline bool page_is_empty(const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_is_empty(
+    const page_t *page); /*!< in: page */
 /** Determine whether a page is an index root page.
 @param[in]	page	page frame
 @return true if the page is a root page of an index */
-static inline bool page_is_root(const page_t *page)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_is_root(const page_t *page);
 /** Determine whether the page contains garbage.
  @return true if the page contains garbage (PAGE_GARBAGE is not 0) */
-static inline bool page_has_garbage(const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_has_garbage(
+    const page_t *page); /*!< in: page */
 
 /** Gets the pointer to the next record on the page.
 @param[in]	rec	pointer to record
@@ -406,35 +404,35 @@ static inline ibool page_rec_is_infimum_low(ulint offset);
 
 /** TRUE if the record is a user record on the page.
  @return true if a user record */
-static inline ibool page_rec_is_user_rec(const rec_t *rec) /*!< in: record */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool page_rec_is_user_rec(
+    const rec_t *rec); /*!< in: record */
 /** TRUE if the record is the supremum record on a page.
  @return true if the supremum record */
-static inline ibool page_rec_is_supremum(const rec_t *rec) /*!< in: record */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool page_rec_is_supremum(
+    const rec_t *rec); /*!< in: record */
 
 /** TRUE if the record is the infimum record on a page.
  @return true if the infimum record */
-static inline ibool page_rec_is_infimum(const rec_t *rec) /*!< in: record */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ibool page_rec_is_infimum(
+    const rec_t *rec); /*!< in: record */
 
 /** true if the record is the first user record on a page.
  @return true if the first user record */
-static inline bool page_rec_is_first(const rec_t *rec,   /*!< in: record */
-                                     const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_rec_is_first(
+    const rec_t *rec,    /*!< in: record */
+    const page_t *page); /*!< in: page */
 
 /** true if the record is the second user record on a page.
  @return true if the second user record */
-static inline bool page_rec_is_second(const rec_t *rec,   /*!< in: record */
-                                      const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_rec_is_second(
+    const rec_t *rec,    /*!< in: record */
+    const page_t *page); /*!< in: page */
 
 /** true if the record is the last user record on a page.
  @return true if the last user record */
-static inline bool page_rec_is_last(const rec_t *rec,   /*!< in: record */
-                                    const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_rec_is_last(
+    const rec_t *rec,    /*!< in: record */
+    const page_t *page); /*!< in: page */
 
 /** true if distance between the records (measured in number of times we have to
 move to the next record) is at most the specified value
@@ -442,16 +440,14 @@ move to the next record) is at most the specified value
 @param[in]  right_rec   righter record
 @param[in]  val         specified value to compare
 @return true if the distance is smaller than the value */
-static inline bool page_rec_distance_is_at_most(const rec_t *left_rec,
-                                                const rec_t *right_rec,
-                                                ulint val)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_rec_distance_is_at_most(
+    const rec_t *left_rec, const rec_t *right_rec, ulint val);
 
 /** true if the record is the second last user record on a page.
  @return true if the second last user record */
-static inline bool page_rec_is_second_last(const rec_t *rec, /*!< in: record */
-                                           const page_t *page) /*!< in: page */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool page_rec_is_second_last(
+    const rec_t *rec,    /*!< in: record */
+    const page_t *page); /*!< in: page */
 
 /** Looks for the record which owns the given record.
  @return the owner record */

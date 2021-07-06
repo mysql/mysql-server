@@ -41,9 +41,9 @@
 #include "decimal.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_bit.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sqlcommand.h"
@@ -80,8 +80,10 @@
 #include "sql/sql_time.h"       // str_to_datetime_with_warn
 #include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/srs_fetcher.h"
+#include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
+#include "sql/time_zone_common.h"
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"      // Time_zone
 #include "template_utils.h"  // pointer_cast

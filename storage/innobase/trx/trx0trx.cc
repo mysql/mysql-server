@@ -3145,7 +3145,7 @@ int trx_recover_for_mysql(
  which is in the prepared state
  @return trx on match, the trx->xid will be invalidated;
  */
-static MY_ATTRIBUTE((warn_unused_result)) trx_t *trx_get_trx_by_xid_low(
+[[nodiscard]] static trx_t *trx_get_trx_by_xid_low(
     const XID *xid) /*!< in: X/Open XA transaction
                     identifier */
 {

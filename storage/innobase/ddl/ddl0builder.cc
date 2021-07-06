@@ -116,16 +116,12 @@ struct Gen_sequence : public ddl::Context::FTS::Sequence {
   }
 
   /** @return the maximum document ID seen so far. */
-  doc_id_t max_doc_id() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] doc_id_t max_doc_id() const noexcept override {
     return m_doc_id;
   }
 
   /** @return true, because we always generate the document ID. */
-  bool is_generated() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result)) {
-    return true;
-  }
+  [[nodiscard]] bool is_generated() const noexcept override { return true; }
 
   /** @return the number of document IDs generated. */
   doc_id_t generated_count() const noexcept override { return m_n_generated; }
@@ -149,12 +145,11 @@ struct Key_sort_buffer_cursor : public Load_cursor {
   /** Fetch the current row as a tuple. Note: Tuple columns are shallow copies.
   @param[out] dtuple          Row represented as a tuple.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch(dtuple_t *&dtuple) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(dtuple_t *&dtuple) noexcept override;
 
   /** Move to the next record.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t next() noexcept override MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t next() noexcept override;
 
  private:
   /** Tuple to return. */
@@ -192,29 +187,27 @@ struct File_cursor : public Load_cursor {
 
   /** Open the cursor.
   @return DB_SUCCESS or error code. */
-  dberr_t open() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open() noexcept;
 
   /** Fetch the current row as a tuple. Note: Tuple columns are shallow copies.
   @param[out] dtuple            Row represented as a tuple.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch(dtuple_t *&dtuple) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(dtuple_t *&dtuple) noexcept override;
 
   /** Fetch the current row.
   @param[out] mrec              Current row.
   @param[out] offsets           Column offsets inside mrec.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept;
 
   /** Move to the next record.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t next() noexcept override MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t next() noexcept override;
 
  private:
   /** Prepare to fetch the current row.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch() noexcept;
 
  private:
   /** Instance ID. */

@@ -729,13 +729,12 @@ bool innobase_match_index_columns(const KEY *key_info,
  matches, this function pushes an warning message to the client,
  and returns true.
  @return true if the index name matches the reserved name */
-bool innobase_index_name_is_reserved(
+[[nodiscard]] bool innobase_index_name_is_reserved(
     THD *thd,            /*!< in/out: MySQL connection */
     const KEY *key_info, /*!< in: Indexes to be
                          created */
-    ulint num_of_keys)   /*!< in: Number of indexes to
+    ulint num_of_keys);  /*!< in: Number of indexes to
                          be created. */
-    MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the explicit tablespace targeted is file_per_table.
 @param[in]	create_info	Metadata for the table to create.
@@ -1185,11 +1184,10 @@ class innobase_truncate {
 /**
 Initialize the table FTS stopword list
 @return true if success */
-ibool innobase_fts_load_stopword(
+[[nodiscard]] ibool innobase_fts_load_stopword(
     dict_table_t *table, /*!< in: Table has the FTS */
     trx_t *trx,          /*!< in: transaction */
-    THD *thd)            /*!< in: current thread */
-    MY_ATTRIBUTE((warn_unused_result));
+    THD *thd);           /*!< in: current thread */
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
 enum fts_doc_id_index_enum {
@@ -1202,23 +1200,21 @@ enum fts_doc_id_index_enum {
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
-fts_doc_id_index_enum innobase_fts_check_doc_id_index(
+[[nodiscard]] fts_doc_id_index_enum innobase_fts_check_doc_id_index(
     const dict_table_t *table,  /*!< in: table definition */
     const TABLE *altered_table, /*!< in: MySQL table
                                 that is being altered */
-    ulint *fts_doc_col_no)      /*!< out: The column number for
-                                Doc ID */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint *fts_doc_col_no);     /*!< out: The column number for
+                               Doc ID */
 
 /**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
-fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
-    ulint n_key,         /*!< in: Number of keys */
-    const KEY *key_info) /*!< in: Key definitions */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] fts_doc_id_index_enum innobase_fts_check_doc_id_index_in_def(
+    ulint n_key,          /*!< in: Number of keys */
+    const KEY *key_info); /*!< in: Key definitions */
 
 /**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.

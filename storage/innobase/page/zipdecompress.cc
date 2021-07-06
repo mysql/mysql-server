@@ -122,7 +122,7 @@ void page_zip_set_alloc(void *stream, mem_heap_t *heap) {
 
 /** Populate the sparse page directory from the dense directory.
  @return true on success, false on failure */
-static MY_ATTRIBUTE((warn_unused_result)) ibool page_zip_dir_decode(
+[[nodiscard]] static ibool page_zip_dir_decode(
     const page_zip_des_t *page_zip, /*!< in: dense page directory on
                                    compressed page */
     page_t *page,                   /*!< in: compact page with valid header;

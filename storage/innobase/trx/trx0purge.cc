@@ -2196,15 +2196,14 @@ void Purge_groups_t::distribute_if_needed() {
  be released with the corresponding release function.
  @return copy of an undo log record or pointer to trx_purge_ignore_rec,
  if the whole undo log can skipped in purge; NULL if none left */
-static MY_ATTRIBUTE((warn_unused_result))
-    trx_undo_rec_t *trx_purge_fetch_next_rec(
-        trx_id_t *modifier_trx_id,
-        /*!< out: modifier trx id. this is the
-        trx that created the undo record. */
-        roll_ptr_t *roll_ptr,   /*!< out: roll pointer to undo record */
-        ulint *n_pages_handled, /*!< in/out: number of UNDO log pages
-                                handled */
-        mem_heap_t *heap)       /*!< in: memory heap where copied */
+[[nodiscard]] static trx_undo_rec_t *trx_purge_fetch_next_rec(
+    trx_id_t *modifier_trx_id,
+    /*!< out: modifier trx id. this is the
+    trx that created the undo record. */
+    roll_ptr_t *roll_ptr,   /*!< out: roll pointer to undo record */
+    ulint *n_pages_handled, /*!< in/out: number of UNDO log pages
+                            handled */
+    mem_heap_t *heap)       /*!< in: memory heap where copied */
 {
   if (!purge_sys->next_stored) {
     trx_purge_choose_next_log();

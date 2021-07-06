@@ -74,31 +74,26 @@ struct Merge_file_sort::Cursor : private ut::Non_copyable {
   @param[in] range              Rangs to merge in a pass.
   @param[in] buffer_size        IO Buffer size to use for reading.
   @return DB_SUCCESS or error code. */
-  dberr_t prepare(Range range, size_t buffer_size) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t prepare(Range range, size_t buffer_size) noexcept;
 
   /** Fetch the next record.
   @param[out] mrec              Row read from the file.
   @param[out] offsets           Column offsets inside mrec.
   @return DB_SUCCESS or error code. */
-  dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept;
 
   /** Move to the next record.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t next() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t next() noexcept;
 
   /** Move the cursor to the start of the new records lists to merge.
   @param[in] file               File being scanned.
   @param[in] range              Seek to these offsets.
   @return DB_SUCCESS or error code. */
-  dberr_t seek(const file_t *file, Range range) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t seek(const file_t *file, Range range) noexcept;
 
   /** @return the number of active readers. */
-  size_t size() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_cursor.size();
-  }
+  [[nodiscard]] size_t size() const noexcept { return m_cursor.size(); }
 
  private:
   /** File to iterate over. */
@@ -144,26 +139,22 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
   @param[in] offsets            Column offsets in row.
   @param[in,out] dup            For duplicate checks.
   @return DB_SUCCESS or error code. */
-  dberr_t write(const mrec_t *mrec, const ulint *offsets, Dup *dup) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t write(const mrec_t *mrec, const ulint *offsets,
+                              Dup *dup) noexcept;
 
   /** Write end of block marker and flush buffer to disk.
   @return DB_SUCCESS or error code. */
-  dberr_t flush() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t flush() noexcept;
 
   /** @return the current size of the output file in bytes. */
-  os_offset_t get_size() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_offset;
-  }
+  [[nodiscard]] os_offset_t get_size() const { return m_offset; }
 
   /** @return number of rows in the output file. */
-  uint64_t get_n_rows() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_n_rows;
-  }
+  [[nodiscard]] uint64_t get_n_rows() const noexcept { return m_n_rows; }
 
  private:
   /** @return the number of bytes copied so far. */
-  size_t copied() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] size_t copied() const noexcept {
     return std::ptrdiff_t(m_ptr - m_buffer.first);
   }
 

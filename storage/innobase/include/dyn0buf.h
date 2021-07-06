@@ -65,36 +65,30 @@ class dyn_buf_t {
     /**
     Gets the number of used bytes in a block.
     @return	number of bytes used */
-    ulint used() const MY_ATTRIBUTE((warn_unused_result)) {
+    [[nodiscard]] ulint used() const {
       return (static_cast<ulint>(m_used & ~DYN_BLOCK_FULL_FLAG));
     }
 
     /**
     Gets pointer to the start of data.
     @return	pointer to data */
-    byte *start() MY_ATTRIBUTE((warn_unused_result)) { return (m_data); }
+    [[nodiscard]] byte *start() { return (m_data); }
 
     /**
     @return start of data - non const version */
-    byte *begin() MY_ATTRIBUTE((warn_unused_result)) { return (m_data); }
+    [[nodiscard]] byte *begin() { return (m_data); }
 
     /**
     @return end of used data - non const version */
-    byte *end() MY_ATTRIBUTE((warn_unused_result)) {
-      return (begin() + m_used);
-    }
+    [[nodiscard]] byte *end() { return (begin() + m_used); }
 
     /**
     @return start of data - const version */
-    const byte *begin() const MY_ATTRIBUTE((warn_unused_result)) {
-      return (m_data);
-    }
+    [[nodiscard]] const byte *begin() const { return (m_data); }
 
     /**
     @return end of used data - const version */
-    const byte *end() const MY_ATTRIBUTE((warn_unused_result)) {
-      return (begin() + m_used);
-    }
+    [[nodiscard]] const byte *end() const { return (begin() + m_used); }
 
    private:
     /**
@@ -186,7 +180,7 @@ class dyn_buf_t {
   copying the elements, the caller must close the buffer using close().
   @param size	in bytes of the buffer; MUST be <= MAX_DATA_SIZE!
   @return	pointer to the buffer */
-  byte *open(ulint size) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] byte *open(ulint size) {
     ut_ad(size > 0);
     ut_ad(size <= MAX_DATA_SIZE);
 
@@ -282,7 +276,7 @@ class dyn_buf_t {
   /**
   Returns the size of the total stored data.
   @return	data size in bytes */
-  ulint size() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] ulint size() const {
 #ifdef UNIV_DEBUG
     ulint total_size = 0;
 
@@ -326,16 +320,14 @@ class dyn_buf_t {
 
   /**
   @return the first block */
-  block_t *front() MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] block_t *front() {
     ut_ad(UT_LIST_GET_LEN(m_list) > 0);
     return (UT_LIST_GET_FIRST(m_list));
   }
 
   /**
   @return true if m_first_block block was not filled fully */
-  bool is_small() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_heap == NULL);
-  }
+  [[nodiscard]] bool is_small() const { return (m_heap == NULL); }
 
  private:
   // Disable copying

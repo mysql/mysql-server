@@ -30,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -171,11 +170,11 @@ bool adjust_fk_parents(THD *thd, const char *db, const char *name,
 
   @retval operation outcome, false if no error.
 */
-bool adjust_fk_children_after_parent_def_change(
+[[nodiscard]] bool adjust_fk_children_after_parent_def_change(
     THD *thd, bool check_charsets, const char *parent_table_db,
     const char *parent_table_name, handlerton *hton,
     const dd::Table *parent_table_def, Alter_info *parent_alter_info,
-    bool invalidate_tdc) MY_ATTRIBUTE((warn_unused_result));
+    bool invalidate_tdc);
 
 /**
   Check if new definition of parent table is compatible with foreign keys
@@ -205,10 +204,10 @@ inline bool adjust_fk_children_after_parent_def_change(
 
   @retval operation outcome, false if no error.
 */
-bool collect_fk_children(THD *thd, const char *schema, const char *table_name,
-                         handlerton *hton, enum_mdl_type lock_type,
-                         MDL_request_list *mdl_requests)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool collect_fk_children(THD *thd, const char *schema,
+                                       const char *table_name, handlerton *hton,
+                                       enum_mdl_type lock_type,
+                                       MDL_request_list *mdl_requests);
 
 /**
   Add MDL requests for lock of specified type on tables referenced by the
@@ -229,12 +228,11 @@ bool collect_fk_children(THD *thd, const char *schema, const char *table_name,
 
   @retval operation outcome, false if no error.
 */
-bool collect_fk_parents_for_new_fks(
+[[nodiscard]] bool collect_fk_parents_for_new_fks(
     THD *thd, const char *db_name, const char *table_name,
     const Alter_info *alter_info, enum_mdl_type lock_type, handlerton *hton,
     MDL_request_list *mdl_requests,
-    Foreign_key_parents_invalidator *fk_invalidator)
-    MY_ATTRIBUTE((warn_unused_result));
+    Foreign_key_parents_invalidator *fk_invalidator);
 
 /**
   Add MDL requests for exclusive metadata locks on names of foreign keys
@@ -281,11 +279,10 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
   @retval operation outcome, false if no error.
 */
-bool collect_and_lock_fk_tables_for_rename_table(
+[[nodiscard]] bool collect_and_lock_fk_tables_for_rename_table(
     THD *thd, const char *db, const char *table_name,
     const dd::Table *table_def, const char *new_db, const char *new_table_name,
-    handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator)
-    MY_ATTRIBUTE((warn_unused_result));
+    handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator);
 
 /**
   Update referenced table names and the unique constraint name for FKs
@@ -300,10 +297,11 @@ bool collect_and_lock_fk_tables_for_rename_table(
 
   @retval operation outcome, false if no error.
 */
-bool adjust_fks_for_rename_table(THD *thd, const char *db,
-                                 const char *table_name, const char *new_db,
-                                 const char *new_table_name, handlerton *hton)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool adjust_fks_for_rename_table(THD *thd, const char *db,
+                                               const char *table_name,
+                                               const char *new_db,
+                                               const char *new_table_name,
+                                               handlerton *hton);
 
 /*
   Check if parent key for the foreign key exists, set foreign key's unique
@@ -332,11 +330,12 @@ bool adjust_fks_for_rename_table(THD *thd, const char *db,
 
   @retval Operation result. False if success.
 */
-bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
-                           const dd::Table *old_parent_table_def,
-                           const dd::Table *old_child_table_def,
-                           bool is_self_referencing_fk, dd::Foreign_key *fk)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool prepare_fk_parent_key(handlerton *hton,
+                                         const dd::Table *parent_table_def,
+                                         const dd::Table *old_parent_table_def,
+                                         const dd::Table *old_child_table_def,
+                                         bool is_self_referencing_fk,
+                                         dd::Foreign_key *fk);
 
 /**
   Prepare Create_field and Key_spec objects for ALTER and upgrade.
@@ -410,8 +409,8 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   @retval False - Success.
   @retval True  - Failure.
 */
-bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool rm_table_do_discovery_and_lock_fk_tables(THD *thd,
+                                                            TABLE_LIST *tables);
 
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);

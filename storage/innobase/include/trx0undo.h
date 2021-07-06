@@ -48,10 +48,9 @@ static inline ibool trx_undo_roll_ptr_is_insert(
     roll_ptr_t roll_ptr); /*!< in: roll pointer */
 /** Returns true if the record is of the insert type.
  @return true if the record was freshly inserted (not updated). */
-static inline bool trx_undo_trx_id_is_insert(
-    const byte *trx_id) /*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
+[[nodiscard]] static inline bool trx_undo_trx_id_is_insert(
+    const byte *trx_id); /*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
+#endif                   /* !UNIV_HOTBACKUP */
 
 /** Writes a roll ptr to an index page. In case that the size changes in
 some future version, this function should be used instead of
@@ -159,16 +158,15 @@ trx_undo_rec_t *trx_undo_get_first_rec(trx_id_t *modifier_trx_id,
 
 /** Tries to add a page to the undo log segment where the undo log is placed.
  @return X-latched block if success, else NULL */
-buf_block_t *trx_undo_add_page(
+[[nodiscard]] buf_block_t *trx_undo_add_page(
     trx_t *trx,               /*!< in: transaction */
     trx_undo_t *undo,         /*!< in: undo log memory object */
     trx_undo_ptr_t *undo_ptr, /*!< in: assign undo log from
                               referred rollback segment. */
-    mtr_t *mtr)               /*!< in: mtr which does not have
-                              a latch to any undo log page;
-                              the caller must have reserved
-                              the rollback segment mutex */
-    MY_ATTRIBUTE((warn_unused_result));
+    mtr_t *mtr);              /*!< in: mtr which does not have
+                             a latch to any undo log page;
+                             the caller must have reserved
+                             the rollback segment mutex */
 /** Frees the last undo log page.
  The caller must hold the rollback segment mutex. */
 void trx_undo_free_last_page_func(
@@ -232,13 +230,12 @@ ulint trx_undo_lists_init(
  @return DB_SUCCESS if undo log assign successful, possible error codes
  are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
  DB_OUT_OF_MEMORY */
-dberr_t trx_undo_assign_undo(
+[[nodiscard]] dberr_t trx_undo_assign_undo(
     trx_t *trx,               /*!< in: transaction */
     trx_undo_ptr_t *undo_ptr, /*!< in: assign undo log from
                               referred rollback segment. */
-    ulint type)               /*!< in: TRX_UNDO_INSERT or
-                              TRX_UNDO_UPDATE */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint type);              /*!< in: TRX_UNDO_INSERT or
+                             TRX_UNDO_UPDATE */
 /** Sets the state of the undo log segment at a transaction finish.
  @return undo log segment header page, x-latched */
 page_t *trx_undo_set_state_at_finish(

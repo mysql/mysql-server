@@ -396,13 +396,12 @@ class Tablespace_files {
   @param[in]	space_id	Tablespace ID
   @param[in]	name		File name.
   @return number of files that map to the space ID */
-  size_t add(space_id_t space_id, const std::string &name)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t add(space_id_t space_id, const std::string &name);
 
   /** Get the file names that map to a space ID
   @param[in]	space_id	Tablespace ID
   @return the filenames that map to space id */
-  Names *find_by_id(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Names *find_by_id(space_id_t space_id) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
     if (undo::is_reserved(space_id)) {
@@ -427,8 +426,7 @@ class Tablespace_files {
   @param[in]   space_num  undo tablespace number
   @param[out]  space_id   undo tablespace ID
   @return the file name that maps to the space number */
-  Names *find_by_num(space_id_t space_num, space_id_t &space_id)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Names *find_by_num(space_id_t space_num, space_id_t &space_id) {
     ut_ad(space_num > 0 && space_num <= FSP_MAX_UNDO_TABLESPACES);
     auto it_nums = m_undo_nums.find(space_num);
     if (it_nums == m_undo_nums.end()) {
@@ -445,7 +443,7 @@ class Tablespace_files {
   /** Remove the entry for the space ID.
   @param[in]	space_id	Tablespace ID mapping to remove
   @return true if erase successful */
-  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool erase_path(space_id_t space_id) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
     if (undo::is_reserved(space_id)) {
@@ -515,7 +513,7 @@ class Tablespace_dirs {
 
   /** Discover tablespaces by reading the header from .ibd files.
   @return DB_SUCCESS if all goes well */
-  dberr_t scan() MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t scan();
 
   /** Clear all the tablespace file data but leave the list of
   scanned directories in place. */
@@ -530,7 +528,7 @@ class Tablespace_dirs {
   /** Erase a space ID to filename mapping.
   @param[in]	space_id	Tablespace ID to erase
   @return true if successful */
-  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool erase_path(space_id_t space_id) {
     for (auto &dir : m_dirs) {
       if (dir.erase_path(space_id)) {
         return true;
@@ -544,7 +542,7 @@ class Tablespace_dirs {
   @param[in]	space_id	Tablespace ID
   @return directory searched and pointer to names that map to the
           tablespace ID */
-  Result find_by_id(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Result find_by_id(space_id_t space_id) {
     for (auto &dir : m_dirs) {
       const auto names = dir.find_by_id(space_id);
 
@@ -561,8 +559,7 @@ class Tablespace_dirs {
   @param[out]  space_id   undo tablespace ID
   @return directory searched and pointer to name that maps to the
           tablespace number */
-  Result find_by_num(space_id_t space_num, space_id_t &space_id)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Result find_by_num(space_id_t space_num, space_id_t &space_id) {
     for (auto &dir : m_dirs) {
       const auto names = dir.find_by_num(space_num, space_id);
 
@@ -577,8 +574,7 @@ class Tablespace_dirs {
   /** Determine if this Fil_path contains the path provided.
   @param[in]  path  file or directory path to compare.
   @return true if this Fil_path contains path */
-  bool contains(const std::string &path) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool contains(const std::string &path) const {
     const Fil_path descendant{path};
 
     for (const auto &dir : m_dirs) {
@@ -719,8 +715,7 @@ class Fil_shard {
   /** Fetch the fil_space_t instance that maps to space_id.
   @param[in]	space_id	Tablespace ID to lookup
   @return tablespace instance or nullptr if not found. */
-  fil_space_t *get_space_by_id(space_id_t space_id) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] fil_space_t *get_space_by_id(space_id_t space_id) const {
     ut_ad(m_id == REDO_SHARD || mutex_owned());
 
     auto it = m_spaces.find(space_id);
@@ -737,8 +732,7 @@ class Fil_shard {
   /** Fetch the fil_space_t instance that maps to the name.
   @param[in]	name		Tablespace name to lookup
   @return tablespace instance or nullptr if not found. */
-  fil_space_t *get_space_by_name(const char *name) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] fil_space_t *get_space_by_name(const char *name) const {
     ut_ad(mutex_owned());
 
     auto it = m_names.find(name);
@@ -757,7 +751,7 @@ class Fil_shard {
   @param[in] print_info		if true, prints information
                                   why it cannot close a file
   @return true if success, false if should retry later */
-  bool close_files_in_LRU(bool print_info) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool close_files_in_LRU(bool print_info);
 
   /** Remove the file node from the LRU list.
   @param[in,out]	file		File for the tablespace */
@@ -814,8 +808,7 @@ class Fil_shard {
   @param[in,out]  rotate_count  A cumulative count of all tablespaces rotated
   in the Fil_system.
   @return the number of tablespaces that failed to rotate. */
-  size_t encryption_rotate(size_t *rotate_count)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t encryption_rotate(size_t *rotate_count);
 
   /** Detach a space object from the tablespace memory cache and
   closes the tablespace files but does not delete them.
@@ -931,8 +924,7 @@ class Fil_shard {
   There must not be any pending I/O's or flushes on the files.
   @param[in]	space_id	Tablespace ID
   @return fil_space_t instance on success or nullptr */
-  fil_space_t *space_free(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_space_t *space_free(space_id_t space_id);
 
   /** Map the space ID and name to the tablespace instance.
   @param[in]	space		Tablespace instance */
@@ -962,8 +954,7 @@ class Fil_shard {
   @param[in]	file		Tablespace file for IO
   @param[in]	extend		true if file is being extended
   @return false if the file can't be opened, otherwise true */
-  bool prepare_file_for_io(fil_node_t *file, bool extend)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool prepare_file_for_io(fil_node_t *file, bool extend);
 
   /** Reserves the mutex and tries to make sure we can
   open at least one file while holding it. This should be called
@@ -972,8 +963,8 @@ class Fil_shard {
   @param[in]	space_id	Tablespace ID
   @param[out]	space		Tablespace instance
   @return true if a slot was reserved. */
-  bool mutex_acquire_and_get_space(space_id_t space_id, fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool mutex_acquire_and_get_space(space_id_t space_id,
+                                                 fil_space_t *&space);
 
   /** Remap the tablespace to the new name.
   @param[in]	space		Tablespace instance, with old name.
@@ -992,8 +983,7 @@ class Fil_shard {
   @param[in,out]	space		tablespace
   @param[in]	size		desired size in pages
   @return whether the tablespace is at least as big as requested */
-  bool space_extend(fil_space_t *space, page_no_t size)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool space_extend(fil_space_t *space, page_no_t size);
 
   /** Flushes to disk possible writes cached by the OS. If the space does
   not exist or is being dropped, does not do anything.
@@ -1007,38 +997,35 @@ class Fil_shard {
   @param[in,out]	file		Tablespace file
   @param[in]	extend		true if the file is being extended
   @return false if the file can't be opened, otherwise true */
-  bool open_file(fil_node_t *file, bool extend)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool open_file(fil_node_t *file, bool extend);
 
   /** Checks if all the file nodes in a space are flushed. The caller must hold
   the fil_system mutex.
   @param[in]	space		Tablespace to check
   @return true if all are flushed */
-  bool space_is_flushed(const fil_space_t *space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool space_is_flushed(const fil_space_t *space);
 
   /** Open each file of a tablespace if not already open.
   @param[in]	space_id	tablespace identifier
   @retval	true	if all file nodes were opened
   @retval	false	on failure */
-  bool space_open(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool space_open(space_id_t space_id);
 
   /** Opens the files associated with a tablespace and returns a
   pointer to the fil_space_t that is in the memory cache associated
   with a space id.
   @param[in]	space_id	Get the tablespace instance or this ID
   @return file_space_t pointer, nullptr if space not found */
-  fil_space_t *space_load(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_space_t *space_load(space_id_t space_id);
 
   /** Wait for pending operations on a tablespace to stop.
   @param[in]   space_id  Tablespace ID
   @param[out]  space     tablespace instance in memory
   @param[out]  path      tablespace path
   @return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
-  dberr_t wait_for_pending_operations(space_id_t space_id, fil_space_t *&space,
-                                      char **path) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t wait_for_pending_operations(space_id_t space_id,
+                                                    fil_space_t *&space,
+                                                    char **path) const;
 
   /** Rename a single-table tablespace.
   The tablespace must exist in the memory cache.
@@ -1048,9 +1035,9 @@ class Fil_shard {
   @param[in]	new_path_in	New file name, or nullptr if it
                                   is located in the normal data directory
   @return InnoDB error code */
-  dberr_t space_rename(space_id_t space_id, const char *old_path,
-                       const char *new_name, const char *new_path_in)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t space_rename(space_id_t space_id, const char *old_path,
+                                     const char *new_name,
+                                     const char *new_path_in);
 
   /** Deletes an IBD or IBU tablespace.
   The tablespace must be cached in the memory cache. This will delete the
@@ -1059,15 +1046,15 @@ class Fil_shard {
   @param[in]	buf_remove	Specify the action to take on the pages
                                   for this table in the buffer pool.
   @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
-  dberr_t space_delete(space_id_t space_id, buf_remove_t buf_remove)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t space_delete(space_id_t space_id,
+                                     buf_remove_t buf_remove);
 
   /** Truncate the tablespace to needed size.
   @param[in]	space_id	Tablespace ID to truncate
   @param[in]	size_in_pages	Truncate size.
   @return true if truncate was successful. */
-  bool space_truncate(space_id_t space_id, page_no_t size_in_pages)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool space_truncate(space_id_t space_id,
+                                    page_no_t size_in_pages);
 
   /** Create a space memory object and put it to the fil_system hash table.
   The tablespace name is independent from the tablespace file-name.
@@ -1078,9 +1065,8 @@ class Fil_shard {
   @param[in]	purpose		Tablespace purpose
   @return pointer to created tablespace, to be filled in with fil_node_create()
   @retval nullptr on failure (such as when the same tablespace exists) */
-  fil_space_t *space_create(const char *name, space_id_t space_id,
-                            uint32_t flags, fil_type_t purpose)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_space_t *space_create(const char *name, space_id_t space_id,
+                                          uint32_t flags, fil_type_t purpose);
 
   /** Adjust temporary auto-generated names created during
   file discovery with correct tablespace names from the DD.
@@ -1098,8 +1084,8 @@ class Fil_shard {
                                 not found from memory.
   @param[in]	adjust_space	Whether to adjust space id on mismatch
   @return true if a matching tablespace exists in the memory cache */
-  bool space_check_exists(space_id_t space_id, const char *name, bool print_err,
-                          bool adjust_space) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool space_check_exists(space_id_t space_id, const char *name,
+                                        bool print_err, bool adjust_space);
 
   /** Read or write log file data synchronously.
   @param[in]	type		IO context
@@ -1115,9 +1101,10 @@ class Fil_shard {
                                   from where to write
   @return error code
   @retval DB_SUCCESS on success */
-  dberr_t do_redo_io(const IORequest &type, const page_id_t &page_id,
-                     const page_size_t &page_size, ulint byte_offset, ulint len,
-                     void *buf) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t do_redo_io(const IORequest &type,
+                                   const page_id_t &page_id,
+                                   const page_size_t &page_size,
+                                   ulint byte_offset, ulint len, void *buf);
 
   /** Read or write data. This operation could be asynchronous (aio).
   @param[in]	type		IO context
@@ -1139,17 +1126,17 @@ class Fil_shard {
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-  dberr_t do_io(const IORequest &type, bool sync, const page_id_t &page_id,
-                const page_size_t &page_size, ulint byte_offset, ulint len,
-                void *buf, void *message) MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t do_io(const IORequest &type, bool sync,
+                              const page_id_t &page_id,
+                              const page_size_t &page_size, ulint byte_offset,
+                              ulint len, void *buf, void *message);
 
   /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
   returning the nodes via callback function cbk.
   @param[in]	include_log	Include log files, if true
   @param[in]	f		Callback
   @return any error returned by the callback function. */
-  dberr_t iterate(bool include_log, Fil_iterator::Function &f)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t iterate(bool include_log, Fil_iterator::Function &f);
 
   /** Open an ibd tablespace and add it to the InnoDB data structures.
   This is similar to fil_ibd_open() except that it is used while
@@ -1164,10 +1151,9 @@ class Fil_shard {
   @param[in]	path		path/to/databasename/tablename.ibd
   @param[out]	space		the tablespace, or nullptr on error
   @return status of the operation */
-  fil_load_status ibd_open_for_recovery(space_id_t space_id,
-                                        const std::string &path,
-                                        fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_load_status ibd_open_for_recovery(space_id_t space_id,
+                                                      const std::string &path,
+                                                      fil_space_t *&space);
 
   /** Attach a file to a tablespace
   @param[in]	name		file name of a file that is not open
@@ -1179,10 +1165,10 @@ class Fil_shard {
   @param[in]	max_pages	maximum number of pages in file
   @return pointer to the file name
   @retval nullptr if error */
-  fil_node_t *create_node(const char *name, page_no_t size, fil_space_t *space,
-                          bool is_raw, bool punch_hole, bool atomic_write,
-                          page_no_t max_pages = PAGE_NO_MAX)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_node_t *create_node(const char *name, page_no_t size,
+                                        fil_space_t *space, bool is_raw,
+                                        bool punch_hole, bool atomic_write,
+                                        page_no_t max_pages = PAGE_NO_MAX);
 
 #ifdef UNIV_DEBUG
   /** Validate a shard. */
@@ -1205,8 +1191,7 @@ class Fil_shard {
 
   /** Wait for an empty slot to reserve for opening a file.
   @return true on success. */
-  static bool reserve_open_slot(size_t shard_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool reserve_open_slot(size_t shard_id);
 
   /** Release the slot reserved for opening a file.
   @param[in]	shard_id	ID of shard releasing the slot */
@@ -1226,8 +1211,7 @@ class Fil_shard {
   waiting in this function.
   @param[in]  space_id  Tablespace ID to look up
   @return tablespace instance */
-  fil_space_t *get_reserved_space(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_space_t *get_reserved_space(space_id_t space_id);
 
   /** Prepare for truncating a single-table tablespace.
   1) Wait for pending operations on the tablespace to stop;
@@ -1235,8 +1219,8 @@ class Fil_shard {
   @param[in]   space_id  Tablespace ID
   @param[out]  space     Instance that maps to the space ID.
   @return DB_SUCCESS or error */
-  dberr_t space_prepare_for_truncate(space_id_t space_id, fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t space_prepare_for_truncate(space_id_t space_id,
+                                                   fil_space_t *&space);
 
   /** Note that a write IO has completed.
   @param[in,out]  file  File on which a write was completed */
@@ -1250,16 +1234,17 @@ class Fil_shard {
   @param[in]	space	tablespace
   @param[in]	count	number of attempts so far
   @return 0 if no pending operations else count + 1. */
-  ulint space_check_pending_operations(fil_space_t *space, ulint count) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] ulint space_check_pending_operations(fil_space_t *space,
+                                                     ulint count) const;
 
   /** Check for pending IO.
   @param[in]	space		Tablespace to check
   @param[in]	file		File in space list
   @param[in]	count		number of attempts so far
   @return 0 if no pending else count + 1. */
-  ulint check_pending_io(const fil_space_t *space, const fil_node_t &file,
-                         ulint count) const MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] ulint check_pending_io(const fil_space_t *space,
+                                       const fil_node_t &file,
+                                       ulint count) const;
 
   /** Flushes to disk possible writes cached by the OS. */
   void redo_space_flush();
@@ -1271,15 +1256,14 @@ class Fil_shard {
   @param[in,out]	file		Get the size of this file
   @param[in]	read_only_mode	true if read only mode set
   @return DB_SUCCESS or error */
-  dberr_t get_file_size(fil_node_t *file, bool read_only_mode)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t get_file_size(fil_node_t *file, bool read_only_mode);
 
   /** Get the AIO mode.
   @param[in]	req_type	IO request type
   @param[in]	sync		true if Synchronous IO
   return the AIO mode */
-  static AIO_mode get_AIO_mode(const IORequest &req_type, bool sync)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static AIO_mode get_AIO_mode(const IORequest &req_type,
+                                             bool sync);
 
   /** Get the file name for IO and the local offset within that file.
   @param[in]      req_type  IO context
@@ -1289,9 +1273,10 @@ class Fil_shard {
   @retval DB_SUCCESS if the file is found with the page_no
   @retval DB_ERROR if the file is not found or does not contain the page.
                    in this case file == nullptr */
-  static dberr_t get_file_for_io(const IORequest &req_type, fil_space_t *space,
-                                 page_no_t *page_no, fil_node_t *&file)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static dberr_t get_file_for_io(const IORequest &req_type,
+                                               fil_space_t *space,
+                                               page_no_t *page_no,
+                                               fil_node_t *&file);
 
  private:
   /** Fil_shard ID */
@@ -1383,8 +1368,8 @@ class Fil_system {
   @param[in]	space_id	Tablespace ID to lookup
   @return pair of top level directory scanned and names that map
           to space_id or nullptr if not found. */
-  Tablespace_dirs::Result get_scanned_filename_by_space_id(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Tablespace_dirs::Result get_scanned_filename_by_space_id(
+      space_id_t space_id) {
     return m_dirs.find_by_id(space_id);
   }
 
@@ -1393,9 +1378,8 @@ class Fil_system {
   @param[out]  space_id   Tablespace ID found
   @return pair of top level directory scanned and name that maps
           to the space_num or nullptr if not found. */
-  Tablespace_dirs::Result get_scanned_filename_by_space_num(
-      space_id_t space_num, space_id_t &space_id)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Tablespace_dirs::Result get_scanned_filename_by_space_num(
+      space_id_t space_num, space_id_t &space_id) {
     return (m_dirs.find_by_num(space_num, space_id));
   }
 
@@ -1404,8 +1388,8 @@ class Fil_system {
   @param[out]  name      the scanned filename
   @return true if the space_id is found. The name is set to an
   empty string if the space_id is not found. */
-  bool get_file_by_space_id(space_id_t space_id, std::string &name)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool get_file_by_space_id(space_id_t space_id,
+                                          std::string &name) {
     auto result = get_scanned_filename_by_space_id(space_id);
 
     if (result.second != nullptr) {
@@ -1425,9 +1409,9 @@ class Fil_system {
   @param[out]  name       the scanned filename
   @return true if the space_id is found. The name is set to an
   empty string if the space_id is not found. */
-  bool get_file_by_space_num(space_id_t space_num, space_id_t &space_id,
-                             std::string &name)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool get_file_by_space_num(space_id_t space_num,
+                                           space_id_t &space_id,
+                                           std::string &name) {
     auto result = get_scanned_filename_by_space_num(space_num, space_id);
 
     if (result.second != nullptr) {
@@ -1444,7 +1428,7 @@ class Fil_system {
   /** Erase a tablespace ID and its mapping from the scanned files.
   @param[in]	space_id	Tablespace ID to erase
   @return true if successful */
-  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool erase_path(space_id_t space_id) {
     return m_dirs.erase_path(space_id);
   }
 
@@ -1466,16 +1450,14 @@ class Fil_system {
   /** Get the top level directory where this filename was found.
   @param[in]	path		Path to look for.
   @return the top level directory under which this file was found. */
-  const std::string &get_root(const std::string &path) const
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] const std::string &get_root(const std::string &path) const;
 
   /** Update the DD if any files were moved to a new location.
   Free the Tablespace_files instance.
   @param[in]	read_only_mode	true if InnoDB is started in
                                   read only mode.
   @return DB_SUCCESS if all OK */
-  dberr_t prepare_open_for_business(bool read_only_mode)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t prepare_open_for_business(bool read_only_mode);
 
   /** Flush the redo log writes to disk, possibly cached by the OS. */
   void flush_file_redo();
@@ -1524,8 +1506,7 @@ class Fil_system {
   /** Fetch the fil_space_t instance that maps to the name.
   @param[in]	name		Tablespace name to lookup
   @return tablespace instance or nullptr if not found. */
-  fil_space_t *get_space_by_name(const char *name)
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] fil_space_t *get_space_by_name(const char *name) {
     for (auto shard : m_shards) {
       shard->mutex_acquire();
 
@@ -1544,8 +1525,7 @@ class Fil_system {
   /** Check a space ID against the maximum known tablespace ID.
   @param[in]	space_id	Tablespace ID to check
   @return true if it is > than maximum known tablespace ID. */
-  bool is_greater_than_max_id(space_id_t space_id) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_greater_than_max_id(space_id_t space_id) const {
     ut_ad(mutex_owned_all());
 
     return space_id > m_max_assigned_id;
@@ -1584,15 +1564,13 @@ class Fil_system {
   is not enough, we may need to recycle ids.
   @param[out]	space_id	Set this to the new tablespace ID
   @return true if assigned, false if not */
-  bool assign_new_space_id(space_id_t *space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool assign_new_space_id(space_id_t *space_id);
 
   /** Tries to close a file in all the LRU lists.
   The caller must hold the mutex.
   @param[in]	print_info	if true, prints information why it close a file
   @return true if success, false if should retry later */
-  bool close_file_in_all_LRU(bool print_info)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool close_file_in_all_LRU(bool print_info);
 
   /** Opens all log files and system tablespace data files in
   all shards. */
@@ -1614,12 +1592,11 @@ class Fil_system {
   @param[in]	include_log	Include log files, if true
   @param[in]	f		Callback
   @return any error returned by the callback function. */
-  dberr_t iterate(bool include_log, Fil_iterator::Function &f)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t iterate(bool include_log, Fil_iterator::Function &f);
 
   /** Rotate the tablespace keys by new master key.
   @return the number of tablespaces that failed to rotate. */
-  size_t encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t encryption_rotate();
 
   /** Reencrypt tablespace keys by current master key. */
   void encryption_reencrypt(std::vector<space_id_t> &sid_vector);
@@ -1636,14 +1613,12 @@ class Fil_system {
   /** Lookup the tablespace ID.
   @param[in]	space_id	Tablespace ID to lookup
   @return true if the space ID is known. */
-  bool lookup_for_recovery(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool lookup_for_recovery(space_id_t space_id);
 
   /** Open a tablespace that has a redo log record to apply.
   @param[in]	space_id		Tablespace ID
   @return true if the open was successful */
-  bool open_for_recovery(space_id_t space_id)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool open_for_recovery(space_id_t space_id);
 
   /** This function should be called after recovery has completed.
   Check for tablespace files for which we did not see any
@@ -1651,7 +1626,7 @@ class Fil_system {
   be recovered.
   @return true if there were some filenames missing for which we had to
           ignore redo log records during the apply phase */
-  bool check_missing_tablespaces() MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool check_missing_tablespaces();
 
   /** Note that a file has been relocated.
   @param[in]	object_id	Server DD tablespace ID
@@ -1682,8 +1657,7 @@ class Fil_system {
   /** Determines if a file belongs to the least-recently-used list.
   @param[in]	space		Tablespace to check
   @return true if the file belongs to fil_system->m_LRU mutex. */
-  static bool space_belongs_in_LRU(const fil_space_t *space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static bool space_belongs_in_LRU(const fil_space_t *space);
 
   /** Normalize and save a directory to scan for IBD and IBU datafiles
   before recovery.
@@ -1708,14 +1682,13 @@ class Fil_system {
   0 on the first page then try finding the ID with Datafile::find_space_id().
   @param[in]	filename	File name to check
   @return s_invalid_space_id if not found, otherwise the space ID */
-  static space_id_t get_tablespace_id(const std::string &filename)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] static space_id_t get_tablespace_id(
+      const std::string &filename);
 
   /** Fil_shard by space ID.
   @param[in]	space_id	Tablespace ID
   @return reference to the shard */
-  Fil_shard *shard_by_id(space_id_t space_id) const
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] Fil_shard *shard_by_id(space_id_t space_id) const {
 #ifndef UNIV_HOTBACKUP
     if (space_id == dict_sys_t::s_log_space_first_id) {
       return m_shards[REDO_SHARD];
@@ -1762,11 +1735,11 @@ class Fil_system {
 
   /** Checks the consistency of the tablespace cache.
   @return true if ok */
-  bool validate() const MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool validate() const;
 
   /** Check if all mutexes are owned
   @return true if all owned. */
-  bool mutex_owned_all() const MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool mutex_owned_all() const {
 #ifdef UNIV_HOTBACKUP
     ut_ad(m_shards.size() == 1);
 #endif /* UNIV_HOTBACKUP */
@@ -1785,9 +1758,9 @@ class Fil_system {
   @param[in]	old_name	old tablespace name
   @param[in]	new_name	new tablespace name
   @return DB_SUCCESS on success */
-  dberr_t rename_tablespace_name(space_id_t space_id, const char *old_name,
-                                 const char *new_name)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t rename_tablespace_name(space_id_t space_id,
+                                               const char *old_name,
+                                               const char *new_name);
 
   /** Free the data structures required for recovery. */
   void free_scanned_files() { m_dirs.clear(); }
@@ -1834,10 +1807,9 @@ class Fil_system {
   @param[in]	path		path/to/databasename/tablename.ibd
   @param[out]	space		the tablespace, or nullptr on error
   @return status of the operation */
-  fil_load_status ibd_open_for_recovery(space_id_t space_id,
-                                        const std::string &path,
-                                        fil_space_t *&space)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] fil_load_status ibd_open_for_recovery(space_id_t space_id,
+                                                      const std::string &path,
+                                                      fil_space_t *&space);
 
  private:
   /** Fil_shards managed */
@@ -1896,10 +1868,9 @@ static ulint srv_data_written;
 @param[in]	new_name	new file name
 @return	whether the operation was successfully applied (the name did not exist,
 or new_name did not exist and name was successfully renamed to new_name) */
-static bool fil_op_replay_rename(const page_id_t &page_id,
-                                 const std::string &old_name,
-                                 const std::string &new_name)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static bool fil_op_replay_rename(const page_id_t &page_id,
+                                               const std::string &old_name,
+                                               const std::string &new_name);
 
 #ifndef UNIV_HOTBACKUP
 /** Rename partition file.

@@ -384,18 +384,17 @@ static void trx_undo_page_init(
 /** Creates a new undo log segment in file.
  @return DB_SUCCESS if page creation OK possible error codes are:
  DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    trx_undo_seg_create(trx_rseg_t *rseg
-                        [[maybe_unused]],      /*!< in: rollback segment */
-                        trx_rsegf_t *rseg_hdr, /*!< in: rollback segment header,
-                                              page x-latched */
-                        ulint type,            /*!< in: type of the segment:
-                                               TRX_UNDO_INSERT or            TRX_UNDO_UPDATE */
-                        ulint *id, /*!< out: slot index within rseg header */
-                        page_t **undo_page,
-                        /*!< out: segment header page x-latched, NULL
-                        if there was an error */
-                        mtr_t *mtr) /*!< in: mtr */
+[[nodiscard]] static dberr_t trx_undo_seg_create(
+    trx_rseg_t *rseg [[maybe_unused]], /*!< in: rollback segment */
+    trx_rsegf_t *rseg_hdr,             /*!< in: rollback segment header,
+                                      page x-latched */
+    ulint type,                        /*!< in: type of the segment:
+                                       TRX_UNDO_INSERT or            TRX_UNDO_UPDATE */
+    ulint *id, /*!< out: slot index within rseg header */
+    page_t **undo_page,
+    /*!< out: segment header page x-latched, NULL
+    if there was an error */
+    mtr_t *mtr) /*!< in: mtr */
 {
   ulint slot_no = ULINT_UNDEFINED;
   space_id_t space;
@@ -1561,10 +1560,9 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 @retval DB_TOO_MANY_CONCURRENT_TRXS
 @retval DB_OUT_OF_FILE_SPACE
 @retval DB_OUT_OF_MEMORY */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    trx_undo_create(trx_t *trx, trx_rseg_t *rseg, ulint type, trx_id_t trx_id,
-                    const XID *xid, trx_undo_t::Gtid_storage gtid_storage,
-                    trx_undo_t **undo, mtr_t *mtr) {
+[[nodiscard]] static dberr_t trx_undo_create(
+    trx_t *trx, trx_rseg_t *rseg, ulint type, trx_id_t trx_id, const XID *xid,
+    trx_undo_t::Gtid_storage gtid_storage, trx_undo_t **undo, mtr_t *mtr) {
   trx_rsegf_t *rseg_header;
   page_no_t page_no;
   ulint offset;

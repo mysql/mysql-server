@@ -161,10 +161,9 @@ position and fetch next or fetch prev must not be tried to the cursor!
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-static inline dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
-                                           row_prebuilt_t *prebuilt,
-                                           ulint match_mode, ulint direction)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline dberr_t row_search_for_mysql(
+    byte *buf, page_cur_mode_t mode, row_prebuilt_t *prebuilt, ulint match_mode,
+    ulint direction);
 
 /** Searches for rows in the database using cursor.
 Function is for temporary tables that are not shared accross connections
@@ -184,9 +183,9 @@ The cursor is an iterator over the table/index.
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
-                           row_prebuilt_t *prebuilt, ulint match_mode,
-                           ulint direction) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
+                                         row_prebuilt_t *prebuilt,
+                                         ulint match_mode, ulint direction);
 
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
@@ -207,10 +206,9 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
-                        row_prebuilt_t *prebuilt, ulint match_mode,
-                        const ulint direction)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
+                                      row_prebuilt_t *prebuilt,
+                                      ulint match_mode, const ulint direction);
 
 /** Count rows in a R-Tree leaf level.
  @return DB_SUCCESS if successful */
@@ -229,11 +227,10 @@ dberr_t row_count_rtree_recs(
 
 /** Read the max AUTOINC value from an index.
  @return DB_SUCCESS if all OK else error code */
-dberr_t row_search_max_autoinc(
+[[nodiscard]] dberr_t row_search_max_autoinc(
     dict_index_t *index,  /*!< in: index to search */
     const char *col_name, /*!< in: autoinc column name */
-    ib_uint64_t *value)   /*!< out: AUTOINC value read */
-    MY_ATTRIBUTE((warn_unused_result));
+    ib_uint64_t *value);  /*!< out: AUTOINC value read */
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t {

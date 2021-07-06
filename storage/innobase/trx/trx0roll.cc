@@ -383,11 +383,10 @@ void trx_roll_savepoints_free(trx_t *trx, trx_named_savept_t *savep) {
  were set after this savepoint are deleted.
  @return if no savepoint of the name found then DB_NO_SAVEPOINT,
  otherwise DB_SUCCESS */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    trx_rollback_to_savepoint_for_mysql_low(
-        trx_t *trx,                /*!< in/out: transaction */
-        trx_named_savept_t *savep, /*!< in/out: savepoint */
-        int64_t *mysql_binlog_cache_pos)
+[[nodiscard]] static dberr_t trx_rollback_to_savepoint_for_mysql_low(
+    trx_t *trx,                /*!< in/out: transaction */
+    trx_named_savept_t *savep, /*!< in/out: savepoint */
+    int64_t *mysql_binlog_cache_pos)
 /*!< out: the MySQL binlog
 cache position corresponding
 to this savepoint; MySQL needs

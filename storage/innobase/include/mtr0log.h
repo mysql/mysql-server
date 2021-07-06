@@ -109,9 +109,8 @@ static inline void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
 @param[out]	buffer  mlog buffer pointer if opened successfully
 @retval true if opened successfully.
 @retval false if not opened. One case is when redo is disabled for mtr. */
-static inline MY_ATTRIBUTE((warn_unused_result)) bool mlog_open(mtr_t *mtr,
-                                                                ulint size,
-                                                                byte *&buffer);
+[[nodiscard]] static inline bool mlog_open(mtr_t *mtr, ulint size,
+                                           byte *&buffer);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 This is used for writing log for metadata changes
@@ -121,8 +120,8 @@ This is used for writing log for metadata changes
 @param[out]	buffer  mlog buffer pointer if opened successfully
 @retval true if opened successfully.
 @retval false if not opened. One case is when redo is disabled for mtr. */
-static inline MY_ATTRIBUTE((warn_unused_result)) bool mlog_open_metadata(
-    mtr_t *mtr, ulint size, byte *&buffer);
+[[nodiscard]] static inline bool mlog_open_metadata(mtr_t *mtr, ulint size,
+                                                    byte *&buffer);
 
 /** Closes a buffer opened to mlog.
 @param[in]	mtr	mtr

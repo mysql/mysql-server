@@ -559,8 +559,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 @param[in,out]	table	InnoDB table or partition
 @return error code
 @retval 0 on success (DD_SUVCCESS) */
-static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
-    dict_table_t *&table) {
+[[nodiscard]] static int dd_check_corrupted(dict_table_t *&table) {
   if (table->is_corrupted()) {
     if (dict_table_is_sdi(table->id)
 #ifndef UNIV_HOTBACKUP
@@ -2214,9 +2213,11 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 @retval		0 on success
 @retval		HA_ERR_INDEX_COL_TOO_LONG if a column is too long
 @retval		HA_ERR_TOO_BIG_ROW if the record is too long */
-static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
-    const dd::Index *dd_index, dict_table_t *table, bool strict,
-    const TABLE_SHARE *form, uint key_num) {
+[[nodiscard]] static int dd_fill_one_dict_index(const dd::Index *dd_index,
+                                                dict_table_t *table,
+                                                bool strict,
+                                                const TABLE_SHARE *form,
+                                                uint key_num) {
   const KEY &key = form->key_info[key_num];
   ulint type = 0;
   unsigned n_fields = key.user_defined_key_parts;

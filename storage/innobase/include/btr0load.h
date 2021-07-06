@@ -60,15 +60,14 @@ class Btree_load : private ut::Non_copyable {
     /** Fetch the current row as a tuple.
     @param[out] dtuple          Row represented as a tuple.
     @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-    virtual dberr_t fetch(dtuple_t *&dtuple) noexcept
-        MY_ATTRIBUTE((warn_unused_result)) = 0;
+    [[nodiscard]] virtual dberr_t fetch(dtuple_t *&dtuple) noexcept = 0;
 
     /** @return true if duplicates detected. */
     virtual bool duplicates_detected() const noexcept = 0;
 
     /** Move to the next record.
     @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-    virtual dberr_t next() noexcept MY_ATTRIBUTE((warn_unused_result)) = 0;
+    [[nodiscard]] virtual dberr_t next() noexcept = 0;
   };
 
  public:
@@ -87,14 +86,14 @@ class Btree_load : private ut::Non_copyable {
   /** Load the btree from the cursor.
   @param[in,out] cursor         Cursor to read tuples from.
   @return DB_SUCCESS or error code. */
-  dberr_t build(Cursor &cursor) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t build(Cursor &cursor) noexcept;
 
   /** Btree bulk load finish. We commit the last page in each level
   and copy the last page in top level to the root page of the index
   if no error occurs.
   @param[in]	err	              Whether bulk load was successful until now
   @return error code  */
-  dberr_t finish(dberr_t err) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t finish(dberr_t err) noexcept;
 
   /** Release all latches. */
   void release() noexcept;
@@ -106,8 +105,7 @@ class Btree_load : private ut::Non_copyable {
   @param[in] dtuple             Tuple to insert
   @param[in] level	            B-tree level
   @return error code */
-  dberr_t insert(dtuple_t *dtuple, size_t level) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t insert(dtuple_t *dtuple, size_t level) noexcept;
 
  private:
   /** Set the root page on completion.
@@ -119,8 +117,8 @@ class Btree_load : private ut::Non_copyable {
   @param[in]	page_load	        Page to split
   @param[in]	next_page_load	  Next page
   @return	error code */
-  dberr_t page_split(Page_load *page_load, Page_load *next_page_load) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t page_split(Page_load *page_load,
+                                   Page_load *next_page_load) noexcept;
 
   /** Commit(finish) a page. We set next/prev page no, compress a page of
   compressed table and split the page if compression fails, insert a node
@@ -129,9 +127,9 @@ class Btree_load : private ut::Non_copyable {
   @param[in]	next_page_load    Next page
   @param[in]	insert_father	    Flag whether need to insert node ptr
   @return	error code */
-  dberr_t page_commit(Page_load *page_load, Page_load *next_page_load,
-                      bool insert_father) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t page_commit(Page_load *page_load,
+                                    Page_load *next_page_load,
+                                    bool insert_father) noexcept;
 
   /** Prepare space to insert a tuple.
   @param[in,out] page_load      Page bulk that will be used to store the record.
@@ -140,9 +138,8 @@ class Btree_load : private ut::Non_copyable {
   @param[in]  level             B-tree level
   @param[in]  rec_size          Record size
   @return error code */
-  dberr_t prepare_space(Page_load *&page_load, size_t level,
-                        size_t rec_size) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t prepare_space(Page_load *&page_load, size_t level,
+                                      size_t rec_size) noexcept;
 
   /** Insert a tuple to a page.
   @param[in]  page_load         Page bulk object
@@ -151,8 +148,8 @@ class Btree_load : private ut::Non_copyable {
                                 Data to be stored externally.
   @param[in]  rec_size          Record size
   @return error code */
-  dberr_t insert(Page_load *page_load, dtuple_t *tuple, big_rec_t *big_rec,
-                 size_t rec_size) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t insert(Page_load *page_load, dtuple_t *tuple,
+                               big_rec_t *big_rec, size_t rec_size) noexcept;
 
   /** Log free check */
   void log_free_check() noexcept;
@@ -162,8 +159,8 @@ class Btree_load : private ut::Non_copyable {
   @param[in]  err               Whether bulk load was successful until now
   @param[out] last_page_no      Last page number
   @return error code  */
-  dberr_t finalize_page_loads(dberr_t err, page_no_t &last_page_no) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t finalize_page_loads(dberr_t err,
+                                            page_no_t &last_page_no) noexcept;
 
  private:
   /** Number of records inserted. */

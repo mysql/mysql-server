@@ -211,9 +211,8 @@ that element from the heap.
 @param[in]	buf	presumed topmost element
 @param[in]	buf_sz	size of buf in bytes
 @return true if topmost */
-static inline bool mem_heap_is_top(mem_heap_t *heap, const void *buf,
-                                   ulint buf_sz)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline bool mem_heap_is_top(mem_heap_t *heap,
+                                                 const void *buf, ulint buf_sz);
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element. If the memory chunk specified with (top, top_sz) is the

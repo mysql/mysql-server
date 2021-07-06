@@ -107,7 +107,7 @@ static inline void buf_buddy_mem_invalid(
 
 /** Check if a buddy is stamped free.
  @return whether the buddy is free */
-static inline MY_ATTRIBUTE((warn_unused_result)) bool buf_buddy_stamp_is_free(
+[[nodiscard]] static inline bool buf_buddy_stamp_is_free(
     const buf_buddy_free_t *buf) /*!< in: block to check */
 {
   return (mach_read_from_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET) ==
@@ -205,10 +205,10 @@ static inline bool buf_buddy_check_free(buf_pool_t *buf_pool,
  @retval BUF_BUDDY_STATE_FREE if fully free
  @retval BUF_BUDDY_STATE_USED if currently in use
  @retval BUF_BUDDY_STATE_PARTIALLY_USED if partially in use. */
-static MY_ATTRIBUTE((warn_unused_result)) buf_buddy_state_t
-    buf_buddy_is_free(buf_buddy_free_t *buf, /*!< in: block to check */
-                      ulint i)               /*!< in: index of
-                                             buf_pool->zip_free[] */
+[[nodiscard]] static buf_buddy_state_t buf_buddy_is_free(
+    buf_buddy_free_t *buf, /*!< in: block to check */
+    ulint i)               /*!< in: index of
+                           buf_pool->zip_free[] */
 {
 #ifdef UNIV_DEBUG
   const ulint size = BUF_BUDDY_LOW << i;

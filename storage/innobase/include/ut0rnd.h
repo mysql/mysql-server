@@ -72,9 +72,8 @@ static inline ulint ut_fold_ull(ib_uint64_t d);
 
 /** Folds a character string ending in the null character.
  @return folded value */
-static inline ulint ut_fold_string(
-    const char *str) /*!< in: null-terminated string */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint ut_fold_string(
+    const char *str); /*!< in: null-terminated string */
 
 /** Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.

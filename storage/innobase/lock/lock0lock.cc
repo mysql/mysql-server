@@ -182,10 +182,9 @@ bool owns_lock_shard(const lock_t *lock) {
 
 /** Validates the record lock queues on a page.
  @return true if ok */
-static bool lock_rec_validate_page(
-    const buf_block_t *block) /*!< in: buffer block */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
+[[nodiscard]] static bool lock_rec_validate_page(
+    const buf_block_t *block); /*!< in: buffer block */
+#endif                         /* UNIV_DEBUG */
 
 /* The lock system */
 lock_sys_t *lock_sys = nullptr;
@@ -214,7 +213,7 @@ void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
 #ifdef UNIV_DEBUG
 
 #else
-static MY_ATTRIBUTE((warn_unused_result))
+[[nodiscard]] static
 #endif
 bool lock_check_trx_id_sanity(
     trx_id_t trx_id,           /*!< in: trx id */

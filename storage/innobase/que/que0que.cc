@@ -782,7 +782,7 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
 #ifdef UNIV_DEBUG
 /** Gets information of an SQL query graph node.
 @return type description */
-static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
+[[nodiscard]] static const char *que_node_type_string(
     const que_node_t *node) /*!< in: query graph node */
 {
   switch (que_node_get_type(node)) {

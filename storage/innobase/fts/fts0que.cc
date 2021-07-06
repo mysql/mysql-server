@@ -340,11 +340,10 @@ fts_query_find_doc_id(
  search arguments to search the document again, thus "expand"
  the search result set.
  @return DB_SUCCESS if success, otherwise the error code */
-static dberr_t fts_expand_query(
+[[nodiscard]] static dberr_t fts_expand_query(
     dict_index_t *index, /*!< in: FTS index to search */
-    fts_query_t *query)  /*!< in: query result, to be freed
-                         by the client */
-    MY_ATTRIBUTE((warn_unused_result));
+    fts_query_t *query); /*!< in: query result, to be freed
+                        by the client */
 /** This function finds documents that contain all words in a
  phrase or proximity search. And if proximity search, verify
  the words are close enough to each other, as in specified distance.
@@ -1011,9 +1010,9 @@ static ulint fts_cache_find_wildcard(
 
 /** Set difference.
  @return DB_SUCCESS if all go well */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_query_difference(fts_query_t *query,        /*!< in: query instance */
-                         const fts_string_t *token) /*!< in: token to search */
+[[nodiscard]] static dberr_t fts_query_difference(
+    fts_query_t *query,        /*!< in: query instance */
+    const fts_string_t *token) /*!< in: token to search */
 {
   ulint n_doc_ids = 0;
   trx_t *trx = query->trx;
@@ -1102,7 +1101,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Intersect the token doc ids with the current set.
  @return DB_SUCCESS if all go well */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_intersect(
+[[nodiscard]] static dberr_t fts_query_intersect(
     fts_query_t *query,        /*!< in: query instance */
     const fts_string_t *token) /*!< in: the token to search */
 {
@@ -1275,9 +1274,9 @@ static dberr_t fts_query_cache(
 
 /** Set union.
  @return DB_SUCCESS if all go well */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_query_union(fts_query_t *query,  /*!< in: query instance */
-                    fts_string_t *token) /*!< in: token to search */
+[[nodiscard]] static dberr_t fts_query_union(
+    fts_query_t *query,  /*!< in: query instance */
+    fts_string_t *token) /*!< in: token to search */
 {
   fts_fetch_t fetch;
   ulint n_doc_ids = 0;
@@ -1933,7 +1932,7 @@ fts_query_query_block(
 Read the rows from the FTS index, that match word and where the
 doc id is between first and last doc id.
 @return DB_SUCCESS if all go well else error code */
-static MY_ATTRIBUTE((warn_unused_result))
+[[nodiscard]] static
 dberr_t
 fts_query_find_term(
 	fts_query_t*		query,	/*!< in: FTS query state */
@@ -2073,7 +2072,7 @@ fts_query_sum(
 /********************************************************************
 Calculate the total documents that contain a particular word (term).
 @return DB_SUCCESS if all go well else error code */
-static MY_ATTRIBUTE((warn_unused_result))
+[[nodiscard]] static
 dberr_t
 fts_query_total_docs_containing_term(
 	fts_query_t*		query,	/*!< in: FTS query state */
@@ -2154,7 +2153,7 @@ fts_query_total_docs_containing_term(
 /********************************************************************
 Get the total number of words in a documents.
 @return DB_SUCCESS if all go well else error code */
-static MY_ATTRIBUTE((warn_unused_result))
+[[nodiscard]] static
 dberr_t
 fts_query_terms_in_document(
 	fts_query_t*	query,		/*!< in: FTS query state */
@@ -2235,7 +2234,7 @@ fts_query_terms_in_document(
 
 /** Retrieve the document and match the phrase tokens.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_match_document(
+[[nodiscard]] static dberr_t fts_query_match_document(
     ib_vector_t *tokens,       /*!< in: phrase tokens */
     fts_get_doc_t *get_doc,    /*!< in: table and prepared statements */
     fts_match_t *match,        /*!< in: doc id and positions */
@@ -2274,7 +2273,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_match_document(
 /** This function fetches the original documents and count the
  words in between matching words to see that is in specified distance
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) bool fts_query_is_in_proximity_range(
+[[nodiscard]] static bool fts_query_is_in_proximity_range(
     const fts_query_t *query,       /*!< in:  query instance */
     fts_match_t **match,            /*!< in: query instance */
     fts_proximity_t *qualified_pos) /*!< in: position info for
@@ -2323,15 +2322,15 @@ static MY_ATTRIBUTE((warn_unused_result)) bool fts_query_is_in_proximity_range(
 /** Iterate over the matched document ids and search the for the
  actual phrase in the text.
  @return DB_SUCCESS if all OK */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_query_search_phrase(fts_query_t *query,       /*!< in: query instance */
-                            ib_vector_t *orig_tokens, /*!< in: tokens to search,
-                                                      with any stopwords in the
-                                                      original phrase */
-                            ib_vector_t *tokens)      /*!< in: tokens that does
-                                                      not include stopwords and
-                                                      can be used to calculate
-                                                      ranking */
+[[nodiscard]] static dberr_t fts_query_search_phrase(
+    fts_query_t *query,       /*!< in: query instance */
+    ib_vector_t *orig_tokens, /*!< in: tokens to search,
+                              with any stopwords in the
+                              original phrase */
+    ib_vector_t *tokens)      /*!< in: tokens that does
+                              not include stopwords and
+                              can be used to calculate
+                              ranking */
 {
   ulint i;
   fts_get_doc_t get_doc;
@@ -2494,7 +2493,7 @@ static void fts_query_phrase_split(fts_query_t *query,
 
 /** Text/Phrase search.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_phrase_search(
+[[nodiscard]] static dberr_t fts_query_phrase_search(
     fts_query_t *query,         /*!< in: query instance */
     const fts_ast_node_t *node) /*!< in: node to search */
 {
@@ -2665,9 +2664,9 @@ func_exit:
 
 /** Find the word and evaluate.
  @return DB_SUCCESS if all go well */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_query_execute(fts_query_t *query,  /*!< in: query instance */
-                      fts_string_t *token) /*!< in: token to search */
+[[nodiscard]] static dberr_t fts_query_execute(
+    fts_query_t *query,  /*!< in: query instance */
+    fts_string_t *token) /*!< in: token to search */
 {
   switch (query->oper) {
     case FTS_NONE:
@@ -3899,9 +3898,9 @@ static void fts_print_doc_id(
  search arguments to search the document again, thus "expand"
  the search result set.
  @return DB_SUCCESS if success, otherwise the error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    fts_expand_query(dict_index_t *index, /*!< in: FTS index to search */
-                     fts_query_t *query)  /*!< in: FTS query instance */
+[[nodiscard]] static dberr_t fts_expand_query(
+    dict_index_t *index, /*!< in: FTS index to search */
+    fts_query_t *query)  /*!< in: FTS query instance */
 {
   const ib_rbt_node_t *node;
   const ib_rbt_node_t *token_node;

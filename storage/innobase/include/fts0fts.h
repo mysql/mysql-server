@@ -515,9 +515,10 @@ CREATE TABLE $FTS_PREFIX_CONFIG
 @param[in]	name			table name normalized
 @param[in]	skip_doc_id_index	Skip index on doc id
 @return DB_SUCCESS if succeed */
-dberr_t fts_create_common_tables(trx_t *trx, const dict_table_t *table,
-                                 const char *name, bool skip_doc_id_index)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_create_common_tables(trx_t *trx,
+                                               const dict_table_t *table,
+                                               const char *name,
+                                               bool skip_doc_id_index);
 
 /** Creates the column specific ancillary tables needed for supporting an
 FTS index on the given table. row_mysql_lock_data_dictionary must have
@@ -534,8 +535,7 @@ CREAT TABLE $FTS_PREFIX_INDEX_[1-6](
 @param[in,out]	trx	transaction
 @param[in]	index	index instance
 @return DB_SUCCESS or error code */
-dberr_t fts_create_index_tables(trx_t *trx, dict_index_t *index)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_create_index_tables(trx_t *trx, dict_index_t *index);
 
 /** Create auxiliary index tables for an FTS index.
 @param[in,out]	trx		transaction
@@ -543,9 +543,10 @@ dberr_t fts_create_index_tables(trx_t *trx, dict_index_t *index)
 @param[in]	table_name	table name
 @param[in]	table_id	the table id
 @return DB_SUCCESS or error code */
-dberr_t fts_create_index_tables_low(trx_t *trx, dict_index_t *index,
-                                    const char *table_name, table_id_t table_id)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_create_index_tables_low(trx_t *trx,
+                                                  dict_index_t *index,
+                                                  const char *table_name,
+                                                  table_id_t table_id);
 
 /** Add the FTS document id hidden column.
 @param[in,out] table Table with FTS index
@@ -582,8 +583,7 @@ void fts_free_aux_names(aux_name_vec_t *aux_vec);
 /** The given transaction is about to be committed; do whatever is necessary
  from the FTS system's POV.
  @return DB_SUCCESS or error code */
-dberr_t fts_commit(trx_t *trx) /*!< in: transaction */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_commit(trx_t *trx); /*!< in: transaction */
 
 /** FTS Query entry point.
 @param[in]	trx		transaction
@@ -594,9 +594,9 @@ dberr_t fts_commit(trx_t *trx) /*!< in: transaction */
 @param[in,out]	result		result doc ids
 @param[in]	limit		limit value
 @return DB_SUCCESS if successful otherwise error code */
-dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
-                  const byte *query_str, ulint query_len, fts_result_t **result,
-                  ulonglong limit) MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
+                                const byte *query_str, ulint query_len,
+                                fts_result_t **result, ulonglong limit);
 
 /** Retrieve the FTS Relevance Ranking result for doc with doc_id
  @return the relevance ranking value. */

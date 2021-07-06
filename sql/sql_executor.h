@@ -36,7 +36,6 @@
 #include <vector>
 
 #include "my_alloc.h"
-#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/row_iterator.h"
@@ -162,9 +161,8 @@ class Semijoin_mat_exec {
 
 void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace);
 
-MY_ATTRIBUTE((warn_unused_result))
-bool copy_fields(Temp_table_param *param, const THD *thd,
-                 bool reverse_copy = false);
+[[nodiscard]] bool copy_fields(Temp_table_param *param, const THD *thd,
+                               bool reverse_copy = false);
 
 enum Copy_func_type : int {
   /**

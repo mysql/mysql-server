@@ -243,9 +243,9 @@ func_exit:
  If none left, or a partial rollback completed, returns control to the
  parent node, which is always a query thread node.
  @return DB_SUCCESS if operation successfully completed, else error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_undo(undo_node_t *node, /*!< in: row undo node */
-             que_thr_t *thr)    /*!< in: query thread */
+[[nodiscard]] static dberr_t row_undo(
+    undo_node_t *node, /*!< in: row undo node */
+    que_thr_t *thr)    /*!< in: query thread */
 {
   dberr_t err;
   trx_t *trx;

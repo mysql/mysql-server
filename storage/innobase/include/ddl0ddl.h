@@ -138,9 +138,7 @@ struct Dup {
   void report(const mrec_t *entry, const ulint *offsets) noexcept;
 
   /** @return true if no duplicates reported yet. */
-  bool empty() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_n_dup == 0;
-  }
+  [[nodiscard]] bool empty() const noexcept { return m_n_dup == 0; }
 
   /** Index being sorted */
   dict_index_t *m_index{};
@@ -161,8 +159,8 @@ struct Dup {
 @param[in] table                Table to lock.
 @param[in] mode                 Lock mode LOCK_X or LOCK_S
 @return error code or DB_SUCCESS */
-dberr_t lock_table(trx_t *trx, dict_table_t *table, lock_mode mode) noexcept
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dberr_t lock_table(trx_t *trx, dict_table_t *table,
+                                 lock_mode mode) noexcept;
 
 /** Drop those indexes which were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -177,8 +175,7 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept;
 UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
 @param[in] path                 Location for creating temporary merge files.
 @return File descriptor */
-os_fd_t file_create_low(const char *path) noexcept
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] os_fd_t file_create_low(const char *path) noexcept;
 
 /** Destroy a merge file. And de-register the file from Performance Schema
 if UNIV_PFS_IO is defined.
@@ -192,10 +189,9 @@ void file_destroy_low(os_fd_t fd) noexcept;
 @param[in] add_v                New virtual columns added along with add
                                 index call
 @return index, or nullptr on error */
-dict_index_t *create_index(trx_t *trx, dict_table_t *table,
-                           const Index_defn *index_def,
-                           const dict_add_v_col_t *add_v) noexcept
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] dict_index_t *create_index(
+    trx_t *trx, dict_table_t *table, const Index_defn *index_def,
+    const dict_add_v_col_t *add_v) noexcept;
 
 /** Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
@@ -399,65 +395,56 @@ struct Context {
 
   /** Build the indexes.
   @return DB_SUCCESS or error code. */
-  dberr_t build() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t build() noexcept;
 
   /** @return the flush observer to use for flushing. */
-  Flush_observer *flush_observer() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] Flush_observer *flush_observer() noexcept;
 
   /** @return the old table. */
-  dict_table_t *old_table() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_old_table;
-  }
+  [[nodiscard]] dict_table_t *old_table() noexcept { return m_old_table; }
 
   /** @return the new table. */
-  dict_table_t *new_table() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_new_table;
-  }
+  [[nodiscard]] dict_table_t *new_table() noexcept { return m_new_table; }
 
   /** Calculate the sort and  buffer size per thread.
   @param[in] n_threads          Total number of threads used for scanning.
   @return the sort and IO buffer size per thread. */
-  Scan_buffer_size scan_buffer_size(size_t n_threads) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] Scan_buffer_size scan_buffer_size(
+      size_t n_threads) const noexcept;
 
   /** Calculate the io buffer size per file for the sort phase.
   @param[in] n_buffers          Total number of buffers to use for the merge.
   @return the sort buffer size for one instance. */
-  size_t merge_io_buffer_size(size_t n_buffers) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t merge_io_buffer_size(size_t n_buffers) const noexcept;
 
   /** Calculate the io buffer size per file for the load phase.
   @param[in] n_buffers          Total number of buffers to use for the loading.
   @return the per thread io buffer size. */
-  size_t load_io_buffer_size(size_t n_buffers) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t load_io_buffer_size(size_t n_buffers) const noexcept;
 
   /** Request number of bytes for a buffer.
   @param[in] n                  Number of bytes requested.
   @return the number of bytes available. */
-  size_t allocate(size_t n) const MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] size_t allocate(size_t n) const;
 
   /** @return the server session/connection context. */
-  THD *thd() noexcept MY_ATTRIBUTE((warn_unused_result))
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] THD *thd() noexcept;
 
   /** Copy the added columns dtuples so that we don't use the same
   column data buffer for the added column across multiple threads.
   @return new instance or nullptr if out of memory. */
-  dtuple_t *create_add_cols() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dtuple_t *create_add_cols() noexcept;
 
  private:
   /** @return the cluster index read cursor. */
-  Cursor *cursor() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_cursor;
-  }
+  [[nodiscard]] Cursor *cursor() noexcept { return m_cursor; }
 
   /** @return the original table cluster index. */
-  const dict_index_t *index() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] const dict_index_t *index() const noexcept;
 
   /** Initialize the context for a cluster index scan.
   @param[in,out] cursor         Cursor used for the cluster index read. */
-  dberr_t read_init(Cursor *cursor) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t read_init(Cursor *cursor) noexcept;
 
   /** Initialize the FTS build infrastructue.
   @param[in,out] index          Index prototype to build.
@@ -466,19 +453,18 @@ struct Context {
 
   /** Setup the FTS index build data structres.
   @return DB_SUCCESS or error code. */
-  dberr_t setup_fts_build() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t setup_fts_build() noexcept;
 
   /** Get the next Doc ID and increment the current value.
   @return a document ID. */
-  doc_id_t next_doc_id() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] doc_id_t next_doc_id() noexcept;
 
   /** Update the FTS document ID. */
   void update_fts_doc_id() noexcept;
 
   /** Check the state of the online build log for the index.
   @return DB_SUCCESS or error code. */
-  dberr_t check_state_of_online_build_log() noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t check_state_of_online_build_log() noexcept;
 
   /** Track the highest TxID that modified this index when the scan
   was completed. We prevent older readers from accessing this index, to
@@ -489,8 +475,7 @@ struct Context {
   /** Setup the primary key sort.
   @param[in,out] cursor         Setup the primary key data structures.
   @return DB_SUCCESS or erro code. */
-  dberr_t setup_pk_sort(Cursor *cursor) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t setup_pk_sort(Cursor *cursor) noexcept;
 
   /** Init the non-null column constraints checks (if required). */
   void setup_nonnull() noexcept;
@@ -498,28 +483,26 @@ struct Context {
   /** Check if the nonnull columns satisy the constraint.
   @param[in] row                Row to check.
   @return true on success. */
-  bool check_null_constraints(const dtuple_t *row) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool check_null_constraints(const dtuple_t *row) const noexcept;
 
   /** Clean up the data structures at the end of the DDL.
   @param[in] err                Status of the DDL.
   @return DB_SUCCESS or error code. */
-  dberr_t cleanup(dberr_t err) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t cleanup(dberr_t err) noexcept;
 
   /** Handle auto increment.
   @param[in] row                Row with autoinc column.
   @return DB_SUCCESS or error code. */
-  dberr_t handle_autoinc(const dtuple_t *row) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t handle_autoinc(const dtuple_t *row) noexcept;
 
   /** @return true if any virtual columns are involved. */
-  bool has_virtual_columns() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool has_virtual_columns() const noexcept;
 
   /** @return true if any FTS indexes are involved. */
-  bool has_fts_indexes() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool has_fts_indexes() const noexcept;
 
   /** @return true if the DDL was interrupted. */
-  bool is_interrupted() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool is_interrupted() noexcept;
 
  private:
   using Key_numbers = std::vector<size_t, ut_allocator<size_t>>;

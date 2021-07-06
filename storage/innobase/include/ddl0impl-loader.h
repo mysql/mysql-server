@@ -59,7 +59,7 @@ class Loader {
 
     /** Do the operation.
     @return DB_SUCCESS or error code. */
-    dberr_t operator()() noexcept MY_ATTRIBUTE((warn_unused_result));
+    [[nodiscard]] dberr_t operator()() noexcept;
 
    private:
     /** Builder instance. */
@@ -83,7 +83,7 @@ class Loader {
 
   /** Build the read instance.
   @return DB_SUCCESS or error code. */
-  dberr_t build_all() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t build_all() noexcept;
 
   /** Add a task to the task queue.
   @param[in] task               Task to add. */
@@ -91,20 +91,20 @@ class Loader {
 
   /** Validate the indexes (except FTS).
   @return true on success. */
-  bool validate_indexes() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool validate_indexes() const noexcept;
 
  private:
   /** Prepare to build and load the indexes.
   @return DB_SUCCESS or error code. */
-  dberr_t prepare() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t prepare() noexcept;
 
   /** Load the indexes.
   @return DB_SUCCESS or error code. */
-  dberr_t load() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t load() noexcept;
 
   /** Scan and build the indexes.
   @return DB_SUCCESS or error code. */
-  dberr_t scan_and_build_indexes() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t scan_and_build_indexes() noexcept;
 
  private:
   /** DDL context, shared by the loader threads. */

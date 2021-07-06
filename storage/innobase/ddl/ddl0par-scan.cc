@@ -57,29 +57,23 @@ struct Parallel_cursor : public Cursor {
   void open() noexcept override {}
 
   /** @return the index being iterated over. */
-  dict_index_t *index() noexcept override MY_ATTRIBUTE((warn_unused_result)) {
-    return m_index;
-  }
+  [[nodiscard]] dict_index_t *index() noexcept override { return m_index; }
 
   /** Reads clustered index of the table and create temporary files
   containing the index entries for the indexes to be built.
   @param[in,out] builders Merge buffers to use for reading.
   @return DB_SUCCESS or error code. */
-  dberr_t scan(Builders &builders) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t scan(Builders &builders) noexcept override;
 
   /** Copy the row data, by default only the pointers are copied.
   @param[in] thread_id          Scan thread ID.
   @param[in,out] row            Row to copy.
   @return DB_SUCCESS or error code. */
-  virtual dberr_t copy_row(size_t thread_id, Row &row) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] virtual dberr_t copy_row(size_t thread_id,
+                                         Row &row) noexcept override;
 
   /** @return true if EOF reached. */
-  virtual bool eof() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result)) {
-    return m_eof;
-  }
+  [[nodiscard]] virtual bool eof() const noexcept override { return m_eof; }
 
  private:
   using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;

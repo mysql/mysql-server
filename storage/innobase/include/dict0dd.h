@@ -685,8 +685,9 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @param[in]	table	table name
 @retval false if acquired, or trylock timed out
 @retval true if failed (my_error() will have been called) */
-static inline MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
-    THD *thd, MDL_ticket **mdl, const char *db, const char *table);
+[[nodiscard]] static inline bool dd_mdl_acquire(THD *thd, MDL_ticket **mdl,
+                                                const char *db,
+                                                const char *table);
 
 /** Release a metadata lock.
 @param[in,out]	thd	current thread
@@ -1097,8 +1098,8 @@ bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
-MY_ATTRIBUTE((warn_unused_result))
-innodb_session_t *&thd_to_innodb_session(THD *thd);
+
+[[nodiscard]] innodb_session_t *&thd_to_innodb_session(THD *thd);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
@@ -1341,8 +1342,8 @@ the dictionary.
 @param[in,out]	thd	thread handle
 @retval	true	on error
 @retval	false	on success */
-MY_ATTRIBUTE((warn_unused_result))
-bool dd_tablespace_update_cache(THD *thd);
+
+[[nodiscard]] bool dd_tablespace_update_cache(THD *thd);
 
 /* Check if the table belongs to an encrypted tablespace.
 @return true if it does. */

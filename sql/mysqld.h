@@ -38,7 +38,6 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_command.h"
-#include "my_compiler.h"
 #include "my_compress.h"
 #include "my_getopt.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
@@ -732,15 +731,14 @@ int *get_remaining_argc();
 char ***get_remaining_argv();
 
 /* increment query_id and return it.  */
-inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id() {
+[[nodiscard]] inline query_id_t next_query_id() {
   return ++atomic_global_query_id;
 }
 
 #define ER(X) please_use_ER_THD_or_ER_DEFAULT_instead(X)
 
 /* Accessor function for _connection_events_loop_aborted flag */
-inline MY_ATTRIBUTE(
-    (warn_unused_result)) bool connection_events_loop_aborted() {
+[[nodiscard]] inline bool connection_events_loop_aborted() {
   return connection_events_loop_aborted_flag.load();
 }
 

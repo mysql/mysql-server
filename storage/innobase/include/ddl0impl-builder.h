@@ -94,12 +94,10 @@ struct Builder {
   void set_error(dberr_t err) noexcept { m_ctx.set_error(err, m_id); }
 
   /** @return the instance ID. */
-  size_t id() const noexcept MY_ATTRIBUTE((warn_unused_result)) { return m_id; }
+  [[nodiscard]] size_t id() const noexcept { return m_id; }
 
   /** @return the index being built. */
-  dict_index_t *index() noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_sort_index;
-  }
+  [[nodiscard]] dict_index_t *index() noexcept { return m_sort_index; }
 
   /** @return the DDL context. */
   Context &ctx() noexcept { return m_ctx; }
@@ -108,23 +106,23 @@ struct Builder {
   void fallback_to_single_thread() noexcept;
 
   /** @return true if the index is a spatial index. */
-  bool is_spatial_index() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_spatial_index() const noexcept {
     return dict_index_is_spatial(m_index);
   }
 
   /** @return true if the index is an FTS index. */
-  bool is_fts_index() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_fts_index() const noexcept {
     return m_index->type & DICT_FTS;
   }
 
   /** @return true if the index is a unique index. */
-  bool is_unique_index() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_unique_index() const noexcept {
     ut_a(!is_fts_index());
     return dict_index_is_unique(m_sort_index);
   }
 
   /** @return the current builder state. */
-  State get_state() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] State get_state() const noexcept {
     return m_state.load(std::memory_order_seq_cst);
   }
 
@@ -144,8 +142,7 @@ struct Builder {
   @param[in,out] cursor         Cursor to initialize.
   @param[in] n_threads          Number of threads used for reading.
   @return DB_SUCCESS or error code. */
-  dberr_t init(Cursor &cursor, size_t n_threads) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t init(Cursor &cursor, size_t n_threads) noexcept;
 
   /** Add a row to the merge buffer.
   @param[in,out]	cursor        Current scan cursor.
@@ -153,9 +150,8 @@ struct Builder {
   @param[in] thread_id          ID of current thread.
   @param[in,out] latch_release  Called when a log free check is required.
   @return DB_SUCCESS or error code. */
-  dberr_t add_row(Cursor &cursor, Row &row, size_t thread_id,
-                  Latch_release &&latch_release) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t add_row(Cursor &cursor, Row &row, size_t thread_id,
+                                Latch_release &&latch_release) noexcept;
 
   /** @return true if file sorting can be skipped. */
   bool is_skip_file_sort() const noexcept {
@@ -164,21 +160,20 @@ struct Builder {
 
   /** FTS: Sort and insert the rows read.
   @return DB_SUCCESS or error code. */
-  dberr_t fts_sort_and_build() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fts_sort_and_build() noexcept;
 
   /** Non-FTS: Sort the rows read.
   @return DB_SUCCESS or error code. */
-  dberr_t setup_sort() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t setup_sort() noexcept;
 
   /** Non-FTS: Sort the rows read.
   @param[in] thread_id           Thread state ID.
   @return DB_SUCCESS or error code. */
-  dberr_t merge_sort(size_t thread_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t merge_sort(size_t thread_id) noexcept;
 
   /** Load the sorted data into the B+Tree.
   @return DB_SUCESS or error code. */
-  dberr_t btree_build() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t btree_build() noexcept;
 
   /** Close temporary files, Flush all dirty pages, apply the row log
   and write the redo log record.
@@ -191,16 +186,16 @@ struct Builder {
   @param[in] mrec               Current row.
   @param[in,out] heap           Heap for the allocating tuple memory.
   @return DB_SUCCESS or error code. */
-  dberr_t dtuple_copy_blobs(dtuple_t *dtuple, ulint *offsets,
-                            const mrec_t *mrec, mem_heap_t *heap) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t dtuple_copy_blobs(dtuple_t *dtuple, ulint *offsets,
+                                          const mrec_t *mrec,
+                                          mem_heap_t *heap) noexcept;
 
   /** Write data to disk - in append mode. Increment the file size.
   @param[in,out] file           File handle.
   @param[in] file_buffer        Write the buffer contents to disk.
   @return DB_SUCCESS or error code. */
-  dberr_t append(ddl::file_t &file, IO_buffer file_buffer) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t append(ddl::file_t &file,
+                               IO_buffer file_buffer) noexcept;
 
   /** @return the path for temporary files. */
   const char *tmpdir() const noexcept { return m_tmpdir; }
@@ -209,8 +204,8 @@ struct Builder {
   @param[in] thread_id          Insert cached rows for this thread ID.
   @param[in,out] latch_release  Called when a log free check is required.
   @return DB_SUCCESS or error number */
-  dberr_t batch_insert(size_t thread_id, Latch_release &&latch_release) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t batch_insert(size_t thread_id,
+                                     Latch_release &&latch_release) noexcept;
 
   /** Note that the latches are going to be released. Do a deep copy of the
   tuples that are being inserted in batches by batch_insert
@@ -219,8 +214,7 @@ struct Builder {
 
   /** Check the state of the online build log for the index.
   @return DB_SUCCESS or error code. */
-  dberr_t check_state_of_online_build_log() noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t check_state_of_online_build_log() noexcept;
 
   /** Destroy a merge file.
   @param[in,out] file           Merge file to delete. */
@@ -273,7 +267,7 @@ struct Builder {
   /** Create the tasks to merge Sort the file before we load the file into
   the Btree index.
   @return DB_SUCCESS or error code. */
-  dberr_t create_merge_sort_tasks() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t create_merge_sort_tasks() noexcept;
 
   /** Flush all dirty pages, apply the row log and write the redo log record.
   @return DB_SUCCESS or error code. */
@@ -314,8 +308,7 @@ struct Builder {
   @param[in,out] row            Row to add.
   @param[in] thread_id          ID of current thread.
   @return DB_SUCCESS or error code. */
-  dberr_t batch_add_row(Row &row, size_t thread_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t batch_add_row(Row &row, size_t thread_id) noexcept;
 
   /** Add a row to the merge buffer.
   @param[in,out]	cursor        Current scan cursor.
@@ -323,9 +316,8 @@ struct Builder {
   @param[in] thread_id          ID of current thread.
   @param[in,out] latch_release  Called when a log free check is required.
   @return DB_SUCCESS or error code. */
-  dberr_t bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
-                       Latch_release &&latch_release) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
+                                     Latch_release &&latch_release) noexcept;
 
   /** Clear the heap used for virtual columns. */
   void clear_virtual_heap() noexcept { m_v_heap.clear(); }
@@ -341,8 +333,7 @@ struct Builder {
   @param[in,out] ctx             Copy context.
   @param[in,out] mv_rows_added   Number of multi-value rows added.
   @return DB_SUCCESS or error code. */
-  dberr_t copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept;
 
   /** Setup the virtual column src column.
   @param[in,out] ctx            Copy context.
@@ -351,33 +342,33 @@ struct Builder {
   @param[out] src_field         Computed value.
   @param[in,out] mv_rows_added  Number of multi-value rows added.
   @return DB_SUCCESS or error code. */
-  dberr_t get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
-                             dict_col_t *col, dfield_t *&src_field,
-                             size_t &mv_rows_added) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t get_virtual_column(Copy_ctx &ctx,
+                                           const dict_field_t *ifield,
+                                           dict_col_t *col,
+                                           dfield_t *&src_field,
+                                           size_t &mv_rows_added) noexcept;
 
   /** Copy the FTS columns.
   @param[in,out] ctx            Copy context.
   @param[in,out] field          Field to write to.
   @return DB_SUCCESS or error code. */
-  dberr_t copy_fts_column(Copy_ctx &ctx, dfield_t *field) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t copy_fts_column(Copy_ctx &ctx,
+                                        dfield_t *field) noexcept;
 
   /** Copy the columns to the temporary file buffer.
   @param[in,out] ctx            Copy context.
   @param[in,out] mv_rows_added  Multi value rows added.
   @param[in,out] write_doc_id   Buffer for storing the FTS doc ID.
   @return DB_SUCCESS or error code. */
-  dberr_t copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
-                       doc_id_t &write_doc_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
+                                     doc_id_t &write_doc_id) noexcept;
 
   /** Add row to the key buffer.
   @param[in,out] ctx            Copy context.
   @param[in,out] mv_rows_added  Number of multi-value index rows added.
   @return DB_SUCCESS or error code. */
-  dberr_t add_to_key_buffer(Copy_ctx &ctx, size_t &mv_rows_added) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t add_to_key_buffer(Copy_ctx &ctx,
+                                          size_t &mv_rows_added) noexcept;
 
   /** Wait for FTS completion.
   @param[in] index             Index being built. */
@@ -386,8 +377,7 @@ struct Builder {
   /** Sort the data in the key buffer.
   @param[in] thread_id          Thread ID of current thread.
   @return DB_SUCCESS or error code. */
-  dberr_t key_buffer_sort(size_t thread_id) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t key_buffer_sort(size_t thread_id) noexcept;
 
   /** Sort the buffer in memory and insert directly in the BTree loader,
   don't write to a temporary file.
@@ -401,15 +391,14 @@ struct Builder {
   /** Create the file, if needed.
   @param[in,out] file           File handle.
   @return file handle for the merge file. */
-  os_fd_t create_file(ddl::file_t &file) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] os_fd_t create_file(ddl::file_t &file) noexcept;
 
   /** Check for duplicates in the first block
   @param[in] dupcheck           Files to check for duplicates.
   @param[in,out] dup            For collecting duplicate key information.
   @return DB_SUCCESS or error code. */
-  dberr_t check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck,
+                                         Dup *dup) noexcept;
 
  private:
   /** Buffer ID. */
@@ -468,13 +457,10 @@ struct Load_cursor : Btree_load::Cursor {
   virtual ~Load_cursor() override = default;
 
   /** @return the cursor error status. */
-  dberr_t get_err() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_err;
-  }
+  [[nodiscard]] dberr_t get_err() const noexcept { return m_err; }
 
   /** @return true if duplicates detected. */
-  bool duplicates_detected() const noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool duplicates_detected() const noexcept override;
 
   /** Duplicate checking and reporting. */
   Dup *m_dup{};
@@ -508,61 +494,56 @@ struct Merge_cursor : public Load_cursor {
   @param[in] file               File to merge from.
   @param[in] buffer_size        IO buffer size to use for reading.
   @return DB_SUCCESS or error code. */
-  dberr_t add_file(const ddl::file_t &file, size_t buffer_size) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t add_file(const ddl::file_t &file,
+                                 size_t buffer_size) noexcept;
 
   /** Add the cursor to use for merge load.
   @param[in] file               File file to read.
   @param[in] buffer_size        IO buffer size to use for reading.
   @param[in] offset             Page to read from.
   @return DB_SUCCESS or error code. */
-  dberr_t add_file(const ddl::file_t &file, size_t buffer_size,
-                   os_offset_t offset) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t add_file(const ddl::file_t &file, size_t buffer_size,
+                                 os_offset_t offset) noexcept;
 
   /** Open the cursor.
   @return DB_SUCCESS or error code. */
-  dberr_t open() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t open() noexcept;
 
   /** Fetch the current row as a tuple. Note: Tuple columns are shallow copies.
   @param[out] dtuple            Row represented as a tuple.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch(dtuple_t *&dtuple) noexcept override
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(dtuple_t *&dtuple) noexcept override;
 
   /** Fetch the current row.
   @param[out] mrec              Current merge record.
   @param[out] offsets           Columns offsets inside mrec.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t fetch(const mrec_t *&mrec, ulint *&offsets) noexcept;
 
   /** Move to the next record.
   @return DB_SUCCESS, DB_END_OF_INDEX or error code. */
-  dberr_t next() noexcept override MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t next() noexcept override;
 
   /** @return the file reader instances. */
-  File_readers file_readers() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] File_readers file_readers() noexcept;
 
   /** Add the active cursors to the priority queue. */
   void clear_eof() noexcept;
 
   /** @return the number of active readers. */
-  size_t size() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_pq.size();
-  }
+  [[nodiscard]] size_t size() const noexcept { return m_pq.size(); }
 
   /** @return the number of rows read from the files. */
-  uint64_t get_n_rows() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] uint64_t get_n_rows() const noexcept;
 
   /** @return the number of cursors being merged. */
-  size_t number_of_cursors() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] size_t number_of_cursors() const noexcept {
     return m_cursors.size();
   }
 
  private:
   /** @return the current cursor at the head of the queue. */
-  File_cursor *pop() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] File_cursor *pop() noexcept;
 
  private:
   /** Comparator. */

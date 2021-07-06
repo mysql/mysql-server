@@ -467,18 +467,16 @@ owns RW_LOCK_X only, the rw_lock_own(..,RW_LOCK_S) will return false.
 @param[in]  lock_type   The exact lock type to check:
                         RW_LOCK_S, RW_LOCK_SX or RW_LOCK_X
  */
-bool rw_lock_own(const rw_lock_t *lock, ulint lock_type)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool rw_lock_own(const rw_lock_t *lock, ulint lock_type);
 
 /** Checks if the thread has locked the rw-lock in the specified mode, with
  the pass value == 0. */
-bool rw_lock_own_flagged(
-    const rw_lock_t *lock, /*!< in: rw-lock */
-    rw_lock_flags_t flags) /*!< in: specify lock types with
+[[nodiscard]] bool rw_lock_own_flagged(
+    const rw_lock_t *lock,  /*!< in: rw-lock */
+    rw_lock_flags_t flags); /*!< in: specify lock types with
                            OR of the rw_lock_flag_t values */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
+#endif                      /* UNIV_DEBUG */
+#endif                      /* !UNIV_HOTBACKUP */
 /** Checks if somebody has locked the rw-lock in the specified mode.
  @return true if locked */
 bool rw_lock_is_locked(rw_lock_t *lock,  /*!< in: rw-lock */

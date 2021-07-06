@@ -89,11 +89,10 @@ static inline void upd_field_set_v_field_no(upd_field_t *upd_field,
                                             const dict_index_t *index);
 /** Returns a field of an update vector by field_no.
  @return update vector field, or NULL */
-static inline const upd_field_t *upd_get_field_by_field_no(
+[[nodiscard]] static inline const upd_field_t *upd_get_field_by_field_no(
     const upd_t *update, /*!< in: update vector */
     ulint no,            /*!< in: field_no */
-    bool is_virtual)     /*!< in: if it is a virtual column */
-    MY_ATTRIBUTE((warn_unused_result));
+    bool is_virtual);    /*!< in: if it is a virtual column */
 /** Writes into the redo log the values of trx id and roll ptr and enough info
  to determine their positions within a clustered index record.
  @return new pointer to mlog */
@@ -157,9 +156,8 @@ ibool row_upd_changes_field_size_or_external(
     const upd_t *update);      /*!< in: update vector */
 /** Returns true if row update contains disowned external fields.
  @return true if the update contains disowned external fields. */
-bool row_upd_changes_disowned_external(
-    const upd_t *update) /*!< in: update vector */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_upd_changes_disowned_external(
+    const upd_t *update); /*!< in: update vector */
 /** Replaces the new column values stored in the update vector to the
  record given. No field size changes are allowed. This function is
  usually invoked on a clustered index. The only use case for a
@@ -176,13 +174,12 @@ void row_upd_rec_in_place(
  differ from a record that has the equal ordering fields. NOTE: we compare
  the fields as binary strings!
  @return own: update vector of differing fields */
-upd_t *row_upd_build_sec_rec_difference_binary(
+[[nodiscard]] upd_t *row_upd_build_sec_rec_difference_binary(
     const rec_t *rec,      /*!< in: secondary index record */
     dict_index_t *index,   /*!< in: index */
     const ulint *offsets,  /*!< in: rec_get_offsets(rec, index) */
     const dtuple_t *entry, /*!< in: entry to insert */
-    mem_heap_t *heap)      /*!< in: memory heap from which allocated */
-    MY_ATTRIBUTE((warn_unused_result));
+    mem_heap_t *heap);     /*!< in: memory heap from which allocated */
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -200,12 +197,10 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
-upd_t *row_upd_build_difference_binary(dict_index_t *index,
-                                       const dtuple_t *entry, const rec_t *rec,
-                                       const ulint *offsets, bool no_sys,
-                                       trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table, dberr_t *error)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] upd_t *row_upd_build_difference_binary(
+    dict_index_t *index, const dtuple_t *entry, const rec_t *rec,
+    const ulint *offsets, bool no_sys, trx_t *trx, mem_heap_t *heap,
+    TABLE *mysql_table, dberr_t *error);
 
 /** Replaces the new column values stored in the update vector to the index
  entry given.
@@ -288,15 +283,12 @@ NOTE: we compare the fields as binary strings!
 @param[in]	flag		ROW_BUILD_NORMAL, ROW_BUILD_FOR_PURGE or
                                 ROW_BUILD_FOR_UNDO
 @return true if update vector changes an ordering field in the index record */
-bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
-                                           const upd_t *update,
+[[nodiscard]] bool row_upd_changes_ord_field_binary_func(
+    dict_index_t *index, const upd_t *update,
 #ifdef UNIV_DEBUG
-                                           const que_thr_t *thr,
+    const que_thr_t *thr,
 #endif /* UNIV_DEBUG */
-                                           const dtuple_t *row,
-                                           const row_ext_t *ext,
-                                           bool *non_mv_upd, ulint flag)
-    MY_ATTRIBUTE((warn_unused_result));
+    const dtuple_t *row, const row_ext_t *ext, bool *non_mv_upd, ulint flag);
 
 #ifdef UNIV_DEBUG
 #define row_upd_changes_ord_field_binary(index, update, thr, row, ext, \
@@ -317,9 +309,9 @@ ulint row_upd_changes_fts_column(
     upd_field_t *upd_field); /*!< in: field to check */
 /** Checks if an FTS Doc ID column is affected by an UPDATE.
  @return whether Doc ID column is affected */
-bool row_upd_changes_doc_id(dict_table_t *table,    /*!< in: table */
-                            upd_field_t *upd_field) /*!< in: field to check */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_upd_changes_doc_id(
+    dict_table_t *table,     /*!< in: table */
+    upd_field_t *upd_field); /*!< in: field to check */
 /** Checks if an update vector changes an ordering field of an index record.
  This function is fast if the update vector is short or the number of ordering
  fields in the index is small. Otherwise, this can be quadratic.

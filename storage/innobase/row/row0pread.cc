@@ -222,8 +222,7 @@ class PCursor {
   /** Move to the next block.
   @param[in]  index             Index being traversed.
   @return DB_SUCCESS or error code. */
-  dberr_t move_to_next_block(dict_index_t *index)
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t move_to_next_block(dict_index_t *index);
 
   /** Restore the cursor position. */
   void restore_position() noexcept {
@@ -285,20 +284,19 @@ class PCursor {
   }
 
   /** @return the current page cursor. */
-  page_cur_t *get_page_cursor() noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] page_cur_t *get_page_cursor() noexcept {
     return m_pcur->get_page_cur();
   }
 
   /** Restore from a saved position.
   @return DB_SUCCESS or error code. */
-  dberr_t restore_from_savepoint() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t restore_from_savepoint() noexcept;
 
   /** Move to the first user rec on the restored page. */
-  dberr_t move_to_user_rec() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t move_to_user_rec() noexcept;
 
   /** @return true if cursor is after last on page. */
-  bool is_after_last_on_page() const noexcept
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_after_last_on_page() const noexcept {
     return m_pcur->is_after_last_on_page();
   }
 

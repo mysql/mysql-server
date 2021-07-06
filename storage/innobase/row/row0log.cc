@@ -230,7 +230,7 @@ struct row_log_t {
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
-static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
+[[nodiscard]] static int row_log_tmpfile(row_log_t *log) {
   DBUG_TRACE;
   if (log->fd < 0) {
     log->fd = ddl::file_create_low(log->path);
@@ -248,8 +248,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
 @return true if success, false if not */
-static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
-    row_log_buf_t &log_buf) {
+[[nodiscard]] static bool row_log_block_allocate(row_log_buf_t &log_buf) {
   DBUG_TRACE;
   if (log_buf.block == nullptr) {
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
@@ -415,7 +414,7 @@ dberr_t row_log_table_get_error(
 
 /** Starts logging an operation to a table that is being rebuilt.
  @return pointer to log, or NULL if no logging is necessary */
-static MY_ATTRIBUTE((warn_unused_result)) byte *row_log_table_open(
+[[nodiscard]] static byte *row_log_table_open(
     row_log_t *log, /*!< in/out: online rebuild log */
     ulint size,     /*!< in: size of log record */
     ulint *avail)   /*!< out: available size for log record */
@@ -1298,18 +1297,17 @@ void row_log_table_blob_alloc(
 
 /** Converts a log record to a table row.
  @return converted row, or NULL if the conversion fails */
-static MY_ATTRIBUTE((warn_unused_result))
-    const dtuple_t *row_log_table_apply_convert_mrec(
-        trx_t *trx,              /*!< in: current transaction */
-        const ddl::mrec_t *mrec, /*!< in: merge record */
-        dict_index_t *index,     /*!< in: index of mrec */
-        const ulint *offsets,    /*!< in: offsets of mrec */
-        const row_log_t *log,    /*!< in: rebuild context */
-        mem_heap_t *heap,        /*!< in/out: memory heap */
-        trx_id_t trx_id,         /*!< in: DB_TRX_ID of mrec */
-        dberr_t *error)          /*!< out: DB_SUCCESS or
-                                 DB_MISSING_HISTORY or
-                                 reason of failure */
+[[nodiscard]] static const dtuple_t *row_log_table_apply_convert_mrec(
+    trx_t *trx,              /*!< in: current transaction */
+    const ddl::mrec_t *mrec, /*!< in: merge record */
+    dict_index_t *index,     /*!< in: index of mrec */
+    const ulint *offsets,    /*!< in: offsets of mrec */
+    const row_log_t *log,    /*!< in: rebuild context */
+    mem_heap_t *heap,        /*!< in/out: memory heap */
+    trx_id_t trx_id,         /*!< in: DB_TRX_ID of mrec */
+    dberr_t *error)          /*!< out: DB_SUCCESS or
+                             DB_MISSING_HISTORY or
+                             reason of failure */
 {
   dtuple_t *row;
   ulint num_v = dict_table_get_n_v_cols(log->table);
@@ -1464,10 +1462,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_insert_multi_value(uint32_t flags, dict_index_t *index,
-                             mem_heap_t *offsets_heap, mem_heap_t *heap,
-                             dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
+[[nodiscard]] static dberr_t apply_insert_multi_value(
+    uint32_t flags, dict_index_t *index, mem_heap_t *offsets_heap,
+    mem_heap_t *heap, dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_insert mv_entry_builder(index, entry);
 
@@ -1486,17 +1483,16 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_insert_low(
-        que_thr_t *thr,           /*!< in: query graph */
-        const dtuple_t *row,      /*!< in: table row
-                                  in the old table definition */
-        trx_id_t trx_id,          /*!< in: trx_id of the row */
-        mem_heap_t *offsets_heap, /*!< in/out: memory heap
-                                  that can be emptied */
-        mem_heap_t *heap,         /*!< in/out: memory heap */
-        ddl::Dup *dup)            /*!< in/out: for reporting
-                                         duplicate key errors */
+[[nodiscard]] static dberr_t row_log_table_apply_insert_low(
+    que_thr_t *thr,           /*!< in: query graph */
+    const dtuple_t *row,      /*!< in: table row
+                              in the old table definition */
+    trx_id_t trx_id,          /*!< in: trx_id of the row */
+    mem_heap_t *offsets_heap, /*!< in/out: memory heap
+                              that can be emptied */
+    mem_heap_t *heap,         /*!< in/out: memory heap */
+    ddl::Dup *dup)            /*!< in/out: for reporting
+                                     duplicate key errors */
 {
   dberr_t error;
   dtuple_t *entry;
@@ -1562,7 +1558,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
+[[nodiscard]] static dberr_t row_log_table_apply_insert(
     que_thr_t *thr,           /*!< in: query graph */
     const ddl::mrec_t *mrec,  /*!< in: record to insert */
     const ulint *offsets,     /*!< in: offsets of mrec */
@@ -1614,9 +1610,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_insert(
 @param[in]	entry	entry to delete
 @param[in,out]	pcur	B-tree cursor
 @return DB_SUCCESS or error code */
-static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_delete_sec(dict_index_t *index, const dtuple_t *entry,
-                             btr_pcur_t *pcur) {
+[[nodiscard]] static inline dberr_t row_log_table_delete_sec(
+    dict_index_t *index, const dtuple_t *entry, btr_pcur_t *pcur) {
   dberr_t error;
   mtr_t mtr;
 
@@ -1669,10 +1664,9 @@ flag_ok:
 @param[in,out]	pcur	B-tree cursor
 @param[in,out]	heap	memory heap
 @return DB_SUCCESS or error code */
-static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_delete_multi_value(const dtuple_t *row, row_ext_t *ext,
-                             dict_index_t *index, btr_pcur_t *pcur,
-                             mem_heap_t *heap) {
+[[nodiscard]] static inline dberr_t apply_delete_multi_value(
+    const dtuple_t *row, row_ext_t *ext, dict_index_t *index, btr_pcur_t *pcur,
+    mem_heap_t *heap) {
   dberr_t err = DB_SUCCESS;
   Multi_value_entry_builder_normal mv_entry_builder(row, ext, index, heap, true,
                                                     false);
@@ -1692,17 +1686,16 @@ static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Deletes a record from a table that is being rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_delete_low(
-        trx_t *trx,             /*!< in: current transaction*/
-        btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
-                                will be trashed */
-        const dtuple_t *ventry, /*!< in: dtuple holding
-                                virtual column info */
-        const ulint *offsets,   /*!< in: offsets on pcur */
-        mem_heap_t *heap,       /*!< in/out: memory heap */
-        mtr_t *mtr)             /*!< in/out: mini-transaction,
-                                will be committed */
+[[nodiscard]] static dberr_t row_log_table_apply_delete_low(
+    trx_t *trx,             /*!< in: current transaction*/
+    btr_pcur_t *pcur,       /*!< in/out: B-tree cursor,
+                            will be trashed */
+    const dtuple_t *ventry, /*!< in: dtuple holding
+                            virtual column info */
+    const ulint *offsets,   /*!< in: offsets on pcur */
+    mem_heap_t *heap,       /*!< in/out: memory heap */
+    mtr_t *mtr)             /*!< in/out: mini-transaction,
+                            will be committed */
 {
   dberr_t error;
   row_ext_t *ext = nullptr;
@@ -1761,7 +1754,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays a delete operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_delete(
+[[nodiscard]] static dberr_t row_log_table_apply_delete(
     que_thr_t *thr,           /*!< in: query graph */
     ulint trx_id_col,         /*!< in: position of
                               DB_TRX_ID in the new
@@ -1897,12 +1890,11 @@ flag_ok:
 @param[in,out]	offsets_heap	memory heap that can be emptied
 @param[in,out]	heap		memory heap
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_update_multi_value(dict_index_t *index, uint32_t n_index,
-                             const dtuple_t *old_row, row_ext_t *old_ext,
-                             const dtuple_t *new_row, bool non_mv_upd,
-                             trx_id_t trx_id, que_thr_t *thr,
-                             mem_heap_t *offsets_heap, mem_heap_t *heap) {
+[[nodiscard]] static dberr_t apply_update_multi_value(
+    dict_index_t *index, uint32_t n_index, const dtuple_t *old_row,
+    row_ext_t *old_ext, const dtuple_t *new_row, bool non_mv_upd,
+    trx_id_t trx_id, que_thr_t *thr, mem_heap_t *offsets_heap,
+    mem_heap_t *heap) {
   btr_pcur_t pcur;
   mtr_t mtr;
   dberr_t error = DB_SUCCESS;
@@ -1964,7 +1956,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /** Replays an update operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
+[[nodiscard]] static dberr_t row_log_table_apply_update(
     que_thr_t *thr,           /*!< in: query graph */
     ulint new_trx_id_col,     /*!< in: position of
                               DB_TRX_ID in the new
@@ -2327,24 +2319,23 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 /** Applies an operation to a table that was rebuilt.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
-static MY_ATTRIBUTE((warn_unused_result))
-    const ddl::mrec_t *row_log_table_apply_op(
-        que_thr_t *thr,              /*!< in: query graph */
-        ulint trx_id_col,            /*!< in: position of
-                                     DB_TRX_ID in old index */
-        ulint new_trx_id_col,        /*!< in: position of
-                                     DB_TRX_ID in new index */
-        ddl::Dup *dup,               /*!< in/out: for reporting
-                                            duplicate key errors */
-        dberr_t *error,              /*!< out: DB_SUCCESS
-                                     or error code */
-        mem_heap_t *offsets_heap,    /*!< in/out: memory heap
-                                     that can be emptied */
-        mem_heap_t *heap,            /*!< in/out: memory heap */
-        const ddl::mrec_t *mrec,     /*!< in: merge record */
-        const ddl::mrec_t *mrec_end, /*!< in: end of buffer */
-        ulint *offsets)              /*!< in/out: work area
-                                     for parsing mrec */
+[[nodiscard]] static const ddl::mrec_t *row_log_table_apply_op(
+    que_thr_t *thr,              /*!< in: query graph */
+    ulint trx_id_col,            /*!< in: position of
+                                 DB_TRX_ID in old index */
+    ulint new_trx_id_col,        /*!< in: position of
+                                 DB_TRX_ID in new index */
+    ddl::Dup *dup,               /*!< in/out: for reporting
+                                        duplicate key errors */
+    dberr_t *error,              /*!< out: DB_SUCCESS
+                                 or error code */
+    mem_heap_t *offsets_heap,    /*!< in/out: memory heap
+                                 that can be emptied */
+    mem_heap_t *heap,            /*!< in/out: memory heap */
+    const ddl::mrec_t *mrec,     /*!< in: merge record */
+    const ddl::mrec_t *mrec_end, /*!< in: end of buffer */
+    ulint *offsets)              /*!< in/out: work area
+                                 for parsing mrec */
 {
   row_log_t *log = dup->m_index->online_log;
   dict_index_t *new_index = log->table->first_index();
@@ -2675,8 +2666,9 @@ inline ulint row_log_progress_inc_per_block() { return (0); }
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_log_table_apply_ops(que_thr_t *thr, ddl::Dup *dup, Alter_stage *stage) {
+[[nodiscard]] static dberr_t row_log_table_apply_ops(que_thr_t *thr,
+                                                     ddl::Dup *dup,
+                                                     Alter_stage *stage) {
   dberr_t error;
   const ddl::mrec_t *mrec = nullptr;
   const ddl::mrec_t *next_mrec;
@@ -3348,7 +3340,7 @@ func_exit:
 /** Applies an operation to a secondary index that was being created.
  @return NULL on failure (mrec corruption) or when out of data;
  pointer to next record on success */
-static MY_ATTRIBUTE((warn_unused_result)) const ddl::mrec_t *row_log_apply_op(
+[[nodiscard]] static const ddl::mrec_t *row_log_apply_op(
     dict_index_t *index,         /*!< in/out: index */
     ddl::Dup *dup,               /*!< in/out: for reporting
                                         duplicate key errors */

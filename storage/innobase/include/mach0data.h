@@ -54,8 +54,7 @@ static inline void mach_write_to_1(byte *b, ulint n);
 /** The following function is used to fetch data from one byte.
 @param[in]	b	pointer to a byte to read
 @return ulint integer, >= 0, < 256 */
-static inline uint8_t mach_read_from_1(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint8_t mach_read_from_1(const byte *b);
 
 /** The following function is used to store data in two consecutive bytes. We
 store the most significant byte to the lower address.
@@ -67,8 +66,7 @@ static inline void mach_write_to_2(byte *b, ulint n);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 2 bytes where to store
 @return 2-byte integer, >= 0, < 64k */
-static inline uint16_t mach_read_from_2(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint16_t mach_read_from_2(const byte *b);
 
 /** The following function is used to convert a 16-bit data item to the
 canonical format, for fast bytewise equality test against memory.
@@ -92,8 +90,7 @@ static inline void mach_write_to_3(byte *b, ulint n);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 3 bytes to read
 @return 32 bit integer */
-static inline uint32_t mach_read_from_3(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint32_t mach_read_from_3(const byte *b);
 
 /** The following function is used to store data in 4 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -105,8 +102,7 @@ static inline void mach_write_to_4(byte *b, ulint n);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 4 bytes to read
 @return 32 bit integer */
-static inline uint32_t mach_read_from_4(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint32_t mach_read_from_4(const byte *b);
 
 /** Write a ulint in a compressed form (1..5 bytes).
 @param[in]	b	pointer to memory where to store
@@ -135,8 +131,7 @@ static inline void mach_write_to_6(byte *b, ib_uint64_t id);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 6 bytes to read
 @return 48-bit integer */
-static inline ib_uint64_t mach_read_from_6(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ib_uint64_t mach_read_from_6(const byte *b);
 
 /** The following function is used to store data in 7 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -148,8 +143,7 @@ static inline void mach_write_to_7(byte *b, ib_uint64_t n);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 7 bytes to read
 @return 56-bit integer */
-static inline ib_uint64_t mach_read_from_7(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ib_uint64_t mach_read_from_7(const byte *b);
 
 /** The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -161,8 +155,7 @@ static inline void mach_write_to_8(void *b, ib_uint64_t n);
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 8 bytes to read
 @return 64-bit integer */
-static inline ib_uint64_t mach_read_from_8(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ib_uint64_t mach_read_from_8(const byte *b);
 
 /** Writes a 64-bit integer in a compressed form (5..9 bytes).
 @param[in]	b	pointer to memory where to store
@@ -185,8 +178,8 @@ static inline ulint mach_u64_write_much_compressed(byte *b, ib_uint64_t n);
 /** Reads a 64-bit integer in a compressed form.
 @param[in]	b	pointer to memory from where to read
 @return the value read */
-static inline ib_uint64_t mach_u64_read_much_compressed(const byte *b)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ib_uint64_t mach_u64_read_much_compressed(
+    const byte *b);
 
 /** Read a 64-bit integer in a much compressed form.
 @param[in,out]	ptr	pointer to memory from where to read,
@@ -213,9 +206,8 @@ static inline ib_uint64_t mach_u64_parse_compressed(const byte **ptr,
 
 /** Reads a double. It is stored in a little-endian format.
  @return double read */
-static inline double mach_double_read(
-    const byte *b) /*!< in: pointer to memory from where to read */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline double mach_double_read(
+    const byte *b); /*!< in: pointer to memory from where to read */
 
 /** Writes a double. It is stored in a little-endian format.
 @param[in]	b	pointer to memory where to write
@@ -224,9 +216,8 @@ static inline void mach_double_write(byte *b, double d);
 
 /** Reads a float. It is stored in a little-endian format.
  @return float read */
-static inline float mach_float_read(
-    const byte *b) /*!< in: pointer to memory from where to read */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline float mach_float_read(
+    const byte *b); /*!< in: pointer to memory from where to read */
 
 /** Writes a float. It is stored in a little-endian format.
 @param[in]	b	pointer to memory where to write
@@ -236,10 +227,9 @@ static inline void mach_float_write(byte *b, float d);
 #ifndef UNIV_HOTBACKUP
 /** Reads a ulint stored in the little-endian format.
  @return unsigned long int */
-static inline ulint mach_read_from_n_little_endian(
+[[nodiscard]] static inline ulint mach_read_from_n_little_endian(
     const byte *buf, /*!< in: from where to read */
-    ulint buf_size)  /*!< in: from how many bytes to read */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint buf_size); /*!< in: from how many bytes to read */
 
 /** Writes a ulint in the little-endian format.
 @param[in]	dest		where to write
@@ -250,9 +240,8 @@ static inline void mach_write_to_n_little_endian(byte *dest, ulint dest_size,
 
 /** Reads a ulint stored in the little-endian format.
  @return unsigned long int */
-static inline ulint mach_read_from_2_little_endian(
-    const byte *buf) /*!< in: from where to read */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline ulint mach_read_from_2_little_endian(
+    const byte *buf); /*!< in: from where to read */
 
 /** Writes a ulint in the little-endian format.
 @param[in]	dest		where to write
@@ -292,8 +281,8 @@ static inline void mach_write_ulonglong(byte *dest, ulonglong src, ulint len,
 @param[in]	ptr	pointer where to read
 @param[in]	type	MLOG_1BYTE, MLOG_2BYTES, or MLOG_4BYTES
 @return value read */
-static inline uint32_t mach_read_ulint(const byte *ptr, mlog_id_t type)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] static inline uint32_t mach_read_ulint(const byte *ptr,
+                                                     mlog_id_t type);
 
 #include "mach0data.ic"
 

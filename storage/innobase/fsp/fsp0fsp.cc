@@ -162,7 +162,7 @@ reserved, in this case we will never return NULL */
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr),
 returned block is not allocated nor initialized otherwise */
-static buf_block_t *fseg_alloc_free_page_low(
+[[nodiscard]] static buf_block_t *fseg_alloc_free_page_low(
     fil_space_t *space, const page_size_t &page_size, fseg_inode_t *seg_inode,
     page_no_t hint, byte direction, rw_lock_type_t rw_latch, mtr_t *mtr,
     mtr_t *init_mtr
@@ -170,7 +170,7 @@ static buf_block_t *fseg_alloc_free_page_low(
     ,
     ibool has_done_reservation
 #endif /* UNIV_DEBUG */
-    ) MY_ATTRIBUTE((warn_unused_result));
+);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Get the segment identifier to which the extent belongs to.
@@ -548,11 +548,9 @@ static inline void xdes_init(xdes_t *descr, /*!< in: descriptor */
 the same as the tablespace header
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds free limit */
-static inline MY_ATTRIBUTE((warn_unused_result)) xdes_t
-    *xdes_get_descriptor_with_space_hdr(fsp_header_t *sp_header,
-                                        space_id_t space, page_no_t offset,
-                                        mtr_t *mtr, bool init_space = false,
-                                        buf_block_t **desc_block = nullptr) {
+[[nodiscard]] static inline xdes_t *xdes_get_descriptor_with_space_hdr(
+    fsp_header_t *sp_header, space_id_t space, page_no_t offset, mtr_t *mtr,
+    bool init_space = false, buf_block_t **desc_block = nullptr) {
   ulint limit;
   ulint size;
   page_no_t descr_page_no;
@@ -626,9 +624,10 @@ try to add new extents to the space free list
 @param[in,out]	mtr		Mini-transaction
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds the free limit */
-static MY_ATTRIBUTE((warn_unused_result)) xdes_t *xdes_get_descriptor(
-    space_id_t space_id, page_no_t offset, const page_size_t &page_size,
-    mtr_t *mtr) {
+[[nodiscard]] static xdes_t *xdes_get_descriptor(space_id_t space_id,
+                                                 page_no_t offset,
+                                                 const page_size_t &page_size,
+                                                 mtr_t *mtr) {
   buf_block_t *block;
   fsp_header_t *sp_header;
 
@@ -1244,8 +1243,7 @@ data file.
 @param[in,out]	header	Tablespace header
 @param[in,out]	mtr	Mini-transaction
 @return true if success */
-static UNIV_COLD
-MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
+[[nodiscard]] static UNIV_COLD bool fsp_try_extend_data_file_with_pages(
     fil_space_t *space, page_no_t page_no, fsp_header_t *header, mtr_t *mtr) {
   DBUG_TRACE;
 
@@ -1721,7 +1719,7 @@ initialized (may be the same as mtr)
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr),
 returned block is not allocated nor initialized otherwise */
-static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *fsp_alloc_free_page(
+[[nodiscard]] static buf_block_t *fsp_alloc_free_page(
     space_id_t space, const page_size_t &page_size, page_no_t hint,
     rw_lock_type_t rw_latch, mtr_t *mtr, mtr_t *init_mtr) {
   fsp_header_t *header;

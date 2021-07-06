@@ -95,15 +95,15 @@ class Page_load : private ut::Non_copyable {
   /** Initialize members and allocate page if needed and start mtr.
   @note Must be called and only once right after constructor.
   @return error code */
-  dberr_t init() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t init() noexcept;
 
   /** Insert a tuple in the page.
   @param[in]  tuple             Tuple to insert
   @param[in]  big_rec           External record
   @param[in]  rec_size          Record size
   @return error code */
-  dberr_t insert(const dtuple_t *tuple, const big_rec_t *big_rec,
-                 size_t rec_size) noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t insert(const dtuple_t *tuple, const big_rec_t *big_rec,
+                               size_t rec_size) noexcept;
 
   /** Mark end of insertion to the page. Scan records to set page dirs,
   and set page header members. The scan is incremental (slots and records
@@ -122,16 +122,16 @@ class Page_load : private ut::Non_copyable {
   /** Compress if it is compressed table
   @return	true	compress successfully or no need to compress
   @return	false	compress failed. */
-  bool compress() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool compress() noexcept;
 
   /** Check whether the record needs to be stored externally.
   @return false if the entire record can be stored locally on the page */
-  bool need_ext(const dtuple_t *tuple, size_t rec_size) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] bool need_ext(const dtuple_t *tuple,
+                              size_t rec_size) const noexcept;
 
   /** Get node pointer
   @return node pointer */
-  dtuple_t *get_node_ptr() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dtuple_t *get_node_ptr() noexcept;
 
   /** Split the page records between this and given bulk.
    * @param new_page_load  The new bulk to store split records. */
@@ -159,32 +159,23 @@ class Page_load : private ut::Non_copyable {
   to be inserted.	We check fill factor & padding here.
   @param[in]	rec_size	        Required space
   @return true	if space is available */
-  inline bool is_space_available(size_t rec_size) const noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] inline bool is_space_available(size_t rec_size) const noexcept;
 
   /** Get page no */
-  page_no_t get_page_no() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_page_no;
-  }
+  [[nodiscard]] page_no_t get_page_no() const noexcept { return m_page_no; }
 
   /** Get page level */
-  size_t get_level() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_level;
-  }
+  [[nodiscard]] size_t get_level() const noexcept { return m_level; }
 
   /** Get record no */
-  size_t get_rec_no() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_rec_no;
-  }
+  [[nodiscard]] size_t get_rec_no() const { return m_rec_no; }
 
   /** Get page */
-  const page_t *get_page() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_page;
-  }
+  [[nodiscard]] const page_t *get_page() const noexcept { return m_page; }
 
   /** Check if table is compressed.
   @return true if table is compressed, false otherwise. */
-  bool is_table_compressed() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] bool is_table_compressed() const noexcept {
     return m_page_zip != nullptr;
   }
 
@@ -198,7 +189,7 @@ class Page_load : private ut::Non_copyable {
   fails, and the split record and all following records should be copied
   to the new page.
   @return split record descriptor */
-  Split_point get_split_rec() noexcept MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] Split_point get_split_rec() noexcept;
 
   /** Copy given and all following records.
   @param[in]  first_rec         First record to copy */
@@ -220,8 +211,8 @@ class Page_load : private ut::Non_copyable {
   @param[in]  big_rec           External record
   @param[in]  offsets           Record offsets
   @return error code */
-  dberr_t store_ext(const big_rec_t *big_rec, Rec_offsets offsets) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
+  [[nodiscard]] dberr_t store_ext(const big_rec_t *big_rec,
+                                  Rec_offsets offsets) noexcept;
 
  private:
   /** Memory heap for internal allocation */

@@ -907,7 +907,7 @@ bool cmp_dtuple_is_prefix_of_rec(const dtuple_t *dtuple, const rec_t *rec,
 @retval positive if rec1 field is greater than rec2
 @retval negative if rec1 field is less than rec2
 @retval 0 if rec1 field equals to rec2 */
-static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
+[[nodiscard]] static int cmp_rec_rec_simple_field(
     const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
     const ulint *offsets2, const dict_index_t *index, ulint n) {
   ulint rec1_f_len;

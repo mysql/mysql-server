@@ -48,8 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	parent	parent node, i.e., a thr node
 @param[in]	heap	memory heap where created
 @return own: purge node */
-purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] purge_node_t *row_purge_node_create(que_thr_t *parent,
+                                                  mem_heap_t *heap);
 
 /** Determines if it is possible to remove a secondary index entry.
  Removal is possible if the secondary index entry does not refer to any
@@ -65,16 +65,16 @@ purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap)
  secondary index entry after purge has removed it and released the leaf
  page latch.
  @return true if the secondary index record can be purged */
-bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
-                        dict_index_t *index,   /*!< in: secondary index */
-                        const dtuple_t *entry) /*!< in: secondary index entry */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_purge_poss_sec(
+    purge_node_t *node,     /*!< in/out: row purge node */
+    dict_index_t *index,    /*!< in: secondary index */
+    const dtuple_t *entry); /*!< in: secondary index entry */
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return query thread to run next or NULL */
-que_thr_t *row_purge_step(que_thr_t *thr) /*!< in: query thread */
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] que_thr_t *row_purge_step(
+    que_thr_t *thr); /*!< in: query thread */
 
 using Page_free_tuple = std::tuple<index_id_t, page_id_t, table_id_t>;
 

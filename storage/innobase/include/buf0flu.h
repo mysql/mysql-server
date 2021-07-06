@@ -99,8 +99,7 @@ buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
 @return true if the page was flushed and the mutex released */
-bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Do flushing batch of a given type.
@@ -237,8 +236,8 @@ Requires buf_page_get_mutex(bpage).
 @param[in]	bpage		buffer control block, must be buf_page_in_file()
 @param[in]	flush_type	type of flush
 @return true if can flush immediately */
-bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool buf_flush_ready_for_flush(buf_page_t *bpage,
+                                             buf_flush_t flush_type);
 
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.

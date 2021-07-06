@@ -61,20 +61,19 @@ struct Cursor {
   virtual dberr_t finish(dberr_t err) noexcept;
 
   /** @return the index to iterate over. */
-  virtual dict_index_t *index() noexcept MY_ATTRIBUTE((warn_unused_result)) = 0;
+  [[nodiscard]] virtual dict_index_t *index() noexcept = 0;
 
   /** Copy the row data, by default only the pointers are copied.
   @param[in] thread_id          Scan thread ID.
   @param[in,out] row            Row to copy.
   @return DB_SUCCESS or error code. */
-  virtual dberr_t copy_row(size_t thread_id, Row &row) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) = 0;
+  [[nodiscard]] virtual dberr_t copy_row(size_t thread_id,
+                                         Row &row) noexcept = 0;
 
   /** Setup the primary key sort data structures.
   @param[in] n_uniq             Number of columns to make they unique key.
   @return DB_SUCCESS or error code. */
-  dberr_t setup_pk_sort(size_t n_uniq) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) {
+  [[nodiscard]] dberr_t setup_pk_sort(size_t n_uniq) noexcept {
     auto p = ut_malloc_nokey(n_uniq * sizeof(dfield_t));
 
     if (p == nullptr) {
@@ -92,11 +91,10 @@ struct Cursor {
   containing the index entries for the indexes to be built.
   @param[in,out] builders Merge buffers to use for reading.
   @return DB_SUCCESS or error code. */
-  virtual dberr_t scan(Builders &builders) noexcept
-      MY_ATTRIBUTE((warn_unused_result)) = 0;
+  [[nodiscard]] virtual dberr_t scan(Builders &builders) noexcept = 0;
 
   /** @return true if EOF reached. */
-  virtual bool eof() const noexcept MY_ATTRIBUTE((warn_unused_result)) = 0;
+  [[nodiscard]] virtual bool eof() const noexcept = 0;
 
   /** Create a cluster index scan cursor.
   @param[in,out] ctx            DDL context.

@@ -37,8 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Checks if a table name contains the string "/#sql" which denotes temporary
  tables in MySQL.
  @return true if temporary table */
-bool row_is_mysql_tmp_table_name(const char *name)
-    MY_ATTRIBUTE((warn_unused_result));
+[[nodiscard]] bool row_is_mysql_tmp_table_name(const char *name);
 /*!< in: table name in the form
 'database/tablename' */
 
