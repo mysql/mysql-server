@@ -272,6 +272,8 @@ int set_fips_mode(const uint fips_mode, char *err_string);
 
 uint get_fips_mode();
 
+int test_ssl_fips_mode(char *err_string);
+
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,

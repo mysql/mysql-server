@@ -526,6 +526,21 @@ EXIT:
 */
 uint get_fips_mode() { return FIPS_mode(); }
 
+/**
+  Toggle FIPS mode, to see whether it is available with the current SSL library.
+  @retval 0 FIPS is not supported.
+  @retval non-zero: FIPS is supported.
+*/
+int test_ssl_fips_mode(char *err_string) {
+  int ret = FIPS_mode_set(FIPS_mode() == 0 ? 1 : 0);
+  unsigned long err = (ret == 0) ? ERR_get_error() : 0;
+
+  if (err != 0) {
+    ERR_error_string_n(err, err_string, OPENSSL_ERROR_LENGTH - 1);
+  }
+  return ret;
+}
+
 long process_tls_version(const char *tls_version) {
   const char *separator = ",";
   char *token, *lasts = nullptr;

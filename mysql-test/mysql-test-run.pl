@@ -2275,6 +2275,23 @@ sub command_line_setup {
   check_ndbcluster_support(\%mysqld_variables);
 
   executable_setup();
+
+  check_fips_support();
+}
+
+sub check_fips_support() {
+  # Run $exe_mysqltest to see if FIPS mode is supported.
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--test-ssl-fips-mode");
+  my $cmd = join(" ", $exe_mysqltest, @$args);
+  my $result= `$cmd`;
+  mtr_verbose("Testing FIPS: $result");
+  if($result =~ /Success$/) {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 1;
+  } else {
+    $ENV{'OPENSSL_FIPS_INSTALLED'} = 0;
+  }
 }
 
 # Create global manifest file

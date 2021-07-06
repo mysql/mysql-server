@@ -246,6 +246,7 @@ static Secondary_engine *secondary_engine = nullptr;
 
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
+static uint opt_test_ssl_fips_mode = 0;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -7807,6 +7808,12 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"test-ssl-fips-mode", 0,
+     "Toggle SSL FIPS mode on or off, to see whether FIPS is supported. "
+     "Prints the result to stdout, and then exits. "
+     "Used by mtr to enable/disable FIPS tests. ",
+     &opt_test_ssl_fips_mode, nullptr, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -7827,6 +7834,13 @@ static void usage() {
 
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
+  if (opt_test_ssl_fips_mode) {
+    char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
+    int fips_test = test_ssl_fips_mode(ssl_err_string);
+    fprintf(stdout, "--test-ssl-fips-mode %d %s\n", fips_test,
+            fips_test == 0 ? ssl_err_string : "Success");
+    exit(0);
+  }
   switch (optid) {
     case '#':
 #ifndef NDEBUG
