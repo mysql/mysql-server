@@ -3793,7 +3793,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
     if (mysql_bin_log.is_open()) {
       bool result = false;
       String temp_buf;
-      result = temp_buf.append("DELETE FROM ");
+      result = temp_buf.append("TRUNCATE TABLE ");
       append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
       result = temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
@@ -3822,8 +3822,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
       new_thd.store_globals();
       new_thd.set_db(thd->db());
       new_thd.variables.gtid_next.set_automatic();
-      result = mysql_bin_log.write_dml_directly(
-          &new_thd, temp_buf.c_ptr_safe(), temp_buf.length(), SQLCOM_DELETE);
+      result = mysql_bin_log.write_stmt_directly(
+          &new_thd, temp_buf.c_ptr_safe(), temp_buf.length(), SQLCOM_TRUNCATE);
       new_thd.restore_globals();
       thd->store_globals();
       return result;
