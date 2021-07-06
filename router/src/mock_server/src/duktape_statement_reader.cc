@@ -33,7 +33,6 @@
 #include <Windows.h>
 #endif
 
-#include <my_sys.h>  // get_collation_number
 #include <mysqld_error.h>
 #include <openssl/ssl.h>
 
@@ -554,8 +553,7 @@ struct DuktapeStatementReader::Pimpl {
           get_object_string_value(-1, "orig_table"),
           get_object_string_value(-1, "name", "", true),
           get_object_string_value(-1, "orig_name"),
-          get_object_integer_value<uint16_t>(
-              -1, "character_set", get_collation_number("utf8mb4_0900_ai_ci")),
+          get_object_integer_value<uint16_t>(-1, "character_set", 0xff),
           get_object_integer_value<uint32_t>(-1, "length"),
           static_cast<uint8_t>(column_type_from_string(
               get_object_string_value(-1, "type", "", true))),
