@@ -26,37 +26,42 @@
 
 #include "sql/sql_table.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
-#include <cstring>
 #include <functional>
 #include <memory>
-#include <new>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
+#include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "m_string.h"  // my_stpncpy
+#include "map_helpers.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_bit.h"
+#include "my_bitmap.h"
 #include "my_check_opt.h"  // T_EXTEND
+#include "my_checksum.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_loglevel.h"
-#include "my_md5.h"
-#include "my_md5_size.h"
 #include "my_psi_config.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -66,17 +71,17 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/mysql_table.h"
-#include "mysql/psi/psi_table.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
+#include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_fk_parent_table_access
 #include "sql/binlog.h"            // mysql_bin_log
 #include "sql/create_field.h"
+#include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/collection.h"
 #include "sql/dd/dd.h"          // dd::get_dictionary
@@ -101,8 +106,10 @@
 #include "sql/dd_table_share.h"  // open_table_def
 #include "sql/debug_sync.h"      // DEBUG_SYNC
 #include "sql/derror.h"          // ER_THD
-#include "sql/error_handler.h"   // Drop_table_error_handler
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Drop_table_error_handler
 #include "sql/field.h"
+#include "sql/field_common_properties.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/gis/srid.h"
 #include "sql/handler.h"
@@ -119,19 +126,19 @@
 #include "sql/log_event.h"  // Query_log_event
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
+#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/partition_element.h"
 #include "sql/partition_info.h"                  // partition_info
 #include "sql/partitioning/partition_handler.h"  // Partition_handler
 #include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
-#include "sql/rpl_rli.h"                           // rli_slave etc
+#include "sql/rpl_rli.h"  // rli_slave etc
 #include "sql/session_tracker.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // lock_table_names
@@ -148,19 +155,20 @@
 #include "sql/sql_parse.h"  // test_if_data_home_dir
 #include "sql/sql_partition.h"
 #include "sql/sql_plist.h"
+#include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_show.h"
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
-#include "sql/sql_tmp_table.h"   // create_tmp_field
 #include "sql/sql_trigger.h"     // change_trigger_table_name
 #include "sql/srs_fetcher.h"
+#include "sql/stateless_allocator.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
+#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/trigger.h"
@@ -177,6 +185,8 @@ class View;
 using binary_log::checksum_crc32;
 using std::max;
 using std::min;
+using std::string;
+using std::to_string;
 
 #define ER_THD_OR_DEFAULT(thd, X) \
   ((thd) ? ER_THD_NONCONST(thd, X) : ER_DEFAULT_NONCONST(X))
@@ -7479,7 +7489,7 @@ bool Item_field::replace_field_processor(uchar *arg) {
 
 /**
   Check if the given key name exists in the array of keys. The lookup is
-  case sensitive.
+  case insensitive.
 
   @param keys the array to check for the key name in
   @param key_name the key name to look for.
@@ -7507,34 +7517,69 @@ static bool key_name_exists(const Mem_root_array<Key_spec *> &keys,
   return false;
 }
 
+/// Checks if a column with the given name exists in a list of fields.
+static bool column_name_exists(const List<Create_field> &fields,
+                               const string &column_name) {
+  for (const Create_field &field : fields) {
+    if (my_strcasecmp(system_charset_info, column_name.c_str(),
+                      field.field_name) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
   Create a name for the hidden generated column that represents the functional
-  key part. The name is a hash of the index name and the key part number.
+  key part.
+
+  The name is a string on the form `!hidden!index_name!key_part!counter`. The
+  counter is usually 0, but is incremented until a unique name is found, in the
+  unlikely event that there is another column with the same name. The index_name
+  part may be truncated to make sure the column name does not exceed the maximum
+  column name length (NAME_CHAR_LEN).
 
   @param key_name the name of the index.
   @param key_part_number the key part number, starting from zero.
+  @param fields the other columns in the table
   @param mem_root the MEM_ROOT where the column name should be allocated.
 
   @returns the name for the hidden generated column, allocated on the supplied
            MEM_ROOT
 */
 static const char *make_functional_index_column_name(
-    const std::string &key_name, int key_part_number, MEM_ROOT *mem_root) {
-  std::string combined_name;
-  combined_name.append(key_name);
-  combined_name.append(std::to_string(key_part_number));
+    std::string_view key_name, unsigned key_part_number,
+    const List<Create_field> &fields, MEM_ROOT *mem_root) {
+  // Loop until we have found a unique name. We'll usually find one in the first
+  // iteration, but if there are user-defined columns using the same naming
+  // scheme, we might need to increment the counter to avoid collisions. We're
+  // guaranteed to find a unique name in at most fields.size() + 1 iterations.
+  for (unsigned count = 0;; ++count) {
+    assert(count <= fields.size());
 
-  uchar digest[MD5_HASH_SIZE];
-  compute_md5_hash(pointer_cast<char *>(digest), combined_name.c_str(),
-                   combined_name.size());
+    string name("!hidden!");
+    name += key_name;
 
-  // + 1 for the null terminator
-  char *output = new (mem_root) char[(MD5_HASH_SIZE * 2) + 1];
-  array_to_hex(output, digest, MD5_HASH_SIZE);
+    string suffix("!");
+    suffix += to_string(key_part_number);
+    suffix += '!';
+    suffix += to_string(count);
 
-  // Ensure that the null terminator is present
-  output[(MD5_HASH_SIZE * 2)] = '\0';
-  return output;
+    // If the name is so long that we hit the NAME_CHAR_LEN limit, truncate the
+    // index name part, so that there is enough room to add the suffix with the
+    // key part number and the counter. (If we had truncated the counter, we
+    // could loop forever because the generated name is the same in each
+    // iteration.)
+    name.resize(min(name.size(), NAME_CHAR_LEN - suffix.size()));
+    name.append(suffix);
+    assert(name.size() <= NAME_CHAR_LEN);
+
+    if (column_name_exists(fields, name)) {
+      continue;
+    }
+
+    return strmake_root(mem_root, name.data(), name.size());
+  }
 }
 
 /**
@@ -7600,22 +7645,6 @@ static Create_field *add_functional_index_to_create_list(
     key_spec->name.length = key_name.size();
     key_spec->name.str = strmake_root(thd->stmt_arena->mem_root,
                                       key_name.c_str(), key_name.size());
-  } else {
-    // Check that the key name isn't already in use. Normally we check for
-    // duplicate key names in prepare_key(), but for functional indexes we have
-    // to do it a bit earlier. The reason is that the name of the hidden
-    // generated column is a hash of the key name and the key part number. If we
-    // have the same index name twice, we will end up with two hidden columns
-    // with the same name. And, since prepare_create_field() is called before
-    // prepare_key(), we will get a "duplicate field name" error instead of the
-    // expected "duplicate key name" error. Thus, we do a pre-check for
-    // duplicate functional index names here.
-    if (key_name_exists(alter_info->key_list,
-                        {key_spec->name.str, key_spec->name.length},
-                        key_spec)) {
-      my_error(ER_DUP_KEYNAME, MYF(0), key_spec->name.str);
-      return nullptr;
-    }
   }
 
   // First we need to resolve the expression in the functional index so that we
@@ -7655,7 +7684,7 @@ static Create_field *add_functional_index_to_create_list(
 
   const char *field_name = make_functional_index_column_name(
       {key_spec->name.str, key_spec->name.length}, key_part_number,
-      thd->stmt_arena->mem_root);
+      alter_info->create_list, thd->stmt_arena->mem_root);
 
   Item *item = kp->get_expression();
 
@@ -15676,7 +15705,7 @@ static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
                 new_create_field->after = nullptr;
                 new_create_field->field_name =
                     make_functional_index_column_name(
-                        alter_rename_key->new_name, static_cast<int>(k),
+                        alter_rename_key->new_name, k, alter_info->create_list,
                         thd->mem_root);
 
                 alter_info->create_list.push_back(new_create_field);

@@ -46,19 +46,19 @@ t1	CREATE TABLE `t1` (
   `dbl_with_length` double(4,2) DEFAULT NULL,
   `unsigned_int` int unsigned DEFAULT NULL,
   `geometry_col` point DEFAULT NULL,
-  `0be1882145c73aec7ed86aec997ee2c0` double(22,2) GENERATED ALWAYS AS ((`dbl_with_length` * 2.0)) VIRTUAL,
-  `0bff7277c29f08fcb414d1f41621b86f` decimal(3,0) GENERATED ALWAYS AS (truncate(`decimal_col`,0)) VIRTUAL,
-  `2c22eb88800f17d0db6d0dd3fa970987` double GENERATED ALWAYS AS (st_x(`geometry_col`)) VIRTUAL,
-  `45197ac678c1210c4a64bf22351853e7` varchar(1) CHARACTER SET latin1 GENERATED ALWAYS AS (convert(substr(`str_col`,2,1) using latin1)) VIRTUAL,
-  `4ee8f0f5ed62f4898e0e21c8e2595351` bigint GENERATED ALWAYS AS (json_valid(`json_col`)) VIRTUAL,
-  `5067d63164981f78735a1cbdb19ef208` double GENERATED ALWAYS AS (abs(`dbl_col`)) VIRTUAL,
-  `88ad1ce75f21f5ed3c66937d772979b5` int GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
-  `97815b7254f7ac7c263d6d590116c8de` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_with_fractions_col`)) VIRTUAL,
-  `9d4481df7b182f78b99e08a25930c91f` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
-  `a5848dfab7c8461e1d6bb033aa7afb7e` int unsigned GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
-  `b6c099c314e9ecbf27e3385f0ea88fa3` datetime(6) GENERATED ALWAYS AS ((`datetime_with_fractions_col` - interval 30 day)) VIRTUAL,
-  `bf3e30b3724d85afb72714cc5e9d35a7` double GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
-  `c1c817beeba8f7f70efb7dd56df758b0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,
+  `!hidden!idx1!0!0` varchar(1) CHARACTER SET latin1 GENERATED ALWAYS AS (convert(substr(`str_col`,2,1) using latin1)) VIRTUAL,
+  `!hidden!idx10!0!0` double GENERATED ALWAYS AS (round(`dbl_col`,2)) VIRTUAL,
+  `!hidden!idx11!0!0` double(22,2) GENERATED ALWAYS AS ((`dbl_with_length` * 2.0)) VIRTUAL,
+  `!hidden!idx12!0!0` int unsigned GENERATED ALWAYS AS (abs(`unsigned_int`)) VIRTUAL,
+  `!hidden!idx13!0!0` double GENERATED ALWAYS AS (st_x(`geometry_col`)) VIRTUAL,
+  `!hidden!idx2!0!0` double GENERATED ALWAYS AS (abs(`dbl_col`)) VIRTUAL,
+  `!hidden!idx3!0!0` decimal(3,0) GENERATED ALWAYS AS (truncate(`decimal_col`,0)) VIRTUAL,
+  `!hidden!idx4!0!0` int GENERATED ALWAYS AS (year(`date_col`)) VIRTUAL,
+  `!hidden!idx5!0!0` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_col`)) VIRTUAL,
+  `!hidden!idx6!0!0` varchar(29) GENERATED ALWAYS AS (addtime(_utf8mb4'01:00:00',`time_with_fractions_col`)) VIRTUAL,
+  `!hidden!idx7!0!0` datetime GENERATED ALWAYS AS ((`datetime_col` - interval 30 day)) VIRTUAL,
+  `!hidden!idx8!0!0` datetime(6) GENERATED ALWAYS AS ((`datetime_with_fractions_col` - interval 30 day)) VIRTUAL,
+  `!hidden!idx9!0!0` bigint GENERATED ALWAYS AS (json_valid(`json_col`)) VIRTUAL,
   KEY `idx1` ((convert(substr(`str_col`,2,1) using latin1))),
   KEY `idx2` ((abs(`dbl_col`))),
   KEY `idx3` ((truncate(`decimal_col`,0))),
@@ -83,7 +83,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `607d81614fbad46c00e1b881fef889f5` bigint GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  `!hidden!my_index!0!0` bigint GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
   KEY `my_index` ((floor(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME INDEX my_index TO foobar;
@@ -91,7 +91,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `1f9c2f0af40893b27d4e43cfbd38d0ac` bigint GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
+  `!hidden!foobar!0!0` bigint GENERATED ALWAYS AS (floor(`col1`)) VIRTUAL,
   KEY `foobar` ((floor(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -109,9 +109,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
   `col2` int DEFAULT NULL,
-  `1a0b00fb7838a59dd0c459201c53de8b` bigint GENERATED ALWAYS AS ((`col2` + 2)) VIRTUAL,
-  `45197ac678c1210c4a64bf22351853e7` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
-  `5067d63164981f78735a1cbdb19ef208` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!idx1!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!idx2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!idx2!1!0` bigint GENERATED ALWAYS AS ((`col2` + 2)) VIRTUAL,
   KEY `idx1` ((abs(`col1`))),
   KEY `idx2` (((`col1` + 1)),((`col2` + 2)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -121,7 +121,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
   `col2` int DEFAULT NULL,
-  `45197ac678c1210c4a64bf22351853e7` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!idx1!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `idx1` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -132,18 +132,35 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `j` json DEFAULT NULL,
-  `680963a1f6dcb151c3e713b46b4c3452` bigint unsigned array GENERATED ALWAYS AS (cast(`j` as unsigned array)) VIRTUAL,
+  `!hidden!mv_idx!0!0` bigint unsigned array GENERATED ALWAYS AS (cast(`j` as unsigned array)) VIRTUAL,
   KEY `mv_idx` ((cast(`j` as unsigned array)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
-680963a1f6dcb151c3e713b46b4c3452
-EXPLAIN SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+SELECT `!hidden!mv_idx!0!0` FROM t1;
+!hidden!mv_idx!0!0
+EXPLAIN SELECT `!hidden!mv_idx!0!0` FROM t1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select cast(`j` as unsigned array) AS `680963a1f6dcb151c3e713b46b4c3452` from `test`.`t1`
+Note	1003	/* select#1 */ select cast(`j` as unsigned array) AS `!hidden!mv_idx!0!0` from `test`.`t1`
 SET SESSION debug="-d,show_hidden_columns";
 DROP TABLE t1;
+CREATE TABLE t(
+x INT,
+KEY this_is_a_very_long_index_name_in_fact_it_is_64_characters_long_
+((x+1), (x+2), (x+3))
+);
+SET SESSION debug='+d,show_hidden_columns';
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` int DEFAULT NULL,
+  `!hidden!this_is_a_very_long_index_name_in_fact_it_is_64_char!0!0` bigint GENERATED ALWAYS AS ((`x` + 1)) VIRTUAL,
+  `!hidden!this_is_a_very_long_index_name_in_fact_it_is_64_char!1!0` bigint GENERATED ALWAYS AS ((`x` + 2)) VIRTUAL,
+  `!hidden!this_is_a_very_long_index_name_in_fact_it_is_64_char!2!0` bigint GENERATED ALWAYS AS ((`x` + 3)) VIRTUAL,
+  KEY `this_is_a_very_long_index_name_in_fact_it_is_64_characters_long_` (((`x` + 1)),((`x` + 2)),((`x` + 3)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug='-d,show_hidden_columns';
+DROP TABLE t;
 #
 # Bug#28037195 ASSERTION `FALSE' IN IN
 #              ITEM_FIELD::REPLACE_FIELD_PROCESSOR AT SQL_TABLE.CC:5850
@@ -218,21 +235,17 @@ DROP TABLE table10_innodb_int_autoinc;
 CREATE TABLE t1 (
 col1 INT
 , INDEX myKey ((ABS(col1))));
-# Get the expected name of the hidden generated column.
-SELECT MD5(CONCAT("myKey", "0"));
-MD5(CONCAT("myKey", "0"))
-84a85350b439e4a8875061c9b8a13f70
 SET SESSION debug="+d,show_hidden_columns";
 # Column names aren't case sensitive, so this DDL should find the column
 # and give an error saying that the column cannot be removed due to
 # functional index.
-ALTER TABLE t1 DROP COLUMN 84A85350b439e4a8875061c9b8a13f70;
-ERROR HY000: Cannot drop column '84a85350b439e4a8875061c9b8a13f70' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ALTER TABLE t1 DROP COLUMN `!HIdDEN!MYkEY!0!0`;
+ERROR HY000: Cannot drop column '!hidden!myKey!0!0' because it is used by a functional index. In order to drop the column, you must remove the functional index.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `84a85350b439e4a8875061c9b8a13f70` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!myKey!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `myKey` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Index names aren't case sensitive, so this DDL should rename the index
@@ -242,7 +255,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `ba017fae742f858bd19700513c6b85e5` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `!hidden!renaMEDkey!0!0` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `renaMEDkey` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Index names aren't case sensitive, so this DDL should remove the index
@@ -302,9 +315,9 @@ t1	CREATE TABLE `t1` (
   `e` enum('a','bbb','cccccc') DEFAULT NULL,
   `s` set('a','bbb','cccccc') DEFAULT NULL,
   `b` bit(5) DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` varchar(12) GENERATED ALWAYS AS (nullif(`s`,NULL)) VIRTUAL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` varchar(6) GENERATED ALWAYS AS (nullif(`e`,NULL)) VIRTUAL,
-  `e0a812eddbaed00becd72bf920eccab8` int unsigned GENERATED ALWAYS AS (nullif(`b`,NULL)) VIRTUAL,
+  `!hidden!functional_index!0!0` varchar(6) GENERATED ALWAYS AS (nullif(`e`,NULL)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` varchar(12) GENERATED ALWAYS AS (nullif(`s`,NULL)) VIRTUAL,
+  `!hidden!functional_index_3!0!0` int unsigned GENERATED ALWAYS AS (nullif(`b`,NULL)) VIRTUAL,
   KEY `functional_index` ((nullif(`e`,NULL))),
   KEY `functional_index_2` ((nullif(`s`,NULL))),
   KEY `functional_index_3` ((nullif(`b`,NULL)))
@@ -329,7 +342,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `45197ac678c1210c4a64bf22351853e7` varchar(11) GENERATED ALWAYS AS (soundex(`col1`)) VIRTUAL,
+  `!hidden!idx1!0!0` varchar(11) GENERATED ALWAYS AS (soundex(`col1`)) VIRTUAL,
   KEY `idx1` ((soundex(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -350,7 +363,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE INDEX functional_index_2 ON t1 ((col1 + 2));
@@ -358,8 +371,8 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1))),
   KEY `functional_index_2` (((`col1` + 2)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -368,9 +381,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
-  `e0a812eddbaed00becd72bf920eccab8` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
+  `!hidden!functional_index_3!0!0` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1))),
   KEY `functional_index_2` (((`col1` + 2))),
   KEY `functional_index_3` (((`col1` + 3)))
@@ -380,10 +393,10 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
-  `d751e19906c02ce29a00572cb436f3ff` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
-  `e0a812eddbaed00becd72bf920eccab8` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
+  `!hidden!functional_index_3!0!0` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_4!0!0` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1))),
   KEY `functional_index_2` (((`col1` + 2))),
   KEY `functional_index_3` (((`col1` + 3))),
@@ -395,10 +408,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
   `col2` int DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
-  `d751e19906c02ce29a00572cb436f3ff` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
-  `e0a812eddbaed00becd72bf920eccab8` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
+  `!hidden!functional_index_3!0!0` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_4!0!0` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1))),
   KEY `functional_index_2` (((`col1` + 2))),
   KEY `functional_index_3` (((`col1` + 3))),
@@ -410,11 +423,11 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int DEFAULT NULL,
   `col2` int DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
-  `87a3a5599af64f6229889e9ee13e9457` bigint GENERATED ALWAYS AS ((`col1` + `col2`)) VIRTUAL,
-  `d751e19906c02ce29a00572cb436f3ff` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
-  `e0a812eddbaed00becd72bf920eccab8` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` bigint GENERATED ALWAYS AS ((`col1` + 1)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` bigint GENERATED ALWAYS AS ((`col1` + 2)) VIRTUAL,
+  `!hidden!functional_index_3!0!0` bigint GENERATED ALWAYS AS ((`col1` + 3)) VIRTUAL,
+  `!hidden!functional_index_4!0!0` bigint GENERATED ALWAYS AS ((`col1` + 4)) VIRTUAL,
+  `!hidden!functional_index_5!0!0` bigint GENERATED ALWAYS AS ((`col1` + `col2`)) VIRTUAL,
   KEY `functional_index_1` (((`col1` + 1))),
   KEY `functional_index_2` (((`col1` + 2))),
   KEY `functional_index_3` (((`col1` + 3))),
@@ -433,8 +446,8 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` bit(5) DEFAULT NULL,
   `col2` bit(10) DEFAULT NULL,
-  `0d1cbc68e8957783288d2b71268047c7` int unsigned GENERATED ALWAYS AS (nullif(`col2`,NULL)) VIRTUAL,
-  `2637460955f1f312c3fe5fb148fa23e1` int unsigned GENERATED ALWAYS AS (nullif(`col1`,NULL)) VIRTUAL,
+  `!hidden!functional_index_1!0!0` int unsigned GENERATED ALWAYS AS (nullif(`col1`,NULL)) VIRTUAL,
+  `!hidden!functional_index_2!0!0` int unsigned GENERATED ALWAYS AS (nullif(`col2`,NULL)) VIRTUAL,
   KEY `functional_index_1` ((nullif(`col1`,NULL))),
   KEY `functional_index_2` ((nullif(`col2`,NULL)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

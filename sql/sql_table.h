@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <map>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -44,6 +45,7 @@ class KEY;
 class THD;
 class handler;
 struct CHARSET_INFO;
+struct MEM_ROOT;
 struct TABLE;
 struct TABLE_LIST;
 struct handlerton;
