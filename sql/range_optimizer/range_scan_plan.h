@@ -30,6 +30,7 @@
 #include "sql/range_optimizer/geometry.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan.h"
+#include "sql/range_optimizer/range_scan_desc.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_const.h"
 
@@ -48,8 +49,9 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
 QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
                                      KEY_PART *key, uint keyno,
                                      SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size,
-                                     uint num_key_parts = MAX_REF_PARTS);
+                                     uint mrr_buf_size, uint num_key_parts,
+                                     bool reverse,
+                                     uint used_key_parts_for_reverse);
 
 /*
   Plan for a QUICK_RANGE_SELECT scan.
@@ -86,19 +88,24 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
     QUICK_RANGE_SELECT *quick;
     if (table->key_info[index].flags & HA_SPATIAL) {
-      quick = new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-          table, index, return_mem_root, mrr_flags, mrr_buf_size, used_key_part,
-          ranges, used_key_parts);
+      quick = new (return_mem_root)
+          QUICK_RANGE_SELECT_GEOM(table, index, return_mem_root, mrr_flags,
+                                  mrr_buf_size, used_key_part, ranges);
     } else {
-      quick = new (return_mem_root) QUICK_RANGE_SELECT(
-          table, index, return_mem_root, mrr_flags, mrr_buf_size, used_key_part,
-          ranges, used_key_parts);
-    }
-
-    if (quick != nullptr) {
-      quick->records = records;
-      quick->cost_est = cost_est;
-      assert(quick->index == index);
+      quick = new (return_mem_root)
+          QUICK_RANGE_SELECT(table, index, return_mem_root, mrr_flags,
+                             mrr_buf_size, used_key_part, ranges);
+      if (reverse) {
+        // TODO: Unify the two classes, or at least make some way
+        // of costructing a QUICK_SELECT_DESC without creating
+        // the forward class first.
+        QUICK_RANGE_SELECT *reverse_quick = new (return_mem_root)
+            QUICK_SELECT_DESC(std::move(*quick), used_key_parts);
+        destroy(quick);
+        return reverse_quick;
+      } else {
+        return quick;
+      }
     }
     return quick;
   }
@@ -108,6 +115,35 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   bool can_be_used_for_ror() const { return is_ror; }
   bool can_be_used_for_imerge() const { return is_imerge; }
+  uint get_mrr_flags() const { return mrr_flags; }
+
+  bool unique_key_range() const override;
+
+  RangeScanType get_type() const override { return QS_TYPE_RANGE; }
+  bool reverse_sorted() const override { return reverse; }
+
+  void need_sorted_output() override { mrr_flags |= HA_MRR_SORTED; }
+
+  bool make_reverse(uint used_key_parts_arg) override {
+    reverse = true;
+    used_key_parts = used_key_parts_arg;
+    return false;
+  }
+
+  void get_fields_used(MY_BITMAP *used_fields) const override {
+    for (uint i = 0; i < used_key_parts; ++i) {
+      bitmap_set_bit(used_fields, used_key_part[i].field->field_index());
+    }
+  }
+
+  void add_info_string(String *str) const override;
+  void add_keys_and_lengths(String *key_names,
+                            String *used_lengths) const override;
+  unsigned get_max_used_key_length() const final;
+
+#ifndef NDEBUG
+  void dbug_dump(int indent, bool verbose) override;
+#endif
 
  private:
   /**
@@ -135,6 +171,8 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   // The actual ranges we are scanning over (originally derived from “key”).
   Bounds_checked_array<QUICK_RANGE *> ranges;
+
+  bool reverse = false;
 };
 
 /*
@@ -216,5 +254,11 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
                            bool skip_records_in_range, uint *mrr_flags,
                            uint *bufsize, Cost_estimate *cost,
                            bool *is_ror_scan, bool *is_imerge_scan);
+
+#ifndef NDEBUG
+void dbug_dump_range(int indent, bool verbose, TABLE *table, int index,
+                     KEY_PART *used_key_part,
+                     Bounds_checked_array<QUICK_RANGE *> ranges);
+#endif
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_

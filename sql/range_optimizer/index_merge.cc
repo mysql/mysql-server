@@ -56,7 +56,6 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
                                                    TABLE *table)
     : unique(nullptr), pk_quick_select(nullptr), mem_root(return_mem_root) {
   DBUG_TRACE;
-  index = MAX_KEY;
   m_table = table;
 }
 
@@ -106,15 +105,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
   free_io_cache(m_table);
-}
-
-bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields) {
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick = it++)) {
-    if (is_key_used(m_table, quick->index, fields)) return true;
-  }
-  return false;
 }
 
 /*
@@ -267,69 +257,3 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
 
   return result;
 }
-
-void QUICK_INDEX_MERGE_SELECT::add_info_string(String *str) {
-  QUICK_RANGE_SELECT *quick;
-  bool first = true;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append(STRING_WITH_LEN("sort_union("));
-  while ((quick = it++)) {
-    if (!first)
-      str->append(',');
-    else
-      first = false;
-    quick->add_info_string(str);
-  }
-  if (pk_quick_select) {
-    str->append(',');
-    pk_quick_select->add_info_string(str);
-  }
-  str->append(')');
-}
-
-void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
-                                                    String *used_lengths) {
-  char buf[64];
-  size_t length;
-  bool first = true;
-  QUICK_RANGE_SELECT *quick;
-
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick = it++)) {
-    if (first)
-      first = false;
-    else {
-      key_names->append(',');
-      used_lengths->append(',');
-    }
-
-    KEY *key_info = m_table->key_info + quick->index;
-    key_names->append(key_info->name);
-    length = longlong10_to_str(quick->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(buf, length);
-  }
-  if (pk_quick_select) {
-    KEY *key_info = m_table->key_info + pk_quick_select->index;
-    key_names->append(',');
-    key_names->append(key_info->name);
-    length =
-        longlong10_to_str(pk_quick_select->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(',');
-    used_lengths->append(buf, length);
-  }
-}
-
-#ifndef NDEBUG
-void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose) {
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
-  fprintf(DBUG_FILE, "%*squick index_merge select\n", indent, "");
-  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  while ((quick = it++)) quick->dbug_dump(indent + 2, verbose);
-  if (pk_quick_select) {
-    fprintf(DBUG_FILE, "%*sclustered PK quick:\n", indent, "");
-    pk_quick_select->dbug_dump(indent + 2, verbose);
-  }
-  fprintf(DBUG_FILE, "%*s}\n", indent, "");
-}
-#endif

@@ -33,14 +33,6 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
  public:
   QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q, uint used_key_parts);
   int get_next() override;
-  bool reverse_sorted() const override { return true; }
-  bool reverse_sort_possible() const override { return true; }
-  RangeScanType get_type() const override { return QS_TYPE_RANGE_DESC; }
-  bool is_loose_index_scan() const override { return false; }
-  bool is_agg_loose_index_scan() const override { return false; }
-  QUICK_SELECT_I *make_reverse(uint) override {
-    return this;  // is already reverse sorted
-  }
 
  private:
   bool range_reads_after_key(QUICK_RANGE *range);
@@ -50,6 +42,10 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
+
+  // Max. number of (first) key parts this quick select uses for retrieval.
+  // eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
+  const uint used_key_parts;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_

@@ -129,14 +129,17 @@ class IndexRangeScanIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
+                         bool is_loose_index_scan, bool is_ror,
                          double expected_rows, ha_rows *examined_rows);
+  ~IndexRangeScanIterator() override;
 
   bool Init() override;
   int Read() override;
 
  private:
-  // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
   QUICK_SELECT_I *const m_quick;
+  const bool m_is_loose_index_scan;
+  const bool m_is_ror;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
 

@@ -33,6 +33,8 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -303,8 +305,18 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     }
     case AccessPath::INDEX_RANGE_SCAN: {
       const auto &param = path->index_range_scan();
+      QUICK_SELECT_I *quick = param.trp->make_quick(true, thd->mem_root);
+      if (quick == nullptr || quick->init()) {
+        return nullptr;
+      }
+      const int type = param.trp->get_type();
+      bool is_loose_index_scan =
+          (type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX);
+      bool is_ror =
+          (type == QS_TYPE_ROR_INTERSECT || type == QS_TYPE_ROR_UNION);
       iterator = NewIterator<IndexRangeScanIterator>(
-          thd, param.table, param.quick, path->num_output_rows, examined_rows);
+          thd, param.table, quick, is_loose_index_scan, is_ror,
+          path->num_output_rows, examined_rows);
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {

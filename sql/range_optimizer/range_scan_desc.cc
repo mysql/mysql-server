@@ -42,9 +42,9 @@
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q,
                                      uint used_key_parts_arg)
-    : QUICK_RANGE_SELECT(std::move(q)), rev_it(rev_ranges) {
-  used_key_parts = used_key_parts_arg;
-
+    : QUICK_RANGE_SELECT(std::move(q)),
+      rev_it(rev_ranges),
+      used_key_parts(used_key_parts_arg) {
   QUICK_RANGE *r;
   /*
     Use default MRR implementation for reverse scans. No table engine

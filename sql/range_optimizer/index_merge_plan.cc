@@ -53,10 +53,6 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(bool, MEM_ROOT *return_mem_root) {
   if (!(quick_imerge = new (return_mem_root)
             QUICK_INDEX_MERGE_SELECT(return_mem_root, table)))
     return nullptr;
-  assert(quick_imerge->index == index);
-
-  quick_imerge->records = records;
-  quick_imerge->cost_est = cost_est;
 
   for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
        range_scan++) {
@@ -68,6 +64,78 @@ QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(bool, MEM_ROOT *return_mem_root) {
       return nullptr;
     }
   }
-  quick_imerge->forced_by_hint = forced_by_hint;
   return quick_imerge;
 }
+
+bool TRP_INDEX_MERGE::is_keys_used(const MY_BITMAP *fields) {
+  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
+       range_scan++) {
+    if (is_key_used(table, (*range_scan)->index, fields)) return true;
+  }
+  return false;
+}
+
+void TRP_INDEX_MERGE::get_fields_used(MY_BITMAP *used_fields) const {
+  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
+       range_scan++) {
+    (*range_scan)->get_fields_used(used_fields);
+  }
+}
+
+void TRP_INDEX_MERGE::add_info_string(String *str) const {
+  bool first = true;
+  str->append(STRING_WITH_LEN("sort_union("));
+
+  // For EXPLAIN compatibility with older versions, PRIMARY is always printed
+  // last.
+  for (bool print_primary : {false, true}) {
+    for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
+         range_scan++) {
+      const bool is_primary = table->file->primary_key_is_clustered() &&
+                              (*range_scan)->index == table->s->primary_key;
+      if (is_primary != print_primary) continue;
+      if (!first)
+        str->append(',');
+      else
+        first = false;
+      (*range_scan)->add_info_string(str);
+    }
+  }
+  str->append(')');
+}
+
+void TRP_INDEX_MERGE::add_keys_and_lengths(String *key_names,
+                                           String *used_lengths) const {
+  bool first = true;
+
+  // For EXPLAIN compatibility with older versions, PRIMARY is always printed
+  // last.
+  for (bool print_primary : {false, true}) {
+    for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
+         range_scan++) {
+      const bool is_primary = table->file->primary_key_is_clustered() &&
+                              (*range_scan)->index == table->s->primary_key;
+      if (is_primary != print_primary) continue;
+      if (first) {
+        first = false;
+      } else {
+        key_names->append(',');
+        used_lengths->append(',');
+      }
+
+      (*range_scan)->add_keys_and_lengths(key_names, used_lengths);
+    }
+  }
+}
+
+#ifndef NDEBUG
+void TRP_INDEX_MERGE::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE, "%*squick index_merge select\n", indent, "");
+  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
+       range_scan++) {
+    (*range_scan)->dbug_dump(indent + 2, verbose);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+#endif

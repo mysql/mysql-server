@@ -50,7 +50,6 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
       cpk_quick(nullptr),
       need_to_fetch_row(retrieve_full_rows),
       scans_inited(false) {
-  index = MAX_KEY;
   m_table = table;
   record = m_table->record[0];
   last_rowid = (uchar *)mem_root->Alloc(m_table->file->ref_length);
@@ -281,7 +280,6 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
             Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
       mem_root(return_mem_root),
       scans_inited(false) {
-  index = MAX_KEY;
   m_table = table;
   rowid_length = table->file->ref_length;
   record = m_table->record[0];
@@ -369,24 +367,6 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
   DBUG_TRACE;
   quick_selects.destroy_elements();
   if (m_table->file->inited) m_table->file->ha_rnd_end();
-}
-
-bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields) {
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick = it++)) {
-    if (is_key_used(m_table, quick->index, fields)) return true;
-  }
-  return false;
-}
-
-bool QUICK_ROR_UNION_SELECT::is_keys_used(const MY_BITMAP *fields) {
-  QUICK_SELECT_I *quick;
-  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  while ((quick = it++)) {
-    if (quick->is_keys_used(fields)) return true;
-  }
-  return false;
 }
 
 /*
@@ -555,110 +535,3 @@ int QUICK_ROR_UNION_SELECT::get_next() {
   } while (error == HA_ERR_RECORD_DELETED);
   return error;
 }
-
-void QUICK_ROR_INTERSECT_SELECT::add_info_string(String *str) {
-  bool first = true;
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  str->append(STRING_WITH_LEN("intersect("));
-  while ((quick = it++)) {
-    KEY *key_info = m_table->key_info + quick->index;
-    if (!first)
-      str->append(',');
-    else
-      first = false;
-    str->append(key_info->name);
-  }
-  if (cpk_quick) {
-    KEY *key_info = m_table->key_info + cpk_quick->index;
-    str->append(',');
-    str->append(key_info->name);
-  }
-  str->append(')');
-}
-
-void QUICK_ROR_UNION_SELECT::add_info_string(String *str) {
-  bool first = true;
-  QUICK_SELECT_I *quick;
-  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  str->append(STRING_WITH_LEN("union("));
-  while ((quick = it++)) {
-    if (!first)
-      str->append(',');
-    else
-      first = false;
-    quick->add_info_string(str);
-  }
-  str->append(')');
-}
-
-void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
-                                                      String *used_lengths) {
-  char buf[64];
-  size_t length;
-  bool first = true;
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick = it++)) {
-    KEY *key_info = m_table->key_info + quick->index;
-    if (first)
-      first = false;
-    else {
-      key_names->append(',');
-      used_lengths->append(',');
-    }
-    key_names->append(key_info->name);
-    length = longlong10_to_str(quick->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(buf, length);
-  }
-
-  if (cpk_quick) {
-    KEY *key_info = m_table->key_info + cpk_quick->index;
-    key_names->append(',');
-    key_names->append(key_info->name);
-    length = longlong10_to_str(cpk_quick->max_used_key_length, buf, 10) - buf;
-    used_lengths->append(',');
-    used_lengths->append(buf, length);
-  }
-}
-
-void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
-                                                  String *used_lengths) {
-  bool first = true;
-  QUICK_SELECT_I *quick;
-  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  while ((quick = it++)) {
-    if (first)
-      first = false;
-    else {
-      used_lengths->append(',');
-      key_names->append(',');
-    }
-    quick->add_keys_and_lengths(key_names, used_lengths);
-  }
-}
-
-#ifndef NDEBUG
-void QUICK_ROR_INTERSECT_SELECT::dbug_dump(int indent, bool verbose) {
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
-  fprintf(DBUG_FILE, "%*squick ROR-intersect select, %scovering\n", indent, "",
-          need_to_fetch_row ? "" : "non-");
-  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  while ((quick = it++)) quick->dbug_dump(indent + 2, verbose);
-  if (cpk_quick) {
-    fprintf(DBUG_FILE, "%*sclustered PK quick:\n", indent, "");
-    cpk_quick->dbug_dump(indent + 2, verbose);
-  }
-  fprintf(DBUG_FILE, "%*s}\n", indent, "");
-}
-
-void QUICK_ROR_UNION_SELECT::dbug_dump(int indent, bool verbose) {
-  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  QUICK_SELECT_I *quick;
-  fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
-  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  while ((quick = it++)) quick->dbug_dump(indent + 2, verbose);
-  fprintf(DBUG_FILE, "%*s}\n", indent, "");
-}
-#endif

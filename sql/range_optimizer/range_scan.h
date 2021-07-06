@@ -59,6 +59,9 @@ struct QUICK_RANGE_SEQ_CTX {
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
  protected:
   handler *file;
+
+  uint index; /* Index this quick select uses */
+
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
 
@@ -72,7 +75,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
-  friend class QUICK_GROUP_MIN_MAX_SELECT;
 
   Bounds_checked_array<QUICK_RANGE *> ranges; /* ordered array of range ptrs */
   bool free_file; /* TRUE <=> this->file is "owned" by this quick select */
@@ -104,8 +106,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_RANGE_SELECT(TABLE *table, uint index_arg, MEM_ROOT *return_mem_root,
                      uint mrr_flags, uint mrr_buf_size, const KEY_PART *key,
-                     Bounds_checked_array<QUICK_RANGE *> ranges,
-                     uint used_key_parts_arg);
+                     Bounds_checked_array<QUICK_RANGE *> ranges);
   ~QUICK_RANGE_SELECT() override;
 
   QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = delete;
@@ -113,33 +114,15 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   /* Default move ctor used by QUICK_SELECT_DESC */
   QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
 
-  void need_sorted_output() override;
   int init() override;
   int reset(void) override;
   int get_next() override;
   void range_end() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
-  bool reverse_sorted() const override { return false; }
-  bool reverse_sort_possible() const override { return true; }
-  bool unique_key_range() override;
   int init_ror_merged_scan(bool reuse_handler) override;
   void save_last_pos() override { file->position(record); }
-  RangeScanType get_type() const override { return QS_TYPE_RANGE; }
-  bool is_loose_index_scan() const override { return false; }
-  bool is_agg_loose_index_scan() const override { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-  void add_info_string(String *str) override;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
-  QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) override;
-  void set_handler(handler *file_arg) override { file = file_arg; }
 
-  void get_fields_used(MY_BITMAP *used_fields) override {
-    for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, key_parts[i].field->field_index());
-  }
   uint get_mrr_flags() const { return mrr_flags; }
 };
 

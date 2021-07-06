@@ -97,6 +97,93 @@ class TABLE_READ_PLAN {
   */
   virtual void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
+
+  virtual RangeScanType get_type() const = 0;
+
+  /*
+    Append text representation of quick select structure (what and how is
+    merged) to str. The result is added to "Extra" field in EXPLAIN output.
+   */
+  virtual void add_info_string(String *) const = 0;
+
+  /*
+    Append comma-separated list of keys this quick select uses to key_names;
+    append comma-separated list of corresponding used lengths to used_lengths.
+    This is used by select_describe.
+  */
+  virtual void add_keys_and_lengths(String *key_names,
+                                    String *used_lengths) const = 0;
+
+  // Return 1 if there is only one range and this uses the whole unique key.
+  // Overridden only by TRP_RANGE.
+  virtual bool unique_key_range() const { return false; }
+
+  // Overridden only by TRP_GROUP_MIN_MAX.
+  virtual bool is_agg_loose_index_scan() const { return false; }
+
+  // Whether the range access method returns records in reverse order.
+  // Overridden only by TRP_RANGE.
+  virtual bool reverse_sorted() const { return false; }
+
+  /*
+    Request that this quick select produce sorted output.
+    Not all quick selects can provide sorted output; the caller is responsible
+    for calling this function only for those quick selects that can.
+    The implementation is also allowed to provide sorted output even if it
+    was not requested if beneficial, or required by implementation
+    internals.
+   */
+  virtual void need_sorted_output() = 0;
+
+  // Ask the TRP to reverse itself; returns false if successful.
+  // Overridden only in TRP_RANGE.
+  virtual bool make_reverse(uint used_key_parts [[maybe_unused]]) {
+    return true;
+  }
+
+  /*
+    Return 1 if any index used by this quick select
+    uses field which is marked in passed bitmap.
+   */
+  virtual bool is_keys_used(const MY_BITMAP *fields);
+
+  /**
+    Get the fields used by the range access method.
+
+    @param[out] used_fields Bitmap of fields that this range access
+                            method uses.
+   */
+  virtual void get_fields_used(MY_BITMAP *used_fields) const = 0;
+
+  /**
+    Get the total length of first used_key_parts parts of the key,
+    in bytes. Only applicable for the access types that use a single
+    index (others will assert-fail).
+   */
+  virtual unsigned get_max_used_key_length() const = 0;
+
+#ifndef NDEBUG
+  /*
+    Print quick select information to DBUG_FILE. Caller is responsible
+    for locking DBUG_FILE before this call and unlocking it afterwards.
+   */
+  virtual void dbug_dump(int indent, bool verbose) = 0;
+#endif
 };
+
+inline bool is_loose_index_scan(const TABLE_READ_PLAN *trp) {
+  int type = trp->get_type();
+  return type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX;
+}
+
+/**
+  Whether the range access method is capable of returning records
+  in reverse order.
+ */
+inline bool reverse_sort_possible(const TABLE_READ_PLAN *trp) {
+  return trp->get_type() == QS_TYPE_RANGE;
+}
+
+void trace_quick_description(TABLE_READ_PLAN *trp, Opt_trace_context *trace);
 
 #endif  // SQL_RANGE_OPTIMIZER_TABLE_READ_PLAN_H_

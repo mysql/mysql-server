@@ -64,6 +64,7 @@ struct TABLE;
 
 class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
  private:
+  uint index;                 /* Index this quick select uses */
   KEY *index_info;            /* Index for skip scan */
   SEL_ROOT *index_range_tree; /* Range tree for skip scan */
   MY_BITMAP column_bitmap;    /* Map of key parts to be read */
@@ -72,6 +73,13 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   uint eq_prefix_key_parts; /* A number of keyparts in skip scan prefix */
   EQPrefix *eq_prefixes;
   uchar *eq_prefix; /* Storage for current equality prefix. */
+
+  // Total length of first used_key_parts parts of the key.
+  uint max_used_key_length;
+
+  // Max. number of (first) key parts this quick select uses for retrieval.
+  // eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
+  uint used_key_parts;
 
   uchar *distinct_prefix; /* Storage for prefix A_1, ... B_m. */
   uint distinct_prefix_len;
@@ -105,33 +113,14 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
                          KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
                          uint eq_prefix_len, uint eq_prefix_key_parts,
                          EQPrefix *eq_prefixes, uint used_key_parts,
-                         const Cost_estimate *read_cost_arg, ha_rows records,
                          MEM_ROOT *temp_mem_root, bool has_aggregate_function,
                          uchar *min_range_key, uchar *max_range_key,
                          uchar *min_search_key, uchar *max_search_key,
                          uint range_cond_flag, uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
   int init() override;
-  void need_sorted_output() override {}
   int reset() override;
   int get_next() override;
-  bool reverse_sorted() const override { return false; }
-  bool reverse_sort_possible() const override { return false; }
-  bool unique_key_range() override { return false; }
-  RangeScanType get_type() const override { return QS_TYPE_SKIP_SCAN; }
-  bool is_loose_index_scan() const override { return true; }
-  bool is_agg_loose_index_scan() const override {
-    return has_aggregate_function;
-  }
-  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
-  void get_fields_used(MY_BITMAP *used_fields) override {
-    for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
-  }
-  void add_info_string(String *str) override;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_

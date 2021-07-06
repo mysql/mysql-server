@@ -56,6 +56,7 @@
 #include "sql/query_options.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
+#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
@@ -183,11 +184,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   unit->set_limit(thd, query_block);
 
-  QUICK_SELECT_I *quick = nullptr;
+  TABLE_READ_PLAN *trp = nullptr;
   join_type type = JT_UNKNOWN;
 
-  auto cleanup = create_scope_guard([&quick, table] {
-    destroy(quick);
+  auto cleanup = create_scope_guard([&trp, table] {
+    destroy(trp);
     table->set_keyread(false);
     table->file->ha_index_or_rnd_end();
     free_io_cache(table);
@@ -367,7 +368,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
                     thd, thd->mem_root, &temp_mem_root, keys_to_use, 0, 0,
                     limit, safe_update, ORDER_NOT_RELEVANT, table,
                     /*skip_records_in_range=*/false, conds, &needed_reg_dummy,
-                    &quick, table->force_index, query_block) < 0;
+                    table->force_index, query_block, &trp) < 0;
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation
       return true;
@@ -409,11 +410,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    usable_index = get_index_for_order(&order_src, table, limit, &quick,
+    usable_index = get_index_for_order(&order_src, table, limit, &trp,
                                        &need_sort, &reverse);
-    if (quick != nullptr) {
+    if (trp != nullptr) {
       // May have been changed by get_index_for_order().
-      type = calc_join_type(quick->get_type());
+      type = calc_join_type(trp->get_type());
     }
   }
 
@@ -422,15 +423,15 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   {
     ha_rows rows;
-    if (quick)
-      rows = quick->records;
+    if (trp)
+      rows = trp->records;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
       delete_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
-    Modification_plan plan(thd, MT_DELETE, table, type, quick, conds,
+    Modification_plan plan(thd, MT_DELETE, table, type, trp, conds,
                            usable_index, limit, false, need_sort, false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
@@ -446,9 +447,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     unique_ptr_destroy_only<Filesort> fsort;
     JOIN join(thd, query_block);  // Only for holding examined_rows.
     AccessPath *path;
-    if (usable_index == MAX_KEY || quick) {
+    if (usable_index == MAX_KEY || trp) {
       path =
-          create_table_access_path(thd, table, quick,
+          create_table_access_path(thd, table, trp,
                                    /*table_ref=*/nullptr, /*position=*/nullptr,
                                    /*count_examined_rows=*/true);
     } else {
@@ -515,9 +516,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (thd->is_error()) return true;
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
-        !using_limit && !has_delete_triggers && quick &&
-        quick->index != MAX_KEY)
-      read_removal = table->check_read_removal(quick->index);
+        !using_limit && !has_delete_triggers && trp && trp->index != MAX_KEY)
+      read_removal = table->check_read_removal(trp->index);
 
     assert(limit > 0);
 

@@ -48,6 +48,7 @@ class Query_block;
 class THD;
 struct MY_BITMAP;
 struct TABLE;
+class TABLE_READ_PLAN;
 
 struct KEY_PART {
   uint16 key, part;
@@ -220,39 +221,9 @@ enum RangeScanType {
 
 class QUICK_SELECT_I {
  public:
-  ha_rows records;         /* estimate of # of records to be retrieved */
-  Cost_estimate cost_est;  ///> cost to perform this retrieval
   TABLE *m_table;
-  /*
-    Index this quick select uses, or MAX_KEY for quick selects
-    that use several indexes
-  */
-  uint index;
 
-  /*
-    Total length of first used_key_parts parts of the key.
-    Applicable if index!= MAX_KEY.
-  */
-  uint max_used_key_length;
-
-  /*
-    Max. number of (first) key parts this quick select uses for retrieval.
-    eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
-    Applicable if index!= MAX_KEY.
-
-    For QUICK_GROUP_MIN_MAX_SELECT it includes MIN/MAX argument keyparts.
-  */
-  uint used_key_parts;
-  /**
-    true if creation of the object is forced by the hint.
-    The flag is used to skip ref evaluation in find_best_ref() function.
-    It also enables using of QUICK_SELECT object in
-    Optimize_table_order::best_access_path() regardless of the evaluation cost.
-  */
-  bool forced_by_hint;
-
-  QUICK_SELECT_I();
-  QUICK_SELECT_I(const QUICK_SELECT_I &) = default;
+  QUICK_SELECT_I() = default;
   virtual ~QUICK_SELECT_I() = default;
 
   /*
@@ -297,32 +268,6 @@ class QUICK_SELECT_I {
   /* Range end should be called when we have looped over the whole index */
   virtual void range_end() {}
 
-  /**
-    Whether the range access method returns records in reverse order.
-  */
-  virtual bool reverse_sorted() const = 0;
-  /**
-    Whether the range access method is capable of returning records
-    in reverse order.
-  */
-  virtual bool reverse_sort_possible() const = 0;
-  virtual bool unique_key_range() { return false; }
-
-  /*
-    Request that this quick select produces sorted output.
-    Not all quick selects can provide sorted output, the caller is responsible
-    for calling this function only for those quick selects that can.
-    The implementation is also allowed to provide sorted output even if it
-    was not requested if benificial, or required by implementation
-    internals.
-  */
-  virtual void need_sorted_output() = 0;
-
-  /* Get type of this quick select */
-  virtual RangeScanType get_type() const = 0;
-  virtual bool is_loose_index_scan() const = 0;
-  virtual bool is_agg_loose_index_scan() const = 0;
-
   /*
     Initialize this quick select as a merged scan inside a ROR-union or a ROR-
     intersection scan. The caller must not additionally call init() if this
@@ -347,27 +292,6 @@ class QUICK_SELECT_I {
   virtual void save_last_pos() {}
 
   /*
-    Append comma-separated list of keys this quick select uses to key_names;
-    append comma-separated list of corresponding used lengths to used_lengths.
-    This is used by select_describe.
-  */
-  virtual void add_keys_and_lengths(String *key_names,
-                                    String *used_lengths) = 0;
-
-  /*
-    Append text representation of quick select structure (what and how is
-    merged) to str. The result is added to "Extra" field in EXPLAIN output.
-    This function is implemented only by quick selects that merge other quick
-    selects output and/or can produce output suitable for merging.
-  */
-  virtual void add_info_string(String *str [[maybe_unused]]) {}
-  /*
-    Return 1 if any index used by this quick select
-    uses field which is marked in passed bitmap.
-  */
-  virtual bool is_keys_used(const MY_BITMAP *fields);
-
-  /*
     rowid of last row retrieved by this quick select. This is used only when
     doing ROR-index_merge selects
   */
@@ -377,30 +301,7 @@ class QUICK_SELECT_I {
     Table record buffer used by this quick select.
   */
   uchar *record;
-#ifndef NDEBUG
-  /*
-    Print quick select information to DBUG_FILE. Caller is responsible
-    for locking DBUG_FILE before this call and unlocking it afterwards.
-  */
-  virtual void dbug_dump(int indent, bool verbose) = 0;
-#endif
 
-  /*
-    Returns a QUICK_SELECT with reverse order of to the index.
-  */
-  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg
-                                       [[maybe_unused]]) {
-    return nullptr;
-  }
-  virtual void set_handler(handler *file_arg [[maybe_unused]]) {}
-
-  /**
-    Get the fields used by the range access method.
-
-    @param[out] used_fields Bitmap of fields that this range access
-                            method uses.
-  */
-  virtual void get_fields_used(MY_BITMAP *used_fields) = 0;
   void trace_quick_description(Opt_trace_context *trace);
 };
 
@@ -413,8 +314,8 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
-                      Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan, Query_block *query_block);
+                      Key_map *needed_reg, bool ignore_table_scan,
+                      Query_block *query_block, TABLE_READ_PLAN **trp);
 
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 

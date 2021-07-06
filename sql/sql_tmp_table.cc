@@ -69,8 +69,9 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
-#include "sql/sql_base.h"                         // free_io_cache
-#include "sql/sql_class.h"                        // THD
+#include "sql/range_optimizer/table_read_plan.h"
+#include "sql/sql_base.h"   // free_io_cache
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"  // SJ_TMP_TABLE
 #include "sql/sql_lex.h"
@@ -2740,23 +2741,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     assert(table->mem_root.allocated_size() == 0);
     assert(new_table.mem_root.allocated_size() == 0);
     table->mem_root = std::move(new_table.mem_root);
-
-    /*
-      Depending on if this TABLE clone is early/late in optimization, or in
-      execution, it has a JOIN_TAB or a QEP_TAB or none.
-    */
-    QEP_TAB *qep_tab = table->reginfo.qep_tab;
-    QEP_shared_owner *tab;
-    if (qep_tab)
-      tab = qep_tab;
-    else
-      tab = table->reginfo.join_tab;
-
-    /* Update quick select, if any. */
-    if (tab && tab->quick()) {
-      assert(table->pos_in_table_list->uses_materialization());
-      tab->quick()->set_handler(table->file);
-    }
 
     // TODO(sgunders): Move this into MaterializeIterator when we remove the
     // pre-iterator executor.

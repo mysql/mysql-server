@@ -94,8 +94,23 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+                        Opt_trace_object *trace_object) const override;
 
   Cost_estimate get_index_scan_cost() const { return index_scan_cost; }
+  bool get_is_covering() const { return is_covering; }
+
+  RangeScanType get_type() const override { return QS_TYPE_ROR_INTERSECT; }
+  bool is_keys_used(const MY_BITMAP *fields) override;
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
+  void get_fields_used(MY_BITMAP *used_fields) const override;
+  void add_info_string(String *str) const override;
+  void add_keys_and_lengths(String *key_names,
+                            String *used_lengths) const override;
+  unsigned get_max_used_key_length() const final;
+#ifndef NDEBUG
+  void dbug_dump(int indent, bool verbose) override;
+#endif
 
  private:
   /* ROR range scans used in this intersection */
@@ -103,9 +118,6 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   ROR_SCAN_INFO *cpk_scan; /* Clustered PK scan, if there is one */
   const bool is_covering;  /* true if no row retrieval phase is necessary */
   const Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
-
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
-                        Opt_trace_object *trace_object) const override;
 
   KEY_PART *const *key;
   const uint *real_keynr;
@@ -129,6 +141,18 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
+
+  RangeScanType get_type() const override { return QS_TYPE_ROR_UNION; }
+  bool is_keys_used(const MY_BITMAP *fields) override;
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
+  void get_fields_used(MY_BITMAP *used_fields) const override;
+  void add_info_string(String *str) const override;
+  void add_keys_and_lengths(String *key_names,
+                            String *used_lengths) const override;
+  unsigned get_max_used_key_length() const final;
+#ifndef NDEBUG
+  void dbug_dump(int indent, bool verbose) override;
+#endif
 };
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(

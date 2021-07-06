@@ -47,8 +47,8 @@ class JOIN;
 class KEY;
 class RowIterator;
 class QEP_TAB;
-class QUICK_SELECT_I;
 class SJ_TMP_TABLE;
+class TABLE_READ_PLAN;
 class Table_function;
 class Temp_table_param;
 class Window;
@@ -757,7 +757,7 @@ struct AccessPath {
     } follow_tail;
     struct {
       TABLE *table;
-      QUICK_SELECT_I *quick;
+      TABLE_READ_PLAN *trp;
     } index_range_scan;
     struct {
       TABLE *table;
@@ -1094,13 +1094,13 @@ inline AccessPath *NewFollowTailAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
-                                               QUICK_SELECT_I *quick,
+                                               TABLE_READ_PLAN *trp,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->index_range_scan().table = table;
-  path->index_range_scan().quick = quick;
+  path->index_range_scan().trp = trp;
   return path;
 }
 

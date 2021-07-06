@@ -1716,10 +1716,10 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   QUICK_RANGE_SELECT *quick_prefix_query_block = nullptr;
   if (!prefix_ranges.empty()) {
-    quick_prefix_query_block = new (return_mem_root) QUICK_RANGE_SELECT(
-        table, keyno, return_mem_root, HA_MRR_SORTED,
-        /*mrr_buf_size=*/0, used_key_part,
-        {&prefix_ranges[0], prefix_ranges.size()}, used_key_parts);
+    quick_prefix_query_block = new (return_mem_root)
+        QUICK_RANGE_SELECT(table, keyno, return_mem_root, HA_MRR_SORTED,
+                           /*mrr_buf_size=*/0, used_key_part,
+                           {&prefix_ranges[0], prefix_ranges.size()});
     if (!quick_prefix_query_block) {
       return nullptr;
     }
@@ -1731,12 +1731,11 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
       new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
           table, join, have_min, have_max, min_functions, max_functions,
           have_agg_distinct, min_max_arg_part, group_prefix_len,
-          group_key_parts, used_key_parts, real_key_parts, max_used_key_length,
-          index_info, index, &cost_est, records, key_infix_len, return_mem_root,
-          is_index_scan, quick_prefix_query_block, std::move(key_infix_ranges),
+          group_key_parts, real_key_parts, max_used_key_length, index_info,
+          index, key_infix_len, return_mem_root, is_index_scan,
+          quick_prefix_query_block, std::move(key_infix_ranges),
           std::move(min_max_ranges)));
   if (!quick) return nullptr;
-  assert(quick->index == index);
 
   if (quick->init()) {
     return nullptr;
@@ -1744,3 +1743,74 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   return quick.release();
 }
+
+void TRP_GROUP_MIN_MAX::add_info_string(String *str) const {
+  str->append(STRING_WITH_LEN("index_for_group_by("));
+  str->append(index_info->name);
+  str->append(')');
+}
+
+/*
+  Append comma-separated list of keys this quick select uses to key_names;
+  append comma-separated list of corresponding used lengths to used_lengths.
+
+  SYNOPSIS
+    TRP_GROUP_MIN_MAX::add_keys_and_lengths()
+    key_names    [out] Names of used indexes
+    used_lengths [out] Corresponding lengths of the index names
+
+  DESCRIPTION
+    This method is used by select_describe to extract the names of the
+    indexes used by a quick select.
+
+ */
+
+void TRP_GROUP_MIN_MAX::add_keys_and_lengths(String *key_names,
+                                             String *used_lengths) const {
+  key_names->append(index_info->name);
+
+  char buf[64];
+  size_t length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
+  used_lengths->append(buf, length);
+}
+
+#ifndef NDEBUG
+/*
+  Print quick select information to DBUG_FILE.
+
+  SYNOPSIS
+    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
+    indent  Indentation offset
+    verbose If true show more detailed output.
+
+  DESCRIPTION
+    Print the contents of this quick select to DBUG_FILE. The method also
+    calls dbug_dump() for the used quick select if any.
+
+  IMPLEMENTATION
+    Caller is responsible for locking DBUG_FILE before this call and unlocking
+    it afterwards.
+
+  RETURN
+    None
+*/
+
+void TRP_GROUP_MIN_MAX::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE,
+          "%*squick_group_min_max_query_block: index %s (%d), length: %d\n",
+          indent, "", index_info->name, index, max_used_key_length);
+  if (key_infix_len > 0) {
+    fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n", indent, "",
+            key_infix_len);
+  }
+  if (!prefix_ranges.empty()) {
+    fprintf(DBUG_FILE, "%*susing quick_range_query_block:\n", indent, "");
+    dbug_dump_range(indent, verbose, table, keyno, used_key_part,
+                    {&prefix_ranges[0], prefix_ranges.size()});
+  }
+  if (min_max_ranges.size() > 0) {
+    fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",
+            static_cast<int>(min_max_ranges.size()));
+  }
+}
+#endif

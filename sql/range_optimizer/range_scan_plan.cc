@@ -42,6 +42,7 @@
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan.h"
+#include "sql/range_optimizer/range_scan_desc.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -809,7 +810,9 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
 QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
                                      KEY_PART *key, uint keyno,
                                      SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size, uint num_key_parts) {
+                                     uint mrr_buf_size, uint num_key_parts,
+                                     bool reverse,
+                                     uint used_key_parts_for_reverse) {
   DBUG_TRACE;
 
   assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
@@ -823,13 +826,24 @@ QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
   }
 
   if (table->key_info[keyno].flags & HA_SPATIAL) {
-    return new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key,
-        {&ranges[0], ranges.size()}, used_key_parts);
+    return new (return_mem_root)
+        QUICK_RANGE_SELECT_GEOM(table, keyno, return_mem_root, mrr_flags,
+                                mrr_buf_size, key, {&ranges[0], ranges.size()});
   } else {
-    return new (return_mem_root) QUICK_RANGE_SELECT(
-        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key,
-        {&ranges[0], ranges.size()}, used_key_parts);
+    QUICK_RANGE_SELECT *quick = new (return_mem_root)
+        QUICK_RANGE_SELECT(table, keyno, return_mem_root, mrr_flags,
+                           mrr_buf_size, key, {&ranges[0], ranges.size()});
+    if (reverse) {
+      // TODO: Unify the two classes, or at least make some way
+      // of constructing a QUICK_SELECT_DESC without creating
+      // the forward class first.
+      QUICK_RANGE_SELECT *reverse_quick = new (return_mem_root)
+          QUICK_SELECT_DESC(std::move(*quick), used_key_parts_for_reverse);
+      destroy(quick);
+      return reverse_quick;
+    } else {
+      return quick;
+    }
   }
 }
 
@@ -1257,3 +1271,126 @@ static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
   }
   return false;
 }
+
+bool TRP_RANGE::unique_key_range() const {
+  if (ranges.size() == 1) {
+    QUICK_RANGE *tmp = ranges[0];
+    if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE) {
+      KEY *key = table->key_info + index;
+      return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
+    }
+  }
+  return false;
+}
+
+void TRP_RANGE::add_info_string(String *str) const {
+  KEY *key_info = table->key_info + index;
+  str->append(key_info->name);
+}
+
+void TRP_RANGE::add_keys_and_lengths(String *key_names,
+                                     String *used_lengths) const {
+  KEY *key_info = table->key_info + index;
+  key_names->append(key_info->name);
+
+  char buf[64];
+  size_t length = longlong10_to_str(get_max_used_key_length(), buf, 10) - buf;
+  used_lengths->append(buf, length);
+}
+
+unsigned TRP_RANGE::get_max_used_key_length() const {
+  int max_used_key_length = 0;
+  for (const QUICK_RANGE *range : ranges) {
+    max_used_key_length = std::max<int>(max_used_key_length, range->min_length);
+    max_used_key_length = std::max<int>(max_used_key_length, range->max_length);
+  }
+  return max_used_key_length;
+}
+
+#ifndef NDEBUG
+static void print_multiple_key_values(const KEY_PART *key_part,
+                                      const uchar *key, uint used_length) {
+  char buff[1024];
+  const uchar *key_end = key + used_length;
+  String tmp(buff, sizeof(buff), &my_charset_bin);
+  uint store_length;
+  TABLE *table = key_part->field->table;
+  my_bitmap_map *old_sets[2];
+
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
+
+  for (; key < key_end; key += store_length, key_part++) {
+    Field *field = key_part->field;
+    if (field->is_array())
+      field = (down_cast<Field_typed_array *>(field))->get_conv_field();
+    store_length = key_part->store_length;
+
+    if (field->is_nullable()) {
+      if (*key) {
+        if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
+          goto restore_col_map;
+        }
+        continue;
+      }
+      key++;  // Skip null byte
+      store_length--;
+    }
+    field->set_key_image(key, key_part->length);
+    if (field->type() == MYSQL_TYPE_BIT)
+      (void)field->val_int_as_str(&tmp, true);
+    else
+      field->val_str(&tmp);
+    if (fwrite(tmp.ptr(), sizeof(char), tmp.length(), DBUG_FILE) !=
+        tmp.length()) {
+      goto restore_col_map;
+    }
+    if (key + store_length < key_end) fputc('/', DBUG_FILE);
+  }
+restore_col_map:
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
+}
+
+void dbug_dump_range(int indent, bool verbose, TABLE *table, int index,
+                     KEY_PART *used_key_part,
+                     Bounds_checked_array<QUICK_RANGE *> ranges) {
+  /* purecov: begin inspected */
+  int max_used_key_length = 0;
+  for (const QUICK_RANGE *range : ranges) {
+    max_used_key_length = std::max<int>(max_used_key_length, range->min_length);
+    max_used_key_length = std::max<int>(max_used_key_length, range->max_length);
+  }
+  fprintf(DBUG_FILE, "%*squick range select, key %s, length: %d\n", indent, "",
+          table->key_info[index].name, max_used_key_length);
+
+  if (verbose) {
+    for (size_t ix = 0; ix < ranges.size(); ++ix) {
+      fprintf(DBUG_FILE, "%*s", indent + 2, "");
+      QUICK_RANGE *range = ranges[ix];
+      if (!(range->flag & NO_MIN_RANGE)) {
+        print_multiple_key_values(used_key_part, range->min_key,
+                                  range->min_length);
+        if (range->flag & NEAR_MIN)
+          fputs(" < ", DBUG_FILE);
+        else
+          fputs(" <= ", DBUG_FILE);
+      }
+      fputs("X", DBUG_FILE);
+
+      if (!(range->flag & NO_MAX_RANGE)) {
+        if (range->flag & NEAR_MAX)
+          fputs(" < ", DBUG_FILE);
+        else
+          fputs(" <= ", DBUG_FILE);
+        print_multiple_key_values(used_key_part, range->max_key,
+                                  range->max_length);
+      }
+      fputs("\n", DBUG_FILE);
+    }
+  }
+  /* purecov: end */
+}
+
+void TRP_RANGE::dbug_dump(int indent, bool verbose) {
+  dbug_dump_range(indent, verbose, table, index, used_key_part, ranges);
+}
+#endif

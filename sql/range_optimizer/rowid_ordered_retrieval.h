@@ -66,21 +66,8 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   int init() override;
-  void need_sorted_output() override { assert(false); /* Can't do it */ }
   int reset(void) override;
   int get_next() override;
-  bool reverse_sorted() const override { return false; }
-  bool reverse_sort_possible() const override { return false; }
-  bool unique_key_range() override { return false; }
-  RangeScanType get_type() const override { return QS_TYPE_ROR_INTERSECT; }
-  bool is_loose_index_scan() const override { return false; }
-  bool is_agg_loose_index_scan() const override { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-  void add_info_string(String *str) override;
-  bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
   int init_ror_merged_scan(bool reuse_handler) override;
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
@@ -89,12 +76,6 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
     cpk_quick.
   */
   List<QUICK_RANGE_SELECT> quick_selects;
-
-  void get_fields_used(MY_BITMAP *used_fields) override {
-    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-    QUICK_RANGE_SELECT *quick;
-    while ((quick = it++)) quick->get_fields_used(used_fields);
-  }
 
   MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */
   /*
@@ -139,31 +120,12 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_UNION_SELECT() override;
 
   int init() override;
-  void need_sorted_output() override { assert(false); /* Can't do it */ }
   int reset(void) override;
   int get_next() override;
-  bool reverse_sorted() const override { return false; }
-  bool reverse_sort_possible() const override { return false; }
-  bool unique_key_range() override { return false; }
-  RangeScanType get_type() const override { return QS_TYPE_ROR_UNION; }
-  bool is_loose_index_scan() const override { return false; }
-  bool is_agg_loose_index_scan() const override { return false; }
-  void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-  void add_info_string(String *str) override;
-  bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
 
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
   List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
-
-  void get_fields_used(MY_BITMAP *used_fields) override {
-    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-    QUICK_SELECT_I *quick;
-    while ((quick = it++)) quick->get_fields_used(used_fields);
-  }
 
   Priority_queue<
       QUICK_SELECT_I *,

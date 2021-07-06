@@ -74,7 +74,7 @@ struct AccessPath;
 struct TABLE;
 template <class T>
 class List;
-class QUICK_SELECT_I;
+class TABLE_READ_PLAN;
 
 extern const char *join_type_str[];
 
@@ -87,7 +87,7 @@ class Modification_plan {
   TABLE *table;  ///< Table to modify
 
   enum join_type type = JT_UNKNOWN;
-  QUICK_SELECT_I *quick{nullptr};
+  TABLE_READ_PLAN *trp{nullptr};
   Item *condition{nullptr};
   uint key;                   ///< Key to use
   ha_rows limit;              ///< Limit
@@ -99,7 +99,7 @@ class Modification_plan {
   ha_rows examined_rows;  ///< # of rows expected to be examined in the table
 
   Modification_plan(THD *thd_arg, enum_mod_type mt, TABLE *table_arg,
-                    enum join_type type_arg, QUICK_SELECT_I *quick_arg,
+                    enum join_type type_arg, TABLE_READ_PLAN *quick_arg,
                     Item *condition_arg, uint key_arg, ha_rows limit_arg,
                     bool need_tmp_table_arg, bool need_sort_arg,
                     bool used_key_is_modified_arg, ha_rows rows);

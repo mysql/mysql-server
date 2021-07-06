@@ -127,19 +127,16 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
 // ranges from. Does not support reverse range scans.
 static QUICK_RANGE_SELECT *get_quick_select_local(
     MEM_ROOT *return_mem_root, TABLE *table, KEY_PART *key, uint keyno,
-    uint mrr_flags, uint mrr_buf_size, uint used_key_parts,
+    uint mrr_flags, uint mrr_buf_size,
     Bounds_checked_array<QUICK_RANGE *> ranges) {
   DBUG_TRACE;
 
   if (table->key_info[keyno].flags & HA_SPATIAL) {
-    return new (return_mem_root)
-        QUICK_RANGE_SELECT_GEOM(table, keyno, return_mem_root, mrr_flags,
-                                mrr_buf_size, key, ranges, used_key_parts);
+    return new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
+        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
   } else {
-    QUICK_RANGE_SELECT *quick = new (return_mem_root)
-        QUICK_RANGE_SELECT(table, keyno, return_mem_root, mrr_flags,
-                           mrr_buf_size, key, ranges, used_key_parts);
-    return quick;
+    return new (return_mem_root) QUICK_RANGE_SELECT(
+        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
   }
 }
 
@@ -153,16 +150,15 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                                  (retrieve_full_rows ? (!is_covering) : false),
                                  return_mem_root);
   if (quick_intrsect) {
-    assert(quick_intrsect->index == index);
     DBUG_EXECUTE("info",
                  print_ror_scans_arr(
                      table, "creating ROR-intersect", &intersect_scans[0],
                      &intersect_scans[0] + intersect_scans.size()););
     for (ROR_SCAN_INFO *current : intersect_scans) {
       uint idx = current->idx;
-      if (!(quick = get_quick_select_local(
-                return_mem_root, table, key[idx], real_keynr[idx],
-                HA_MRR_SORTED, 0, current->used_key_parts, current->ranges)) ||
+      if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
+                                           real_keynr[idx], HA_MRR_SORTED, 0,
+                                           current->ranges)) ||
           quick_intrsect->push_quick_back(quick)) {
         destroy(quick_intrsect);
         return nullptr;
@@ -172,7 +168,6 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
       uint idx = cpk_scan->idx;
       if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
                                            real_keynr[idx], HA_MRR_SORTED, 0,
-                                           cpk_scan->used_key_parts,
                                            cpk_scan->ranges))) {
         destroy(quick_intrsect);
         return nullptr;
@@ -180,10 +175,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
       quick->file = nullptr;
       quick_intrsect->cpk_quick = quick;
     }
-    quick_intrsect->records = records;
-    quick_intrsect->cost_est = cost_est;
   }
-  quick_intrsect->forced_by_hint = forced_by_hint;
   return quick_intrsect;
 }
 
@@ -198,16 +190,12 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
   */
   if ((quick_roru = new (return_mem_root)
            QUICK_ROR_UNION_SELECT(return_mem_root, table))) {
-    assert(quick_roru->index == index);
     for (scan = first_ror; scan != last_ror; scan++) {
       if (!(quick = (*scan)->make_quick(false, return_mem_root)) ||
           quick_roru->push_quick_back(quick))
         return nullptr;
     }
-    quick_roru->records = records;
-    quick_roru->cost_est = cost_est;
   }
-  quick_roru->forced_by_hint = forced_by_hint;
   return quick_roru;
 }
 
@@ -1066,3 +1054,156 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   }
   return trp;
 }
+
+bool TRP_ROR_INTERSECT::is_keys_used(const MY_BITMAP *fields) {
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    if (is_key_used(table, current->keynr, fields)) return true;
+  }
+  if (cpk_scan) {
+    if (is_key_used(table, cpk_scan->idx, fields)) return true;
+  }
+  return false;
+}
+
+bool TRP_ROR_UNION::is_keys_used(const MY_BITMAP *fields) {
+  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
+    if (is_key_used(table, (*scan)->index, fields)) return true;
+  }
+  return false;
+}
+
+void TRP_ROR_INTERSECT::get_fields_used(MY_BITMAP *used_fields) const {
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    for (uint i = 0; i < current->used_key_parts; ++i) {
+      bitmap_set_bit(used_fields, key[current->idx][i].field->field_index());
+    }
+  }
+  if (cpk_scan) {
+    for (uint i = 0; i < cpk_scan->used_key_parts; ++i) {
+      bitmap_set_bit(used_fields, key[cpk_scan->idx][i].field->field_index());
+    }
+  }
+}
+
+void TRP_ROR_UNION::get_fields_used(MY_BITMAP *used_fields) const {
+  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
+    (*scan)->get_fields_used(used_fields);
+  }
+}
+
+void TRP_ROR_INTERSECT::add_info_string(String *str) const {
+  bool first = true;
+  str->append(STRING_WITH_LEN("intersect("));
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    KEY *key_info = table->key_info + real_keynr[current->idx];
+    if (!first)
+      str->append(',');
+    else
+      first = false;
+    str->append(key_info->name);
+  }
+  if (cpk_scan) {
+    KEY *key_info = table->key_info + real_keynr[cpk_scan->idx];
+    str->append(',');
+    str->append(key_info->name);
+  }
+  str->append(')');
+}
+
+void TRP_ROR_UNION::add_info_string(String *str) const {
+  bool first = true;
+  str->append(STRING_WITH_LEN("union("));
+  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+    if (!first)
+      str->append(',');
+    else
+      first = false;
+    (*current)->add_info_string(str);
+  }
+  str->append(')');
+}
+
+static int find_max_used_key_length(const ROR_SCAN_INFO *scan) {
+  int max_used_key_length = 0;
+  for (const QUICK_RANGE *range : scan->ranges) {
+    max_used_key_length = std::max<int>(max_used_key_length, range->min_length);
+    max_used_key_length = std::max<int>(max_used_key_length, range->max_length);
+  }
+  return max_used_key_length;
+}
+
+void TRP_ROR_INTERSECT::add_keys_and_lengths(String *key_names,
+                                             String *used_lengths) const {
+  char buf[64];
+  size_t length;
+  bool first = true;
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    KEY *key_info = table->key_info + real_keynr[current->idx];
+    if (first)
+      first = false;
+    else {
+      key_names->append(',');
+      used_lengths->append(',');
+    }
+    key_names->append(key_info->name);
+
+    length =
+        longlong10_to_str(find_max_used_key_length(current), buf, 10) - buf;
+    used_lengths->append(buf, length);
+  }
+
+  if (cpk_scan) {
+    KEY *key_info = table->key_info + real_keynr[cpk_scan->idx];
+    key_names->append(',');
+    key_names->append(key_info->name);
+    length =
+        longlong10_to_str(find_max_used_key_length(cpk_scan), buf, 10) - buf;
+    used_lengths->append(',');
+    used_lengths->append(buf, length);
+  }
+}
+
+unsigned TRP_ROR_INTERSECT::get_max_used_key_length() const {
+  assert(false);
+  return 0;
+}
+
+void TRP_ROR_UNION::add_keys_and_lengths(String *key_names,
+                                         String *used_lengths) const {
+  bool first = true;
+  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+    if (first) {
+      first = false;
+    } else {
+      used_lengths->append(',');
+      key_names->append(',');
+    }
+    (*current)->add_keys_and_lengths(key_names, used_lengths);
+  }
+}
+
+unsigned TRP_ROR_UNION::get_max_used_key_length() const {
+  assert(false);
+  return 0;
+}
+
+#ifndef NDEBUG
+void TRP_ROR_INTERSECT::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE, "%*squick ROR-intersect select\n", indent, ""),
+      fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    dbug_dump_range(indent, verbose, table, real_keynr[current->idx],
+                    key[current->idx], current->ranges);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+
+void TRP_ROR_UNION::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
+  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
+  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+    (*current)->dbug_dump(indent + 2, verbose);
+  }
+  fprintf(DBUG_FILE, "%*s}\n", indent, "");
+}
+#endif

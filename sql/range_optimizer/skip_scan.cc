@@ -42,12 +42,6 @@
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
-void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
-  str->append(STRING_WITH_LEN("index_for_skip_scan("));
-  str->append(index_info->name);
-  str->append(')');
-}
-
 /**
   Construct new quick select for queries that can do skip scans.
   See get_best_skip_scan() description for more details.
@@ -74,12 +68,10 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     TABLE *table, KEY *index_info, uint use_index, KEY_PART_INFO *range_part,
     SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_key_parts,
-    EQPrefix *eq_prefixes, uint used_key_parts_arg,
-    const Cost_estimate *read_cost_arg, ha_rows read_records,
-    MEM_ROOT *return_mem_root, bool has_aggregate_function,
-    uchar *min_range_key_arg, uchar *max_range_key_arg,
-    uchar *min_search_key_arg, uchar *max_search_key_arg,
-    uint range_cond_flag_arg, uint range_key_len_arg)
+    EQPrefix *eq_prefixes, uint used_key_parts_arg, MEM_ROOT *return_mem_root,
+    bool has_aggregate_function, uchar *min_range_key_arg,
+    uchar *max_range_key_arg, uchar *min_search_key_arg,
+    uchar *max_search_key_arg, uint range_cond_flag_arg, uint range_key_len_arg)
     : index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
@@ -99,8 +91,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
   m_table = table;
   index = use_index;
   record = m_table->record[0];
-  cost_est = *read_cost_arg;
-  records = read_records;
 
   used_key_parts = used_key_parts_arg;
   max_used_key_length = 0;
@@ -433,62 +423,3 @@ exit:
 
   return result;
 }
-
-/**
-  Append comma-separated list of keys this quick select uses to key_names;
-  append comma-separated list of corresponding used lengths to used_lengths.
-
-  SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::add_keys_and_lengths()
-    key_names    [out] Names of used indexes
-    used_lengths [out] Corresponding lengths of the index names
-
-  DESCRIPTION
-    This method is used by select_describe to extract the names of the
-    indexes used by a quick select.
-
-*/
-
-void QUICK_SKIP_SCAN_SELECT::add_keys_and_lengths(String *key_names,
-                                                  String *used_lengths) {
-  char buf[64];
-  uint length;
-  key_names->append(index_info->name);
-  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
-  used_lengths->append(buf, length);
-}
-
-#ifndef NDEBUG
-void QUICK_SKIP_SCAN_SELECT::dbug_dump(int indent, bool verbose) {
-  fprintf(DBUG_FILE,
-          "%*squick_skip_scan_query_block: index %s (%d), length: %d\n", indent,
-          "", index_info->name, index, max_used_key_length);
-  if (eq_prefix_len > 0) {
-    fprintf(DBUG_FILE, "%*susing eq_prefix with length %d:\n", indent, "",
-            eq_prefix_len);
-  }
-
-  if (verbose) {
-    char buff1[512];
-    buff1[0] = '\0';
-    String range_result(buff1, sizeof(buff1), system_charset_info);
-
-    if (index_range_tree && eq_prefix_key_parts > 0) {
-      range_result.length(0);
-      char buff2[128];
-      String range_so_far(buff2, sizeof(buff2), system_charset_info);
-      range_so_far.length(0);
-      append_range_all_keyparts(nullptr, &range_result, &range_so_far,
-                                index_range_tree, index_info->key_part, false);
-      fprintf(DBUG_FILE, "Prefix ranges: %s\n", range_result.c_ptr());
-    }
-
-    {
-      range_result.length(0);
-      append_range(&range_result, range_key_part, min_range_key, max_range_key,
-                   range_cond_flag);
-      fprintf(DBUG_FILE, "Range: %s\n", range_result.c_ptr());
-    }
-  }
-}
-#endif

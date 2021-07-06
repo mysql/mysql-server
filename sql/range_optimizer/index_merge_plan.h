@@ -49,6 +49,21 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
+
+  RangeScanType get_type() const override { return QS_TYPE_INDEX_MERGE; }
+  bool is_keys_used(const MY_BITMAP *fields) override;
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
+  void get_fields_used(MY_BITMAP *used_fields) const override;
+  void add_info_string(String *str) const override;
+  void add_keys_and_lengths(String *key_names,
+                            String *used_lengths) const override;
+  unsigned get_max_used_key_length() const final {
+    assert(false);
+    return 0;
+  }
+#ifndef NDEBUG
+  void dbug_dump(int indent, bool verbose) override;
+#endif
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_INDEX_MERGE_PLAN_H_

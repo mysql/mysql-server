@@ -124,20 +124,17 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   QUICK_SKIP_SCAN_SELECT *quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
       table, index_info, index, range_key_part, index_range_tree, eq_prefix_len,
-      eq_prefix_key_parts, eq_prefixes, used_key_parts, &cost_est, records,
-      return_mem_root, has_aggregate_function, min_range_key, max_range_key,
-      min_search_key, max_search_key, range_cond_flag, range_key_len);
+      eq_prefix_key_parts, eq_prefixes, used_key_parts, return_mem_root,
+      has_aggregate_function, min_range_key, max_range_key, min_search_key,
+      max_search_key, range_cond_flag, range_key_len);
 
   if (!quick) return nullptr;
-
-  assert(quick->index == index);
 
   if (quick->init()) {
     destroy(quick);
     return nullptr;
   }
 
-  quick->forced_by_hint = forced_by_hint;
   return quick;
 }
 
@@ -669,3 +666,77 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
              ("table rows: %lu keys/group: %u result rows: %lu",
               (ulong)table_records, (uint)keys_per_group, (ulong)*records));
 }
+
+void TRP_SKIP_SCAN::add_info_string(String *str) const {
+  str->append(STRING_WITH_LEN("index_for_skip_scan("));
+  str->append(index_info->name);
+  str->append(')');
+}
+
+/**
+  Append comma-separated list of keys this quick select uses to key_names;
+  append comma-separated list of corresponding used lengths to used_lengths.
+
+  SYNOPSIS
+    TRP_SKIP_SCAN::add_keys_and_lengths()
+    key_names    [out] Names of used indexes
+    used_lengths [out] Corresponding lengths of the index names
+
+  DESCRIPTION
+    This method is used by select_describe to extract the names of the
+    indexes used by a quick select.
+
+ */
+
+void TRP_SKIP_SCAN::add_keys_and_lengths(String *key_names,
+                                         String *used_lengths) const {
+  key_names->append(index_info->name);
+
+  char buf[64];
+  uint length = longlong10_to_str(get_max_used_key_length(), buf, 10) - buf;
+  used_lengths->append(buf, length);
+}
+
+unsigned TRP_SKIP_SCAN::get_max_used_key_length() const {
+  int max_used_key_length = 0;
+  KEY_PART_INFO *p = index_info->key_part;
+  for (uint i = 0; i < used_key_parts; i++, p++) {
+    max_used_key_length += p->store_length;
+  }
+  return max_used_key_length;
+}
+
+#ifndef NDEBUG
+void TRP_SKIP_SCAN::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE,
+          "%*squick_skip_scan_query_block: index %s (%d), length: %d\n", indent,
+          "", index_info->name, index, get_max_used_key_length());
+  if (eq_prefix_len > 0) {
+    fprintf(DBUG_FILE, "%*susing eq_prefix with length %d:\n", indent, "",
+            eq_prefix_len);
+  }
+
+  if (verbose) {
+    char buff1[512];
+    buff1[0] = '\0';
+    String range_result(buff1, sizeof(buff1), system_charset_info);
+
+    if (index_range_tree && eq_prefix_key_parts > 0) {
+      range_result.length(0);
+      char buff2[128];
+      String range_so_far(buff2, sizeof(buff2), system_charset_info);
+      range_so_far.length(0);
+      append_range_all_keyparts(nullptr, &range_result, &range_so_far,
+                                index_range_tree, index_info->key_part, false);
+      fprintf(DBUG_FILE, "Prefix ranges: %s\n", range_result.c_ptr());
+    }
+
+    {
+      range_result.length(0);
+      append_range(&range_result, range_key_part, min_range_key, max_range_key,
+                   range_cond_flag);
+      fprintf(DBUG_FILE, "Range: %s\n", range_result.c_ptr());
+    }
+  }
+}
+#endif

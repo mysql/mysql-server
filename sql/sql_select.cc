@@ -95,6 +95,7 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sorting_iterator.h"
@@ -1361,9 +1362,9 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
            should not happen since LooseScan strategy is only picked if sorted
            output is supported.
         */
-        if (tab->quick()) {
-          assert(tab->quick()->index == pos->loosescan_key);
-          tab->quick()->need_sorted_output();
+        if (tab->trp()) {
+          assert(tab->trp()->index == pos->loosescan_key);
+          tab->trp()->need_sorted_output();
         }
 
         const uint keyno = pos->loosescan_key;
@@ -3155,18 +3156,17 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
             join->thd->inc_status_select_full_range_join();
         }
         if (!table->no_keyread && qep_tab->type() == JT_RANGE) {
-          if (table->covering_keys.is_set(qep_tab->quick()->index)) {
-            assert(qep_tab->quick()->index != MAX_KEY);
+          if (table->covering_keys.is_set(qep_tab->trp()->index)) {
+            assert(qep_tab->trp()->index != MAX_KEY);
             table->set_keyread(true);
           }
           if (!table->key_read)
-            qep_tab->push_index_cond(tab, qep_tab->quick()->index,
+            qep_tab->push_index_cond(tab, qep_tab->trp()->index,
                                      &trace_refine_table);
         }
         if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST) {
           double rows_w_const_cond = qep_tab->position()->rows_fetched;
-          qep_tab->position()->rows_fetched =
-              rows2double(tab->quick()->records);
+          qep_tab->position()->rows_fetched = rows2double(tab->trp()->records);
           if (tab->position()->filter_effect != COND_FILTER_STALE) {
             // Constant condition moves to filter_effect:
             if (tab->position()->rows_fetched == 0)  // avoid division by zero
@@ -3372,7 +3372,7 @@ void QEP_shared_owner::qs_cleanup() {
       table_ref->derived_key_list.clear();
     }
   }
-  destroy(quick());
+  destroy(trp());
 }
 
 uint QEP_TAB::sjm_query_block_id() const {
@@ -4223,10 +4223,9 @@ bool JOIN::make_tmp_tables_info() {
     single table queries, thus it is sufficient to test only the first
     join_tab element of the plan for its access method.
   */
-  if (qep_tab && qep_tab[0].quick() &&
-      qep_tab[0].quick()->is_loose_index_scan())
+  if (qep_tab && qep_tab[0].trp() && is_loose_index_scan(qep_tab[0].trp()))
     tmp_table_param.precomputed_group_by =
-        !qep_tab[0].quick()->is_agg_loose_index_scan();
+        !qep_tab[0].trp()->is_agg_loose_index_scan();
 
   /*
     Create the first temporary table if distinct elimination is requested or
@@ -4399,7 +4398,7 @@ bool JOIN::make_tmp_tables_info() {
         functions are precomputed, and should be treated as regular
         functions. See extended comment above.
       */
-      if (qep_tab[0].quick() && qep_tab[0].quick()->is_loose_index_scan())
+      if (qep_tab[0].trp() && is_loose_index_scan(qep_tab[0].trp()))
         tmp_table_param.precomputed_group_by = true;
 
       ORDER_with_src dummy;  // TODO can use table->group here also
@@ -4425,8 +4424,7 @@ bool JOIN::make_tmp_tables_info() {
       if (!group_list.empty() || tmp_table_param.sum_func_count) {
         if (make_sum_func_list(*curr_fields, true, true)) return true;
         const bool need_distinct =
-            !(qep_tab[0].quick() &&
-              qep_tab[0].quick()->is_agg_loose_index_scan());
+            !(qep_tab[0].trp() && qep_tab[0].trp()->is_agg_loose_index_scan());
         if (prepare_sum_aggregators(sum_funcs, need_distinct)) return true;
         group_list.clean();
         if (setup_sum_funcs(thd, sum_funcs)) return true;
@@ -4514,8 +4512,8 @@ bool JOIN::make_tmp_tables_info() {
     if (make_group_fields(this, this)) return true;
 
     if (make_sum_func_list(*curr_fields, true, true)) return true;
-    const bool need_distinct = !(qep_tab && qep_tab[0].quick() &&
-                                 qep_tab[0].quick()->is_agg_loose_index_scan());
+    const bool need_distinct = !(qep_tab && qep_tab[0].trp() &&
+                                 qep_tab[0].trp()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) return true;
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error()) return true;
   }
@@ -5123,23 +5121,23 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 */
 
 uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
-                         QUICK_SELECT_I **quick, bool *need_sort,
+                         TABLE_READ_PLAN **trp, bool *need_sort,
                          bool *reverse) {
-  if ((*quick) && (*quick)->unique_key_range()) {  // Single row select (always
-                                                   // "ordered"): Ok to use with
-                                                   // key field UPDATE
+  if (*trp && (*trp)->unique_key_range()) {  // Single row select (always
+                                             // "ordered"): Ok to use with
+                                             // key field UPDATE
     *need_sort = false;
     /*
       Returning of MAX_KEY here prevents updating of used_key_is_modified
-      in mysql_update(). Use quick select "as is".
+      in mysql_update(). Use TRP "as is".
     */
     return MAX_KEY;
   }
 
   if (order->empty()) {
     *need_sort = false;
-    if ((*quick))
-      return (*quick)->index;  // index or MAX_KEY, use quick select as is
+    if (*trp)
+      return (*trp)->index;  // index or MAX_KEY, use TRP as is
     else
       return table->file
           ->key_used_on_scan;  // MAX_KEY or index for some engines
@@ -5151,31 +5149,27 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
     return MAX_KEY;
   }
 
-  if ((*quick)) {
-    if ((*quick)->index == MAX_KEY) {
+  if (*trp) {
+    if ((*trp)->index == MAX_KEY) {
       *need_sort = true;
       return MAX_KEY;
     }
 
     uint used_key_parts;
-    bool skip_quick;
-    switch (test_if_order_by_key(order, table, (*quick)->index, &used_key_parts,
-                                 &skip_quick)) {
+    bool skip_trp;
+    switch (test_if_order_by_key(order, table, (*trp)->index, &used_key_parts,
+                                 &skip_trp)) {
       case 1:  // desired order
         *need_sort = false;
-        return (*quick)->index;
+        return (*trp)->index;
       case 0:  // unacceptable order
         *need_sort = true;
         return MAX_KEY;
       case -1:  // desired order, but opposite direction
       {
-        QUICK_SELECT_I *reverse_quick;
-        if (!skip_quick &&
-            (reverse_quick = (*quick)->make_reverse(used_key_parts))) {
-          destroy(*quick);
-          *quick = reverse_quick;
+        if (!skip_trp && !(*trp)->make_reverse(used_key_parts)) {
           *need_sort = false;
-          return reverse_quick->index;
+          return (*trp)->index;
         } else {
           *need_sort = true;
           return MAX_KEY;
@@ -5187,7 +5181,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
                                        // more efficient than filesort
 
     /*
-      Update quick_condition_rows since single table UPDATE/DELETE procedures
+      Update trp_condition_rows since single table UPDATE/DELETE procedures
       don't call JOIN::make_join_plan() and leave this variable uninitialized.
     */
     table->quick_condition_rows = table->file->stats.records;

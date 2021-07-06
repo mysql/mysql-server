@@ -151,7 +151,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg);
 #ifndef NDEBUG
-static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
+static void print_quick(TABLE_READ_PLAN *trp, const Key_map *needed_reg);
 #endif
 
 namespace opt_range {
@@ -295,15 +295,12 @@ mem_err:
   trees_end = trees;
 }
 
-QUICK_SELECT_I::QUICK_SELECT_I()
-    : max_used_key_length(0), used_key_parts(0), forced_by_hint(false) {}
-
-void QUICK_SELECT_I::trace_quick_description(Opt_trace_context *trace) {
+void trace_quick_description(TABLE_READ_PLAN *trp, Opt_trace_context *trace) {
   Opt_trace_object range_trace(trace, "range_details");
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  add_info_string(&range_info);
+  trp->add_info_string(&range_info);
   range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
 }
 
@@ -412,9 +409,9 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
       cond              The condition to optimize for, if any.
       needed_reg        this info is used in make_join_query_block() even if
                           there is no quick.
-      quick [out]       Calculated QUICK, or nullptr.
       ignore_table_scan Disregard table scan while looking for range.
       query_block       The block the given table is part of.
+      trp [out]         Calculated TABLE_READ_PLAN, or nullptr.
 
   NOTES
     Updates the following:
@@ -468,7 +465,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
     1 if found usable ranges and quick select has been successfully created.
 
   @note After this call, caller may decide to really use the returned QUICK,
-  by calling QEP_TAB::set_quick() and updating tab->type() if appropriate.
+  by calling QEP_TAB::set_trp() and updating tab->type() if appropriate.
 
 */
 int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
@@ -477,11 +474,11 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       ha_rows limit, bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
-                      Key_map *needed_reg, QUICK_SELECT_I **quick,
-                      bool ignore_table_scan, Query_block *query_block) {
+                      Key_map *needed_reg, bool ignore_table_scan,
+                      Query_block *query_block, TABLE_READ_PLAN **trp) {
   DBUG_TRACE;
 
-  *quick = nullptr;
+  *trp = nullptr;
   needed_reg->clear_all();
 
   if (keys_to_use.is_clear_all()) return 0;
@@ -833,40 +830,33 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     }
 
     /*
-      If we got a read plan, create a quick select from it.
-
-      Only create a quick select if the storage engine supports using indexes
-      for access.
+      If we got a read plan, return it, but only if the storage engine supports
+      using indexes for access.
     */
     if (best_trp && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
-      QUICK_SELECT_I *qck;
       records = best_trp->records;
-      if (!(qck = best_trp->make_quick(true, return_mem_root)) || qck->init()) {
-        return 0;
-      }
-      *quick = qck;
+      *trp = best_trp;
     }
 
-    if (unlikely(*quick && trace->is_started() && best_trp)) {
-      // best_trp cannot be NULL if quick is set, done to keep fortify happy
+    if (unlikely(trace->is_started() && best_trp)) {
       Opt_trace_object trace_range_summary(trace,
                                            "chosen_range_access_summary");
       {
         Opt_trace_object trace_range_plan(trace, "range_access_plan");
         best_trp->trace_basic_info(thd, &param, &trace_range_plan);
       }
-      trace_range_summary.add("rows_for_plan", (*quick)->records)
-          .add("cost_for_plan", (*quick)->cost_est)
+      trace_range_summary.add("rows_for_plan", best_trp->records)
+          .add("cost_for_plan", best_trp->cost_est)
           .add("chosen", true);
     }
 
-    DBUG_EXECUTE("info", print_quick(*quick, needed_reg););
+    DBUG_EXECUTE("info", print_quick(*trp, needed_reg););
   }
 
   if (records == 0) {
     return -1;
   } else {
-    return *quick != nullptr;
+    return *trp != nullptr;
   }
 }
 
@@ -1365,8 +1355,8 @@ static void debug_print_tree(SEL_ROOT *origin) {
 
 #endif  // !defined(NDEBUG)
 
-bool QUICK_SELECT_I::is_keys_used(const MY_BITMAP *fields) {
-  return is_key_used(m_table, index, fields);
+bool TABLE_READ_PLAN::is_keys_used(const MY_BITMAP *fields) {
+  return is_key_used(table, index, fields);
 }
 
 /**
@@ -1769,17 +1759,17 @@ void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
 
 #ifndef NDEBUG
 
-static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg) {
+static void print_quick(TABLE_READ_PLAN *trp, const Key_map *needed_reg) {
   char buf[MAX_KEY / 8 + 1];
   TABLE *table;
   my_bitmap_map *old_sets[2];
   DBUG_TRACE;
-  if (!quick) return;
+  if (!trp) return;
   DBUG_LOCK_FILE;
 
-  table = quick->m_table;
+  table = trp->table;
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
-  quick->dbug_dump(0, true);
+  trp->dbug_dump(0, true);
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
   fprintf(DBUG_FILE, "other_keys: 0x%s:\n", needed_reg->print(buf));

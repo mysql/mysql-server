@@ -52,7 +52,7 @@
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
     TABLE *table, uint key_nr, MEM_ROOT *return_mem_root, uint mrr_flags,
     uint mrr_buf_size, const KEY_PART *key,
-    Bounds_checked_array<QUICK_RANGE *> ranges_arg, uint used_key_parts_arg)
+    Bounds_checked_array<QUICK_RANGE *> ranges_arg)
     : ranges(ranges_arg),
       free_file(false),
       cur_range(nullptr),
@@ -65,7 +65,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
       mem_root(return_mem_root) {
   DBUG_TRACE;
 
-  used_key_parts = used_key_parts_arg;
   in_ror_merged_scan = false;
   index = key_nr;
   m_table = table;
@@ -73,16 +72,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
 
   file = m_table->file;
   record = m_table->record[0];
-
-  for (const QUICK_RANGE *range : ranges) {
-    max_used_key_length =
-        std::max(max_used_key_length, uint(range->min_length));
-    max_used_key_length =
-        std::max(max_used_key_length, uint(range->max_length));
-  }
 }
-
-void QUICK_RANGE_SELECT::need_sorted_output() { mrr_flags |= HA_MRR_SORTED; }
 
 int QUICK_RANGE_SELECT::init() {
   DBUG_TRACE;
@@ -128,96 +118,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   my_free(mrr_buf_desc);
 }
 
-#ifndef NDEBUG
-static void print_multiple_key_values(const KEY_PART *key_part,
-                                      const uchar *key, uint used_length) {
-  char buff[1024];
-  const uchar *key_end = key + used_length;
-  String tmp(buff, sizeof(buff), &my_charset_bin);
-  uint store_length;
-  TABLE *table = key_part->field->table;
-  my_bitmap_map *old_sets[2];
-
-  dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
-
-  for (; key < key_end; key += store_length, key_part++) {
-    Field *field = key_part->field;
-    if (field->is_array())
-      field = (down_cast<Field_typed_array *>(field))->get_conv_field();
-    store_length = key_part->store_length;
-
-    if (field->is_nullable()) {
-      if (*key) {
-        if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
-          goto restore_col_map;
-        }
-        continue;
-      }
-      key++;  // Skip null byte
-      store_length--;
-    }
-    field->set_key_image(key, key_part->length);
-    if (field->type() == MYSQL_TYPE_BIT)
-      (void)field->val_int_as_str(&tmp, true);
-    else
-      field->val_str(&tmp);
-    if (fwrite(tmp.ptr(), sizeof(char), tmp.length(), DBUG_FILE) !=
-        tmp.length()) {
-      goto restore_col_map;
-    }
-    if (key + store_length < key_end) fputc('/', DBUG_FILE);
-  }
-restore_col_map:
-  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
-}
-
-void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose) {
-  /* purecov: begin inspected */
-  fprintf(DBUG_FILE, "%*squick range select, key %s, length: %d\n", indent, "",
-          m_table->key_info[index].name, max_used_key_length);
-
-  if (verbose) {
-    for (size_t ix = 0; ix < ranges.size(); ++ix) {
-      fprintf(DBUG_FILE, "%*s", indent + 2, "");
-      QUICK_RANGE *range = ranges[ix];
-      if (!(range->flag & NO_MIN_RANGE)) {
-        print_multiple_key_values(key_parts, range->min_key, range->min_length);
-        if (range->flag & NEAR_MIN)
-          fputs(" < ", DBUG_FILE);
-        else
-          fputs(" <= ", DBUG_FILE);
-      }
-      fputs("X", DBUG_FILE);
-
-      if (!(range->flag & NO_MAX_RANGE)) {
-        if (range->flag & NEAR_MAX)
-          fputs(" < ", DBUG_FILE);
-        else
-          fputs(" <= ", DBUG_FILE);
-        print_multiple_key_values(key_parts, range->max_key, range->max_length);
-      }
-      fputs("\n", DBUG_FILE);
-    }
-  }
-  /* purecov: end */
-}
-#endif
-
-/*
-  Return 1 if there is only one range and this uses the whole unique key
-*/
-
-bool QUICK_RANGE_SELECT::unique_key_range() {
-  if (ranges.size() == 1) {
-    QUICK_RANGE *tmp = ranges[0];
-    if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE) {
-      KEY *key = m_table->key_info + index;
-      return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
-    }
-  }
-  return false;
-}
-
 /*
   Range sequence interface implementation for array<QUICK_RANGE>: initialize
 
@@ -259,7 +159,7 @@ range_seq_t quick_range_seq_init(void *init_param, uint, uint) {
 */
 
 uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
-  QUICK_RANGE_SEQ_CTX *ctx = (QUICK_RANGE_SEQ_CTX *)rseq;
+  QUICK_RANGE_SEQ_CTX *ctx = reinterpret_cast<QUICK_RANGE_SEQ_CTX *>(rseq);
 
   if (ctx->cur == ctx->last) return 1; /* no more ranges */
 
@@ -520,19 +420,6 @@ bool QUICK_RANGE_SELECT::row_in_ranges() {
   return (!cmp_next(res) && !cmp_prev(res));
 }
 
-/**
-  Create a compatible quick select with the result ordered in an opposite way
-
-  @param used_key_parts_arg  Number of used key parts
-
-  @retval NULL in case of errors (OOM etc)
-  @retval pointer to a newly created QUICK_SELECT_DESC if success
-*/
-
-QUICK_SELECT_I *QUICK_RANGE_SELECT::make_reverse(uint used_key_parts_arg) {
-  return new (mem_root) QUICK_SELECT_DESC(std::move(*this), used_key_parts_arg);
-}
-
 /*
   Compare if found key is over max-value
   Returns 0 if key <= range->max_key
@@ -560,19 +447,4 @@ int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg) {
   cmp = key_cmp(key_part_info, range_arg->min_key, range_arg->min_length);
   if (cmp > 0 || (cmp == 0 && !(range_arg->flag & NEAR_MIN))) return 0;
   return 1;  // outside of range
-}
-
-void QUICK_RANGE_SELECT::add_info_string(String *str) {
-  KEY *key_info = m_table->key_info + index;
-  str->append(key_info->name);
-}
-
-void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
-                                              String *used_lengths) {
-  char buf[64];
-  size_t length;
-  KEY *key_info = m_table->key_info + index;
-  key_names->append(key_info->name);
-  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
-  used_lengths->append(buf, length);
 }

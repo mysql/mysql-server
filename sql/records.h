@@ -39,9 +39,10 @@ class THD;
 struct AccessPath;
 struct TABLE;
 struct POSITION;
+class TABLE_READ_PLAN;
 
 AccessPath *create_table_access_path(THD *thd, TABLE *table,
-                                     QUICK_SELECT_I *quick,
+                                     TABLE_READ_PLAN *trp,
                                      TABLE_LIST *table_ref, POSITION *position,
                                      bool count_examined_rows);
 
@@ -52,7 +53,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table,
   Returns nullptr on failure.
  */
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QUICK_SELECT_I *quick, TABLE_LIST *table_ref,
+    THD *thd, TABLE *table, TABLE_READ_PLAN *trp, TABLE_LIST *table_ref,
     POSITION *position, bool ignore_not_found_rows, bool count_examined_rows);
 
 /**

@@ -44,12 +44,6 @@
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
 
-void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
-  str->append(STRING_WITH_LEN("index_for_group_by("));
-  str->append(index_info->name);
-  str->append(')');
-}
-
 /*
   Construct new quick select for group queries with min/max.
 
@@ -62,7 +56,6 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
     have_agg_distinct
     min_max_arg_part  The only argument field of all MIN/MAX functions
     group_prefix_len  Length of all key parts in the group prefix
-    used_key_parts    Number of key parts used, including the min_max key part
     real_key_parts    Same, but excluding any min_max key part
     max_used_key_length  Length of longest key
     index_info        The index chosen for data access
@@ -85,11 +78,9 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     List<Item_sum> min_functions_arg, List<Item_sum> max_functions_arg,
     bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
     uint group_prefix_len_arg, uint group_key_parts_arg,
-    uint used_key_parts_arg, uint real_key_parts_arg,
-    uint max_used_key_length_arg, KEY *index_info_arg, uint use_index,
-    const Cost_estimate *read_cost_arg, ha_rows records_arg,
-    uint key_infix_len_arg, MEM_ROOT *return_mem_root, bool is_index_scan_arg,
-    QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
+    uint real_key_parts_arg, uint max_used_key_length_arg, KEY *index_info_arg,
+    uint use_index, uint key_infix_len_arg, MEM_ROOT *return_mem_root,
+    bool is_index_scan_arg, QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
     Quick_ranges_array key_infix_ranges_arg, Quick_ranges min_max_ranges_arg)
     : join(join_arg),
       index_info(index_info_arg),
@@ -112,9 +103,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   index = use_index;
   record = m_table->record[0];
   tmp_record = m_table->record[1];
-  cost_est = *read_cost_arg;
-  records = records_arg;
-  used_key_parts = used_key_parts_arg;
   real_key_parts = real_key_parts_arg;
   max_used_key_length = max_used_key_length_arg;
   real_prefix_len = group_prefix_len + key_infix_len;
@@ -997,67 +985,3 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool *reset) {
     max_func.aggregator_add();
   }
 }
-
-/*
-  Append comma-separated list of keys this quick select uses to key_names;
-  append comma-separated list of corresponding used lengths to used_lengths.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths()
-    key_names    [out] Names of used indexes
-    used_lengths [out] Corresponding lengths of the index names
-
-  DESCRIPTION
-    This method is used by select_describe to extract the names of the
-    indexes used by a quick select.
-
-*/
-
-void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
-                                                      String *used_lengths) {
-  char buf[64];
-  size_t length;
-  key_names->append(index_info->name);
-  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
-  used_lengths->append(buf, length);
-}
-
-#ifndef NDEBUG
-/*
-  Print quick select information to DBUG_FILE.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
-    indent  Indentation offset
-    verbose If true show more detailed output.
-
-  DESCRIPTION
-    Print the contents of this quick select to DBUG_FILE. The method also
-    calls dbug_dump() for the used quick select if any.
-
-  IMPLEMENTATION
-    Caller is responsible for locking DBUG_FILE before this call and unlocking
-    it afterwards.
-
-  RETURN
-    None
-*/
-
-void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose) {
-  fprintf(DBUG_FILE,
-          "%*squick_group_min_max_query_block: index %s (%d), length: %d\n",
-          indent, "", index_info->name, index, max_used_key_length);
-  if (key_infix_len > 0) {
-    fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n", indent, "",
-            key_infix_len);
-  }
-  if (quick_prefix_query_block) {
-    fprintf(DBUG_FILE, "%*susing quick_range_query_block:\n", indent, "");
-    quick_prefix_query_block->dbug_dump(indent + 2, verbose);
-  }
-  if (min_max_ranges.size() > 0) {
-    fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",
-            static_cast<int>(min_max_ranges.size()));
-  }
-}
-#endif

@@ -29,7 +29,7 @@
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/relational_expression.h"
-#include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -469,7 +469,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
       // get better outputs here (similar to dbug_dump()).
       String str;
-      path->index_range_scan().quick->add_info_string(&str);
+      path->index_range_scan().trp->add_info_string(&str);
       string ret = string(table->key_read ? "Covering index range scan on "
                                           : "Index range scan on ") +
                    table->alias + " using " + to_string(str);

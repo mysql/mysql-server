@@ -36,11 +36,9 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
   QUICK_RANGE_SELECT_GEOM(TABLE *table, uint index_arg,
                           MEM_ROOT *return_mem_root, uint mrr_flags_arg,
                           uint mrr_buf_size_arg, const KEY_PART *key,
-                          Bounds_checked_array<QUICK_RANGE *> ranges_arg,
-                          uint used_keyparts_arg)
+                          Bounds_checked_array<QUICK_RANGE *> ranges_arg)
       : QUICK_RANGE_SELECT(table, index_arg, return_mem_root, mrr_flags_arg,
-                           mrr_buf_size_arg, key, ranges_arg,
-                           used_keyparts_arg) {}
+                           mrr_buf_size_arg, key, ranges_arg) {}
   int get_next() override;
 };
 

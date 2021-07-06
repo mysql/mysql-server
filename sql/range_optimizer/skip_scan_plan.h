@@ -131,6 +131,25 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
+  void need_sorted_output() override {}
+  bool is_agg_loose_index_scan() const override {
+    return has_aggregate_function;
+  }
+
+  RangeScanType get_type() const override { return QS_TYPE_SKIP_SCAN; }
+  void get_fields_used(MY_BITMAP *used_fields) const override {
+    for (uint i = 0; i < used_key_parts; ++i) {
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
+    }
+  }
+
+  void add_info_string(String *str) const override;
+  void add_keys_and_lengths(String *key_names,
+                            String *used_lengths) const override;
+  unsigned get_max_used_key_length() const final;
+#ifndef NDEBUG
+  void dbug_dump(int indent, bool verbose) override;
+#endif
 };
 
 TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
