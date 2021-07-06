@@ -125,7 +125,9 @@ SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	idx1	1	col1	A	0	NULL	NULL	YES	BTREE			YES	NULL
 t1	1	idx1	2	NULL	A	0	NULL	NULL	YES	BTREE			YES	(`col1` + `col2`)
-# Create a funtional index with many functional key parts
+# Create a functional index with many functional key parts. Bug#27168185.
+CREATE INDEX idx2
+ON t1 ((col1 + 1), (col1 + 2), (col1 + 3), (col1 + 4), (col1 + 5));
 # Check that if we try to add a column with the same name as a hidden
 # column, we get an internal error. The column name of the generated
 # column is calculated as MD5(index_name + key_part_number).
