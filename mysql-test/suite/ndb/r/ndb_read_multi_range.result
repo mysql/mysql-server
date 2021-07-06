@@ -574,6 +574,8 @@ drop table t1;
 create table t1 (a varchar(1536) not null,
 b varchar(1532) not null,
 c int, primary key (a,b)) character set latin1 engine=ndb;
+Warnings:
+Warning	1296	Specified key 'PRIMARY' was too long (max = 3056 bytes); statistics will not be generated
 insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
 ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
 ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),

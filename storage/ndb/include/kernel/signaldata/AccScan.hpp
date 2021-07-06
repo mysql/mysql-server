@@ -261,7 +261,6 @@ class AccScanRef {
   enum ErrorCode {
     TuxNoFreeScanOp = 909,
     TuxIndexNotOnline = 910,
-    TuxInvalidKeySize = 911,
     TuxInvalidLockMode = 912,
     TuxNoFreeStatOp = 915,
     TupNoFreeScanOp = 925,

@@ -36,22 +36,24 @@ while ($i)
 --echo # create index on b - it has the maximum key size supported by ndb index stat
 create index idxb on t1(b); # max key size = 3056 (col size = 3053, length bytes = 2, nullmask = 1)
 
---echo # analyze should run fine
+--echo # analyze should run fine and create statistics
 analyze table t1;
 drop index idxb on t1;
 
 --echo # create index on c - it has a key size unsupported by ndb index stat
+--echo # a warning should be returned
 create index idxc on t1(c); # max key size = 3059 (col size = 3056, length bytes = 2, nullmask = 1)
 
---echo # analyze should fail with error 911
+--echo # analyze should run fine but statistics aren't created
 analyze table t1;
 drop index idxc on t1;
 
 --echo # create index on d - it has the maximum key size allowed by mysql(3072)
 --echo # but the key size is unsupported by ndb index stat
+--echo # a warning should be returned
 create index idxd on t1(d); # max key size = 3075 (col size = 3072, length bytes = 2, nullmask = 1)
 
---echo # analyze should fail with error 911
+--echo # analyze should run fine but statistics aren't created
 analyze table t1;
 drop index idxd on t1;
 

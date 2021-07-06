@@ -10051,6 +10051,11 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   return error;
 }
 
+// Maximum index size supported by the index statistics implementation in the
+// kernel. The limitation comes from the size of a column in the
+// ndb_index_stat_sample table
+static constexpr unsigned MAX_INDEX_SIZE_STAT = 3056;
+
 /**
   @brief Create an index in NDB.
 */
@@ -10091,6 +10096,7 @@ int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
 
   KEY_PART_INFO *key_part = key_info->key_part;
   KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
+  uint key_store_length = 0;
   for (; key_part != end; key_part++) {
     Field *field = key_part->field;
     if (field->field_storage_type() == HA_SM_DISK) {
@@ -10105,6 +10111,37 @@ int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
       // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
       return HA_ERR_OUT_OF_MEM;
     }
+
+    if (!unique) {
+      // Calculate the size of ordered indexes. This is used later to see if it
+      // exceeds the maximum size supported by the NDB index statistics
+      // implementation
+      if (key_part->store_length != 0) {
+        key_store_length += key_part->store_length;
+      } else {
+        // The store length hasn't been computed for this key_part. This is the
+        // case for CREATE INDEX/ALTER TABLE. The below is taken from
+        // KEY_PART_INFO::init_from_field() in sql/table.cc
+        key_store_length += key_part->length;
+        if (field->is_nullable()) {
+          key_store_length += HA_KEY_NULL_LENGTH;
+        }
+        if (field->type() == MYSQL_TYPE_BLOB ||
+            field->real_type() == MYSQL_TYPE_VARCHAR ||
+            field->type() == MYSQL_TYPE_GEOMETRY) {
+          key_store_length += HA_KEY_BLOB_LENGTH;
+        }
+      }
+    }
+  }
+
+  if (!unique && key_store_length > MAX_INDEX_SIZE_STAT) {
+    // The ordered index size exceeds the maximum size supported by NDB. Allow
+    // the index to be created with a warning
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                        "Specified key '%s' was too long (max = %d bytes); "
+                        "statistics will not be generated",
+                        index_name, MAX_INDEX_SIZE_STAT);
   }
 
   if (dict->createIndex(ndb_index, *ndbtab)) ERR_RETURN(dict->getNdbError());

@@ -1,9 +1,6 @@
 !include suite/ndb_opt/my.cnf
 
 [cluster_config]
-# Retain old default values of auto create and auto update.
-# This ensures that the ANALYZE TABLE statements pass/fail as
-# expected and the code path isn't hit earlier during index
-# creation
+# Retain old default value to show how the behaviour has changed
+# without auto index stat enabled
 IndexStatAutoCreate=0
-IndexStatAutoUpdate=0

@@ -255,12 +255,12 @@ create index idxb on t1(b); # max key size = 3056 (col size = 3053, length bytes
 drop index idxb on t1;
 
 --echo # create index on c - it has a key size unsupported by ndb index stat
---error ER_GET_ERRMSG
+--echo # a warning should be returned
 create index idxc on t1(c); # max key size = 3059 (col size = 3056, length bytes = 2, nullmask = 1)
 
 --echo # create index on d - it has the maximum key size allowed by mysql(3072)
 --echo # but the key size is unsupported by ndb index stat
---error ER_GET_ERRMSG
+--echo # a warning should be returned
 create index idxd on t1(d); # max key size = 3075 (col size = 3072, length bytes = 2, nullmask = 1)
 
 --echo # create index on col1..col4 - it has the maximum key size supported by ndb index stat

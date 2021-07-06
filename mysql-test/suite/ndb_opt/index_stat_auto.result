@@ -354,12 +354,16 @@ col4 varchar(762) not null
 create index idxb on t1(b);
 drop index idxb on t1;
 # create index on c - it has a key size unsupported by ndb index stat
+# a warning should be returned
 create index idxc on t1(c);
-ERROR HY000: Got error 911 'Index stat scan requested on index with unsupported key size' from NDBCLUSTER
+Warnings:
+Warning	1296	Specified key 'idxc' was too long (max = 3056 bytes); statistics will not be generated
 # create index on d - it has the maximum key size allowed by mysql(3072)
 # but the key size is unsupported by ndb index stat
+# a warning should be returned
 create index idxd on t1(d);
-ERROR HY000: Got error 911 'Index stat scan requested on index with unsupported key size' from NDBCLUSTER
+Warnings:
+Warning	1296	Specified key 'idxd' was too long (max = 3056 bytes); statistics will not be generated
 # create index on col1..col4 - it has the maximum key size supported by ndb index stat
 create index idxcol on t1(col1, col2, col3, col4);
 drop index idxcol on t1;
