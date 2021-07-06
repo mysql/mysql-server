@@ -1191,8 +1191,8 @@ skip_to_ror_scan:
           return imerge_trp;
         roru_index_cost += (*cur_roru_plan)->cost_est;
       } else {
-        roru_index_cost +=
-            ((TRP_ROR_INTERSECT *)(*cur_roru_plan))->index_scan_cost;
+        roru_index_cost += down_cast<TRP_ROR_INTERSECT *>(*cur_roru_plan)
+                               ->get_index_scan_cost();
       }
       roru_total_records += (*cur_roru_plan)->records;
       roru_intersect_part *=

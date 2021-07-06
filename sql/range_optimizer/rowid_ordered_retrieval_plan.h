@@ -68,27 +68,39 @@ struct ROR_SCAN_INFO {
 
 class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
  public:
+  // intersect_scans (both the pointers and the structs themselves)
+  // must be allocated on return_mem_root, as it will be used
+  // by make_quick(), which can be called after the range optimizer
+  // has returned.
   TRP_ROR_INTERSECT(TABLE *table_arg, bool forced_by_hint_arg,
-                    KEY_PART *const *key_arg, const uint *real_keynr_arg)
+                    KEY_PART *const *key_arg, const uint *real_keynr_arg,
+                    Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans_arg,
+                    Cost_estimate index_scan_cost_arg, bool is_covering_arg,
+                    ROR_SCAN_INFO *cpk_scan_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
                         forced_by_hint_arg),
+        intersect_scans(intersect_scans_arg),
+        cpk_scan(cpk_scan_arg),
+        is_covering(is_covering_arg),
+        index_scan_cost(index_scan_cost_arg),
         key(key_arg),
         real_keynr(real_keynr_arg) {}
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
 
-  /* Array of pointers to ROR range scans used in this intersection */
-  ROR_SCAN_INFO **first_scan;
-  ROR_SCAN_INFO **last_scan; /* End of the above array */
-  ROR_SCAN_INFO *cpk_scan;   /* Clustered PK scan, if there is one */
-  bool is_covering;          /* true if no row retrieval phase is necessary */
-  Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
+  Cost_estimate get_index_scan_cost() const { return index_scan_cost; }
+
+ private:
+  /* ROR range scans used in this intersection */
+  Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans;
+  ROR_SCAN_INFO *cpk_scan; /* Clustered PK scan, if there is one */
+  const bool is_covering;  /* true if no row retrieval phase is necessary */
+  const Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
- private:
   KEY_PART *const *key;
   const uint *real_keynr;
 };

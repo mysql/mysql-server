@@ -86,18 +86,17 @@ void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_array ota(trace, "intersect_of");
-  for (ROR_SCAN_INFO **cur_scan = first_scan; cur_scan != last_scan;
-       cur_scan++) {
-    const KEY &cur_key = table->key_info[(*cur_scan)->keynr];
+  for (ROR_SCAN_INFO *cur_scan : intersect_scans) {
+    const KEY &cur_key = table->key_info[cur_scan->keynr];
     const KEY_PART_INFO *key_part = cur_key.key_part;
 
     Opt_trace_object trace_isect_idx(trace);
     trace_isect_idx.add_alnum("type", "range_scan")
         .add_utf8("index", cur_key.name)
-        .add("rows", (*cur_scan)->records);
+        .add("rows", cur_scan->records);
 
     Opt_trace_array trace_range(trace, "ranges");
-    for (const SEL_ARG *current = (*cur_scan)->sel_root->root->first(); current;
+    for (const SEL_ARG *current = cur_scan->sel_root->root->first(); current;
          current = current->next) {
       String range_info;
       range_info.set_charset(system_charset_info);
@@ -134,13 +133,14 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                                  return_mem_root);
   if (quick_intrsect) {
     assert(quick_intrsect->index == index);
-    DBUG_EXECUTE("info", print_ror_scans_arr(table, "creating ROR-intersect",
-                                             first_scan, last_scan););
-    for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
-         current++) {
-      uint idx = (*current)->idx;
+    DBUG_EXECUTE("info",
+                 print_ror_scans_arr(
+                     table, "creating ROR-intersect", &intersect_scans[0],
+                     &intersect_scans[0] + intersect_scans.size()););
+    for (ROR_SCAN_INFO *current : intersect_scans) {
+      uint idx = current->idx;
       if (!(quick = get_quick_select(return_mem_root, table, key[idx],
-                                     real_keynr[idx], (*current)->sel_root,
+                                     real_keynr[idx], current->sel_root,
                                      HA_MRR_SORTED, 0)) ||
           quick_intrsect->push_quick_back(quick)) {
         destroy(quick_intrsect);
@@ -883,7 +883,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
 
   ROR_SCAN_INFO **intersect_scans; /* ROR scans used in index intersection */
   ROR_SCAN_INFO **intersect_scans_end;
-  if (!(intersect_scans = param->temp_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(
+  if (!(intersect_scans = param->return_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(
             tree->n_ror_scans)))
     return nullptr;
   intersect_scans_end = intersect_scans;
@@ -1007,27 +1007,22 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
   if ((min_cost < *cost_est || force_index_merge) &&
       (cpk_scan_used || best_num > 1)) {
     if (!(trp = new (param->return_mem_root) TRP_ROR_INTERSECT(
-              table, force_index_merge, param->key, param->real_keynr)))
+              table, force_index_merge, param->key, param->real_keynr,
+              {intersect_scans, best_num}, intersect_best->index_scan_cost,
+              intersect_best->is_covering,
+              cpk_scan_used ? cpk_scan : nullptr))) {
       return trp;
-    if (!(trp->first_scan =
-              param->return_mem_root->ArrayAlloc<ROR_SCAN_INFO *>(best_num)))
-      return nullptr;
-    memcpy(trp->first_scan, intersect_scans,
-           best_num * sizeof(ROR_SCAN_INFO *));
-    trp->last_scan = trp->first_scan + best_num;
-    trp->is_covering = intersect_best->is_covering;
+    }
     trp->cost_est = intersect_best->total_cost;
     /* Prevent divisons by zero */
     ha_rows best_rows = double2rows(intersect_best->out_rows);
     if (!best_rows) best_rows = 1;
     table->quick_condition_rows = min(table->quick_condition_rows, best_rows);
     trp->records = best_rows;
-    trp->index_scan_cost = intersect_best->index_scan_cost;
-    trp->cpk_scan = cpk_scan_used ? cpk_scan : nullptr;
 
     trace_ror.add("rows", trp->records)
         .add("cost", trp->cost_est)
-        .add("covering", trp->is_covering)
+        .add("covering", intersect_best->is_covering)
         .add("chosen", true);
 
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
