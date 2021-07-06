@@ -4474,9 +4474,10 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   initid.ptr = nullptr;
   initid.extension = &m_return_value_extension;
 
-  if (thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing)
+  if (thd->stmt_arena->is_stmt_prepare() && !thd->stmt_arena->is_repreparing) {
+    udf_fun_guard.defer();
     return false;
-
+  }
   if (u_d->func_init) {
     if (call_init_func()) {
       return true;
