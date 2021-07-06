@@ -662,14 +662,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           table->set_keyread(true);
 
         table->prepare_for_position();
-
-        /* If quick select is used, initialize it before retrieving rows. */
-        if (quick && (error = quick->reset())) {
-          if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
-
-          table->file->print_error(error, error_flags);
-          return true;
-        }
         table->file->try_semi_consistent_read(true);
         auto end_semi_consistent_read = create_scope_guard(
             [table] { table->file->try_semi_consistent_read(false); });
