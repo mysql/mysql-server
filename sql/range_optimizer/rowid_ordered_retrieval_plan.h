@@ -62,6 +62,12 @@ struct ROR_SCAN_INFO {
     (assuming there is no need to access full table records)
   */
   Cost_estimate index_read_cost;
+
+  /**
+    The ranges to scan for this index. Must be allocated on the return_mem_root.
+   */
+  Bounds_checked_array<QUICK_RANGE *> ranges;
+  uint used_key_parts;
 };
 
 /* Plan for QUICK_ROR_INTERSECT_SELECT scan. */

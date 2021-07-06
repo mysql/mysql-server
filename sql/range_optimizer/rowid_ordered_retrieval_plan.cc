@@ -122,6 +122,27 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
+// A replacement for get_quick_select() for when you already have
+// the ranges available, instead of a SEL_TREE that you need to extract
+// ranges from. Does not support reverse range scans.
+static QUICK_RANGE_SELECT *get_quick_select_local(
+    MEM_ROOT *return_mem_root, TABLE *table, KEY_PART *key, uint keyno,
+    uint mrr_flags, uint mrr_buf_size, uint used_key_parts,
+    Bounds_checked_array<QUICK_RANGE *> ranges) {
+  DBUG_TRACE;
+
+  if (table->key_info[keyno].flags & HA_SPATIAL) {
+    return new (return_mem_root)
+        QUICK_RANGE_SELECT_GEOM(table, keyno, return_mem_root, mrr_flags,
+                                mrr_buf_size, key, ranges, used_key_parts);
+  } else {
+    QUICK_RANGE_SELECT *quick = new (return_mem_root)
+        QUICK_RANGE_SELECT(table, keyno, return_mem_root, mrr_flags,
+                           mrr_buf_size, key, ranges, used_key_parts);
+    return quick;
+  }
+}
+
 QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                                               MEM_ROOT *return_mem_root) {
   QUICK_RANGE_SELECT *quick;
@@ -139,9 +160,9 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
                      &intersect_scans[0] + intersect_scans.size()););
     for (ROR_SCAN_INFO *current : intersect_scans) {
       uint idx = current->idx;
-      if (!(quick = get_quick_select(return_mem_root, table, key[idx],
-                                     real_keynr[idx], current->sel_root,
-                                     HA_MRR_SORTED, 0)) ||
+      if (!(quick = get_quick_select_local(
+                return_mem_root, table, key[idx], real_keynr[idx],
+                HA_MRR_SORTED, 0, current->used_key_parts, current->ranges)) ||
           quick_intrsect->push_quick_back(quick)) {
         destroy(quick_intrsect);
         return nullptr;
@@ -149,9 +170,10 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
     }
     if (cpk_scan) {
       uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select(return_mem_root, table, key[idx],
-                                     real_keynr[idx], cpk_scan->sel_root,
-                                     HA_MRR_SORTED, 0))) {
+      if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
+                                           real_keynr[idx], HA_MRR_SORTED, 0,
+                                           cpk_scan->used_key_parts,
+                                           cpk_scan->ranges))) {
         destroy(quick_intrsect);
         return nullptr;
       }
@@ -249,6 +271,15 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
   double rows = rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost =
       param->table->file->index_scan_cost(ror_scan->keynr, 1, rows);
+
+  Quick_ranges ranges(param->return_mem_root);
+  if (get_ranges_from_tree(param->return_mem_root, param->table,
+                           param->key[idx], param->real_keynr[idx], sel_root,
+                           MAX_REF_PARTS, &ror_scan->used_key_parts, &ranges)) {
+    return nullptr;
+  }
+  ror_scan->ranges = {&ranges[0], ranges.size()};
+
   return ror_scan;
 }
 
