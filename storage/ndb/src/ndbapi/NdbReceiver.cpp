@@ -918,6 +918,7 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
   if (isMDBitfield)
   {
     assert(len <= 64);
+    mysqldSpace = 0;
     dest= (char*) &mysqldSpace;
   }
   else
