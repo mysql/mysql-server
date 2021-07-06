@@ -60,8 +60,8 @@ static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
                                     uint limit);
 static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
                            KEY_PART *key, SEL_ARG *key_tree,
-                           const uchar *base_min_key, uchar *min_key,
-                           uint min_key_flag, const uchar *base_max_key,
+                           uchar *const base_min_key, uchar *min_key,
+                           uint min_key_flag, uchar *const base_max_key,
                            uchar *max_key, uint max_key_flag, uint *desc_flag,
                            uint num_key_parts, uint *used_key_parts,
                            Quick_ranges *ranges);
@@ -1071,8 +1071,8 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
 
 static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
                            KEY_PART *key, SEL_ARG *key_tree,
-                           const uchar *base_min_key, uchar *min_key,
-                           uint min_key_flag, const uchar *base_max_key,
+                           uchar *const base_min_key, uchar *min_key,
+                           uint min_key_flag, uchar *const base_max_key,
                            uchar *max_key, uint max_key_flag, uint *desc_flag,
                            uint num_key_parts, uint *used_key_parts,
                            Quick_ranges *ranges) {
