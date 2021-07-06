@@ -160,6 +160,7 @@ my %opts_extern;
 
 my $auth_plugin;            # The path to the authentication test plugin
 my $baseport;
+my $ctest_parallel;         # Number of parallel jobs to run unit tests
 my $ctest_report;           # Unit test report stored here for delayed printing
 my $current_config_name;    # The currently running config file template
 my $exe_ndb_mgm;
@@ -645,7 +646,12 @@ sub main {
 
   initialize_servers();
 
-  # Limit parallel workers to number of tests to avoid idle workers
+  # Run unit tests in parallel with the same number of workers as
+  # specified to MTR.
+  $ctest_parallel = $opt_parallel;
+
+  # Limit parallel workers to the number of regular tests to avoid
+  # idle workers.
   $opt_parallel = $num_tests if $opt_parallel > $num_tests;
   $ENV{MTR_PARALLEL} = $opt_parallel;
   mtr_report("Using parallel: $opt_parallel");
@@ -7442,10 +7448,10 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may
   # not have it. Now, run ctest and collect output.
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-  # Run unit tests in parallel with the same number of threads as
-  # the MTR tests.
-  mtr_report("Running ctest parallel=$opt_parallel");
-  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
+
+  $ENV{CTEST_PARALLEL_LEVEL} = $ctest_parallel;
+  mtr_report("Running ctest parallel=$ctest_parallel");
+
   my $ctest_opts = "";
   if ($ndbcluster_only) {
     # Run only tests with label NDB
