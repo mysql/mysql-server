@@ -905,7 +905,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
     if (parse(thd, args[0], statement_string)) return error_str();
     compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   }
-
+  assert(buf->charset() != nullptr);
   if (buf->reserve(DIGEST_HASH_TO_STRING_LENGTH)) return error_str();
   buf->length(DIGEST_HASH_TO_STRING_LENGTH);
   DIGEST_HASH_TO_STRING(digest, buf->c_ptr_quick());
@@ -940,6 +940,7 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
   }
   if (parse(thd, args[0], statement_string)) return error_str();
 
+  assert(buf->charset() != nullptr);
   compute_digest_text(&thd->m_digest->m_digest_storage, buf);
 
   return buf;
@@ -1104,8 +1105,10 @@ String *Item_func_replace::val_str(String *str) {
   tmp_value_res.set_charset(collation.collation);
   String *result = &tmp_value_res;
 
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res3_converted(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr, 0,
+                                                        collation.collation);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res3_converted(nullptr, 0,
+                                                        collation.collation);
 
   String *res2 = eval_string_arg(collation.collation, args[1], &res2_converted);
   if (res2 == nullptr) return error_str();
@@ -1485,7 +1488,8 @@ String *Item_func_substr_index::val_str(String *str) {
 
   res->set_charset(collation.collation);
 
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> delimiter_converted(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> delimiter_converted(
+      nullptr, 0, collation.collation);
   String *delimiter =
       eval_string_arg(collation.collation, args[1], &delimiter_converted);
   if (delimiter == nullptr) return error_str();
@@ -1597,7 +1601,8 @@ String *Item_func_trim::val_str(String *str) {
   String tmp(buff, sizeof(buff), system_charset_info);
   String *remove_str = &remove;  // Default value.
 
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> remove_converted(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> remove_converted(nullptr, 0,
+                                                          collation.collation);
 
   if (arg_count == 2) {
     remove_str =

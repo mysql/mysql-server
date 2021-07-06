@@ -245,7 +245,7 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
 */
 
 String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr, 0, to_cs);
 
   size_t offset;
   const bool convert =
