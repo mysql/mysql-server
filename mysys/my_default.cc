@@ -1484,9 +1484,9 @@ void update_variable_source(const char *opt_name, const char *value) {
       /* check if variables are prefixed with skip_ */
       if (id == 4) {
         bool skip_variable = false;
-        string skip_variables[] = {"skip_name_resolve", "skip_networking",
-                                   "skip_show_database",
-                                   "skip_external_locking"};
+        string skip_variables[] = {
+            "skip_name_resolve",     "skip_networking",  "skip_show_database",
+            "skip_external_locking", "skip_slave_start", "skip_replica_start"};
         for (uint skip_index = 0;
              skip_index < sizeof(skip_variables) / sizeof(skip_variables[0]);
              ++skip_index) {
@@ -1503,6 +1503,7 @@ void update_variable_source(const char *opt_name, const char *value) {
           var_name = var_name.substr(prefix[4].size());
       } else
         var_name = var_name.substr(prefix[id].size());
+      break;  // there can only be one prefix, so stop if found
     }
   }
 
