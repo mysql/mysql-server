@@ -1686,3 +1686,23 @@ WHERE (a,b) IN (
 --enable_result_log
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33075707: HYPERGRAPH: ASSERTION `COND->REAL_ITEM()->IS_BOOL_FUNC()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(1) );
+INSERT INTO t1 VALUES ('0');
+
+# NOTE: The regexp_like() contains an error (the empty pattern is
+# not allowed), but it will never be evaluated.
+SELECT 1
+FROM t1
+WHERE a NOT IN (
+  SELECT 1
+  FROM
+    t1 AS t2
+    LEFT JOIN t1 AS t3 ON (t2.a = t3.a OR 0 IN ( SELECT REGEXP_LIKE(a, '') FROM t1 ))
+);
+
+DROP TABLE t1;

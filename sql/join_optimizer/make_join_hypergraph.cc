@@ -1094,8 +1094,10 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
 
 /**
   Finalize a condition (join condition or WHERE predicate); resolve any
-  remaining multiple equalities, add casts to comparisons where needed,
-  and add caches around constant arguments.
+  remaining multiple equalities, and add casts to comparisons where needed.
+  Caches around constant arguments are not added here but during finalize,
+  since we might plan two times, and the caches from the first time may confuse
+  remove_eq_cond() in the second.
  */
 Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
   // Convert any remaining (unpushed) multiple equals to a series of equijoins.
@@ -1129,12 +1131,6 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
   condition->update_used_tables();
 
   condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
-
-  cache_const_expr_arg cache_arg;
-  cache_const_expr_arg *analyzer_arg = &cache_arg;
-  condition = condition->compile(
-      &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
-      &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
   return condition;
 }
 

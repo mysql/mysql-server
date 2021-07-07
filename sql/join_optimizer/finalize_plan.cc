@@ -37,6 +37,7 @@
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/replace_item.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
@@ -443,6 +444,35 @@ static bool ContainsMaterialization(AccessPath *path) {
   return found;
 }
 
+static Item *AddCachesAroundConstantConditions(Item *item) {
+  cache_const_expr_arg cache_arg;
+  cache_const_expr_arg *analyzer_arg = &cache_arg;
+  return item->compile(
+      &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
+      &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
+}
+
+static void AddCachesAroundConstantConditionsInPath(AccessPath *path) {
+  // TODO(sgunders): We could probably also add on sort and GROUP BY
+  // expressions, even though most of them should have been removed by the
+  // interesting order framework. The same with the SELECT list and
+  // expressions used in materializations.
+  switch (path->type) {
+    case AccessPath::FILTER:
+      path->filter().condition =
+          AddCachesAroundConstantConditions(path->filter().condition);
+      break;
+    case AccessPath::HASH_JOIN:
+      for (Item *&item :
+           path->hash_join().join_predicate->expr->join_conditions) {
+        item = AddCachesAroundConstantConditions(item);
+      }
+      break;
+    default:
+      break;
+  }
+}
+
 /*
   Do the final touchups of the access path tree, once we have selected a final
   plan (ie., there are no more alternatives). There are currently two major
@@ -571,6 +601,7 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           }
           after_aggregation = true;
         }
+        AddCachesAroundConstantConditionsInPath(path);
         return false;
       },
       /*post_order_traversal=*/true);
