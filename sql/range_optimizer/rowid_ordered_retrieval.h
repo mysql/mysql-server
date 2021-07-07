@@ -115,7 +115,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 struct Quick_ror_union_less {
   explicit Quick_ror_union_less(const QUICK_SELECT_I *me) : m_me(me) {}
   bool operator()(QUICK_SELECT_I *a, QUICK_SELECT_I *b) {
-    return m_me->head->file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
+    return m_me->m_table->file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
   }
   const QUICK_SELECT_I *m_me;
 };

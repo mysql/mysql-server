@@ -68,11 +68,11 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
   used_key_parts = used_key_parts_arg;
   in_ror_merged_scan = false;
   index = key_nr;
-  head = table;
-  key_part_info = head->key_info[index].key_part;
+  m_table = table;
+  key_part_info = m_table->key_info[index].key_part;
 
-  file = head->file;
-  record = head->record[0];
+  file = m_table->file;
+  record = m_table->record[0];
 
   for (const QUICK_RANGE *range : ranges) {
     max_used_key_length =
@@ -90,12 +90,12 @@ int QUICK_RANGE_SELECT::init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
     my_bitmap_map *bitmap =
-        (my_bitmap_map *)mem_root->Alloc(head->s->column_bitmap_size);
+        (my_bitmap_map *)mem_root->Alloc(m_table->s->column_bitmap_size);
     if (bitmap == nullptr) {
       column_bitmap.bitmap = nullptr;
       return true;
     } else {
-      bitmap_init(&column_bitmap, bitmap, head->s->fields);
+      bitmap_init(&column_bitmap, bitmap, m_table->s->fields);
     }
   }
 
@@ -109,7 +109,7 @@ void QUICK_RANGE_SELECT::range_end() {
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   DBUG_TRACE;
-  if (head->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
+  if (m_table->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
     file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
 
   if (!dont_free) {
@@ -174,7 +174,7 @@ restore_col_map:
 void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose) {
   /* purecov: begin inspected */
   fprintf(DBUG_FILE, "%*squick range select, key %s, length: %d\n", indent, "",
-          head->key_info[index].name, max_used_key_length);
+          m_table->key_info[index].name, max_used_key_length);
 
   if (verbose) {
     for (size_t ix = 0; ix < ranges.size(); ++ix) {
@@ -211,7 +211,7 @@ bool QUICK_RANGE_SELECT::unique_key_range() {
   if (ranges.size() == 1) {
     QUICK_RANGE *tmp = ranges[0];
     if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE) {
-      KEY *key = head->key_info + index;
+      KEY *key = m_table->key_info + index;
       return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
     }
   }
@@ -299,10 +299,10 @@ int QUICK_RANGE_SELECT::reset() {
   cur_range = ranges.begin();
 
   /* set keyread to true if index is covering */
-  if (!head->no_keyread && head->covering_keys.is_set(index))
-    head->set_keyread(true);
+  if (!m_table->no_keyread && m_table->covering_keys.is_set(index))
+    m_table->set_keyread(true);
   else
-    head->set_keyread(false);
+    m_table->set_keyread(false);
   if (!file->inited) {
     /*
       read_set is set to the correct value for ror_merge_scan here as a
@@ -310,8 +310,8 @@ int QUICK_RANGE_SELECT::reset() {
       initializing the read set in index_read() leading to wrong
       results while merging.
     */
-    MY_BITMAP *const save_read_set = head->read_set;
-    MY_BITMAP *const save_write_set = head->write_set;
+    MY_BITMAP *const save_read_set = m_table->read_set;
+    MY_BITMAP *const save_write_set = m_table->write_set;
     const bool sorted = (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2", DBUG_SET("+d,ha_index_init_fail"););
 
@@ -319,9 +319,9 @@ int QUICK_RANGE_SELECT::reset() {
     if (in_ror_merged_scan) {
       /*
         We don't need to signal the bitmap change as the bitmap is always the
-        same for this head->file
+        same for this m_table->file
       */
-      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+      m_table->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     }
     if ((error = file->ha_index_init(index, sorted))) {
       file->print_error(error, MYF(0));
@@ -329,16 +329,16 @@ int QUICK_RANGE_SELECT::reset() {
     }
     if (in_ror_merged_scan) {
       /* Restore bitmaps set on entry */
-      head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+      m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
   }
   // Enable & reset unique record filter for multi-valued index
-  if (head->key_info[index].flags & HA_MULTI_VALUED_KEY) {
+  if (m_table->key_info[index].flags & HA_MULTI_VALUED_KEY) {
     file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
     // Add PK's fields to read_set as unique filter uses rowid to skip dups
-    if (head->s->primary_key != MAX_KEY)
-      head->mark_columns_used_by_index_no_reset(head->s->primary_key,
-                                                head->read_set);
+    if (m_table->s->primary_key != MAX_KEY)
+      m_table->mark_columns_used_by_index_no_reset(m_table->s->primary_key,
+                                                   m_table->read_set);
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
@@ -388,23 +388,23 @@ int QUICK_RANGE_SELECT::reset() {
 
 int QUICK_RANGE_SELECT::get_next() {
   char *dummy;
-  MY_BITMAP *const save_read_set = head->read_set;
-  MY_BITMAP *const save_write_set = head->write_set;
+  MY_BITMAP *const save_read_set = m_table->read_set;
+  MY_BITMAP *const save_write_set = m_table->write_set;
   DBUG_TRACE;
 
   if (in_ror_merged_scan) {
     /*
       We don't need to signal the bitmap change as the bitmap is always the
-      same for this head->file
+      same for this m_table->file
     */
-    head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    m_table->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   }
 
   int result = file->ha_multi_range_read_next(&dummy);
 
   if (in_ror_merged_scan) {
     /* Restore bitmaps set on entry */
-    head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+    m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
   }
   return result;
 }
@@ -563,7 +563,7 @@ int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg) {
 }
 
 void QUICK_RANGE_SELECT::add_info_string(String *str) {
-  KEY *key_info = head->key_info + index;
+  KEY *key_info = m_table->key_info + index;
   str->append(key_info->name);
 }
 
@@ -571,7 +571,7 @@ void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths) {
   char buf[64];
   size_t length;
-  KEY *key_info = head->key_info + index;
+  KEY *key_info = m_table->key_info + index;
   key_names->append(key_info->name);
   length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);

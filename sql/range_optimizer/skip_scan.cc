@@ -89,9 +89,9 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       min_search_key(nullptr),
       max_search_key(nullptr),
       has_aggregate_function(has_aggregate_function) {
-  head = table;
+  m_table = table;
   index = use_index;
-  record = head->record[0];
+  record = m_table->record[0];
   cost_est = *read_cost_arg;
   records = read_records;
 
@@ -103,11 +103,11 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
 
   my_bitmap_map *bitmap;
   if (!(bitmap = (my_bitmap_map *)return_mem_root->Alloc(
-            head->s->column_bitmap_size))) {
+            m_table->s->column_bitmap_size))) {
     column_bitmap.bitmap = nullptr;
   } else
-    bitmap_init(&column_bitmap, bitmap, head->s->fields);
-  bitmap_copy(&column_bitmap, head->read_set);
+    bitmap_init(&column_bitmap, bitmap, m_table->s->fields);
+  bitmap_copy(&column_bitmap, m_table->read_set);
 
   for (uint i = 0; i < used_key_parts; i++, p++) {
     max_used_key_length += p->store_length;
@@ -211,7 +211,7 @@ int QUICK_SKIP_SCAN_SELECT::init() {
 
 QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   DBUG_TRACE;
-  if (head->file->inited) head->file->ha_index_or_rnd_end();
+  if (m_table->file->inited) m_table->file->ha_index_or_rnd_end();
 }
 
 /**
@@ -299,12 +299,12 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
 
   int result;
   seen_first_key = false;
-  head->set_keyread(true);  // This access path demands index-only reads.
-  MY_BITMAP *const save_read_set = head->read_set;
+  m_table->set_keyread(true);  // This access path demands index-only reads.
+  MY_BITMAP *const save_read_set = m_table->read_set;
 
-  head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
-  if ((result = head->file->ha_index_init(index, true))) {
-    head->file->print_error(result, MYF(0));
+  m_table->column_bitmaps_set_no_signal(&column_bitmap, m_table->write_set);
+  if ((result = m_table->file->ha_index_init(index, true))) {
+    m_table->file->print_error(result, MYF(0));
     return result;
   }
 
@@ -319,7 +319,7 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
     assert(offset <= eq_prefix_len);
   }
 
-  head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
+  m_table->column_bitmaps_set_no_signal(save_read_set, m_table->write_set);
   return 0;
 }
 
@@ -416,23 +416,24 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
 
   assert(distinct_prefix_len + range_key_len == max_used_key_length);
 
-  MY_BITMAP *const save_read_set = head->read_set;
-  head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
+  MY_BITMAP *const save_read_set = m_table->read_set;
+  m_table->column_bitmaps_set_no_signal(&column_bitmap, m_table->write_set);
   do {
     if (!is_prefix_valid) {
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
-          result = head->file->ha_index_first(record);
+          result = m_table->file->ha_index_first(record);
         } else {
-          result = head->file->ha_index_read_map(
+          result = m_table->file->ha_index_read_map(
               record, eq_prefix, make_prev_keypart_map(eq_prefix_key_parts),
               HA_READ_KEY_OR_NEXT);
         }
         seen_first_key = true;
       } else {
-        result = index_next_different(
-            false /* is_index_scan */, head->file, index_info->key_part, record,
-            distinct_prefix, distinct_prefix_len, distinct_prefix_key_parts);
+        result = index_next_different(false /* is_index_scan */, m_table->file,
+                                      index_info->key_part, record,
+                                      distinct_prefix, distinct_prefix_len,
+                                      distinct_prefix_key_parts);
       }
 
       if (result) goto exit;
@@ -513,7 +514,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       }
       is_prefix_valid = true;
 
-      result = head->file->ha_read_range_first(
+      result = m_table->file->ha_read_range_first(
           &start_key, &end_key, range_cond_flag & EQ_RANGE, true /* sorted */);
       if (result) {
         if (result == HA_ERR_END_OF_FILE) {
@@ -523,7 +524,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
         goto exit;
       }
     } else {
-      result = head->file->ha_read_range_next();
+      result = m_table->file->ha_read_range_next();
       if (result) {
         if (result == HA_ERR_END_OF_FILE) {
           is_prefix_valid = false;
@@ -535,7 +536,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
 
 exit:
-  head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
+  m_table->column_bitmaps_set_no_signal(save_read_set, m_table->write_set);
 
   if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
 

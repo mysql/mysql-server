@@ -491,12 +491,11 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
 
   bool force_skip_scan = false;
   const Cost_model_server *const cost_model = thd->cost_model();
-  TABLE *const head = table;
-  ha_rows records = head->file->stats.records;
+  ha_rows records = table->file->stats.records;
   if (!records) records++; /* purecov: inspected */
   double scan_time =
       cost_model->row_evaluate_cost(static_cast<double>(records)) + 1;
-  Cost_estimate cost_est = head->file->table_scan_cost();
+  Cost_estimate cost_est = table->file->table_scan_cost();
   cost_est.add_io(1.1);
   cost_est.add_cpu(scan_time);
   if (ignore_table_scan) {
@@ -507,7 +506,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     cost_est.reset();
     // Force to use index
     cost_est.add_io(
-        head->cost_model()->page_read_cost(static_cast<double>(records)) + 1);
+        table->cost_model()->page_read_cost(static_cast<double>(records)) + 1);
     cost_est.add_cpu(scan_time);
   } else if (cost_est.total_cost() <= 2.0 && !force_quick_range)
     return 0; /* No need for quick select */
@@ -515,10 +514,10 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_range(trace, "range_analysis");
   Opt_trace_object(trace, "table_scan")
-      .add("rows", head->file->stats.records)
+      .add("rows", table->file->stats.records)
       .add("cost", cost_est);
 
-  keys_to_use.intersect(head->keys_in_use_for_query);
+  keys_to_use.intersect(table->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all()) {
     SEL_TREE *tree = nullptr;
     KEY_PART *key_parts;
@@ -537,7 +536,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       return 0;  // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
-    param.table = head;
+    param.table = table;
     param.query_block = query_block;
     param.keys = 0;
     param.return_mem_root = return_mem_root;
@@ -568,9 +567,10 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
 
     // These are being stored in TRPs, so they need to be on return_mem_root.
-    param.real_keynr = return_mem_root->ArrayAlloc<uint>(head->s->keys);
-    param.key = return_mem_root->ArrayAlloc<KEY_PART *>(head->s->keys);
-    param.key_parts = return_mem_root->ArrayAlloc<KEY_PART>(head->s->key_parts);
+    param.real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
+    param.key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
+    param.key_parts =
+        return_mem_root->ArrayAlloc<KEY_PART>(table->s->key_parts);
     if (param.real_keynr == nullptr || param.key == nullptr ||
         param.key_parts == nullptr) {
       return 0;  // Can't use range
@@ -584,8 +584,8 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         Make an array with description of all key parts of all table keys.
         This is used in get_mm_parts function.
       */
-      key_info = head->key_info;
-      for (uint idx = 0; idx < head->s->keys; idx++, key_info++) {
+      key_info = table->key_info;
+      for (uint idx = 0; idx < table->s->keys; idx++, key_info++) {
         Opt_trace_object trace_idx_details(trace);
         trace_idx_details.add_utf8("index", key_info->name);
         KEY_PART_INFO *key_part_info;
@@ -596,7 +596,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
           continue;
         }
 
-        if (hint_key_state(thd, head->pos_in_table_list, idx,
+        if (hint_key_state(thd, table->pos_in_table_list, idx,
                            NO_RANGE_HINT_ENUM, 0)) {
           trace_idx_details.add("usable", false)
               .add_alnum("cause", "no_range_optimization hint");
@@ -636,8 +636,8 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     param.key_parts_end = key_parts;
 
     /* Calculate cost of full index read for the shortest covering index */
-    if (!head->covering_keys.is_clear_all()) {
-      int key_for_use = find_shortest_key(head, &head->covering_keys);
+    if (!table->covering_keys.is_clear_all()) {
+      int key_for_use = find_shortest_key(table, &table->covering_keys);
       // find_shortest_key() should return a valid key:
       assert(key_for_use != MAX_KEY);
 
@@ -654,7 +654,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
 
       Opt_trace_object trace_cov(trace, "best_covering_index_scan",
                                  Opt_trace_context::RANGE_OPTIMIZER);
-      trace_cov.add_utf8("index", head->key_info[key_for_use].name)
+      trace_cov.add_utf8("index", table->key_info[key_for_use].name)
           .add("cost", key_read_time)
           .add("chosen", chosen);
       if (!chosen) trace_cov.add_alnum("cause", "cost");
@@ -670,7 +670,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
         tree = get_mm_tree(thd, &param, prev_tables | INNER_TABLE_BIT,
                            read_tables | INNER_TABLE_BIT,
-                           head->pos_in_table_list->map(),
+                           table->pos_in_table_list->map(),
                            /*remove_jump_scans=*/true, cond);
       }
       if (tree) {
@@ -704,7 +704,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     if (group_trp) {
       DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost_est.reset(););
       param.table->quick_condition_rows =
-          min(group_trp->records, head->file->stats.records);
+          min(group_trp->records, table->file->stats.records);
       Opt_trace_object grp_summary(trace, "best_group_range_summary",
                                    Opt_trace_context::RANGE_OPTIMIZER);
       if (unlikely(trace->is_started()))
@@ -726,7 +726,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                              skip_records_in_range, force_skip_scan);
       if (skip_scan_trp) {
         param.table->quick_condition_rows =
-            min(skip_scan_trp->records, head->file->stats.records);
+            min(skip_scan_trp->records, table->file->stats.records);
         Opt_trace_object summary(trace, "best_skip_scan_summary",
                                  Opt_trace_context::RANGE_OPTIMIZER);
         if (unlikely(trace->is_started()))
@@ -838,7 +838,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       Only create a quick select if the storage engine supports using indexes
       for access.
     */
-    if (best_trp && (head->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
+    if (best_trp && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
       if (!(qck = best_trp->make_quick(true, return_mem_root)) || qck->init()) {
@@ -1366,7 +1366,7 @@ static void debug_print_tree(SEL_ROOT *origin) {
 #endif  // !defined(NDEBUG)
 
 bool QUICK_SELECT_I::is_keys_used(const MY_BITMAP *fields) {
-  return is_key_used(head, index, fields);
+  return is_key_used(m_table, index, fields);
 }
 
 /**
@@ -1777,7 +1777,7 @@ static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg) {
   if (!quick) return;
   DBUG_LOCK_FILE;
 
-  table = quick->head;
+  table = quick->m_table;
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   quick->dbug_dump(0, true);
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);

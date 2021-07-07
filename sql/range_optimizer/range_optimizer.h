@@ -222,7 +222,7 @@ class QUICK_SELECT_I {
  public:
   ha_rows records;         /* estimate of # of records to be retrieved */
   Cost_estimate cost_est;  ///> cost to perform this retrieval
-  TABLE *head;
+  TABLE *m_table;
   /*
     Index this quick select uses, or MAX_KEY for quick selects
     that use several indexes

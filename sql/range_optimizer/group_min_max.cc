@@ -98,10 +98,10 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       key_infix_ranges(return_mem_root),
       is_index_scan(is_index_scan_arg),
       mem_root(return_mem_root) {
-  head = table;
+  m_table = table;
   index = use_index;
-  record = head->record[0];
-  tmp_record = head->record[1];
+  record = m_table->record[0];
+  tmp_record = m_table->record[1];
   cost_est = *read_cost_arg;
   records = records_arg;
   used_key_parts = used_key_parts_arg;
@@ -173,14 +173,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
 
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
   DBUG_TRACE;
-  if (head->file->inited)
+  if (m_table->file->inited)
     /*
       We may have used this object for index access during
       create_sort_index() and then switched to rnd access for the rest
       of execution. Since we don't do cleanup until now, we must call
       ha_*_end() for whatever is the current access method.
     */
-    head->file->ha_index_or_rnd_end();
+    m_table->file->ha_index_or_rnd_end();
 
   for (uint i = 0; i < key_infix_parts; i++) destroy(key_infix_ranges[i]);
   destroy(quick_prefix_query_block);
@@ -352,19 +352,19 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
   DBUG_TRACE;
 
   seen_first_key = false;
-  head->set_keyread(true); /* We need only the key attributes */
+  m_table->set_keyread(true); /* We need only the key attributes */
   /*
     Request ordered index access as usage of ::index_last(),
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
-  if (head->file->inited) head->file->ha_index_or_rnd_end();
-  if ((result = head->file->ha_index_init(index, true))) {
-    head->file->print_error(result, MYF(0));
+  if (m_table->file->inited) m_table->file->ha_index_or_rnd_end();
+  if ((result = m_table->file->ha_index_init(index, true))) {
+    m_table->file->print_error(result, MYF(0));
     return result;
   }
   if (quick_prefix_query_block && quick_prefix_query_block->reset()) return 1;
 
-  result = head->file->ha_index_last(record);
+  result = m_table->file->ha_index_last(record);
   if (result != 0) {
     if (result == HA_ERR_END_OF_FILE)
       return 0;
@@ -488,7 +488,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
           through the whole group to accumulate the MIN/MAX and returning just
           the one distinct record is enough.
         */
-        if (!(result = head->file->ha_index_read_map(
+        if (!(result = m_table->file->ha_index_read_map(
                   record, group_prefix, make_prev_keypart_map(real_key_parts),
                   HA_READ_KEY_EXACT)) ||
             is_index_access_error(result))
@@ -544,7 +544,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
       next_prefix() call.
     */
     if (key_infix_len > 0 || !min_max_keypart_asc) {
-      if ((result = head->file->ha_index_read_map(
+      if ((result = m_table->file->ha_index_read_map(
                record, group_prefix, make_prev_keypart_map(real_key_parts),
                min_max_keypart_asc ? HA_READ_KEY_EXACT : HA_READ_PREFIX_LAST)))
         return result;
@@ -562,7 +562,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
 
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
       key_copy(key_buf, record, index_info, max_used_key_length);
-      result = head->file->ha_index_read_map(
+      result = m_table->file->ha_index_read_map(
           record, key_buf, make_keypart_map(real_key_parts),
           min_max_keypart_asc ? HA_READ_AFTER_KEY : HA_READ_BEFORE_KEY);
       /*
@@ -624,7 +624,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
       next_prefix() call.
     */
     if (key_infix_len > 0 || min_max_keypart_asc)
-      result = head->file->ha_index_read_map(
+      result = m_table->file->ha_index_read_map(
           record, group_prefix, make_prev_keypart_map(real_key_parts),
           min_max_keypart_asc ? HA_READ_PREFIX_LAST : HA_READ_KEY_EXACT);
   }
@@ -662,12 +662,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
     seen_first_key = true;
   } else {
     if (!seen_first_key) {
-      result = head->file->ha_index_first(record);
+      result = m_table->file->ha_index_first(record);
       if (result) return result;
       seen_first_key = true;
     } else {
       /* Load the first key in this group into record. */
-      result = index_next_different(is_index_scan, head->file,
+      result = index_next_different(is_index_scan, m_table->file,
                                     index_info->key_part, record, group_prefix,
                                     group_prefix_len, group_key_parts);
       if (result) return result;
@@ -911,8 +911,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
       search_mode = get_search_mode(cur_range, min_max_keypart_asc, true);
     }
 
-    result = head->file->ha_index_read_map(record, group_prefix, keypart_map,
-                                           search_mode);
+    result = m_table->file->ha_index_read_map(record, group_prefix, keypart_map,
+                                              search_mode);
     if (result) {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
           (cur_range->flag & (EQ_RANGE | NULL_RANGE)))
@@ -935,7 +935,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
         Remember this key, and continue looking for a non-NULL key that
         satisfies some other condition.
       */
-      memcpy(tmp_record, record, head->s->rec_buff_length);
+      memcpy(tmp_record, record, m_table->s->rec_buff_length);
       found_null = true;
       continue;
     }
@@ -978,7 +978,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
     then use the key with the NULL.
   */
   if (found_null && result) {
-    memcpy(record, tmp_record, head->s->rec_buff_length);
+    memcpy(record, tmp_record, m_table->s->rec_buff_length);
     result = 0;
   }
   return result;
@@ -1037,8 +1037,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
       search_mode = get_search_mode(cur_range, min_max_keypart_asc, false);
     }
 
-    result = head->file->ha_index_read_map(record, group_prefix, keypart_map,
-                                           search_mode);
+    result = m_table->file->ha_index_read_map(record, group_prefix, keypart_map,
+                                              search_mode);
 
     if (result) {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
@@ -1098,14 +1098,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
   DESCRIPTION
     The method iterates through all MIN functions and updates the result value
     of each function by calling Item_sum::aggregator_add(), which in turn picks
-    the new result value from this->head->record[0], previously updated by
+    the new result value from this->m_table->record[0], previously updated by
     next_min(). The updated value is stored in a member variable of each of the
     Item_sum objects, depending on the value type.
 
   IMPLEMENTATION
     The update must be done separately for MIN and MAX, immediately after
     next_min() was called and before next_max() is called, because both MIN and
-    MAX take their result value from the same buffer this->head->record[0]
+    MAX take their result value from the same buffer this->m_table->record[0]
     (i.e.  this->record).
 
   @param  reset   IN/OUT reset MIN value if TRUE.
@@ -1133,14 +1133,14 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
   DESCRIPTION
     The method iterates through all MAX functions and updates the result value
     of each function by calling Item_sum::aggregator_add(), which in turn picks
-    the new result value from this->head->record[0], previously updated by
+    the new result value from this->m_table->record[0], previously updated by
     next_max(). The updated value is stored in a member variable of each of the
     Item_sum objects, depending on the value type.
 
   IMPLEMENTATION
     The update must be done separately for MIN and MAX, immediately after
     next_max() was called, because both MIN and MAX take their result value
-    from the same buffer this->head->record[0] (i.e.  this->record).
+    from the same buffer this->m_table->record[0] (i.e.  this->record).
 
   @param  reset   IN/OUT reset MAX value if TRUE.
 
