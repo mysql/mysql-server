@@ -623,6 +623,9 @@ sub main {
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
                                  \@opt_cases,  $opt_skip_test_list);
   mark_time_used('collect');
+  # A copy of the tests list, that will not be modified even after the tests
+  # are executed.
+  my @tests_list = @{$tests};
 
   check_secondary_engine_option($tests) if $secondary_engine_support;
 
@@ -741,6 +744,7 @@ sub main {
 
   # Create child processes
   my %children;
+
   $parent_pid = $$;
   for my $child_num (1 .. $opt_parallel) {
     my $child_pid = My::SafeProcess::Base::_safe_fork();
@@ -801,7 +805,14 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
+    my %is_completed_map = map { $_->{key} => 1 } @$completed;
+    my @not_completed;
+    foreach (@tests_list) {
+      if (!exists $is_completed_map{$_->{key}}) {
+        push (@not_completed, $_->{name});
+      }
+    }
+    mtr_error("Not all tests completed:", join(", ", @not_completed));
   }
 
   mark_time_used('init');
@@ -1300,8 +1311,8 @@ sub run_worker ($) {
       # A sanity check. Should this happen often we need to look at it.
       if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
         my $tres = $test->{reserved};
-	my $name = $test->{name};
-	mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
+        my $name = $test->{name};
+        mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
       }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
