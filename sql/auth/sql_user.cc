@@ -1074,7 +1074,9 @@ static bool check_for_authentication_policy(THD *thd, LEX_USER *user_name,
       thd->security_context()
           ->has_global_grant(STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"))
           .first;
+  mysql_mutex_lock(&LOCK_authentication_policy);
   std::vector<std::string> &auth_policy_list = authentication_policy_list;
+  mysql_mutex_unlock(&LOCK_authentication_policy);
   List_iterator<LEX_MFA> mfa_list_it(user_name->mfa_list);
   LEX_MFA *tmp_mfa = nullptr;
   LEX_MFA *second_factor = nullptr;
@@ -1466,12 +1468,14 @@ bool set_and_validate_user_attributes(
       --default-authentication-plugin
     */
     if (!Str->first_factor_auth_info.uses_identified_with_clause) {
+      mysql_mutex_lock(&LOCK_authentication_policy);
       if (authentication_policy_list[0].compare("*") == 0)
         Str->first_factor_auth_info.plugin = default_auth_plugin_name;
       else
         lex_string_strmake(thd->mem_root, &Str->first_factor_auth_info.plugin,
                            authentication_policy_list[0].c_str(),
                            authentication_policy_list[0].length());
+      mysql_mutex_unlock(&LOCK_authentication_policy);
     }
 
     if (command == SQLCOM_GRANT) {
@@ -2667,11 +2671,6 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       commit_and_close_mysql_tables(thd);
       return true;
     }
-    /**
-      ensure @@authentication_policy is not modified till CREATE USER is
-      complete
-    */
-    MUTEX_LOCK(lock, &LOCK_authentication_policy);
     while ((tmp_user_name = user_list++)) {
       bool history_check_done = false;
       I_multi_factor_auth *mfa = nullptr;
@@ -3307,11 +3306,6 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       commit_and_close_mysql_tables(thd);
       return true;
     }
-    /**
-      ensure @@authentication_policy is not modified till ALTER USER is
-      complete
-    */
-    MUTEX_LOCK(lock, &LOCK_authentication_policy);
     is_privileged_user = is_privileged_user_for_credential_change(thd);
 
     while ((tmp_user_from = user_list++)) {

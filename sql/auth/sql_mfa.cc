@@ -317,7 +317,9 @@ bool Multi_factor_auth_list::validate_against_authentication_policy(THD *thd) {
           ->has_global_grant(STRING_WITH_LEN("AUTHENTICATION_POLICY_ADMIN"))
           .first;
   uint nth_factor = 1;
+  mysql_mutex_lock(&LOCK_authentication_policy);
   std::vector<std::string> &list = authentication_policy_list;
+  mysql_mutex_unlock(&LOCK_authentication_policy);
   auto acl_it = m_factor.begin();
   auto policy_list = list.begin();
   /* skip first factor plugin name in policy list */
@@ -560,7 +562,9 @@ Multi_factor_auth_info::Multi_factor_auth_info(MEM_ROOT *mem_root, LEX_MFA *m)
 bool Multi_factor_auth_info::validate_plugins_in_auth_chain(THD *thd) {
   if (is_identified_by() && !is_identified_with()) {
     /* get plugin name from @@authentication_policy */
+    mysql_mutex_lock(&LOCK_authentication_policy);
     std::vector<std::string> &list = authentication_policy_list;
+    mysql_mutex_unlock(&LOCK_authentication_policy);
     auto s = list[get_nth_factor() - 1];
     set_plugin_str(s.c_str(), s.length());
   }
