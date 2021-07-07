@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1443,6 +1443,8 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   CmRegRef* ref = (CmRegRef*)signal->getDataPtr();
   UintR TaddNodeno = ref->nodeId;
+  ndbrequire(TaddNodeno < MAX_NDB_NODES);
+
   UintR TrefuseReason = ref->errorCode;
   Uint32 candidate = ref->presidentCandidate;
   Uint32 node_gci = 1;
