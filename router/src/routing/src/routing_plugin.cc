@@ -42,6 +42,7 @@
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
+#include "mysqlrouter/utils.h"           // string_format
 #include "plugin_config.h"
 #include "ssl_mode.h"
 

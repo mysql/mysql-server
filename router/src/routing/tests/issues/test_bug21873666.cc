@@ -39,7 +39,6 @@
 #include "mysqlrouter/routing.h"
 #include "plugin_config.h"
 
-using mysqlrouter::to_string;
 using ::testing::HasSubstr;
 
 class Bug21771595 : public ::testing::Test {

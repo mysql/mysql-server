@@ -1968,6 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
 
     try {
       const auto row = sess.query_one("show status like 'ssl_cipher'");
+      ASSERT_TRUE(row) << "<show status like 'ssl_cipher'> returned no row";
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {

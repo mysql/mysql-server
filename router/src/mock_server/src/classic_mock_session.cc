@@ -551,9 +551,9 @@ void MySQLServerMockSessionClassic::finish() { disconnect(); }
 void MySQLServerMockSessionClassic::run() { server_greeting(); }
 
 void MySQLClassicProtocol::encode_auth_fast_message() {
-  auto encode_res = classic_protocol::encode<
-      classic_protocol::frame::Frame<classic_protocol::wire::FixedInt<1>>>(
-      {seq_no_++, {3}}, shared_capabilities(),
+  auto encode_res = classic_protocol::encode<classic_protocol::frame::Frame<
+      classic_protocol::message::server::AuthMethodData>>(
+      {seq_no_++, {"\x03"}}, shared_capabilities(),
       net::dynamic_buffer(send_buffer_));
 }
 
@@ -724,12 +724,15 @@ void MySQLClassicProtocol::encode_resultset(const ResultsetResponse &response) {
     }
   }
 
-  encode_res = classic_protocol::encode<
-      classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
-      {seq_no_++, {}}, shared_caps, net::dynamic_buffer(send_buffer_));
-  if (!encode_res) {
-    //
-    return;
+  if (!shared_caps.test(classic_protocol::capabilities::pos::
+                            text_result_with_session_tracking)) {
+    encode_res = classic_protocol::encode<
+        classic_protocol::frame::Frame<classic_protocol::message::server::Eof>>(
+        {seq_no_++, {}}, shared_caps, net::dynamic_buffer(send_buffer_));
+    if (!encode_res) {
+      //
+      return;
+    }
   }
 
   for (auto const &row : response.rows) {

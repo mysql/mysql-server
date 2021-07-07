@@ -143,7 +143,7 @@ class socket_base {
   using debug = socket_option::boolean<SOL_SOCKET, SO_DEBUG>;
   using do_not_route = socket_option::boolean<SOL_SOCKET, SO_DONTROUTE>;
   using error =
-      socket_option::boolean<SOL_SOCKET, SO_ERROR>;  // not part of std
+      socket_option::integer<SOL_SOCKET, SO_ERROR>;  // not part of std
   using keep_alive = socket_option::boolean<SOL_SOCKET, SO_KEEPALIVE>;
 
   class linger;

@@ -155,28 +155,25 @@ inline bool operator==(const AuthMethodSwitch &a, const AuthMethodSwitch &b) {
  * - Error
  * - AuthMethodSwitch
  *
- * like:
+ * like caching_sha2_password does:
  *
- * - 0x01 (more auth data)
- * - 0x03 (fast path)
+ * - 0x01 0x02 (send public key)
+ * - 0x01 0x03 (send full handshake)
+ * - 0x01 0x04 (fast path done)
  */
 class AuthMethodData {
  public:
-  AuthMethodData(uint8_t packet_type, std::string auth_method_data)
-      : packet_type_{packet_type},
-        auth_method_data_{std::move(auth_method_data)} {}
+  AuthMethodData(std::string auth_method_data)
+      : auth_method_data_{std::move(auth_method_data)} {}
 
-  uint8_t packet_type() const noexcept { return packet_type_; }
   std::string auth_method_data() const { return auth_method_data_; }
 
  private:
-  uint8_t packet_type_;
   std::string auth_method_data_;
 };
 
 inline bool operator==(const AuthMethodData &a, const AuthMethodData &b) {
-  return (a.auth_method_data() == b.auth_method_data()) &&
-         (a.packet_type() == b.packet_type());
+  return a.auth_method_data() == b.auth_method_data();
 }
 
 /**
