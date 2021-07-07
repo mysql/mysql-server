@@ -4346,7 +4346,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DERIVED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 4	DERIVED	sq1_alias2	NULL	index	NULL	idx_cc_col_date_key	4	NULL	1	100.00	Using index; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `alias1`.`col_int` AS `col_int` from `test`.`c` `alias1` join (/* select#4 */ select min(`sq1_alias1`.`col_int`) AS `sq1_field1` from `test`.`c` `sq1_alias1` join `test`.`c` `sq1_alias2`) `derived_2_4` join `test`.`c` `alias2` join `test`.`c` `alias3` semi join (`test`.`c` `sq2_alias1` join `test`.`c` `sq2_alias2`) where ((`sq2_alias1`.`pk` = `sq2_alias2`.`col_int`) and (`alias2`.`col_int` >= `derived_2_4`.`sq1_field1`))
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_int` AS `col_int` from `test`.`c` `alias1` join (/* select#4 */ select min(`test`.`sq1_alias1`.`col_int`) AS `sq1_field1` from `test`.`c` `sq1_alias1` join `test`.`c` `sq1_alias2`) `derived_2_4` join `test`.`c` `alias2` join `test`.`c` `alias3` semi join (`test`.`c` `sq2_alias1` join `test`.`c` `sq2_alias2`) where ((`test`.`sq2_alias1`.`pk` = `test`.`sq2_alias2`.`col_int`) and (`test`.`alias2`.`col_int` >= `derived_2_4`.`sq1_field1`))
 DROP VIEW view_c;
 DROP TABLE c;
 #

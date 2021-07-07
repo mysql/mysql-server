@@ -6281,3 +6281,32 @@ CREATE VIEW v2 AS SELECT 1 AS c;
 SHOW CREATE VIEW v1;
 
 DROP VIEW v1, v2;
+
+--echo #
+--echo # BUG#30909064 Explain neglects db part of identifier after create view
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  col_int_key INT,
+  col_int_nokey INT,
+  col_varchar_key VARCHAR(10),
+  col_varchar_nokey VARCHAR(10),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (), ();
+
+CREATE VIEW v1 AS
+SELECT alias1.col_int_nokey AS field1,
+  (SELECT alias2.col_int_key
+   FROM t1 AS alias2
+   WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
+  ) AS field2
+FROM t1 AS alias1;
+
+DROP VIEW v1;
+
+EXPLAIN SELECT pk AS foo, col_int_key AS bar FROM t1;
+
+DROP TABLE t1;

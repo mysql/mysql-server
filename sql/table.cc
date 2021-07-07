@@ -4072,6 +4072,9 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   if (thd->lex->need_correct_ident())
     alias_name_used =
         my_strcasecmp(table_alias_charset, s->table_name.str, tl->alias);
+  else
+    alias_name_used = false;
+
   /* Fix alias if table name changes. */
   if (strcmp(alias, tl->alias)) {
     size_t length = strlen(tl->alias) + 1;

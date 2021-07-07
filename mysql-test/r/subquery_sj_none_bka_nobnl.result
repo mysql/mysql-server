@@ -7094,7 +7094,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where <in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`t1field`) in t1 on PRIMARY where <in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))))))
 SELECT t1.t1field
 FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
 t1field
@@ -7111,7 +7111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	a	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
 4	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`t1`.`t1field`) in t1 on PRIMARY where <in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`t1field` AS `t1field` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`t1field`) in t1 on PRIMARY where <in_optimizer>(`test`.`a`.`t1field`,<exists>(<primary_index_lookup>(<cache>(`test`.`a`.`t1field`) in t1 on PRIMARY))))))
 CREATE PROCEDURE p1() 
 BEGIN 
 SELECT t1field
@@ -11109,7 +11109,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	7	test.subquery1_t2.col_varchar_nokey	1	10.00	Using where
 4	DEPENDENT SUBQUERY	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`table3`.`col_int_key` = `table2`.`pk`) and <in_optimizer>(`table2`.`pk`,<exists>(/* select#3 */ select `subquery2_t1`.`col_int_key` AS `subquery2_field1` from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`) and (<cache>(`table3`.`col_int_key`) = `subquery2_t1`.`col_int_key`)))) and <in_optimizer>(`table3`.`col_int_nokey`,<exists>(/* select#4 */ select `subquery1_t2`.`col_int_nokey` AS `subquery1_field1` from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`subquery1_t3`.`col_int_key` = `subquery1_t2`.`pk`) and (`subquery1_t3`.`col_varchar_key` = `subquery1_t2`.`col_varchar_nokey`) and (`subquery1_t1`.`pk` > 1) and (<cache>(`table3`.`col_int_nokey`) = `subquery1_t2`.`col_int_nokey`)))))
+Note	1003	/* select#1 */ select `test`.`table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`test`.`table3`.`col_int_key` = `test`.`table2`.`pk`) and <in_optimizer>(`test`.`table2`.`pk`,<exists>(/* select#3 */ select `test`.`subquery2_t1`.`col_int_key` AS `subquery2_field1` from `test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1` where ((`test`.`subquery2_t2`.`col_varchar_key` = `test`.`subquery2_t3`.`col_varchar_key`) and (`test`.`subquery2_t2`.`pk` = `test`.`subquery2_t3`.`pk`) and (<cache>(`test`.`table3`.`col_int_key`) = `test`.`subquery2_t1`.`col_int_key`)))) and <in_optimizer>(`test`.`table3`.`col_int_nokey`,<exists>(/* select#4 */ select `test`.`subquery1_t2`.`col_int_nokey` AS `subquery1_field1` from `test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1` where ((`test`.`subquery1_t3`.`col_int_key` = `test`.`subquery1_t2`.`pk`) and (`test`.`subquery1_t3`.`col_varchar_key` = `test`.`subquery1_t2`.`col_varchar_nokey`) and (`test`.`subquery1_t1`.`pk` > 1) and (<cache>(`test`.`table3`.`col_int_nokey`) = `test`.`subquery1_t2`.`col_int_nokey`)))))
 SELECT * FROM v1;
 field1
 v
