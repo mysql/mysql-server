@@ -62,12 +62,11 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   uint group_prefix_len;  ///< Length of all key parts in the group prefix
   uint group_key_parts;   ///< Number of index key parts in the group prefix
   KEY *index_info;        ///< The index chosen for data access
-  uchar key_infix[MAX_KEY_LENGTH];  ///< Constants from equality predicates
-  uint key_infix_len;               ///< Length of key_infix
-  SEL_TREE *range_tree;  ///< Represents all range predicates in the query
-  SEL_ROOT *index_tree;  ///< The sub-tree corresponding to index_info
-  uint param_idx;        ///< Index of used key in param->key
-  bool is_index_scan;    ///< Use index_next() instead of random read
+  uint key_infix_len;     ///< Longest key for equality predicates
+  SEL_TREE *range_tree;   ///< Represents all range predicates in the query
+  SEL_ROOT *index_tree;   ///< The sub-tree corresponding to index_info
+  uint param_idx;         ///< Index of used key in param->key
+  bool is_index_scan;     ///< Use index_next() instead of random read
   JOIN *join;
   KEY_PART *used_key_part;
   uint keyno;

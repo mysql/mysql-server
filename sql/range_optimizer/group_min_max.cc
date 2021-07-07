@@ -67,7 +67,6 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
     read_cost         Cost of this access method
     records           Number of records returned
     key_infix_len     Length of the key infix appended to the group prefix
-    key_infix         Infix of constants from equality predicates
     return_mem_root   Memory pool for this and quick_prefix_query_block data
     is_index_scan     get the next different key not by jumping on it via
                       index read, but by scanning until the end of the
