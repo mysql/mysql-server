@@ -1503,7 +1503,6 @@ void update_variable_source(const char *opt_name, const char *value) {
           var_name = var_name.substr(prefix[4].size());
       } else
         var_name = var_name.substr(prefix[id].size());
-      break;  // there can only be one prefix, so stop if found
     }
   }
 
