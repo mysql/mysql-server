@@ -215,7 +215,7 @@ class Acl_table_user_writer_status {
  public:
   Acl_table_user_writer_status();
   Acl_table_user_writer_status(bool skip, ulong rights, Table_op_error_code err,
-                               struct timeval pwd_timestamp, std::string cred,
+                               my_timeval pwd_timestamp, std::string cred,
                                Password_lock &password_lock,
                                I_multi_factor_auth *multi_factor)
       : skip_cache_update(skip),
@@ -230,7 +230,7 @@ class Acl_table_user_writer_status {
   bool skip_cache_update;
   ulong updated_rights;
   Table_op_error_code error;
-  struct timeval password_change_timestamp;
+  my_timeval password_change_timestamp;
   std::string second_cred;
   Restrictions restrictions;
   Password_lock password_lock;

@@ -76,10 +76,9 @@ my_time_t TIME_to_timestamp(const MYSQL_TIME *t, const Time_zone &tz,
                             bool *not_exist);
 bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *t,
                                               const Time_zone &tz,
-                                              struct timeval *tm,
-                                              int *warnings);
+                                              my_timeval *tm, int *warnings);
 bool datetime_to_timeval(const MYSQL_TIME *t, const Time_zone &tz,
-                         struct timeval *tm, int *warnings);
+                         my_timeval *tm, int *warnings);
 bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                my_time_flags_t flags);
 bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,

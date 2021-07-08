@@ -45,6 +45,7 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_time_t.h"
 
 class String;
 struct MYSQL_TIME;
@@ -345,7 +346,7 @@ int str2my_decimal(uint mask, const char *from, size_t length,
 
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
-my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
+my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec);
 
 inline int double2my_decimal(uint mask, double val, my_decimal *d) {
   return check_result_and_overflow(mask, double2decimal(val, d), d);

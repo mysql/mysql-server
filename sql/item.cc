@@ -1547,7 +1547,7 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime) {
    if invalid DATETIME value, or a valid DATETIME value but which is out of
    the supported Unix timestamp range, sets 'tm' to 0.
 */
-bool Item::get_timeval(struct timeval *tm, int *warnings) {
+bool Item::get_timeval(my_timeval *tm, int *warnings) {
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE)) {
     if (null_value) return true; /* Value is NULL */
@@ -1557,7 +1557,7 @@ bool Item::get_timeval(struct timeval *tm, int *warnings) {
     goto zero;  /* Value is out of the supported range */
   return false; /* Value is a good Unix timestamp */
 zero:
-  tm->tv_sec = tm->tv_usec = 0;
+  tm->m_tv_sec = tm->m_tv_usec = 0;
   return false;
 }
 
@@ -2974,9 +2974,9 @@ bool Item_field::get_time(MYSQL_TIME *ltime) {
   return false;
 }
 
-bool Item_field::get_timeval(struct timeval *tm, int *warnings) {
+bool Item_field::get_timeval(my_timeval *tm, int *warnings) {
   if ((null_value = field->is_null())) return true;
-  if (field->get_timestamp(tm, warnings)) tm->tv_sec = tm->tv_usec = 0;
+  if (field->get_timestamp(tm, warnings)) tm->m_tv_sec = tm->m_tv_usec = 0;
   return false;
 }
 

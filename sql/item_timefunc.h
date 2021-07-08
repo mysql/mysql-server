@@ -380,7 +380,7 @@ class Item_timeval_func : public Item_func {
     @retval false On success
     @retval true  On error
   */
-  virtual bool val_timeval(struct timeval *tm) = 0;
+  virtual bool val_timeval(my_timeval *tm) = 0;
   longlong val_int() override;
   double val_real() override;
   String *val_str(String *str) override;
@@ -433,7 +433,7 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
     }
     return false;
   }
-  bool val_timeval(struct timeval *tm) override;
+  bool val_timeval(my_timeval *tm) override;
 
   bool check_function_as_value_generator(uchar *p_arg) override {
     /*
@@ -759,17 +759,17 @@ class MYSQL_TIME_cache {
     Set time and time_packed according to DATE value
     in "struct timeval" representation and its time zone.
   */
-  void set_date(struct timeval tv, Time_zone *tz);
+  void set_date(my_timeval tv, Time_zone *tz);
   /**
     Set time and time_packed according to TIME value
     in "struct timeval" representation and its time zone.
   */
-  void set_time(struct timeval tv, uint8 dec_arg, Time_zone *tz);
+  void set_time(my_timeval tv, uint8 dec_arg, Time_zone *tz);
   /**
     Set time and time_packed according to DATETIME value
     in "struct timeval" representation and its time zone.
   */
-  void set_datetime(struct timeval tv, uint8 dec_arg, Time_zone *tz);
+  void set_datetime(my_timeval tv, uint8 dec_arg, Time_zone *tz);
   /**
     Test if cached value is equal to another MYSQL_TIME_cache value.
   */

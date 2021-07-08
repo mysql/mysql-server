@@ -255,11 +255,11 @@ class Silence_log_table_errors : public Internal_error_handler {
   const char *message() const { return m_message; }
 };
 
-static void ull2timeval(ulonglong utime, struct timeval *tv) {
+static void ull2timeval(ulonglong utime, my_timeval *tv) {
   assert(tv != nullptr);
   assert(utime > 0); /* should hold true in this context */
-  tv->tv_sec = static_cast<long>(utime / 1000000);
-  tv->tv_usec = utime % 1000000;
+  tv->m_tv_sec = static_cast<int64_t>(utime / 1000000);
+  tv->m_tv_usec = utime % 1000000;
 }
 
 class File_query_log {
@@ -868,7 +868,7 @@ bool Log_to_csv_event_handler::log_general(
   bool need_close = false;
   bool need_rnd_end = false;
   uint field_index;
-  struct timeval tv;
+  my_timeval tv;
 
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
@@ -994,7 +994,7 @@ bool Log_to_csv_event_handler::log_slow(
   bool need_close = false;
   bool need_rnd_end = false;
   const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  struct timeval tv;
+  my_timeval tv;
   const char *reason = "";
 
   DBUG_TRACE;

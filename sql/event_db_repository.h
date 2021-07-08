@@ -27,12 +27,10 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-
+#include "my_time_t.h"  // my_time_t
 class Event_basic;
 class Event_parse_data;
 class THD;
-
-typedef long my_time_t;
 
 namespace dd {
 class Schema;

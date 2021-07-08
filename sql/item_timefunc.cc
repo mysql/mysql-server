@@ -994,7 +994,7 @@ bool Item_func_at_time_zone::set_time_zone(THD *thd) {
 }
 
 bool Item_func_at_time_zone::get_date(MYSQL_TIME *res, my_time_flags_t flags) {
-  timeval tm;
+  my_timeval tm;
   int warnings = 0;
 
   if (args[0]->data_type() == MYSQL_TYPE_TIMESTAMP) {
@@ -1003,7 +1003,7 @@ bool Item_func_at_time_zone::get_date(MYSQL_TIME *res, my_time_flags_t flags) {
       return true;
     }
 
-    m_tz->gmt_sec_to_TIME(res, tm.tv_sec);
+    m_tz->gmt_sec_to_TIME(res, tm.m_tv_sec);
     return warnings != 0;
   }
 
@@ -1014,7 +1014,7 @@ bool Item_func_at_time_zone::get_date(MYSQL_TIME *res, my_time_flags_t flags) {
   if (datetime_to_timeval(res, *current_thd->time_zone(), &tm, &warnings))
     return true;  // Value is out of the supported range
   // Finally, convert the temporal value to the desired time zone:
-  m_tz->gmt_sec_to_TIME(res, tm.tv_sec);
+  m_tz->gmt_sec_to_TIME(res, tm.m_tv_sec);
   return warnings != 0;
 }
 
@@ -1626,12 +1626,12 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp) {
 }
 
 longlong Item_timeval_func::val_int() {
-  struct timeval tm;
-  return val_timeval(&tm) ? 0 : tm.tv_sec;
+  my_timeval tm;
+  return val_timeval(&tm) ? 0 : tm.m_tv_sec;
 }
 
 my_decimal *Item_timeval_func::val_decimal(my_decimal *decimal_value) {
-  struct timeval tm;
+  my_timeval tm;
   if (val_timeval(&tm)) {
     return error_decimal(decimal_value);
   }
@@ -1639,14 +1639,14 @@ my_decimal *Item_timeval_func::val_decimal(my_decimal *decimal_value) {
 }
 
 double Item_timeval_func::val_real() {
-  struct timeval tm;
+  my_timeval tm;
   return val_timeval(&tm)
              ? 0
-             : (double)tm.tv_sec + (double)tm.tv_usec / (double)1000000;
+             : (double)tm.m_tv_sec + (double)tm.m_tv_usec / (double)1000000;
 }
 
 String *Item_timeval_func::val_str(String *str) {
-  struct timeval tm;
+  my_timeval tm;
   if (val_timeval(&tm) || (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *)nullptr;
   str->length(my_timeval_to_str(&tm, str->ptr(), decimals));
@@ -1665,11 +1665,11 @@ bool Item_func_unix_timestamp::itemize(Parse_context *pc, Item **res) {
    @retval true  args[0] is SQL NULL, so item is set to SQL NULL
    @retval false item's value is set, to 0 if out of range
 */
-bool Item_func_unix_timestamp::val_timeval(struct timeval *tm) {
+bool Item_func_unix_timestamp::val_timeval(my_timeval *tm) {
   assert(fixed == 1);
   if (arg_count == 0) {
-    tm->tv_sec = current_thd->query_start_in_secs();
-    tm->tv_usec = 0;
+    tm->m_tv_sec = current_thd->query_start_in_secs();
+    tm->m_tv_usec = 0;
     return false;  // no args: null_value is set in constructor and is always 0.
   }
   int warnings = 0;
@@ -1688,8 +1688,8 @@ longlong Item_func_unix_timestamp::val_int_endpoint(bool, bool *) {
   assert(arg_count == 1 && args[0]->type() == Item::FIELD_ITEM &&
          args[0]->data_type() == MYSQL_TYPE_TIMESTAMP);
   /* Leave the incl_endp intact */
-  struct timeval tm;
-  return val_timeval(&tm) ? 0 : tm.tv_sec;
+  my_timeval tm;
+  return val_timeval(&tm) ? 0 : tm.m_tv_sec;
 }
 
 bool Item_func_time_to_sec::resolve_type(THD *thd) {
@@ -1919,7 +1919,7 @@ void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg,
   string_length = my_TIME_to_str(time, string_buff, decimals());
 }
 
-void MYSQL_TIME_cache::set_datetime(struct timeval tv, uint8 dec_arg,
+void MYSQL_TIME_cache::set_datetime(my_timeval tv, uint8 dec_arg,
                                     Time_zone *tz) {
   tz->gmt_sec_to_TIME(&time, tv);
   time_packed = TIME_to_longlong_datetime_packed(time);
@@ -1927,8 +1927,8 @@ void MYSQL_TIME_cache::set_datetime(struct timeval tv, uint8 dec_arg,
   string_length = my_TIME_to_str(time, string_buff, decimals());
 }
 
-void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz) {
-  tz->gmt_sec_to_TIME(&time, (my_time_t)tv.tv_sec);
+void MYSQL_TIME_cache::set_date(my_timeval tv, Time_zone *tz) {
+  tz->gmt_sec_to_TIME(&time, (my_time_t)tv.m_tv_sec);
   time.time_type = MYSQL_TIMESTAMP_DATE;
   /* We don't need to set second_part and neg because they are already 0 */
   time.hour = time.minute = time.second = 0;
@@ -1937,8 +1937,7 @@ void MYSQL_TIME_cache::set_date(struct timeval tv, Time_zone *tz) {
   string_length = my_TIME_to_str(time, string_buff, decimals());
 }
 
-void MYSQL_TIME_cache::set_time(struct timeval tv, uint8 dec_arg,
-                                Time_zone *tz) {
+void MYSQL_TIME_cache::set_time(my_timeval tv, uint8 dec_arg, Time_zone *tz) {
   tz->gmt_sec_to_TIME(&time, tv);
   datetime_to_time(&time);
   time_packed = TIME_to_longlong_time_packed(time);
@@ -2075,7 +2074,7 @@ bool Item_func_now::resolve_type(THD *) {
 
 void Item_func_now_local::store_in(Field *field) {
   THD *thd = current_thd;
-  const timeval tm = thd->query_start_timeval_trunc(field->decimals());
+  const my_timeval tm = thd->query_start_timeval_trunc(field->decimals());
   field->set_notnull();
   return field->store_timestamp(&tm);
 }
@@ -2351,14 +2350,20 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
     lld.rem = 0;
   }
 
-  // Return NULL for timestamps after 2038-01-19 03:14:07 UTC
-  if ((null_value = (args[0]->null_value || lld.quot > TIMESTAMP_MAX_VALUE) ||
+  // Return NULL for timestamps after 2038-01-19 03:14:07 UTC (32 bits OS time)
+  // or after 9999-12-31 23:59:59 (64 bits OS time)
+  if ((null_value = (args[0]->null_value || lld.quot > MYTIME_MAX_VALUE) ||
                     lld.quot < 0 || lld.rem < 0))
     return true;
 
-  const bool is_end_of_epoch = (lld.quot == TIMESTAMP_MAX_VALUE);
+  const bool is_end_of_epoch = (lld.quot == MYTIME_MAX_VALUE);
 
   thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)lld.quot);
+  if (ltime->year == 0) {
+    // Overflow can happen in time zones east of UTC on Dec 31
+    null_value = true;
+    return true;
+  }
   int warnings = 0;
   ltime->second_part = decimals ? static_cast<ulong>(lld.rem / 1000) : 0;
   bool ret = propagate_datetime_overflow(
@@ -2368,12 +2373,16 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
   // Disallow round-up to one second past end of epoch.
   if (decimals && is_end_of_epoch) {
     MYSQL_TIME max_ltime;
-    thd->variables.time_zone->gmt_sec_to_TIME(&max_ltime, TIMESTAMP_MAX_VALUE);
+    thd->variables.time_zone->gmt_sec_to_TIME(&max_ltime, MYTIME_MAX_VALUE);
     max_ltime.second_part = 999999UL;
 
     const longlong max_t = TIME_to_longlong_datetime_packed(max_ltime);
     const longlong ret_t = TIME_to_longlong_datetime_packed(*ltime);
-    if ((null_value = (ret_t > max_t))) return true;
+    // The first test below catches the situation with 64 bits time, the
+    // second test catches it with 32 bits time
+    if ((null_value =
+             (warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) || (ret_t > max_t)))
+      return true;
   }
   return ret;
 }

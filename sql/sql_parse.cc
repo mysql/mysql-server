@@ -1622,7 +1622,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->set_time();
   if (is_time_t_valid_for_timestamp(thd->query_start_in_secs()) == false) {
     /*
-      If the time has gone past 2038 we need to shutdown the server. But
+      If the time has gone past end of epoch we need to shutdown the server. But
       there is possibility of getting invalid time value on some platforms.
       For example, gettimeofday() might return incorrect value on solaris
       platform. Hence validating the current time with 5 iterations before
@@ -1643,7 +1643,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     if (tries > max_tries) {
       /*
-        If the time has got past 2038 we need to shut this server down
+        If the time has got past epoch, we need to shut this server down.
         We do this by making sure every command is a shutdown and we
         have enough privileges to shut the server down
 

@@ -314,10 +314,10 @@ my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
 /**
   Convert timeval value to my_decimal.
 */
-my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec) {
+my_decimal *timeval2my_decimal(const my_timeval *tm, my_decimal *dec) {
   lldiv_t lld;
-  lld.quot = tm->tv_sec;
-  lld.rem = (longlong)tm->tv_usec * 1000;
+  lld.quot = tm->m_tv_sec;
+  lld.rem = tm->m_tv_usec * 1000;
   return lldiv_t2my_decimal(&lld, false, dec);
 }
 

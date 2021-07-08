@@ -6,7 +6,7 @@ let $explicit_defaults_for_timestamp=1;
 --source type_timestamp.test
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --echo #
---echo # WL6292 - Test cases to test new behavior with 
+--echo # WL6292 - Test cases to test new behavior with
 --echo #          --explicit_defaults_for_timestamp
 --echo # Almost all the scenario's required to test this WL, is already tested
 --echo # by most of existing test case. Adding some basic tests here.
@@ -18,7 +18,7 @@ ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
 ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 --echo # Following is expected out of SHOW CREATE TABLE
 --echo #  `f1` timestamp NULL DEFAULT NULL,
@@ -28,7 +28,7 @@ ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 --echo #  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
 --echo #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
@@ -38,7 +38,7 @@ SHOW CREATE TABLE t1;
 
 CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t2;
 
@@ -54,7 +54,7 @@ c1 TIMESTAMP NOT NULL,
 c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
 c3 INT NOT NULL DEFAULT 42);
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 --error ER_BAD_NULL_ERROR

@@ -467,10 +467,10 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     LEX_CSTRING definer_host_name{definer_host.str, definer_host.length};
 
     // Set timeval to use for Created field.
-    timeval timestamp_value;
+    my_timeval timestamp_value;
     if (created_timestamp) {
-      timestamp_value.tv_sec = static_cast<long>(*created_timestamp / 100);
-      timestamp_value.tv_usec = (*created_timestamp % 100) * 10000;
+      timestamp_value.m_tv_sec = *created_timestamp / 100;
+      timestamp_value.m_tv_usec = (*created_timestamp % 100) * 10000;
     } else {
       // Trigger created before 5.7.2, set created value.
       timestamp_value = thd->query_start_timeval_trunc(2);

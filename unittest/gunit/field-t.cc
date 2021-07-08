@@ -291,10 +291,10 @@ TEST_F(FieldTest, FieldTimef) {
 
   Mock_table m_table(thd());
   f->table = &m_table;
-  struct timeval tv;
+  my_timeval tv;
   int warnings = 0;
   EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
-  EXPECT_EQ(123400, tv.tv_usec);
+  EXPECT_EQ(123400, tv.m_tv_usec);
 
   destroy(field);
 }

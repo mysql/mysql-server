@@ -79,7 +79,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 namespace consts {
 /** Initial timestamp */
-const struct timeval BEGIN_TIMESTAMP = {0, 0};
+const my_timeval BEGIN_TIMESTAMP = {0, 0};
 
 /** Error indicating table operation error */
 const int CRITICAL_ERROR = -1;
@@ -2176,7 +2176,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
     if (builtin_plugin && (update_password || !old_row_exists))
       thd->variables.time_zone->gmt_sec_to_TIME(
           &password_change_time,
-          (my_time_t)return_value.password_change_timestamp.tv_sec);
+          (my_time_t)return_value.password_change_timestamp.m_tv_sec);
     else
       password_change_time.time_type = MYSQL_TIMESTAMP_ERROR;
     clear_and_init_db_cache(); /* Clear privilege cache */

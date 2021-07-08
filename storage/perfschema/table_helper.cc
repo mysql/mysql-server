@@ -409,9 +409,8 @@ char *get_field_timestamp(Field *f, char *val, uint *len) {
 }
 
 void set_field_timestamp(Field *f, ulonglong value) {
-  struct timeval tm;
-  tm.tv_sec = (long)(value / 1000000);
-  tm.tv_usec = (long)(value % 1000000);
+  my_timeval tm = {static_cast<int64_t>(value / 1000000),
+                   static_cast<int64_t>(value % 1000000)};
   assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   Field_timestampf *f2 = (Field_timestampf *)f;
   f2->store_timestamp(&tm);

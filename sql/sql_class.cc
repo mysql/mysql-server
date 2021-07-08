@@ -735,15 +735,15 @@ void THD::raise_note_printf(uint sql_errno, ...) {
   (void)raise_condition(sql_errno, nullptr, Sql_condition::SL_NOTE, ebuff);
 }
 
-struct timeval THD::query_start_timeval_trunc(uint decimals) {
-  struct timeval tv;
-  tv.tv_sec = start_time.tv_sec;
+my_timeval THD::query_start_timeval_trunc(uint decimals) {
+  my_timeval tv;
+  tv.m_tv_sec = start_time.tv_sec;
   if (decimals) {
-    tv.tv_usec = start_time.tv_usec;
+    tv.m_tv_usec = start_time.tv_usec;
     my_timeval_trunc(&tv, decimals);
     query_start_usec_used = true;
   } else {
-    tv.tv_usec = 0;
+    tv.m_tv_usec = 0;
   }
   return tv;
 }

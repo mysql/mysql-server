@@ -252,7 +252,7 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
 
 bool Histogram::histogram_to_json(Json_object *json_object) const {
   // Get the current time in GMT timezone with microsecond accuray.
-  timeval time_value;
+  my_timeval time_value;
   my_micro_time_to_timeval(my_micro_time(), &time_value);
 
   MYSQL_TIME current_time;

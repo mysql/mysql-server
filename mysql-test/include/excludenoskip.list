@@ -4,9 +4,11 @@
 #         - Below listed inc files will continue to skip with --no-skip option#
 #                                                                             #
 # Creation Date: 2016-July-26                                                 #
-# Author : Mohit Joshi							      #
-#									      #
-#									      #
+# Author : Mohit Joshi                                                        #
+#                                                                             #
+# Make sure to not add trailing blanks or bad things can happen when using    #
+# this list on the command line of mysqltest: following entries will become   #
+# a new argument instead of being part of the value of --no-skip-exclude-list #
 ###############################################################################
 
 # 1.0 OS dependent files
@@ -45,6 +47,10 @@ costmodel_planchange.test
 have_met_timezone.inc
 # Checks if server is started with Moscow leap timezone. Including the below inc file until Bug#25188986 is fixed.
 have_moscow_leap_timezone.inc
+
+# 32/64 bits time_t
+have_32bits_time.inc
+have_64bits_time.inc
 
 # 2.0 Binlog formats
 # Below files are included because rpl suite runs each test with 3 different

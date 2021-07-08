@@ -24,10 +24,10 @@
 #define DD__EVENT_INCLUDED
 
 #include "my_inttypes.h"
+#include "my_time_t.h"                    // my_time_t
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
-typedef long my_time_t;
 struct MDL_key;
 
 namespace dd {

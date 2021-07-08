@@ -1341,7 +1341,7 @@ void Json_datetime::from_packed_to_key(const char *from, enum_field_types ft,
       my_date_to_binary(&ltime, to);
       break;
     case MYSQL_TYPE_TIMESTAMP: {
-      struct timeval tm;
+      my_timeval tm;
       int warnings = 0;
       TIME_from_longlong_datetime_packed(&ltime, sint8korr(from));
       datetime_with_no_zero_in_date_to_timeval(

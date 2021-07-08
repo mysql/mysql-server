@@ -437,8 +437,7 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime) {
 */
 bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
                                               const Time_zone &tz,
-                                              struct timeval *tm,
-                                              int *warnings) {
+                                              my_timeval *tm, int *warnings) {
   if (!ltime->month) /* Zero date */
   {
     assert(!ltime->year && !ltime->day);
@@ -450,12 +449,12 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
       *warnings |= MYSQL_TIME_WARN_TRUNCATED;
       return true;
     }
-    tm->tv_sec = tm->tv_usec = 0;  // '0000-00-00 00:00:00.000000'
+    tm->m_tv_sec = tm->m_tv_usec = 0;  // '0000-00-00 00:00:00.000000'
     return false;
   }
 
   bool is_in_dst_time_gap = false;
-  if (!(tm->tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
+  if (!(tm->m_tv_sec = tz.TIME_to_gmt_sec(ltime, &is_in_dst_time_gap))) {
     /*
       Date was outside of the supported timestamp range.
       For example: '3001-01-01 00:00:00' or '1000-01-01 00:00:00'
@@ -471,7 +470,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
     */
     *warnings |= MYSQL_TIME_WARN_INVALID_TIMESTAMP;
   }
-  tm->tv_usec = ltime->second_part;
+  tm->m_tv_usec = ltime->second_part;
   return false;
 }
 
@@ -502,7 +501,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
   @return False on success, true on error.
 */
 bool datetime_to_timeval(const MYSQL_TIME *ltime, const Time_zone &tz,
-                         struct timeval *tm, int *warnings) {
+                         my_timeval *tm, int *warnings) {
   return check_date(*ltime, non_zero_date(*ltime), TIME_NO_ZERO_IN_DATE,
                     warnings) ||
          datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings);

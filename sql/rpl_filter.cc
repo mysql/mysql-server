@@ -111,9 +111,9 @@ void Rpl_filter_statistics::set_all(enum_configured_by configured_by) {
       Calculate time stamp up to tenths of milliseconds elapsed
       from 1 Jan 1970 00:00:00.
     */
-    struct timeval stmt_start_time = thd->query_start_timeval_trunc(6);
-    m_active_since = static_cast<ulonglong>(stmt_start_time.tv_sec) * 1000000 +
-                     stmt_start_time.tv_usec;
+    my_timeval stmt_start_time = thd->query_start_timeval_trunc(6);
+    m_active_since =
+        stmt_start_time.m_tv_sec * 1000000 + stmt_start_time.m_tv_usec;
   }
 }
 

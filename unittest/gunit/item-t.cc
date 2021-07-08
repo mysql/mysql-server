@@ -620,7 +620,7 @@ TEST_F(ItemTest, MysqlTimeCache) {
   MysqlTime datetime6(2011, 11, 7, 10, 20, 30, 123456, false,
                       MYSQL_TIMESTAMP_DATETIME);
   MysqlTime time6(0, 0, 0, 10, 20, 30, 123456, false, MYSQL_TIMESTAMP_TIME);
-  struct timeval tv6 = {1320661230, 123456};
+  my_timeval tv6 = {1320661230, 123456};
   const MYSQL_TIME *ltime;
   MYSQL_TIME_cache cache;
 
