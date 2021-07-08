@@ -1415,6 +1415,35 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
                       (ulong)*records, num_blocks));
 }
 
+static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
+                      uint key_length, Quick_ranges *range_array) {
+  uint range_flag = sel_range->min_flag | sel_range->max_flag;
+
+  /* Skip (-inf,+inf) ranges, e.g. (x < 5 or x > 4). */
+  if ((range_flag & NO_MIN_RANGE) && (range_flag & NO_MAX_RANGE)) return false;
+
+  if (!(sel_range->min_flag & NO_MIN_RANGE) &&
+      !(sel_range->max_flag & NO_MAX_RANGE)) {
+    if (sel_range->maybe_null() && sel_range->min_value[0] &&
+        sel_range->max_value[0])
+      range_flag |= NULL_RANGE; /* IS NULL condition */
+    /*
+      Do not perform comparison if one of the arguments is NULL.
+    */
+    else if (!sel_range->min_value[0] && !sel_range->max_value[0] &&
+             memcmp(sel_range->min_value, sel_range->max_value, key_length) ==
+                 0)
+      range_flag |= EQ_RANGE; /* equality condition */
+  }
+  QUICK_RANGE *range = new (return_mem_root) QUICK_RANGE(
+      sel_range->min_value, key_length, make_keypart_map(sel_range->part),
+      sel_range->max_value, key_length, make_keypart_map(sel_range->part),
+      range_flag, HA_READ_INVALID);
+  if (!range) return true;
+  if (range_array->push_back(range)) return true;
+  return false;
+}
+
 /*
   Construct a new quick select object for queries with group by with min/max.
 
@@ -1437,36 +1466,14 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
-      new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-          table, join, have_min, have_max, have_agg_distinct, min_max_arg_part,
-          group_prefix_len, group_key_parts, used_key_parts, index_info, index,
-          &cost_est, records, key_infix_len, return_mem_root, is_index_scan));
-  if (!quick) return nullptr;
-  assert(quick->index == index);
-
-  if (quick->init()) {
-    return nullptr;
+  // Populate key_infix_ranges from index_tree.
+  Quick_ranges_array key_infix_ranges(return_mem_root);
+  uint num_infix_keyparts = used_key_parts - group_key_parts;
+  for (uint i = 0; i < num_infix_keyparts; i++) {
+    key_infix_ranges.push_back(new Quick_ranges(return_mem_root));
   }
-
-  if (range_tree) {
-    assert(quick_prefix_records > 0);
-    if (quick_prefix_records == HA_POS_ERROR)
-      quick->quick_prefix_query_block =
-          nullptr; /* Can't construct a quick select. */
-    else {
-      /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
-      quick->quick_prefix_query_block =
-          get_quick_select(return_mem_root, table, used_key_part, keyno,
-                           index_tree, HA_MRR_SORTED, 0, group_key_parts);
-      if (!quick->quick_prefix_query_block) {
-        return nullptr;
-      }
-    }
-
-    // Populate key_infix_ranges from index_tree
-    if (key_infix_len > 0) {
-      uint num_infix_keyparts = used_key_parts - group_key_parts;
+  if (key_infix_len > 0) {
+    if (range_tree) {
       KEY_PART_INFO *infix_keypart = index_info->key_part + group_key_parts;
 
       // Find the start of key infix ranges in the range tree
@@ -1485,52 +1492,151 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
           within a keypart.
         */
         bool is_ascending = infix_key->is_ascending;
-        SEL_ARG *cur_range =
-            is_ascending ? infix_key->first() : infix_key->last();
-        assert(cur_range->field->eq(infix_keypart[i].field));
-        // "Add the range to the QUICK_RANGE_SELECT created above.
-        while (cur_range) {
-          if (quick->add_range(cur_range, i)) {
+        KEY_PART_INFO *key_infix_part =
+            index_info->key_part + group_key_parts + i;
+        for (SEL_ARG *cur_range = is_ascending ? infix_key->first()
+                                               : infix_key->last();
+             cur_range != nullptr;
+             cur_range = is_ascending ? cur_range->next : cur_range->prev) {
+          assert(cur_range->field->eq(infix_keypart[i].field));
+          if (add_range(return_mem_root, cur_range,
+                        key_infix_part->store_length, key_infix_ranges[i])) {
             return nullptr;
           }
-          cur_range = is_ascending ? cur_range->next : cur_range->prev;
         }
         // Get the next infix key part.
         if (infix_key->next_key_part)
           infix_key = infix_key->next_key_part->root;
       }
     }
+  }
 
+  Quick_ranges min_max_ranges(return_mem_root);
+  if (range_tree && min_max_arg_part) {
     /*
       Extract the SEL_ARG subtree that contains only ranges for the MIN/MAX
       attribute, and create an array of QUICK_RANGES to be used by the
       new quick select.
     */
-    if (min_max_arg_part) {
-      const SEL_ROOT *min_max_range_root = index_tree;
-      while (min_max_range_root) /* Find the tree for the MIN/MAX key part. */
-      {
-        if (min_max_range_root->root->field->eq(min_max_arg_part->field)) break;
-        min_max_range_root = min_max_range_root->root->next_key_part;
-      }
-      if (min_max_range_root) {
-        /* Create an array of QUICK_RANGEs for the MIN/MAX argument. */
-        for (SEL_ARG *min_max_range = min_max_range_root->root->first();
-             min_max_range; min_max_range = min_max_range->next) {
-          // While adding ranges for the MIN/MAX argument, we pass -1 to
-          // differentiate from adding ranges on infix keyparts. Check
-          // add_range() for more details.
-          if (quick->add_range(min_max_range, -1)) {
-            return nullptr;
-          }
+    const SEL_ROOT *min_max_range_root = index_tree;
+    while (min_max_range_root) /* Find the tree for the MIN/MAX key part. */
+    {
+      if (min_max_range_root->root->field->eq(min_max_arg_part->field)) break;
+      min_max_range_root = min_max_range_root->root->next_key_part;
+    }
+    if (min_max_range_root) {
+      /* Create an array of QUICK_RANGEs for the MIN/MAX argument. */
+      for (SEL_ARG *min_max_range = min_max_range_root->root->first();
+           min_max_range; min_max_range = min_max_range->next) {
+        if (add_range(return_mem_root, min_max_range,
+                      min_max_arg_part->store_length, &min_max_ranges)) {
+          return nullptr;
         }
       }
     }
-  } else
-    quick->quick_prefix_query_block = nullptr;
+  }
 
-  quick->update_key_stat();
-  quick->adjust_prefix_ranges();
+  /*
+    Determine the total number and length of the keys that will be used for
+    index lookup.
+
+    The total length of the keys used for index lookup depends on whether
+    there are any predicates referencing the min/max argument, and/or if
+    the min/max argument field can be NULL.
+    This function does an optimistic analysis whether the search key might
+    be extended by a constant for the min/max keypart. It is 'optimistic'
+    because during actual execution it may happen that a particular range
+    is skipped, and then a shorter key will be used. However this is data
+    dependent and can't be easily estimated here.
+   */
+  uint real_prefix_len = group_prefix_len + key_infix_len;
+  uint max_used_key_length = real_prefix_len;
+  unsigned real_key_parts = used_key_parts;
+  if (min_max_ranges.size() > 0) {
+    // Check if the right-most range has a lower boundary,
+    // or the left-most range has an upper boundary.
+    if ((have_min && !(min_max_ranges.back()->flag & NO_MIN_RANGE)) ||
+        (have_max && !(min_max_ranges[0]->flag & NO_MAX_RANGE))) {
+      max_used_key_length += min_max_arg_part->store_length;
+      used_key_parts++;
+    }
+  } else if (have_min && min_max_arg_part &&
+             min_max_arg_part->field->is_nullable()) {
+    /*
+      If a MIN argument value is NULL, we can quickly determine
+      that we're in the beginning of the next group, because NULLs
+      are always < any other value. This allows us to quickly
+      determine the end of the current group and jump to the next
+      group (see next_min()) and thus effectively increases the
+      usable key length(see next_min()).
+    */
+    max_used_key_length += min_max_arg_part->store_length;
+    used_key_parts++;
+  }
+
+  QUICK_RANGE_SELECT *quick_prefix_query_block = nullptr;
+  if (range_tree) {
+    assert(quick_prefix_records > 0);
+    if (quick_prefix_records == HA_POS_ERROR)
+      quick_prefix_query_block = nullptr; /* Can't construct a quick select. */
+    else {
+      /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
+      Quick_ranges ranges(return_mem_root);
+      unsigned used_key_parts;
+      if (get_ranges_from_tree(return_mem_root, table, used_key_part, keyno,
+                               index_tree, group_key_parts, &used_key_parts,
+                               &ranges)) {
+        return nullptr;
+      }
+      // Opens the ranges if there are more conditions in
+      // quick_prefix_query_block than the ones used for jumping through
+      // the prefixes.
+      //
+      // quick_prefix_query_block is made over the conditions on the whole key.
+      // It defines a number of ranges of length x.
+      // However when jumping through the prefixes we use only the the first
+      // few most significant keyparts in the range key. However if there
+      // are more keyparts to follow the ones we are using we must make the
+      // condition on the key inclusive (because x < "ab" means
+      // x[0] < 'a' OR (x[0] == 'a' AND x[1] < 'b').
+      // To achive the above we must turn off the NEAR_MIN/NEAR_MAX
+      uint prefix_max_length = 0;
+      for (const QUICK_RANGE *range : ranges) {
+        prefix_max_length =
+            std::max(prefix_max_length, uint(range->min_length));
+        prefix_max_length =
+            std::max(prefix_max_length, uint(range->max_length));
+      }
+      if (group_prefix_len < prefix_max_length) {
+        for (QUICK_RANGE *range : ranges) {
+          range->flag &= ~(NEAR_MIN | NEAR_MAX);
+        }
+      }
+      quick_prefix_query_block = new (return_mem_root)
+          QUICK_RANGE_SELECT(table, keyno, return_mem_root, HA_MRR_SORTED,
+                             /*mrr_buf_size=*/0, used_key_part,
+                             {&ranges[0], ranges.size()}, used_key_parts);
+
+      if (!quick_prefix_query_block) {
+        return nullptr;
+      }
+    }
+  }
+
+  unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
+      new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
+          table, join, have_min, have_max, have_agg_distinct, min_max_arg_part,
+          group_prefix_len, group_key_parts, used_key_parts, real_key_parts,
+          max_used_key_length, index_info, index, &cost_est, records,
+          key_infix_len, return_mem_root, is_index_scan,
+          quick_prefix_query_block, std::move(key_infix_ranges),
+          std::move(min_max_ranges)));
+  if (!quick) return nullptr;
+  assert(quick->index == index);
+
+  if (quick->init()) {
+    return nullptr;
+  }
 
   return quick.release();
 }

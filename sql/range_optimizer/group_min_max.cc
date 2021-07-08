@@ -59,9 +59,12 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
     join              Descriptor of the current query
     have_min          true if the query selects a MIN function
     have_max          true if the query selects a MAX function
+    have_agg_distinct
     min_max_arg_part  The only argument field of all MIN/MAX functions
     group_prefix_len  Length of all key parts in the group prefix
-    prefix_key_parts  All key parts in the group prefix
+    used_key_parts    Number of key parts used, including the min_max key part
+    real_key_parts    Same, but excluding any min_max key part
+    max_used_key_length  Length of longest key
     index_info        The index chosen for data access
     use_index         The id of index_info
     read_cost         Cost of this access method
@@ -71,18 +74,22 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
     is_index_scan     get the next different key not by jumping on it via
                       index read, but by scanning until the end of the
                       rows with equal key value.
-
-  RETURN
-    None
+    quick_prefix_query_block
+                      Child scan to get prefix keys
+    key_infix_ranges  Ranges to scan for the infix key part(s)
+    min_max_ranges    Ranges to scan for the MIN/MAX key part
 */
 
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     TABLE *table, JOIN *join_arg, bool have_min_arg, bool have_max_arg,
     bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
     uint group_prefix_len_arg, uint group_key_parts_arg,
-    uint used_key_parts_arg, KEY *index_info_arg, uint use_index,
+    uint used_key_parts_arg, uint real_key_parts_arg,
+    uint max_used_key_length_arg, KEY *index_info_arg, uint use_index,
     const Cost_estimate *read_cost_arg, ha_rows records_arg,
-    uint key_infix_len_arg, MEM_ROOT *return_mem_root, bool is_index_scan_arg)
+    uint key_infix_len_arg, MEM_ROOT *return_mem_root, bool is_index_scan_arg,
+    QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
+    Quick_ranges_array key_infix_ranges_arg, Quick_ranges min_max_ranges_arg)
     : join(join_arg),
       index_info(index_info_arg),
       group_prefix_len(group_prefix_len_arg),
@@ -93,10 +100,11 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       seen_first_key(false),
       min_max_arg_part(min_max_arg_part_arg),
       key_infix_len(key_infix_len_arg),
-      min_max_ranges(return_mem_root),
-      key_infix_ranges(return_mem_root),
+      min_max_ranges(std::move(min_max_ranges_arg)),
+      key_infix_ranges(std::move(key_infix_ranges_arg)),
       is_index_scan(is_index_scan_arg),
-      mem_root(return_mem_root) {
+      mem_root(return_mem_root),
+      quick_prefix_query_block(quick_prefix_query_block_arg) {
   m_table = table;
   index = use_index;
   record = m_table->record[0];
@@ -104,8 +112,8 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   cost_est = *read_cost_arg;
   records = records_arg;
   used_key_parts = used_key_parts_arg;
-  real_key_parts = used_key_parts_arg;
-  key_infix_parts = used_key_parts_arg - group_key_parts_arg;
+  real_key_parts = real_key_parts_arg;
+  max_used_key_length = max_used_key_length_arg;
   real_prefix_len = group_prefix_len + key_infix_len;
   group_prefix = nullptr;
   min_max_arg_len = min_max_arg_part ? min_max_arg_part->store_length : 0;
@@ -124,7 +132,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   DESCRIPTION
     The method performs initialization that cannot be done in the constructor
     such as memory allocations that may fail. It allocates memory for the
-    group prefix and inifix buffers, and for the lists of MIN/MAX item to be
+    group prefix buffer, and for the lists of MIN/MAX item to be
     updated during execution.
 
   RETURN
@@ -144,17 +152,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
   if (!(group_prefix =
             (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
     return 1;
-
-  if (key_infix_len > 0) {
-    /*
-      The memory location pointed to by key_infix will be deleted soon, so
-      allocate a new buffer and copy the key_infix into it.
-    */
-    for (uint i = 0; i < key_infix_parts; i++) {
-      Quick_ranges *tmp = new (mem_root) Quick_ranges(mem_root);
-      key_infix_ranges.push_back(tmp);
-    }
-  }
 
   if (min_max_arg_part) {
     Item_sum *min_max_item;
@@ -181,154 +178,8 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     */
     m_table->file->ha_index_or_rnd_end();
 
-  for (uint i = 0; i < key_infix_parts; i++) destroy(key_infix_ranges[i]);
+  for (Quick_ranges *ranges : key_infix_ranges) destroy(ranges);
   destroy(quick_prefix_query_block);
-}
-
-/*
-   Construct a new QUICK_RANGE object from a SEL_ARG object, and
-   add it to the either min_max_ranges or key_infix_ranges array.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::add_range()
-    sel_range  Range object from which QUICK_RANGE object is created
-    idx        Index of the keypart for which ranges are being added.
-               It is negative for ranges on min/max keypart.
-
-  NOTES
-    If sel_arg is an infinite range, e.g. (x < 5 or x > 4),
-    then skip it and do not construct a quick range.
-
-  RETURN
-    false on success
-    true  otherwise
-*/
-
-bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range, int idx) {
-  QUICK_RANGE *range;
-  uint range_flag = sel_range->min_flag | sel_range->max_flag;
-
-  /* Skip (-inf,+inf) ranges, e.g. (x < 5 or x > 4). */
-  if ((range_flag & NO_MIN_RANGE) && (range_flag & NO_MAX_RANGE)) return false;
-
-  // -1 in the second argument to this function indicates that the incoming
-  // range should be added min_max_ranges. Else use the index passed to add the
-  // range to correct infix keypart ranges array.
-  Quick_ranges *range_array = nullptr;
-  uint key_length = 0;
-  if (idx < 0) {
-    range_array = &min_max_ranges;
-    key_length = min_max_arg_len;
-  } else {
-    assert((uint)idx < MAX_REF_PARTS);
-    KEY_PART_INFO *key_infix_part =
-        index_info->key_part + group_key_parts + idx;
-    range_array = key_infix_ranges[idx];
-    key_length = key_infix_part->store_length;
-  }
-
-  if (!(sel_range->min_flag & NO_MIN_RANGE) &&
-      !(sel_range->max_flag & NO_MAX_RANGE)) {
-    if (sel_range->maybe_null() && sel_range->min_value[0] &&
-        sel_range->max_value[0])
-      range_flag |= NULL_RANGE; /* IS NULL condition */
-    /*
-      Do not perform comparison if one of the argiment is NULL value.
-    */
-    else if (!sel_range->min_value[0] && !sel_range->max_value[0] &&
-             memcmp(sel_range->min_value, sel_range->max_value, key_length) ==
-                 0)
-      range_flag |= EQ_RANGE; /* equality condition */
-  }
-  range = new (mem_root) QUICK_RANGE(
-      sel_range->min_value, key_length, make_keypart_map(sel_range->part),
-      sel_range->max_value, key_length, make_keypart_map(sel_range->part),
-      range_flag, HA_READ_INVALID);
-  if (!range) return true;
-  if (range_array->push_back(range)) return true;
-  return false;
-}
-
-/*
-  Opens the ranges if there are more conditions in quick_prefix_query_block than
-  the ones used for jumping through the prefixes.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges()
-
-  NOTES
-    quick_prefix_query_block is made over the conditions on the whole key.
-    It defines a number of ranges of length x.
-    However when jumping through the prefixes we use only the the first
-    few most significant keyparts in the range key. However if there
-    are more keyparts to follow the ones we are using we must make the
-    condition on the key inclusive (because x < "ab" means
-    x[0] < 'a' OR (x[0] == 'a' AND x[1] < 'b').
-    To achive the above we must turn off the NEAR_MIN/NEAR_MAX
-*/
-void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges() {
-  if (quick_prefix_query_block &&
-      group_prefix_len < quick_prefix_query_block->max_used_key_length) {
-    for (size_t ix = 0; ix < quick_prefix_query_block->ranges.size(); ++ix) {
-      QUICK_RANGE *range = quick_prefix_query_block->ranges[ix];
-      range->flag &= ~(NEAR_MIN | NEAR_MAX);
-    }
-  }
-}
-
-/*
-  Determine the total number and length of the keys that will be used for
-  index lookup.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::update_key_stat()
-
-  DESCRIPTION
-    The total length of the keys used for index lookup depends on whether
-    there are any predicates referencing the min/max argument, and/or if
-    the min/max argument field can be NULL.
-    This function does an optimistic analysis whether the search key might
-    be extended by a constant for the min/max keypart. It is 'optimistic'
-    because during actual execution it may happen that a particular range
-    is skipped, and then a shorter key will be used. However this is data
-    dependent and can't be easily estimated here.
-
-  RETURN
-    None
-*/
-
-void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat() {
-  max_used_key_length = real_prefix_len;
-  if (min_max_ranges.size() > 0) {
-    if (have_min) { /* Check if the right-most range has a lower boundary. */
-      QUICK_RANGE *rightmost_range = min_max_ranges[min_max_ranges.size() - 1];
-      if (!(rightmost_range->flag & NO_MIN_RANGE)) {
-        max_used_key_length += min_max_arg_len;
-        used_key_parts++;
-        return;
-      }
-    }
-    if (have_max) { /* Check if the left-most range has an upper boundary. */
-      QUICK_RANGE *leftmost_range = min_max_ranges[0];
-      if (!(leftmost_range->flag & NO_MAX_RANGE)) {
-        max_used_key_length += min_max_arg_len;
-        used_key_parts++;
-        return;
-      }
-    }
-  } else if (have_min && min_max_arg_part &&
-             min_max_arg_part->field->is_nullable()) {
-    /*
-      If a MIN argument value is NULL, we can quickly determine
-      that we're in the beginning of the next group, because NULLs
-      are always < any other value. This allows us to quickly
-      determine the end of the current group and jump to the next
-      group (see next_min()) and thus effectively increases the
-      usable key length(see next_min()).
-    */
-    max_used_key_length += min_max_arg_len;
-    used_key_parts++;
-  }
 }
 
 /*
@@ -701,7 +552,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
     // For each infix keypart, get the participating range for
     // the next row retrieval. cur_key_infix_position determines
     // which range needs to be used.
-    for (uint i = 0; i < key_infix_parts; i++) {
+    for (uint i = 0; i < key_infix_ranges.size(); i++) {
       QUICK_RANGE *cur_range = nullptr;
       assert(key_infix_ranges[i]->size() > 0);
 
@@ -713,7 +564,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
 
     // cur_infix_range_position is updated with the next infix range
     // position.
-    for (int i = key_infix_parts - 1; i >= 0; i--) {
+    for (int i = key_infix_ranges.size() - 1; i >= 0; i--) {
       cur_infix_range_position[i]++;
       if (cur_infix_range_position[i] == key_infix_ranges[i]->size()) {
         // All the ranges for infix keypart "i" is done

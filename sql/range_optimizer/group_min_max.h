@@ -98,7 +98,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   uint min_max_arg_len;     /* The length of the MIN/MAX argument field */
   bool min_max_keypart_asc; /* TRUE if min_max key part is ascending. */
   uint key_infix_len;
-  uint key_infix_parts; /* Indicates the number infix attributes */
   // The current infix range position (in key_infix_ranges) used for row
   // retrieval.
   uint cur_infix_range_position[MAX_REF_PARTS];
@@ -117,15 +116,8 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   */
   bool is_index_scan;
   MEM_ROOT *mem_root;
-
- public:
-  /*
-    The following member is public to allow easy access from
-    TRP_GROUP_MIN_MAX::make_quick()
-  */
   QUICK_RANGE_SELECT
   *quick_prefix_query_block; /* For retrieval of group prefixes. */
- private:
   int next_prefix();
   bool append_next_infix();
   void reset_group();
@@ -137,18 +129,16 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   void update_max_result(bool *reset);
 
  public:
-  QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
-                             bool have_max, bool have_agg_distinct,
-                             KEY_PART_INFO *min_max_arg_part,
-                             uint group_prefix_len, uint group_key_parts,
-                             uint used_key_parts, KEY *index_info,
-                             uint use_index, const Cost_estimate *cost_est,
-                             ha_rows records, uint key_infix_len,
-                             MEM_ROOT *return_mem_root, bool is_index_scan);
+  QUICK_GROUP_MIN_MAX_SELECT(
+      TABLE *table, JOIN *join, bool have_min, bool have_max,
+      bool have_agg_distinct, KEY_PART_INFO *min_max_arg_part,
+      uint group_prefix_len, uint group_key_parts, uint used_key_parts,
+      uint real_key_parts, uint max_used_key_length_arg, KEY *index_info,
+      uint use_index, const Cost_estimate *cost_est, ha_rows records,
+      uint key_infix_len, MEM_ROOT *return_mem_root, bool is_index_scan,
+      QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
+      Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
-  bool add_range(SEL_ARG *sel_range, int idx);
-  void update_key_stat();
-  void adjust_prefix_ranges();
   int init() override;
   void need_sorted_output() override { /* always do it */
   }
