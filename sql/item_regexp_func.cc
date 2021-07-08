@@ -189,9 +189,10 @@ longlong Item_func_regexp_instr::val_int() {
 
   std::optional<int32_t> result =
       m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
-  if (result.has_value()) return result.value();
-  null_value = true;
-  return 0;
+
+  null_value = !result.has_value();
+
+  return null_value ? 0 : result.value();
 }
 
 longlong Item_func_regexp_like::val_int() {
