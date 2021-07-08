@@ -1318,6 +1318,7 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
       ItemHandle item_to_add = fd.tail;
 
       // On a = b, try to replace a with b or b with a.
+      Ordering base_ordering;
       if (fd.type == FunctionalDependency::EQUIVALENCE) {
         Ordering new_ordering{tmpbuf, old_ordering.size()};
         memcpy(tmpbuf, &old_ordering[0],
@@ -1339,15 +1340,17 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
         // adbc or adcb. Also, we'll fall through afterwards
         // to _not_ replacing but just adding d, e.g. abdc and abcd.
         // So fall through.
-        old_ordering = new_ordering;
+        base_ordering = new_ordering;
         item_to_add = other_item;
+      } else {
+        base_ordering = old_ordering;
       }
 
       // On S -> b, try to add b everywhere after the last element of S.
-      if (IsGrouping(old_ordering)) {
+      if (IsGrouping(base_ordering)) {
         if (m_items[m_items[item_to_add].canonical_item].used_in_grouping) {
           TryAddingOrderWithElementInserted(
-              thd, state_idx, fd_idx, old_ordering, /*start_point=*/0,
+              thd, state_idx, fd_idx, base_ordering, /*start_point=*/0,
               item_to_add, ORDER_NOT_RELEVANT, tmpbuf2);
         }
       } else {
@@ -1358,12 +1361,12 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
         bool add_desc = m_items[m_items[item_to_add].canonical_item].used_desc;
         if (add_asc) {
           TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
-                                            old_ordering, start_point + 1,
+                                            base_ordering, start_point + 1,
                                             item_to_add, ORDER_ASC, tmpbuf2);
         }
         if (add_desc) {
           TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
-                                            old_ordering, start_point + 1,
+                                            base_ordering, start_point + 1,
                                             item_to_add, ORDER_DESC, tmpbuf2);
         }
       }
