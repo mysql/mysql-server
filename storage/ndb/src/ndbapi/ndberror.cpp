@@ -270,6 +270,8 @@ ErrorBundle ErrorCodes[] = {
     "SharedGlobalMemory" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase SharedGlobalMemory)" },
+  { 234,  DMEC, TR,
+    "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 251,  DMEC, TR, "Out of frag location records in TC (increase SharedGlobalMemory)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase SharedGlobalMemory)" },
   { 273,  DMEC, TR, "Out of transaction markers databuffer in TC, "
