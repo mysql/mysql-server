@@ -11404,6 +11404,12 @@ ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
 ER_PREPARE_FOR_PRIMARY_ENGINE
   eng "Retry the statement using the primary storage engine."
 
+ER_IB_MSG_PAR_RSEG_INIT_COMPLETE_MSG
+  eng "Parallel initialization of rseg complete"
+
+ER_IB_MSG_PAR_RSEG_INIT_TIME_MSG
+  eng "Time taken to initialize rseg using %u thread: %u ms."
+
 ER_DDL_MSG_1
   eng "DDL failed to create a thread to load an index, fall back to single thread"
 

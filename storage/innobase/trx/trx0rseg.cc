@@ -593,7 +593,7 @@ void trx_rsegs_parallel_init(purge_pq_t *purge_queue) /*!< in: rseg queue */
     t.join();
   }
 
-  ib::info() << "Parallel initialization of rseg complete";
+  ib::info(ER_IB_MSG_PAR_RSEG_INIT_COMPLETE_MSG);
   trx_rsegs_init_end();
 }
 
