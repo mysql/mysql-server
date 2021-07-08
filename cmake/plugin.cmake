@@ -273,7 +273,12 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
   ENDIF()
 
-ENDMACRO()
+  IF(BUILD_PLUGIN AND ARG_MODULE_ONLY)
+    ADD_OBJDUMP_TARGET(show_${target} "$<TARGET_FILE:${target}>"
+      DEPENDS ${target})
+  ENDIF()
+
+ENDMACRO(MYSQL_ADD_PLUGIN)
 
 
 # Add all CMake projects under storage  and plugin 

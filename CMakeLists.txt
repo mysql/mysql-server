@@ -834,10 +834,21 @@ OPTION(WITH_AUTHENTICATION_KERBEROS
   "Report error if the Kerberos authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_KERBEROS_DEFAULT})
 
+IF(WITH_INTERNAL AND (NOT SOLARIS))
+  SET(WITH_AUTHENTICATION_FIDO_DEFAULT ON)
+ELSE()
+  SET(WITH_AUTHENTICATION_FIDO_DEFAULT OFF)
+ENDIF()
+
+OPTION(WITH_AUTHENTICATION_FIDO
+  "Report error if the FIDO authentication plugin cannot be built."
+  ${WITH_AUTHENTICATION_FIDO_DEFAULT})
+
 # Default ON if we are building server-side plugins.
 # Also default ON in pushbuild, for our community builds.
 IF(WITH_AUTHENTICATION_KERBEROS OR
     WITH_AUTHENTICATION_LDAP OR
+    WITH_AUTHENTICATION_FIDO OR
     DEFINED ENV{PB2WORKDIR})
   SET(WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT ON)
 ELSE()
@@ -849,19 +860,11 @@ ENDIF()
 #   authentication_kerberos_client.so
 # The LDAP client authentication plugin
 #   authentication_ldap_sasl_client.so
+# The FIDO client authentication plugin
+#   authentication_fido_client.so
 OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
   "Build client-side authentication plugins, even if server-side are disabled"
   ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
-
-IF(WITH_INTERNAL AND (NOT SOLARIS))
-  SET(WITH_AUTHENTICATION_FIDO_DEFAULT ON)
-ELSE()
-  SET(WITH_AUTHENTICATION_FIDO_DEFAULT OFF)
-ENDIF()
-
-OPTION(WITH_AUTHENTICATION_FIDO
-  "Report error if the FIDO authentication plugin cannot be built."
-  ${WITH_AUTHENTICATION_FIDO_DEFAULT})
 
 # On windows we need a non-standard package for CURL.
 IF(WITH_INTERNAL AND UNIX)
@@ -1700,20 +1703,25 @@ ENDIF()
 # Add RapidJSON library.
 MYSQL_CHECK_RAPIDJSON()
 
-IF(WITH_AUTHENTICATION_FIDO)
+# Look for fido2 library
+MYSQL_CHECK_FIDO()
+MYSQL_CHECK_FIDO_DLLS()
+
+IF(WITH_AUTHENTICATION_FIDO OR WITH_AUTHENTICATION_CLIENT_PLUGINS)
   IF(WITH_FIDO STREQUAL "system" AND
     NOT WITH_SSL STREQUAL "system")
       MESSAGE(WARNING "-DWITH_AUTHENTICATION_FIDO=ON")
       MESSAGE(FATAL_ERROR "Inconsistent options for FIDO/SSL")
   ENDIF()
 
-  # Add fido2 library
-  MYSQL_CHECK_FIDO()
-  MYSQL_CHECK_FIDO_DLLS()
-
-  IF(NOT FIDO_FOUND)
+  # FIDO (or libudev) missing, warn about what is missing, and break the build.
+  IF(WITH_AUTHENTICATION_FIDO AND NOT FIDO_FOUND)
+    SET(UDEV_WARN_MISSING)
+    SET(FIDO_WARN_MISSING)
+    WARN_MISSING_SYSTEM_UDEV(UDEV_WARN_MISSING)
+    WARN_MISSING_SYSTEM_FIDO(FIDO_WARN_MISSING)
     MESSAGE(FATAL_ERROR
-          "-DWITH_AUTHENTICATION_FIDO=ON, but missing required libraries")
+      "-DWITH_AUTHENTICATION_FIDO=ON, but missing required libraries")
   ENDIF()
 ENDIF()
 
@@ -1779,12 +1787,17 @@ IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   IF(WITH_FIDO STREQUAL "bundled")
     SET(INSTALL_RPATH_FOR_FIDO2 1)
 
-    # Silence warning about CMP0075
-    CMAKE_PUSH_CHECK_STATE()
-    SET(CMAKE_REQUIRED_LIBRARIES)
-    ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CBOR_BUNDLE_SRC_PATH})
-    ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH})
-    CMAKE_POP_CHECK_STATE()
+    # Do not break the build here in case of missing libudev on Linux.
+    SET(UDEV_WARN_MISSING FALSE)
+    WARN_MISSING_SYSTEM_UDEV(UDEV_WARN_MISSING)
+    IF(NOT UDEV_WARN_MISSING)
+      # Silence warning about CMP0075
+      CMAKE_PUSH_CHECK_STATE()
+      SET(CMAKE_REQUIRED_LIBRARIES)
+      ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${CBOR_BUNDLE_SRC_PATH})
+      ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH})
+      CMAKE_POP_CHECK_STATE()
+    ENDIF()
   ENDIF()
 
   IF(NOT APPLE AND NOT WIN32)
