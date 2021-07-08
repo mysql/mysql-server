@@ -184,18 +184,21 @@ class InterestingOrderingTableTest : public ::testing::Test {
     m_initializer.SetUp();
     m_orderings.reset(new LogicalOrderings(m_initializer.thd()));
 
-    m_table.reset(new Fake_TABLE(/*num_columns=*/5, /*nullable=*/true));
+    m_table.reset(new Fake_TABLE(/*num_columns=*/6, /*nullable=*/true));
     m_table->field[0]->field_name = "a";
     m_table->field[1]->field_name = "b";
     m_table->field[2]->field_name = "c";
     m_table->field[3]->field_name = "d";
     m_table->field[4]->field_name = "e";
+    m_table->field[5]->field_name = "f";
 
     a = m_orderings->GetHandle(new Item_field(m_table->field[0]));
     b = m_orderings->GetHandle(new Item_field(m_table->field[1]));
     c = m_orderings->GetHandle(new Item_field(m_table->field[2]));
     d = m_orderings->GetHandle(new Item_field(m_table->field[3]));
     e = m_orderings->GetHandle(new Item_field(m_table->field[4]));
+    // Don't add f; the tests can use it to get a higher handle
+    // than the others.
   }
 
  protected:
@@ -1188,32 +1191,36 @@ TEST_F(InterestingOrderingTableTest, NoGroupCoverWithNondeterminism) {
   r_item->set_used_tables(RAND_TABLE_BIT);  // Chosen by fair die roll.
   ItemHandle r = m_orderings->GetHandle(r_item);
 
-  // Interesting orders are {ra} and (a).
-  array<OrderElement, 2> group_ra{OrderElement{r, ORDER_NOT_RELEVANT},
-                                  OrderElement{a, ORDER_NOT_RELEVANT}};
-  array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
+  // Get a new field that's higher than r, so that the grouping below
+  // is valid.
+  ItemHandle f = m_orderings->GetHandle(new Item_field(m_table->field[5]));
 
-  int group_ra_idx =
-      AddOrdering(thd, group_ra, /*interesting=*/true, m_orderings.get());
-  int a_idx =
-      AddOrdering(thd, order_a, /*interesting=*/true, m_orderings.get());
+  // Interesting orders are {rf} and (f).
+  array<OrderElement, 2> group_rf{OrderElement{r, ORDER_NOT_RELEVANT},
+                                  OrderElement{f, ORDER_NOT_RELEVANT}};
+  array<OrderElement, 1> order_f{OrderElement{f, ORDER_ASC}};
+
+  int group_rf_idx =
+      AddOrdering(thd, group_rf, /*interesting=*/true, m_orderings.get());
+  int f_idx =
+      AddOrdering(thd, order_f, /*interesting=*/true, m_orderings.get());
 
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
-  // We will have covered {ra} with (ar), but that ordering should
-  // _not_ be used to satisfy (a). In this case, (ra) would also be
+  // We will have covered {rf} with (fr), but that ordering should
+  // _not_ be used to satisfy (f). In this case, (rf) would also be
   // an acceptable cover, but we don't constrain the cover logic;
   // there's not really any need.
   ASSERT_EQ(4, m_orderings->num_orderings());
   EXPECT_THAT(m_orderings->ordering(3),
-              testing::ElementsAre(OrderElement{a, ORDER_ASC},
+              testing::ElementsAre(OrderElement{f, ORDER_ASC},
                                    OrderElement{r, ORDER_ASC}));
 
   int idx = m_orderings->SetOrder(3);
-  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_ra_idx));
-  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, a_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_rf_idx));
+  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, f_idx));
 }
 
 TEST_F(InterestingOrderingTableTest, GroupReordering) {
