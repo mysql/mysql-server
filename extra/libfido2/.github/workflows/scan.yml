@@ -1,0 +1,38 @@
+name: static code analysis
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * 1'
+
+env:
+  SCAN_IMG:
+    yubico-yes-docker-local.jfrog.io/static-code-analysis/c:v1
+  SECRET: ${{ secrets.ARTIFACTORY_READER_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Scan but do not fail on warnings
+      run: |
+        if [ "${SECRET}" != "" ]; then
+          docker login yubico-yes-docker-local.jfrog.io/ \
+             -u svc-static-code-analysis-reader \
+             -p ${{ secrets.ARTIFACTORY_READER_TOKEN }}
+          docker pull ${SCAN_IMG}
+          docker run -v${PWD}:/k -e COMPILE_DEPS="${COMPILE_DEPS}" \
+             -e PROJECT_NAME=${GITHUB_REPOSITORY#Yubico/} -t ${SCAN_IMG}
+        else
+          echo "No docker registry credentials, not scanning"
+        fi
+      continue-on-error: true
+
+    - uses: actions/upload-artifact@master
+      if: failure()
+      with:
+        name: suppression_files
+        path: suppression_files

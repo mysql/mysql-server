@@ -1,0 +1,56 @@
+#!/bin/sh -eux
+
+${CC} --version
+
+FAKEROOT=/fakeroot
+sudo mkdir ${FAKEROOT}
+sudo chmod 755 ${FAKEROOT}
+
+# Build and install libcbor.
+git clone git://github.com/pjk/libcbor
+cd libcbor
+git checkout v0.7.0
+patch -p0 < ../fuzz/README
+mkdir build
+cd build
+cmake -DCMAKE_C_FLAGS_DEBUG="-fsanitize=memory,undefined -g2 -fno-omit-frame-pointer" \
+    -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=${FAKEROOT} \
+    -DSANITIZE=OFF -DCMAKE_INSTALL_LIBDIR=lib ..
+make VERBOSE=1
+sudo make install
+cd ../..
+
+# Build and install OpenSSL 1.1.1g.
+git clone git://github.com/openssl/openssl
+cd openssl
+git checkout OpenSSL_1_1_1g
+./Configure linux-x86_64-clang enable-msan --prefix=${FAKEROOT} \
+    --openssldir=${FAKEROOT}/openssl
+make clean
+make
+sudo make install_sw
+cd ..
+
+# Build libfido2.
+mkdir build
+cd build
+export PKG_CONFIG_PATH="${FAKEROOT}/lib/pkgconfig"
+export CFLAGS="-fsanitize=memory,undefined -fsanitize-memory-track-origins"
+export CFLAGS="${CFLAGS} -g2 -fno-omit-frame-pointer"
+export LDFLAGS="-fsanitize=memory,undefined -fsanitize-memory-track-origins"
+cmake -DFUZZ=1 -DLIBFUZZER=1 ..
+make
+
+# Fuzz with MSAN.
+mkdir corpus
+curl -s https://ambientworks.net/libfido2/corpus.tgz | tar -C corpus -zxf -
+fuzz/fuzz_cred -use_value_profile=1 -reload=30 -print_pcs=1 \
+    -print_funcs=30 -timeout=10 -runs=1 corpus/fuzz_cred
+fuzz/fuzz_assert -use_value_profile=1 -reload=30 -print_pcs=1 \
+    -print_funcs=30 -timeout=10 -runs=1 corpus/fuzz_assert
+fuzz/fuzz_credman -use_value_profile=1 -reload=30 -print_pcs=1 \
+    -print_funcs=30 -timeout=10 -runs=1 corpus/fuzz_credman
+fuzz/fuzz_mgmt -use_value_profile=1 -reload=30 -print_pcs=1 \
+    -print_funcs=30 -timeout=10 -runs=1 corpus/fuzz_mgmt
+fuzz/fuzz_bio -use_value_profile=1 -reload=30 -print_pcs=1 \
+    -print_funcs=30 -timeout=10 -runs=1 corpus/fuzz_bio

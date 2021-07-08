@@ -1,0 +1,27 @@
+image: Visual Studio 2015
+version: '{build}'
+
+branches:
+  except:
+    - gh-pages
+
+platform: x64
+
+
+environment:
+  matrix:
+  - CMAKE_GENERATOR: "Visual Studio 14 2015 Win64"
+
+# Via https://github.com/apitrace/apitrace/blob/master/appveyor.yml
+
+before_build:
+- cmake -H. -Bbuild -G "%CMAKE_GENERATOR%"
+- C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64\CL.exe /?
+
+build_script:
+- if "%APPVEYOR_REPO_TAG%"=="true" (set CONFIGURATION=RelWithDebInfo) else (set CONFIGURATION=Debug)
+- cmake --build build --config "%CONFIGURATION%"
+
+# TODO enable CMocka tests, maybe package the binaries
+# TODO add MinGW
+# TODO add older MSVC

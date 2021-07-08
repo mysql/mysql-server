@@ -1,0 +1,13 @@
+#!/bin/sh -eux
+
+${CC} --version
+SCAN=scan-build-${CC#clang-}
+
+# Check exports.
+(cd src && ./diff_exports.sh)
+
+# Build, analyze, and install libfido2.
+mkdir build
+(cd build && ${SCAN} cmake -DCMAKE_BUILD_TYPE=Debug ..)
+${SCAN} --status-bugs make -C build
+sudo make -C build install

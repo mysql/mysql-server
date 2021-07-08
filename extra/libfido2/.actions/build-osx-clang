@@ -1,0 +1,11 @@
+#!/bin/sh -eux
+
+export PKG_CONFIG_PATH="$(brew --prefix openssl)/lib/pkgconfig"
+SCAN="$(brew --prefix llvm)/bin/scan-build"
+
+# Build, analyze, and install libfido2.
+mkdir build
+(cd build && ${SCAN} cmake -DCMAKE_BUILD_TYPE=Debug ..)
+${SCAN} --status-bugs make -C build
+make -C build man_symlink_html
+sudo make -C build install

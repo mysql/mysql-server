@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/include
+
+Name: @PROJECT_NAME@
+Description: A FIDO2 library
+URL: https://github.com/yubico/libfido2
+Version: @FIDO_VERSION@
+Requires: libcrypto
+Libs: -L${libdir} -lfido2
+Cflags: -I${includedir}

@@ -1,0 +1,9 @@
+build/
+cscope.out
+fuzz/build/
+fuzz/corpus.tgz-
+fuzz/fuzz_*/
+fuzz/obj/
+fuzz/report
+fuzz/*.so
+output/

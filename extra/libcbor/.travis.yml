@@ -1,0 +1,66 @@
+language: c
+
+matrix:
+  include:
+    - arch: amd64
+      os: linux
+      dist: bionic
+      compiler: clang
+      env: TRAVIS_ARCH="amd64"
+    - arch: amd64
+      os: linux
+      dist: bionic
+      compiler: gcc
+      env: TRAVIS_ARCH="amd64"
+    - arch: arm64
+      os: linux
+      dist: bionic
+      compiler: gcc
+      env: TRAVIS_ARCH="arm64"
+    - arch: ppc64le
+      os: linux
+      dist: bionic
+      compiler: gcc
+      env: TRAVIS_ARCH="ppc64le"
+    - arch: amd64
+      os: osx
+      compiler: gcc
+      env: TRAVIS_ARCH="amd64"
+
+before_install:
+  - pushd ${HOME}
+  - git clone https://gitlab.com/cmocka/cmocka.git
+  - cd cmocka && mkdir build && cd build
+  - cmake .. && make -j2 && sudo make install
+  - cd .. && popd
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get update -qq; sudo apt-get install -y clang-format-8 cppcheck; fi
+  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CC" = "gcc" -a "$TRAVIS_ARCH" = "amd64" ]; then pip install --user codecov; export CFLAGS="-coverage"; fi
+
+script:
+  - >
+    if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+      cppcheck . --error-exitcode=1
+      # Fail if re-formatting creates diffs (implying bad formatting)
+      /clang-format.sh --verbose
+      git diff-index --quiet HEAD
+    fi;
+  - mkdir build && cd build
+  - cmake -DWITH_TESTS=ON
+          -DCBOR_CUSTOM_ALLOC=ON
+          -DCMAKE_BUILD_TYPE=Debug
+          -DSANITIZE=OFF
+          ..
+  - make VERBOSE=1
+  - ctest -VV
+  - ctest -T memcheck | tee memcheck.out
+  - >
+    if grep -q 'Memory Leak\|IPW\|Uninitialized Memory Conditional\|Uninitialized Memory Read' memcheck.out; then
+      exit 1
+    fi;
+
+
+after_success:
+  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CC" = "gcc" -a "$TRAVIS_ARCH" = "amd64" ]; then codecov; fi
+
+notifications:
+  email: false
