@@ -1678,6 +1678,12 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
       net->reading_or_writing = 0;
       [[fallthrough]];
     case NET_ASYNC_PACKET_READ_HEADER:
+      /*
+        We should reset compress_packet_nr even before reading the header
+        because reading can fail and then the compressed packet number wont get
+        reset
+      */
+      net->compress_pkt_nr = net->pkt_nr;
       if (net_read_packet_header_nonblocking(net, &err) ==
           NET_ASYNC_NOT_READY) {
         return NET_ASYNC_NOT_READY;
@@ -2055,6 +2061,12 @@ static size_t net_read_packet(NET *net, size_t *complen) {
   *complen = 0;
 
   net->reading_or_writing = 1;
+
+  /*
+    We should reset compress_packet_nr even before reading the header because
+    reading can fail and then the compressed packet number wont get reset
+  */
+  net->compress_pkt_nr = net->pkt_nr;
 
   /* Retrieve packet length and number. */
   if (net_read_packet_header(net)) goto error;
