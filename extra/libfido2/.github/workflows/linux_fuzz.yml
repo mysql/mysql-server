@@ -1,0 +1,31 @@
+name: fuzzer
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        cc: [clang-9]
+        sanitizer: [msan, asan]
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: Dependencies
+      env:
+        CC: ${{ matrix.cc }}
+      run: |
+        sudo apt -q update
+        sudo apt install -q -y libcbor-dev \
+          libudev-dev ${CC%-*}-tools-${CC#clang-}
+
+    - name: Fuzz
+      env:
+        CC: ${{ matrix.cc }}
+        SANITIZER: ${{ matrix.sanitizer }}
+      run: |
+        /bin/sh -eux .actions/fuzz-linux-${SANITIZER}

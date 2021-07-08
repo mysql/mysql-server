@@ -1,0 +1,47 @@
+#!/bin/sh -eux
+
+# XXX defining CC and cross-compiling confuses OpenSSL's build.
+unset CC
+
+sudo mkdir /fakeroot
+sudo chmod 755 /fakeroot
+
+cat << EOF > /tmp/mingw.cmake
+SET(CMAKE_SYSTEM_NAME Windows)
+SET(CMAKE_C_COMPILER i686-w64-mingw32-gcc)
+SET(CMAKE_CXX_COMPILER i686-w64-mingw32-g++)
+SET(CMAKE_RC_COMPILER i686-w64-mingw32-windres)
+SET(CMAKE_FIND_ROOT_PATH /fakeroot)
+SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+EOF
+
+# Build and install libcbor.
+git clone git://github.com/pjk/libcbor
+cd libcbor
+git checkout v0.7.0
+mkdir build
+(cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/tmp/mingw.cmake \
+	-DCMAKE_INSTALL_PREFIX=/fakeroot ..)
+make -C build
+sudo make -C build install
+cd ..
+
+# Build and install OpenSSL 1.1.1g.
+git clone git://github.com/openssl/openssl
+cd openssl
+git checkout OpenSSL_1_1_1g
+./Configure mingw --prefix=/fakeroot --openssldir=/fakeroot/openssl \
+	--cross-compile-prefix=i686-w64-mingw32-
+make
+sudo make install_sw
+cd ..
+
+# Build and install libfido2.
+export PKG_CONFIG_PATH=/fakeroot/lib/pkgconfig
+mkdir build
+(cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/tmp/mingw.cmake \
+	-DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/fakeroot ..)
+make -C build
+sudo make -C build install

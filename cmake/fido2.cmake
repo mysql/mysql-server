@@ -86,9 +86,9 @@ MACRO(MYSQL_USE_BUNDLED_FIDO)
 
   FIND_SYSTEM_UDEV_OR_HID()
 
-  SET(CBOR_BUNDLE_SRC_PATH "internal/extra/libcbor")
+  SET(CBOR_BUNDLE_SRC_PATH "extra/libcbor")
 
-  SET(FIDO_BUNDLE_SRC_PATH "internal/extra/libfido2")
+  SET(FIDO_BUNDLE_SRC_PATH "extra/libfido2")
   SET(FIDO_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH}/src)
 
   # We use the bundled version, so:
