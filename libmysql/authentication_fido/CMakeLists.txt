@@ -24,11 +24,16 @@
 # Configuration for building FIDO Authentication Plugin (client-side)
 #
 
+# Skip it if disabled.
+IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  MESSAGE(STATUS "Skipping FIDO client authentication plugin.")
+  RETURN()
+ENDIF()
+
 # The client authentication plugin is part of the community build.
 # Build it if we have found the necessary libraries.
-
-IF(NOT WITH_AUTHENTICATION_FIDO)
-  MESSAGE(STATUS "Skipping FIDO authentication client plugin.")
+IF(NOT FIDO_FOUND)
+  MESSAGE(WARNING "Skipping the FIDO client authentication plugin")
   RETURN()
 ENDIF()
 

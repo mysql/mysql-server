@@ -22,21 +22,33 @@
 
 # cmake -DWITH_FIDO=bundled|system
 
-# check for dependent system libraries like libudev, hidapi libraries
-MACRO (FIND_SYSTEM_UDEV_OR_HID)
-  IF (LINUX)
-    FIND_LIBRARY(UDEV_SYSTEM_LIBRARY NAMES udev)
-    IF (NOT UDEV_SYSTEM_LIBRARY)
-      MESSAGE(WARNING "Cannot find development libraries. "
-        "You need to install the required packages:\n"
-        "  Debian/Ubuntu:              apt install libudev-dev\n"
-        "  RedHat/Fedora/Oracle Linux: yum install libudev-devel\n"
-        "  SuSE:                       zypper install libudev-devel\n"
+# libudev is needed on Linux only.
+FUNCTION(WARN_MISSING_SYSTEM_UDEV OUTPUT_WARNING)
+  IF(LINUX AND WITH_FIDO STREQUAL "bundled" AND NOT LIBUDEV_DEVEL_FOUND)
+    MESSAGE(WARNING "Cannot find development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libudev-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install libudev-devel\n"
+      "  SuSE:                       zypper install libudev-devel\n"
       )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+# Bundled FIDO requires libudev.
+MACRO(FIND_SYSTEM_UDEV_OR_HID)
+  IF(LINUX)
+    FIND_LIBRARY(UDEV_SYSTEM_LIBRARY NAMES udev)
+    CHECK_INCLUDE_FILE(libudev.h HAVE_LIBUDEV_H)
+    IF(UDEV_SYSTEM_LIBRARY AND HAVE_LIBUDEV_H)
+      SET(LIBUDEV_DEVEL_FOUND 1)
+      MESSAGE(STATUS "UDEV_SYSTEM_LIBRARY ${UDEV_SYSTEM_LIBRARY}")
     ENDIF()
   ELSEIF(FREEBSD)
     FIND_LIBRARY(HID_LIBRARY NAMES hidapi)
-    IF (NOT HID_LIBRARY)
+    IF(HID_LIBRARY)
+      MESSAGE(STATUS "HID_LIBRARY ${HID_LIBRARY}")
+    ELSE()
       MESSAGE(WARNING "Cannot find development libraries. "
         "You need to install the required packages:\n"
         "FreeBSD:     pkg install hidapi\n"
@@ -45,23 +57,26 @@ MACRO (FIND_SYSTEM_UDEV_OR_HID)
   ENDIF()
 ENDMACRO()
 
-# Look for system fido2. If we find it, there is no need to look for libudev.
-MACRO (FIND_SYSTEM_FIDO)
-  FIND_PATH(FIDO_INCLUDE_DIR fido.h PATHS ${INCLUDE_PATH})
-  IF (NOT FIDO_INCLUDE_DIR)
+FUNCTION(WARN_MISSING_SYSTEM_FIDO OUTPUT_WARNING)
+  IF(WITH_FIDO STREQUAL "system" AND NOT FIDO_FOUND)
     MESSAGE(WARNING "Cannot find development libraries. "
       "You need to install the required packages:\n"
       "  Debian/Ubuntu:              apt install libfido2-dev\n"
       "  RedHat/Fedora/Oracle Linux: yum install libfido2-devel\n"
       "  SuSE:                       zypper install libfido2-devel\n"
       )
-
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
   ENDIF()
+ENDFUNCTION()
 
+# Look for system fido2. If we find it, there is no need to look for libudev.
+MACRO(FIND_SYSTEM_FIDO)
+  CHECK_INCLUDE_FILE(fido.h HAVE_FIDO_H)
   FIND_LIBRARY(FIDO_LIBRARY fido2)
-
-  IF (FIDO_LIBRARY AND FIDO_INCLUDE_DIR)
+  IF (FIDO_LIBRARY AND HAVE_FIDO_H)
     SET(FIDO_FOUND TRUE)
+    FIND_PATH(FIDO_INCLUDE_DIR fido.h)
+    MESSAGE(STATUS "FIDO_LIBRARY ${FIDO_LIBRARY}")
   ENDIF()
 ENDMACRO()
 
@@ -74,14 +89,15 @@ MACRO(MYSQL_USE_BUNDLED_FIDO)
   SET(CBOR_BUNDLE_SRC_PATH "internal/extra/libcbor")
 
   SET(FIDO_BUNDLE_SRC_PATH "internal/extra/libfido2")
-  SET(FIDO_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH}/src)
+  SET(FIDO_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/${FIDO_BUNDLE_SRC_PATH}/src)
 
-  UNSET(CBOR_INCLUDE_DIR)
-  UNSET(CBOR_INCLUDE_DIR CACHE)
-  UNSET(FIDO_INCLUDE_DIR)
-  UNSET(FIDO_INCLUDE_DIR CACHE)
-
+  # We use the bundled version, so:
   SET(FIDO_FOUND TRUE)
+
+  # Mark it as not found if libudev is missing, so we can give proper warnings.
+  IF(LINUX AND NOT LIBUDEV_DEVEL_FOUND)
+    SET(FIDO_FOUND FALSE)
+  ENDIF()
   SET(FIDO_LIBRARY fido2 CACHE INTERNAL "Bundled fido2 library")
 ENDMACRO()
 
