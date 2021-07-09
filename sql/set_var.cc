@@ -799,6 +799,11 @@ sys_var *intern_find_sys_var(const char *str, size_t length) {
   */
   var = find_or_nullptr(*system_variable_hash,
                         string(str, length ? length : strlen(str)));
+  DBUG_EXECUTE_IF(
+      "check_intern_find_sys_var_lock", if (current_thd) {
+        int err = mysql_rwlock_trywrlock(&LOCK_system_variables_hash);
+        assert(err == EBUSY || err == EDEADLK);
+      });
 
   /* Don't show non-visible variables. */
   if (var && var->not_visible()) return nullptr;
