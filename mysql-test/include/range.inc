@@ -3102,3 +3102,34 @@ EXPLAIN SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
 SELECT f1 FROM t1 WHERE f1 NOT IN (0.1, -0.1);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33067554: INDEX_MERGE: ASSERTION FAILURE:
+--echo #               ROW0SEL.CC:5584:PREBUILT->CAN_PREFETCH_RECORDS() ||
+--echo #               RECORD_BUFFER == NULLPTR
+--echo #
+
+CREATE TABLE t (
+  a INTEGER,
+  b INTEGER,
+  pk TEXT NOT NULL,
+  PRIMARY KEY (pk(110)),
+  KEY (a),
+  KEY (b)
+);
+
+INSERT INTO t VALUES
+  (51,16777216,''), (-128,0,' nsj  mizb'),
+  (0,5900842,' qdblp vgc'), (0,-128,'c  z'),
+  (-1,-125,'d'), (95,3345,'dtphyrp'),
+  (97,14396343,'du'), (127,0,'fnwyz'),
+  (-128,0,'fszpsqd'), (-128,32767,'g uevfc'),
+  (-128,0,'hh  lhozu '), (0,0,'m tkr'),
+  (0,246,'mgmtel'), (-1,2147483647,'n  hjh'),
+  (127,0,'ssw'), (127,0,'t zl'), (0,-1,'uns');
+
+ANALYZE TABLE t;
+
+SELECT b FROM t WHERE a = 0 AND b = 0;
+
+DROP TABLE t;
