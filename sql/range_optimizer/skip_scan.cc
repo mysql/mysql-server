@@ -159,28 +159,22 @@ int QUICK_SKIP_SCAN_SELECT::init() {
   }
 
   if (eq_prefix_key_parts > 0) {
-    if (!(cur_eq_prefix =
-              (uint *)mem_root->Alloc(eq_prefix_key_parts * sizeof(uint))))
+    eq_prefixes = mem_root->ArrayAlloc<EQPrefix>(eq_prefix_key_parts);
+    if (eq_prefixes == nullptr) {
       return 1;
-    if (!(eq_key_prefixes = (uchar ***)mem_root->Alloc(eq_prefix_key_parts *
-                                                       sizeof(uchar **))))
-      return 1;
-    if (!(eq_prefix_elements =
-              (uint *)mem_root->Alloc(eq_prefix_key_parts * sizeof(uint))))
-      return 1;
+    }
 
     const SEL_ARG *cur_range = index_range_tree->root->first();
     const SEL_ARG *first_range = nullptr;
     const SEL_ROOT *cur_root = index_range_tree;
     for (uint i = 0; i < eq_prefix_key_parts;
          i++, cur_range = cur_range->next_key_part->root) {
-      cur_eq_prefix[i] = 0;
-      eq_prefix_elements[i] = cur_root->elements;
+      eq_prefixes[i].cur_eq_prefix = 0;
+      unsigned num_elements = cur_root->elements;
       cur_root = cur_range->next_key_part;
-      assert(eq_prefix_elements[i] > 0);
-      if (!(eq_key_prefixes[i] = (uchar **)mem_root->Alloc(
-                eq_prefix_elements[i] * sizeof(uchar *))))
-        return 1;
+      assert(num_elements > 0);
+      eq_prefixes[i].eq_key_prefixes =
+          Bounds_checked_array<uchar *>::Alloc(mem_root, num_elements);
 
       uint j = 0;
       first_range = cur_range->first();
@@ -189,23 +183,25 @@ int QUICK_SKIP_SCAN_SELECT::init() {
         KEY_PART_INFO *keypart = index_info->key_part + i;
         size_t field_length = keypart->store_length;
         //  Store ranges in the reverse order if key part is descending.
-        uint pos = cur_range->is_ascending ? j : eq_prefix_elements[i] - j - 1;
+        uint pos = cur_range->is_ascending ? j : num_elements - j - 1;
 
-        if (!(eq_key_prefixes[i][pos] = (uchar *)mem_root->Alloc(field_length)))
+        if (!(eq_prefixes[i].eq_key_prefixes[pos] =
+                  mem_root->ArrayAlloc<uchar>(field_length)))
           return 1;
 
         if (cur_range->maybe_null() && cur_range->min_value[0] &&
             cur_range->max_value[0]) {
           assert(field_length > 0);
-          eq_key_prefixes[i][pos][0] = 0x1;
+          eq_prefixes[i].eq_key_prefixes[pos][0] = 0x1;
         } else {
           assert(memcmp(cur_range->min_value, cur_range->max_value,
                         field_length) == 0);
-          memcpy(eq_key_prefixes[i][pos], cur_range->min_value, field_length);
+          memcpy(eq_prefixes[i].eq_key_prefixes[pos], cur_range->min_value,
+                 field_length);
         }
       }
       cur_range = first_range;
-      assert(j == eq_prefix_elements[i]);
+      assert(j == num_elements);
     }
   }
 
@@ -249,8 +245,8 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
   // Set the first equality prefix.
   size_t offset = 0;
   for (uint i = 0; i < eq_prefix_key_parts; i++) {
-    const uchar *key = eq_key_prefixes[i][0];
-    cur_eq_prefix[i] = 0;
+    const uchar *key = eq_prefixes[i].eq_key_prefixes[0];
+    eq_prefixes[i].cur_eq_prefix = 0;
     uint part_length = (index_info->key_part + i)->store_length;
     memcpy(eq_prefix + offset, key, part_length);
     offset += part_length;
@@ -288,16 +284,17 @@ bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
   // Increment the cur_prefix count.
   for (uint i = 0; i < eq_prefix_key_parts; i++) {
     uint part = eq_prefix_key_parts - i - 1;
-    assert(cur_eq_prefix[part] < eq_prefix_elements[part]);
+    EQPrefix &eqp = eq_prefixes[part];
+    assert(eqp.cur_eq_prefix < eqp.eq_key_prefixes.size());
     uint part_length = (index_info->key_part + part)->store_length;
     reverse_offset += part_length;
 
-    cur_eq_prefix[part]++;
+    ++eqp.cur_eq_prefix;
     const uchar *key =
-        eq_key_prefixes[part][cur_eq_prefix[part] % eq_prefix_elements[part]];
+        eqp.eq_key_prefixes[eqp.cur_eq_prefix % eqp.eq_key_prefixes.size()];
     memcpy(eq_prefix + eq_prefix_len - reverse_offset, key, part_length);
-    if (cur_eq_prefix[part] == eq_prefix_elements[part]) {
-      cur_eq_prefix[part] = 0;
+    if (eqp.cur_eq_prefix == eqp.eq_key_prefixes.size()) {
+      eqp.cur_eq_prefix = 0;
       if (part == 0) {
         // This is the last key part.
         return false;

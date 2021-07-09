@@ -66,39 +66,39 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   KEY *index_info;            /* Index for skip scan */
   SEL_ROOT *index_range_tree; /* Range tree for skip scan */
   MY_BITMAP column_bitmap;    /* Map of key parts to be read */
+
   /*
     This is an array of array of equality constants with length
-    eq_prefix_key_parts. The length of array eq_key_prefixes[i] is
-    eq_prefix_elements[i].
+    eq_prefix_key_parts.
 
     For example, an equality predicate like "a IN (1, 2) AND b IN (2, 3, 4)",
-    eq_key_prefixes will contain:
+    eq_prefixes will contain:
 
     [
-      [ 1, 2 ],
-      [ 2, 3, 4 ]
+      { eq_key_prefixes = array[1, 2], cur_eq_prefix = ... },
+      { eq_key_prefixes = array[2, 3, 4], cur_eq_prefix = ... }
     ]
+   */
+  struct EQPrefix {
+    Bounds_checked_array<uchar *> eq_key_prefixes;
 
-    eq_prefix_elements will contain:
-    [ 2, 3 ]
-  */
-  uchar ***eq_key_prefixes;
-  uint *eq_prefix_elements;
+    /*
+       During skip scan, we will have to iterate through all possible
+       equality prefixes. This is the product of all the elements in
+       eq_prefix_elements. In the above example, there are 2 x 3 = 6 possible
+       equality prefixes.
+
+       To track which prefix we are on, we use cur_eq_prefix. For example,
+       if both EQPrefixes have the value 1 here, it indicates that the current
+       equality prefix is (2, 3).
+     */
+    uint cur_eq_prefix;
+  };
+  EQPrefix *eq_prefixes;
   const uint eq_prefix_len; /* Total length of the equality prefix. */
   uint eq_prefix_key_parts; /* A number of keyparts in skip scan prefix */
   uchar *eq_prefix;         /* Storage for current equality prefix. */
 
-  /*
-    During skip scan, we will have to iterate through all possible
-    equality prefixes. This is the product of all the elements in
-    eq_prefix_elements. In the above example, there are 2 x 3 = 6 possible
-    equality prefixes.
-
-    To track which prefix we are on, we use the cur_eq_prefix array.
-    For example, the array [1, 1] indicates that the current equality prefix
-    is (2, 3).
-  */
-  uint *cur_eq_prefix;
   uchar *distinct_prefix; /* Storage for prefix A_1, ... B_m. */
   uint distinct_prefix_len;
   uint distinct_prefix_key_parts;
