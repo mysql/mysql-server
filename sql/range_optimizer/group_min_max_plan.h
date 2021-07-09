@@ -63,13 +63,17 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   uint group_key_parts;   ///< Number of index key parts in the group prefix
   KEY *index_info;        ///< The index chosen for data access
   uint key_infix_len;     ///< Longest key for equality predicates
-  SEL_TREE *range_tree;   ///< Represents all range predicates in the query
-  SEL_ROOT *index_tree;   ///< The sub-tree corresponding to index_info
-  uint param_idx;         ///< Index of used key in param->key
-  bool is_index_scan;     ///< Use index_next() instead of random read
+  SEL_ROOT
+  *index_tree_tracing_only;  ///< The sub-tree corresponding to index_info
+  bool is_index_scan;        ///< Use index_next() instead of random read
   JOIN *join;
   KEY_PART *used_key_part;
   uint keyno;
+  const uint real_key_parts;
+  const uint max_used_key_length;
+  Quick_ranges_array key_infix_ranges;
+  Quick_ranges min_max_ranges;
+  Quick_ranges prefix_ranges;
 
  public:
   /** Number of records selected by the ranges in index_tree. */
@@ -79,15 +83,15 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
-  TRP_GROUP_MIN_MAX(bool have_min_arg, bool have_max_arg,
-                    bool have_agg_distinct_arg,
-                    KEY_PART_INFO *min_max_arg_part_arg,
-                    uint group_prefix_len_arg, uint used_key_parts_arg,
-                    uint group_key_parts_arg, KEY *index_info_arg,
-                    uint index_arg, uint key_infix_len_arg, SEL_TREE *tree_arg,
-                    SEL_ROOT *index_tree_arg, uint param_idx_arg,
-                    ha_rows quick_prefix_records_arg, TABLE *table_arg,
-                    JOIN *join_arg, KEY_PART *used_key_part_arg, uint keyno_arg)
+  TRP_GROUP_MIN_MAX(
+      bool have_min_arg, bool have_max_arg, bool have_agg_distinct_arg,
+      KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
+      uint used_key_parts_arg, uint group_key_parts_arg, KEY *index_info_arg,
+      uint index_arg, uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
+      ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
+      KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
+      uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
+      Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg)
       : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
                         /*forced_by_hint_arg=*/false),
         have_min(have_min_arg),
@@ -98,13 +102,16 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         group_key_parts(group_key_parts_arg),
         index_info(index_info_arg),
         key_infix_len(key_infix_len_arg),
-        range_tree(tree_arg),
-        index_tree(index_tree_arg),
-        param_idx(param_idx_arg),
+        index_tree_tracing_only(index_tree_arg),
         is_index_scan(false),
         join(join_arg),
         used_key_part(used_key_part_arg),
         keyno(keyno_arg),
+        real_key_parts(real_key_parts_arg),
+        max_used_key_length(max_used_key_length_arg),
+        key_infix_ranges(std::move(key_infix_ranges_arg)),
+        min_max_ranges(std::move(min_max_ranges_arg)),
+        prefix_ranges(std::move(prefix_ranges_arg)),
         quick_prefix_records(quick_prefix_records_arg) {}
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,

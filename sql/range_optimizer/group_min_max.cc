@@ -177,8 +177,6 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
       ha_*_end() for whatever is the current access method.
     */
     m_table->file->ha_index_or_rnd_end();
-
-  for (Quick_ranges *ranges : key_infix_ranges) destroy(ranges);
   destroy(quick_prefix_query_block);
 }
 
