@@ -20,33 +20,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef AUTH_GSSAPI_CLIENT_H_
-#define AUTH_GSSAPI_CLIENT_H_
+#ifndef KERBEROS_CLIENT_INTERFACE
+#define KERBEROS_CLIENT_INTERFACE
 
-#include <gssapi/gssapi.h>
-#include <memory>
+#include <mysql/plugin_auth.h>
+#include <string.h>
+#include <string>
 
-#include "kerberos_core.h"
-#include "log_client.h"
-
-#include "kerberos_client_interface.h"
-
-class Gssapi_client : public I_Kerberos_client {
+class I_Kerberos_client {
  public:
-  Gssapi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio,
-                const std::string &upn, const std::string &password);
-  ~Gssapi_client() override;
-  bool authenticate() override;
-  std::string get_user_name() override;
-  void set_upn_info(const std::string &name, const std::string &pwd);
-  bool obtain_store_credentials() override;
+  virtual bool authenticate() = 0;
+  virtual bool obtain_store_credentials() = 0;
+  virtual std::string get_user_name() = 0;
+  virtual ~I_Kerberos_client() {}
 
- protected:
-  std::string m_service_principal;
-  /* Plug-in VIO. */
-  MYSQL_PLUGIN_VIO *m_vio{nullptr};
-  std::string m_user_principal_name;
-  std::string m_password;
-  std::unique_ptr<auth_kerberos_context::Kerberos> m_kerberos{nullptr};
+  static I_Kerberos_client *create(const std::string &spn,
+                                   MYSQL_PLUGIN_VIO *vio,
+                                   const std::string &upn,
+                                   const std::string &password,
+                                   const std::string &kdc_host);
 };
-#endif  // AUTH_GSSAPI_CLIENT_H_
+#endif  // KERBEROS_CLIENT_INTERFACE

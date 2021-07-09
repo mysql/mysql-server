@@ -20,29 +20,51 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef AUTH_KERBEROS_CLIENT_H_
-#define AUTH_KERBEROS_CLIENT_H_
+#ifndef AUTH_GSSAPI_CLIENT_H_
+#define AUTH_GSSAPI_CLIENT_H_
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <memory>
 
-#include "kerberos_core.h"
-#include "log_client.h"
+/*
+  This symbol should be used when accessing the security API from a user-mode
+  application
+*/
+#define SECURITY_WIN32
 
-class Kerberos_client {
+/*
+  Note: Added below header files with one extra lines.
+  Automatically code formatting changes the order of header file.
+  We need to maintain the order of header file, otherwise build will fail.
+*/
+
+#include <windows.h>
+
+#include <sspi.h>
+
+#include <SecExt.h>
+
+#include <stdarg.h>
+
+#include "kerberos_client_interface.h"
+
+class Sspi_client : public I_Kerberos_client {
  public:
-  Kerberos_client(const std::string &upn, const std::string &password);
-  ~Kerberos_client();
-  bool get_upn(std::string &cc_upn);
-  void set_upn_info(const std::string &name, const std::string &pwd);
-  bool obtain_store_credentials();
+  Sspi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio,
+              const std::string &upn, const std::string &password,
+              const std::string &kdc_host);
+  ~Sspi_client() override = default;
+  bool authenticate() override;
+  bool obtain_store_credentials() override;
+  std::string get_user_name() override;
 
  protected:
-  std::string m_user_principal_name;
+  std::string m_service_principal;
+  /* Plug-in VIO. */
+  MYSQL_PLUGIN_VIO *m_vio{nullptr};
+  std::string m_upn;
   std::string m_password;
-  std::unique_ptr<auth_kerberos_context::Kerberos> m_kerberos{nullptr};
+  std::string m_kdc_host;
+  CredHandle m_cred;
 };
-
-#endif  // AUTH_KERBEROS_CLIENT_H_
+#endif  // AUTH_GSSAPI_CLIENT_H_

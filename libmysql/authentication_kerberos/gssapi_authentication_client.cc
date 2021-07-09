@@ -32,8 +32,17 @@
 
 extern Logger_client *g_logger_client;
 
-Gssapi_client::Gssapi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio)
-    : m_service_principal{spn}, m_vio{vio} {}
+Gssapi_client::Gssapi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio,
+                             const std::string &upn,
+                             const std::string &password)
+    : m_service_principal{spn},
+      m_vio{vio},
+      m_user_principal_name{upn},
+      m_password{password} {
+  m_kerberos = std::unique_ptr<auth_kerberos_context::Kerberos>(
+      new auth_kerberos_context::Kerberos(m_user_principal_name.c_str(),
+                                          m_password.c_str()));
+}
 
 Gssapi_client::~Gssapi_client() {}
 
@@ -105,4 +114,45 @@ CLEANUP:
     log_client_error("kerberos_authenticate client failed");
   }
   return rc_auth;
+}
+
+void Gssapi_client::set_upn_info(const std::string &upn,
+                                 const std::string &pwd) {
+  log_client_dbg("Set UPN.");
+  m_user_principal_name = {upn};
+  m_password = {pwd};
+  /* Kerberos core uses UPN for all other operations. UPN has changed, relases
+   * current object and create */
+  if (m_kerberos.get()) {
+    m_kerberos.release();
+  }
+  m_kerberos = std::unique_ptr<auth_kerberos_context::Kerberos>(
+      new auth_kerberos_context::Kerberos(m_user_principal_name.c_str(),
+                                          m_password.c_str()));
+}
+
+bool Gssapi_client::obtain_store_credentials() {
+  log_client_dbg("Obtaining TGT TGS tickets from kerberos.");
+  return m_kerberos->obtain_store_credentials();
+}
+
+std::string Gssapi_client::get_user_name() {
+  log_client_dbg("Getting user name from Kerberos credential cache.");
+  std::string cached_user_name{""};
+  if (m_kerberos->get_upn(&cached_user_name)) {
+    size_t pos = std::string::npos;
+    /* Remove realm */
+    if ((pos = cached_user_name.find("@")) != std::string::npos) {
+      log_client_dbg("Trimming realm from upn.");
+      cached_user_name.erase(pos, cached_user_name.length() - pos + 1);
+    }
+  }
+  return cached_user_name;
+}
+
+I_Kerberos_client *I_Kerberos_client::create(
+    const std::string &spn, MYSQL_PLUGIN_VIO *vio, const std::string &upn,
+    const std::string &password, const std::string &kdc_host [[maybe_unused]]) {
+  Gssapi_client *client = new Gssapi_client(spn, vio, upn, password);
+  return static_cast<I_Kerberos_client *>(client);
 }

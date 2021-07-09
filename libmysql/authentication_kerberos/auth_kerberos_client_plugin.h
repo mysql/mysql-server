@@ -34,13 +34,12 @@
 #include <mysql/plugin_auth_common.h>
 #include "my_config.h"
 
-#include "gssapi_authentication_client.h"
-#include "kerberos_client.h"
+#include "kerberos_client_interface.h"
 
 class Kerberos_plugin_client {
  public:
   Kerberos_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-  ~Kerberos_plugin_client();
+  ~Kerberos_plugin_client() = default;
   bool authenticate();
   void set_upn_info(std::string name, std::string pwd);
   void set_mysql_account_name(std::string name);
@@ -55,6 +54,6 @@ class Kerberos_plugin_client {
   std::string m_as_user_relam;
   MYSQL_PLUGIN_VIO *m_vio{nullptr};
   MYSQL *m_mysql{nullptr};
-  std::unique_ptr<Kerberos_client> m_kerberos_client;
+  std::unique_ptr<I_Kerberos_client> m_kerberos_client;
 };
 #endif  // AUTH_KERBEROS_CLIENT_PLUGIN_H_

@@ -215,6 +215,7 @@
 #cmakedefine KERBEROS_LIB_CONFIGURED
 #cmakedefine SCRAM_LIB_CONFIGURED
 #cmakedefine WITH_HYPERGRAPH_OPTIMIZER
+#cmakedefine KERBEROS_LIB_SSPI
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1

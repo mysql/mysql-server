@@ -20,33 +20,33 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef AUTH_GSSAPI_CLIENT_H_
-#define AUTH_GSSAPI_CLIENT_H_
+#ifndef AUTH_GSSAPI_UTILITY_H_
+#define AUTH_GSSAPI_UTILITY_H_
 
-#include <gssapi/gssapi.h>
-#include <memory>
+#include <stdlib.h>
+#include <string.h>
 
-#include "kerberos_core.h"
+/*
+  Note: Added below header files with one extra lines.
+  Automatically code formatting changes the order of header file.
+  We need to maintain the order of header file, otherwise build will fail.
+*/
+
+#include <windows.h>
+
+#include <sspi.h>
+
+#include <SecExt.h>
+
+#include <stdarg.h>
+
+#include <stdio.h>
 #include "log_client.h"
 
-#include "kerberos_client_interface.h"
+/* Maximum length of principal name. */
+constexpr int PRINCIPAL_NAME_MAX{256};
 
-class Gssapi_client : public I_Kerberos_client {
- public:
-  Gssapi_client(const std::string &spn, MYSQL_PLUGIN_VIO *vio,
-                const std::string &upn, const std::string &password);
-  ~Gssapi_client() override;
-  bool authenticate() override;
-  std::string get_user_name() override;
-  void set_upn_info(const std::string &name, const std::string &pwd);
-  bool obtain_store_credentials() override;
+void log_client_sspi_error(SECURITY_STATUS err, const char *msg);
 
- protected:
-  std::string m_service_principal;
-  /* Plug-in VIO. */
-  MYSQL_PLUGIN_VIO *m_vio{nullptr};
-  std::string m_user_principal_name;
-  std::string m_password;
-  std::unique_ptr<auth_kerberos_context::Kerberos> m_kerberos{nullptr};
-};
-#endif  // AUTH_GSSAPI_CLIENT_H_
+bool succeeded(SECURITY_STATUS err);
+#endif  // AUTH_GSSAPI_UTILITY_H_

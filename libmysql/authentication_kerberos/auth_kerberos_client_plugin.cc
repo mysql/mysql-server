@@ -53,7 +53,6 @@
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
 #include "auth_kerberos_client_io.h"
-#include "gssapi_utility.h"
 #include "log_client.h"
 
 Logger_client *g_logger_client{nullptr};
@@ -69,14 +68,16 @@ Kerberos_plugin_client::Kerberos_plugin_client(MYSQL_PLUGIN_VIO *vio,
   authentication process will start.
 */
 bool Kerberos_plugin_client::obtain_store_credentials() {
+  log_client_dbg("Obtaining TGT TGS tickets from kerberos server.");
   if (!m_kerberos_client) {
-    m_kerberos_client = std::unique_ptr<Kerberos_client>(
-        new Kerberos_client(m_user_principal_name.c_str(), m_password.c_str()));
+    m_kerberos_client =
+        std::unique_ptr<I_Kerberos_client>(I_Kerberos_client::create(
+            m_service_principal, m_vio, m_user_principal_name, m_password,
+            m_as_user_relam));
   }
-  log_client_dbg("Obtaining TGT TGS tickets from kerberos.");
   if (!m_kerberos_client->obtain_store_credentials()) {
     log_client_error(
-        "Plug-in has failed to obtained kerberos TGT, authentication process "
+        "Plug-in has failed to obtain kerberos TGT, authentication process "
         "will be aborted. Please provide valid configuration, user name and "
         "password.");
     return false;
@@ -85,26 +86,44 @@ bool Kerberos_plugin_client::obtain_store_credentials() {
   }
 }
 
-Kerberos_plugin_client::~Kerberos_plugin_client() {}
-
 void Kerberos_plugin_client::set_mysql_account_name(
     std::string mysql_account_name) {
   std::string cc_user_name;
   std::stringstream log_client_stream;
 
   if (mysql_account_name.empty()) {
-    Kerberos_client kerberos_client{m_user_principal_name.c_str(),
-                                    m_password.c_str()};
-    log_client_dbg("Getting user name from Kerberos credential cache.");
-    kerberos_client.get_upn(cc_user_name);
+    /*
+      Kerberos authentication client plug-in called twice if default plug-in is
+      set as authentication_kerberos_client in the client.
+
+      First time, If MySQL account name is empty, we get account name from
+      credential cache (Linux) or windows session (windows) and set as MySQL
+      account name.
+
+      Second time, It gets called for actual authentication with MySQL account
+      name and password.
+    */
+    if (!m_kerberos_client) {
+      m_kerberos_client =
+          std::unique_ptr<I_Kerberos_client>(I_Kerberos_client::create(
+              m_service_principal, m_vio, m_user_principal_name, m_password,
+              m_as_user_relam));
+    }
+    cc_user_name = m_kerberos_client->get_user_name();
+    log_client_stream << "Cached/ OS session user name is: ";
+    log_client_stream << cc_user_name;
+    log_client_dbg(log_client_stream.str());
+    log_client_stream.str("");
   } else {
-    log_client_dbg("MySQL user account name is not empty.");
+    log_client_stream << "Provided MySQL user account name in client is: ";
+    log_client_stream << mysql_account_name;
+    log_client_dbg(log_client_stream.str());
     return;
   }
   if (!cc_user_name.empty()) {
     log_client_dbg(
         "Setting MySQL account name using Kerberos credential cache default "
-        "UPN.");
+        "(Linux )or logged-in account (Windows).");
     /*
       MySQL clients/lib uses my_free, my_strdup my_* string function for string
       management. We also need to use same methods as these are used/free inside
@@ -114,12 +133,7 @@ void Kerberos_plugin_client::set_mysql_account_name(
       my_free(m_mysql->user);
       m_mysql->user = nullptr;
     }
-    size_t pos = std::string::npos;
-    /* Remove realm */
-    if ((pos = cc_user_name.find("@")) != std::string::npos) {
-      log_client_dbg("Trimming realm from upn.");
-      cc_user_name.erase(pos, cc_user_name.length() - pos + 1);
-    }
+
     m_mysql->user =
         my_strdup(PSI_NOT_INSTRUMENTED, cc_user_name.c_str(), MYF(MY_WME));
     log_client_stream.str("");
@@ -135,9 +149,7 @@ void Kerberos_plugin_client::set_mysql_account_name(
 
 void Kerberos_plugin_client::set_upn_info(std::string name, std::string pwd) {
   /*
-    For some cases MySQL user name will be empty as user name is supposed to
-    come from kerberos TGT. Get kerberos user name from TGT and assign this as
-    MySQL user name.
+    Setting UPN using MySQL account name + user realm.
   */
   m_password = pwd;
   if (!name.empty()) {
@@ -152,11 +164,10 @@ void Kerberos_plugin_client::create_upn(std::string account_name) {
 }
 
 bool Kerberos_plugin_client::authenticate() {
-  Gssapi_client gssapi_client{m_service_principal, m_vio};
-  if (gssapi_client.authenticate()) {
-    return CR_OK;
+  if (m_kerberos_client->authenticate()) {
+    return true;
   } else {
-    return CR_ERROR;
+    return false;
   }
 }
 
@@ -177,6 +188,8 @@ static int deinitialize_plugin() SUPPRESS_UBSAN;
 static int kerberos_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   std::stringstream log_client_stream;
   Kerberos_plugin_client client{vio, mysql};
+
+  log_client_info("*** Kerberos authentication starting. ***");
   client.set_mysql_account_name(mysql->user);
   if (!client.read_spn_realm_from_server()) {
     log_client_info(
