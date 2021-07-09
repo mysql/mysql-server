@@ -75,7 +75,9 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_parts,
     uint used_key_parts_arg, const Cost_estimate *read_cost_arg,
     ha_rows read_records, MEM_ROOT *return_mem_root,
-    bool has_aggregate_function)
+    bool has_aggregate_function, uchar *min_range_key_arg,
+    uchar *max_range_key_arg, uchar *min_search_key_arg,
+    uchar *max_search_key_arg, uint range_cond_flag_arg, uint range_key_len_arg)
     : index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
@@ -83,11 +85,13 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       distinct_prefix(nullptr),
       range_key_part(range_part),
       mem_root(return_mem_root),
+      range_key_len(range_key_len_arg),
       seen_first_key(false),
-      min_range_key(nullptr),
-      max_range_key(nullptr),
-      min_search_key(nullptr),
-      max_search_key(nullptr),
+      min_range_key(min_range_key_arg),
+      max_range_key(max_range_key_arg),
+      min_search_key(min_search_key_arg),
+      max_search_key(max_search_key_arg),
+      range_cond_flag(range_cond_flag_arg),
       has_aggregate_function(has_aggregate_function) {
   m_table = table;
   index = use_index;
@@ -98,7 +102,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
   used_key_parts = used_key_parts_arg;
   max_used_key_length = 0;
   distinct_prefix_len = 0;
-  range_cond_flag = 0;
   KEY_PART_INFO *p = index_info->key_part;
 
   my_bitmap_map *bitmap;
@@ -212,71 +215,6 @@ int QUICK_SKIP_SCAN_SELECT::init() {
 QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   DBUG_TRACE;
   if (m_table->file->inited) m_table->file->ha_index_or_rnd_end();
-}
-
-/**
-  Setup fileds that hold the range condition on key part C.
-
-  SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::set_range()
-    sel_range  Range object from which the fields will be populated with.
-
-  NOTES
-    This is only the suffix of the whole key, that we use
-    to append to the prefix to get the full key later on.
-  RETURN
-    true on success
-    false otherwise
-*/
-
-bool QUICK_SKIP_SCAN_SELECT::set_range(SEL_ARG *sel_range) {
-  DBUG_TRACE;
-  uchar *min_value, *max_value;
-
-  if (!(sel_range->min_flag & NO_MIN_RANGE) &&
-      !(sel_range->max_flag & NO_MAX_RANGE)) {
-    // IS NULL condition
-    if (sel_range->maybe_null() && sel_range->min_value[0] &&
-        sel_range->max_value[0])
-      range_cond_flag |= NULL_RANGE;
-    // equality condition
-    else if (memcmp(sel_range->min_value, sel_range->max_value,
-                    range_key_part->store_length) == 0)
-      range_cond_flag |= EQ_RANGE;
-  }
-
-  if (sel_range->is_ascending) {
-    range_cond_flag |= sel_range->min_flag | sel_range->max_flag;
-    min_value = sel_range->min_value;
-    max_value = sel_range->max_value;
-  } else {
-    range_cond_flag |= invert_min_flag(sel_range->min_flag) |
-                       invert_max_flag(sel_range->max_flag);
-    min_value = sel_range->max_value;
-    max_value = sel_range->min_value;
-  }
-
-  range_key_len = range_key_part->store_length;
-
-  // Allocate storage for min/max key if they exist.
-  if (!(range_cond_flag & NO_MIN_RANGE)) {
-    if (!(min_range_key = (uchar *)mem_root->Alloc(range_key_len)))
-      return false;
-    if (!(min_search_key = (uchar *)mem_root->Alloc(max_used_key_length)))
-      return false;
-
-    memcpy(min_range_key, min_value, range_key_len);
-  }
-  if (!(range_cond_flag & NO_MAX_RANGE)) {
-    if (!(max_range_key = (uchar *)mem_root->Alloc(range_key_len)))
-      return false;
-    if (!(max_search_key = (uchar *)mem_root->Alloc(max_used_key_length)))
-      return false;
-
-    memcpy(max_range_key, max_value, range_key_len);
-  }
-
-  return true;
 }
 
 /**

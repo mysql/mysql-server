@@ -105,7 +105,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
 
   KEY_PART_INFO *range_key_part; /* The keypart of range condition 'C'. */
   MEM_ROOT *mem_root;
-  uint range_key_len;
+  const uint range_key_len;
   /*
     Denotes whether the first key for the current equality prefix was
     retrieved.
@@ -113,11 +113,11 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool seen_first_key;
 
   /* Storage for full lookup key for use with handler::read_range_first/next */
-  uchar *min_range_key;
-  uchar *max_range_key;
-  uchar *min_search_key;
-  uchar *max_search_key;
-  uint range_cond_flag;
+  uchar *const min_range_key;
+  uchar *const max_range_key;
+  uchar *const min_search_key;
+  uchar *const max_search_key;
+  const uint range_cond_flag;
 
   key_range start_key;
   key_range end_key;
@@ -132,9 +132,11 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
                          uint eq_prefix_len, uint eq_prefix_parts,
                          uint used_key_parts,
                          const Cost_estimate *read_cost_arg, ha_rows records,
-                         MEM_ROOT *temp_mem_root, bool has_aggregate_function);
+                         MEM_ROOT *temp_mem_root, bool has_aggregate_function,
+                         uchar *min_range_key, uchar *max_range_key,
+                         uchar *min_search_key, uchar *max_search_key,
+                         uint range_cond_flag, uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
-  bool set_range(SEL_ARG *sel_range);
   int init() override;
   void need_sorted_output() override {}
   int reset() override;

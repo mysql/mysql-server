@@ -49,12 +49,19 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   uint eq_prefix_parts;           ///< Number of parts in the equality prefix
   KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
                                   ///< condition
+  uchar *const min_range_key;
+  uchar *const max_range_key;
+  uchar *const min_search_key;
+  uchar *const max_search_key;
+  const uint range_cond_flag;
+  const uint range_key_len;
 
-  /**
-    The sub-tree corresponding to the range condition
-    (on key part C - for more details see description of get_best_skip_scan()).
-  */
-  SEL_ARG *range_cond;
+  // The sub-tree corresponding to the range condition
+  // (on key part C - for more details see description of get_best_skip_scan()).
+  //
+  // Does not necessarily live as long as the TRP, so used for tracing only.
+  const SEL_ARG *range_part_tracing_only;
+
   SEL_ROOT *index_range_tree;   ///< The sub-tree corresponding to index_info
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 
@@ -65,16 +72,26 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
                 uint eq_prefix_parts, KEY_PART_INFO *range_key_part,
-                SEL_ARG *range_cond, uint used_key_parts_arg,
-                bool forced_by_hint_arg, ha_rows read_records,
-                bool has_aggregate_function)
+                uint used_key_parts_arg, bool forced_by_hint_arg,
+                ha_rows read_records, bool has_aggregate_function,
+                uchar *min_range_key_arg, uchar *max_range_key_arg,
+                uchar *min_search_key_arg, uchar *max_search_key_arg,
+                uint range_cond_flag_arg,
+                const SEL_ARG *range_part_tracing_only_arg,
+                uint range_key_len_arg)
       : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
                         forced_by_hint_arg),
         index_info(index_info),
         eq_prefix_len(eq_prefix_len),
         eq_prefix_parts(eq_prefix_parts),
         range_key_part(range_key_part),
-        range_cond(range_cond),
+        min_range_key(min_range_key_arg),
+        max_range_key(max_range_key_arg),
+        min_search_key(min_search_key_arg),
+        max_search_key(max_search_key_arg),
+        range_cond_flag(range_cond_flag_arg),
+        range_key_len(range_key_len_arg),
+        range_part_tracing_only(range_part_tracing_only_arg),
         index_range_tree(index_range_tree),
         has_aggregate_function(has_aggregate_function) {
     records = read_records;

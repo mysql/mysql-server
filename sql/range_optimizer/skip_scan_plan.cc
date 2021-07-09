@@ -92,13 +92,12 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
   {
     String range_info;
     range_info.set_charset(system_charset_info);
-    const SEL_ARG *range_part = range_cond->first();
-    {
-      const KEY_PART_INFO *cur_key_part = key_part + range_part->part;
-      append_range(&range_info, cur_key_part, range_part->min_value,
-                   range_part->max_value,
-                   range_part->min_flag | range_part->max_flag);
-    }
+    const KEY_PART_INFO *cur_key_part =
+        key_part + range_part_tracing_only->part;
+    append_range(
+        &range_info, cur_key_part, range_part_tracing_only->min_value,
+        range_part_tracing_only->max_value,
+        range_part_tracing_only->min_flag | range_part_tracing_only->max_flag);
     trace_range.add_utf8(range_info.ptr(), range_info.length());
   }
 }
@@ -126,7 +125,8 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
   QUICK_SKIP_SCAN_SELECT *quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
       table, index_info, index, range_key_part, index_range_tree, eq_prefix_len,
       eq_prefix_parts, used_key_parts, &cost_est, records, return_mem_root,
-      has_aggregate_function);
+      has_aggregate_function, min_range_key, max_range_key, min_search_key,
+      max_search_key, range_cond_flag, range_key_len);
 
   if (!quick) return nullptr;
 
@@ -137,11 +137,6 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
     return nullptr;
   }
 
-  /* Set range populates a QUICK_RANGE object from range_cond. */
-  if (!quick->set_range(range_cond)) {
-    destroy(quick);
-    return nullptr;
-  }
   quick->forced_by_hint = forced_by_hint;
   return quick;
 }
@@ -206,7 +201,6 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   const char *cause = nullptr;
-  TRP_SKIP_SCAN *read_plan = nullptr;
   Opt_trace_context *const trace = &thd->opt_trace;
   Cost_estimate best_read_cost;
   ha_rows best_records = 0;
@@ -429,11 +423,72 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   if (!index_info) /* No usable index found. */
     return nullptr;
 
+  // Setup fields that hold the range condition on key part C.
+  //
+  // This is only the suffix of the whole key, that we use
+  // to append to the prefix to get the full key later on.
+  uint range_cond_flag = 0;
+  if (!(range_sel_arg->min_flag & NO_MIN_RANGE) &&
+      !(range_sel_arg->max_flag & NO_MAX_RANGE)) {
+    // IS NULL condition
+    if (range_sel_arg->maybe_null() && range_sel_arg->min_value[0] &&
+        range_sel_arg->max_value[0])
+      range_cond_flag |= NULL_RANGE;
+    // equality condition
+    else if (memcmp(range_sel_arg->min_value, range_sel_arg->max_value,
+                    range_key_part->store_length) == 0)
+      range_cond_flag |= EQ_RANGE;
+  }
+
+  uchar *min_value, *max_value;
+  if (range_sel_arg->is_ascending) {
+    range_cond_flag |= range_sel_arg->min_flag | range_sel_arg->max_flag;
+    min_value = range_sel_arg->min_value;
+    max_value = range_sel_arg->max_value;
+  } else {
+    range_cond_flag |= invert_min_flag(range_sel_arg->min_flag) |
+                       invert_max_flag(range_sel_arg->max_flag);
+    min_value = range_sel_arg->max_value;
+    max_value = range_sel_arg->min_value;
+  }
+
+  unsigned range_key_len = range_key_part->store_length;
+
+  // Allocate storage for min/max key if they exist.
+  unsigned max_used_key_length = 0;
+  for (uint i = 0; i < used_key_parts; ++i) {
+    max_used_key_length += index_info->key_part[i].store_length;
+  }
+
+  MEM_ROOT *const mem_root = param->return_mem_root;
+  uchar *min_range_key = nullptr;
+  uchar *min_search_key = nullptr;
+  if (!(range_cond_flag & NO_MIN_RANGE)) {
+    if (!(min_range_key = mem_root->ArrayAlloc<uchar>(range_key_len)))
+      return nullptr;
+    if (!(min_search_key = mem_root->ArrayAlloc<uchar>(max_used_key_length)))
+      return nullptr;
+
+    memcpy(min_range_key, min_value, range_key_len);
+  }
+  uchar *max_range_key = nullptr;
+  uchar *max_search_key = nullptr;
+  if (!(range_cond_flag & NO_MAX_RANGE)) {
+    if (!(max_range_key = mem_root->ArrayAlloc<uchar>(range_key_len)))
+      return nullptr;
+    if (!(max_search_key = mem_root->ArrayAlloc<uchar>(max_used_key_length)))
+      return nullptr;
+
+    memcpy(max_range_key, max_value, range_key_len);
+  }
+
   /* The query passes all tests, so construct a new TRP object. */
-  read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
+  TRP_SKIP_SCAN *read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
       table, index_info, index, index_range_tree, eq_prefix_len,
-      eq_prefix_parts, range_key_part, range_sel_arg, used_key_parts,
-      force_skip_scan, best_records, has_aggregate_function);
+      eq_prefix_parts, range_key_part, used_key_parts, force_skip_scan,
+      best_records, has_aggregate_function, min_range_key, max_range_key,
+      min_search_key, max_search_key, range_cond_flag,
+      /*range_part_tracing_only=*/range_sel_arg->first(), range_key_len);
   if (read_plan) {
     read_plan->cost_est = best_read_cost;
     read_plan->records = best_records;
