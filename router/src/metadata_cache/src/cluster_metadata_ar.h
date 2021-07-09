@@ -78,6 +78,8 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    * @param router_id id of the router in the cluster metadata
    * @param metadata_servers  set of the metadata servers to use to fetch the
    * metadata
+   * @param needs_writable_node flag indicating if the caller needs us to query
+   * for writable node
    * @param cluster_type_specific_id  (GR ID for GR cluster, cluster_id for AR
    * cluster)
    * @param [out] instance_id of the server the metadata was fetched from
@@ -90,8 +92,8 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
       const std::atomic<bool> &terminated,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const std::string &cluster_type_specific_id,
-      std::size_t &instance_id) override;
+      bool needs_writable_node, const std::string &cluster_type_specific_id,
+      const std::string & /*clusterset_id*/, std::size_t &instance_id) override;
 
   /** @brief Returns cluster type this object is suppsed to handle
    */

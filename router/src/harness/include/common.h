@@ -27,6 +27,7 @@
 
 #include <cstdlib>
 #include <functional>
+#include <map>
 #include <sstream>
 #include <string>
 #include "harness_export.h"
@@ -230,6 +231,18 @@ class ScopeGuard {
  private:
   std::function<void()> undo_func_;
 };
+
+/**
+ * Gets a Value from std::map for given Key. Returns provided default if the Key
+ * is not in the map.
+ */
+template <class Key, class Value>
+Value get_from_map(const std::map<Key, Value> &map, const Key &key,
+                   const Value &default_value) {
+  auto iter = map.find(key);
+  if (iter == map.end()) return default_value;
+  return iter->second;
+}
 
 }  // namespace mysql_harness
 

@@ -4006,7 +4006,7 @@ TEST_F(ConfigGeneratorTest, register_router_error_message) {
   common_pass_cluster_type(&mysql);
 
   conf_gen.metadata_ =
-      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, &sock_ops);
+      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, {}, &sock_ops);
 
   EXPECT_THROW_LIKE(conf_gen.register_router("foo", "", false),
                     std::runtime_error,
@@ -4038,7 +4038,7 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
   uint32_t router_id = 1u;
   ConfigGenerator conf_gen;
   conf_gen.metadata_ =
-      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, &sock_ops);
+      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, {}, &sock_ops);
   EXPECT_THROW_LIKE(
       conf_gen.ensure_router_id_is_ours(router_id, ""), std::runtime_error,
       "Could not verify if this Router instance is already registered with the "

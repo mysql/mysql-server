@@ -55,12 +55,12 @@ class METADATA_API ARMetadataCache : public MetadataCache {
       const mysqlrouter::SSLOptions &ssl_options,
       const mysqlrouter::TargetCluster &target_cluster,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : MetadataCache(router_id, cluster_specific_type_id, metadata_servers,
+      : MetadataCache(router_id, cluster_specific_type_id, "", metadata_servers,
                       cluster_metadata, ttl, auth_credentials_ttl,
                       auth_credentials_refresh_rate, ssl_options,
                       target_cluster, thread_stack_size, false) {}
 
-  bool refresh() override;
+  bool refresh(bool needs_writable_node) override;
 
   mysqlrouter::ClusterType cluster_type() const noexcept override {
     return mysqlrouter::ClusterType::RS_V2;

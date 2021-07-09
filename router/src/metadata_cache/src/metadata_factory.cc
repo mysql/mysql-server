@@ -56,14 +56,17 @@ std::shared_ptr<MetaData> get_instance(
     const std::string &password, int connect_timeout, int read_timeout,
     int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, const unsigned view_id) {
-  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
-    meta_data.reset(new ARClusterMetadata(user, password, connect_timeout,
-                                          read_timeout, connection_attempts,
-                                          ssl_options, view_id));
-  } else {
-    meta_data.reset(new GRClusterMetadata(
-        user, password, connect_timeout, read_timeout, connection_attempts,
-        ssl_options, use_cluster_notifications));
+  switch (cluster_type) {
+    case mysqlrouter::ClusterType::RS_V2:
+      meta_data.reset(new ARClusterMetadata(user, password, connect_timeout,
+                                            read_timeout, connection_attempts,
+                                            ssl_options, view_id));
+      break;
+    default:
+      meta_data.reset(new GRClusterMetadata(
+          user, password, connect_timeout, read_timeout, connection_attempts,
+          ssl_options, use_cluster_notifications));
   }
+
   return meta_data;
 }

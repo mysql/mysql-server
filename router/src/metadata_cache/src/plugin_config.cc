@@ -84,6 +84,15 @@ std::string MetadataCachePluginConfig::get_cluster_type_specific_id() const {
   return "";
 }
 
+std::string MetadataCachePluginConfig::get_clusterset_id() const {
+  if (metadata_cache_dynamic_state) {
+    metadata_cache_dynamic_state->load();
+    return metadata_cache_dynamic_state->get_clusterset_id();
+  }
+
+  return "";
+}
+
 unsigned MetadataCachePluginConfig::get_view_id() const {
   if (metadata_cache_dynamic_state) {
     metadata_cache_dynamic_state->load();
@@ -163,6 +172,8 @@ mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
     return mysqlrouter::ClusterType::RS_V2;
   } else if (value == "gr") {
     return mysqlrouter::ClusterType::GR_V2;
+  } else if (value == "clusterset") {
+    return mysqlrouter::ClusterType::GR_CS;
   }
 
   throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +

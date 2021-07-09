@@ -37,7 +37,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
         undefined) {
       return res;
     } else {
-      return common_stmts.unknown_statement_response("TODO:" + stmt);
+      return common_stmts.unknown_statement_response(stmt);
     }
   }
 })

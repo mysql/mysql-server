@@ -33,7 +33,10 @@ class METADATA_API GRMetadataCache : public MetadataCache {
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param group_replication_id id of the replication group
+   * @param group_replication_id id of the replication group (if bootstrapped as
+   * a single Cluster, empty otherwise)
+   * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+   * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data
@@ -50,6 +53,7 @@ class METADATA_API GRMetadataCache : public MetadataCache {
    */
   GRMetadataCache(
       const unsigned router_id, const std::string &group_replication_id,
+      const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
       const std::chrono::milliseconds ttl,
@@ -59,13 +63,13 @@ class METADATA_API GRMetadataCache : public MetadataCache {
       const mysqlrouter::TargetCluster &target_cluster,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false)
-      : MetadataCache(router_id, group_replication_id, metadata_servers,
-                      cluster_metadata, ttl, auth_credentials_ttl,
-                      auth_credentials_refresh_rate, ssl_options,
-                      target_cluster, thread_stack_size, use_gr_notifications) {
-  }
+      : MetadataCache(router_id, group_replication_id, clusterset_id,
+                      metadata_servers, cluster_metadata, ttl,
+                      auth_credentials_ttl, auth_credentials_refresh_rate,
+                      ssl_options, target_cluster, thread_stack_size,
+                      use_gr_notifications) {}
 
-  bool refresh() override;
+  bool refresh(bool needs_writable_node) override;
 
   mysqlrouter::ClusterType cluster_type() const noexcept override {
     return meta_data_->get_cluster_type();

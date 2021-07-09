@@ -58,7 +58,11 @@ class METADATA_API MetadataCache
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_specific_type_id id of the replication group
+   * @param cluster_type_specific_id id of the ReplicaSet in case of the
+   * ReplicaSet, Replication Group name for GR Cluster (if bootstrapped as a
+   * single Cluster, empty otherwise)
+   * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+   * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data
@@ -73,7 +77,8 @@ class METADATA_API MetadataCache
    * should use GR notifications as an additional trigger for metadata refresh
    */
   MetadataCache(
-      const unsigned router_id, const std::string &cluster_specific_type_id,
+      const unsigned router_id, const std::string &cluster_type_specific_id,
+      const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
       const std::chrono::milliseconds auth_cache_ttl,
@@ -233,7 +238,7 @@ class METADATA_API MetadataCache
   /** @brief Refreshes the cache
    *
    */
-  virtual bool refresh() = 0;
+  virtual bool refresh(bool needs_writable_node) = 0;
 
   void on_refresh_failed(bool terminated, bool md_servers_reachable = false);
   void on_refresh_succeeded(
@@ -278,6 +283,9 @@ class METADATA_API MetadataCache
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
   // metadata
   const std::string cluster_type_specific_id_;
+
+  // Id of the ClusterSet in case of the ClusterSet setup
+  const std::string clusterset_id_;
 
   // The list of servers that contain the metadata about the managed
   // topology.

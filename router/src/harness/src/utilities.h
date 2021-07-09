@@ -195,8 +195,6 @@ bool matches_glob(const std::string &word, const std::string &pattern);
  */
 bool regex_pattern_matches(const std::string &s, const std::string &pattern);
 
-bool notify(const std::string &msg);
-
 }  // namespace utility
 
 }  // namespace mysql_harness

@@ -29,6 +29,7 @@
 
 #include <rapidjson/document.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
@@ -55,8 +56,8 @@ class METADATA_API MetaData {
       const std::atomic<bool> &terminated,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const std::string &cluster_type_specific_id,
-      std::size_t &instance_id) = 0;
+      bool needs_writable_node, const std::string &cluster_type_specific_id,
+      const std::string &clusterset_id, std::size_t &instance_id) = 0;
 
   virtual bool update_router_version(
       const metadata_cache::metadata_server_t &rw_server,

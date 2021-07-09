@@ -107,6 +107,7 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 void MetadataCacheAPI::cache_init(
     const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
     const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id,
     const metadata_servers_list_t &metadata_servers,
     const mysqlrouter::UserCredentials &user_credentials,
     const std::chrono::milliseconds ttl,
@@ -130,7 +131,7 @@ void MetadataCacheAPI::cache_init(
       break;
     default:
       g_metadata_cache.reset(new GRMetadataCache(
-          router_id, cluster_type_specific_id, metadata_servers,
+          router_id, cluster_type_specific_id, clusterset_id, metadata_servers,
           get_instance(cluster_type, user_credentials.username,
                        user_credentials.password, connect_timeout, read_timeout,
                        1, ssl_options, use_cluster_notifications, view_id),

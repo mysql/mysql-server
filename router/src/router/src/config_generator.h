@@ -25,6 +25,7 @@
 #ifndef ROUTER_CONFIG_GENERATOR_INCLUDED
 #define ROUTER_CONFIG_GENERATOR_INCLUDED
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <ostream>
@@ -195,6 +196,7 @@ class ConfigGenerator {
 
     mysqlrouter::SSLOptions ssl_options;
 
+    std::chrono::milliseconds ttl;
     bool use_gr_notifications;
 
     bool disable_rest{false};
@@ -215,6 +217,10 @@ class ConfigGenerator {
     std::string server_ssl_crl;
     std::string server_ssl_crlpath;
     std::string server_ssl_verify;
+
+    // only relevant for ClusterSet
+    std::string target_cluster;
+    std::string target_cluster_by_name;
   };
 
   void set_file_owner(

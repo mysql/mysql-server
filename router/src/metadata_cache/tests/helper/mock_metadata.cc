@@ -86,7 +86,8 @@ MockNG::fetch_cluster_topology(
     mysqlrouter::TargetCluster & /*target_cluster*/,
     const unsigned /*router_id*/,
     const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
-    const string & /*group_replication_id*/, size_t & /*instance_id*/) {
+    bool /* needs_writable_node */, const string & /*group_replication_id*/,
+    const string & /*clusterset_id*/, size_t & /*instance_id*/) {
   return metadata_cache::ClusterTopology{cluster_info, metadata_servers};
 }
 

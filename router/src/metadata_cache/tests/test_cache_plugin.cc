@@ -27,6 +27,7 @@
  */
 
 #include "mock_metadata.h"
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
@@ -71,7 +72,7 @@ class MetadataCachePluginTest : public ::testing::Test {
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id,
+        mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id, "",
         metadata_server_vector,
         {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
         kDefaultAuthCacheTTL, kDefaultAuthCacheRefreshInterval,

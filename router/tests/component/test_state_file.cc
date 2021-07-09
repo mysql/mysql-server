@@ -321,8 +321,8 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "// Check our state file content, it should not change yet, there is "
       "single metadata server reported as initially");
 
-  check_state_file(state_file, kGroupId, {cluster_nodes_ports[0]}, 0,
-                   node_host);
+  check_state_file(state_file, param.cluster_type, kGroupId,
+                   {cluster_nodes_ports[0]}, 0, node_host);
 
   SCOPED_TRACE(
       "// Now change the response from the metadata server to return 3 gr "
@@ -337,7 +337,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       "servers");
 
   check_state_file(
-      state_file, kGroupId,
+      state_file, param.cluster_type, kGroupId,
       {cluster_nodes_ports[0], cluster_nodes_ports[1], cluster_nodes_ports[2]},
       0, node_host);
 
@@ -371,7 +371,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
   SCOPED_TRACE(
       "// Check our state file content, it should now contain 2 metadata "
       "servers reported by the second metadata server");
-  check_state_file(state_file, kGroupId,
+  check_state_file(state_file, param.cluster_type, kGroupId,
                    {cluster_nodes_ports[1], cluster_nodes_ports[2]}, 0,
                    node_host, 10000ms);
 }
@@ -451,8 +451,8 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       "// Check our state file content, it should still contain out metadata "
       "server");
 
-  check_state_file(state_file, kGroupId, {cluster_node_port}, 0, "127.0.0.1",
-                   10s);
+  check_state_file(state_file, param.cluster_type, kGroupId,
+                   {cluster_node_port}, 0, "127.0.0.1", 10s);
 
   router.send_shutdown_event();
 
@@ -533,7 +533,8 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
       "We did not found the data for our replication group on any of the "
       "servers so we do not update the metadata srever list.");
 
-  check_state_file(state_file, kStateFileGroupId, {cluster_node_port});
+  check_state_file(state_file, param.cluster_type, kStateFileGroupId,
+                   {cluster_node_port});
 
   SCOPED_TRACE("// We expect an error in the logfile");
   EXPECT_TRUE(wait_log_file_contains(
@@ -644,7 +645,7 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
   for (unsigned i = 0; i < 2; ++i) {
     node_ports.push_back(cluster_node_ports[i].first);
   }
-  check_state_file(state_file, kClusterGroupId, node_ports);
+  check_state_file(state_file, param.cluster_type, kClusterGroupId, node_ports);
 
   SCOPED_TRACE(
       "// Try to connect to the router port, we expect first port from the "
@@ -894,7 +895,7 @@ INSTANTIATE_TEST_SUITE_P(
             "}",
             // clang-format on
             {"Unsupported state file version, "
-             "expected: 1.0.0, found: 2.0.0"}},
+             "expected: 1.1.0, found: 2.0.0"}},
 
         // major version does not match (AR cluster)
         StateFileSchemaTestParams{
@@ -911,13 +912,13 @@ INSTANTIATE_TEST_SUITE_P(
             "}",
             // clang-format on
             {"Unsupported state file version, "
-             "expected: 1.0.0, found: 2.0.0"}, true, "", false,
+             "expected: 1.1.0, found: 2.0.0"}, true, "", false,
              ClusterType::RS_V2},
 
         // minor version does not match
         StateFileSchemaTestParams{            // clang-format off
         "{"
-          "\"version\": \"1.1.0\","
+          "\"version\": \"1.2.0\","
           "\"metadata-cache\": {"
             "\"group-replication-id\": \"3a0be5af-994c-11e8-9655-0800279e6a88\","
             "\"cluster-metadata-servers\": ["
@@ -928,7 +929,7 @@ INSTANTIATE_TEST_SUITE_P(
         "}",
         // clang-format on
         {"Unsupported state file version, "
-         "expected: 1.0.0, found: 1.1.0"}},
+         "expected: 1.1.0, found: 1.2.0"}},
 
         // both bootstrap_server_addresses and dynamic_state configured
         StateFileSchemaTestParams{
@@ -950,22 +951,23 @@ INSTANTIATE_TEST_SUITE_P(
         true /*use static bootstrap_server_addresses in static conf. file*/},
 
         // group-replication-id filed missing
-        StateFileSchemaTestParams{
-        // clang-format off
-        "{"
-          "\"version\": \"1.0.0\","
-          "\"metadata-cache\": {"
-            "\"cluster-metadata-servers\": ["
-              "\"mysql://localhost:5000\","
-              "\"mysql://127.0.0.1:5001\""
-            "]"
-          "}"
-        "}",
-        // clang-format on
-        {"JSON file failed validation against JSON schema: Failed schema "
-         "directive: #/properties/metadata-cache",
-         "Failed schema keyword:   required",
-         "Failure location in validated document: #/metadata-cache"}},
+        // no longer required
+//        StateFileSchemaTestParams{
+//        // clang-format off
+//        "{"
+//          "\"version\": \"1.0.0\","
+//          "\"metadata-cache\": {"
+//            "\"cluster-metadata-servers\": ["
+//              "\"mysql://localhost:5000\","
+//              "\"mysql://127.0.0.1:5001\""
+//            "]"
+//          "}"
+//        "}",
+//        // clang-format on
+//        {"JSON file failed validation against JSON schema: Failed schema "
+//         "directive: #/properties/metadata-cache",
+//         "Failed schema keyword:   required",
+//         "Failure location in validated document: #/metadata-cache"}},
 
         // cluster-metadata-servers filed missing (GR cluster)
         StateFileSchemaTestParams{
@@ -1128,8 +1130,8 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
-  check_state_file(state_file, "cluster-specific-id", {5500, 5510, 5520}, 0,
-                   "localhost");
+  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+                   {5500, 5510, 5520}, 0, "localhost");
 
   // check that static file has a proper reference to the dynamic file
   const std::string conf_content =
@@ -1190,8 +1192,8 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
 
-  check_state_file(state_file, "cluster-specific-id", {5500, 5510, 5520}, 0,
-                   "localhost");
+  check_state_file(state_file, ClusterType::GR_V1, "cluster-specific-id",
+                   {5500, 5510, 5520}, 0, "localhost");
 }
 
 #endif  // SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS

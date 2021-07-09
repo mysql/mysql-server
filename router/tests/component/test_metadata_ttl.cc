@@ -1029,13 +1029,14 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
   void set_nodes_attributes(const std::vector<std::string> &nodes_attributes,
                             const bool no_primary = false) {
     const auto primary_id = no_primary ? -1 : 0;
+
     ASSERT_NO_THROW({
       set_mock_metadata(node_http_ports[0], "", node_ports, primary_id, 0,
                         false, node_hostname, {}, nodes_attributes);
     });
 
     try {
-      ASSERT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+      ASSERT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 3));
     } catch (const std::exception &e) {
       FAIL() << "failed waiting for trans' count increase: " << e.what();
     };

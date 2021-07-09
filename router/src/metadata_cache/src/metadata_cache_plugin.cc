@@ -191,10 +191,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     const std::string cluster_type_specific_id =
         config.get_cluster_type_specific_id();
 
+    const std::string clusterset_id = config.get_clusterset_id();
+
     md_cache->cache_init(
         config.cluster_type, config.router_id, cluster_type_specific_id,
-        config.metadata_servers_addresses, {config.user, password}, ttl,
-        auth_cache_ttl, auth_cache_refresh_interval, make_ssl_options(section),
+        clusterset_id, config.metadata_servers_addresses,
+        {config.user, password}, ttl, auth_cache_ttl,
+        auth_cache_refresh_interval, make_ssl_options(section),
         mysqlrouter::TargetCluster{
             mysqlrouter::TargetCluster::TargetType::ByName,
             config.cluster_name},

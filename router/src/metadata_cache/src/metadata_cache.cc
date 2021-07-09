@@ -42,6 +42,7 @@ IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
     const unsigned router_id, const std::string &cluster_type_specific_id,
+    const std::string &clusterset_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
     const std::chrono::milliseconds auth_cache_ttl,
@@ -51,6 +52,7 @@ MetadataCache::MetadataCache(
     bool use_cluster_notifications)
     : target_cluster_(target_cluster),
       cluster_type_specific_id_(cluster_type_specific_id),
+      clusterset_id_(clusterset_id),
       ttl_(ttl),
       auth_cache_ttl_(auth_cache_ttl),
       auth_cache_refresh_interval_(auth_cache_refresh_interval),
@@ -90,11 +92,13 @@ void MetadataCache::refresh_thread() {
   bool auth_cache_force_update = true;
   while (!terminated_) {
     bool refresh_ok{false};
+    const bool needs_writable_node =
+        !version_updated_ || last_check_in_updated_ % 10 == 0;
     try {
       // Component tests are using this log message as a indicator of metadata
       // refresh start
       log_debug("Started refreshing the cluster metadata");
-      refresh_ok = refresh();
+      refresh_ok = refresh(needs_writable_node);
       // Component tests are using this log message as a indicator of metadata
       // refresh finish
       log_debug("Finished refreshing the cluster metadata");

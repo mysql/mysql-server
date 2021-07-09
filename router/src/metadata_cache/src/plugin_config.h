@@ -131,6 +131,8 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
    */
   std::string get_cluster_type_specific_id() const;
 
+  std::string get_clusterset_id() const;
+
   /** @brief Gets last know ReplicaSet cluster metadata view_id stored in the
    * dynamic state file . */
   unsigned get_view_id() const;

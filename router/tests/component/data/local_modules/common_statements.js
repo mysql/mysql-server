@@ -32,6 +32,46 @@ var defaults = {
   create_user_warning_count: 0,
   create_user_show_warnings_results: [],
 
+  clusterset_present: 0,
+  clusterset_target_cluster_id: 0,
+  // JSON object describing the clusterset
+  // this default is needed for tests that do not use ClusterSets because this
+  // data is used in "stmt"
+  clusterset_data: {
+    "clusterset_id": "clusterset-uuid",
+    "clusterset_name": "clusterset-name",
+    "this_cluster_id": 0,
+    "target_cluster_id": 0,
+    "primary_cluster_id": 0,
+    "clusters": [
+      {
+        "primary_node_id": 0,
+        "uuid": "cluster-id-1",
+        "name": "cluster-name-1",
+        "role": "PRIMARY",
+        "gr_uuid": "gr-id-1",
+        "nodes": [
+          {"host": "127.0.0.1", "classic_port": 11010, "http_port": 11011},
+          {"host": "127.0.0.1", "classic_port": 11012, "http_port": 11013}
+        ],
+        "primary_node_id": 0
+      },
+      {
+        "primary_node_id": 0,
+        "uuid": "cluster-id-2",
+        "name": "cluster-name-2",
+        "role": "SECONDARY",
+        "gr_uuid": "gr-id-2",
+        "nodes": [
+          {"host": "127.0.0.1", "classic_port": 11014, "http_port": 11015},
+          {"host": "127.0.0.1", "classic_port": 11016, "http_port": 11017}
+        ],
+        "primary_node_id": 0
+      }
+    ]
+  },
+  clusterset_simulate_cluster_not_found: 0,
+
   user_host_pattern: ".*",
   cluster_type: "gr",
   view_id: 1,
@@ -43,6 +83,9 @@ var defaults = {
   router_version: "",
   rest_user_credentials: [],
   version: "8.0.24",  // SELECT @@version;
+  router_expected_target_cluster: ".*",
+  rest_user_credentials: [],
+  router_options: "",
 };
 
 function ensure_type(options, field, expected_type) {
@@ -224,6 +267,34 @@ function get_response(stmt_key, options) {
         stmt:
             "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from mysql_innodb_cluster_metadata.v2_instances I join mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = C.cluster_id where C.cluster_name = '" +
             options.innodb_cluster_name + "'" +
+            (options.gr_id === undefined || options.gr_id === "" ?
+                 "" :
+                 (" AND C.group_name = '" + options.gr_id + "'")),
+        result: {
+          columns: [
+            {"name": "mysql_server_uuid", "type": "VAR_STRING"},
+            {"name": "I.addresses->>'$.mysqlClassic'", "type": "LONGBLOB"},
+            {"name": "I.addresses->>'$.mysqlX'", "type": "LONGBLOB"},
+            {"name": "I.attributes", "type": "VAR_STRING"}
+          ],
+          rows: options["group_replication_membership"].map(function(
+              currentValue) {
+            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
+            var attributes =
+                currentValue[5] === undefined ? "" : currentValue[5];
+            return [
+              currentValue[0], currentValue[1] + ":" + currentValue[2],
+              currentValue[1] + ":" + xport, attributes
+            ]
+          }),
+        }
+      };
+
+    case "router_select_metadata_v2_gr_by_cluster_id":
+      return {
+        stmt:
+            "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from mysql_innodb_cluster_metadata.v2_instances I join mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = C.cluster_id where C.cluster_id = '" +
+            options.cluster_id + "'" +
             (options.gr_id === undefined || options.gr_id === "" ?
                  "" :
                  (" AND C.group_name = '" + options.gr_id + "'")),
@@ -463,7 +534,10 @@ function get_response(stmt_key, options) {
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
             "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), version = '.*', cluster_id = '.*' " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
+            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.targetCluster', '" +
+            options.router_expected_target_cluster + "'\\), " +
+            "version = '.*', cluster_id = '.*' " +
             "WHERE router_id = .*",
         "ok": {}
       };
@@ -802,6 +876,402 @@ function get_response(stmt_key, options) {
           "rows": [[options["version"] + " " + options["version_comment"]]]
         }
       };
+    case "router_clusterset_cluster_info_by_name":
+      return {
+        stmt:
+            "select C.cluster_id, C.attributes->>'$.group_replication_group_name', CS.domain_name, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CS.clusterset_id = CSM.clusterset_id where C.cluster_name = '" +
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .name +
+            "'",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "C.cluster_id"},
+            {
+              "type": "STRING",
+              "name": "C.attributes->>'$.group_replication_group_name'"
+            },
+            {"type": "STRING", "name": "CS.domain_name"},
+            {"type": "STRING", "name": "CSM.member_role"},
+          ],
+          rows: [[
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .gr_uuid,
+            options.clusterset_data.clusterset_name,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .role
+          ]]
+        }
+      };
+    case "router_clusterset_cluster_info_by_name_unknown":
+      return {
+        stmt_regex:
+            "select C.cluster_id, C.attributes->>'\\$.group_replication_group_name', CS.domain_name, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CS.clusterset_id = CSM.clusterset_id where C.cluster_name = .*",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "C.cluster_id"},
+            {
+              "type": "STRING",
+              "name": "C.attributes->>'$.group_replication_group_name'"
+            },
+            {"type": "STRING", "name": "CS.domain_name"},
+            {"type": "STRING", "name": "CSM.member_role"},
+          ],
+          rows: []
+        }
+      };
+    case "router_clusterset_cluster_info_current_cluster":
+      return {
+        stmt:
+            "select C.cluster_id, C.attributes->>'$.group_replication_group_name', CS.domain_name, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CS.clusterset_id = CSM.clusterset_id where C.cluster_id = (select cluster_id from mysql_innodb_cluster_metadata.v2_this_instance)",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "C.cluster_id"},
+            {
+              "type": "STRING",
+              "name": "C.attributes->>'$.group_replication_group_name'"
+            },
+            {"type": "STRING", "name": "CS.domain_name"},
+            {"type": "STRING", "name": "CSM.member_role"},
+          ],
+          rows: options.clusterset_simulate_cluster_not_found ? [] : [[
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .gr_uuid,
+            options.clusterset_data.clusterset_name,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .role
+          ]]
+        }
+      };
+    case "router_clusterset_cluster_info_primary":
+      return {
+        stmt:
+            "select C.cluster_id, C.attributes->>'$.group_replication_group_name', CS.domain_name, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CS.clusterset_id = CSM.clusterset_id where CSM.member_role = 'PRIMARY'",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "C.cluster_id"},
+            {
+              "type": "STRING",
+              "name": "C.attributes->>'$.group_replication_group_name'"
+            },
+            {"type": "STRING", "name": "CS.domain_name"},
+            {"type": "STRING", "name": "CSM.member_role"},
+          ],
+          rows: options.clusterset_simulate_cluster_not_found ||
+                  (options.clusterset_data.primary_cluster_id >=
+                   options.clusterset_data.clusters.length) ?
+              [] :
+              [[
+                options.clusterset_data
+                    .clusters[options.clusterset_data.primary_cluster_id]
+                    .uuid,
+                options.clusterset_data
+                    .clusters[options.clusterset_data.primary_cluster_id]
+                    .gr_uuid,
+                options.clusterset_data.clusterset_name, "PRIMARY"
+              ]]
+        }
+      };
+    case "router_clusterset_all_nodes":
+      return {
+        stmt:
+            "select i.address from mysql_innodb_cluster_metadata.v2_instances i where i.cluster_id in " +
+            "(select cluster_id from mysql_innodb_cluster_metadata.v2_cs_members where clusterset_id = (" +
+            "select clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members where cluster_id = '" +
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid +
+            "'))",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "i.address"},
+          ],
+
+          rows: options.clusterset_data.clusters
+                    .reduce(
+                        function(nodes, cluster) {
+                          return nodes.concat(cluster.nodes);
+                        },
+                        [])
+                    .map(function(node) {
+                      return [node.host + ":" + node.classic_port]
+                    })
+        }
+      };
+    case "router_clusterset_all_nodes_by_clusterset_id":
+      return {
+        stmt:
+            "select I.address, I.mysql_server_uuid, C.group_name, CSM.member_role from mysql_innodb_cluster_metadata.v2_instances I " +
+            "join mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_members CSM " +
+            "on CSM.cluster_id = C.cluster_id left join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CSM.clusterset_id = CS.clusterset_id " +
+            "where CS.clusterset_id = '" +
+            options.clusterset_data.clusterset_id + "'",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "I.address"},
+            {"type": "STRING", "name": "I.mysql_server_uuid"},
+            {"type": "STRING", "name": "C.cluster_id"},
+            {"type": "STRING", "name": "CSM.member_role"},
+          ],
+
+          rows: options.clusterset_data.clusters
+                    .reduce(
+                        function(nodes, cluster) {
+                          var cluster_nodes = cluster.nodes;
+                          for (var i = 0; i < cluster_nodes.length; i++) {
+                            cluster_nodes[i].cluster_uuid = cluster.gr_uuid;
+                            cluster_nodes[i].cluster_role = cluster.role;
+                          }
+
+                          return nodes.concat(cluster_nodes);
+                        },
+                        [])
+                    .map(function(node) {
+                      return [
+                        node.host + ":" + node.classic_port, node.uuid,
+                        node.cluster_uuid, node.cluster_role
+                      ];
+                    })
+        }
+      };
+    case "router_clusterset_id":
+      return {
+        stmt_regex:
+            "select CSM.clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members CSM join mysql_innodb_cluster_metadata.v2_gr_clusters C on CSM.cluster_id = C.cluster_id where C.group_name = .*",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "CSM.clusterset_id"},
+          ],
+          rows: [[options.clusterset_data.clusterset_id]]
+        }
+      };
+    case "router_clusterset_id_current":
+      return {
+        stmt:
+            "select CSM.clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members CSM join mysql_innodb_cluster_metadata.v2_gr_clusters C on CSM.cluster_id = C.cluster_id where C.cluster_id = (select cluster_id from mysql_innodb_cluster_metadata.v2_this_instance)",
+        result: {
+          columns: [
+            {"type": "STRING", "name": "CSM.clusterset_id"},
+          ],
+          rows: [[options.clusterset_data.clusterset_id]]
+        }
+      };
+    case "router_clusterset_view_id":
+      return {
+        stmt:
+            "select view_id from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = '" +
+            options.clusterset_data.clusterset_id + "'",
+        result: {
+          columns: [
+            {"name": "view_id", "type": "LONG"},
+          ],
+          rows: [[options.view_id]]
+        }
+      };
+    case "router_unknown_clusterset_view_id":
+      return {
+        stmt_regex:
+            "select view_id from mysql_innodb_cluster_metadata.v2_cs_clustersets where clusterset_id = .*",
+        result: {
+          columns: [
+            {"name": "view_id", "type": "LONG"},
+          ],
+          rows: []
+        }
+      };
+    case "router_clusterset_present":
+      return {
+        stmt:
+            "select count(clusterset_id) from mysql_innodb_cluster_metadata.v2_this_instance i join mysql_innodb_cluster_metadata.v2_cs_members " +
+            "csm on i.cluster_id = csm.cluster_id where clusterset_id is not null",
+        result: {
+          columns: [
+            {"type": "LONGLONG", "name": "count(clusterset_id)"},
+          ],
+          rows: [[options.clusterset_present]]
+        }
+      };
+    case "router_router_options":
+      return {
+        stmt:
+            "SELECT IF(r.options IS NULL, IF(c.router_options IS NULL, cs.router_options, c.router_options), r.options) as options FROM mysql_innodb_cluster_metadata.v2_routers r JOIN mysql_innodb_cluster_metadata.clusters c ON c.cluster_id = r.cluster_id JOIN mysql_innodb_cluster_metadata.clustersets cs ON cs.clusterset_id = c.clusterset_id where r.router_id = " +
+            options.router_id,
+        result: {
+          columns: [{"name": "options", "type": "VAR_STRING"}],
+          rows: [[options.router_options]]
+        }
+      };
+    case "router_clusterset_select_cluster_instances":
+      return {
+        stmt:
+            "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes from mysql_innodb_cluster_metadata.v2_instances I join mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = C.cluster_id where C.cluster_id = '" +
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid +
+            "'",
+        result: {
+          columns: [
+            {"name": "I.mysql_server_uuid", "type": "VAR_STRING"},
+            {"name": "I.endpoint", "type": "LONGBLOB"},
+            {"name": "I.xendpoint", "type": "LONGBLOB"},
+            {"name": "I.attributes", "type": "LONGBLOB"},
+          ],
+          // TODO: xport is hadcoded 0 now
+          // TODO: attributes is hardcoded empty string now
+          rows: options.clusterset_data
+                    .clusters[options.clusterset_target_cluster_id]
+                    .nodes.map(function(node) {
+                      return [
+                        node.uuid, node.host + ":" + node.classic_port,
+                        node.host + ":" + 0, ""
+                      ]
+                    })
+        }
+      };
+    case "router_clusterset_select_cluster_info_by_primary_role":
+      return {
+        stmt:
+            "select C.cluster_id, C.cluster_name, CSM.invalidated, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join " +
+            "mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id left join " +
+            "mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CSM.clusterset_id = CS.clusterset_id where " +
+            "CSM.member_role = 'PRIMARY' and CS.clusterset_id = '" +
+            options.clusterset_data.clusterset_id + "'",
+        result: {
+          columns: [
+            {"name": "C.cluster_id", "type": "VAR_STRING"},
+            {"name": "C.cluster_name", "type": "VAR_STRING"},
+            {"name": "CSM.invalidated", "type": "LONGLONG"},
+            {"name": "CSM.member_role", "type": "STRING"},
+          ],
+          rows: options.clusterset_simulate_cluster_not_found ? [] : [[
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .name,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .invalid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .role
+          ]],
+        }
+      };
+    case "router_clusterset_select_cluster_info_by_gr_uuid":
+      return {
+        stmt:
+            "select C.cluster_id, C.cluster_name, CSM.invalidated, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join " +
+            "mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id left join " +
+            "mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CSM.clusterset_id = CS.clusterset_id where " +
+            "C.attributes->>'$.group_replication_group_name' = '" +
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .gr_uuid +
+            "' and CS.clusterset_id = '" +
+            options.clusterset_data.clusterset_id + "'",
+        result: {
+          columns: [
+            {"name": "C.cluster_id", "type": "VAR_STRING"},
+            {"name": "C.cluster_name", "type": "VAR_STRING"},
+            {"name": "CSM.invalidated", "type": "LONGLONG"},
+            {"name": "CSM.member_role", "type": "STRING"},
+          ],
+          rows: options.clusterset_simulate_cluster_not_found ? [] : [[
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .uuid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .name,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .invalid,
+            options.clusterset_data
+                .clusters[options.clusterset_target_cluster_id]
+                .role
+          ]]
+        }
+      };
+    case "router_clusterset_select_cluster_info_by_gr_uuid_unknown":
+      return {
+        stmt_regex:
+            "select C.cluster_id, C.cluster_name, CSM.invalidated, CSM.member_role from mysql_innodb_cluster_metadata.v2_gr_clusters C join mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = C.cluster_id left join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on CSM.clusterset_id = CS.clusterset_id where C.attributes->>'\\$.group_replication_group_name' = .*" +
+            " and CS.clusterset_id = '" +
+            options.clusterset_data.clusterset_id + "'",
+        result: {
+          columns: [
+            {"name": "C.cluster_id", "type": "VAR_STRING"},
+            {"name": "C.cluster_name", "type": "VAR_STRING"},
+            {"name": "CSM.invalidated", "type": "LONGLONG"},
+            {"name": "CSM.member_role", "type": "STRING"},
+          ],
+          rows: []
+        }
+      };
+    case "router_clusterset_select_gr_primary_member":
+      return {
+        stmt: "show status like 'group_replication_primary_member'",
+        result: {
+          columns: [
+            {"name": "Variable_name", "type": "VAR_STRING"},
+            {"name": "Value", "type": "VAR_STRING"}
+          ],
+          rows:
+              [options.clusterset_data
+                       .clusters[options.clusterset_data.this_cluster_id]
+                       .nodes[options.clusterset_data
+                                  .clusters[options.clusterset_data
+                                                .this_cluster_id]
+                                  .primary_node_id] ?
+                   [
+                     "group_replication_primary_member",
+                     options.clusterset_data
+                         .clusters[options.clusterset_data.this_cluster_id]
+                         .nodes[options.clusterset_data
+                                    .clusters[options.clusterset_data
+                                                  .this_cluster_id]
+                                    .primary_node_id]
+                         .uuid
+                   ] :
+                   []]
+        }
+      };
+    case "router_clusterset_select_gr_members_status":
+      return {
+        stmt:
+            "SELECT member_id, member_host, member_port, member_state, @@group_replication_single_primary_mode FROM performance_schema.replication_group_members WHERE channel_name = 'group_replication_applier'",
+            result: {
+              columns:
+                  [
+                    {"name": "member_id", "type": "STRING"},
+                    {"name": "member_host", "type": "STRING"},
+                    {"name": "member_port", "type": "LONG"},
+                    {"name": "member_state", "type": "STRING"}, {
+                      "name": "@@group_replication_single_primary_mode",
+                      "type": "LONGLONG"
+                    }
+                  ],
+              rows: options.clusterset_data
+                      .clusters[options.clusterset_data.this_cluster_id]
+                      .nodes.map(function(node) {
+                        return [
+                          node.uuid, node.host, node.classic_port, "ONLINE", 1
+                        ];
+                      }),
+            }
+      }
   };
 };
 

@@ -2030,8 +2030,9 @@ TEST_F(MetadataTest, FetchInstances_ok) {
     std::atomic<bool> terminated{false};
     auto target_cluster = mysqlrouter::TargetCluster(
         mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
-    const auto res = metadata.fetch_cluster_topology(
-        terminated, target_cluster, 0, metadata_servers, "gr-id", instance_id);
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "gr-id", "", instance_id);
 
     EXPECT_TRUE(res);
     EXPECT_EQ(0u, instance_id);
@@ -2103,8 +2104,9 @@ TEST_F(MetadataTest, FetchInstances_fail) {
     std::atomic<bool> terminated{false};
     auto target_cluster = mysqlrouter::TargetCluster(
         mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
-    const auto res = metadata.fetch_cluster_topology(
-        terminated, target_cluster, 0, metadata_servers, "gr-id", instance_id);
+    const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
+                                                     0, metadata_servers, true,
+                                                     "gr-id", "", instance_id);
 
     EXPECT_TRUE(res);
     EXPECT_EQ(0u, instance_id);

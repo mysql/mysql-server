@@ -112,6 +112,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void cache_init(
       const mysqlrouter::ClusterType /*cluster_type*/, unsigned /*router_id*/,
       const std::string & /*group_replication_id*/,
+      const std::string & /*clusterset_id*/,
       const std::vector<mysql_harness::TCPAddress> & /*metadata_servers*/,
       const mysqlrouter::UserCredentials & /*user_credentials*/,
       std::chrono::milliseconds /*ttl*/,

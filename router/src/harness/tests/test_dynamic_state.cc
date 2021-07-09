@@ -51,7 +51,7 @@ namespace {
 
 std::string conf_to_str(DynamicState &conf, bool pretty = false) {
   std::stringstream ss;
-  conf.save_to_stream(ss, pretty);
+  conf.save_to_stream(ss, false, pretty);
   return ss.str();
 }
 

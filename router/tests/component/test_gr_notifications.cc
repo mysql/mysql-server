@@ -258,7 +258,7 @@ class GrNotificationsTest : public RouterComponentTest {
                                 const std::string &group_id,
                                 const std::vector<uint16_t> node_ports) {
     return RouterComponentTest::create_state_file(
-        dir, create_state_file_content(group_id, node_ports));
+        dir, create_state_file_content(group_id, "", node_ports));
   }
 
   int get_current_queries_count(const uint16_t http_port) {
@@ -385,8 +385,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports);
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, cluster_nodes_ports);
 
   SCOPED_TRACE(
       "// Create a configuration file sections with high ttl so that "
@@ -647,8 +647,8 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports);
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, cluster_nodes_ports);
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -729,8 +729,8 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
       true);
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), kGroupId, {cluster_classic_port});
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, {cluster_classic_port});
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -790,8 +790,8 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
                     {cluster_x_port}, true);
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), kGroupId, {cluster_classic_port});
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, {cluster_classic_port});
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -867,8 +867,8 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), kGroupId, cluster_nodes_ports);
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), kGroupId, cluster_nodes_ports);
 
   SCOPED_TRACE("// Create a configuration file sections with high ttl");
   const std::string metadata_cache_section =
@@ -1025,8 +1025,8 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   }
 
   SCOPED_TRACE("// Create a router state file");
-  const std::string state_file =
-      create_state_file(temp_test_dir.name(), "00-000", nodes_ports);
+  const std::string state_file = GrNotificationsTest::create_state_file(
+      temp_test_dir.name(), "00-000", nodes_ports);
 
   SCOPED_TRACE(
       "// Create a configuration file sections with high ttl so that "

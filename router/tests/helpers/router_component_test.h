@@ -99,8 +99,29 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     }
   }
 
-  void verify_existing_connection_dropped(MySQLSession *session) {
-    ASSERT_ANY_THROW(session->query_one("select @@port"));
+  void verify_existing_connection_dropped(
+      MySQLSession *session,
+      std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
+    if (getenv("WITH_VALGRIND")) {
+      timeout *= 10;
+    }
+
+    const auto MSEC_STEP = std::chrono::milliseconds(50);
+    const auto started = std::chrono::steady_clock::now();
+    do {
+      try {
+        session->query_one("select @@port");
+      } catch (mysqlrouter::MySQLSession::Error &) {
+        // query failed, connection dropped, all good
+        return;
+      }
+
+      auto step = std::min(timeout, MSEC_STEP);
+      RouterComponentTest::sleep_for(step);
+      timeout -= step;
+    } while (timeout > std::chrono::steady_clock::now() - started);
+
+    FAIL() << "Timed out waiting for the connection to drop";
   }
 
  protected:
@@ -112,7 +133,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
  * Base class for the MySQLRouter component-like bootstrap tests.
  *
  **/
-class RouterComponentBootstrapTest : public RouterComponentTest {
+class RouterComponentBootstrapTest : virtual public RouterComponentTest {
  public:
   static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
 

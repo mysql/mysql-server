@@ -25,6 +25,7 @@
 #include "cluster_metadata.h"
 
 #include "common.h"
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/utils.h"
@@ -39,6 +40,7 @@ IMPORT_LOG_FUNCTIONS()
 #endif
 
 using namespace std::string_literals;
+using mysql_harness::get_from_map;
 
 namespace mysqlrouter {
 
@@ -173,9 +175,10 @@ static void update_router_info_v1(const uint32_t router_id,
 
 static void update_router_info_v2(
     const uint32_t router_id, const std::string &cluster_id,
-    const std::string &rw_endpoint, const std::string &ro_endpoint,
-    const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
-    const std::string &username, MySQLSession *mysql) {
+    const std::string &target_cluster, const std::string &rw_endpoint,
+    const std::string &ro_endpoint, const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint, const std::string &username,
+    MySQLSession *mysql) {
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.v2_routers"
       " SET attributes = "
@@ -186,47 +189,47 @@ static void update_router_info_v2(
       "    '$.RWXEndpoint', ?),"
       "    '$.ROXEndpoint', ?),"
       "    '$.MetadataUser', ?),"
+      " options = "
+      "   JSON_SET(IF(options IS NULL, "
+      "'{}', options),"
+      "    '$.targetCluster', ?),"
       " version = ?, cluster_id = ?"
       " WHERE router_id = ?");
 
   query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
-  query << username;
+  query << username << target_cluster;
   query << MYSQL_ROUTER_VERSION << cluster_id << router_id << sqlstring::end;
 
   mysql->execute(query);
 }
 
-void ClusterMetadataGRV1::update_router_info(const uint32_t router_id,
-                                             const std::string & /*cluster_id*/,
-                                             const std::string &rw_endpoint,
-                                             const std::string &ro_endpoint,
-                                             const std::string &rw_x_endpoint,
-                                             const std::string &ro_x_endpoint,
-                                             const std::string &username) {
+void ClusterMetadataGRV1::update_router_info(
+    const uint32_t router_id, const std::string & /*cluster_id*/,
+    const std::string & /*target_cluster*/, const std::string &rw_endpoint,
+    const std::string &ro_endpoint, const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint, const std::string &username) {
   update_router_info_v1(router_id, rw_endpoint, ro_endpoint, rw_x_endpoint,
                         ro_x_endpoint, username, mysql_);
 }
 
-void ClusterMetadataGRV2::update_router_info(const uint32_t router_id,
-                                             const std::string &cluster_id,
-                                             const std::string &rw_endpoint,
-                                             const std::string &ro_endpoint,
-                                             const std::string &rw_x_endpoint,
-                                             const std::string &ro_x_endpoint,
-                                             const std::string &username) {
-  update_router_info_v2(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                        rw_x_endpoint, ro_x_endpoint, username, mysql_);
+void ClusterMetadataGRV2::update_router_info(
+    const uint32_t router_id, const std::string &cluster_id,
+    const std::string &target_cluster, const std::string &rw_endpoint,
+    const std::string &ro_endpoint, const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint, const std::string &username) {
+  update_router_info_v2(router_id, cluster_id, target_cluster, rw_endpoint,
+                        ro_endpoint, rw_x_endpoint, ro_x_endpoint, username,
+                        mysql_);
 }
 
-void ClusterMetadataAR::update_router_info(const uint32_t router_id,
-                                           const std::string &cluster_id,
-                                           const std::string &rw_endpoint,
-                                           const std::string &ro_endpoint,
-                                           const std::string &rw_x_endpoint,
-                                           const std::string &ro_x_endpoint,
-                                           const std::string &username) {
-  update_router_info_v2(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                        rw_x_endpoint, ro_x_endpoint, username, mysql_);
+void ClusterMetadataAR::update_router_info(
+    const uint32_t router_id, const std::string &cluster_id,
+    const std::string &target_cluster, const std::string &rw_endpoint,
+    const std::string &ro_endpoint, const std::string &rw_x_endpoint,
+    const std::string &ro_x_endpoint, const std::string &username) {
+  update_router_info_v2(router_id, cluster_id, target_cluster, rw_endpoint,
+                        ro_endpoint, rw_x_endpoint, ro_x_endpoint, username,
+                        mysql_);
 }
 
 static uint32_t register_router_v1(
@@ -498,9 +501,11 @@ void ClusterMetadata::require_metadata_is_ok() {
         "mysql-innodb-cluster-creating.html about how to create a cluster.");
   } else if (cluster_count != 1) {
     throw std::runtime_error(
-        "Expected the metadata server to contain configuration for one "
-        "cluster, found " +
-        std::to_string(cluster_count));
+        "The metadata server contains configuration for more than 1 Cluster: " +
+        std::to_string(cluster_count) +
+        ". If it was a part of a ClusterSet previously, the metadata should be "
+        "recreated using dba.dropMetadataSchema() and dba.createCluster() with "
+        "adoptFromGR parameter set to true.");
   }
 }
 
@@ -699,6 +704,160 @@ ClusterInfo ClusterMetadataGRV2::fetch_metadata_servers() {
   return query_metadata_servers(mysql_, /*metadata_v2=*/true);
 }
 
+ClusterMetadataGRInClusterSet::ClusterMetadataGRInClusterSet(
+    const MetadataSchemaVersion &schema_version, MySQLSession *mysql,
+    const OptionsMap &options, mysql_harness::SocketOperationsBase *sockops)
+    : ClusterMetadataGRV2(schema_version, mysql, sockops) {
+  const std::string target_cluster_by_name =
+      get_from_map(options, "target-cluster-by-name"s, ""s);
+  if (!target_cluster_by_name.empty()) {
+    target_cluster_type_ = TargetClusterType::targetClusterByName;
+    target_cluster_name_ = target_cluster_by_name;
+    return;
+  }
+
+  const std::string target_cluster =
+      get_from_map(options, "target-cluster"s, "current"s);
+  if (target_cluster == "current")
+    target_cluster_type_ = TargetClusterType::targetClusterCurrent;
+  else {
+    harness_assert(target_cluster == "primary");
+    target_cluster_type_ = TargetClusterType::targetClusterPrimary;
+  }
+}
+
+ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
+  ClusterInfo result;
+  std::string query =
+      "select C.cluster_id, C.attributes->>'$.group_replication_group_name', "
+      "CS.domain_name, CSM.member_role from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters C join "
+      "mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = "
+      "C.cluster_id join mysql_innodb_cluster_metadata.v2_cs_clustersets CS on "
+      "CS.clusterset_id = CSM.clusterset_id";
+
+  switch (target_cluster_type_) {
+    case TargetClusterType::targetClusterByName:
+      query += " where C.cluster_name = " + mysql_->quote(target_cluster_name_);
+      break;
+    case TargetClusterType::targetClusterCurrent:
+      query = query +=
+          " where C.cluster_id = (select cluster_id from "
+          "mysql_innodb_cluster_metadata.v2_this_instance)";
+      break;
+    case TargetClusterType::targetClusterPrimary:
+      query += " where CSM.member_role = 'PRIMARY'";
+  }
+
+  std::unique_ptr<MySQLSession::ResultRow> result_cluster_info(
+      mysql_->query_one(query));
+
+  if (!result_cluster_info) {
+    switch (target_cluster_type_) {
+      case TargetClusterType::targetClusterByName:
+        throw std::runtime_error(
+            "Could not find Cluster with selected name: '" +
+            target_cluster_name_ + "'");
+      case TargetClusterType::targetClusterCurrent:
+        throw std::runtime_error(
+            "The node used for bootstrap does not appear to be part of the "
+            "InnoDB Cluster'");
+      case TargetClusterType::targetClusterPrimary:
+        throw std::runtime_error(
+            "Could not reach Primary Cluster for the ClusterSet");
+    }
+  }
+  if (result_cluster_info->size() != 4) {
+    throw std::out_of_range(
+        "Invalid number of values returned from query for cluster info: "
+        "expected 4 got " +
+        std::to_string(result_cluster_info->size()));
+  }
+  result.cluster_id = get_string((*result_cluster_info)[0]);
+  result.cluster_type_specific_id = get_string((*result_cluster_info)[1]);
+  result.name = get_string((*result_cluster_info)[2]);
+  result.is_primary = get_string((*result_cluster_info)[3]) == "PRIMARY";
+
+  // get all the nodes of all the Clusters that belong to the ClusterSet
+  sqlstring query2 =
+      "select i.address from mysql_innodb_cluster_metadata.v2_instances i "
+      "where i.cluster_id in (select cluster_id from "
+      "mysql_innodb_cluster_metadata.v2_cs_members where clusterset_id = "
+      "(select clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members "
+      "where cluster_id = ?))";
+
+  query2 << result.cluster_id;
+
+  try {
+    mysql_->query(
+        query2, [&result](const std::vector<const char *> &row) -> bool {
+          result.metadata_servers.push_back("mysql://" + get_string(row[0]));
+          return true;
+        });
+  } catch (const MySQLSession::Error &e) {
+    throw std::runtime_error(std::string("Error querying metadata: ") +
+                             e.what());
+  }
+
+  return result;
+}
+
+std::vector<std::tuple<std::string, unsigned long>>
+ClusterMetadataGRInClusterSet::fetch_cluster_hosts() {
+  std::vector<std::tuple<std::string, unsigned long>> result;
+
+  const auto clusterset_servers = fetch_metadata_servers();
+  for (const auto &server : clusterset_servers.metadata_servers) {
+    mysqlrouter::URI uri(server);
+    result.push_back(std::make_tuple(uri.host, uri.port));
+  }
+
+  return result;
+}
+
+std::string ClusterMetadataGRInClusterSet::get_cluster_type_specific_id() {
+  const std::string q =
+      "select CSM.clusterset_id from "
+      "mysql_innodb_cluster_metadata.v2_cs_members CSM "
+      "join mysql_innodb_cluster_metadata.v2_gr_clusters C on CSM.cluster_id = "
+      "C.cluster_id where C.cluster_id = (select cluster_id from "
+      "mysql_innodb_cluster_metadata.v2_this_instance)";
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one(q));
+  if (result) {
+    if (result->size() != 1) {
+      throw std::out_of_range(
+          "Invalid number of values returned from clusterset_id query expected "
+          "1 got " +
+          std::to_string(result->size()));
+    }
+    return std::string((*result)[0]);
+  }
+
+  throw std::logic_error("No result returned for metadata query");
+}
+
+unsigned ClusterMetadataGRInClusterSet::get_view_id(
+    const std::string &clusterset_id) {
+  std::string q =
+      "select view_id from mysql_innodb_cluster_metadata.v2_cs_clustersets "
+      "where clusterset_id = " +
+      mysql_->quote(clusterset_id);
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one(q));
+  if (result) {
+    if (result->size() != 1) {
+      throw std::out_of_range(
+          "Invalid number of values returned from view_id query expected 1 "
+          "got " +
+          std::to_string(result->size()));
+    }
+    return strtoui_checked((*result)[0]);
+  }
+
+  throw std::logic_error("No result returned for metadata query");
+}
+
 static std::vector<std::string> do_get_routing_mode_queries(
     MySQLSession *mysql, const bool metadata_v2,
     const std::string &cluster_name) {
@@ -862,18 +1021,49 @@ static ClusterType get_cluster_type(MySQLSession *mysql) {
       "No result returned for v2_this_instance metadata query");
 }
 
+static bool is_part_of_cluster_set(MySQLSession *mysql) {
+  std::string q =
+      "select count(clusterset_id) from "
+      "mysql_innodb_cluster_metadata.v2_this_instance i join "
+      "mysql_innodb_cluster_metadata.v2_cs_members "
+      "csm on i.cluster_id = csm.cluster_id where clusterset_id is not null";
+
+  std::unique_ptr<MySQLSession::ResultRow> result(mysql->query_one(q));
+  if (result) {
+    if (result->size() != 1) {
+      throw std::out_of_range(
+          "Invalid number of values returned from "
+          "is_part_of_cluster_set query expected 1 got " +
+          std::to_string(result->size()));
+    }
+
+    return strtoui_checked((*result)[0]) > 0;
+  }
+
+  throw std::runtime_error(
+      "No result returned for is_part_of_cluster_set metadata query");
+}
+
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
                              MySQLSession *mysql) {
   if (schema_version < kNewMetadataVersion) {
     return ClusterType::GR_V1;
   } else {
-    return get_cluster_type(mysql);
+    const auto type = get_cluster_type(mysql);
+
+    if (schema_version >= kClusterSetsMetadataVersion &&
+        type == ClusterType::GR_V2) {
+      return (is_part_of_cluster_set(mysql)) ? ClusterType::GR_CS
+                                             : ClusterType::GR_V2;
+    }
+
+    return type;
   }
 }
 
 std::unique_ptr<ClusterMetadata> create_metadata(
     const MetadataSchemaVersion &schema_version, MySQLSession *mysql,
-    mysql_harness::SocketOperationsBase *sockops) {
+    const OptionsMap &options, mysql_harness::SocketOperationsBase *sockops) {
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
                                              schema_version) &&
       !metadata_schema_version_is_compatible(
@@ -893,14 +1083,19 @@ std::unique_ptr<ClusterMetadata> create_metadata(
     case ClusterType::GR_V2:
       result.reset(new ClusterMetadataGRV2(schema_version, mysql, sockops));
       break;
-    default:
+    case ClusterType::RS_V2:
       result.reset(new ClusterMetadataAR(schema_version, mysql, sockops));
+      break;
+    case ClusterType::GR_CS:
+      result.reset(new ClusterMetadataGRInClusterSet(schema_version, mysql,
+                                                     options, sockops));
   }
 
   return result;
 }
 
-unsigned ClusterMetadataAR::get_view_id() {
+unsigned ClusterMetadataAR::get_view_id(
+    const std::string & /*cluster_type_specific_id*/) {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "
       "CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)";
@@ -919,10 +1114,11 @@ unsigned ClusterMetadataAR::get_view_id() {
 }
 
 std::string to_string(const ClusterType cluster_type) {
-  if (cluster_type == ClusterType::RS_V2) {
-    return "rs";
-  } else {
-    return "gr";
+  switch (cluster_type) {
+    case ClusterType::RS_V2:
+      return "rs";
+    default:
+      return "gr";
   }
 }
 

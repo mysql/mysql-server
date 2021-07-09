@@ -1,24 +1,20 @@
 var common_stmts = require("common_statements");
 
-if (mysqld.global.innodb_cluster_instances === undefined) {
-  mysqld.global.innodb_cluster_instances =
-      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]];
-}
-
-if (mysqld.global.cluster_name == undefined) {
-  mysqld.global.cluster_name = "mycluster";
-}
-
-if (mysqld.global.metadata_version === undefined) {
-  mysqld.global.metadata_version = [2, 0, 3];
-}
-
 var options = {
-  metadata_schema_version: mysqld.global.metadata_version,
   cluster_type: "gr",
-  clusterset_present: 0,
-  innodb_cluster_name: mysqld.global.cluster_name,
-  innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
+
+  metadata_schema_version: [2, 1, 0],
+  clusterset_present: 1,
+  clusterset_target_cluster_id: mysqld.global.target_cluster_id,
+  clusterset_data: mysqld.global.clusterset_data,
+  clusterset_data: mysqld.global.clusterset_data,
+  clusterset_simulate_cluster_not_found:
+      mysqld.global.simulate_cluster_not_found,
+  router_expected_target_cluster: mysqld.global.router_expected_target_cluster,
+  group_replication_name:
+      mysqld.global.clusterset_data
+          .clusters[mysqld.global.clusterset_data.this_cluster_id]
+          .gr_uuid,
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
@@ -37,15 +33,18 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
 
       // account verification
-      "router_select_metadata_v2_gr",
-      "router_select_group_replication_primary_member",
-      "router_select_group_membership_with_primary_mode",
-    ],
-    options);
+      //"router_select_metadata_v2_gr",
+      //"router_select_group_replication_primary_member",
+      //"router_select_group_membership_with_primary_mode",
 
-var common_responses_v2_1 = common_stmts.prepare_statement_responses(
-    [
+      // clusterset specific
+      "router_clusterset_cluster_info_by_name",
+      "router_clusterset_cluster_info_current_cluster",
+      "router_clusterset_cluster_info_primary",
+      "router_clusterset_all_nodes",
       "router_clusterset_present",
+      "router_clusterset_id_current",
+      "router_clusterset_view_id",
     ],
     options);
 
@@ -58,6 +57,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
       "router_update_routers_in_metadata",
+      "router_clusterset_cluster_info_by_name_unknown",
     ],
     options);
 
@@ -72,13 +72,6 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     var res;
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
-    }
-    // metadata ver 2.1+
-    else if (
-        (mysqld.global.metadata_version[0] >= 2 &&
-         mysqld.global.metadata_version[1] >= 1) &&
-        common_responses_v2_1.hasOwnProperty(stmt)) {
-      return common_responses_v2_1[stmt];
     } else if (
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {

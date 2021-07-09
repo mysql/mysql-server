@@ -464,7 +464,7 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-bool GRMetadataCache::refresh() {
+bool GRMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
   unsigned view_id{0};
   size_t metadata_server_id{0};
@@ -473,7 +473,8 @@ bool GRMetadataCache::refresh() {
   // Fetch the metadata and store it in a temporary variable.
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
-      cluster_type_specific_id_, instance_id);
+      needs_writable_node, cluster_type_specific_id_, clusterset_id_,
+      instance_id);
 
   if (!res) {
     const bool md_servers_reachable =
@@ -495,6 +496,9 @@ bool GRMetadataCache::refresh() {
     if (cluster_data_ != cluster_topology.cluster_data) {
       cluster_data_ = cluster_topology.cluster_data;
       changed = true;
+    } else {
+      cluster_data_.writable_server =
+          cluster_topology.cluster_data.writable_server;
     }
   }
 
@@ -502,6 +506,7 @@ bool GRMetadataCache::refresh() {
   // changed but also when something external (like unsuccessful client
   // connection) triggered the refresh so that we verified if this wasn't
   // false alarm and turn it off if it was
+  view_id = cluster_data_.view_id;
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
@@ -510,10 +515,11 @@ bool GRMetadataCache::refresh() {
     if (cluster_data_.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
-      log_info("Metadata for cluster '%s' has %zu member(s), %s",
+      log_info("Metadata for cluster '%s' has %zu member(s), %s: (view_id=%u)",
                target_cluster_.c_str(), cluster_data_.members.size(),
                cluster_data_.single_primary_mode ? "single-primary"
-                                                 : "multi-primary");
+                                                 : "multi-primary",
+               view_id);
       for (const auto &mi : cluster_data_.members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),

@@ -28,14 +28,14 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-bool ARMetadataCache::refresh() {
+bool ARMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
   unsigned view_id{0};
 
   size_t metadata_server_id;
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
-      cluster_type_specific_id_, metadata_server_id);
+      needs_writable_node, cluster_type_specific_id_, "", metadata_server_id);
 
   if (!res) {
     const bool md_servers_reachable =
@@ -57,6 +57,9 @@ bool ARMetadataCache::refresh() {
     if (cluster_data_ != cluster_topology.cluster_data) {
       cluster_data_ = cluster_topology.cluster_data;
       changed = true;
+    } else {
+      cluster_data_.writable_server =
+          cluster_topology.cluster_data.writable_server;
     }
   }
 

@@ -51,14 +51,28 @@ using JsonSchemaValidator =
     rapidjson::GenericSchemaValidator<JsonSchemaDocument>;
 
 constexpr const char *kVersionFieldName = "version";
-constexpr unsigned kVersionMajor = 1;
-constexpr unsigned kVersionMinor = 0;
-constexpr unsigned kVersionPatch = 0;
 
-std::string to_string(unsigned major, unsigned minor, unsigned patch) {
-  return std::to_string(major) + "." + std::to_string(minor) + "." +
-         std::to_string(patch);
-}
+struct SchemaVersion {
+  unsigned major;
+  unsigned minor;
+  unsigned patch;
+
+  std::string str() const {
+    return std::to_string(major) + "." + std::to_string(minor) + "." +
+           std::to_string(patch);
+  }
+
+  // the major should match exactly the expected value
+  // the minor has to be more or equal than expected
+  // different patch version is ok
+  bool is_compatible(const SchemaVersion &file_version) const {
+    return file_version.major == major && file_version.minor <= minor;
+  }
+};
+
+const SchemaVersion kVersionCluster{1, 0, 0};
+const SchemaVersion kVersionClusterSet{1, 1, 0};
+const SchemaVersion kCurrentVersion = kVersionClusterSet;
 
 }  // namespace
 
@@ -183,22 +197,24 @@ void DynamicState::ensure_version_compatibility() {
   }
 
   // the format od the string should be MAJOR.MINOR.PATCH
-  std::string version = version_field.GetString();
-  unsigned major{0}, minor{0}, patch{0};
-  int res = sscanf(version.c_str(), "%u.%u.%u", &major, &minor, &patch);
+  std::string version_str = version_field.GetString();
+  SchemaVersion version;
+  int res = sscanf(version_str.c_str(), "%u.%u.%u", &version.major,
+                   &version.minor, &version.patch);
   if (res != 3) {
     throw std::runtime_error(
         std::string("Invalid version field format, expected MAJOR.MINOR.PATCH, "
                     "found: ") +
-        version);
+        version_str);
   }
 
-  // the major and minor should match match exactly, different patch is fine
-  if (major != kVersionMajor || minor != kVersionMinor) {
+  // the major should match match exactly the expected value
+  // the minor has to be more or equal than expected
+  // different patch is fine
+  if (!kCurrentVersion.is_compatible(version)) {
     throw std::runtime_error(
         std::string("Unsupported state file version, expected: ") +
-        to_string(kVersionMajor, kVersionMinor, kVersionPatch) +
-        ", found: " + to_string(major, minor, patch));
+        kCurrentVersion.str() + ", found: " + version.str());
   }
 
   // all good, version matches, go back to the caller with no exception
@@ -224,21 +240,24 @@ bool DynamicState::load_from_stream(std::istream &input_stream) {
   return true;
 }
 
-bool DynamicState::save(bool pretty) {
+bool DynamicState::save(bool is_clusterset, bool pretty) {
   std::unique_lock<std::mutex> lock(pimpl_->json_file_lock_);
 
   auto output_file = open_for_write();
 
-  return save_to_stream(output_file, pretty);
+  return save_to_stream(output_file, is_clusterset, pretty);
 }
 
-bool DynamicState::save_to_stream(std::ostream &output_stream, bool pretty) {
+bool DynamicState::save_to_stream(std::ostream &output_stream,
+                                  bool is_clusterset, bool pretty) {
   JsonStringBuffer out_buffer;
 
   // save/update the version
-  std::string ver_str = to_string(kVersionMajor, kVersionMinor, kVersionPatch);
+  const std::string ver_str =
+      is_clusterset ? kVersionClusterSet.str() : kVersionCluster.str();
   JsonValue version(rapidjson::kStringType);
   version.SetString(ver_str.c_str(), ver_str.length());
+
   update_section(kVersionFieldName, std::move(version));
 
   std::unique_lock<std::mutex> lock(pimpl_->json_state_doc_lock_);

@@ -59,7 +59,7 @@ var router_drop_users = common_stmts.get("router_drop_users", options);
         }
       }
     } else {
-      return common_stmts.unknown_statement_response("TODO0000:" + stmt);
+      return common_stmts.unknown_statement_response(stmt);
     }
   }
 })

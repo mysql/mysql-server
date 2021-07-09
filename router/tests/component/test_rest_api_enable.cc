@@ -979,7 +979,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   setup_mocks(successful_failover);
   auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
   EXPECT_THAT(router_bootstrap.get_full_output(),
-              ::testing::HasSubstr("trying to connect to another node"));
+              ::testing::HasSubstr("trying to connect to"));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -1015,7 +1015,7 @@ TEST_F(TestRestApiEnableBootstrapFailover,
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
-              ::testing::HasSubstr("trying to connect to another node"));
+              ::testing::HasSubstr("trying to connect to"));
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr("Account verification failed"));
 

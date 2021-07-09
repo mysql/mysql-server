@@ -74,7 +74,12 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    * @param router_id id of the router in the cluster metadata
    * @param metadata_servers  set of the metadata servers to use to fetch the
    * metadata
-   * @param group_name Cluster Replication Group name
+   * @param needs_writable_node flag indicating if the caller needs us to query
+   * for writable node
+   * @param group_name Cluster Replication Group name (if bootstrapped as a
+   * single Cluster)
+   * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+   * bootstrapped as a ClusterSet)
    * @param [out] instance_id of the server the metadata was fetched from
    * @return object containing cluster topology information in case of success,
    * or error code in case of failure
@@ -85,7 +90,8 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
       const std::atomic<bool> &terminated,
       mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const std::string &group_name, std::size_t &instance_id) override;
+      bool needs_writable_node, const std::string &group_name,
+      const std::string &clusterset_id, std::size_t &instance_id) override;
 
   /** @brief Initializes the notifications listener thread (if a given cluster
    * type supports it)
@@ -165,6 +171,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
   std::unique_ptr<GRNotificationListener> gr_notifications_listener_;
 
   friend class GRMetadataBackend;
+  friend class GRClusterSetMetadataBackend;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(MetadataTest, FetchInstancesFromMetadataServer);

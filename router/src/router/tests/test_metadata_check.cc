@@ -190,27 +190,45 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_1_0) {
 
   const std::string clusters_count = std::get<0>(GetParam());
   q_metadata_has_one_cluster(m, clusters_count.c_str());
-  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
-                    "Expected the metadata server to contain configuration for "
-                    "one cluster, found "s +
-                        (clusters_count == "0" ? "none" : clusters_count));
+  if (clusters_count == "0") {
+    ASSERT_THROW_LIKE(
+        metadata->require_metadata_is_ok(), std::runtime_error,
+        "Expected the metadata server to contain configuration for "
+        "one cluster, found none");
+  } else {
+    ASSERT_THROW_LIKE(
+        metadata->require_metadata_is_ok(), std::runtime_error,
+        "The metadata server contains configuration for more than 1 Cluster: "s +
+            clusters_count +
+            ". If it was a part of a ClusterSet previously, the metadata "
+            "should be recreated using dba.dropMetadataSchema() and "
+            "dba.createCluster() with adoptFromGR parameter set to true");
+  }
 }
 
 TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
   MySQLSessionReplayer m;
   q_schema_version(m, "2", "0", "3");
   q_cluster_type(m);
-  q_metadata_has_one_cluster(m, std::get<0>(GetParam()));
+  const std::string clusters_count = std::get<0>(GetParam());
+  q_metadata_has_one_cluster(m, clusters_count.c_str());
   const auto version = mysqlrouter::get_metadata_schema_version(&m);
   std::unique_ptr<mysqlrouter::ClusterMetadata> metadata(
       mysqlrouter::create_metadata(version, &m));
-
-  const std::string clusters_count = std::get<0>(GetParam());
-  q_metadata_has_one_cluster(m, clusters_count.c_str());
-  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
-                    "Expected the metadata server to contain configuration for "
-                    "one cluster, found "s +
-                        (clusters_count == "0" ? "none" : clusters_count));
+  if (clusters_count == "0") {
+    ASSERT_THROW_LIKE(
+        metadata->require_metadata_is_ok(), std::runtime_error,
+        "Expected the metadata server to contain configuration for "
+        "one cluster, found none");
+  } else {
+    ASSERT_THROW_LIKE(
+        metadata->require_metadata_is_ok(), std::runtime_error,
+        "The metadata server contains configuration for more than 1 Cluster: "s +
+            clusters_count +
+            ". If it was a part of a ClusterSet previously, the metadata "
+            "should be recreated using dba.dropMetadataSchema() and "
+            "dba.createCluster() with adoptFromGR parameter set to true");
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(Quorum, MetadataGroupMembers_2_0_Throws,

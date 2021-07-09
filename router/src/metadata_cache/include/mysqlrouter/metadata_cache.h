@@ -63,9 +63,14 @@ namespace metadata_cache {
 enum class metadata_errc {
   ok,
   no_rw_node_found,
+  no_rw_node_needed,
   no_metadata_server_reached,
   no_metadata_read_successful,
-  metadata_refresh_terminated
+  cluster_marked_as_invalid,
+  metadata_refresh_terminated,
+  cluster_not_found,
+  invalid_cluster_type,
+  outdated_view_id
 };
 }  // namespace metadata_cache
 
@@ -86,12 +91,22 @@ inline const std::error_category &metadata_cache_category() noexcept {
           return "ok";
         case metadata_errc::no_rw_node_found:
           return "no RW node found";
+        case metadata_errc::no_rw_node_needed:
+          return "RW node not requested";
         case metadata_errc::no_metadata_server_reached:
           return "no metadata server accessible";
         case metadata_errc::no_metadata_read_successful:
           return "did not successfully read metadata from any metadata server";
+        case metadata_errc::cluster_marked_as_invalid:
+          return "cluster marked as invalid in the metadata";
         case metadata_errc::metadata_refresh_terminated:
           return "metadata refresh terminated";
+        case metadata_errc::cluster_not_found:
+          return "cluster not found in the metadata";
+        case metadata_errc::invalid_cluster_type:
+          return "unexpected cluster type";
+        case metadata_errc::outdated_view_id:
+          return "highier view_id seen";
         default:
           return "unknown";
       }
@@ -263,7 +278,7 @@ class METADATA_API ClusterStateListenerInterface {
    * @brief Callback function that is called when state of cluster is
    * changed.
    *
-   * @param instances allowed Cluster nodes
+   * @param instances allowed nodes
    * @param metadata_servers list of the Cluster metadata servers
    * @param md_servers_reachable true if metadata changed, false if metadata
    * unavailable
@@ -376,7 +391,10 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    *                     represent (GR or ReplicaSet)
    * @param router_id id of the router in the cluster metadata
    * @param cluster_type_specific_id id of the ReplicaSet in case of the
-   * ReplicaSet, Replication Group name for GR Cluster
+   * ReplicaSet, Replication Group name for GR Cluster (if bootstrapped as a
+   * single Cluster, empty otherwise)
+   * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+   * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The list of cluster metadata servers
    * @param user_credentials MySQL Metadata username and password
    * @param ttl The time to live for the cached data
@@ -402,6 +420,7 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
   virtual void cache_init(
       const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
       const std::string &cluster_type_specific_id,
+      const std::string &clusterset_id,
       const metadata_servers_list_t &metadata_servers,
       const mysqlrouter::UserCredentials &user_credentials,
       const std::chrono::milliseconds ttl,
@@ -572,6 +591,7 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void cache_init(const mysqlrouter::ClusterType cluster_type,
                   const unsigned router_id,
                   const std::string &cluster_type_specific_id,
+                  const std::string &clusterset_id,
                   const metadata_servers_list_t &metadata_servers,
                   const mysqlrouter::UserCredentials &user_credentials,
                   const std::chrono::milliseconds ttl,

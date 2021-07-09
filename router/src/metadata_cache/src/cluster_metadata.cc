@@ -329,19 +329,28 @@ bool ClusterMetadata::update_router_last_check_in(
 
 static std::string get_limit_target_cluster_clause(
     const mysqlrouter::TargetCluster &target_cluster,
-    const std::string & /*cluster_type_specific_id*/,
-    const mysqlrouter::MySQLSession &session) {
+    const std::string &cluster_type_specific_id,
+    mysqlrouter::MySQLSession &session) {
   switch (target_cluster.target_type()) {
     case mysqlrouter::TargetCluster::TargetType::ByUUID:
       return "(SELECT cluster_id FROM "
              "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
              "C.attributes->>'$.group_replication_group_name' = " +
              session.quote(target_cluster.to_string()) + ")";
-    default:
-      // case mysqlrouter::TargetCluster::TargetType::ByName:
+    case mysqlrouter::TargetCluster::TargetType::ByName:
       return "(SELECT cluster_id FROM "
              "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=" +
              session.quote(target_cluster.to_string()) + ")";
+    default:
+      assert(mysqlrouter::TargetCluster::TargetType::ByPrimaryRole ==
+             target_cluster.target_type());
+      return "(SELECT C.cluster_id FROM "
+             "mysql_innodb_cluster_metadata.v2_gr_clusters C left join "
+             "mysql_innodb_cluster_metadata.v2_cs_members CSM on "
+             "CSM.cluster_id = "
+             "C.cluster_id WHERE CSM.member_role = 'PRIMARY' and "
+             "CSM.clusterset_id = " +
+             session.quote(cluster_type_specific_id) + ")";
   }
 }
 
@@ -349,6 +358,9 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
     const mysqlrouter::TargetCluster &target_cluster,
     const std::string &cluster_type_specific_id) {
   ClusterMetadata::auth_credentials_t auth_credentials;
+  if (!metadata_connection_) {
+    return auth_credentials;
+  }
   const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
@@ -379,8 +391,7 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
     return true;
   };
 
-  if (metadata_connection_)
-    metadata_connection_->query(query, result_processor);
+  metadata_connection_->query(query, result_processor);
   return auth_credentials;
 }
 

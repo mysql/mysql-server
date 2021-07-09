@@ -50,13 +50,13 @@ class MetadataCacheTest : public ::testing::Test {
 
   MetadataCacheTest()
       : mf("admin", "admin", 1, 1, 1),
-        cache(kRouterId, "0000-0001", {TCPAddress("localhost", 32275)},
+        cache(kRouterId, "0000-0001", "", {TCPAddress("localhost", 32275)},
               get_instance(mysqlrouter::ClusterType::GR_V1, "admin", "admin", 1,
                            1, 1, mysqlrouter::SSLOptions(), false, 0),
               std::chrono::seconds(10), std::chrono::seconds(-1),
               std::chrono::seconds(20), mysqlrouter::SSLOptions(),
               {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"}) {
-    cache.refresh();
+    cache.refresh(true);
   }
 };
 
@@ -205,11 +205,11 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_members();
 
   GRMetadataCache mc(
-      kRouterId, gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
+      kRouterId, gr_id, "", metadata_servers, cmeta, std::chrono::seconds(10),
       std::chrono::seconds(-1), std::chrono::seconds(20),
       mysqlrouter::SSLOptions(),
       {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
-  mc.refresh();
+  mc.refresh(true);
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -219,7 +219,7 @@ TEST_F(MetadataCacheTest2, basic_test) {
   // refresh MC
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
 
   // verify that cluster can be seen
   expect_cluster_routable(mc);
@@ -238,11 +238,11 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   expect_sql_metadata();
   expect_sql_members();
   GRMetadataCache mc(
-      kRouterId, gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
+      kRouterId, gr_id, "", metadata_servers, cmeta, std::chrono::seconds(10),
       std::chrono::seconds(-1), std::chrono::seconds(20),
       mysqlrouter::SSLOptions(),
       {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to first metadata server
@@ -250,7 +250,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_routable(mc);
 
   // refresh: fail connecting to all 3 metadata servers
@@ -260,7 +260,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   m.expect_connect("127.0.0.1", 3002, "admin", "admin", "")
       .then_error("some fake bad connection message", 66);
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_not_routable(mc);  // lookup should return nothing (all route
                                     // paths should have been cleared)
 
@@ -271,7 +271,7 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
       .then_error("some fake bad connection message", 66);
   expect_sql_metadata();
   expect_sql_members();
-  mc.refresh();
+  mc.refresh(true);
   expect_cluster_routable(mc);  // lookup should see the cluster again
 }
 

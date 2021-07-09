@@ -78,7 +78,7 @@ class FailoverTest : public ::testing::Test {
 
   void init_cache() {
     cache = std::make_shared<GRMetadataCache>(
-        kRouterId, group_uuid,
+        kRouterId, group_uuid, "",
         std::vector<mysql_harness::TCPAddress>{
             {"localhost", 32275},
         },
@@ -271,7 +271,7 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  cache->refresh();
+  cache->refresh(true);
 
   // ensure no expected queries leftover
   ASSERT_FALSE(session->print_expected());
@@ -291,7 +291,7 @@ TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   // ----------------------------------------------------------------
   expect_metadata_1();
   expect_group_members_1();
-  ASSERT_NO_THROW(cache->refresh());
+  ASSERT_NO_THROW(cache->refresh(true));
 
   cache->mark_instance_reachability(
       node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
@@ -307,7 +307,7 @@ TEST_F(FailoverTest, primary_failover_reelection) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  cache->refresh();
+  cache->refresh(true);
   // ensure no expected queries leftover
   ASSERT_FALSE(session->print_expected());
 
@@ -325,7 +325,7 @@ TEST_F(FailoverTest, primary_failover_reelection) {
   // ---------------------------------------------------
   expect_metadata_1();
   expect_group_members_1_primary_fail(nullptr, node_2_uuid);
-  ASSERT_NO_THROW(cache->refresh());
+  ASSERT_NO_THROW(cache->refresh(true));
 
   ASSERT_THAT(cache->get_cluster_nodes(),
               ::testing::Pointwise(
@@ -347,7 +347,7 @@ TEST_F(FailoverTest, primary_failover_shutdown) {
   ASSERT_NO_THROW(init_cache());
   expect_metadata_1();
   expect_group_members_1();
-  ASSERT_NO_THROW(cache->refresh());
+  ASSERT_NO_THROW(cache->refresh(true));
 
   cache->mark_instance_reachability(
       node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
