@@ -61,7 +61,6 @@ usr/share/man/man8/mysqld.8
 # private shared libraries
 usr/lib/mysql/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysql/private/libprotobuf.so.3.11.4
-usr/lib/mysql/private/libfido2.*
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so

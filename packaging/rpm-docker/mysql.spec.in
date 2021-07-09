@@ -404,7 +404,7 @@ rm -r $(readlink var) var
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.11.4
-%attr(755, root, root) %{_libdir}/mysql/private/ibfido2.*
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
