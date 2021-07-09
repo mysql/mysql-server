@@ -74,7 +74,6 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libaio-devel
-BuildRequires:  libfido2-devel
 BuildRequires:  mecab-devel
 BuildRequires:  multilib-rpm-config
 BuildRequires:  ncurses-devel
@@ -714,7 +713,6 @@ rm -r $(readlink var) var
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.11.4
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -940,6 +938,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 
 %files test
 %doc %{?license_files_server}
