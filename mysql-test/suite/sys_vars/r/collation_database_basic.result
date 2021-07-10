@@ -770,24 +770,28 @@ SELECT @@session.collation_database;
 keybcs2_bin
 SET @@session.collation_database = macce_general_ci;
 Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 macce_general_ci
 SET @@session.collation_database = macce_bin;
 Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 macce_bin
 SET @@session.collation_database = macroman_general_ci;
 Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 macroman_general_ci
 SET @@session.collation_database = macroman_bin;
 Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -1607,24 +1611,28 @@ SELECT @@global.collation_database;
 keybcs2_bin
 SET @@global.collation_database = macce_general_ci;
 Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 macce_general_ci
 SET @@global.collation_database = macce_bin;
 Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 macce_bin
 SET @@global.collation_database = macroman_general_ci;
 Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 macroman_general_ci
 SET @@global.collation_database = macroman_bin;
 Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database

@@ -264,12 +264,14 @@ SELECT @@session.character_set_database;
 keybcs2
 SET @@session.character_set_database = macce;
 Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
 macce
 SET @@session.character_set_database = macroman;
 Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -495,12 +497,14 @@ SELECT @@global.character_set_database;
 keybcs2
 SET @@global.character_set_database = macce;
 Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database
 macce
 SET @@global.character_set_database = macroman;
 Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database

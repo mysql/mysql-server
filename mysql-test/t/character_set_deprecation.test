@@ -99,3 +99,86 @@ SELECT * FROM json_table('[]', '$[*]'
 --let $restart_parameters= "restart: "
 --source include/restart_mysqld.inc
 
+#
+# WL#13595 Deprecate Classic Mac OS character sets and collations
+#
+--echo Deprecate macroman
+--echo # Character set introducers.
+SELECT HEX(_macroman'abc');
+
+--echo # convert().
+SELECT CONVERT ( 'abc' USING macroman );
+
+--echo # cast().
+SELECT CAST('test' AS CHAR CHARACTER SET macroman);
+
+--echo # Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET macroman COLLATE macroman_general_ci;
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "macroman" COLLATE macroman_general_ci;
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'macroman' COLLATE macroman_general_ci;
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `macroman`COLLATE macroman_general_ci;
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET macroman COLLATE macroman_general_ci ) RETURNS INT RETURN 1;
+DROP FUNCTION f1;
+
+--echo # Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET macroman COLLATE macroman_general_ci PATH '$.a')) AS t;
+
+--let $restart_parameters= "restart: --character-set-server=macroman --collation-server=macroman_general_ci"
+--source include/restart_mysqld.inc
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=The character set macroman is deprecated and will be removed in a future release. Please consider using utf8mb4 instead.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+--source include/search_pattern.inc
+
+--let $restart_parameters= "restart: "
+--source include/restart_mysqld.inc
+
+--echo Deprecate macce
+--echo # Character set introducers.
+SELECT HEX(_macce'abc');
+
+--echo # convert().
+SELECT CONVERT ( 'abc' USING macce );
+
+--echo # cast().
+SELECT CAST('test' AS CHAR CHARACTER SET macce);
+
+--echo # Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET macce COLLATE macce_general_ci;
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "macce" COLLATE macce_general_ci;
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'macce' COLLATE macce_general_ci;
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `macce`COLLATE macce_general_ci;
+DROP TABLE t1, t2, t3, t4;
+
+--echo # Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET macce COLLATE macce_general_ci ) RETURNS INT RETURN 1;
+DROP FUNCTION f1;
+
+--echo # Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET macce COLLATE macce_general_ci PATH '$.a')) AS t;
+
+--echo Use of old aliases
+SET SESSION character_set_results=mac_latin2;
+SELECT @@character_set_results;
+SET SESSION character_set_results=macce_latin2;
+SELECT @@character_set_results;
+SET SESSION character_set_results=default;
+SELECT @@character_set_results;
+
+--let $restart_parameters= "restart: --character-set-server=macce --collation-server=macce_general_ci"
+--source include/restart_mysqld.inc
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=The character set macce is deprecated and will be removed in a future release. Please consider using utf8mb4 instead.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+--source include/search_pattern.inc
+
+--let $restart_parameters= "restart: "
+--source include/restart_mysqld.inc
+

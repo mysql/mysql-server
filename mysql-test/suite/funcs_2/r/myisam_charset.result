@@ -15055,7 +15055,14 @@ A1	1
 A5	1
 DROP TABLE test.t1;
 SET NAMES macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_bin) ENGINE=MyISAM CHARACTER SET macce COLLATE macce_bin;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	#	#	#	#	#	#	#	#	#	#	#	#	macce_bin	#	#	#
@@ -15284,7 +15291,14 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macce COLLATE macce_general_ci) ENGINE=MyISAM CHARACTER SET macce COLLATE macce_general_ci;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	#	#	#	#	#	#	#	#	#	#	#	#	macce_general_ci	#	#	#
@@ -15513,7 +15527,14 @@ E2	1
 E3	1
 DROP TABLE test.t1;
 SET NAMES macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_bin) ENGINE=MyISAM CHARACTER SET macroman COLLATE macroman_bin;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	#	#	#	#	#	#	#	#	#	#	#	#	macroman_bin	#	#	#
@@ -15742,7 +15763,14 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET macroman COLLATE macroman_general_ci) ENGINE=MyISAM CHARACTER SET macroman COLLATE macroman_general_ci;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	#	#	#	#	#	#	#	#	#	#	#	#	macroman_general_ci	#	#	#

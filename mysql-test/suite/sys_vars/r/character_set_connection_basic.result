@@ -195,10 +195,14 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 keybcs2
 SET @@session.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macce
 SET @@session.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 macroman
@@ -352,10 +356,14 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 keybcs2
 SET @@global.character_set_connection = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macce
 SET @@global.character_set_connection = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 macroman

@@ -586,18 +586,26 @@ SELECT @@session.collation_server;
 @@session.collation_server
 keybcs2_bin
 SET @@session.collation_server = macce_general_ci;
+Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_server;
 @@session.collation_server
 macce_general_ci
 SET @@session.collation_server = macce_bin;
+Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_server;
 @@session.collation_server
 macce_bin
 SET @@session.collation_server = macroman_general_ci;
+Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_server;
 @@session.collation_server
 macroman_general_ci
 SET @@session.collation_server = macroman_bin;
+Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_server;
 @@session.collation_server
 macroman_bin
@@ -1203,18 +1211,26 @@ SELECT @@global.collation_server;
 @@global.collation_server
 keybcs2_bin
 SET @@global.collation_server = macce_general_ci;
+Warnings:
+Warning	4079	'macce_general_ci' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_server;
 @@global.collation_server
 macce_general_ci
 SET @@global.collation_server = macce_bin;
+Warnings:
+Warning	4079	'macce_bin' is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_server;
 @@global.collation_server
 macce_bin
 SET @@global.collation_server = macroman_general_ci;
+Warnings:
+Warning	4079	'macroman_general_ci' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_server;
 @@global.collation_server
 macroman_general_ci
 SET @@global.collation_server = macroman_bin;
+Warnings:
+Warning	4079	'macroman_bin' is a collation of the deprecated character set macroman. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_server;
 @@global.collation_server
 macroman_bin

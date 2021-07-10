@@ -191,10 +191,14 @@ SELECT @@character_set_client;
 @@character_set_client
 keybcs2
 SET @@character_set_client = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 macce
 SET @@character_set_client = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 macroman
@@ -346,10 +350,14 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 keybcs2
 SET @@global.character_set_client = macce;
+Warnings:
+Warning	1287	'macce' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 macce
 SET @@global.character_set_client = macroman;
+Warnings:
+Warning	1287	'macroman' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 macroman
