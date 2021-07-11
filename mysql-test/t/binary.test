@@ -8,14 +8,12 @@
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-set names latin1;
---character_set latin1
 
 create table t1 (name char(20) not null, primary key (name)) charset latin1;
-create table t2 (name char(20) binary not null, primary key (name));
-insert into t1 values ("å");
-insert into t1 values ("ä");
-insert into t1 values ("ö");
+create table t2 (name char(20) collate utf8mb4_bin not null, primary key (name));
+insert into t1 values ("Ã¥");
+insert into t1 values ("Ã¤");
+insert into t1 values ("Ã¶");
 insert into t2 select * from t1;
 
 select * from t1 order by name;
@@ -24,9 +22,9 @@ select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) f
 select * from t2 order by name;
 select concat("*",name,"*") from t2 order by 1;
 select min(name),min(concat("*",name,"*")),max(name),max(concat("*",name,"*")) from t2;
-select name from t1 where name between 'Ä' and 'Ö';
-select name from t2 where name between 'ä' and 'ö';
-select name from t2 where name between 'Ä' and 'Ö';
+select name from t1 where name between 'Ã„' and 'Ã–';
+select name from t2 where name between 'Ã¤' and 'Ã¶';
+select name from t2 where name between 'Ã„' and 'Ã–';
 
 drop table t1,t2;
 
@@ -34,7 +32,7 @@ drop table t1,t2;
 # Test of binary and normal strings
 #
 
-create table t1 (a char(10) not null, b char(10) binary not null,key (a), key(b)) charset latin1;
+create table t1 (a char(10) not null, b char(10) collate latin1_bin not null,key (a), key(b)) charset latin1;
 insert into t1 values ("hello ","hello "),("hello2 ","hello2 ");
 select concat("-",a,"-",b,"-") from t1 where a="hello";
 select concat("-",a,"-",b,"-") from t1 where a="hello ";
@@ -54,11 +52,11 @@ drop table t1;
 #
 create table t1 (b char(8));
 insert into t1 values(NULL);
-select b from t1 where binary b like '';
+select b from t1 where cast(b as binary)  like '';
 --source include/turn_off_only_full_group_by.inc
-select b from t1 group by binary b like '';
+select b from t1 group by cast(b as binary) like '';
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
-select b from t1 having binary b like '';
+select b from t1 having cast(b as binary) like '';
 drop table t1;
 
 #
@@ -72,21 +70,21 @@ select * from t1 where upper(a)='AAA';
 select * from t1 where lower(a)='aaa';
 select * from t1 where upper(b)='BBB';
 select * from t1 where lower(b)='bbb';
-select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
-select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
+select charset(a), charset(b), charset(cast('ccc' as binary)) from t1 limit 1;
+select collation(a), collation(b), collation(cast('ccc' as binary)) from t1 limit 1;
 drop table t1;
 
 #
-# Bug5134: WHERE x = 'bar' AND x LIKE BINARY 'bar' returns wrong results
+# Bug5134: WHERE x = 'bar' AND x LIKE cast('bar' as binary) returns wrong results
 #
 
 create table t1( firstname char(20), lastname char(20));
 insert into t1 values ("john","doe"),("John","Doe");
-select * from t1 where firstname='john' and firstname like binary 'john';
-select * from t1 where firstname='john' and binary 'john' = firstname;
-select * from t1 where firstname='john' and firstname = binary 'john';
-select * from t1 where firstname='John' and firstname like binary 'john';
-select * from t1 where firstname='john' and firstname like binary 'John';
+select * from t1 where firstname='john' and firstname like cast('john' as binary);
+select * from t1 where firstname='john' and cast('john' as binary) = firstname;
+select * from t1 where firstname='john' and firstname = cast('john' as binary);
+select * from t1 where firstname='John' and firstname like cast('john' as binary);
+select * from t1 where firstname='john' and firstname like cast('john' as binary);
 drop table t1;
 
 #
