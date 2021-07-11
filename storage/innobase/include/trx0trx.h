@@ -93,8 +93,14 @@ trx_t *trx_allocate_for_mysql(void);
  @return own: transaction object */
 trx_t *trx_allocate_for_background(void);
 
-/** Resurrect table locks for resurrected transactions. */
-void trx_resurrect_locks();
+/** Resurrect table locks for resurrected transactions.
+@param[in]      all     false: resurrect locks for dictionary transactions,
+                        true : resurrect locks for all transactions. */
+void trx_resurrect_locks(bool all);
+
+/** Clear all resurrected table IDs. Needs to be called after all tables locks
+are resurrected. */
+void trx_clear_resurrected_table_ids();
 
 /** Free and initialize a transaction object instantiated during recovery.
 @param[in,out]	trx	transaction object to free and initialize */
