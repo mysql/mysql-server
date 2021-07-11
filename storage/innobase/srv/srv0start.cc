@@ -2905,7 +2905,8 @@ static void apply_dynamic_metadata() {
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */
 void srv_dict_recover_on_restart() {
-  trx_resurrect_locks();
+  /* Resurrect locks for dictionary transactions */
+  trx_resurrect_locks(false);
 
   /* Roll back any recovered data dictionary transactions, so
   that the data dictionary tables will be free of any locks.
@@ -2914,6 +2915,43 @@ void srv_dict_recover_on_restart() {
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && trx_sys_need_rollback()) {
     trx_rollback_or_clean_recovered(FALSE);
   }
+
+  /* Resurrect locks for non-dictionary transactions only after rolling back all
+  dictionary transactions. This is required as of today since we read
+  uncommitted data while constructing table object in dd_table_open_on_id_low.
+  This is done only while looking for the DD space object
+  client->acquire_uncached_uncommitted<dd::Tablespace>().
+
+  TODO-1: dd_table_open_on_id_low : Reading uncommitted data doesn't seem
+  correct and needs to be analyzed and possibly fixed.
+
+  Till that time we let all DD transactions to rollback to avoid reading dirty
+  data from incomplete DDL commands while resurrecting locks. It essentially
+  fixes two independent issues.
+
+  1. Not able to resurrect table locks for uncommitted transaction.
+
+  2. Not able to load innodb dict_* object for the table involved in the DDL.
+     This could result in much more serious issue when binary log is enabled
+     and crash happens after the transaction is prepared. Currently in binlog
+     transaction recovery path no session THD is created and we rely on cached
+     dict_* object to find out if a table is dropped. If the dict_table_t
+     object is not already loaded, the table is considered dropped and undo
+     apply is skipped. This would further result in uncommitted but prepared
+     transaction data being committed and persisted.
+
+  TODO-2: Have session (THD) while doing binary log recovery. The lack of
+  THD seems not correct since rollback requires DD metadata. This alone would
+  have prevented transaction inconsistency between innodb and binlog even if we
+  failed to resurrect the table locks.
+  binlog_recover->ha_recover->xarecover_handlerton->innobase_rollback_by_xid
+  ->innobase_rollback_trx
+
+  Note: The current work around fixes both issues but ideally should not be
+  required if base issues [TODOs] are fixed. */
+  trx_resurrect_locks(true);
+
+  trx_clear_resurrected_table_ids();
 
   /* Do after all DD transactions recovery, to get consistent metadata */
   apply_dynamic_metadata();

@@ -723,47 +723,52 @@ static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
   mtr_commit(&mtr);
 }
 
-/** Resurrect table locks for resurrected transactions. */
-void trx_resurrect_locks() {
-  for (trx_table_map::const_iterator t = resurrected_trx_tables.begin();
-       t != resurrected_trx_tables.end(); t++) {
-    trx_t *trx = t->first;
-    const table_id_set &tables = t->second;
-    ut_ad(trx->is_recovered);
+void trx_resurrect_locks(bool all) {
+  for (const auto &element : resurrected_trx_tables) {
+    trx_t *trx = element.first;
 
-    for (table_id_set::const_iterator i = tables.begin(); i != tables.end();
-         i++) {
-      dict_table_t *table =
-          dd_table_open_on_id(*i, nullptr, nullptr, false, true);
-      if (table) {
-        ut_ad(!table->is_temporary());
+    /* We deal only with recovered transactions. If all is false,
+    we skip non dictionary transactions. */
+    if (!trx->is_recovered || (!all && !trx->ddl_operation)) {
+      continue;
+    }
 
-        if (table->ibd_file_missing || table->is_temporary()) {
-          dict_sys_mutex_enter();
-          dd_table_close(table, nullptr, nullptr, true);
-          dict_table_remove_from_cache(table);
-          dict_sys_mutex_exit();
-          continue;
-        }
+    const table_id_set &tables = element.second;
 
-        if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
-            !dict_table_is_sdi(table->id)) {
-          trx->mod_tables.insert(table);
-        }
-        DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
+    for (auto id : tables) {
+      auto table = dd_table_open_on_id(id, nullptr, nullptr, false, true);
 
-        lock_table_ix_resurrect(table, trx);
-
-        DBUG_PRINT("ib_trx", ("resurrect" TRX_ID_FMT "  table '%s' IX lock",
-                              trx_get_id_for_print(trx), table->name.m_name));
-
-        dd_table_close(table, nullptr, nullptr, false);
+      if (table == nullptr) {
+        continue;
       }
+
+      ut_ad(!table->is_temporary());
+
+      if (table->ibd_file_missing || table->is_temporary()) {
+        dict_sys_mutex_enter();
+        dd_table_close(table, nullptr, nullptr, true);
+        dict_table_remove_from_cache(table);
+        dict_sys_mutex_exit();
+        continue;
+      }
+
+      if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
+          !dict_table_is_sdi(table->id)) {
+        trx->mod_tables.insert(table);
+      }
+      DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
+
+      lock_table_ix_resurrect(table, trx);
+
+      DBUG_PRINT("ib_trx", ("resurrect" TRX_ID_FMT "  table '%s' IX lock",
+                            trx_get_id_for_print(trx), table->name.m_name));
+
+      dd_table_close(table, nullptr, nullptr, false);
     }
   }
-
-  resurrected_trx_tables.clear();
 }
+
+void trx_clear_resurrected_table_ids() { resurrected_trx_tables.clear(); }
 
 /** Resurrect the transactions that were doing inserts at the time of the
  crash, they need to be undone.
