@@ -4546,7 +4546,7 @@ void dict_resize() {
 /* Dummy implementation for satisfying compiler for MEB. This can be removed
 once the callers in dict0dd.cc is factored out from MEB compilation. */
 /* purecov: begin deadcode */
-void dict_set_corrupted(dict_index_t *index MY_ATTRIBUTE((unused))) {}
+void dict_set_corrupted(dict_index_t *index [[maybe_unused]]) {}
 /* purecov: end */
 #endif /* !UNIV_HOTBACKUP */
 
