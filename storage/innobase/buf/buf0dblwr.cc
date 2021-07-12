@@ -1882,7 +1882,7 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
     os_file_status(file.m_name.c_str(), &file_exists, &type);
 
     if (type == OS_FILE_TYPE_FILE) {
-      mode = OS_FILE_OPEN;
+      mode = OS_FILE_OPEN_RETRY;
     } else if (type == OS_FILE_TYPE_MISSING) {
       mode = OS_FILE_CREATE;
     } else {
