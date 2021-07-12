@@ -204,3 +204,6 @@ COUNT(*)
 DROP TABLE tde_db.test_tbl;
 DROP DATABASE tde_db;
 SET GLOBAL innodb_file_per_table=1;
+# restart
+CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+DROP TABLE test.t1;
