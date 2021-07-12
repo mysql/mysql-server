@@ -44,6 +44,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
@@ -60,6 +61,22 @@
 #include "template_utils.h"
 
 static void store_lenenc_string(String &to, const char *from, size_t length);
+
+/**
+  Helper method to get length of mandatory flag based on client
+  capalibity flag CLIENT_MANDATORY_SESSION_TRACK
+
+  @param thd           The thd handle.
+
+  @return
+    0 if CLIENT_MANDATORY_SESSION_TRACK is not set for clients else 1
+*/
+static size_t get_mandatory_flag_length(THD *thd) {
+  if (thd->get_protocol()->has_client_capability(
+          CLIENT_MANDATORY_SESSION_TRACK))
+    return 1;
+  return 0;
+}
 
 /**
   Session_sysvars_tracker
@@ -284,7 +301,7 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
       */
       ulonglong tracker_type_enclen =
           1 /* net_length_size((ulonglong)SESSION_TRACK_GTIDS); */;
-      ulonglong mandatory_flag_enclen = 1;
+      ulonglong mandatory_flag_enclen = get_mandatory_flag_length(thd);
       ulonglong encoding_spec_enclen =
           1 /* net_length_size(encoding_specification()); */;
       ulonglong gtids_string_len =
@@ -309,9 +326,10 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
       to++;
 
       /* mandatory tracker flag */
-      *to = (uchar)val;
-      to++;
-
+      if (mandatory_flag_enclen) {
+        *to = (uchar)val;
+        to++;
+      }
       /* Length of the overall entity. */
       to = net_store_length(to, entity_len);
 
@@ -678,14 +696,18 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
       length = net_length_size(node->m_sysvar_name.length) +
                node->m_sysvar_name.length + net_length_size(val_length) +
                val_length;
+      size_t mandatory_flag_length = get_mandatory_flag_length(thd);
       /* allocate 2 bytes more for session state type and mandatory flag. */
-      to = (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
+      to = (uchar *)buf.prep_append(
+          net_length_size(length) + 1 + mandatory_flag_length, EXTRA_ALLOC);
 
       /* Session state type (SESSION_TRACK_SYSTEM_VARIABLES) */
       to = net_store_length(to, (ulonglong)SESSION_TRACK_SYSTEM_VARIABLES);
       /* mandatory tracker flag */
-      *to = (uchar)is_mandatory();
-      to++;
+      if (mandatory_flag_length) {
+        *to = (uchar)is_mandatory();
+        to++;
+      }
 
       /* Length of the overall entity. */
       net_store_length(to, (ulonglong)length);
@@ -814,14 +836,17 @@ bool Current_schema_tracker::store(THD *thd, String &buf) {
   length = db_length = thd->db().length;
   length += net_length_size(length);
 
-  uchar *to =
-      (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
+  size_t mandatory_flag_length = get_mandatory_flag_length(thd);
+  uchar *to = (uchar *)buf.prep_append(
+      net_length_size(length) + 1 + mandatory_flag_length, EXTRA_ALLOC);
 
   /* Session state type (SESSION_TRACK_SCHEMA) */
   to = net_store_length(to, (ulonglong)SESSION_TRACK_SCHEMA);
   /* mandatory tracker flag */
-  *to = (uchar)is_mandatory();
-  to++;
+  if (mandatory_flag_length) {
+    *to = (uchar)is_mandatory();
+    to++;
+  }
   /* Length of the overall entity. */
   to = net_store_length(to, length);
 
@@ -918,13 +943,17 @@ bool Transaction_state_tracker::update(THD *thd) {
 bool Transaction_state_tracker::store(THD *thd, String &buf) {
   /* STATE */
   if (tx_changed & TX_CHG_STATE) {
-    uchar *to = (uchar *)buf.prep_append(11 + 1, EXTRA_ALLOC);
+    size_t mandatory_flag_length = get_mandatory_flag_length(thd);
+    uchar *to =
+        (uchar *)buf.prep_append(11 + mandatory_flag_length, EXTRA_ALLOC);
 
     to = net_store_length((uchar *)to,
                           (ulonglong)SESSION_TRACK_TRANSACTION_STATE);
     /* mandatory tracker flag */
-    *to = (uchar)is_mandatory();
-    to++;
+    if (mandatory_flag_length) {
+      *to = (uchar)is_mandatory();
+      to++;
+    }
 
     to = net_store_length((uchar *)to, (ulonglong)9);
     to = net_store_length((uchar *)to, (ulonglong)8);
@@ -1157,16 +1186,20 @@ bool Transaction_state_tracker::store(THD *thd, String &buf) {
         item we can send!
       */
       length += net_length_size(length);  // ... plus that of its length
+
+      size_t mandatory_flag_length = get_mandatory_flag_length(thd);
       /* allocate extra 2 bytes for session state type and mandatory flag. */
-      uchar *to =
-          (uchar *)buf.prep_append(net_length_size(length) + 2, EXTRA_ALLOC);
+      uchar *to = (uchar *)buf.prep_append(
+          net_length_size(length) + 1 + mandatory_flag_length, EXTRA_ALLOC);
 
       /* Session state type (SESSION_TRACK_TRANSACTION_CHARACTERISTICS) */
       to = net_store_length(
           (uchar *)to, (ulonglong)SESSION_TRACK_TRANSACTION_CHARACTERISTICS);
       /* mandatory tracker flag */
-      *to = (uchar)is_mandatory();
-      to++;
+      if (mandatory_flag_length) {
+        *to = (uchar)is_mandatory();
+        to++;
+      }
       /* Length of the overall entity. */
       to = net_store_length((uchar *)to, length);
 
@@ -1376,6 +1409,7 @@ bool Session_state_change_tracker::update(THD *thd) { return enable(thd); }
          1byte flag value is 1 then there is a session state change else
          there is no state change information.
 
+  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -1383,20 +1417,24 @@ bool Session_state_change_tracker::update(THD *thd) { return enable(thd); }
     true                    Error
 **/
 
-bool Session_state_change_tracker::store(THD *, String &buf) {
+bool Session_state_change_tracker::store(THD *thd, String &buf) {
   /* since its a boolean tracker length is always 1 */
   const ulonglong length = 1;
 
-  uchar *to = (uchar *)buf.prep_append(4, EXTRA_ALLOC);
-
-  /* format of the payload is as follows:
-     [ tracker type] [1 byte mandatory flag][length] [1 byte flag] */
+  size_t mandatory_flag_length = get_mandatory_flag_length(thd);
+  /*
+    format of the payload is as follows:
+    [ tracker type] [1 byte mandatory flag][length] [1 byte flag]
+  */
+  uchar *to = (uchar *)buf.prep_append(3 + mandatory_flag_length, EXTRA_ALLOC);
 
   /* Session state type (SESSION_TRACK_STATE_CHANGE) */
   to = net_store_length(to, (ulonglong)SESSION_TRACK_STATE_CHANGE);
   /* mandatory tracker flag */
-  *to = (uchar)is_mandatory();
-  to++;
+  if (mandatory_flag_length) {
+    *to = (uchar)is_mandatory();
+    to++;
+  }
   /* Length of the overall entity it is always 1 byte */
   to = net_store_length(to, length);
 
@@ -1658,7 +1696,7 @@ bool Session_gtids_tracker::update(THD *thd) {
          state-change (see reset()).
 
 
-  @param thd           The thd handle.
+  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
