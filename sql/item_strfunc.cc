@@ -896,7 +896,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
   {
     THD *thd = current_thd;
     Thd_parse_modifier thd_mod(thd, m_token_buffer);
-    const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+    const CHARSET_INFO *cs = statement_string->charset();
     if (!is_supported_parser_charset(cs)) {
       my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
                cs->name);
@@ -932,7 +932,7 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
 
   THD *thd = current_thd;
   Thd_parse_modifier thd_mod(thd, m_token_buffer);
-  const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+  const CHARSET_INFO *cs = statement_string->charset();
   if (!is_supported_parser_charset(cs)) {
     my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
              cs->name);
