@@ -49,6 +49,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --let $rpl_skip_start_slave = 1
 --source include/set_privilege_checks_user_as_system_user.inc
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 --let $MASTER_DATADIR= `select @@datadir`

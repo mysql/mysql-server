@@ -2,6 +2,8 @@
 --source include/no_valgrind_without_big.inc
 --source include/not_group_replication_plugin.inc
 --source include/not_have_privilege_checks_user.inc
+--source include/not_rpl_gtid_only.inc
+
 #
 # WL#5569 MTS
 #

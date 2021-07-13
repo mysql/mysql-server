@@ -55,6 +55,7 @@
 # Bug#30527929 - RESTART CREATES ANONYMOUS TRANSACTION FOR MEMORY TABLE
 #
 
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 
 #Scenario 1

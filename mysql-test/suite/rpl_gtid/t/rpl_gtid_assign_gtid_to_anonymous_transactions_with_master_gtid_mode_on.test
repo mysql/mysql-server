@@ -27,6 +27,7 @@
 
 --let $rpl_gtid_utils= 1
 --let $rpl_skip_start_slave = 1
+--source include/not_rpl_gtid_only.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 
