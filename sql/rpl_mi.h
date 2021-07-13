@@ -750,12 +750,55 @@ class Master_info : public Rpl_info {
 
   void get_flushed_relay_log_info(LOG_INFO *linfo);
 
+  /**
+    Marks the receiver position information (master_log_name, master_log_pos)
+    as being invalid or not.
+
+    @param invalid The value to set the status to invalid or valid
+  */
+  void set_receiver_position_info_invalid(bool invalid);
+
+  /**
+    Returns if receiver position information is valid or invalid
+
+    @return true if receiver position information is not reliable,
+            false otherwise.
+  */
+  bool is_receiver_position_info_invalid() const;
+
+  /**
+    Enable or disable the gtid_only mode
+
+    @param gtid_only_mode value to set gtid_only (enable/disable it)
+  */
+  void set_gtid_only_mode(bool gtid_only_mode);
+
+  /**
+    Returns if gtid_only is enabled or not
+
+    @return true if gtid_only mode is active for a channel,
+            false otherwise.
+  */
+  bool is_gtid_only_mode() const;
+
  private:
   /*
     Holds the relay log coordinates (file name and position) of the last master
     coordinates flushed into Master_info repository.
   */
   LOG_INFO flushed_relay_log_info;
+
+  /**
+    Is the replica working in GTID only mode, meaning it does not
+    persist position related information when executing or queing transactions.
+  */
+  bool m_gtid_only_mode;
+
+  /**
+    Are positions invalid. When true this means the values for
+    receiver position related information might be outdated.
+  */
+  bool m_is_receiver_position_info_invalid;
 };
 
 #endif /* RPL_MI_H */

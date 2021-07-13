@@ -643,6 +643,21 @@ class Relay_log_info : public Rpl_info {
   */
   Replication_transaction_boundary_parser transaction_parser;
 
+  /**
+    Marks the applier position information as being invalid or not.
+
+    @param invalid value to set the position/file info as invalid or not
+  */
+  void set_applier_source_position_info_invalid(bool invalid);
+
+  /**
+    Returns if the applier positions are marked as being invalid or not.
+
+    @return true if applier position information is not reliable,
+            false otherwise.
+  */
+  bool is_applier_source_position_info_invalid() const;
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -771,6 +786,15 @@ class Relay_log_info : public Rpl_info {
   */
   enum_require_table_primary_key m_require_table_primary_key_check;
 
+  /**
+    Are positions invalid. If true it means the applier related position
+    information (group_master_log_name and group_master_log_pos) might
+    be outdated.
+
+    Check also is_group_master_log_pos_invalid
+  */
+  bool m_is_applier_source_position_info_invalid;
+
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
@@ -826,12 +850,14 @@ class Relay_log_info : public Rpl_info {
   void fill_coord_err_buf(loglevel level, int err_code,
                           const char *buff_coord) const;
 
-  /*
+  /**
     Flag that the group_master_log_pos is invalid. This may occur
     (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
     be unset after the first event has been executed and the
     group_master_log_pos is valid again.
-   */
+
+    Check also m_is_applier_position_info_invalid
+  */
   bool is_group_master_log_pos_invalid;
 
   /*

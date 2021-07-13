@@ -193,7 +193,9 @@ Master_info::Master_info(
       auto_position(false),
       transaction_parser(
           Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER),
-      reset(false) {
+      reset(false),
+      m_gtid_only_mode(false),
+      m_is_receiver_position_info_invalid(false) {
   host[0] = 0;
   user[0] = 0;
   bind_addr[0] = 0;
@@ -785,3 +787,17 @@ void Master_info::get_flushed_relay_log_info(LOG_INFO *linfo) {
           sizeof(linfo->log_file_name) - 1);
   linfo->pos = flushed_relay_log_info.pos;
 }
+
+void Master_info::set_receiver_position_info_invalid(bool invalid) {
+  m_is_receiver_position_info_invalid = invalid;
+}
+
+bool Master_info::is_receiver_position_info_invalid() const {
+  return m_is_receiver_position_info_invalid;
+}
+
+void Master_info::set_gtid_only_mode(bool gtid_only_mode) {
+  m_gtid_only_mode = gtid_only_mode;
+}
+
+bool Master_info::is_gtid_only_mode() const { return m_gtid_only_mode; }
