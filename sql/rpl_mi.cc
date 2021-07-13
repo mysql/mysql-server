@@ -103,8 +103,11 @@ enum {
   /* line for source_connection_auto_failover */
   LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER = 32,
 
+  /* line for gtid_only */
+  LINE_FOR_GTID_ONLY = 33,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_SOURCE_CONNECTION_AUTO_FAILOVER
+  LINES_IN_MASTER_INFO = LINE_FOR_GTID_ONLY
 
 };
 
@@ -144,7 +147,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "master_compression_algorithm",
                                 "master_zstd_compression_level",
                                 "tls_ciphersuites",
-                                "source_connection_auto_failover"};
+                                "source_connection_auto_failover",
+                                "gtid_only"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -660,6 +664,14 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     m_source_connection_auto_failover = temp_source_connection_auto_failover;
   }
 
+  auto temp_gtid_only{0};
+  if (lines >= LINE_FOR_GTID_ONLY) {
+    if (!!from->get_info(&temp_gtid_only, 0)) return true;
+  } else {
+    if (channel_map.is_group_replication_channel_name(channel))
+      temp_gtid_only = 1;
+  }
+  m_gtid_only_mode = temp_gtid_only;
   return false;
 }
 
@@ -699,7 +711,8 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info((int)zstd_compression_level) ||
       to->set_info(tls_ciphersuites.first ? nullptr
                                           : tls_ciphersuites.second.c_str()) ||
-      to->set_info((int)m_source_connection_auto_failover))
+      to->set_info((int)m_source_connection_auto_failover) ||
+      to->set_info((int)m_gtid_only_mode))
     return true;
 
   return false;

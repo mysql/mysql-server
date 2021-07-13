@@ -39165,6 +39165,44 @@
                 "is_explicit_collation": false
             },
             {
+                "name": "Gtid_only",
+                "type": 2,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 33,
+                "char_length": 1,
+                "numeric_precision": 3,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": false,
+                "default_value_utf8": "0",
+                "default_option": "",
+                "update_option": "",
+                "comment": "Indicates if this channel only uses GTIDs and does not persist positions.",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "tinyint(1)",
+                "elements": [],
+                "collation_id": X,
+                "is_explicit_collation": false
+            },
+            {
                 "name": "DB_TRX_ID",
                 "type": 10,
                 "is_nullable": false,
@@ -39173,7 +39211,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 33,
+                "ordinal_position": 34,
                 "char_length": 6,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -39211,7 +39249,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 34,
+                "ordinal_position": 35,
                 "char_length": 7,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -39287,14 +39325,14 @@
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 32
+                        "column_opx": 33
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
                         "hidden": true,
-                        "column_opx": 33
+                        "column_opx": 34
                     },
                     {
                         "ordinal_position": 4,
@@ -39512,6 +39550,13 @@
                         "order": 2,
                         "hidden": true,
                         "column_opx": 31
+                    },
+                    {
+                        "ordinal_position": 35,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hidden": true,
+                        "column_opx": 32
                     }
                 ],
                 "tablespace_ref": "mysql"

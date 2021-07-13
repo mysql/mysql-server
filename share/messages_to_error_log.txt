@@ -11491,6 +11491,9 @@ ER_AUTHENTICATION_PLUGIN_OOM
 ER_AUTHENTICATION_PLUGIN_LOG
   eng "Can't initialize logging service".
 
+ER_WARN_REPLICA_GTID_ONLY_AND_GTID_MODE_NOT_ON
+  eng "Replication channel '%.192s' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. If you intend to disable GTIDs in the replication topology, change GTID_ONLY to 0."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

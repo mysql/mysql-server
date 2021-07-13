@@ -60,7 +60,10 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNE
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-# Missing GTID ONLY check added at step 4
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Gtid_only is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
 
 --echo #
 --echo # 3. For the group replication applier channel
@@ -91,7 +94,10 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_applie
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-# Missing GTID ONLY check added at step 4
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_applier"`
+--let $assert_text = Gtid_only is set to 1 for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
 
 --echo #
 --echo # 4. Create a group replication recovery channel
@@ -109,7 +115,10 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNE
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-# Missing GTID ONLY check added at step 4
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Gtid_only is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
 
 --echo #
 --echo # 5. For the group replication recovery channel
@@ -140,7 +149,11 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_recove
 --let $assert_cond = 1 = $count
 --source include/assert.inc
 
-# Missing GTID ONLY check added at step 4
+--let $count = `SELECT COUNT(*) FROM mysql.slave_master_info WHERE Gtid_only = 1 AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Gtid_only is set to 1 for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
 
 --echo #
 --echo # 6. Delete the channels

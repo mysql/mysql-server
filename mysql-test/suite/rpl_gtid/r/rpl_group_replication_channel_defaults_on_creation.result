@@ -7,6 +7,7 @@ CREATE USER 'u1'@'localhost';
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
 include/assert.inc [Auto_position is set to 1 for GR applier channel]
 include/assert.inc [Require_row_format is set to 1 for GR applier channel]
+include/assert.inc [Gtid_only is set to 1 for GR applier channel]
 #
 # 3. For the group replication applier channel
 #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
@@ -24,12 +25,14 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_applie
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 include/assert.inc [Auto_position is set to 1 for GR applier channel]
 include/assert.inc [Require_row_format is set to 1 for GR applier channel]
+include/assert.inc [Gtid_only is set to 1 for GR applier channel]
 #
 # 4. Create a group replication recovery channel
 #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY are enabled
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_recovery";
 include/assert.inc [Auto_position is set to 1 for GR recovery channel]
 include/assert.inc [Require_row_format is set to 1 for GR recovery channel]
+include/assert.inc [Gtid_only is set to 1 for GR recovery channel]
 #
 # 5. For the group replication recovery channel
 #    Verify SOURCE_AUTO_POSITION, REQUIRE_ROW_FORMAT and GTID_ONLY can't be modified
@@ -47,6 +50,7 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1 FOR CHANNEL "group_replication_recove
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 include/assert.inc [Auto_position is set to 1 for GR recovery channel]
 include/assert.inc [Require_row_format is set to 1 for GR recovery channel]
+include/assert.inc [Gtid_only is set to 1 for GR recovery channel]
 #
 # 6. Delete the channels
 #    Verify they cannot be created when GTID_MODE != ON
