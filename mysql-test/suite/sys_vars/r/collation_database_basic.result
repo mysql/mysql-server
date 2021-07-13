@@ -114,12 +114,14 @@ SELECT @@session.collation_database;
 big5_bin
 SET @@session.collation_database = dec8_swedish_ci;
 Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 dec8_swedish_ci
 SET @@session.collation_database = dec8_bin;
 Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -955,12 +957,14 @@ SELECT @@global.collation_database;
 big5_bin
 SET @@global.collation_database = dec8_swedish_ci;
 Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 dec8_swedish_ci
 SET @@global.collation_database = dec8_bin;
 Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
@@ -1815,6 +1819,7 @@ SELECT @@collation_database;
 latin2_czech_cs
 SET @@collation_database = 3;
 Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@collation_database;
 @@collation_database
@@ -1841,6 +1846,7 @@ SELECT @@global.collation_database;
 latin2_czech_cs
 SET @@global.collation_database = 3;
 Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database

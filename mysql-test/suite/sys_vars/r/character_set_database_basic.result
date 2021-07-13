@@ -106,6 +106,7 @@ SELECT @@session.character_set_database;
 big5
 SET @@session.character_set_database = dec8;
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -339,6 +340,7 @@ SELECT @@global.character_set_database;
 big5
 SET @@global.character_set_database = dec8;
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database
@@ -600,6 +602,7 @@ SELECT @@character_set_database;
 latin2
 SET @@character_set_database = 3;
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@character_set_database;
 @@character_set_database
@@ -632,6 +635,7 @@ SELECT @@global.character_set_database;
 latin2
 SET @@global.character_set_database = 3;
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database

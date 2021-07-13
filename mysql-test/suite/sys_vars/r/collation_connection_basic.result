@@ -91,10 +91,14 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 big5_bin
 SET @@session.collation_connection = dec8_swedish_ci;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 dec8_swedish_ci
 SET @@session.collation_connection = dec8_bin;
+Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 dec8_bin
@@ -716,10 +720,14 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 big5_bin
 SET @@global.collation_connection = dec8_swedish_ci;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_swedish_ci
 SET @@global.collation_connection = dec8_bin;
+Warnings:
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_bin
@@ -1354,6 +1362,8 @@ SELECT @@collation_connection;
 @@collation_connection
 latin2_czech_cs
 SET @@collation_connection = 3;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@collation_connection;
 @@collation_connection
 dec8_swedish_ci
@@ -1372,6 +1382,8 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 latin2_czech_cs
 SET @@global.collation_connection = 3;
+Warnings:
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 dec8_swedish_ci

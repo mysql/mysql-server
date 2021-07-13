@@ -6010,7 +6010,14 @@ DE	1
 DF	1
 DROP TABLE test.t1;
 SET NAMES dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_bin) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_bin;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_bin' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	dec8_bin	#	#	#
@@ -6239,7 +6246,14 @@ FC	1
 FD	1
 DROP TABLE test.t1;
 SET NAMES dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE test.t1 (a VARCHAR(3) CHARACTER SET dec8 COLLATE dec8_swedish_ci) ENGINE=Memory CHARACTER SET dec8 COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	#	#	#	#	#	#	#	#	#	#	#	#	dec8_swedish_ci	#	#	#

@@ -5165,6 +5165,7 @@ Warning	1292	Truncated incorrect INTEGER value: '{ }'
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
 Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 Warning	1292	Truncated incorrect DOUBLE value: 'm[]'
 set sql_mode=default;

@@ -87,6 +87,8 @@ SELECT @@character_set_client;
 @@character_set_client
 big5
 SET @@character_set_client = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 dec8
@@ -244,6 +246,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 big5
 SET @@global.character_set_client = dec8;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 dec8
@@ -426,6 +430,8 @@ SELECT @@character_set_client;
 @@character_set_client
 latin2
 SET @@character_set_client = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 dec8
@@ -448,6 +454,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 latin2
 SET @@global.character_set_client = 3;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 dec8

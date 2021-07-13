@@ -972,7 +972,7 @@ bool is_sqlstate_valid(const LEX_STRING *sqlstate) {
 
 static bool is_deprecated(const char *cs_name) {
   return strcmp(cs_name, "ucs2") == 0 || strcmp(cs_name, "macroman") == 0 ||
-         strcmp(cs_name, "macce") == 0;
+         strcmp(cs_name, "macce") == 0 || strcmp(cs_name, "dec8") == 0;
 }
 
 /**

@@ -310,3 +310,57 @@ utf8mb4
 Pattern "The character set macce is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
 Pattern "is a collation of the deprecated character set macce. Please consider using utf8mb4 with an appropriate collation instead." found
 # restart: 
+Deprecate dec8
+# Character set introducers.
+SELECT HEX(_dec8'abc');
+HEX(_dec8'abc')
+616263
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# convert().
+SELECT CONVERT ( 'abc' USING dec8 );
+CONVERT ( 'abc' USING dec8 )
+abc
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# cast().
+SELECT CAST('test' AS CHAR CHARACTER SET dec8);
+CAST('test' AS CHAR CHARACTER SET dec8)
+test
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Column definitions.
+CREATE TABLE t1 ( a CHAR(1) ) CHARACTER SET  dec8  COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t2 ( a CHAR(1) ) CHARACTER SET "dec8" COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t3 ( a CHAR(1) ) CHARACTER SET 'dec8' COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+CREATE TABLE t4 ( a CHAR(1) ) CHARACTER SET `dec8` COLLATE dec8_swedish_ci;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP TABLE t1, t2, t3, t4;
+# Function definitions.
+CREATE FUNCTION f1 ( a CHAR(1) CHARACTER SET dec8 COLLATE dec8_swedish_ci ) RETURNS INT RETURN 1;
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+DROP FUNCTION f1;
+# Columns clause in JSON table functions.
+SELECT * FROM json_table('[]', '$[*]'
+  COLUMNS (p CHAR(1) CHARACTER SET dec8 COLLATE dec8_swedish_ci PATH '$.a')) AS t;
+p
+Warnings:
+Warning	1287	'dec8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4079	'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead.
+# restart: --character-set-server=dec8 --collation-server=dec8_swedish_ci
+Pattern "The character set dec8 is deprecated and will be removed in a future release. Please consider using utf8mb4 instead." found
+Pattern "'dec8_swedish_ci' is a collation of the deprecated character set dec8. Please consider using utf8mb4 with an appropriate collation instead." found
+# restart: 
