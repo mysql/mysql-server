@@ -60,6 +60,7 @@ COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
 SOURCE_CONNECTION_AUTO_FAILOVER	0
+GTID_ONLY	1
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -88,6 +89,7 @@ COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
 SOURCE_CONNECTION_AUTO_FAILOVER	0
+GTID_ONLY	1
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -202,6 +204,7 @@ COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
 SOURCE_CONNECTION_AUTO_FAILOVER	0
+GTID_ONLY	1
 #group_replication_applier channel configuration
 SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -230,6 +233,7 @@ COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
 SOURCE_CONNECTION_AUTO_FAILOVER	0
+GTID_ONLY	1
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

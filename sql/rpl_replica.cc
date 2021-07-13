@@ -9906,6 +9906,12 @@ static int validate_gtid_option_restrictions(const LEX_MASTER_INFO *lex_mi,
     return error;
   }
 
+  if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
+    error = ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON;
+    my_error(error, MYF(0));
+    return error;
+  }
+
   return error;
 }
 
@@ -10307,7 +10313,9 @@ static bool update_change_replication_source_options(
   }
 
   if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
+    mi->set_auto_position(true);
     mi->rli->set_require_row_format(true);
+    mi->set_gtid_only_mode(true);
   }
 
   if (have_execute_option && change_execute_options(lex_mi, mi)) return true;
@@ -10792,7 +10800,8 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->m_source_connection_auto_failover !=
           LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->assign_gtids_to_anonymous_transactions_type !=
-          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -10840,7 +10849,8 @@ static bool is_invalid_change_master_for_group_replication_applier(
       lex_mi->m_source_connection_auto_failover !=
           LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->assign_gtids_to_anonymous_transactions_type !=
-          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED)
+          LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED ||
+      lex_mi->m_gtid_only != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     have_extra_option_received = true;
 
   return have_extra_option_received;
