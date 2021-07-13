@@ -22,6 +22,7 @@
 
 #include "mysql/components/services/log_builtins.h"
 
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/rpl_async_conn_failover.h"

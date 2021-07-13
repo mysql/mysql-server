@@ -975,6 +975,7 @@ TARGET_LINK_LIBRARIES(master binlog sql_main)
 SET (SLAVE_SOURCE
   dynamic_ids.cc
   changestreams/apply/commit_order_queue.cc
+  changestreams/apply/replication_thread_status.cc
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
   rpl_async_conn_failover_table_operations.cc

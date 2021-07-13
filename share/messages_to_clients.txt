@@ -9441,7 +9441,7 @@ ER_DA_ERROR_LOG_MULTIPLE_FILTERS
 ER_DA_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
-ER_USER_REFERENCED_AS_DEFINER  
+ER_USER_REFERENCED_AS_DEFINER
   eng "User %.256s is referenced as a definer account in %s."
 
 ER_CANNOT_USER_REFERENCED_AS_DEFINER
@@ -9624,6 +9624,21 @@ ER_MFA_METHODS_IDENTICAL
 
 ER_INVALID_MFA_OPERATIONS_FOR_PASSWORDLESS_USER
   eng "The operation \"%s\" cannot be performed for user '%s'@'%s' configured to connect without a password."
+
+ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
+  eng "GTID_ONLY cannot be enabled for replication channel '%.192s'. You need GTID_MODE = ON, SOURCE_AUTO_POSITION = 1 and REQUIRE_ROW_FORMAT = 1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_REQ_ROW_FORMAT_WITH_GTID_ONLY
+  eng "REQUIRE_ROW_FORMAT cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_FORMAT_WITH_GTID_ONLY
+  eng "SOURCE_AUTO_POSITION cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS
+  eng "When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS."
+
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS
+  eng "When disabling SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid"
 
 #
 #  End of 8.0 error messages (server-to-client).

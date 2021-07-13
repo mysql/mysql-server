@@ -91,6 +91,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // validate_user_plugins
 #include "sql/binlog.h"            // mysql_bin_log
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/clone_handler.h"
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
@@ -4341,10 +4342,11 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
                  "Execute CHANGE MASTER TO "
                  "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF "
                  "FOR CHANNEL '%.192s' before you set "
-                 "@@GLOBAL.GTID_MODE = '%s'.",
+                 "@@GLOBAL.GTID_MODE = '%s'",
                  mi->get_channel(), mi->get_channel(),
                  Gtid_mode::to_string(new_gtid_mode));
-        my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+        my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+                 Gtid_mode::to_string(new_gtid_mode), buf);
         goto err;
       }
     }
@@ -4360,6 +4362,29 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
       if (mi != nullptr && mi->is_source_connection_auto_failover()) {
         my_error(ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0),
                  Gtid_mode::to_string(new_gtid_mode));
+        goto err;
+      }
+    }
+  }
+  /*
+    Cannot set to <> ON when gtid_only is enabled for any channel.
+  */
+  if (old_gtid_mode == Gtid_mode::ON && new_gtid_mode != Gtid_mode::ON) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
+      if (mi != nullptr && mi->is_gtid_only_mode()) {
+        char buf[1024];
+        snprintf(buf, sizeof(buf),
+                 "replication channel '%.192s' is configured "
+                 "with GTID_ONLY = 1. "
+                 "Execute CHANGE REPLICATION SOURCE TO "
+                 "GTID_ONLY = 0 "
+                 "FOR CHANNEL '%.192s' before you set "
+                 "@@GLOBAL.GTID_MODE = '%s'",
+                 mi->get_channel(), mi->get_channel(),
+                 Gtid_mode::to_string(new_gtid_mode));
+        my_error(ER_CANT_SET_GTID_MODE, MYF(0),
+                 Gtid_mode::to_string(new_gtid_mode), buf);
         goto err;
       }
     }

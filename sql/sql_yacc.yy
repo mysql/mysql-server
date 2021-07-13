@@ -1366,6 +1366,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> INITIAL_SYM                1197      /* SQL-2016-R */
 %token<lexer.keyword> CHALLENGE_RESPONSE_SYM     1198      /* MYSQL */
 
+%token<lexer.keyword> GTID_ONLY_SYM 1199                       /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -3149,12 +3151,18 @@ source_def:
         | PRIVILEGE_CHECKS_USER_SYM EQ privilege_check_def
         | REQUIRE_ROW_FORMAT_SYM EQ ulong_num
           {
-            if ($3 != 0 && $3 != 1) {
+            switch($3) {
+            case 0:
+                Lex->mi.require_row_format =
+                  LEX_MASTER_INFO::LEX_MI_DISABLE;
+                break;
+            case 1:
+                Lex->mi.require_row_format =
+                  LEX_MASTER_INFO::LEX_MI_ENABLE;
+                break;
+            default:
               const char* wrong_value = YYTHD->strmake(@3.raw.start, @3.raw.length());
               my_error(ER_REQUIRE_ROW_FORMAT_INVALID_VALUE, MYF(0), wrong_value);
-            }
-            else {
-              Lex->mi.require_row_format = $3;
             }
           }
         | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM EQ table_primary_key_check_def
@@ -3175,6 +3183,23 @@ source_def:
             }
           }
         | ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_SYM EQ assign_gtids_to_anonymous_transactions_def
+        | GTID_ONLY_SYM EQ real_ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->mi.m_gtid_only =
+                  LEX_MASTER_INFO::LEX_MI_DISABLE;
+                break;
+            case 1:
+                Lex->mi.m_gtid_only =
+                  LEX_MASTER_INFO::LEX_MI_ENABLE;
+                break;
+            default:
+                YYTHD->syntax_error_at(@3,
+                  "You have an error in your CHANGE REPLICATION SOURCE syntax; GTID_ONLY only accepts values 0 or 1");
+                MYSQL_YYABORT;
+            }
+          }
         | source_file_def
         ;
 
@@ -15257,6 +15282,7 @@ ident_keywords_unambiguous:
         | GET_SOURCE_PUBLIC_KEY_SYM
         | GRANTS
         | GROUP_REPLICATION
+        | GTID_ONLY_SYM
         | HASH_SYM
         | HISTOGRAM_SYM
         | HISTORY_SYM
@@ -16741,7 +16767,7 @@ identified_with_plugin_by_password:
           }
         ;
 
-identified_with_plugin_by_random_password:        
+identified_with_plugin_by_random_password:
           IDENTIFIED_SYM WITH ident_or_text BY RANDOM_SYM PASSWORD
           {
             LEX_MFA *m = NEW_PTN LEX_MFA;

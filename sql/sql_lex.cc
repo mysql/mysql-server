@@ -4819,7 +4819,7 @@ void LEX_MASTER_INFO::initialize() {
   until_after_gaps = false;
   ssl = ssl_verify_server_cert = heartbeat_opt = repl_ignore_server_ids_opt =
       retry_count_opt = auto_position = port_opt = get_public_key =
-          m_source_connection_auto_failover = LEX_MI_UNCHANGED;
+          m_source_connection_auto_failover = m_gtid_only = LEX_MI_UNCHANGED;
   ssl_key = ssl_cert = ssl_ca = ssl_capath = ssl_cipher = nullptr;
   ssl_crl = ssl_crlpath = nullptr;
   public_key_path = nullptr;
@@ -4835,7 +4835,7 @@ void LEX_MASTER_INFO::initialize() {
   zstd_compression_level = 0;
   privilege_checks_none = false;
   privilege_checks_username = privilege_checks_hostname = nullptr;
-  require_row_format = -1;
+  require_row_format = LEX_MI_UNCHANGED;
   require_table_primary_key_check = LEX_MI_PK_CHECK_UNCHANGED;
   assign_gtids_to_anonymous_transactions_type =
       LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED;
