@@ -9643,6 +9643,9 @@ ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS
 ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON
   eng "When configuring a group replication channel you must do it when GTID_MODE = ON."
 
+ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
+  eng "Replication cannot start%.192s with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

@@ -320,6 +320,9 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 static int check_slave_sql_config_conflict(const Relay_log_info *rli);
 static void group_replication_cleanup_after_clone();
 
+static void check_replica_configuration_restrictions();
+static bool check_replica_configuration_errors(Master_info *mi,
+                                               int thread_mask);
 /*
   Applier thread InnoDB priority.
   When two transactions conflict inside InnoDB, the one with
@@ -471,79 +474,8 @@ int init_replica() {
   }
 #endif
 
-  if (global_gtid_mode.get() == Gtid_mode::OFF) {
-    for (auto [_, mi] : channel_map) {
-      if (mi != nullptr && mi->is_auto_position()) {
-        LogErr(WARNING_LEVEL,
-               ER_RPL_SLAVE_AUTO_POSITION_IS_1_AND_GTID_MODE_IS_OFF,
-               mi->get_channel(), mi->get_channel());
-      }
-    }
-  }
+  check_replica_configuration_restrictions();
 
-  if (global_gtid_mode.get() != Gtid_mode::ON) {
-    for (auto [_, mi] : channel_map) {
-      if (mi != nullptr && mi->is_source_connection_auto_failover()) {
-        LogErr(ERROR_LEVEL, ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL,
-               mi->get_channel(), mi->get_channel());
-      }
-    }
-  }
-
-  std::string group_name = get_group_replication_group_name();
-  if ((global_gtid_mode.get() != Gtid_mode::ON) || group_name.length() > 0) {
-    for (auto [_, mi] : channel_map) {
-      if (mi != nullptr &&
-          mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
-              Assign_gtids_to_anonymous_transactions_info::enum_type::
-                  AGAT_OFF) {
-        if (global_gtid_mode.get() != Gtid_mode::ON) {
-          std::string assign_gtid_type;
-          if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                  .get_type() == Assign_gtids_to_anonymous_transactions_info::
-                                     enum_type::AGAT_LOCAL)
-            assign_gtid_type.assign("LOCAL");
-          else
-            assign_gtid_type.assign("a UUID");
-          LogErr(
-              WARNING_LEVEL,
-              ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON,
-              mi->get_channel(), assign_gtid_type.data(),
-              Gtid_mode::to_string(global_gtid_mode.get()));
-        } else {
-          if (!(group_name.compare(
-                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                      .get_value())))
-            LogErr(WARNING_LEVEL,
-                   ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME,
-                   mi->get_channel(),
-                   mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                       .get_value()
-                       .c_str());
-
-          std::string view_change_uuid;
-          if (get_group_replication_view_change_uuid(view_change_uuid)) {
-            /* purecov: begin inspected */
-            LogErr(WARNING_LEVEL,
-                   ER_WARN_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE);
-            /* purecov: end */
-          }
-
-          if (!(view_change_uuid.compare(
-                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                      .get_value()))) {
-            LogErr(
-                WARNING_LEVEL,
-                ER_WARN_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID,
-                mi->get_channel(),
-                mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                    .get_value()
-                    .c_str());
-          }
-        }
-      }
-    }
-  }
   if (check_slave_sql_config_conflict(nullptr)) {
     error = 1;
     goto err;
@@ -2010,66 +1942,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     return true;
   }
 
-  if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
-      global_gtid_mode.get() == Gtid_mode::OFF) {
-    my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
-             mi->get_for_channel_str());
-    return true;
-  }
-
-  if (global_gtid_mode.get() != Gtid_mode::ON &&
-      mi->is_source_connection_auto_failover()) {
-    my_error(ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF, MYF(0));
-    return true;
-  }
-
-  if ((mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
-       Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) &&
-      global_gtid_mode.get() != Gtid_mode::ON) {
-    /*
-      This function may be called either during server start (when
-      --skip-start-replica is not used) or during START SLAVE. The error should
-      only be generated during START SLAVE. During server start, an error has
-      already been written to the log for this case (in init_replica).
-    */
-    if (current_thd)
-      my_error(ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON, MYF(0),
-               mi->get_for_channel_str());
-    return true;
-  }
-  if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
-      Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
-    std::string group_name = get_group_replication_group_name();
-    if ((group_name.length() > 0) &&
-        !(group_name.compare(
-            mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                .get_value()))) {
-      my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME, MYF(0),
-               mi->get_channel());
-      return true;
-    }
-    std::string view_change_uuid;
-    if (get_group_replication_view_change_uuid(view_change_uuid)) {
-      /* purecov: begin inspected */
-      my_error(ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE, MYF(0));
-      return true;
-      /* purecov: end */
-    } else {
-      if (!(view_change_uuid.compare(
-              mi->rli->m_assign_gtids_to_anonymous_transactions_info
-                  .get_value()))) {
-        my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID, MYF(0),
-                 mi->get_channel());
-        return true;
-      }
-    }
-    if (mi->rli->until_condition == Relay_log_info::UNTIL_SQL_BEFORE_GTIDS ||
-        mi->rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS) {
-      my_error(ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID,
-               MYF(0));
-      return true;
-    }
-  }
+  if (check_replica_configuration_errors(mi, thread_mask)) return true;
 
   /**
     SQL AFTER MTS GAPS has no effect when GTID_MODE=ON and SOURCE_AUTO_POS=1
@@ -11046,3 +10919,182 @@ static void group_replication_cleanup_after_clone() {
 /**
   @} (end of group Replication)
 */
+
+/**
+  Checks the current replica configuration against the server GTID mode
+  If some incompatibility is found a warning is logged.
+*/
+static void check_replica_configuration_restrictions() {
+  std::string group_name = get_group_replication_group_name();
+  if (global_gtid_mode.get() != Gtid_mode::ON || group_name.length() > 0) {
+    for (auto [_, mi] : channel_map) {
+      if (mi != nullptr) {
+        if (global_gtid_mode.get() != Gtid_mode::ON) {
+          // Check if a channel has SOURCE_AUTO POSITION
+          if (global_gtid_mode.get() == Gtid_mode::OFF &&
+              mi->is_auto_position()) {
+            LogErr(WARNING_LEVEL,
+                   ER_RPL_SLAVE_AUTO_POSITION_IS_1_AND_GTID_MODE_IS_OFF,
+                   mi->get_channel(), mi->get_channel());
+          }
+          // Check if a channel has SOURCE_CONNECTION_AUTO_FAILOVER
+          if (mi->is_source_connection_auto_failover()) {
+            LogErr(WARNING_LEVEL, ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL,
+                   mi->get_channel(), mi->get_channel());
+          }
+          // Check if a channel has GTID_ONLY
+          if (mi->is_gtid_only_mode()) {
+            LogErr(WARNING_LEVEL,
+                   ER_WARN_REPLICA_GTID_ONLY_AND_GTID_MODE_NOT_ON,
+                   mi->get_channel());
+          }
+          // Check if a channel has ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+          if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                  .get_type() > Assign_gtids_to_anonymous_transactions_info::
+                                    enum_type::AGAT_OFF) {
+            std::string assign_gtid_type;
+            if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                    .get_type() == Assign_gtids_to_anonymous_transactions_info::
+                                       enum_type::AGAT_LOCAL)
+              assign_gtid_type.assign("LOCAL");
+            else
+              assign_gtid_type.assign("a UUID");
+            LogErr(
+                WARNING_LEVEL,
+                ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON,
+                mi->get_channel(), assign_gtid_type.data(),
+                Gtid_mode::to_string(global_gtid_mode.get()));
+          }
+        } else {
+          // No checks needed if mode is OFF
+          if (mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                  .get_type() ==
+              Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF)
+            continue;
+
+          /*
+            Check if one of the channels with
+              ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+            does not have the same UUID as Group Replication
+          */
+          if (!(group_name.compare(
+                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                      .get_value()))) {
+            LogErr(WARNING_LEVEL,
+                   ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME,
+                   mi->get_channel(),
+                   mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                       .get_value()
+                       .c_str());
+          }
+          /*
+            Check if one of the channels with
+              ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+            does not have the same UUID as group_replication_view_change_uuid
+          */
+          std::string view_change_uuid;
+          if (get_group_replication_view_change_uuid(view_change_uuid)) {
+            /* purecov: begin inspected */
+            LogErr(WARNING_LEVEL,
+                   ER_WARN_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE);
+            /* purecov: end */
+          }
+
+          if (!(view_change_uuid.compare(
+                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                      .get_value()))) {
+            LogErr(
+                WARNING_LEVEL,
+                ER_WARN_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID,
+                mi->get_channel(),
+                mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                    .get_value()
+                    .c_str());
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+  Checks the current replica configuration when starting a replication thread
+  If some incompatibility is found an error is thrown.
+
+  @param mi  pointer to the source info repository object
+  @param thread_mask what replication threads are running
+
+  @return true if an error occurs, false otherwise
+*/
+static bool check_replica_configuration_errors(Master_info *mi,
+                                               int thread_mask) {
+  if (global_gtid_mode.get() != Gtid_mode::ON) {
+    if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
+        global_gtid_mode.get() == Gtid_mode::OFF) {
+      my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
+               mi->get_for_channel_str());
+      return true;
+    }
+
+    if (mi->is_source_connection_auto_failover()) {
+      my_error(ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF, MYF(0));
+      return true;
+    }
+
+    if (mi->is_gtid_only_mode()) {
+      my_error(ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON, MYF(0),
+               mi->get_for_channel_str());
+      return true;
+    }
+
+    if ((mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+         Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF)) {
+      /*
+        This function may be called either during server start (when
+        --skip-start-replica is not used) or during START SLAVE. The error
+        should only be generated during START SLAVE. During server start, an
+        error has already been written to the log for this case (in
+        init_replica).
+      */
+      if (current_thd)
+        my_error(ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON, MYF(0),
+                 mi->get_for_channel_str());
+      return true;
+    }
+  }
+
+  if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+      Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+    std::string group_name = get_group_replication_group_name();
+    if ((group_name.length() > 0) &&
+        !(group_name.compare(
+            mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                .get_value()))) {
+      my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME, MYF(0),
+               mi->get_channel());
+      return true;
+    }
+    std::string view_change_uuid;
+    if (get_group_replication_view_change_uuid(view_change_uuid)) {
+      /* purecov: begin inspected */
+      my_error(ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE, MYF(0));
+      return true;
+      /* purecov: end */
+    } else {
+      if (!(view_change_uuid.compare(
+              mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                  .get_value()))) {
+        my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID, MYF(0),
+                 mi->get_channel());
+        return true;
+      }
+    }
+    if (mi->rli->until_condition == Relay_log_info::UNTIL_SQL_BEFORE_GTIDS ||
+        mi->rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS) {
+      my_error(ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID,
+               MYF(0));
+      return true;
+    }
+  }
+  return false;
+}
