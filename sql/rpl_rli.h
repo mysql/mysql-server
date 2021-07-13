@@ -1551,16 +1551,28 @@ class Relay_log_info : public Rpl_info {
     future_event_relay_log_pos = log_pos;
   }
 
-  inline const char *get_group_master_log_name() {
+  inline const char *get_group_master_log_name() const {
     return group_master_log_name;
   }
-  inline ulonglong get_group_master_log_pos() { return group_master_log_pos; }
+  inline const char *get_group_master_log_name_info() const {
+    if (m_is_applier_source_position_info_invalid) return "INVALID";
+    return get_group_master_log_name();
+  }
+  inline ulonglong get_group_master_log_pos() const {
+    return group_master_log_pos;
+  }
+  inline ulonglong get_group_master_log_pos_info() const {
+    if (m_is_applier_source_position_info_invalid) return 0;
+    return get_group_master_log_pos();
+  }
   inline void set_group_master_log_name(const char *log_file_name) {
     strmake(group_master_log_name, log_file_name,
             sizeof(group_master_log_name) - 1);
   }
   inline void set_group_master_log_pos(ulonglong log_pos) {
     group_master_log_pos = log_pos;
+    // Whenever the position is set, it means it is no longer invalid
+    m_is_applier_source_position_info_invalid = false;
   }
 
   inline const char *get_group_relay_log_name() { return group_relay_log_name; }
@@ -1607,8 +1619,10 @@ class Relay_log_info : public Rpl_info {
   inline void set_event_relay_log_pos(ulonglong log_pos) {
     event_relay_log_pos = log_pos;
   }
-  inline const char *get_rpl_log_name() {
-    return (group_master_log_name[0] ? group_master_log_name : "FIRST");
+  inline const char *get_rpl_log_name() const {
+    return m_is_applier_source_position_info_invalid
+               ? "INVALID"
+               : (group_master_log_name[0] ? group_master_log_name : "FIRST");
   }
 
   static size_t get_number_info_rli_fields();

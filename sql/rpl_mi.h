@@ -448,12 +448,21 @@ class Master_info : public Rpl_info {
   my_off_t master_log_pos;
 
  public:
-  inline const char *get_master_log_name() { return master_log_name; }
-  inline ulonglong get_master_log_pos() { return master_log_pos; }
+  inline const char *get_master_log_name() const { return master_log_name; }
+  inline const char *get_master_log_name_info() const {
+    if (m_is_receiver_position_info_invalid) return "INVALID";
+    return get_master_log_name();
+  }
+  inline ulonglong get_master_log_pos() const { return master_log_pos; }
+  inline ulonglong get_master_log_pos_info() const {
+    if (m_is_receiver_position_info_invalid) return 0;
+    return get_master_log_pos();
+  }
   inline void set_master_log_name(const char *log_file_name) {
     strmake(master_log_name, log_file_name, sizeof(master_log_name) - 1);
   }
   inline void set_master_log_pos(ulonglong log_pos) {
+    m_is_receiver_position_info_invalid = false;
     master_log_pos = log_pos;
   }
   inline const char *get_io_rpl_log_name() {

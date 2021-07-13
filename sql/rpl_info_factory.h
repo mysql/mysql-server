@@ -77,6 +77,13 @@ class Rpl_info_factory {
                                      Relay_log_info *rli,
                                      bool is_gaps_collecting_phase);
   static bool reset_workers(Relay_log_info *rli);
+  /**
+    If GTID_ONLY is set for this channel, receiver and applier positions
+    will be marked as invalid.
+
+    @param mi the repository info object whose positions will be invalidated
+  */
+  static void invalidate_repository_position(Master_info *mi);
 
  private:
   typedef struct file_data {
