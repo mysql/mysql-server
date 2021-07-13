@@ -9631,20 +9631,23 @@ ER_CHANGE_REPLICATION_SOURCE_NO_OPTIONS_FOR_GTID_ONLY
 ER_CHANGE_REP_SOURCE_CANT_DISABLE_REQ_ROW_FORMAT_WITH_GTID_ONLY
   eng "REQUIRE_ROW_FORMAT cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
 
-ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_FORMAT_WITH_GTID_ONLY
+ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POSITION_WITH_GTID_ONLY
   eng "SOURCE_AUTO_POSITION cannot be disabled for replication channel '%.192s' when GTID_ONLY=1."
 
 ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS
-  eng "When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS."
+  eng "When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid."
 
 ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS
-  eng "When disabling SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid"
+  eng "When disabling SOURCE_AUTO_POSITION FOR CHANNEL '%.192s' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid."
 
 ER_CHANGE_REP_SOURCE_GR_CHANNEL_WITH_GTID_MODE_NOT_ON
   eng "When configuring a group replication channel you must do it when GTID_MODE = ON."
 
 ER_CANT_USE_GTID_ONLY_WITH_GTID_MODE_NOT_ON
   eng "Replication cannot start%.192s with GTID_ONLY = 1 as this server uses @@GLOBAL.GTID_MODE <> ON."
+
+ER_WARN_C_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS
+  eng "The replication positions relative to the source may be out-of-date on channel '%.192s', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values."
 
 #
 #  End of 8.0 error messages (server-to-client).

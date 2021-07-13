@@ -1167,6 +1167,7 @@ bool Rpl_info_factory::create_slave_info_objects(
 
     if (!channel_error) {
       error = configure_channel_replication_filters(mi->rli, cname);
+      invalidate_repository_position(mi);
     } else {
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_FAILED_TO_INIT_A_MASTER_INFO_STRUCTURE,
              cname);
@@ -1394,4 +1395,11 @@ err:
   info->access->drop_thd(thd);
   delete info;
   return error != HA_ERR_END_OF_FILE && error != 0;
+}
+
+void Rpl_info_factory::invalidate_repository_position(Master_info *mi) {
+  if (mi->is_gtid_only_mode()) {
+    mi->set_receiver_position_info_invalid(true);
+    mi->rli->set_applier_source_position_info_invalid(true);
+  }
 }

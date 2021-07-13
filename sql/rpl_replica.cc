@@ -994,6 +994,7 @@ static void recover_relay_log(Master_info *mi) {
       max<ulonglong>(BIN_LOG_HEADER_SIZE, rli->get_group_master_log_pos()));
   mi->set_master_log_name(rli->get_group_master_log_name());
 
+  // TODO make this conditional message also
   LogErr(WARNING_LEVEL, ER_RPL_RECOVERY_FILE_MASTER_POS_INFO,
          (ulong)mi->get_master_log_pos(), mi->get_master_log_name(),
          mi->get_for_channel_str(), rli->get_group_relay_log_pos(),
@@ -3312,13 +3313,13 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_user(), &my_charset_bin);
   protocol->store((uint32)mi->port);
   protocol->store((uint32)mi->connect_retry);
-  protocol->store(mi->get_master_log_name(), &my_charset_bin);
-  protocol->store((ulonglong)mi->get_master_log_pos());
+  protocol->store(mi->get_master_log_name_info(), &my_charset_bin);
+  protocol->store((ulonglong)mi->get_master_log_pos_info());
   protocol->store(mi->rli->get_group_relay_log_name() +
                       dirname_length(mi->rli->get_group_relay_log_name()),
                   &my_charset_bin);
   protocol->store((ulonglong)mi->rli->get_group_relay_log_pos());
-  protocol->store(mi->rli->get_group_master_log_name(), &my_charset_bin);
+  protocol->store(mi->rli->get_group_master_log_name_info(), &my_charset_bin);
   protocol->store(
       mi->slave_running == MYSQL_SLAVE_RUN_CONNECT
           ? "Yes"
@@ -3349,7 +3350,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->rli->last_error().number);
   protocol->store(mi->rli->last_error().message, &my_charset_bin);
   protocol->store((uint32)mi->rli->slave_skip_counter);
-  protocol->store((ulonglong)mi->rli->get_group_master_log_pos());
+  protocol->store((ulonglong)mi->rli->get_group_master_log_pos_info());
   protocol->store((ulonglong)mi->rli->log_space_total);
 
   const char *until_type = "";
@@ -6147,7 +6148,8 @@ bool mts_recovery_groups(Relay_log_info *rli) {
           recovery_group_cnt++;
 
           LogErr(INFORMATION_LEVEL, ER_RPL_MTS_GROUP_RECOVERY_RELAY_LOG_INFO,
-                 rli->get_group_master_log_name(), ev->common_header->log_pos);
+                 rli->get_group_master_log_name_info(),
+                 ev->common_header->log_pos);
           if ((ret = mts_event_coord_cmp(&ev_coord, &w_last)) == 0) {
 #ifndef NDEBUG
             for (uint i = 0; i <= w->worker_checkpoint_seqno; i++) {
@@ -6959,14 +6961,14 @@ extern "C" void *handle_slave_sql(void *arg) {
     if (rli->is_privilege_checks_user_null())
       LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_STARTING,
              rli->get_for_channel_str(), rli->get_rpl_log_name(),
-             llstr(rli->get_group_master_log_pos(), llbuff),
+             llstr(rli->get_group_master_log_pos_info(), llbuff),
              rli->get_group_relay_log_name(),
              llstr(rli->get_group_relay_log_pos(), llbuff1));
     else
       LogErr(INFORMATION_LEVEL,
              ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS,
              rli->get_for_channel_str(), rli->get_rpl_log_name(),
-             llstr(rli->get_group_master_log_pos(), llbuff),
+             llstr(rli->get_group_master_log_pos_info(), llbuff),
              rli->get_group_relay_log_name(),
              llstr(rli->get_group_relay_log_pos(), llbuff1),
              rli->get_privilege_checks_username().c_str(),
@@ -7017,8 +7019,8 @@ extern "C" void *handle_slave_sql(void *arg) {
                saved_master_log_name, (ulong)saved_master_log_pos,
                rli->get_group_relay_log_name(),
                (ulong)rli->get_group_relay_log_pos(),
-               rli->get_group_master_log_name(),
-               (ulong)rli->get_group_master_log_pos());
+               rli->get_group_master_log_name_info(),
+               (ulong)rli->get_group_master_log_pos_info());
         saved_skip = 0;
       }
 
@@ -7076,11 +7078,11 @@ extern "C" void *handle_slave_sql(void *arg) {
     /* Thread stopped. Print the current replication position to the log */
     if (slave_errno)
       LogErr(ERROR_LEVEL, slave_errno, rli->get_rpl_log_name(),
-             llstr(rli->get_group_master_log_pos(), llbuff));
+             llstr(rli->get_group_master_log_pos_info(), llbuff));
     else
       LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_EXITING,
              rli->get_for_channel_str(), rli->get_rpl_log_name(),
-             llstr(rli->get_group_master_log_pos(), llbuff));
+             llstr(rli->get_group_master_log_pos_info(), llbuff));
 
     delete rli->current_mts_submode;
     rli->current_mts_submode = nullptr;
@@ -9861,7 +9863,7 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
 
   bool is_or_will_gtid_only_be_enabled = is_option_enabled_or_will_be(
       mi->is_gtid_only_mode(), lex_mi->m_gtid_only);
-  bool will_gtid_mode_be_disable =
+  bool will_gtid_only_mode_be_disable =
       mi->is_gtid_only_mode() &&
       lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_DISABLE;
 
@@ -10032,7 +10034,7 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
       GTID_ONLY = 1
   */
   if (will_auto_position_be_disable && is_or_will_gtid_only_be_enabled) {
-    error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_FORMAT_WITH_GTID_ONLY;
+    error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POSITION_WITH_GTID_ONLY;
     my_error(error, MYF(0), mi->get_channel());
     return error;
   }
@@ -10047,32 +10049,57 @@ int evaluate_inter_option_dependencies(const LEX_MASTER_INFO *lex_mi,
   }
 
   /*
-    CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, SOURCE_AUTO_POSITION = 0
-      This requires `SOURCE_LOG_FILE` and `SOURCE_LOG_POS`
-  */
-  if (will_gtid_mode_be_disable && will_auto_position_be_disable) {
-    if (lex_mi->log_file_name == nullptr || lex_mi->pos == 0) {
-      error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS;
-      my_error(error, MYF(0), mi->get_channel());
-      return error;
-    }
-  }
-
-  /*
     CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 when
     source positions in relation to the source are invalid.
     This requires `SOURCE_LOG_FILE` and `SOURCE_LOG_POS`
+    The message varies if you are also disabling `GTID_ONLY`
   */
-  if (!is_or_will_gtid_only_be_enabled && will_auto_position_be_disable) {
+  if (will_auto_position_be_disable) {
     if (mi->is_receiver_position_info_invalid()) {
       if (lex_mi->log_file_name == nullptr || lex_mi->pos == 0) {
-        error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS;
-        my_error(error, MYF(0), mi->get_channel());
+        if (will_gtid_only_mode_be_disable) {
+          error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_GTID_ONLY_WITHOUT_POSITIONS;
+          my_error(error, MYF(0), mi->get_channel());
+        } else {
+          error = ER_CHANGE_REP_SOURCE_CANT_DISABLE_AUTO_POS_WITHOUT_POSITIONS;
+          my_error(error, MYF(0), mi->get_channel());
+        }
         return error;
       }
     }
   }
   return error;
+}
+
+/**
+  Log a warning in case GTID_ONLY or SOURCE AUTO POSITION are disabled
+  and the server contains invalid positions.
+
+  @param thd the associated thread object
+
+  @param lex_mi structure that holds all change replication source options given
+                on the command
+
+  @param mi     Pointer to Master_info object
+*/
+static void log_invalid_position_warning(THD *thd,
+                                         const LEX_MASTER_INFO *lex_mi,
+                                         Master_info *mi) {
+  if (lex_mi->m_gtid_only == LEX_MASTER_INFO::LEX_MI_DISABLE ||
+      lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_DISABLE) {
+    if (mi->is_receiver_position_info_invalid() ||
+        mi->rli->is_applier_source_position_info_invalid()) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING,
+          ER_WARN_C_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS,
+          ER_THD(thd,
+                 ER_WARN_C_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS),
+          mi->get_channel());
+      LogErr(WARNING_LEVEL,
+             ER_WARN_L_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS,
+             mi->get_channel());
+    }
+  }
 }
 
 /**
@@ -10441,7 +10468,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       much more unlikely situation than the one we are fixing here).
     */
     if (!lex_mi->host && !lex_mi->port && !lex_mi->log_file_name &&
-        !lex_mi->pos) {
+        !lex_mi->pos && !mi->rli->is_applier_source_position_info_invalid()) {
       /*
         Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread
         is not initialized), so we use a max(). What happens to
@@ -10500,9 +10527,11 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         of rli, i.e. to ''/0: we have lost all copies of the original good
         coordinates. That's why we always save good coords in rli.
 */
-      mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
-      mi->rli->set_group_master_log_name(mi->get_master_log_name());
-      DBUG_PRINT("info", ("master_log_pos: %llu", mi->get_master_log_pos()));
+      if (!mi->is_receiver_position_info_invalid()) {
+        mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
+        mi->rli->set_group_master_log_name(mi->get_master_log_name());
+        DBUG_PRINT("info", ("master_log_pos: %llu", mi->get_master_log_pos()));
+      }
     } else {
       const char *errmsg = nullptr;
       if (mi->rli->is_group_relay_log_name_invalid(&errmsg)) {
@@ -10515,7 +10544,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     char *var_group_master_log_name =
         const_cast<char *>(mi->rli->get_group_master_log_name());
 
-    if (!var_group_master_log_name[0])  // uninitialized case
+    if (!var_group_master_log_name[0] &&  // uninitialized case
+        !mi->rli->is_applier_source_position_info_invalid())
       mi->rli->set_group_master_log_pos(0);
 
     mi->rli->abort_pos_wait++; /* for SOURCE_POS_WAIT() to abort */
@@ -10545,6 +10575,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     }
 
   } /* end 'if (thread_mask & SLAVE_SQL == 0)' */
+
+  log_invalid_position_warning(thd, lex_mi, mi);
 
   if (mta_remove_worker_info)
     if (Rpl_info_factory::reset_workers(mi->rli)) {
