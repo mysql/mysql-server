@@ -186,15 +186,3 @@ MACRO(ADD_WSHADOW_WARNING)
     ADD_COMPILE_OPTIONS("-Wshadow-uncaptured-local")
   ENDIF()
 ENDMACRO()
-
-# When builing with PGO, GCC 9 will report -Wmissing-profile when compiling
-# files for which it cannot find profile data. It is valid to disable
-# this warning for files we are not currently interested in profiling.
-MACRO(DISABLE_MISSING_PROFILE_WARNING)
-  IF(FPROFILE_USE)
-    MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
-    IF(HAS_WARN_FLAG)
-      STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
-    ENDIF()
-  ENDIF()
-ENDMACRO()

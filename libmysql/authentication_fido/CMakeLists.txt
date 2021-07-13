@@ -41,6 +41,8 @@ INCLUDE(CheckIncludeFiles)
 
 MY_INCLUDE_SYSTEM_DIRECTORIES(FIDO)
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 MYSQL_ADD_PLUGIN(authentication_fido_client
   fido_registration.cc
   fido_assertion.cc
