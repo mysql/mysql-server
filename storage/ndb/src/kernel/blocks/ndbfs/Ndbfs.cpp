@@ -1384,6 +1384,9 @@ Ndbfs::report(Request * request, Signal* signal)
   if (request->file->has_buffer())
   {
     if ((request->action == Request::open && request->error.code != 0) ||
+        // Buffer only used for initializing (OM_INIT) file during open
+        (request->action == Request::open &&
+         (request->par.open.flags & FsOpenReq::OM_WRITE_BUFFER) == 0) ||
         request->action == Request::close ||
         request->action == Request::closeRemove ||
         request->action == Request::buildindx)
