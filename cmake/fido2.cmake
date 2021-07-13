@@ -33,6 +33,10 @@ FUNCTION(WARN_MISSING_SYSTEM_UDEV OUTPUT_WARNING)
       )
     SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
   ENDIF()
+  IF(SOLARIS)
+    MESSAGE(STATUS "No known libudev on SOLARIS")
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
+  ENDIF()
 ENDFUNCTION()
 
 # Bundled FIDO requires libudev.
@@ -96,6 +100,10 @@ MACRO(MYSQL_USE_BUNDLED_FIDO)
 
   # Mark it as not found if libudev is missing, so we can give proper warnings.
   IF(LINUX AND NOT LIBUDEV_DEVEL_FOUND)
+    SET(FIDO_FOUND FALSE)
+  ENDIF()
+  # So that we skip authentication_fido_client.so
+  IF(SOLARIS)
     SET(FIDO_FOUND FALSE)
   ENDIF()
   SET(FIDO_LIBRARY fido2 CACHE INTERNAL "Bundled fido2 library")
