@@ -146,6 +146,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       m_privilege_checks_user_corrupted{false},
       m_require_row_format(false),
       m_require_table_primary_key_check(PK_CHECK_STREAM),
+      m_is_applier_source_position_info_invalid(false),
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
       ignore_log_space_limit(false),
@@ -3241,6 +3242,14 @@ void Relay_log_info::set_require_table_primary_key_check(
     Relay_log_info::enum_require_table_primary_key require_pk) {
   DBUG_TRACE;
   this->m_require_table_primary_key_check = require_pk;
+}
+
+void Relay_log_info::set_applier_source_position_info_invalid(bool invalid) {
+  m_is_applier_source_position_info_invalid = invalid;
+}
+
+bool Relay_log_info::is_applier_source_position_info_invalid() const {
+  return m_is_applier_source_position_info_invalid;
 }
 
 std::string Assign_gtids_to_anonymous_transactions_info::get_value() const {
