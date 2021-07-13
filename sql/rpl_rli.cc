@@ -680,7 +680,8 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
       CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
       is read and the log position is valid again.
     */
-    if (*group_master_log_name && !is_group_master_log_pos_invalid) {
+    if (*group_master_log_name && !is_group_master_log_pos_invalid &&
+        !is_applier_source_position_info_invalid()) {
       char *basename =
           (group_master_log_name + dirname_length(group_master_log_name));
       /*
