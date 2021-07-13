@@ -989,10 +989,14 @@ err:
 */
 static void recover_relay_log(Master_info *mi) {
   Relay_log_info *rli = mi->rli;
-  // Set Receiver Thread's positions as per the recovered Applier Thread.
-  mi->set_master_log_pos(
-      max<ulonglong>(BIN_LOG_HEADER_SIZE, rli->get_group_master_log_pos()));
-  mi->set_master_log_name(rli->get_group_master_log_name());
+
+  // If GTID ONLY is enable the receiver doesn't care about these positions
+  if (!mi->is_gtid_only_mode()) {
+    // Set Receiver Thread's positions as per the recovered Applier Thread.
+    mi->set_master_log_pos(std::max<ulonglong>(
+        BIN_LOG_HEADER_SIZE, rli->get_group_master_log_pos()));
+    mi->set_master_log_name(rli->get_group_master_log_name());
+  }
 
   // TODO make this conditional message also
   LogErr(WARNING_LEVEL, ER_RPL_RECOVERY_FILE_MASTER_POS_INFO,
@@ -1074,7 +1078,7 @@ int init_recovery(Master_info *mi) {
   group_master_log_name = const_cast<char *>(rli->get_group_master_log_name());
   if (!error) {
     bool run_relay_log_recovery = true;
-    if (!group_master_log_name[0]) {
+    if (!group_master_log_name[0] && !rli->mi->is_gtid_only_mode()) {
       if (rli->replicate_same_server_id) {
         error = 1;
         LogErr(ERROR_LEVEL,
