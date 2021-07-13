@@ -466,6 +466,8 @@ int Slave_worker::flush_info(const bool force) {
 
   if (!inited) return 0;
 
+  if (c_rli->mi->is_gtid_only_mode()) return 0;
+
   /*
     We update the sync_period at this point because only here we
     now that we are handling a Slave_worker. This needs to be
