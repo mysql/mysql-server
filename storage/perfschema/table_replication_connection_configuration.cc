@@ -82,6 +82,9 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "algorithm.',\n"
     "  TLS_CIPHERSUITES TEXT CHARACTER SET utf8 COLLATE utf8_bin NULL,\n"
     "  SOURCE_CONNECTION_AUTO_FAILOVER ENUM('1','0') not null,\n"
+    "  GTID_ONLY ENUM('1','0') not null\n"
+    "  COMMENT 'Indicates if this channel only uses GTIDs and does not persist "
+    "positions.',\n"
     "  PRIMARY KEY (channel_name) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -321,6 +324,8 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
     m_row.source_connection_auto_failover = PS_RPL_NO;
   }
 
+  m_row.gtid_only = mi->is_gtid_only_mode() ? PS_RPL_YES : PS_RPL_NO;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -429,6 +434,9 @@ int table_replication_connection_configuration::read_row_values(
           break;
         case 25: /** source_connection_auto_failover */
           set_field_enum(f, m_row.source_connection_auto_failover);
+          break;
+        case 26: /** gtid_only */
+          set_field_enum(f, m_row.gtid_only);
           break;
         default:
           assert(false);
