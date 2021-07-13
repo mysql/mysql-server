@@ -16,6 +16,7 @@
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
+# [--let $rpl_gtid_only= *:0,1:0,2:1]
 # --let $rpl_source_file= rpl_change_topology_helper.inc
 # --source include/rpl_for_each_connection.inc
 #
@@ -78,6 +79,36 @@ if (!$_rpl_change_topology_helper_skip)
   # Get port number
   --let $_rpl_change_topology_helper_port= \$SERVER_MYPORT_$rpl_master
 
+  # Get GTID_ONLY for current `$rpl_slave`
+  --let $_rpl_change_topology_helper_gtid_only_index= `SELECT LOCATE('$rpl_slave:', "$rpl_gtid_only")`
+  --let $_rpl_change_topology_helper_gtid_only = 0
+
+  if ($_rpl_change_topology_helper_gtid_only_index)
+  {
+
+    --let $_rpl_change_topology_helper_gtid_only= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_gtid_only", $_rpl_change_topology_helper_gtid_only_index), ',', 1), ':', -1)`
+  }
+
+
+
+  # Get GTID_ONLY for all replicas
+  if (`SELECT $_rpl_change_topology_helper_gtid_only_index = 0 AND "$_rpl_change_topology_gtid_only_all" != ""`)
+  {
+    --let $_rpl_change_topology_helper_gtid_only= $_rpl_change_topology_gtid_only_all
+  }
+
+  # GTID_ONLY can only be enabled if GTID_MODE==1, SOURCE_AUTO_POSITION==1, REQUIRE_ROW_FORMAT==1
+  # When GTID_ONLY is enabled and source-parallel-workers == 0 then source-parallel-workers is set to 1
+  if ($_rpl_change_topology_helper_gtid_only == 1)
+  {
+    --source include/assert_gtid_mode_on.inc
+    --let $use_gtids= 1
+    --source include/have_binlog_format_row.inc
+    --source include/only_mts_replica_parallel_workers.inc
+  }
+
+
+
   # Configure whether we use AUTO_POSITION.
   if ($use_gtids)
   {
@@ -133,7 +164,11 @@ if (!$_rpl_change_topology_helper_skip)
   {
     --let $_rpl_change_topology_helper_require_row= $_rpl_change_topology_require_row_all
   }
+
+
   --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_ROW_FORMAT = $_rpl_change_topology_helper_require_row,
+
+  --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position GTID_ONLY = $_rpl_change_topology_helper_gtid_only,
 
   # Get REQUIRE_TABLE_PRIMARY_KEY_CHECK for current `$rpl_slave`
   --let $_rpl_change_topology_helper_require_table_primary_key_check_index= `SELECT LOCATE('$rpl_slave:', "$rpl_require_table_primary_key_check")`

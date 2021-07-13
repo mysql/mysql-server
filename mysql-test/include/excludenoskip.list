@@ -212,6 +212,9 @@ not_relay_log_info_file.inc
 not_master_info_file.inc
 have_transaction_write_set_extraction.inc
 
+#14.3 Some replication tests cannot run with GTID_ONLY == 1
+not_rpl_gtid_only.inc
+
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
 # 16.1 Some MEB tests can't run on MacOS debug

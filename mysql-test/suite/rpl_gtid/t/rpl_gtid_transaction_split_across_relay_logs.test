@@ -25,6 +25,7 @@
 --source include/not_relay_log_info_file.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/not_rpl_gtid_only.inc
 
 # Disable auto position protocol
 --let use_gtids=0

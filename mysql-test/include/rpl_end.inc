@@ -231,6 +231,40 @@ if ($rpl_multi_source)
 
 # rpl_change_topology executes CHANGE REPLICATION SOURCE for each connection.
 # we restore the gtid state by sourcing rpl_change_topology below
+
+# Restore state for GTID_ONLY
+--connection default
+--let $_rpl_server= $rpl_server_count
+--let $_rpl_one= _1
+while ($_rpl_server)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+
+  if ($rpl_gtid_only)
+  {
+  --disable_query_log
+
+    if (!$rpl_multi_source)
+    {
+      CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
+    }
+    if ($rpl_multi_source)
+    {
+      if($rpl_channel_name)
+      {
+        eval CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL $rpl_channel_name;
+      }
+      if(!$rpl_channel_name)
+      {
+        CHANGE REPLICATION SOURCE TO GTID_ONLY = 0 FOR CHANNEL '';
+      }
+    }
+    --enable_query_log
+  }
+  --dec $_rpl_server
+}
+
 --let $use_gtids= 0
 --let $rpl_group_replication= 0
 
@@ -262,7 +296,21 @@ while ($_rpl_server)
   if ($rpl_require_row_format)
   {
     --disable_query_log
-    CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
+    if (!$rpl_multi_source)
+    {
+      CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
+    }
+    if ($rpl_multi_source)
+    {
+      if($rpl_channel_name)
+      {
+        eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL $rpl_channel_name;
+      }
+      if(!$rpl_channel_name)
+      {
+        CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0 FOR CHANNEL '';
+      }
+    }
     --enable_query_log
   }
 
