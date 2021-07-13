@@ -456,8 +456,32 @@ int remove_info(Master_info *mi);
   @returns true if an error occurred and false otherwiser.
  */
 bool reset_info(Master_info *mi);
+
+/**
+  This method flushes the current configuration for the channel into the
+  connection metadata repository. It will also flush the current contents
+  of the relay log file if instructed to.
+
+  @param mi the `Master_info` reference that holds both `Master_info` and
+            `Relay_log_info` data.
+
+  @param force shall the method ignore the server settings that limit flushes
+               to this repository
+
+  @param need_lock shall the method take the associated data lock and log lock
+                   if false ownership is asserted
+
+  @param flush_relay_log should the method also flush the relay log file
+
+  @param skip_repo_persistence if this method shall skip the repository flush
+                               This wont skip the relay log flush if
+                               flush_relay_log = true
+
+  @returns 0 if no error ocurred, !=0 if an error ocurred
+*/
 int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
-                      bool flush_relay_log = true);
+                      bool flush_relay_log = true,
+                      bool skip_repo_persistence = false);
 void add_replica_skip_errors(const char *arg);
 void set_replica_skip_errors(char **replica_skip_errors_ptr);
 int add_new_channel(Master_info **mi, const char *channel);

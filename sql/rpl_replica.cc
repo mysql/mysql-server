@@ -1371,10 +1371,15 @@ bool reset_info(Master_info *mi) {
 }
 
 int flush_master_info(Master_info *mi, bool force, bool need_lock,
-                      bool do_flush_relay_log) {
+                      bool do_flush_relay_log, bool skip_repo_persistence) {
   DBUG_TRACE;
   assert(mi != nullptr && mi->rli != nullptr);
   DBUG_EXECUTE_IF("fail_to_flush_source_info", { return 1; });
+
+  if (skip_repo_persistence && !do_flush_relay_log) {
+    return 0;
+  }
+
   /*
     With the appropriate recovery process, we will not need to flush
     the content of the current log.
@@ -1409,7 +1414,7 @@ int flush_master_info(Master_info *mi, bool force, bool need_lock,
   */
   if (do_flush_relay_log) err |= mi->rli->flush_current_log();
 
-  err |= mi->flush_info(force);
+  if (!skip_repo_persistence) err |= mi->flush_info(force);
 
   if (need_lock) {
     mysql_mutex_unlock(data_lock);
@@ -1713,16 +1718,18 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
                      stage_flushing_relay_log_and_source_info_repository);
 
     /*
-      Flushes the master info regardles of the sync_source_info option.
+      Flushes the master info regardles of the sync_source_info option and
+      GTID_ONLY = 0 for this channel
     */
-    mysql_mutex_lock(&mi->data_lock);
-    if (mi->flush_info(true)) {
+    if (!mi->is_gtid_only_mode()) {
+      mysql_mutex_lock(&mi->data_lock);
+      if (mi->flush_info(true)) {
+        mysql_mutex_unlock(&mi->data_lock);
+        mysql_mutex_unlock(log_lock);
+        return ER_ERROR_DURING_FLUSH_LOGS;
+      }
       mysql_mutex_unlock(&mi->data_lock);
-      mysql_mutex_unlock(log_lock);
-      return ER_ERROR_DURING_FLUSH_LOGS;
     }
-    mysql_mutex_unlock(&mi->data_lock);
-
     /*
       Flushes the relay log regardles of the sync_relay_log option.
     */
@@ -3036,7 +3043,8 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd, Master_info *mi,
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
     mysql_mutex_lock(&mi->data_lock);
-    if (flush_master_info(mi, force_flush_mi_info, false, false)) {
+    if (flush_master_info(mi, force_flush_mi_info, false, false,
+                          mi->is_gtid_only_mode())) {
       error = 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
     }
@@ -7991,8 +7999,11 @@ end:
     }
 
     if (flush_master_info(mi, false /*force*/, lock_count == 0 /*need_lock*/,
-                          false /*flush_relay_log*/))
+                          false /*flush_relay_log*/, mi->is_gtid_only_mode()))
       res = QUEUE_EVENT_ERROR_FLUSHING_INFO;
+    if (mi->is_gtid_only_mode()) {
+      mi->update_flushed_relay_log_info();
+    }
   }
   if (lock_count >= 2) mysql_mutex_unlock(&mi->data_lock);
   if (lock_count >= 1) mysql_mutex_unlock(log_lock);
