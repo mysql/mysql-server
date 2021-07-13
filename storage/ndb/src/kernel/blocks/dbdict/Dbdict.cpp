@@ -54,7 +54,6 @@
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/GetTabInfo.hpp>
-#include <signaldata/HotSpareRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
