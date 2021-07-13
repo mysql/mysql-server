@@ -452,7 +452,8 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
       &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
 }
 
-static void AddCachesAroundConstantConditionsInPath(AccessPath *path) {
+[[nodiscard]] static bool AddCachesAroundConstantConditionsInPath(
+    AccessPath *path) {
   // TODO(sgunders): We could probably also add on sort and GROUP BY
   // expressions, even though most of them should have been removed by the
   // interesting order framework. The same with the SELECT list and
@@ -461,15 +462,18 @@ static void AddCachesAroundConstantConditionsInPath(AccessPath *path) {
     case AccessPath::FILTER:
       path->filter().condition =
           AddCachesAroundConstantConditions(path->filter().condition);
-      break;
+      return path->filter().condition == nullptr;
     case AccessPath::HASH_JOIN:
       for (Item *&item :
            path->hash_join().join_predicate->expr->join_conditions) {
         item = AddCachesAroundConstantConditions(item);
+        if (item == nullptr) {
+          return true;
+        }
       }
-      break;
+      return false;
     default:
-      break;
+      return false;
   }
 }
 
@@ -563,6 +567,7 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
       [thd, query_block, &applied_replacements, &last_window_temp_table,
        &num_windows_seen, &error,
        &after_aggregation](AccessPath *path, JOIN *join) {
+        if (error) return true;
         DelayedCreateTemporaryTable(thd, query_block, path, after_aggregation,
                                     &last_window_temp_table, &num_windows_seen);
 
@@ -597,11 +602,15 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                     : Aggregator::SIMPLE_AGGREGATOR;
             if (func->set_aggregator(type) || func->aggregator_setup(thd)) {
               error = true;
+              return true;
             }
           }
           after_aggregation = true;
         }
-        AddCachesAroundConstantConditionsInPath(path);
+        if (AddCachesAroundConstantConditionsInPath(path)) {
+          error = true;
+          return true;
+        }
         return false;
       },
       /*post_order_traversal=*/true);
