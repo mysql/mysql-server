@@ -360,6 +360,16 @@ class MYSQL_BIN_LOG : public TC_LOG {
   Transaction_dependency_tracker m_dependency_tracker;
 
   /**
+    Find the oldest binary log referenced by the index file
+
+    @param[out] binlog_file_name the file name of oldest log found
+    @param[out] errmsg the error message outputted, which is left untouched
+                if the function returns false
+    @return false on success, true on error.
+  */
+  bool find_first_log(std::string &binlog_file_name, std::string &errmsg);
+
+  /**
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
 

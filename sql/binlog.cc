@@ -4336,6 +4336,21 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
   return ret;
 }
 
+bool MYSQL_BIN_LOG::find_first_log(std::string &binlog_file_name,
+                                   std::string &errmsg) {
+  auto log_index = this->get_log_index();
+  std::list<std::string> filename_list = log_index.second;
+
+  list<string>::iterator fit = filename_list.begin();
+  if (fit != filename_list.end()) {
+    binlog_file_name.assign(*fit);
+  } else {
+    errmsg.assign("Could not find the first log file name in the index file");
+    return true;
+  }
+  return false;
+}
+
 bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
                                                    const Gtid_set *gtid_set,
                                                    Gtid *first_gtid,

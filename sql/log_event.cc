@@ -5140,7 +5140,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli) {
   DBUG_EXECUTE_IF(
       "crash_after_commit_and_update_pos", if (!strcmp("COMMIT", query)) {
         sql_print_information("Crashing crash_after_commit_and_update_pos.");
-        rli->flush_info(true);
+        rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
         ha_flush_logs(0);
         DBUG_SUICIDE();
       });
@@ -6262,7 +6262,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
    */
   if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
       rli_ptr->is_transactional()) {
-    if ((error = rli_ptr->flush_info(true))) goto err;
+    if ((error =
+             rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)))
+      goto err;
   }
 
   DBUG_PRINT(
@@ -6346,7 +6348,8 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
       Where as for non transactional rli repository the positions are flushed
       only on succesful commit.
      */
-    if (!rli_ptr->is_transactional()) rli_ptr->flush_info(false);
+    if (!rli_ptr->is_transactional())
+      rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
   }
 err:
   // This is Bug#24588741 fix:
@@ -6945,7 +6948,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli) {
     rli->inc_event_relay_log_pos();
   else {
     error_inc = rli->inc_group_relay_log_pos(0, true /*need_data_lock=true*/);
-    error_flush = rli->flush_info(true);
+    error_flush = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
   }
   return (error_inc || error_flush);
 }

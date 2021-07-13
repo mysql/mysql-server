@@ -1144,7 +1144,8 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
   mysql_mutex_lock(&rli->data_lock);
   recover_relay_log(mi);
 
-  if (mi->flush_info(true) || rli->flush_info(true)) {
+  if (mi->flush_info(true) ||
+      rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
     recovery_error = 1;
     mysql_mutex_unlock(&mi->data_lock);
     mysql_mutex_unlock(&rli->data_lock);
@@ -1639,7 +1640,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     /*
       Flushes the relay log info regardles of the sync_relay_log_info option.
     */
-    if (mi->rli->flush_info(true)) {
+    if (mi->rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
       return ER_ERROR_DURING_FLUSH_LOGS;
     }
   }
@@ -4597,7 +4598,8 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
           }
         }
         rli->mts_recovery_group_seen_begin = false;
-        if (!error) error = rli->flush_info(true);
+        if (!error)
+          error = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
       }
     }
 
@@ -6325,7 +6327,7 @@ bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
          waiter: set wait_flag; waits....; drops wait_flag;
   */
 
-  error = rli->flush_info(true);
+  error = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
 
   mysql_cond_broadcast(&rli->data_cond);
   mysql_mutex_unlock(&rli->data_lock);
@@ -6523,7 +6525,8 @@ end:
   if (!error && rli->mts_recovery_group_cnt == 0) {
     if ((error = rli->mts_finalize_recovery()))
       (void)Rpl_info_factory::reset_workers(rli);
-    if (!error) error = rli->flush_info(true);
+    if (!error)
+      error = rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT);
   }
 
 err:
@@ -10600,7 +10603,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       Notice that the rli table is available exclusively as slave is not
       running.
     */
-    if (mi->rli->flush_info(true)) {
+    if (mi->rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT |
+                            Relay_log_info::RLI_FLUSH_IGNORE_GTID_ONLY)) {
       error = ER_RELAY_LOG_INIT;
       my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
       goto err;

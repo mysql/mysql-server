@@ -1520,7 +1520,15 @@ class Relay_log_info : public Rpl_info {
   */
   int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
-  int flush_info(bool force = false);
+
+  /** No flush options given to relay log flush */
+  static constexpr int RLI_FLUSH_NO_OPTION{0};
+  /** Ignore server sync options and flush */
+  static constexpr int RLI_FLUSH_IGNORE_SYNC_OPT{1 << 0};
+  /** Flush disresgarding the value of GTID_ONLY */
+  static constexpr int RLI_FLUSH_IGNORE_GTID_ONLY{1 << 1};
+
+  int flush_info(const int flush_flags);
   /**
    Clears from `this` Relay_log_info object all attribute values that are
    not to be kept.

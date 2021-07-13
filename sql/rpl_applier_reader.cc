@@ -415,7 +415,7 @@ bool Rpl_applier_reader::purge_applied_logs() {
   if (is_instance_locked == Is_instance_backup_locked_result::LOCKED)
     return false;
 
-  if (m_rli->flush_info(true)) {
+  if (m_rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
     m_errmsg = "Error purging processed logs";
     return true;
   }

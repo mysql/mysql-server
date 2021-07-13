@@ -11497,6 +11497,9 @@ ER_WARN_REPLICA_GTID_ONLY_AND_GTID_MODE_NOT_ON
 ER_WARN_L_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS
   eng "The replication positions relative to the source may be out-of-date on channel '%.192s', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values."
 
+ER_RPL_CANNOT_OPEN_RELAY_LOG
+  eng "Could not open relay log: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

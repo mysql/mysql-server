@@ -358,7 +358,12 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli) {
 
   DBUG_TRACE;
 
-  if (rli->recovery_parallel_workers == 0) return false;
+  /*
+    Skip the optimization check if the last value of the number of workers
+    might not have been persisted
+  */
+  if (rli->recovery_parallel_workers == 0 && !rli->mi->is_gtid_only_mode())
+    return false;
 
   if (Rpl_info_file::do_reset_info(
           Slave_worker::get_number_worker_fields(), worker_file_data.pattern,
@@ -381,7 +386,7 @@ err:
            ER_RPL_FAILED_TO_DELETE_FROM_SLAVE_WORKERS_INFO_REPOSITORY);
   rli->recovery_parallel_workers = 0;
   rli->clear_mts_recovery_groups();
-  if (rli->flush_info(true)) {
+  if (rli->flush_info(Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT)) {
     error = true;
     LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_RESET_STATE_IN_SLAVE_INFO_REPOSITORY);
   }

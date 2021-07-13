@@ -445,8 +445,8 @@ bool Relay_log_info::mts_finalize_recovery() {
   DBUG_EXECUTE_IF("enable_mta_wokrer_failure_in_recovery_finalize",
                   { DBUG_SET("+d,mta_worker_thread_init_fails"); });
   for (i = recovery_parallel_workers; i > workers.size() && !ret; i--) {
-    Slave_worker *w =
-        Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    Slave_worker *w = Rpl_info_factory::create_worker(repo_type, i - 1, this,
+                                                      !mi->is_gtid_only_mode());
     /*
       If an error occurs during the above create_worker call, the newly created
       worker object gets deleted within the above function call itself and only
@@ -989,7 +989,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
     See sql/rpl_rli.h for further information on this behavior.
   */
-  error = flush_info(force);
+  error = flush_info(force ? RLI_FLUSH_IGNORE_SYNC_OPT : RLI_FLUSH_NO_OPTION);
 
   mysql_cond_broadcast(&data_cond);
   if (need_data_lock) mysql_mutex_unlock(&data_lock);
@@ -1776,12 +1776,24 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     group_master_log_name[0] = 0;
     group_master_log_pos = 0;
   } else {
-    if (is_relay_log_recovery && init_recovery(mi)) {
-      error = 1;
-      goto err;
+    if (is_relay_log_recovery) {
+      if (init_recovery(mi)) {
+        error = 1;
+        goto err;
+      }
+    } else if (mi->is_gtid_only_mode()) {
+      std::string index_entry_name;
+      std::string errmsg;
+      if (relay_log.find_first_log(index_entry_name, errmsg)) {
+        LogErr(ERROR_LEVEL, ER_RPL_CANNOT_OPEN_RELAY_LOG, errmsg.c_str());
+        error = 1;
+        goto err;
+      }
+      set_group_relay_log_name(index_entry_name.c_str());
+      set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
     }
 
-    if (is_group_relay_log_name_invalid(&msg)) {
+    if (!mi->is_gtid_only_mode() && is_group_relay_log_name_invalid(&msg)) {
       LogErr(ERROR_LEVEL, ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG,
              group_relay_log_name, std::to_string(group_relay_log_pos).c_str());
       error = 1;
@@ -1791,7 +1803,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
 
   inited = true;
   error_on_rli_init_info = false;
-  if (flush_info(true)) {
+  if (flush_info(RLI_FLUSH_IGNORE_SYNC_OPT | RLI_FLUSH_IGNORE_GTID_ONLY)) {
     msg = "Error reading relay log configuration";
     error = 1;
     goto err;
@@ -1897,15 +1909,22 @@ void Relay_log_info::set_master_info(Master_info *info) { mi = info; }
   - Error can happen if writing to file fails or if flushing the file
     fails.
 
-  @todo Change the log file information to a binary format to avoid
-  calling longlong2str.
+  @param flush_flags a bit mask to force flushing in some scenarios
+                     If RLI_FLUSH_IGNORE_SYNC_OPT is given then the method
+                     will ignore the server sync options
+                     If RLI_FLUSH_IGNORE_GTID_ONLY is given then the method
+                     will ignore the channel GTID_ONLY option
 
   @return 0 on success, 1 on error.
 */
-int Relay_log_info::flush_info(const bool force) {
+int Relay_log_info::flush_info(const int flush_flags) {
   DBUG_TRACE;
 
   if (!inited) return 0;
+
+  if (!(flush_flags & RLI_FLUSH_IGNORE_GTID_ONLY) && mi->is_gtid_only_mode()) {
+    return 0;
+  }
 
   /*
     We update the sync_period at this point because only here we
@@ -1918,7 +1937,8 @@ int Relay_log_info::flush_info(const bool force) {
 
   if (write_info(handler)) goto err;
 
-  if (handler->flush_info(force || force_flush_postponed_due_to_split_trans))
+  if (handler->flush_info((flush_flags & RLI_FLUSH_IGNORE_SYNC_OPT) ||
+                          force_flush_postponed_due_to_split_trans))
     goto err;
 
   force_flush_postponed_due_to_split_trans = false;
@@ -2805,7 +2825,7 @@ bool Relay_log_info::commit_positions() {
   strmake(new_group_relay_log_name, get_group_relay_log_name(), FN_REFLEN - 1);
   new_group_relay_log_pos = get_group_relay_log_pos();
 
-  error = flush_info(true);
+  error = flush_info(RLI_FLUSH_IGNORE_SYNC_OPT);
 
   /*
     Restore the saved ones so they remain actual until the replicated
