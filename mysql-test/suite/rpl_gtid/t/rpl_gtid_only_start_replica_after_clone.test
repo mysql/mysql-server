@@ -1,0 +1,72 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test that if correctly configured
+# we can clone a replica and it will start replicating on server start.
+# This is still true if the channel is configured with GTID_ONLY=1
+#
+# ==== Requirements ====
+#
+# R1. Cloning a server that has a channel with GTID_ONLY = 1 works correctly
+#
+# ==== Implementation ====
+#
+# 1.  Set up a replication connection from server 1 to server 2
+# 2.  Create a table for testing
+# 3.  Install clone on server 2
+#     Configure server 3 to invoke clone
+# 4.  Execute a transaction on server 1, check 3 received it
+# 4.1 Check that the replica only retrieves the missing transaction
+# 5.  Cleanup
+#
+# ==== References ====
+#
+# WL#7491: GTID-based replication applier recovery and positioning
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+
+# Configure the channel to use GTID_ONLY
+
+--source include/rpl_connection_slave.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, REQUIRE_ROW_FORMAT=1;
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+
+--source extra/rpl_tests/rpl_replica_start_after_clone.inc
+
+--echo #
+--echo # 4.1 Check that the replica only retrieves the missing transaction
+
+USE test;
+--source include/gtid_utils.inc
+
+--let $local_gtid_set= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= Exactly 1 GTIDs should have been retrieved since last invocation
+--let $assert_cond= `SELECT GTID_COUNT("$local_gtid_set") = 1`
+--source include/assert.inc
+
+--source include/gtid_utils_end.inc
+
+# Cleanup
+
+--source extra/rpl_tests/rpl_replica_start_after_clone_cleanup.inc
+
+--source include/rpl_connection_slave.inc
+
+--source include/stop_slave.inc
+
+CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
+
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

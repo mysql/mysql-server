@@ -5962,10 +5962,13 @@ static Sys_var_bool Sys_relay_log_purge(
 
 static Sys_var_bool Sys_relay_log_recovery(
     "relay_log_recovery",
-    "If enabled, existing relay logs will be skipped by the replication "
-    "threads. The receiver will start a new relay log and request "
-    "transactions from the source starting at the last applied position. "
-    "The applier will start in this new relay log.",
+    "If enabled, existing relay logs will be skipped by the "
+    "replication threads. The receiver will start a new relay "
+    "log and the applier will start reading from the beginning of that file. "
+    "The receiver's position relative to the source will be reset to the "
+    "applier's "
+    "position relative to the source; the receiver uses this in case "
+    "SOURCE_AUTO_POSITION=0.",
     READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG),
     DEFAULT(false));
 
