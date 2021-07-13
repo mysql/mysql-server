@@ -11500,6 +11500,15 @@ ER_WARN_L_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS
 ER_RPL_CANNOT_OPEN_RELAY_LOG
   eng "Could not open relay log: %s"
 
+ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_1
+  eng "%s: Warning Level 1 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
+
+ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_2
+  eng "%s: Warning Level 2 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
+
+ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_3
+  eng "%s: Warning Level 3 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
