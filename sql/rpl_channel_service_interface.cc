@@ -47,6 +47,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/log_event.h"

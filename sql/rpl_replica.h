@@ -36,6 +36,7 @@
 #include "mysql.h"      // MYSQL
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql_com.h"
+#include "sql/changestreams/apply/constants.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 
@@ -512,21 +513,6 @@ const char *print_slave_db_safe(const char *db);
 
 void end_slave();                 /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
-/**
-  This method locks both (in this order)
-    mi->run_lock
-    rli->run_lock
-
-  @param mi The associated master info object
-
-  @note this method shall be invoked while locking mi->m_channel_lock
-  for writes. This is due to the mixed order in which these locks are released
-  and acquired in such method as the slave threads start and stop methods.
-*/
-void lock_slave_threads(Master_info *mi);
-void unlock_slave_threads(Master_info *mi);
-void init_thread_mask(int *mask, Master_info *mi, bool inverse,
-                      bool ignore_monitor_thread = false);
 void set_slave_thread_options(THD *thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int rotate_relay_log(Master_info *mi, bool log_master_fd = true,
@@ -603,12 +589,6 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli);
   false        not network error
 */
 bool is_network_error(uint errorno);
-
-/* masks for start/stop operations on io and sql slave threads */
-#define SLAVE_IO 1
-#define SLAVE_SQL 2
-// We also have SLAVE_FORCE_ALL 4
-#define SLAVE_MONITOR 8
 
 int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type);
 

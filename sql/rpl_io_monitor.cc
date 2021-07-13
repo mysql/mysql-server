@@ -25,6 +25,7 @@
 #include <mysql/components/services/group_replication_status_service.h>
 #include "mysql/components/services/log_builtins.h"
 
+#include "sql/changestreams/apply/replication_thread_status.h"
 #include "sql/json_dom.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager

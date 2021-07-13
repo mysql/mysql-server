@@ -55,7 +55,7 @@ include/sync_slave_sql_with_master.inc
 include/gtid_step_assert.inc [count=2, only_count=0]
 include/stop_slave.inc
 SET GLOBAL GTID_MODE=ON_PERMISSIVE;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because replication channel '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or to a UUID. Execute CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = 'ON_PERMISSIVE'..
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because replication channel '' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or to a UUID. Execute CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = 'ON_PERMISSIVE'.
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 1;
 ERROR HY000: The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together.
 include/start_slave_io.inc

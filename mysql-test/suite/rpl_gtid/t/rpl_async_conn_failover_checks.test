@@ -46,12 +46,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 --echo #
 --echo # 2. Verify disabling AUTO_POSITION while enabling Asynchronous
 --echo #    Replication Connection Failover results in
---echo #    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
+--echo #    ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 --echo #
 
---error ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
+--error ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
-
 
 --echo #
 --echo # 3. Verify Asynchronous Replication Connection Failover is disabled and
