@@ -968,6 +968,19 @@ FUNCTION(MY_CHECK_CXX_COMPILER_WARNING WARNING_OPTION RETURN_VALUE)
   ENDIF()
 ENDFUNCTION()
 
+# When builing with PGO, GCC will report -Wmissing-profile when compiling
+# files for which it cannot find profile data. It is valid to disable
+# this warning for files we are not currently interested in profiling.
+MACRO(DISABLE_MISSING_PROFILE_WARNING)
+  IF(FPROFILE_USE)
+    MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+    IF(HAS_WARN_FLAG)
+      STRING_APPEND(CMAKE_C_FLAGS   " ${HAS_WARN_FLAG}")
+      STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
 MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
