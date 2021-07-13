@@ -1555,19 +1555,30 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
     lock_slave_threads(mi);
     init_thread_mask(&running, mi, false);
     if (!running) {
+      bool is_pos_info_invalid{false};
       switch (thread_mask) {
         case SLAVE_THD_IO:
+          is_pos_info_invalid = mi->is_receiver_position_info_invalid();
+          mysql_mutex_lock(&mi->data_lock);
+          mi->flush_info(true);
+          mysql_mutex_unlock(&mi->data_lock);
           if (Rpl_info_factory::change_mi_repository(
                   mi, static_cast<uint>(var->save_result.ulonglong_value),
                   &msg)) {
             ret = true;
             my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
           }
+          mi->set_receiver_position_info_invalid(is_pos_info_invalid);
           break;
         case SLAVE_THD_SQL:
           mts_recovery_groups(mi->rli);
           if (!mi->rli->is_mts_recovery()) {
+            is_pos_info_invalid =
+                mi->rli->is_applier_source_position_info_invalid();
             if (Rpl_info_factory::reset_workers(mi->rli) ||
+                mi->rli->flush_info(
+                    Relay_log_info::RLI_FLUSH_IGNORE_SYNC_OPT |
+                    Relay_log_info::RLI_FLUSH_IGNORE_GTID_ONLY) ||
                 Rpl_info_factory::change_rli_repository(
                     mi->rli,
                     static_cast<uint>(var->save_result.ulonglong_value),
@@ -1575,6 +1586,8 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
               ret = true;
               my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
             }
+            mi->rli->set_applier_source_position_info_invalid(
+                is_pos_info_invalid);
           } else
             LogErr(WARNING_LEVEL, ER_RPL_REPO_HAS_GAPS);
           break;
