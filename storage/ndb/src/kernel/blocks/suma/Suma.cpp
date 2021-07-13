@@ -36,7 +36,6 @@
 
 #include <signaldata/ListTables.hpp>
 #include <signaldata/GetTabInfo.hpp>
-#include <signaldata/GetTableId.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
