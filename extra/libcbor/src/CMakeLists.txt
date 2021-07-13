@@ -4,6 +4,13 @@ include(GNUInstallDirs)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 
 add_library(cbor STATIC ${SOURCES})
+
+# Build it only if needed by other targets.
+SET_PROPERTY(TARGET cbor PROPERTY EXCLUDE_FROM_ALL TRUE)
+IF(WIN32)
+  SET_PROPERTY(TARGET cbor PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+ENDIF()
+
 target_include_directories(cbor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(GenerateExportHeader)
