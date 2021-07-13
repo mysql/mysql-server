@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,9 +68,6 @@ public:
    */
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
-
-  void execGET_TABLEID_CONF(Signal* signal);
-  void execGET_TABLEID_REF(Signal* signal);
 
   void execDROP_TAB_CONF(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);

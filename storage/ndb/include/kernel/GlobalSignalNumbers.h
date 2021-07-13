@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,9 +76,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_GET_TABINFOREQ              24
 #define GSN_GET_TABINFO_CONF            190
 
-#define GSN_GET_TABLEID_REQ             683
-#define GSN_GET_TABLEID_REF             684
-#define GSN_GET_TABLEID_CONF            685
+/* Signals removed from 8.0.27 */
+/* 683 used to be GET_TABLEID_REQ, no longer used */
+/* 684 used to be GET_TABLEID_REF, no longer used */
+/* 685 used to be GET_TABLEID_CONF, no longer used */
 
 #define GSN_DIHNDBTAMPER                25
 #define GSN_NODE_FAILREP                26

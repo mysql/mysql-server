@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@
 #include <SignalCounter.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
-#include <signaldata/GetTableId.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateTable.hpp>
@@ -871,7 +870,6 @@ private:
   void execDICTSTARTREQ(Signal* signal);
 
   void execGET_TABINFOREQ(Signal* signal);
-  void execGET_TABLEDID_REQ(Signal* signal);
   void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -4475,10 +4473,6 @@ private:
 			  GetTabInfoReq*,
 			  GetTabInfoRef::ErrorCode errorCode,
                           Uint32 errorLine);
-
-  void sendGET_TABLEID_REF(Signal* signal,
-			   GetTableIdReq * req,
-			   GetTableIdRef::ErrorCode errorCode);
 
   void sendGetTabResponse(Signal* signal);
 
