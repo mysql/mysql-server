@@ -1171,7 +1171,8 @@ err:
 
 int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
                                       int thread_mask,
-                                      bool skip_received_gtid_set_recovery) {
+                                      bool skip_received_gtid_set_recovery,
+                                      bool force_load) {
   DBUG_TRACE;
   assert(mi != nullptr && mi->rli != nullptr);
   int init_error = 0;
@@ -1210,8 +1211,14 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
     goto end;
   }
 
-  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST)) {
-    if ((thread_mask & SLAVE_IO) != 0 && mi->mi_init_info()) init_error = 1;
+  if (!ignore_if_no_info || check_return != REPOSITORY_DOES_NOT_EXIST) {
+    if ((thread_mask & SLAVE_IO) != 0) {
+      if (!mi->inited || force_load) {
+        if (mi->mi_init_info()) {
+          init_error = 1;
+        }
+      }
+    }
   }
 
   check_return = mi->rli->check_info();
@@ -1219,18 +1226,27 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
     init_error = 1;
     goto end;
   }
-  if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST)) {
-    if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited)) &&
-        mi->rli->rli_init_info(skip_received_gtid_set_recovery))
-      init_error = 1;
-    else {
-      /*
-        During rli_init_info() above, the relay log is opened (if rli was not
-        initialized yet). The function below expects the relay log to be opened
-        to get its coordinates and store as the last flushed relay log
-        coordinates from I/O thread point of view.
-      */
-      mi->update_flushed_relay_log_info();
+  if (!ignore_if_no_info || check_return != REPOSITORY_DOES_NOT_EXIST) {
+    if ((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited)) {
+      if (!mi->rli->inited || force_load) {
+        if (mi->rli->rli_init_info(skip_received_gtid_set_recovery)) {
+          init_error = 1;
+        } else {
+          /*
+            During rli_init_info() above, the relay log is opened (if rli was
+            not initialized yet). The function below expects the relay log to be
+            opened to get its coordinates and store as the last flushed relay
+            log coordinates from I/O thread point of view.
+          */
+          mi->update_flushed_relay_log_info();
+        }
+      } else {
+        // Even if we skip rli_init_info we must check if gaps exists to mantain
+        // the server behavior in commands like CHANGE REPLICATION SOURCE
+        if (mi->rli->recovery_parallel_workers ? mts_recovery_groups(mi->rli)
+                                               : 0)
+          init_error = 1;
+      }
     }
   }
 
@@ -4968,7 +4984,8 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
-          if (load_mi_and_rli_from_repositories(rli->mi, false, SLAVE_SQL))
+          if (load_mi_and_rli_from_repositories(rli->mi, false, SLAVE_SQL,
+                                                false, true))
             LogErr(ERROR_LEVEL,
                    ER_RPL_SLAVE_FAILED_TO_INIT_MASTER_INFO_STRUCTURE,
                    rli->get_for_channel_str());
@@ -8716,6 +8733,10 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
         if (set_mts_settings) {
           mi->rli->opt_replica_parallel_workers =
               opt_mts_replica_parallel_workers;
+          if (mi->is_gtid_only_mode() &&
+              opt_mts_replica_parallel_workers == 0) {
+            mi->rli->opt_replica_parallel_workers = 1;
+          }
           if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
             mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
           else
