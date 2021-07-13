@@ -1161,13 +1161,15 @@ bool Rpl_info_factory::create_slave_info_objects(
     if (!channel_error &&
         (!is_default_channel || default_channel_existed_previously)) {
       bool ignore_if_no_info = (channel_list.size() == 1) ? true : false;
-      channel_error =
-          load_mi_and_rli_from_repositories(mi, ignore_if_no_info, thread_mask);
+      channel_error = load_mi_and_rli_from_repositories(
+          mi, ignore_if_no_info, thread_mask, false, true);
     }
 
     if (!channel_error) {
       error = configure_channel_replication_filters(mi->rli, cname);
       invalidate_repository_position(mi);
+      // With GTID ONLY the worker info is not needed
+      if (mi->is_gtid_only_mode()) Rpl_info_factory::reset_workers(mi->rli);
     } else {
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_FAILED_TO_INIT_A_MASTER_INFO_STRUCTURE,
              cname);

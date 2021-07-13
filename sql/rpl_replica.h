@@ -420,6 +420,10 @@ int init_recovery(Master_info *mi);
   if (thread_mask&SLAVE_IO)!=0, then mi->init_info is called; if
   (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
 
+  @param force_load repositories will only read information if they
+  are not yet intialized. When true this flag forces the repositories
+  to load information from table or file.
+
   @param skip_received_gtid_set_recovery When true, skips the received GTID
                                          set recovery.
 
@@ -428,7 +432,7 @@ int init_recovery(Master_info *mi);
 */
 int load_mi_and_rli_from_repositories(
     Master_info *mi, bool ignore_if_no_info, int thread_mask,
-    bool skip_received_gtid_set_recovery = false);
+    bool skip_received_gtid_set_recovery = false, bool force_load = false);
 void end_info(Master_info *mi);
 /**
   Clear the information regarding the `Master_info` and `Relay_log_info` objects
