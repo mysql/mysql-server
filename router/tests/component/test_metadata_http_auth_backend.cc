@@ -186,7 +186,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
       const std::vector<Auth_data> &auth_data_collection,
       const uint16_t http_port, const std::string &gr_id,
       const uint16_t cluster_node_port, const bool error_on_md_query = false,
-      const unsigned primary_id = 0, const unsigned view_id = 0,
+      const unsigned primary_id = 0, const uint64_t view_id = 0,
       const mysqlrouter::MetadataSchemaVersion md_version = {2, 0, 3}) const {
     auto json_doc = mock_GR_metadata_as_json(
         gr_id, {cluster_node_port}, primary_id, view_id, error_on_md_query);
@@ -286,7 +286,7 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   static const std::chrono::milliseconds kAuthCacheRefreshRate;
   static const std::string cluster_id;
   TempDirectory temp_test_dir;
-  unsigned view_id = 1;
+  uint64_t view_id = 1;
 
   ProcessWrapper *cluster_node;
   uint16_t cluster_node_port;

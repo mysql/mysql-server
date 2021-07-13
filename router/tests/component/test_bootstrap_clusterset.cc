@@ -60,7 +60,7 @@ class RouterClusterSetBootstrapTest : public RouterComponentBootstrapTest,
  protected:
   using NodeAddress = std::pair<std::string, uint16_t>;
   TempDirectory bootstrap_directory;
-  int view_id{1};
+  uint64_t view_id{1};
 };
 
 struct TargetClusterTestParams {

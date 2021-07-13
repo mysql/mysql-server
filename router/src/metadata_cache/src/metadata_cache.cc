@@ -339,7 +339,7 @@ void MetadataCache::on_instances_changed(
     const bool md_servers_reachable,
     const metadata_cache::cluster_nodes_list_t &cluster_nodes,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
-    unsigned view_id) {
+    uint64_t view_id) {
   // Socket acceptors state will be updated when processing new instances
   // information.
   trigger_acceptor_update_on_next_refresh_ = false;

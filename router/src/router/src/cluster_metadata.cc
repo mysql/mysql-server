@@ -837,7 +837,7 @@ std::string ClusterMetadataGRInClusterSet::get_cluster_type_specific_id() {
   throw std::logic_error("No result returned for metadata query");
 }
 
-unsigned ClusterMetadataGRInClusterSet::get_view_id(
+uint64_t ClusterMetadataGRInClusterSet::get_view_id(
     const std::string &clusterset_id) {
   std::string q =
       "select view_id from mysql_innodb_cluster_metadata.v2_cs_clustersets "
@@ -852,7 +852,7 @@ unsigned ClusterMetadataGRInClusterSet::get_view_id(
           "got " +
           std::to_string(result->size()));
     }
-    return strtoui_checked((*result)[0]);
+    return strtoull_checked((*result)[0]);
   }
 
   throw std::logic_error("No result returned for metadata query");
@@ -1094,7 +1094,7 @@ std::unique_ptr<ClusterMetadata> create_metadata(
   return result;
 }
 
-unsigned ClusterMetadataAR::get_view_id(
+uint64_t ClusterMetadataAR::get_view_id(
     const std::string & /*cluster_type_specific_id*/) {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "

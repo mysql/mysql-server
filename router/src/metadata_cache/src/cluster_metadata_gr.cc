@@ -36,6 +36,7 @@ using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
+using mysqlrouter::strtoull_checked;
 IMPORT_LOG_FUNCTIONS()
 
 using ConnectCallback =
@@ -190,7 +191,7 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
       const std::string &group_name,
       const std::string &clusterset_id = "") override;
 
-  unsigned view_id_{0};
+  uint64_t view_id_{0};
   bool metadata_read_{false};
 
   /** @brief Returns vector of the cluster members according to the metadata of
@@ -988,7 +989,7 @@ std::string GRClusterSetMetadataBackend::get_cluster_type_specific_id_limit_sql(
   return result;
 }
 
-static stdx::expected<unsigned, std::error_code> get_member_view_id(
+static stdx::expected<uint64_t, std::error_code> get_member_view_id(
     mysqlrouter::MySQLSession &session, const std::string &clusterset_id) {
   const std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_cs_clustersets "
@@ -1001,7 +1002,7 @@ static stdx::expected<unsigned, std::error_code> get_member_view_id(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   }
 
-  return strtoui_checked((*row)[0]);
+  return strtoull_checked((*row)[0]);
 }
 
 static stdx::expected<std::string, std::error_code> get_clusterset_id(
@@ -1323,9 +1324,10 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         cs_id.c_str());
     return stdx::make_unexpected(view_id_res.error());
   }
-  const unsigned view_id = view_id_res.value();
+  const uint64_t view_id = view_id_res.value();
 
-  log_debug("Read view_id = %u, current view_id = %u, metadata_read=%s",
+  log_debug("Read view_id = %" PRIu64 ", current view_id = %" PRIu64
+            ", metadata_read=%s",
             view_id, this->view_id_, metadata_read_ ? "yes" : "no");
 
   if (view_id < this->view_id_) {

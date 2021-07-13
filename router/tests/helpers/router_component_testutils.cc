@@ -55,7 +55,7 @@ std::string create_state_file_content(
     const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const std::vector<uint16_t> &metadata_servers_ports,
-    const unsigned view_id /*= 0*/) {
+    const uint64_t view_id /*= 0*/) {
   std::string metadata_servers;
   for (std::size_t i = 0; i < metadata_servers_ports.size(); i++) {
     metadata_servers +=
@@ -99,7 +99,7 @@ static bool check_state_file_helper(
     const mysqlrouter::ClusterType cluster_type,
     const std::string &expected_cluster_type_specific_id,
     const std::vector<uint16_t> expected_cluster_nodes,
-    const unsigned expected_view_id /*= 0*/,
+    const uint64_t expected_view_id /*= 0*/,
     const std::string node_address /*= "127.0.0.1"*/) {
   JsonDocument json_doc;
   if (json_doc.Parse<0>(state_file_content.c_str()).HasParseError())
@@ -132,9 +132,8 @@ static bool check_state_file_helper(
   if (expected_view_id > 0) {
     CHECK_TRUE(metadata_cache_section.HasMember("view-id"));
     CHECK_TRUE(metadata_cache_section["view-id"].IsInt());
-    CHECK_TRUE(
-        expected_view_id ==
-        static_cast<unsigned>(metadata_cache_section["view-id"].GetInt()));
+    CHECK_TRUE(expected_view_id ==
+               metadata_cache_section["view-id"].GetUint64());
   }
 
   CHECK_TRUE(metadata_cache_section.HasMember("cluster-metadata-servers"));
@@ -157,7 +156,7 @@ void check_state_file(const std::string &state_file,
                       const mysqlrouter::ClusterType cluster_type,
                       const std::string &expected_cluster_type_specific_id,
                       const std::vector<uint16_t> expected_cluster_nodes,
-                      const unsigned expected_view_id /*= 0*/,
+                      const uint64_t expected_view_id /*= 0*/,
                       const std::string node_address /*= "127.0.0.1"*/,
                       std::chrono::milliseconds max_wait_time /*= 5000*/) {
   bool result = false;

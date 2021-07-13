@@ -229,7 +229,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
   std::string router_conf_file;
 
   TempDirectory temp_test_dir;
-  unsigned view_id = 1;
+  uint64_t view_id = 1;
 
   std::string router_state_file;
   uint16_t router_port_rw;
@@ -1587,7 +1587,8 @@ TEST_F(ClusterSetTest, ManualTargetClusterChangeInConfig) {
  * [@TS_R13_1]
  */
 TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
-  unsigned view_id = 1;
+  // also check if we handle view_id grater than 2^32 correctly
+  uint64_t view_id = std::numeric_limits<uint32_t>::max() + 1;
   const std::string router_options = R"({"targetCluster" : "primary"})";
   create_clusterset(view_id, /*target_cluster_id*/ kPrimaryClusterId,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
@@ -1796,7 +1797,7 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
  * [@TS_R11_5]
  */
 TEST_F(ClusterSetTest, SomeMetadataServerUnaccessible) {
-  unsigned view_id = 1;
+  uint64_t view_id = 1;
   const std::string router_options = R"({"targetCluster" : "primary"})";
 
   create_clusterset(view_id, /*target_cluster_id*/ 0,

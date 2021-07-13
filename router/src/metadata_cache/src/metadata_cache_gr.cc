@@ -466,7 +466,7 @@ IMPORT_LOG_FUNCTIONS()
 
 bool GRMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
-  unsigned view_id{0};
+  uint64_t view_id{0};
   size_t metadata_server_id{0};
   changed = false;
   std::size_t instance_id;
@@ -515,11 +515,13 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
     if (cluster_data_.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
-      log_info("Metadata for cluster '%s' has %zu member(s), %s: (view_id=%u)",
-               target_cluster_.c_str(), cluster_data_.members.size(),
-               cluster_data_.single_primary_mode ? "single-primary"
-                                                 : "multi-primary",
-               view_id);
+      log_info(
+          "Metadata for cluster '%s' has %zu member(s), %s: (view_id=%" PRIu64
+          ")",
+          target_cluster_.c_str(), cluster_data_.members.size(),
+          cluster_data_.single_primary_mode ? "single-primary"
+                                            : "multi-primary",
+          view_id);
       for (const auto &mi : cluster_data_.members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),

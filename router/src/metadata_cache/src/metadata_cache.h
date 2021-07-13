@@ -250,7 +250,7 @@ class METADATA_API MetadataCache
       const bool md_servers_reachable,
       const metadata_cache::cluster_nodes_list_t &cluster_nodes,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      unsigned view_id = 0);
+      uint64_t view_id = 0);
 
   /**
    * Called when the listening sockets acceptors state should be updated but

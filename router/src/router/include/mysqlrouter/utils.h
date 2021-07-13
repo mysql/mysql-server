@@ -229,6 +229,9 @@ int strtoi_checked(const char *value, signed int default_result = 0) noexcept;
 unsigned strtoui_checked(const char *value,
                          unsigned int default_result = 0) noexcept;
 
+uint64_t strtoull_checked(const char *value,
+                          uint64_t default_result = 0) noexcept;
+
 #ifndef _WIN32
 
 /** @class SysUserOperationsBase

@@ -93,7 +93,7 @@ std::string MetadataCachePluginConfig::get_clusterset_id() const {
   return "";
 }
 
-unsigned MetadataCachePluginConfig::get_view_id() const {
+uint64_t MetadataCachePluginConfig::get_view_id() const {
   if (metadata_cache_dynamic_state) {
     metadata_cache_dynamic_state->load();
     return metadata_cache_dynamic_state->get_view_id();

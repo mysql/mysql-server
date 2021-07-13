@@ -121,7 +121,7 @@ class RouterComponentClusterSetTest : virtual public RouterComponentTest {
   constexpr static unsigned kClustersNumber = 3;
   constexpr static unsigned kNodesPerClusterNumber = 3;
 
-  void create_clusterset(unsigned view_id, int target_cluster_id,
+  void create_clusterset(uint64_t view_id, int target_cluster_id,
                          int primary_cluster_id, const std::string &tracefile,
                          const std::string &router_options = "",
                          const std::string &expected_target_cluster = ".*",
@@ -141,7 +141,7 @@ class RouterComponentClusterSetTest : virtual public RouterComponentTest {
                                  const unsigned this_cluster_id);
 
   void set_mock_metadata(
-      unsigned view_id, unsigned this_cluster_id, unsigned target_cluster_id,
+      uint64_t view_id, unsigned this_cluster_id, unsigned target_cluster_id,
       uint16_t http_port, const ClusterSetData &clusterset_data,
       const std::string &router_options = "",
       const std::string &expected_target_cluster = ".*",

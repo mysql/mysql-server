@@ -261,6 +261,22 @@ TEST_F(UtilsTests, uint_conversion) {
   EXPECT_EQ(0u, strtoui_checked("+0", 66));
 }
 
+TEST_F(UtilsTests, uint64_conversion) {
+  using mysqlrouter::strtoull_checked;
+  const uint64_t kDefault{66};
+
+  EXPECT_EQ(kDefault, strtoull_checked(nullptr, kDefault));
+  EXPECT_EQ(kDefault, strtoull_checked(0, kDefault));
+  EXPECT_EQ(kDefault, strtoull_checked("18446744073709551617", kDefault));
+
+  EXPECT_EQ(static_cast<uint64_t>(0), strtoull_checked("0", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(4294967298),
+            strtoull_checked("4294967298", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(0x7fffffffffffffff),
+            strtoull_checked("9223372036854775807", kDefault));
+  EXPECT_EQ(static_cast<uint64_t>(66), strtoull_checked("66", kDefault));
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

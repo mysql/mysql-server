@@ -100,7 +100,7 @@ class MetadataServersStateListener
   void notify_instances_changed(
       const LookupResult & /*instances*/,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const bool md_servers_reachable, const unsigned view_id) override {
+      const bool md_servers_reachable, const uint64_t view_id) override {
     if (!md_servers_reachable) return;
 
     if (metadata_servers.empty()) {

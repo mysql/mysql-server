@@ -89,7 +89,7 @@ void ClusterMetadataDynamicState::save_section() {
 
   // if this is ReplicaSet cluster or ClusterSet write view_id
   if (view_id_ > 0) {
-    val.SetUint(view_id_);
+    val.SetUint64(view_id_);
     section.AddMember("view-id", val, allocator);
   }
 
@@ -152,8 +152,8 @@ void ClusterMetadataDynamicState::load() {
   view_id_ = 0;
   if (pimpl_->section_->HasMember("view-id")) {
     const auto &view_id = section["view-id"];
-    assert(view_id.IsUint());
-    view_id_ = view_id.GetUint();
+    assert(view_id.IsUint64());
+    view_id_ = view_id.GetUint64();
   }
 
   changed_ = false;
@@ -192,7 +192,7 @@ void ClusterMetadataDynamicState::set_cluster_type_specific_id(
   }
 }
 
-void ClusterMetadataDynamicState::set_view_id(const unsigned view_id) {
+void ClusterMetadataDynamicState::set_view_id(const uint64_t view_id) {
   if (view_id_ != view_id) {
     view_id_ = view_id;
     changed_ = true;
