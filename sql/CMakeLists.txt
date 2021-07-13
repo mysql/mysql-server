@@ -817,6 +817,7 @@ IF(WIN32)
     gis/difference.cc
     gis/difference_functor.cc
     gis/intersection_functor.cc
+    gis/symdifference_functor.cc
     gis/touches.cc
     gis/union.cc
     gis/union_functor.cc
