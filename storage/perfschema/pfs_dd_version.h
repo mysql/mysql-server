@@ -180,7 +180,8 @@
     MEMBER_COMMUNICATION_PROTOCOL_STACK
   - Bug#32701593:'SELECT FROM
     PS.REPLICATION_ASYNCHRONOUS_CONNECTION_FAILOVER' DIDN'T RETURN A RE
-
+  - WL#7491 added the column to replication_connection_configuration
+    the column GTID_ONLY
 */
 
 static const uint PFS_DD_VERSION = 80027;

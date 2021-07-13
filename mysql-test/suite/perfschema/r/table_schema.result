@@ -1080,6 +1080,7 @@ def	performance_schema	replication_connection_configuration	COMPRESSION_ALGORITH
 def	performance_schema	replication_connection_configuration	ZSTD_COMPRESSION_LEVEL	24	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references	Compression level associated with zstd compression algorithm.		NULL
 def	performance_schema	replication_connection_configuration	TLS_CIPHERSUITES	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	SOURCE_CONNECTION_AUTO_FAILOVER	26	NULL	NO	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('1','0')			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	GTID_ONLY	27	NULL	NO	enum	1	4	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	enum('1','0')			select,insert,update,references	Indicates if this channel only uses GTIDs and does not persist positions.		NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL
