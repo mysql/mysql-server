@@ -30,6 +30,7 @@ LOAD DATA INFILE 'REPO_FILENAME' INTO TABLE master_info_file_content;
 include/assert.inc [The table should have 33 lines]
 include/assert.inc [In the file the field is set to 1]
 DROP TABLE master_info_file_content;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
 
 # 2.1 Upgrade the server while using File repositories
 #     Start the server using a file repository that has no GTID_ONLY

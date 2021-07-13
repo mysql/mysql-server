@@ -141,6 +141,9 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, G
 --let $gtid_only_expected_value = 1
 --source $MYSQL_TMP_DIR/check_gtid_only_in_file_repo.inc
 
+# Disable GTID_ONLY as all the repo conversions below assume GTID_ONLY being off
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION = 1, GTID_ONLY = 0;
+
  # 2. File to File upgrades
 
 --echo

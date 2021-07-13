@@ -72,6 +72,7 @@ include/assert.inc [Check entry for default channel "" in performance_schema.rep
 #       2. A group_replication channel (group_replication_recovery)
 #       3. A channel with a privileged user (default channel)
 #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
+include/rpl_set_gtid_mode.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
@@ -92,6 +93,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+include/rpl_set_gtid_mode.inc
 include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
