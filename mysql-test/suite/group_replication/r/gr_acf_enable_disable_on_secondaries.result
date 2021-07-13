@@ -22,7 +22,7 @@ SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '
 ERROR HY000: Can't initialize function 'asynchronous_connection_failover_add_managed'; Can't execute the given operation on a Group Replication secondary member.
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 ERROR HY000: Can't initialize function 'asynchronous_connection_failover_delete_managed'; Can't execute the given operation on a Group Replication secondary member.
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 ERROR HY000: This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary.
 
 ############################################################

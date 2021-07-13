@@ -1786,9 +1786,11 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       std::string index_entry_name;
       std::string errmsg;
       if (relay_log.find_first_log(index_entry_name, errmsg)) {
+        /* purecov: begin tested */
         LogErr(ERROR_LEVEL, ER_RPL_CANNOT_OPEN_RELAY_LOG, errmsg.c_str());
         error = 1;
         goto err;
+        /* purecov: end */
       }
       set_group_relay_log_name(index_entry_name.c_str());
       set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);

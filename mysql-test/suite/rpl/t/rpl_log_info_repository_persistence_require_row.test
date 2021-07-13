@@ -228,6 +228,14 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
 
+# For run where GTID mode is OFF we enable it so we can configure the GR recovery channel
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_skip_sync= 1
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
+
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
@@ -276,6 +284,13 @@ DROP USER 'replication_applier'@'localhost';
 
 RESET SLAVE ALL FOR CHANNEL "ch1";
 RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
+
+if ($gtid_mode_on == 0) {
+  --let $rpl_gtid_mode = 0
+  --let $rpl_set_enforce_gtid_consistency = 0
+}
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
 
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1

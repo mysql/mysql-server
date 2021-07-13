@@ -49,7 +49,7 @@ SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
 
 --error ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 
 
 --echo
