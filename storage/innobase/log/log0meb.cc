@@ -2082,8 +2082,8 @@ long long innodb_redo_log_archive_flush(UDF_INIT *initid [[maybe_unused]],
 
   See include/mysql/udf_registration_types.h
 */
-bool innodb_redo_log_sharp_checkpoint_init(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args, char *message) {
+bool innodb_redo_log_sharp_checkpoint_init([[maybe_unused]] UDF_INIT *initid,
+                                           UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
     strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
     return true;
@@ -2096,8 +2096,8 @@ bool innodb_redo_log_sharp_checkpoint_init(
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_sharp_checkpoint_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void innodb_redo_log_sharp_checkpoint_deinit([
+    [maybe_unused]] UDF_INIT *initid) {
   return;
 }
 
@@ -2114,10 +2114,9 @@ void innodb_redo_log_sharp_checkpoint_deinit(
   Returns zero on success, one otherwise.
 */
 long long innodb_redo_log_sharp_checkpoint(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)),
-    UDF_ARGS *args MY_ATTRIBUTE((unused)),
-    unsigned char *null_value MY_ATTRIBUTE((unused)),
-    unsigned char *error MY_ATTRIBUTE((unused))) {
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error) {
   /* Security measure: Require the backup admin privilege. */
   if (verify_privilege(current_thd, backup_admin_privilege)) {
     return 1;
