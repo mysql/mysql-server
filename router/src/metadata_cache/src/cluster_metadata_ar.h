@@ -54,7 +54,7 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
                     int connect_timeout, int read_timeout,
                     int connection_attempts,
                     const mysqlrouter::SSLOptions &ssl_options,
-                    unsigned view_id)
+                    uint64_t view_id)
       : ClusterMetadata(user, password, connect_timeout, read_timeout,
                         connection_attempts, ssl_options),
         view_id_(view_id) {}
@@ -130,9 +130,9 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    * @return True on success, false otherwise.
    */
   bool get_member_view_id(mysqlrouter::MySQLSession &session,
-                          const std::string &cluster_id, unsigned &result);
+                          const std::string &cluster_id, uint64_t &result);
 
-  unsigned view_id_;
+  uint64_t view_id_;
 };
 
 #endif  // METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED

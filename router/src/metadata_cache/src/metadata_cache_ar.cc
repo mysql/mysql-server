@@ -30,7 +30,7 @@ IMPORT_LOG_FUNCTIONS()
 
 bool ARMetadataCache::refresh(bool needs_writable_node) {
   bool changed{false};
-  unsigned view_id{0};
+  uint64_t view_id{0};
 
   size_t metadata_server_id;
   const auto res = meta_data_->fetch_cluster_topology(
@@ -72,7 +72,7 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
       view_id = cluster_data_.view_id;
-      log_info("view_id = %u, (%i members)", view_id,
+      log_info("view_id = %" PRIu64 ", (%i members)", view_id,
                (int)cluster_data_.members.size());
       for (auto &mi : cluster_data_.members) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,

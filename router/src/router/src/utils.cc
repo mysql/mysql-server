@@ -495,13 +495,32 @@ static RET strtoX_checked_common(const char *value,
     return default_value;
 }
 
-int strtoi_checked(const char *value, signed int default_value) noexcept {
-  return strtoX_checked_common<signed int>(value, default_value);
+int strtoi_checked(const char *value, signed int default_result) noexcept {
+  return strtoX_checked_common<signed int>(value, default_result);
 }
 
 unsigned strtoui_checked(const char *value,
-                         unsigned int default_value) noexcept {
-  return strtoX_checked_common<unsigned int>(value, default_value);
+                         unsigned int default_result) noexcept {
+  return strtoX_checked_common<unsigned int>(value, default_result);
+}
+
+uint64_t strtoull_checked(const char *value, uint64_t default_result) noexcept {
+  static_assert(std::numeric_limits<uint64_t>::max() <=
+                    std::numeric_limits<unsigned long long>::max(),
+                "");
+
+  if (value == nullptr) return default_result;
+
+  char *rest;
+  errno = 0;
+  unsigned long long toul = std::strtoull(value, &rest, 10);
+  uint64_t result = static_cast<uint64_t>(toul);
+
+  if (errno > 0 || *rest != '\0' ||
+      result > std::numeric_limits<uint64_t>::max() || result != toul) {
+    return default_result;
+  }
+  return result;
 }
 
 #ifndef _WIN32

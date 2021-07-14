@@ -124,7 +124,7 @@ class ClusterMetadataDynamicState {
    *
    * @param view_id last known metadata view_id of the ReplicaSet cluster
    */
-  void set_view_id(const unsigned view_id);
+  void set_view_id(const uint64_t view_id);
 
   /**
    * @brief Reads the current value of the last known metadata view_id of the
@@ -164,7 +164,7 @@ class ClusterMetadataDynamicState {
   std::string cluster_type_specific_id_;
   std::string clusterset_id_;
   std::vector<std::string> metadata_servers_;
-  unsigned view_id_{0};
+  uint64_t view_id_{0};
 
   bool changed_{false};
 

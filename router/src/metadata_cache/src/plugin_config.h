@@ -135,7 +135,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
 
   /** @brief Gets last know ReplicaSet cluster metadata view_id stored in the
    * dynamic state file . */
-  unsigned get_view_id() const;
+  uint64_t get_view_id() const;
 
  private:
   /** @brief Gets a list of metadata servers.

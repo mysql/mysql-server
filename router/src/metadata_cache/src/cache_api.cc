@@ -116,7 +116,7 @@ void MetadataCacheAPI::cache_init(
     const mysqlrouter::SSLOptions &ssl_options,
     const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
     int read_timeout, size_t thread_stack_size, bool use_cluster_notifications,
-    const unsigned view_id) {
+    const uint64_t view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   switch (cluster_type) {

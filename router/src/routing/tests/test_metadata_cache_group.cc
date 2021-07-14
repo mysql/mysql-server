@@ -124,7 +124,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       size_t /*thread_stack_size*/ =
           mysql_harness::kDefaultStackSizeInKiloBytes,
       bool /*use_gr_notifications*/ = false,
-      unsigned /*cluster_id*/ = 0) override {}
+      uint64_t /*view_id*/ = 0) override {}
 
   mysqlrouter::ClusterType cluster_type() const override {
     return mysqlrouter::ClusterType::GR_V1;

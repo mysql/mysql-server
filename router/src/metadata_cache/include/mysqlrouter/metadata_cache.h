@@ -204,7 +204,7 @@ class METADATA_API ManagedCluster {
    * GR) */
   bool single_primary_mode;
   /** @brief Id of the view this metadata represents (only used for AR now)*/
-  unsigned view_id{0};
+  uint64_t view_id{0};
   /** @brief Metadata for the cluster is not consistent (only applicable for
    * the GR cluster when the data in the GR metadata is not consistent with the
    * cluster metadata)*/
@@ -287,7 +287,7 @@ class METADATA_API ClusterStateListenerInterface {
   virtual void notify_instances_changed(
       const LookupResult &instances,
       const metadata_cache::metadata_servers_list_t &metadata_servers,
-      const bool md_servers_reachable, const unsigned view_id) = 0;
+      const bool md_servers_reachable, const uint64_t view_id) = 0;
 
   ClusterStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -430,7 +430,7 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
       const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
       int read_timeout,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
-      bool use_cluster_notifications = false, const unsigned view_id = 0) = 0;
+      bool use_cluster_notifications = false, const uint64_t view_id = 0) = 0;
 
   virtual void instance_name(const std::string &inst_name) = 0;
   virtual std::string instance_name() const = 0;
@@ -601,7 +601,7 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
                   const mysqlrouter::TargetCluster &target_cluster,
                   int connect_timeout, int read_timeout,
                   size_t thread_stack_size, bool use_cluster_notifications,
-                  unsigned view_id) override;
+                  const uint64_t view_id) override;
 
   mysqlrouter::ClusterType cluster_type() const override;
 

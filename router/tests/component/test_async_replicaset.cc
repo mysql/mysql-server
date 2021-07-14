@@ -153,7 +153,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
 
   void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                          const std::vector<uint16_t> &gr_node_ports,
-                         unsigned primary_id = 0, unsigned view_id = 0,
+                         unsigned primary_id = 0, uint64_t view_id = 0,
                          bool error_on_md_query = false,
                          bool empty_result_from_cluster_type_query = false) {
     auto json_doc = mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id,

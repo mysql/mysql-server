@@ -147,7 +147,7 @@ class ClusterMetadata {
 
   MySQLSession &get_session() { return *mysql_; }
 
-  virtual unsigned get_view_id(
+  virtual uint64_t get_view_id(
       const std::string & /*cluster_type_specific_id*/) {
     return 0;
   }
@@ -289,7 +289,7 @@ class ClusterMetadataGRInClusterSet : public ClusterMetadataGRV2 {
   };
 
   std::string get_cluster_type_specific_id() override;
-  unsigned get_view_id(const std::string &cluster_type_specific_id) override;
+  uint64_t get_view_id(const std::string &cluster_type_specific_id) override;
 
  protected:
   TargetClusterType target_cluster_type_;
@@ -318,7 +318,7 @@ class ClusterMetadataAR : public ClusterMetadata {
 
   std::string get_cluster_type_specific_id() override;
 
-  unsigned int get_view_id(
+  uint64_t get_view_id(
       const std::string & /*cluster_type_specific_id*/) override;
 
   std::vector<std::string> get_routing_mode_queries(

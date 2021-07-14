@@ -31,8 +31,7 @@
 
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
-using mysqlrouter::strtoi_checked;
-using mysqlrouter::strtoui_checked;
+using mysqlrouter::strtoull_checked;
 IMPORT_LOG_FUNCTIONS()
 
 ARClusterMetadata::~ARClusterMetadata() = default;
@@ -80,7 +79,7 @@ ARClusterMetadata::fetch_cluster_topology(
         continue;
       }
 
-      unsigned view_id{0};
+      uint64_t view_id{0};
       if (!get_member_view_id(*metadata_connection_, cluster_type_specific_id,
                               view_id)) {
         log_warning("Failed fetching view_id from the metadata server on %s:%d",
@@ -133,7 +132,7 @@ ARClusterMetadata::fetch_cluster_topology(
 
 bool ARClusterMetadata::get_member_view_id(mysqlrouter::MySQLSession &session,
                                            const std::string &cluster_id,
-                                           unsigned &result) {
+                                           uint64_t &result) {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "
       "CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)";
@@ -146,7 +145,7 @@ bool ARClusterMetadata::get_member_view_id(mysqlrouter::MySQLSession &session,
     return false;
   }
 
-  result = strtoui_checked((*row)[0]);
+  result = strtoull_checked((*row)[0]);
 
   return true;
 }
