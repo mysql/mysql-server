@@ -3854,6 +3854,10 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
 
   while ((pkt_len = cli_safe_read(mysql, &is_data_packet)) != packet_error) {
     cp = net->read_pos;
+    if (pkt_len < 1) {
+      set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
+      return 1;
+    }
     if (*cp == 0 || is_data_packet) {
       if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) goto err;
     } else {
@@ -3862,8 +3866,13 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
       /* read warning count from OK packet or EOF packet if it is old client */
       if (mysql->server_capabilities & CLIENT_DEPRECATE_EOF && !is_data_packet)
         read_ok_ex(mysql, pkt_len);
-      else
+      else {
+        if (pkt_len < 3) {
+          set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
+          return 1;
+        }
         mysql->warning_count = uint2korr(cp + 1);
+      }
       /*
         OUT parameters result sets has SERVER_PS_OUT_PARAMS and
         SERVER_MORE_RESULTS_EXISTS flags in first EOF_Packet only.
@@ -3877,6 +3886,10 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
         So we need to preserve SERVER_MORE_RESULTS_EXISTS flag for OUT
         parameters result set.
       */
+      if (pkt_len < 5) {
+        set_stmt_error(stmt, CR_MALFORMED_PACKET, unknown_sqlstate, nullptr);
+        return 1;
+      }
       if (mysql->server_status & SERVER_PS_OUT_PARAMS) {
         mysql->server_status =
             uint2korr(cp + 3) | SERVER_PS_OUT_PARAMS |
