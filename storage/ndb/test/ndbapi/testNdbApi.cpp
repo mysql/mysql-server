@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1935,7 +1935,7 @@ int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL){
-    NDB_ERR(pOp->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
@@ -3460,7 +3460,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans1->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pOp->getNdbError());
+      NDB_ERR(pTrans1->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3478,7 +3478,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans2->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      NDB_ERR(pOp->getNdbError());
+      NDB_ERR(pTrans2->getNdbError());
       return NDBT_FAILED;
     }
     
