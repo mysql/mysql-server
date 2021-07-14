@@ -3654,7 +3654,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   */
   if (mysqld_server_started) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persist_options(true)) {
+    if (pv && pv->set_persist_options(true, false)) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS, tmp->name.str);
       goto err;
     }

@@ -7656,7 +7656,7 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   /* set all persistent options */
-  if (persisted_variables_cache.set_persist_options()) {
+  if (persisted_variables_cache.set_persist_options(false, true)) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
     flush_error_log_messages();
     return 1;

@@ -678,12 +678,14 @@ bool Persisted_variables_cache::load_persist_file() {
    @param [in] plugin_options      Flag which tells what options are being set.
                                    If set to false non plugin variables are set
                                    else plugin variables are set
-
+   @param [in] lock_vars           Lock @ref LOCK_system_variables_hash and
+  release if if true.
   @return Error state
     @retval true An error occurred
     @retval false Success
 */
-bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
+bool Persisted_variables_cache::set_persist_options(bool plugin_options,
+                                                    bool lock_vars) {
   THD *thd;
   LEX lex_tmp, *sav_lex = nullptr;
   List<set_var_base> tmp_var_list;
@@ -741,6 +743,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   */
   lock();
   assert_lock_owner();
+  if (lock_vars) mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   /*
     Based on plugin_options, we decide on what options to be set. If
     plugin_options is false we set all non plugin variables and then
@@ -912,6 +915,7 @@ err:
   } else {
     thd->lex = sav_lex;
   }
+  if (lock_vars) mysql_rwlock_unlock(&LOCK_system_variables_hash);
   unlock();
   return result;
 }
@@ -1081,6 +1085,7 @@ void Persisted_variables_cache::load_aliases() {
         }
       };
   lock();
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
   for (auto iter : var_set) {
     insert_alias(
@@ -1102,6 +1107,7 @@ void Persisted_variables_cache::load_aliases() {
         [&](st_persist_var &v) { m_persist_ro_variables[v.key] = v; },
         pair.second);
   }
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
   unlock();
 
   // Generate deprecation warnings
@@ -1336,8 +1342,14 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
     if (erase_variable(name)) goto end;
 
     // If the variable has an alias, erase that too.
-    const char *alias = get_variable_alias(name);
-    if (alias && erase_variable(alias)) goto end;
+    std::string alias_name;
+    mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+    {
+      const char *alias = get_variable_alias(name);
+      if (alias) alias_name.assign(alias);
+    }
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    if (!alias_name.empty() && erase_variable(alias_name.c_str())) goto end;
 
     if (!found) {
       /* if not present and IF EXISTS is specified, report warning */
