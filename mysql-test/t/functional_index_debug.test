@@ -65,10 +65,23 @@ SET SESSION debug="-d,show_hidden_columns";
 SET SESSION debug="+d,show_hidden_columns";
 CREATE TABLE t1(j json, INDEX mv_idx((CAST(j AS UNSIGNED ARRAY))));
 SHOW CREATE TABLE t1;
-SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
-EXPLAIN SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+SELECT `!hidden!mv_idx!0!0` FROM t1;
+EXPLAIN SELECT `!hidden!mv_idx!0!0` FROM t1 ;
 SET SESSION debug="-d,show_hidden_columns";
 DROP TABLE t1;
+
+# Ensure that we are allowed to create a functional index with a name
+# as long as the maximum column name length (64). The index name will
+# be truncated in the hidden column names in that case.
+CREATE TABLE t(
+  x INT,
+  KEY this_is_a_very_long_index_name_in_fact_it_is_64_characters_long_
+  ((x+1), (x+2), (x+3))
+);
+SET SESSION debug='+d,show_hidden_columns';
+SHOW CREATE TABLE t;
+SET SESSION debug='-d,show_hidden_columns';
+DROP TABLE t;
 
 --echo #
 --echo # Bug#28037195 ASSERTION `FALSE' IN IN
@@ -142,16 +155,13 @@ CREATE TABLE t1 (
   col1 INT
 , INDEX myKey ((ABS(col1))));
 
---echo # Get the expected name of the hidden generated column.
-SELECT MD5(CONCAT("myKey", "0"));
-
 SET SESSION debug="+d,show_hidden_columns";
 
 --echo # Column names aren't case sensitive, so this DDL should find the column
 --echo # and give an error saying that the column cannot be removed due to
 --echo # functional index.
 --error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
-ALTER TABLE t1 DROP COLUMN 84A85350b439e4a8875061c9b8a13f70;
+ALTER TABLE t1 DROP COLUMN `!HIdDEN!MYkEY!0!0`;
 SHOW CREATE TABLE t1;
 
 --echo # Index names aren't case sensitive, so this DDL should rename the index
