@@ -42,6 +42,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/opt_explain.h"
 #include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
@@ -261,6 +262,54 @@ IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
       m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
+/// Is this range scan a Rowid-Ordered Retrieval (ROR) index merge?
+static bool is_ror(const QUICK_SELECT_I *quick) {
+  switch (quick->get_type()) {
+    case QS_TYPE_ROR_INTERSECT:
+    case QS_TYPE_ROR_UNION:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/// Does this TABLE have a primary key with a BLOB component?
+static bool has_blob_primary_key(const TABLE *table) {
+  if (table->s->is_missing_primary_key()) {
+    return false;
+  }
+
+  const KEY &key = table->key_info[table->s->primary_key];
+  return std::any_of(key.key_part, key.key_part + key.user_defined_key_parts,
+                     [](const KEY_PART_INFO &key_part) {
+                       return Overlaps(key_part.key_part_flag, HA_BLOB_PART);
+                     });
+}
+
+/// Should a record buffer be requested for this range scan?
+static bool should_request_record_buffer(const QUICK_SELECT_I *quick) {
+  // We don't try to set up record buffers for loose index scans, because they
+  // usually cannot read expected_rows_to_fetch rows in one go anyway.
+  if (quick->is_loose_index_scan()) {
+    return false;
+  }
+
+  // Rowid-ordered retrievals may add the primary key to the read_set at a later
+  // stage. If the primary key contains a BLOB component, a record buffer cannot
+  // be used, since BLOBs require storage space outside of the record. So don't
+  // request a buffer in this case, even though the current read_set gives the
+  // impression that using a record buffer would be fine.
+  if (is_ror(quick) &&
+      Overlaps(quick->m_table->file->ha_table_flags(),
+               HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
+      has_blob_primary_key(quick->m_table)) {
+    return false;
+  }
+
+  // Otherwise, request a row buffer.
+  return true;
+}
+
 bool IndexRangeScanIterator::Init() {
   empty_record(table());
 
@@ -277,10 +326,8 @@ bool IndexRangeScanIterator::Init() {
     return true;
   }
 
-  // NOTE: We don't try to set up record buffers for loose index scans,
-  // because they usually cannot read expected_rows_to_fetch rows in one go
-  // anyway.
-  if (first_init && table()->file->inited && !m_quick->is_loose_index_scan()) {
+  if (first_init && table()->file->inited &&
+      should_request_record_buffer(m_quick)) {
     if (set_record_buffer(table(), m_expected_rows)) {
       return true; /* purecov: inspected */
     }
