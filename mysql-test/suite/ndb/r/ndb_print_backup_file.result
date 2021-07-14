@@ -474,7 +474,7 @@ SectionLength: 9
 FileType: 6
 BackupId: 0
 BackupKey: [ 0x00000000 0x00000000 ]
-ByteOrder: 0x12345678
+ByteOrder: 0xXXXXXXXX
 
 -- LCP Control file part:
 Checksum: 0x551e456a
@@ -507,7 +507,7 @@ SectionLength: 9
 FileType: 4
 BackupId: 2
 BackupKey: [ 0x00000000 0x00000000 ]
-ByteOrder: 0x12345678
+ByteOrder: 0xXXXXXXXX
 
 -- Table List:
 SectionType: 4
@@ -544,7 +544,7 @@ SectionLength: 9
 FileType: 6
 BackupId: 0
 BackupKey: [ 0x00000000 0x00000000 ]
-ByteOrder: 0x12345678
+ByteOrder: 0xXXXXXXXX
 
 -- LCP Control file part:
 Checksum: 0x551e456f
@@ -577,7 +577,7 @@ SectionLength: 9
 FileType: 4
 BackupId: 7
 BackupKey: [ 0x00000000 0x00000000 ]
-ByteOrder: 0x12345678
+ByteOrder: 0xXXXXXXXX
 
 -- Table List:
 SectionType: 4
@@ -648,190 +648,3 @@ FragmentNo: 0
 NoOfRecords: 0
 Checksum: 0
 
-Verify that ndb_print_backup_file can be used to check
-a set of LCP CTL + DATA files that will be used to restore a fragment
-ndb_print_backup_file -c 0 -t 22 -f 0 --print-restored-rows
-Print restored rows for T22F0
-Processing 0/T22F0.Data
-Found 43 INSERT records
-Found 0 WRITE records
-Found 0 DELETE BY ROWID records
-Found 0 DELETE BY PAGEID records
-Found 0 IGNOREd records
-Found 43 records
-Number of all rows currently are: 43
-Processing 1/T22F0.Data
-Found 43 INSERT records
-Found 0 WRITE records
-Found 0 DELETE BY ROWID records
-Found 0 DELETE BY PAGEID records
-Found 0 IGNOREd records
-Found 43 records
-Number of all rows currently are: 86
-Processing 2/T22F0.Data
-Found 43 INSERT records
-Found 0 WRITE records
-Found 0 DELETE BY ROWID records
-Found 0 DELETE BY PAGEID records
-Found 0 IGNOREd records
-Found 43 records
-Number of all rows currently are: 129
-Processing 3/T22F0.Data
-Found 21 INSERT records
-Found 0 WRITE records
-Found 0 DELETE BY ROWID records
-Found 0 DELETE BY PAGEID records
-Found 0 IGNOREd records
-Found 21 records
-Number of all rows currently are: 150
-Found row(0,7896)
-Found row(0,7708)
-Found row(0,7520)
-Found row(0,7332)
-Found row(0,7144)
-Found row(0,6956)
-Found row(0,6768)
-Found row(0,6580)
-Found row(0,6392)
-Found row(0,6204)
-Found row(0,6016)
-Found row(0,5828)
-Found row(0,5640)
-Found row(0,5452)
-Found row(0,5264)
-Found row(0,5076)
-Found row(0,4888)
-Found row(0,4700)
-Found row(0,4512)
-Found row(0,4324)
-Found row(0,4136)
-Found row(0,3948)
-Found row(0,3760)
-Found row(0,3572)
-Found row(0,3384)
-Found row(0,3196)
-Found row(0,3008)
-Found row(0,2820)
-Found row(0,2632)
-Found row(0,2444)
-Found row(0,2256)
-Found row(0,2068)
-Found row(0,1880)
-Found row(0,1692)
-Found row(0,1504)
-Found row(0,1316)
-Found row(0,1128)
-Found row(0,940)
-Found row(0,752)
-Found row(0,564)
-Found row(0,376)
-Found row(0,188)
-Found row(0,0)
-Found row(1,7896)
-Found row(1,7708)
-Found row(1,7520)
-Found row(1,7332)
-Found row(1,7144)
-Found row(1,6956)
-Found row(1,6768)
-Found row(1,6580)
-Found row(1,6392)
-Found row(1,6204)
-Found row(1,6016)
-Found row(1,5828)
-Found row(1,5640)
-Found row(1,5452)
-Found row(1,5264)
-Found row(1,5076)
-Found row(1,4888)
-Found row(1,4700)
-Found row(1,4512)
-Found row(1,4324)
-Found row(1,4136)
-Found row(1,3948)
-Found row(1,3760)
-Found row(1,3572)
-Found row(1,3384)
-Found row(1,3196)
-Found row(1,3008)
-Found row(1,2820)
-Found row(1,2632)
-Found row(1,2444)
-Found row(1,2256)
-Found row(1,2068)
-Found row(1,1880)
-Found row(1,1692)
-Found row(1,1504)
-Found row(1,1316)
-Found row(1,1128)
-Found row(1,940)
-Found row(1,752)
-Found row(1,564)
-Found row(1,376)
-Found row(1,188)
-Found row(1,0)
-Found row(2,7896)
-Found row(2,7708)
-Found row(2,7520)
-Found row(2,7332)
-Found row(2,7144)
-Found row(2,6956)
-Found row(2,6768)
-Found row(2,6580)
-Found row(2,6392)
-Found row(2,6204)
-Found row(2,6016)
-Found row(2,5828)
-Found row(2,5640)
-Found row(2,5452)
-Found row(2,5264)
-Found row(2,5076)
-Found row(2,4888)
-Found row(2,4700)
-Found row(2,4512)
-Found row(2,4324)
-Found row(2,4136)
-Found row(2,3948)
-Found row(2,3760)
-Found row(2,3572)
-Found row(2,3384)
-Found row(2,3196)
-Found row(2,3008)
-Found row(2,2820)
-Found row(2,2632)
-Found row(2,2444)
-Found row(2,2256)
-Found row(2,2068)
-Found row(2,1880)
-Found row(2,1692)
-Found row(2,1504)
-Found row(2,1316)
-Found row(2,1128)
-Found row(2,940)
-Found row(2,752)
-Found row(2,564)
-Found row(2,376)
-Found row(2,188)
-Found row(2,0)
-Found row(3,3760)
-Found row(3,3572)
-Found row(3,3384)
-Found row(3,3196)
-Found row(3,3008)
-Found row(3,2820)
-Found row(3,2632)
-Found row(3,2444)
-Found row(3,2256)
-Found row(3,2068)
-Found row(3,1880)
-Found row(3,1692)
-Found row(3,1504)
-Found row(3,1316)
-Found row(3,1128)
-Found row(3,940)
-Found row(3,752)
-Found row(3,564)
-Found row(3,376)
-Found row(3,188)
-Found row(3,0)
-Found a total of 150 rows after restore
