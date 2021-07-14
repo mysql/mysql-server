@@ -409,6 +409,8 @@ public:
 
   bool getForceShort() const;
 
+  void setEnsureIndexStatTables(bool val);
+
   int createTables(Ndb_cluster_connection&) const;
   int dropTables(Ndb_cluster_connection&) const;
 
@@ -454,6 +456,7 @@ private:
   NDBT_DriverType m_driverType;
   bool m_noddl;
   bool m_forceShort;
+  bool m_ensureIndexStatTables;
 };
 
 

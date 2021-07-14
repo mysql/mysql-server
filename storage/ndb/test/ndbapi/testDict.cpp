@@ -22,8 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <string>
-
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -4250,31 +4248,6 @@ RandSchemaOp::cleanup(Ndb* ndb)
   }
   
   require(m_objects.size() == 0);
-  return NDBT_OK;
-}
-
-int
-runCreateIndexStatTables(NDBT_Context* ctx, NDBT_Step* step)
-{
-  // Check if the index stat tables are present and create them if not. They're
-  // needed for auto index stats
-  Ndb *pNdb = GETNDB(step);
-  const std::string test_db_name{pNdb->getDatabaseName()};
-  pNdb->setDatabaseName("mysql");
-  NdbIndexStat index_stat;
-  if (index_stat.check_systables(pNdb) == 0) {
-    pNdb->setDatabaseName(test_db_name.c_str());
-    return NDBT_OK;
-  }
-
-  if (index_stat.create_systables(pNdb) != 0) {
-    g_err << "Failed to create index stat tables. Error = "
-          << index_stat.getNdbError().code << ": "
-          << index_stat.getNdbError().message << endl;
-    return NDBT_FAILED;
-  }
-
-  pNdb->setDatabaseName(test_db_name.c_str());
   return NDBT_OK;
 }
 
@@ -12219,7 +12192,6 @@ TESTCASE("CreateAndDropIndexes",
          "indexes and loads data as a simple check of index operation"){
   TC_PROPERTY("CreateIndexes", 1);
   TC_PROPERTY("LoadData", 1);
-  INITIALIZER(runCreateIndexStatTables);
   INITIALIZER(runCreateAndDropAtRandom);
 }
 TESTCASE("CreateAndDropWithData", 
@@ -12432,12 +12404,10 @@ TESTCASE("TableAddAttrsDuringError",
 }
 TESTCASE("Bug21755",
          ""){
-  INITIALIZER(runCreateIndexStatTables);
   INITIALIZER(runBug21755);
 }
 TESTCASE("DictRestart",
          ""){
-  INITIALIZER(runCreateIndexStatTables);
   INITIALIZER(runDictRestart);
 }
 TESTCASE("Bug24631",
