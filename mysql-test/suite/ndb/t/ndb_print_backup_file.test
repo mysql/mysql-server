@@ -99,23 +99,32 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --remove_file $dump_file
 
 --echo Verify that ndb_print_backup_file can be used to check LCP Data and CTL files individually
+# ByteOrder is masked until Bug#32470157 is fixed so that ndb_print_backup_file
+# tool works well with both little endian and big endian systems.
 
 --echo ndb_print_backup_file suite/ndb/backups/LCP/0/T22F0.ctl
+--replace_regex /ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/
 --exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T22F0.ctl
 
 --echo ndb_print_backup_file suite/ndb/backups/LCP/0/T10F0.Data
+--replace_regex /ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/
 --exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T10F0.Data
 
 --echo ndb_print_backup_file suite/ndb/backups/LCP/0/T19F0.ctl
+--replace_regex /ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/
 --exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T19F0.ctl
 
 --echo ndb_print_backup_file suite/ndb/backups/LCP/1/T22F0.Data
+--replace_regex /ByteOrder: 0x\d{8}/ByteOrder: 0xXXXXXXXX/
 --exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/1/T22F0.Data
 
 
---echo Verify that ndb_print_backup_file can be used to check
---echo a set of LCP CTL + DATA files that will be used to restore a fragment
+# The following scenario is disabled until Bug#33053631 is fixed so that
+# ndb_print_backup_file fully handles backup or lcp files written on
+# systems with other byte order
 
---echo ndb_print_backup_file -c 0 -t 22 -f 0 --print-restored-rows
---exec cd $NDB_SAVED_BACKUPS/LCP && $NDB_PRINT_BACKUP_FILE -c 0 -t 22 -f 0 --print-restored-rows
+#--echo Verify that ndb_print_backup_file can be used to check
+#--echo a set of LCP CTL + DATA files that will be used to restore a fragment
 
+#--echo ndb_print_backup_file -c 0 -t 22 -f 0 --print-restored-rows
+#--exec cd $NDB_SAVED_BACKUPS/LCP && $NDB_PRINT_BACKUP_FILE -c 0 -t 22 -f 0 --print-restored-rows
