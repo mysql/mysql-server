@@ -3351,6 +3351,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
       }
       while ((role = roles_it++) && !errors) {
         ACL_USER *acl_role;
+        // keep the check in sync with check_authorization_id_string
         if (role->user.length == 0 || *(role->user.str) == '\0') {
           /* Anonymous roles aren't allowed */
           errors = true;
@@ -7196,7 +7197,8 @@ bool check_authorization_id_string(THD *thd, LEX_STRING &mandatory_roles) {
     iterate_comma_separated_quoted_string(
         authid_str, [&thd, &error, &mandatory_roles](const std::string item) {
           auto el = get_authid_from_quoted_string(item);
-          if (el.second != "" && el.first == "")
+          // Don't accept anonymous users. Keep in sync with mysql_grant_role()
+          if (el.first == "")  // don't accept anonymous users
             error = true;
           else if (thd->security_context()
                        ->has_global_grant({el.first, el.second},
