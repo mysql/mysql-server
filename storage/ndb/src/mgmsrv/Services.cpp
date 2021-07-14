@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1048,14 +1048,18 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   int noOfNodes = 0;
   BaseString typestring;
 
-  enum ndb_mgm_node_type types[10];
+  enum ndb_mgm_node_type types[NDB_MGM_NODE_TYPE_MAX+1];
   if (args.get("types", typestring))
   {
     Vector<BaseString> tmp;
     typestring.split(tmp, " ");
-    for (i = 0; i < tmp.size(); i++)
+    for (i = 0; i < tmp.size() && i < NDB_MGM_NODE_TYPE_MAX; i++)
     {
       types[i] = ndb_mgm_match_node_type(tmp[i].c_str());
+      if (types[i] == NDB_MGM_NODE_TYPE_UNKNOWN) {
+        // Either end of typestring or junk found
+        break;
+      }
     }
     types[i] = NDB_MGM_NODE_TYPE_UNKNOWN;    
   }
