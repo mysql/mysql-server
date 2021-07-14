@@ -2314,8 +2314,8 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
           assert(parent_op != NULL);
 
           // TODO use field_index ??
-          op_key[map[i]] =
-              m_builder->linkedValue(parent_op, field_item->field_name);
+          op_key[map[i]] = m_builder->linkedValue(
+              parent_op, field_item->original_field_name());
         } else {
           assert(m_const_scope.contain(referred_table_no));
           // Outside scope of join plan, Handle as parameter as its value
@@ -2533,8 +2533,8 @@ int ndb_pushed_builder_ctx::build_query() {
             m_tables[referred_table_no].m_op;
 
         // Convert into array of linkedValue's
-        parameters[cnt++] =
-            m_builder->linkedValue(ancestor_op, item_field->field_name);
+        parameters[cnt++] = m_builder->linkedValue(
+            ancestor_op, item_field->original_field_name());
       }
 
       if (cnt > 0) {
