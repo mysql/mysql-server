@@ -51,6 +51,7 @@ class Password_option : public Abstract_string_option<Password_option> {
    */
   Password_option(std::optional<std::string> *value, std::string name,
                   std::string description);
+  ~Password_option();
 
  private:
   void password_callback(char *);

@@ -35,6 +35,7 @@
 #include "client/base/abstract_program.h"
 #include "compression.h"
 #include "m_ctype.h"
+#include "multi_factor_passwordopt-vars.h"
 #include "mysys_err.h"
 #include "typelib.h"
 
@@ -199,6 +200,9 @@ MYSQL *Mysql_connection_options::create_connection() {
   if (this->m_get_server_public_key)
     set_get_server_public_key_option(connection,
                                      &this->m_get_server_public_key);
+
+  /* set passwords for --password{1,2,3} */
+  set_password_options(connection);
 
   if (!mysql_real_connect(connection, this->get_null_or_string(this->m_host),
                           this->get_null_or_string(this->m_user), nullptr,

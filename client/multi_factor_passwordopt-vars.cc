@@ -98,6 +98,10 @@ void set_password_options(MYSQL *mysql) {
 }
 
 void free_passwords() {
-  for (unsigned int factor = 1; factor <= MAX_AUTH_FACTORS; factor++)
-    my_free(opt_password[factor - 1]);
+  for (unsigned int factor = 1; factor <= MAX_AUTH_FACTORS; factor++) {
+    if (opt_password[factor - 1]) {
+      my_free(opt_password[factor - 1]);
+      opt_password[factor - 1] = nullptr;
+    }
+  }
 }
