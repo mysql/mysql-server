@@ -1609,83 +1609,6 @@ class ConfUseGrNotificationParamTest
     : public RouterBootstrapTest,
       public ::testing::WithParamInterface<UseGrNotificationTestParams> {};
 
-#if 0
-/**
- * @test
- *       verify that using --conf-use-gr-notifications creates proper config
- * file entry.
- */
-TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
-  TempDirectory bootstrap_directory;
-  const auto server_port = port_pool_.get_next_available();
-  const auto server_port2 = port_pool_.get_next_available();
-  const auto bootstrap_server_port = port_pool_.get_next_available();
-  const auto server_http_port = port_pool_.get_next_available();
-  const auto bootstrap_server_http_port = port_pool_.get_next_available();
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
-
-  // launch mock server that is our metadata server for the bootstrap
-  auto &server_mock =
-      launch_mysql_server_mock(json_stmts, bootstrap_server_port, EXIT_SUCCESS,
-                               false, bootstrap_server_http_port);
-  // TODO: remove?
-  // set_mock_bootstrap_data(bootstrap_server_http_port, "test",
-  //                         {{"127.0.0.1", server_port}}, {2, 0, 3},
-  //                         "cluster-specific-id");
-  set_mock_bootstrap_data(
-      bootstrap_server_http_port, "test",
-      {{"localhost", server_port}, {"localhost", server_port2}},
-      GetParam().metadata_schema_version, "gr-id");
-
-  // launch the router in bootstrap mode
-  auto &router = launch_router_for_bootstrap(
-      {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
-       bootstrap_directory.name(), "--conf-use-gr-notifications"});
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
-  check_exit_code(router, EXIT_SUCCESS);
-
-  const std::string conf_file =
-      bootstrap_directory.name() + "/mysqlrouter.conf";
-
-  auto conf_file_content = get_file_output(conf_file);
-  auto conf_lines = mysql_harness::split_string(conf_file_content, '\n');
-  EXPECT_THAT(
-      conf_lines,
-      ::testing::IsSupersetOf({
-          // check if the valid config option was added to the file
-          "use_gr_notifications=1",
-          // check if valid TTL is set (with GR notifications it should be
-          // increased to
-          // 60s)
-          "ttl=60",
-          // auth_cache_refresh_interval should be adjusted to the ttl value
-          "auth_cache_refresh_interval=60",
-      }));
-
-  // Stop the mock that was used for bootstrap
-  server_mock.send_clean_shutdown_event();
-  EXPECT_NO_THROW(server_mock.wait_for_exit());
-
-  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
-  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
-                                      plugin_dir));
-
-  const std::string runtime_json_stmts =
-      get_data_dir().join("metadata_dynamic_node  s_v2_gr.js").str();
-
-  // launch mock server that is our metadata server
-  launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
-                           server_http_port);
-  set_mock_metadata(server_http_port, "cluster-specific-id", {server_port});
-
-  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
-}
-#endif
-
 /**
  * @test
  *       verify that using --conf-use-gr-notifications creates proper config
@@ -1707,9 +1630,11 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
       {{"localhost", server_port}, {"localhost", server_port2}},
       GetParam().metadata_schema_version, "cluster-specific-id");
 
+  const auto base_listening_port = port_pool_.get_next_available();
   std::vector<std::string> bootsrtap_params{
       "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
-      bootstrap_directory.name()};
+      bootstrap_directory.name(),
+      "--conf-base-port=" + std::to_string(base_listening_port)};
 
   bootsrtap_params.insert(bootsrtap_params.end(),
                           GetParam().bootstrap_params.begin(),
