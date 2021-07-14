@@ -1213,6 +1213,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       store_record(table, record[1]);  // copy original row
     }
 
+    timeval tm;
+    tm = thd->query_start_timeval_trunc(0);
+    table->field[5]->store_timestamp(&tm);
+
     table->field[6]->store((longlong)get_rights_for_column(privileges), true);
 
     if (old_row_exists) {
@@ -1473,6 +1477,11 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
 
   table->field[4]->store(grantor, strlen(grantor), system_charset_info);
+
+  timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[5]->store_timestamp(&tm);
+
   table->field[6]->store((longlong)store_table_rights, true);
   table->field[7]->store((longlong)store_col_rights, true);
   rights = fix_rights_for_table(store_table_rights);
@@ -1633,6 +1642,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
 
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong)store_proc_rights, true);
+
+  timeval tm;
+  tm = thd->query_start_timeval_trunc(0);
+  table->field[7]->store_timestamp(&tm);
+
   rights = fix_rights_for_procedure(store_proc_rights);
 
   if (old_row_exists) {
