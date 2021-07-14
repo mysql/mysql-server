@@ -146,7 +146,7 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   Entity_object_impl::deserialize(rctx, val);
   read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
-  bool is_null;
+  bool is_null{false};
   read(&is_null, val, "organization_null");
   if (!is_null) {
     String_type s;

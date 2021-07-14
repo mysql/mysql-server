@@ -10885,7 +10885,7 @@ bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
   /*
     Store the size of the field metadata.
   */
-  uchar mbuf[sizeof(m_field_metadata_size)];
+  uchar mbuf[2 * sizeof(m_field_metadata_size)];
   uchar *const mbuf_end = net_store_length(mbuf, m_field_metadata_size);
 
   return (wrapper_my_b_safe_write(ostream, dbuf, sizeof(dbuf)) ||
@@ -10912,7 +10912,7 @@ bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
  */
 static inline void store_compressed_length(String &str_buf, ulonglong length) {
   // Store Type and packed length
-  uchar buf[4];
+  uchar buf[16];
   uchar *buf_ptr = net_store_length(buf, length);
 
   str_buf.append(reinterpret_cast<char *>(buf), buf_ptr - buf);

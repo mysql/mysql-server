@@ -342,6 +342,11 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   ${UNIX_VERSION}
   )
 
+# Downgrade warning for strncat in my_crypt_genhash.
+IF((WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO) AND MY_COMPILER_IS_GNU)
+  MY_TARGET_LINK_OPTIONS(libmysql "-Wno-error=stringop-truncation")
+ENDIF()
+
 IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
   ADD_DEPENDENCIES(libmysql ${kerberos_target})
   ADD_DEPENDENCIES(mysqlclient ${kerberos_target})

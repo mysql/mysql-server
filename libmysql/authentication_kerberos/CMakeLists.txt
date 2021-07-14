@@ -71,6 +71,8 @@ ENDIF()
 
 SET(MY_SQL "mysqlclient")
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 MYSQL_ADD_PLUGIN(authentication_kerberos_client
   auth_kerberos_client_plugin.cc
   auth_kerberos_client_io.cc

@@ -74,7 +74,10 @@ MYSQL_ADD_EXECUTABLE(gen_lex_token
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
-  ADD_COMPILE_FLAGS(gen_lex_token.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
+  ADD_COMPILE_FLAGS(
+    binlog_reader.cc  # In case we did not profile replication.
+    gen_lex_token.cc  # This is a compile-time tool.
+    COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -293,7 +296,6 @@ SET(DD_SOURCES
 )
 
 SET(SQL_GIS_SOURCES
-  geometry_rtree.cc
   gis/area.cc
   gis/buffer.cc
   gis/covered_by.cc
