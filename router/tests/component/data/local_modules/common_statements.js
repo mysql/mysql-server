@@ -535,7 +535,7 @@ function get_response(stmt_key, options) {
             "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
-            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.targetCluster', '" +
+            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.target_cluster', '" +
             options.router_expected_target_cluster + "'\\), " +
             "version = '.*', cluster_id = '.*' " +
             "WHERE router_id = .*",

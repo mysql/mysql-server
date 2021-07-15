@@ -192,7 +192,7 @@ static void update_router_info_v2(
       " options = "
       "   JSON_SET(IF(options IS NULL, "
       "'{}', options),"
-      "    '$.targetCluster', ?),"
+      "    '$.target_cluster', ?),"
       " version = ?, cluster_id = ?"
       " WHERE router_id = ?");
 

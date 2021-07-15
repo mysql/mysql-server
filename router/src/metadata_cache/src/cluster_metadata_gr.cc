@@ -1075,7 +1075,7 @@ static bool update_target_cluster_from_metadata(
   const std::string options_str = get_string((*row)[0]);
   std::string out_error;
   std::string target_cluster_str =
-      get_router_option_str(options_str, "targetCluster", "", out_error);
+      get_router_option_str(options_str, "target_cluster", "", out_error);
 
   if (!out_error.empty()) {
     log_error("Error reading target_cluster from the router.options: %s",
@@ -1084,7 +1084,7 @@ static bool update_target_cluster_from_metadata(
   }
 
   const std::string invalidated_cluster_routing_policy_str =
-      get_router_option_str(options_str, "invalidatedClusterRoutingPolicy", "",
+      get_router_option_str(options_str, "invalidate_routing_policy", "",
                             out_error);
 
   if (invalidated_cluster_routing_policy_str == "accept_ro") {
