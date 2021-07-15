@@ -112,6 +112,7 @@ INSERT INTO t VALUES(2);
 --echo #    Check the function does not time out when positions become valid
 
 CREATE TABLE query_result(res INT);
+--replace_result $log_file_on_source LOG_FILE_ON_SOURCE $log_pos_on_source LOG_POS_ON_SOURCE
 --send_eval INSERT INTO query_result SELECT SOURCE_POS_WAIT('$log_file_on_source', $log_pos_on_source, 100);
 
 --source include/rpl_connection_slave.inc

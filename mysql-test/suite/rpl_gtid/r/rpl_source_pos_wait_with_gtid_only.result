@@ -38,7 +38,7 @@ include/assert.inc [The function timed out]
 #    Turn applier positions valid again
 #    Check the function does not time out when positions become valid
 CREATE TABLE query_result(res INT);
-INSERT INTO query_result SELECT SOURCE_POS_WAIT('master-bin.000001', 614, 100);;
+INSERT INTO query_result SELECT SOURCE_POS_WAIT('LOG_FILE_ON_SOURCE', LOG_POS_ON_SOURCE, 100);;
 [connection slave]
 include/start_slave_io.inc
 [connection master]
