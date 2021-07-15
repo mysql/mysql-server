@@ -535,9 +535,22 @@ function get_response(stmt_key, options) {
             "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
             "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
-            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.targetCluster', '" +
+            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.target_cluster', '" +
             options.router_expected_target_cluster + "'\\), " +
             "version = '.*', cluster_id = '.*' " +
+            "WHERE router_id = .*",
+        "ok": {}
+      };
+    case "router_clusterset_update_routers_in_metadata":
+      return {
+        "stmt_regex":
+            "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
+            "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.target_cluster', '" +
+            options.router_expected_target_cluster + "'\\), " +
+            "version = '.*', clusterset_id = '.*' " +
             "WHERE router_id = .*",
         "ok": {}
       };
@@ -1104,7 +1117,7 @@ function get_response(stmt_key, options) {
     case "router_router_options":
       return {
         stmt:
-            "SELECT IF(r.options IS NULL, IF(c.router_options IS NULL, cs.router_options, c.router_options), r.options) as options FROM mysql_innodb_cluster_metadata.v2_routers r JOIN mysql_innodb_cluster_metadata.clusters c ON c.cluster_id = r.cluster_id JOIN mysql_innodb_cluster_metadata.clustersets cs ON cs.clusterset_id = c.clusterset_id where r.router_id = " +
+            "SELECT IF(r.options IS NULL, cs.router_options, r.options) as options FROM mysql_innodb_cluster_metadata.v2_routers r JOIN mysql_innodb_cluster_metadata.clustersets cs ON cs.clusterset_id = r.clusterset_id where r.router_id = " +
             options.router_id,
         result: {
           columns: [{"name": "options", "type": "VAR_STRING"}],

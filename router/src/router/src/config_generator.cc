@@ -1744,9 +1744,14 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
                                      options.target_cluster_by_name,
                                      cluster_info)
           : "primary";
-  metadata_->update_router_info(router_id, cluster_info.cluster_id,
-                                target_cluster, rw_endpoint, ro_endpoint,
-                                rw_x_endpoint, ro_x_endpoint, username);
+  const std::string cluster_id =
+      mysqlrouter::ClusterType::GR_CS == metadata_->get_type()
+          ? cluster_specific_id_
+          : cluster_info.cluster_id;
+
+  metadata_->update_router_info(router_id, cluster_id, target_cluster,
+                                rw_endpoint, ro_endpoint, rw_x_endpoint,
+                                ro_x_endpoint, username);
 
   transaction.commit();
 

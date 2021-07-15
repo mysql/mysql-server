@@ -583,7 +583,7 @@ class ConfigGenerator {
   int read_timeout_;
 
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
-  // metadata
+  // metadata, for ClusterSet clusterset_id
   std::string cluster_specific_id_;
   std::string cluster_initial_hostname_;
   unsigned int cluster_initial_port_;
