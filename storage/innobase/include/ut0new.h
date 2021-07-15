@@ -670,9 +670,9 @@ class ut_allocator {
 
     for (size_t retries = 1;; retries++) {
       if (set_to_zero) {
-        ptr = calloc(1, total_bytes);
+        ptr = ::calloc(1, total_bytes);
       } else {
-        ptr = malloc(total_bytes);
+        ptr = ::malloc(total_bytes);
       }
 
       if (ptr != nullptr || retries >= alloc_max_retries) {
@@ -708,9 +708,9 @@ class ut_allocator {
 
     deallocate_trace(pfx);
 
-    free(pfx);
+    ::free(pfx);
 #else
-    free(ptr);
+    ::free(ptr);
 #endif /* UNIV_PFS_MEMORY */
   }
 
@@ -1131,7 +1131,6 @@ same problems as the standard library malloc.
 #endif /* UNIV_PFS_MEMORY */
 
 namespace ut {
-
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 constexpr bool WITH_PFS_MEMORY = true;
 #else
@@ -1173,9 +1172,552 @@ inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
   return PSI_memory_key_t(key);
 }
 
+/** Dynamically allocates storage of given size. Instruments the memory with
+    given PSI memory key in case PFS memory support is enabled.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the allocated storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_withkey(key, 10*sizeof(int)));
+ */
+inline void *malloc_withkey(PSI_memory_key_t key, std::size_t size) noexcept {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
+  using malloc_impl = detail::Alloc_<impl>;
+  return malloc_impl::alloc<false>(size, key());
+}
+
+/** Dynamically allocates storage of given size.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the allocated storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc(10*sizeof(int)));
+ */
+inline void *malloc(std::size_t size) noexcept {
+  return ut::malloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
+}
+
+/** Dynamically allocates zero-initialized storage of given size. Instruments
+    the memory with given PSI memory key in case PFS memory support is enabled.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the zero-initialized allocated storage. nullptr if
+    dynamic storage allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::zalloc_withkey(key, 10*sizeof(int)));
+ */
+inline void *zalloc_withkey(PSI_memory_key_t key, std::size_t size) noexcept {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
+  using malloc_impl = detail::Alloc_<impl>;
+  return malloc_impl::alloc<true>(size, key());
+}
+
+/** Dynamically allocates zero-initialized storage of given size.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the zero-initialized allocated storage. nullptr if
+    dynamic storage allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::zalloc(10*sizeof(int)));
+ */
+inline void *zalloc(std::size_t size) noexcept {
+  return ut::zalloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
+}
+
+/** Upsizes or downsizes already dynamically allocated storage to the new size.
+    Instruments the memory with given PSI memory key in case PFS memory support
+    is enabled.
+
+    It also supports standard realloc() semantics by:
+      * allocating size bytes of memory when passed ptr is nullptr
+      * freeing the memory pointed by ptr if passed size is 0
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] ptr Pointer to the memory area to be reallocated.
+    @param[in] size New size of storage (in bytes) requested to be reallocated.
+    @return Pointer to the reallocated storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_withkey(key, 10*sizeof(int));
+     x = static_cast<int*>(ut::realloc_withkey(key, ptr, 100*sizeof(int)));
+ */
+inline void *realloc_withkey(PSI_memory_key_t key, void *ptr,
+                             std::size_t size) noexcept {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
+  using malloc_impl = detail::Alloc_<impl>;
+  return malloc_impl::realloc(ptr, size, key());
+}
+
+/** Upsizes or downsizes already dynamically allocated storage to the new size.
+
+    It also supports standard realloc() semantics by:
+      * allocating size bytes of memory when passed ptr is nullptr
+      * freeing the memory pointed by ptr if passed size is 0
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] ptr Pointer to the memory area to be reallocated.
+    @param[in] size New size of storage (in bytes) requested to be reallocated.
+    @return Pointer to the reallocated storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc(key, 10*sizeof(int));
+     x = static_cast<int*>(ut::realloc(key, ptr, 100*sizeof(int)));
+ */
+inline void *realloc(void *ptr, std::size_t size) noexcept {
+  return ut::realloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), ptr,
+                             size);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::malloc*(), ut::realloc* or ut::zalloc*() variants.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc*(), ut::realloc* or ut::zalloc*() variants.
+
+    Example:
+     ut::free(ptr);
+ */
+inline void free(void *ptr) noexcept {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
+  using malloc_impl = detail::Alloc_<impl>;
+  malloc_impl::free(ptr);
+}
+
+/** Dynamically allocates storage for an object of type T. Constructs the object
+    of type T with provided Args. Instruments the memory with given PSI memory
+    key in case PFS memory support is enabled.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] args Arguments one wishes to pass over to T constructor(s)
+    @return Pointer to the allocated storage. Throws std::bad_alloc exception
+    if dynamic storage allocation could not be fulfilled. Re-throws whatever
+    exception that may have occured during the construction of T, in which case
+    it automatically cleans up the raw memory allocated for it.
+
+    Example 1:
+     int *ptr = ut::new_withkey<int>(key);
+
+    Example 2:
+     int *ptr = ut::new_withkey<int>(key, 10);
+     assert(*ptr == 10);
+
+    Example 3:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     }
+     A *ptr = ut::new_withkey<A>(key, 1, 2);
+     assert(ptr->_x == 1);
+     assert(ptr->_y == 2);
+ */
+template <typename T, typename... Args>
+inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
+  auto mem = ut::malloc_withkey(key, sizeof(T));
+  if (unlikely(!mem)) throw std::bad_alloc();
+  try {
+    new (mem) T(std::forward<Args>(args)...);
+  } catch (...) {
+    ut::free(mem);
+    throw;
+  }
+  return static_cast<T *>(mem);
+}
+
+/** Dynamically allocates storage for an object of type T. Constructs the object
+    of type T with provided Args.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] args Arguments one wishes to pass over to T constructor(s)
+    @return Pointer to the allocated storage. Throws std::bad_alloc exception
+    if dynamic storage allocation could not be fulfilled. Re-throws whatever
+    exception that may have occured during the construction of T, in which case
+    it automatically cleans up the raw memory allocated for it.
+
+    Example 1:
+     int *ptr = ut::new_<int>();
+
+    Example 2:
+     int *ptr = ut::new_<int>(10);
+     assert(*ptr == 10);
+
+    Example 3:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     }
+     A *ptr = ut::new_<A>(1, 2);
+     assert(ptr->_x == 1);
+     assert(ptr->_y == 2);
+ */
+template <typename T, typename... Args>
+inline T *new_(Args &&... args) {
+  return ut::new_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                            std::forward<Args>(args)...);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::new*() variants. Destructs the object of type T.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::new*() variants
+
+    Example:
+     ut::delete_(ptr);
+ */
+template <typename T>
+inline void delete_(T *ptr) noexcept {
+  if (unlikely(!ptr)) return;
+  ptr->~T();
+  ut::free(ptr);
+}
+
+/** Dynamically allocates storage for an array of T's. Constructs objects of
+    type T with provided Args. Arguments that are to be used to construct some
+    respective instance of T shall be wrapped into a std::tuple. See examples
+    down below. Instruments the memory with given PSI memory key in case PFS
+    memory support is enabled.
+
+    To create an array of default-intialized T's, one can use this function
+    template but for convenience purposes one can achieve the same by using
+    the ut::new_arr_withkey with ut::Count overload.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] args Tuples of arguments one wishes to pass over to T
+    constructor(s).
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
+
+    Example 1:
+     int *ptr = ut::new_arr_withkey<int>(key,
+                    std::forward_as_tuple(1),
+                    std::forward_as_tuple(2));
+     assert(ptr[0] == 1);
+     assert(ptr[1] == 2);
+
+    Example 2:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr_withkey<A>(key,
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple(8, 9));
+     assert(ptr[0]->_x == 0 && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2 && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 4 && ptr[2]->_y == 5);
+     assert(ptr[3]->_x == 6 && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 8 && ptr[4]->_y == 9);
+
+    Example 3:
+     struct A {
+       A() : _x(10), _y(100) {}
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr_withkey<A>(key,
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple());
+     assert(ptr[0]->_x == 0  && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2  && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 6  && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
+ */
+template <typename T, typename... Args>
+inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, true>;
+  using malloc_impl = detail::Alloc_<impl>;
+  auto mem = malloc_impl::alloc<false>(sizeof(T) * sizeof...(args), key());
+  if (unlikely(!mem)) throw std::bad_alloc();
+
+  size_t idx = 0;
+  try {
+    using arr_t = int[];
+    (void)arr_t{0, (detail::construct<T>(mem, sizeof(T) * idx++,
+                                         std::forward<Args>(args)),
+                    0)...};
+  } catch (...) {
+    for (size_t offset = (idx - 1) * sizeof(T); offset != 0;
+         offset -= sizeof(T)) {
+      reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(mem) + offset -
+                            sizeof(T))
+          ->~T();
+    }
+    malloc_impl::free(mem);
+    throw;
+  }
+  return static_cast<T *>(mem);
+}
+
+/** Dynamically allocates storage for an array of T's. Constructs objects of
+    type T with provided Args. Arguments that are to be used to construct some
+    respective instance of T shall be wrapped into a std::tuple. See examples
+    down below.
+
+    To create an array of default-intialized T's, one can use this function
+    template but for convenience purposes one can achieve the same by using
+    the ut::new_arr_withkey with ut::Count overload.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] args Tuples of arguments one wishes to pass over to T
+    constructor(s).
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
+
+    Example 1:
+     int *ptr = ut::new_arr<int>(
+                    std::forward_as_tuple(1),
+                    std::forward_as_tuple(2));
+     assert(ptr[0] == 1);
+     assert(ptr[1] == 2);
+
+    Example 2:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr<A>(
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple(8, 9));
+     assert(ptr[0]->_x == 0 && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2 && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 4 && ptr[2]->_y == 5);
+     assert(ptr[3]->_x == 6 && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 8 && ptr[4]->_y == 9);
+
+    Example 3:
+     struct A {
+       A() : _x(10), _y(100) {}
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr<A>(
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple());
+     assert(ptr[0]->_x == 0  && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2  && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 6  && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
+ */
+template <typename T, typename... Args>
+inline T *new_arr(Args &&... args) {
+  return ut::new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                std::forward<Args>(args)...);
+}
+
+/** Light-weight and type-safe wrapper which serves a purpose of
+    being able to select proper ut::new_arr* overload.
+
+    Without having a separate overload with this type, creating an array of
+    default-initialized instances of T through the ut::new_arr*(Args &&... args)
+    overload would have been impossible because:
+      int *ptr = ut::new_arr<int>(5);
+    wouldn't even compile and
+      int *ptr = ut::new_arr<int>(std::forward_as_tuple(5));
+    would compile but would not have intended effect. It would create an array
+    holding 1 integer element that is initialized to 5.
+
+    Given that function templates cannot be specialized, having an overload
+    crafted specifically for given case solves the problem:
+      int *ptr = ut::new_arr<int>(ut::Count{5});
+*/
+struct Count {
+  explicit Count(size_t count) : m_count(count) {}
+  size_t operator()() const { return m_count; }
+  size_t m_count;
+};
+
+/** Dynamically allocates storage for an array of T's. Constructs objects of
+    type T using default constructor. If T cannot be default-initialized (e.g.
+    default constructor does not exist), then this interace cannot be used for
+    constructing such an array. ut::new_arr_withkey overload with user-provided
+    initialization must be used then. Instruments the memory with given PSI
+    memory key in case PFS memory support is enabled.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] count Number of T elements in an array.
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
+
+    Example 1:
+     int *ptr = ut::new_arr_withkey<int>(key, ut::Count{2});
+
+    Example 2:
+     struct A {
+       A() : _x(10), _y(100) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr_withkey<A>(key, ut::Count{5});
+     assert(ptr[0]->_x == 10 && ptr[0]->_y == 100);
+     assert(ptr[1]->_x == 10 && ptr[1]->_y == 100);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 10 && ptr[3]->_y == 100);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
+
+    Example 3:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     // Following cannot compile because A is not default-constructible
+     A *ptr = ut::new_arr_withkey<A>(key, ut::Count{5});
+ */
+template <typename T>
+inline T *new_arr_withkey(PSI_memory_key_t key, Count count) {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, true>;
+  using malloc_impl = detail::Alloc_<impl>;
+  auto mem = malloc_impl::alloc<false>(sizeof(T) * count(), key());
+  if (unlikely(!mem)) throw std::bad_alloc();
+
+  size_t offset = 0;
+  try {
+    for (; offset < sizeof(T) * count(); offset += sizeof(T)) {
+      new (reinterpret_cast<uint8_t *>(mem) + offset) T{};
+    }
+  } catch (...) {
+    for (; offset != 0; offset -= sizeof(T)) {
+      reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(mem) + offset -
+                            sizeof(T))
+          ->~T();
+    }
+    malloc_impl::free(mem);
+    throw;
+  }
+  return static_cast<T *>(mem);
+}
+
+/** Dynamically allocates storage for an array of T's. Constructs objects of
+    type T using default constructor. If T cannot be default-initialized (e.g.
+    default constructor does not exist), then this interace cannot be used for
+    constructing such an array. ut::new_arr overload with user-provided
+    initialization must be used then.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] count Number of T elements in an array.
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
+
+    Example 1:
+     int *ptr = ut::new_arr<int>(ut::Count{2});
+
+    Example 2:
+     struct A {
+       A() : _x(10), _y(100) {}
+       int _x, _y;
+     };
+     A *ptr = ut::new_arr<A>(ut::Count{5});
+     assert(ptr[0]->_x == 10 && ptr[0]->_y == 100);
+     assert(ptr[1]->_x == 10 && ptr[1]->_y == 100);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 10 && ptr[3]->_y == 100);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
+
+    Example 3:
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     // Following cannot compile because A is not default-constructible
+     A *ptr = ut::new_arr<A>(ut::Count{5});
+ */
+template <typename T>
+inline T *new_arr(Count count) {
+  return ut::new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                count);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::new_arr*() variants. Destructs all objects of type T.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::new_arr*() variants
+
+    Example:
+     ut::delete_arr(ptr);
+ */
+template <typename T>
+inline void delete_arr(T *ptr) noexcept {
+  if (unlikely(!ptr)) return;
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, true>;
+  using malloc_impl = detail::Alloc_<impl>;
+  const auto data_len = malloc_impl::datalen(ptr);
+  for (size_t offset = 0; offset < data_len; offset += sizeof(T)) {
+    reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(ptr) + offset)->~T();
+  }
+  malloc_impl::free(ptr);
+}
+
+/** Returns number of bytes that ut::malloc_*, ut::zalloc_*, ut::realloc_* and
+    ut::new_* variants will be using to store the necessary metadata for PFS.
+
+    @return Size of the PFS metadata.
+*/
+inline size_t pfs_overhead() noexcept {
+  using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
+  using malloc_impl = detail::Alloc_<impl>;
+  return malloc_impl::pfs_overhead();
+}
+
 /** Dynamically allocates storage of given size and at the address aligned to
     the requested alignment. Instruments the memory with given PSI memory key
-    in case PFS memory support is enabled (-DDISABLE_PSI_MEMORY=OFF).
+    in case PFS memory support is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] size Size of storage (in bytes) requested to be allocated.
@@ -1196,6 +1738,11 @@ inline void *aligned_alloc_withkey(PSI_memory_key_t key, std::size_t size,
 /** Dynamically allocates storage of given size and at the address aligned to
     the requested alignment.
 
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
     @param[in] size Size of storage (in bytes) requested to be allocated.
     @param[in] alignment Alignment requirement for storage to be allocated.
     @return Pointer to the allocated storage. nullptr if dynamic storage
@@ -1211,8 +1758,7 @@ inline void *aligned_alloc(std::size_t size, std::size_t alignment) noexcept {
 
 /** Dynamically allocates zero-initialized storage of given size and at the
     address aligned to the requested alignment. Instruments the memory with
-    given PSI memory key in case PFS memory support is enabled
-    (-DDISABLE_PSI_MEMORY=OFF).
+    given PSI memory key in case PFS memory support is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] size Size of storage (in bytes) requested to be allocated.
@@ -1233,6 +1779,11 @@ inline void *aligned_zalloc_withkey(PSI_memory_key_t key, std::size_t size,
 
 /** Dynamically allocates zero-initialized storage of given size and at the
     address aligned to the requested alignment.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
 
     @param[in] size Size of storage (in bytes) requested to be allocated.
     @param[in] alignment Alignment requirement for storage to be allocated.
@@ -1265,7 +1816,7 @@ inline void aligned_free(void *ptr) noexcept {
 /** Dynamically allocates storage for an object of type T at address aligned
     to the requested alignment. Constructs the object of type T with provided
     Args. Instruments the memory with given PSI memory key in case PFS memory
-    support is enabled (-DDISABLE_PSI_MEMORY=OFF).
+    support is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.
@@ -1298,6 +1849,11 @@ inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
 /** Dynamically allocates storage for an object of type T at address aligned
     to the requested alignment. Constructs the object of type T with provided
     Args.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
 
     @param[in] alignment Alignment requirement for storage to be allocated.
     @param[in] args Arguments one wishes to pass over to T constructor(s)
@@ -1341,7 +1897,7 @@ inline void aligned_delete(T *ptr) noexcept {
 /** Dynamically allocates storage for an array of T's at address aligned to
     the requested alignment. Constructs objects of type T with provided Args.
     Instruments the memory with given PSI memory key in case PFS memory support
-    is enabled (-DDISABLE_PSI_MEMORY=OFF).
+    is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.
@@ -1392,7 +1948,7 @@ inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
 /** Dynamically allocates storage for an array of T's at address aligned to
     the requested alignment. Constructs objects of type T using default
     constructor. Instruments the memory with given PSI memory key in case PFS
-    memory support is enabled (-DDISABLE_PSI_MEMORY=OFF).
+    memory support is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.
@@ -1437,6 +1993,11 @@ inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
 /** Dynamically allocates storage for an array of T's at address aligned to
     the requested alignment. Constructs objects of type T with provided Args.
 
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
     @param[in] alignment Alignment requirement for storage to be allocated.
     @param[in] args Arguments one wishes to pass over to T constructor(s)
     @return Pointer to the first element of allocated storage. Throws
@@ -1475,6 +2036,11 @@ inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
 /** Dynamically allocates storage for an array of T's at address aligned to
     the requested alignment. Constructs objects of type T using default
     constructor.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
 
     @param[in] alignment Alignment requirement for storage to be allocated.
     @param[in] count Number of T elements in an array.
@@ -1577,8 +2143,7 @@ class aligned_pointer {
   /** Allocates sufficiently large memory of dynamic storage duration to fit
       the instance of type T at the address which is aligned to Alignment bytes.
       Constructs the instance of type T with given Args. Instruments the memory
-      with given PSI memory key in case PFS memory support is enabled
-      (-DDISABLE_PSI_MEMORY=OFF).
+      with given PSI memory key in case PFS memory support is enabled.
 
       Underlying instance of type T is accessed through the conversion operator.
 
@@ -1692,7 +2257,7 @@ class aligned_array_pointer {
       aligned to Alignment bytes. Constructs the size number of instances of
       type T, each being initialized through the means of default constructor.
       Instruments the memory with given PSI memory key in case PFS memory
-      support is enabled (-DDISABLE_PSI_MEMORY=OFF).
+      support is enabled.
 
       Underlying instances of type T are accessed through the conversion
       operator.
@@ -1710,7 +2275,7 @@ class aligned_array_pointer {
       aligned to Alignment bytes. Constructs the size number of instances of
       type T, each being initialized through the means of provided Args and
       corresponding constructors. Instruments the memory with given PSI memory
-      key in case PFS memory support is enabled (-DDISABLE_PSI_MEMORY=OFF).
+      key in case PFS memory support is enabled.
 
       Underlying instances of type T are accessed through the conversion
       operator.

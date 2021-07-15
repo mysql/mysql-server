@@ -30,14 +30,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef detail_ut0new_h
 #define detail_ut0new_h
 
-#include <cstddef>
-#include <utility>
-
 #include "storage/innobase/include/detail/ut/aligned_alloc.h"
+#include "storage/innobase/include/detail/ut/alloc.h"
 #include "storage/innobase/include/ut0tuple.h"
 
 namespace ut {
 namespace detail {
+
+template <typename T, typename Tuple, size_t... Args_index_seq>
+inline void construct_impl(void *mem, size_t offset, Tuple &&tuple,
+                           std::index_sequence<Args_index_seq...>) {
+  new (reinterpret_cast<uint8_t *>(mem) + offset)
+      T{std::get<Args_index_seq>(std::forward<Tuple>(tuple))...};
+}
+
+template <typename T, typename Tuple>
+inline void construct(void *mem, size_t offset, Tuple &&tuple) {
+  using N_args_seq = std::make_index_sequence<std::tuple_size<Tuple>::value>;
+  construct_impl<T>(mem, offset, tuple, N_args_seq{});
+}
 
 /** Generic utility function which invokes placement-new statement on type T.
     Arguments to be passed to T constructor are contained within tuple-like
