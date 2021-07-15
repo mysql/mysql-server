@@ -22227,11 +22227,14 @@ static void test_bug32892045() {
 
   verify_prepare_field(result, 3, "eEe", "DDD", MYSQL_TYPE_LONG, "t1", "t1",
                        current_db, 11, 0);
+  mysql_free_result(result);
 
   result = mysql_stmt_result_metadata(stmt);
   mytest(result);
 
   my_print_result_metadata(result);
+  mysql_free_result(result);
+  mysql_stmt_close(stmt);
 
   myquery(mysql_query(mysql, "DROP TABLE t1"));
 }
