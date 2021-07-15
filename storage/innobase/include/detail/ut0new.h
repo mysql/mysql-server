@@ -30,8 +30,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef detail_ut0new_h
 #define detail_ut0new_h
 
+#include <cstddef>
+#include <utility>
+
 #include "storage/innobase/include/detail/ut/aligned_alloc.h"
 #include "storage/innobase/include/detail/ut/alloc.h"
+#include "storage/innobase/include/detail/ut/page_alloc.h"
 #include "storage/innobase/include/ut0tuple.h"
 
 namespace ut {

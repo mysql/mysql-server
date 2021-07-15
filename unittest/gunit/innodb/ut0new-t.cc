@@ -1142,27 +1142,6 @@ TEST(ut0new_new_delete_arr,
   ut::delete_arr(ptr);
 }
 
-TEST(ut0new_new_delete_arr,
-     reference_types_are_not_automagically_handled_through_make_tuple) {
-  struct My_ref {
-    My_ref(int &ref) : _ref(ref) {}
-    int &_ref;
-  };
-
-  int y = 10;
-  int x = 20;
-  auto ptr = ut::new_arr_withkey<My_ref>(
-      ut::make_psi_memory_key(pfs_key), std::make_tuple(x), std::make_tuple(y));
-  EXPECT_EQ(ptr[0]._ref, x);
-  EXPECT_EQ(ptr[1]._ref, y);
-  x = 30;
-  y = 40;
-  EXPECT_NE(ptr[0]._ref, x);  // mind this diff as opposed to prev two examples
-  EXPECT_NE(ptr[1]._ref, y);  // ditto
-
-  ut::delete_arr(ptr);
-}
-
 TEST(ut0new_new_delete_arr, proper_overload_resolution_is_selected) {
   auto ptr = ut::new_arr_withkey<Pod_type>(ut::make_psi_memory_key(pfs_key),
                                            std::forward_as_tuple(1, 2));
@@ -1170,6 +1149,74 @@ TEST(ut0new_new_delete_arr, proper_overload_resolution_is_selected) {
   EXPECT_EQ(ptr[0].y, 2);
   ut::delete_arr(ptr);
 }
+
+// Page-aligned alloc/free - fundamental types
+template <typename T>
+class ut0new_page_malloc_free_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_page_malloc_free_fundamental_types);
+TYPED_TEST_P(ut0new_page_malloc_free_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs ? static_cast<type *>(ut::malloc_page_withkey(
+                             ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                       : static_cast<type *>(ut::malloc_page(sizeof(type)));
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::page_allocation_size(ptr), sizeof(type));
+  ut::free_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_page_malloc_free_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(FundamentalTypes,
+                               ut0new_page_malloc_free_fundamental_types,
+                               all_fundamental_types);
+
+// Page-aligned alloc/free - pod types
+template <typename T>
+class ut0new_page_malloc_free_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_page_malloc_free_pod_types);
+TYPED_TEST_P(ut0new_page_malloc_free_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs ? static_cast<type *>(ut::malloc_page_withkey(
+                             ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                       : static_cast<type *>(ut::malloc_page(sizeof(type)));
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::page_allocation_size(ptr), sizeof(type));
+  ut::free_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_page_malloc_free_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(PodTypes, ut0new_page_malloc_free_pod_types,
+                               all_pod_types);
+
+// Page-aligned alloc/free - non-pod types
+template <typename T>
+class ut0new_page_malloc_free_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_page_malloc_free_non_pod_types);
+TYPED_TEST_P(ut0new_page_malloc_free_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs ? static_cast<type *>(ut::malloc_page_withkey(
+                             ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                       : static_cast<type *>(ut::malloc_page(sizeof(type)));
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::page_allocation_size(ptr), sizeof(type));
+  // Referencing non-pod type members through returned pointer is UB.
+  // Solely releasing it is ok.
+  //
+  // Using it otherwise is UB because ut::malloc_* functions are raw
+  // memory management functions which do not invoke constructors neither
+  // they know which type they are operating with. That is why we would be end
+  // up accessing memory of not yet instantiated object (UB).
+  ut::free_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_page_malloc_free_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
+                               ut0new_page_malloc_free_non_pod_types,
+                               all_non_pod_types);
 
 // aligned alloc/free - fundamental types
 template <typename T>
