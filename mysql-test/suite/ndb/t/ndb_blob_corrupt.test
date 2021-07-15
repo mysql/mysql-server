@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source include/not_embedded.inc # No PERFORMANCE_SCHEMA with embedded
 -- source suite/ndb/include/ndb_find_tools.inc
 
 # Test is using error insert, check that binaries support it
