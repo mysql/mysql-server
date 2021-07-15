@@ -111,10 +111,14 @@ SELECT @@session.collation_connection;
 @@session.collation_connection
 cp850_bin
 SET @@session.collation_connection = hp8_english_ci;
+Warnings:
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 hp8_english_ci
 SET @@session.collation_connection = hp8_bin;
+Warnings:
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@session.collation_connection;
 @@session.collation_connection
 hp8_bin
@@ -740,10 +744,14 @@ SELECT @@global.collation_connection;
 @@global.collation_connection
 cp850_bin
 SET @@global.collation_connection = hp8_english_ci;
+Warnings:
+Warning	4079	'hp8_english_ci' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 hp8_english_ci
 SET @@global.collation_connection = hp8_bin;
+Warnings:
+Warning	4079	'hp8_bin' is a collation of the deprecated character set hp8. Please consider using utf8mb4 with an appropriate collation instead.
 SELECT @@global.collation_connection;
 @@global.collation_connection
 hp8_bin

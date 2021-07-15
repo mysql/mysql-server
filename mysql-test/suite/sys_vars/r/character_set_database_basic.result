@@ -119,6 +119,7 @@ SELECT @@session.character_set_database;
 cp850
 SET @@session.character_set_database = hp8;
 Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -353,6 +354,7 @@ SELECT @@global.character_set_database;
 cp850
 SET @@global.character_set_database = hp8;
 Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database

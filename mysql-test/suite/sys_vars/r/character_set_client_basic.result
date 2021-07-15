@@ -97,6 +97,8 @@ SELECT @@character_set_client;
 @@character_set_client
 cp850
 SET @@character_set_client = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@character_set_client;
 @@character_set_client
 hp8
@@ -256,6 +258,8 @@ SELECT @@global.character_set_client;
 @@global.character_set_client
 cp850
 SET @@global.character_set_client = hp8;
+Warnings:
+Warning	1287	'hp8' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_client;
 @@global.character_set_client
 hp8
