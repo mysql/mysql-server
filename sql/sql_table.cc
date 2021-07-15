@@ -41,6 +41,15 @@
 #include <string_view>
 #include <type_traits>
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
+/* drop_table_share with WITH_LOCK_ORDER */
+#include "mysql/psi/psi_table.h"  // IWYU pragma: keep
+
+/* PSI_TABLE_CALL() with WITH_LOCK_ORDER */
+#include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
+
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
