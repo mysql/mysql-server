@@ -291,6 +291,12 @@ class ClusterMetadataGRInClusterSet : public ClusterMetadataGRV2 {
   std::string get_cluster_type_specific_id() override;
   uint64_t get_view_id(const std::string &cluster_type_specific_id) override;
 
+  void update_router_info(
+      const uint32_t router_id, const std::string &cluster_id,
+      const std::string &target_cluster, const std::string &rw_endpoint,
+      const std::string &ro_endpoint, const std::string &rw_x_endpoint,
+      const std::string &ro_x_endpoint, const std::string &username) override;
+
  protected:
   TargetClusterType target_cluster_type_;
   std::string target_cluster_name_;
