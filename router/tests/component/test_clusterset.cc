@@ -1718,19 +1718,26 @@ TEST_F(ClusterSetTest, StateFileMetadataServersChange) {
       "as Router never writes empty list to the state file");
   clusterset_data_.remove_node("00000000-0000-0000-0000-000000000021");
   view_id++;
-  set_mock_metadata(
-      view_id, /*this_cluster_id*/ 1,
-      /*target_cluster_id*/ kPrimaryClusterId,
-      clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].http_port,
-      clusterset_data_, router_options);
+
+  set_mock_metadata(view_id, /*this_cluster_id*/ 1,
+                    /*target_cluster_id*/ kPrimaryClusterId,
+                    original_clusterset_data.clusters[kFirstReplicaClusterId]
+                        .nodes[0]
+                        .http_port,
+                    clusterset_data_, router_options);
   // wait for the Router to refresh the metadata
   EXPECT_TRUE(wait_for_transaction_count_increase(
-      clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].http_port, 2));
+      original_clusterset_data.clusters.at(kFirstReplicaClusterId)
+          .nodes.at(0)
+          .http_port,
+      2));
 
   // check that the list of the nodes is NOT reflected in the state file
   EXPECT_EQ(0, clusterset_data_.get_all_nodes_classic_ports().size());
   const std::vector<uint16_t> expected_port{
-      clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].classic_port};
+      original_clusterset_data.clusters.at(kFirstReplicaClusterId)
+          .nodes.at(0)
+          .classic_port};
   check_state_file(router_state_file, mysqlrouter::ClusterType::GR_CS,
                    clusterset_data_.uuid, expected_port, view_id - 1);
 
