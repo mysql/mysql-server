@@ -1435,6 +1435,8 @@ i2	count(distinct j)
 drop table t1;
 create table t1(f1 decimal(20,6));
 insert into t1 values (CAST('10:11:12' AS date) + interval 14 microsecond);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:11:12' at row 1 is deprecated. Prefer the standard '-'.
 insert into t1 values (CAST('10:11:12' AS time));
 select * from t1;
 f1

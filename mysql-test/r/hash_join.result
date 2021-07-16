@@ -97,6 +97,8 @@ EXPLAIN
 SELECT * FROM t1, t2 WHERE a=b;
 a	b
 2001-01-01 00:00:00	2001#01#01
+Warnings:
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 DROP TABLE t1, t2;
 # Join on two double columns.
 CREATE TABLE t1 (col1 DOUBLE);

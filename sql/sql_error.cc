@@ -1036,3 +1036,69 @@ void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
              collation->name, collation->csname, "utf8mb4");
   }
 }
+
+/**
+  Check if status contains a deprecation warning. If it does, issue the
+  warning and reset the status indication.
+*/
+void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
+                                      MYSQL_TIME_STATUS &status) {
+  if (status.m_deprecation.m_kind == MYSQL_TIME_STATUS::DEPRECATION::DP_NONE)
+    return;
+
+  // Before printing, sanitize the delimiter seen and the datetime string it
+  // occurs in.
+  char delim[10];
+  const char c = status.m_deprecation.m_delim_seen;
+  static constexpr char spaces[] = "\n\t\f\r\v";
+  static constexpr char space_sym[] = "ntfrv";
+
+  if (std::isprint(static_cast<unsigned char>(c))) {
+    delim[0] = c;
+    delim[1] = '\0';
+  } else if (strchr(spaces, c) != nullptr) {
+    // Escape with backslash the control characters NEWLINE, TAB, FORM FEED,
+    // CARRIAGE RETURN and VERTICAL TAB.
+    delim[0] = '\\';
+    delim[1] = space_sym[strchr(spaces, c) - spaces];
+    delim[2] = '\0';
+  } else {
+    assert(false);
+    snprintf(delim, sizeof(delim), "\\%#02x",
+             (unsigned int)status.m_deprecation.m_delim_seen & 0xff);
+  }
+
+  ErrConvString argument(status.m_deprecation.m_arg,
+                         strlen(status.m_deprecation.m_arg), cs);
+  char warn_buff[MYSQL_ERRMSG_SIZE];
+  CHARSET_INFO *sys_cs = system_charset_info;
+
+  switch (status.m_deprecation.m_kind) {
+    case MYSQL_TIME_STATUS::DEPRECATION::DP_WRONG_KIND:
+    case MYSQL_TIME_STATUS::DEPRECATION::DP_WRONG_SPACE:
+      sys_cs->cset->snprintf(
+          sys_cs, warn_buff, sizeof(warn_buff),
+          ER_THD(thd, ER_WARN_DEPRECATED_DATETIME_DELIMITER), delim,
+          status.m_deprecation.m_position, argument.ptr(),
+          thd->get_stmt_da()->current_row_for_condition(),
+          status.m_deprecation.m_kind ==
+                  MYSQL_TIME_STATUS::DEPRECATION::DP_WRONG_SPACE
+              ? ' '
+              : (status.m_deprecation.m_colon ? ':' : '-'));
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WARN_DEPRECATED_DATETIME_DELIMITER, warn_buff);
+      break;
+    case MYSQL_TIME_STATUS::DEPRECATION::DP_SUPERFLUOUS:
+      sys_cs->cset->snprintf(
+          sys_cs, warn_buff, sizeof(warn_buff),
+          ER_THD(thd, ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER), delim,
+          status.m_deprecation.m_position, argument.ptr(),
+          thd->get_stmt_da()->current_row_for_condition());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER, warn_buff);
+      break;
+    default:
+      break;
+  }
+  status.m_deprecation.m_kind = MYSQL_TIME_STATUS::DEPRECATION::DP_NONE;
+}

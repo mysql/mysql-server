@@ -829,7 +829,7 @@ sub gen_datetime {
   $opts->{prec} = $attr->{prec};
   $opts->{ts} = 0;
   my $t = make_time($test, $opts);
-  my $p = myrand(3) ? "/" : " ";
+  my $p = " ";
   return "$d$p$t"
 }
 
@@ -843,7 +843,7 @@ sub gen_timestamp {
   $opts->{prec} = $attr->{prec};
   $opts->{ts} = 1;
   my $t = make_time($test, $opts);
-  my $p = myrand(3) ? "/" : " ";
+  my $p = " ";
   return "$d$p$t"
 }
 

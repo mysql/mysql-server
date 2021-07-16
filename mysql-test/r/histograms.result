@@ -1940,6 +1940,19 @@ VALUES (10,8,'2006-08-19','2001-07-04
 04:46:53','18:13:22','q'),(14,1,'2003-10-21','2007-05-14
 06:19:04','00:00:00','g'),(29,1,'2008-12-24','2004-04-02
 07:16:01','16:30:10','e');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-07-04
+14:30:59' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-12-15
+06:22:01' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-06-19
+14:43:00' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-08-19
+04:46:53' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2007-05-14
+06:19:04' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-04-02
+07:16:01' at row 6 is deprecated. Prefer the standard ' '.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_time WITH 4 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col_time'.
@@ -2006,6 +2019,47 @@ VALUES (1,2,'2002-10-13','1900-01-01
 00:00:00','16:39:36','f'),(19,5,'0000-00-00','2001-07-25
 08:40:24','00:00:00','j'),(20,3,'2007-09-09','2009-06-07
 13:48:58','00:00:00','e');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2005-08-15
+00:00:00' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 3 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-05-16
+08:09:06' at row 4 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-01-20
+12:47:23' at row 5 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-07-02
+00:00:00' at row 6 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 7 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-12-08
+11:34:58' at row 8 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 9 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 10 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2002-08-25
+20:35:06' at row 11 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-10-22
+11:13:24' at row 12 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-03-12
+02:00:34' at row 13 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2007-04-10
+12:16:04' at row 14 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-11-07
+00:00:00' at row 15 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2003-12-04
+11:14:26' at row 16 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2006-09-11
+18:25:21' at row 17 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '1900-01-01
+00:00:00' at row 18 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2001-07-25
+08:40:24' at row 19 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2009-06-07
+13:48:58' at row 20 is deprecated. Prefer the standard ' '.
 ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_int WITH 4 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t2	histogram	status	Histogram statistics created for column 'col_int'.

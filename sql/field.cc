@@ -4604,6 +4604,7 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
     else
       error = TYPE_ERR_BAD_VALUE;
   } else {
+    check_deprecated_datetime_format(current_thd, cs, status);
     if (ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
       /*
         Convert the timestamp with timezone to without timezone. This is a

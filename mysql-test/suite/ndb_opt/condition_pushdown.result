@@ -2006,6 +2006,9 @@ insert into NodeAlias VALUES(null, 6 , '154' , '154' , 0 , '2008-03-10 10:48:43'
 insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57');
 insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2008-03-10
+12:22:26' at row 1 is deprecated. Prefer the standard ' '.
 explain select * from nodealias where (aliasKey LIKE '491803%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	nodealias	p0,p1,p2,p3,p4,p5,p6,p7	range	nodealias_KeyIndex	nodealias_KeyIndex	183	NULL	#	#	Using pushed condition (`test`.`nodealias`.`aliasKey` like '491803%'); Using MRR

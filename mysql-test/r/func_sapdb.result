@@ -131,6 +131,9 @@ NULL
 select timediff("2000:01:01 00:00:00", "2000:01:01 00:00:00.000001");
 timediff("2000:01:01 00:00:00", "2000:01:01 00:00:00.000001")
 -00:00:00.000001
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter ':' in position 4 in datetime value '2000:01:01 00:00:00.000001' at row 1 is deprecated. Prefer the standard '-'.
 select timediff("2005-01-11 15:48:49.999999", "2005-01-11 15:48:50");
 timediff("2005-01-11 15:48:49.999999", "2005-01-11 15:48:50")
 -00:00:00.000001

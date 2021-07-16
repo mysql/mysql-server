@@ -625,6 +625,8 @@ CREATE EVENT bug28641 ON SCHEDULE AT '2038.01.18 03:00:00'
 DO BEGIN
 SELECT 1;
 END;|
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2038.01.18 03:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SET GLOBAL event_scheduler= OFF;
 DROP EVENT bug28641;
 

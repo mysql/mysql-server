@@ -883,9 +883,13 @@ f1
 select f1 from t1 where f1 between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f1 from t1 where date(f1) between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2006.1.1' at row 1 is deprecated. Prefer the standard '-'.
 select f2 from t1 where f2 between cast("12:1:2" as time) and cast("12:2:2" as time);
 f2
 12:01:02
@@ -1002,6 +1006,7 @@ Warning	1292	Truncated incorrect time value: '100000:02:03'
 CREATE TABLE t1(f1 TIME);
 INSERT IGNORE INTO t1 VALUES('916:00:00 a');
 Warnings:
+Warning	4096	Delimiter ' ' in position 9 in datetime value '916:00:00 a' at row 1 is superfluous and is deprecated. Please remove.
 Warning	1265	Data truncated for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 1
 SELECT * FROM t1;
@@ -1180,6 +1185,8 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 SELECT * FROM t1, t2 
 WHERE CAST(t1.day AS DATE) BETWEEN 
 '2005.09.01' - INTERVAL 6 MONTH AND t2.day;
@@ -1189,6 +1196,8 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	1	2005-08-01
 3	2005-07-01	3	2005-07-15
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.09.01' at row 1 is deprecated. Prefer the standard '-'.
+Warnings:
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;

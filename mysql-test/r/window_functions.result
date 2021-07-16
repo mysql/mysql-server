@@ -7519,6 +7519,11 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t1 VALUES (1,8,'2004-03-26 11:59:45'),(2,-692387840,'2000-11-03
 14:56:50'),(3,8,'2008-04-11 14:04:45'),(4,-660865024,'2004-08-11
 07:07:20'),(5,9,'2001-04-11 00:00:00');
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2000-11-03
+14:56:50' at row 2 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2004-08-11
+07:07:20' at row 4 is deprecated. Prefer the standard ' '.
 CREATE TEMPORARY TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col1 varchar(10) CHARACTER SET utf8 DEFAULT NULL,

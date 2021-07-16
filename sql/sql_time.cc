@@ -183,7 +183,9 @@ bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                      ErrConvString(str), l_time->time_type,
                                      NullS))
       return true;
+    if (ret_val) status.squelch_deprecation();
   }
+  check_deprecated_datetime_format(current_thd, str->charset(), status);
 
   if (ret_val) return true;
   return convert_time_zone_displacement(thd->time_zone(), l_time);
@@ -602,7 +604,7 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
                                      NullS))
       return true;
   }
-
+  check_deprecated_datetime_format(current_thd, str->charset(), status);
   if (!ret_val)
     if (convert_time_zone_displacement(thd->time_zone(), l_time)) return true;
 

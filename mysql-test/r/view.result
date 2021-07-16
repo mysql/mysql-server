@@ -2033,9 +2033,13 @@ create view v1 as select * from t1;
 select * from v1 where f1='2005.02.02';
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 select * from v1 where '2005.02.02'=f1;
 f1
 2005-02-02
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.02.02' at row 1 is deprecated. Prefer the standard '-'.
 drop view v1;
 drop table t1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
@@ -2143,6 +2147,8 @@ DROP VIEW v1;
 DROP TABLE t1;
 create table t1(f1 datetime);
 insert into t1 values('2005.01.01 12:0:0');
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.01 12:0:0' at row 1 is deprecated. Prefer the standard '-'.
 create view v1 as select f1, subtime(f1, '1:1:1') as sb from t1;
 select * from v1;
 f1	sb
@@ -2693,12 +2699,26 @@ id	td
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM v1 WHERE td BETWEEN CAST('2005.01.02' AS DATE) AND CAST('2005.01.04' AS DATE);
 id	td
 2	2005-01-02
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 DROP VIEW v1;
 DROP TABLE t1;
 create table t1 (a int);

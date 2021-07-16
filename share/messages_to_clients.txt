@@ -9712,6 +9712,12 @@ ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_SIZE
 ER_OPERATION_NOT_ALLOWED_WHILE_PRIMARY_CHANGE_IS_RUNNING
   eng "All queries have been blocked while function 'group_replication_set_as_primary()' is executing. Please refer timeout parameter of function 'group_replication_set_as_primary()'."
 
+ER_WARN_DEPRECATED_DATETIME_DELIMITER
+  eng "Delimiter '%s' in position %d in datetime value '%s' at row %d is deprecated. Prefer the standard '%c'."
+
+ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER
+  eng "Delimiter '%s' in position %d in datetime value '%s' at row %d is superfluous and is deprecated. Please remove."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

@@ -782,7 +782,7 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       MYSQL_TIME ltime =
           my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
-      MYSQL_TIME_STATUS status{0, 0, 0};
+      MYSQL_TIME_STATUS status;
       if (rtype == STRING_RESULT) {
         String buf, *res = (*const_val)->val_str(&buf);
         /*

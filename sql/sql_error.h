@@ -43,6 +43,7 @@
 class THD;
 class my_decimal;
 struct MYSQL_TIME;
+struct MYSQL_TIME_STATUS;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -822,4 +823,6 @@ void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
 void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
                                   const char *option = nullptr);
 
+void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
+                                      MYSQL_TIME_STATUS &status);
 #endif  // SQL_ERROR_H

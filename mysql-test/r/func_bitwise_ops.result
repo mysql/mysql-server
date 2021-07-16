@@ -213,6 +213,7 @@ _set set('a', 'b', 'c')
 );
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 07:08:09' at row 1 is superfluous and is deprecated. Please remove.
 INSERT INTO at (
 _bit,
 _tin,

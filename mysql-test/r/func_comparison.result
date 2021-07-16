@@ -16592,6 +16592,11 @@ INSERT INTO t7 VALUES
 (0, '0001-01-01 00:00:00', '0001-01-01 00:00:00.000000'),
 (1, '2017-01-01 11:59.59', '2017-01-01 11:59.59.555555'),
 (2, '9999-12-31 23:59.59', '9999-12-31 23:59.59.999999');
+Warnings:
+Warning	4095	Delimiter '.' in position 16 in datetime value '2017-01-01 11:59.59' at row 2 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '2017-01-01 11:59.59.555555' at row 2 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '9999-12-31 23:59.59' at row 3 is deprecated. Prefer the standard ':'.
+Warning	4095	Delimiter '.' in position 16 in datetime value '9999-12-31 23:59.59.999999' at row 3 is deprecated. Prefer the standard ':'.
 set @dsv= "0001-01-01";
 set @tssv= "0001-01-01 00:00:00.000000";
 set @iv= 00010101;

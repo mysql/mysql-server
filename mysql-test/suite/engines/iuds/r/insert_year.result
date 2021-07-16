@@ -5,15 +5,98 @@ CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR NOT NULL, c3 DATE, c4 DATETIME, PRIMAR
 CREATE TABLE t3(c1 YEAR NOT NULL, c2 YEAR NULL, c3 DATE, c4 DATETIME, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t4(c1 YEAR NOT NULL, c2 YEAR NULL, c3 DATE, c4 DATETIME);
 INSERT INTO t1 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-25','98.12.25 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.25 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(1901,1901,'98-12-24','98.12.24 11:30:45'),(1999,1999,'98-12-23','98.12.23 11:30:45'),(2000,2000,'98-12-22','98.12.22 11:30:45'),(2001,2001,'98-12-21','98.12.21 11:30:45'),(2099,2099,'98-12-20','98.12.20 11:30:45'),(2100,2100,'98-12-19','98.12.19 11:30:45'),(2155,2155,'98-12-18','98.12.18 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.24 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.23 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.22 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.21 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.20 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.19 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.18 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('00','10','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','98','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('00','10','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','98','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('00','00','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','99','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(1,1,'98-12-9','98.12.9 11:30:45'),(20,20,'98-12-8','98.12.8 11:30:45'),(40,40,'98-12-7','98.12.7 11:30:45'),(60,60,'98-12-6','98.12.6 11:30:45'),(69,69,'98-12-5','98.12.5 11:30:45'),(70,70,'98-12-4','98.12.4 11:30:45'),(90,90,'98-12-3','98.12.3 11:30:45'),(99,99,'98-12-2','98.12.2 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.9 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.8 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.7 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.6 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.5 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.4 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.3 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.2 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 SET TIMESTAMP=1233216687;
 INSERT INTO t1 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
@@ -37,35 +120,58 @@ INSERT INTO t2 VALUES(1900,2156,'08-01-06','08/01/07');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/07' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('1900','2156','08-01-08','08/1/9');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('1900','2156','08-01-08','08/1/9'),(1900,2156,'08-01-08','08/1/9'),(0,00,'08-01-08','08/1/9'),(000,000,'08-01-08','08/1/9'),('-20','100','08-01-08','08/1/9'),(-20,100,'08-01-08','08/1/9');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 4 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 5
 Warning	1264	Out of range value for column 'c2' at row 5
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 5 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 6
 Warning	1264	Out of range value for column 'c2' at row 6
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 6 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES('','','08-01-04','08/01/05') /* Inserts zero dates for '' strings */;
 Warnings:
 Warning	1366	Incorrect integer value: '' for column 'c1' at row 1
 Warning	1366	Incorrect integer value: '' for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/05' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('abcd','abcd','08-01-10','08/01/11'),(1234,1234,'08-01-12','08/01/13') /* Inserts zero dates for absurd dates */;
 Warnings:
 Warning	1366	Incorrect integer value: 'abcd' for column 'c1' at row 1
 Warning	1366	Incorrect integer value: 'abcd' for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/11' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/13' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('20','30','98-12-16','98.12.16 11:30:45'),('40','20','98-12-15','98.12.15 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('00','20','98-12-17','98.12.17 11:30:45'),('20','40','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t1(c1,c2) VALUES(1992,NULL);
 SELECT * FROM t1;
 c1	c2	c3	c4
@@ -3151,12 +3257,16 @@ c1	c2	c3	c4
 SELECT * FROM t2 WHERE c1=69 AND c2=70 /* Returns no rows */;
 c1	c2	c3	c4
 INSERT INTO t2 VALUES(99,99,'98-12-20','98.12.20 11:30:45') ON DUPLICATE KEY UPDATE c1=69,c2=70;
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.20 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE c1=2069 AND c2=1970 /* Returns 1 row */;
 c1	c2	c3	c4
 2069	1970	1998-12-30	1998-12-30 11:30:45
 SELECT * FROM t1 WHERE c1=54 AND c2=53 /* Returns no rows */;
 c1	c2	c3	c4
 INSERT INTO t1 VALUES(69,69,'98-12-18','98.12.18 11:30:45') ON DUPLICATE KEY UPDATE c1=54,c2=53;
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.18 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE c1=54 AND c2=53 /* Returns 1 row */;
 c1	c2	c3	c4
 2054	2053	1998-12-13	1998-12-13 11:30:45
@@ -3244,15 +3354,98 @@ CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR NOT NULL, c3 DATE, c4 DATETIME, PRIMAR
 CREATE TABLE t3(c1 YEAR NOT NULL, c2 YEAR NULL, c3 DATE, c4 DATETIME, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t4(c1 YEAR NOT NULL, c2 YEAR NULL, c3 DATE, c4 DATETIME);
 INSERT INTO t1 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-25','98.12.25 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.31 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.30 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.29 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.28 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.27 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.26 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.25 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(1901,1901,'98-12-24','98.12.24 11:30:45'),(1999,1999,'98-12-23','98.12.23 11:30:45'),(2000,2000,'98-12-22','98.12.22 11:30:45'),(2001,2001,'98-12-21','98.12.21 11:30:45'),(2099,2099,'98-12-20','98.12.20 11:30:45'),(2100,2100,'98-12-19','98.12.19 11:30:45'),(2155,2155,'98-12-18','98.12.18 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.24 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.23 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.22 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.21 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.20 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.19 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.18 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('00','10','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','98','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('00','10','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','98','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('00','00','98-12-17','98.12.17 11:30:45'),('20','20','98-12-16','98.12.16 11:30:45'),('40','40','98-12-15','98.12.15 11:30:45'),('60','60','98-12-14','98.12.14 11:30:45'),('69','69','98-12-13','98.12.13 11:30:45'),('70','70','98-12-12','98.12.12 11:30:45'),('90','90','98-12-11','98.12.11 11:30:45'),('99','99','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.14 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.13 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.12 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.11 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(1,1,'98-12-9','98.12.9 11:30:45'),(20,20,'98-12-8','98.12.8 11:30:45'),(40,40,'98-12-7','98.12.7 11:30:45'),(60,60,'98-12-6','98.12.6 11:30:45'),(69,69,'98-12-5','98.12.5 11:30:45'),(70,70,'98-12-4','98.12.4 11:30:45'),(90,90,'98-12-3','98.12.3 11:30:45'),(99,99,'98-12-2','98.12.2 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.9 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.8 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.7 11:30:45' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.6 11:30:45' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.5 11:30:45' at row 5 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.4 11:30:45' at row 6 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.3 11:30:45' at row 7 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.2 11:30:45' at row 8 is deprecated. Prefer the standard '-'.
 SET TIMESTAMP=1233216687;
 INSERT INTO t1 VALUES(NOW(),CURRENT_DATE,NOW(),CURRENT_DATE);
 Warnings:
@@ -3276,35 +3469,58 @@ INSERT INTO t2 VALUES(1900,2156,'08-01-06','08/01/07');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/07' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('1900','2156','08-01-08','08/1/9');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('1900','2156','08-01-08','08/1/9'),(1900,2156,'08-01-08','08/1/9'),(0,00,'08-01-08','08/1/9'),(000,000,'08-01-08','08/1/9'),('-20','100','08-01-08','08/1/9'),(-20,100,'08-01-08','08/1/9');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 Warning	1264	Out of range value for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 2 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 3 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 4 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 5
 Warning	1264	Out of range value for column 'c2' at row 5
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 5 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 6
 Warning	1264	Out of range value for column 'c2' at row 6
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/1/9' at row 6 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES('','','08-01-04','08/01/05') /* Inserts zero dates for '' strings */;
 Warnings:
 Warning	1366	Incorrect integer value: '' for column 'c1' at row 1
 Warning	1366	Incorrect integer value: '' for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/05' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES('abcd','abcd','08-01-10','08/01/11'),(1234,1234,'08-01-12','08/01/13') /* Inserts zero dates for absurd dates */;
 Warnings:
 Warning	1366	Incorrect integer value: 'abcd' for column 'c1' at row 1
 Warning	1366	Incorrect integer value: 'abcd' for column 'c2' at row 1
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/11' at row 1 is deprecated. Prefer the standard '-'.
 Warning	1264	Out of range value for column 'c1' at row 2
 Warning	1264	Out of range value for column 'c2' at row 2
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/13' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t2 VALUES('20','30','98-12-16','98.12.16 11:30:45'),('40','20','98-12-15','98.12.15 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.16 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.15 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES('00','20','98-12-17','98.12.17 11:30:45'),('20','40','98-12-10','98.12.10 11:30:45');
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.17 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.10 11:30:45' at row 2 is deprecated. Prefer the standard '-'.
 INSERT INTO t1 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t3 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t4 VALUES(80,NULL,'08-01-02','08/01/03');
+Warnings:
+Warning	4095	Delimiter '/' in position 2 in datetime value '08/01/03' at row 1 is deprecated. Prefer the standard '-'.
 INSERT INTO t1(c1,c2) VALUES(1992,NULL);
 SELECT * FROM t1;
 c1	c2	c3	c4
@@ -6294,12 +6510,16 @@ c1	c2	c3	c4
 SELECT * FROM t2 WHERE c1=69 AND c2=70 /* Returns no rows */;
 c1	c2	c3	c4
 INSERT INTO t2 VALUES(99,99,'98-12-20','98.12.20 11:30:45') ON DUPLICATE KEY UPDATE c1=69,c2=70;
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.20 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE c1=2069 AND c2=1970 /* Returns 1 row */;
 c1	c2	c3	c4
 2069	1970	1998-12-30	1998-12-30 11:30:45
 SELECT * FROM t1 WHERE c1=54 AND c2=53 /* Returns no rows */;
 c1	c2	c3	c4
 INSERT INTO t1 VALUES(69,69,'98-12-18','98.12.18 11:30:45') ON DUPLICATE KEY UPDATE c1=54,c2=53;
+Warnings:
+Warning	4095	Delimiter '.' in position 2 in datetime value '98.12.18 11:30:45' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE c1=54 AND c2=53 /* Returns 1 row */;
 c1	c2	c3	c4
 2054	2053	1998-12-13	1998-12-13 11:30:45

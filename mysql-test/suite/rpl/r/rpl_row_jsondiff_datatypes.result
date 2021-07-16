@@ -130,6 +130,8 @@ j
 ["xyzw", null]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', null) WHERE i=1 AND j=CAST('["xyzw", 0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 2. Update from char(0) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -141,6 +143,8 @@ j
 ["xyzw", ""]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '') WHERE i=1 AND j=CAST('["xyzw", null]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 3. Update from varchar(100) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -152,6 +156,8 @@ j
 ["xyzw", "\\'\"`$%_\b\n\r\t"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '\\\'"`$%_\b\n\r\t') WHERE i=1 AND j=CAST('["xyzw", ""]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 4. Update from bit(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -163,6 +169,8 @@ j
 ["xyzw", "base64:type16:AQ=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AQ==') WHERE i=1 AND j=CAST('["xyzw", "\\\\\'\\"`$%_\\b\\n\\r\\t"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 5. Update from bit(50) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -174,6 +182,8 @@ j
 ["xyzw", "base64:type16:AAD4Pg+D4A=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type16:AAD4Pg+D4A==') WHERE i=1 AND j=CAST('["xyzw", "base64:type16:AQ=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 6. Update from tinyint(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -185,6 +195,8 @@ j
 ["xyzw", 0]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 0) WHERE i=1 AND j=CAST('["xyzw", "base64:type16:AAD4Pg+D4A=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 7. Update from tinyint(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -196,6 +208,8 @@ j
 ["xyzw", 1]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 1) WHERE i=1 AND j=CAST('["xyzw", 0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 8. Update from tinyint column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -207,6 +221,8 @@ j
 ["xyzw", -100]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -100) WHERE i=1 AND j=CAST('["xyzw", 1]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 9. Update from tinyint(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -218,6 +234,8 @@ j
 ["xyzw", -9]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9) WHERE i=1 AND j=CAST('["xyzw", -100]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 10. Update from tinyint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -229,6 +247,8 @@ j
 ["xyzw", 250]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 250) WHERE i=1 AND j=CAST('["xyzw", -9]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 11. Update from tinyint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -240,6 +260,8 @@ j
 ["xyzw", 9]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9) WHERE i=1 AND j=CAST('["xyzw", 250]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 12. Update from smallint column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -251,6 +273,8 @@ j
 ["xyzw", -12345]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345) WHERE i=1 AND j=CAST('["xyzw", 9]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 13. Update from smallint column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -262,6 +286,8 @@ j
 ["xyzw", -987]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987) WHERE i=1 AND j=CAST('["xyzw", -12345]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 14. Update from smallint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -273,6 +299,8 @@ j
 ["xyzw", 45678]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 45678) WHERE i=1 AND j=CAST('["xyzw", -987]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 15. Update from smallint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -284,6 +312,8 @@ j
 ["xyzw", 987]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987) WHERE i=1 AND j=CAST('["xyzw", 45678]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 16. Update from int column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -295,6 +325,8 @@ j
 ["xyzw", -1234567]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -1234567) WHERE i=1 AND j=CAST('["xyzw", 987]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 17. Update from int column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -306,6 +338,8 @@ j
 ["xyzw", -123456]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -123456) WHERE i=1 AND j=CAST('["xyzw", -1234567]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 18. Update from int unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -317,6 +351,8 @@ j
 ["xyzw", 3222111000]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 3222111000) WHERE i=1 AND j=CAST('["xyzw", -123456]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 19. Update from int unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -328,6 +364,8 @@ j
 ["xyzw", 987654]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654) WHERE i=1 AND j=CAST('["xyzw", 3222111000]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 20. Update from bigint column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -339,6 +377,8 @@ j
 ["xyzw", -5444333222111]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5444333222111) WHERE i=1 AND j=CAST('["xyzw", 987654]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 21. Update from bigint column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -350,6 +390,8 @@ j
 ["xyzw", -6555444333222111]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -6555444333222111) WHERE i=1 AND j=CAST('["xyzw", -5444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 22. Update from bigint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -361,6 +403,8 @@ j
 ["xyzw", 5444333222111]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 5444333222111) WHERE i=1 AND j=CAST('["xyzw", -6555444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 23. Update from bigint unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -372,6 +416,8 @@ j
 ["xyzw", 6555444333222111]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 6555444333222111) WHERE i=1 AND j=CAST('["xyzw", 5444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 24. Update from decimal(10,0) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -383,6 +429,8 @@ j
 ["xyzw", -987654321]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -987654321) WHERE i=1 AND j=CAST('["xyzw", 6555444333222111]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 25. Update from decimal(10,5) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -394,6 +442,8 @@ j
 ["xyzw", -12345.67890]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -12345.67890) WHERE i=1 AND j=CAST('["xyzw", -987654321]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 26. Update from decimal(10,0) unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -405,6 +455,8 @@ j
 ["xyzw", 987654321]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 987654321) WHERE i=1 AND j=CAST('["xyzw", -12345.67890]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 27. Update from decimal(10,5) unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -416,6 +468,8 @@ j
 ["xyzw", 12345.67890]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12345.67890) WHERE i=1 AND j=CAST('["xyzw", 987654321]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 28. Update from float column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -427,6 +481,8 @@ j
 ["xyzw", -5.432100077514774e20]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -5.432100077514774e20) WHERE i=1 AND j=CAST('["xyzw", 12345.67890]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 29. Update from float(4,2) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -438,6 +494,8 @@ j
 ["xyzw", -43.209999084472656]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -43.209999084472656) WHERE i=1 AND j=CAST('["xyzw", -5.432100077514774e20]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 30. Update from float unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -449,6 +507,8 @@ j
 ["xyzw", 65432100864.0]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 65432100864.0) WHERE i=1 AND j=CAST('["xyzw", -43.209999084472656]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 31. Update from float(4,2) unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -460,6 +520,8 @@ j
 ["xyzw", 12.34000015258789]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 12.34000015258789) WHERE i=1 AND j=CAST('["xyzw", 65432100864.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 32. Update from double column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -471,6 +533,8 @@ j
 ["xyzw", -9.87654321e300]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9.87654321e300) WHERE i=1 AND j=CAST('["xyzw", 12.34000015258789]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 33. Update from double(20,10) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -482,6 +546,8 @@ j
 ["xyzw", -9876500000.0]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', -9876500000.0) WHERE i=1 AND j=CAST('["xyzw", -9.87654321e300]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 34. Update from double unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -493,6 +559,8 @@ j
 ["xyzw", 9.87654321e300]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9.87654321e300) WHERE i=1 AND j=CAST('["xyzw", -9876500000.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 35. Update from double(20,10) unsigned column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -504,6 +572,8 @@ j
 ["xyzw", 9876500000.0]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 9876500000.0) WHERE i=1 AND j=CAST('["xyzw", 9.87654321e300]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 36. Update from date column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -515,6 +585,8 @@ j
 ["xyzw", "2017-05-19"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-19') WHERE i=1 AND j=CAST('["xyzw", 9876500000.0]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 37. Update from datetime column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -526,6 +598,8 @@ j
 ["xyzw", "2017-05-20 06:00:00.000000"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-20 06:00:00.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-19"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 38. Update from datetime(6) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -537,6 +611,8 @@ j
 ["xyzw", "2017-05-21 07:01:01.000001"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-21 07:01:01.000001') WHERE i=1 AND j=CAST('["xyzw", "2017-05-20 06:00:00.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 39. Update from timestamp column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -548,6 +624,8 @@ j
 ["xyzw", "2017-05-22 08:02:02.000000"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-22 08:02:02.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-21 07:01:01.000001"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 40. Update from timestamp(6) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -559,6 +637,8 @@ j
 ["xyzw", "2017-05-23 09:03:03.000003"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '2017-05-23 09:03:03.000003') WHERE i=1 AND j=CAST('["xyzw", "2017-05-22 08:02:02.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 41. Update from time column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -570,6 +650,8 @@ j
 ["xyzw", "10:04:04.000000"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:04:04.000000') WHERE i=1 AND j=CAST('["xyzw", "2017-05-23 09:03:03.000003"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 42. Update from time(6) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -581,6 +663,8 @@ j
 ["xyzw", "10:05:05.000005"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', '10:05:05.000005') WHERE i=1 AND j=CAST('["xyzw", "10:04:04.000000"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 43. Update from year column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -592,6 +676,8 @@ j
 ["xyzw", 2018]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 2018) WHERE i=1 AND j=CAST('["xyzw", "10:05:05.000005"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 44. Update from binary(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -603,6 +689,8 @@ j
 ["xyzw", "base64:type254:YQ=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:YQ==') WHERE i=1 AND j=CAST('["xyzw", 2018]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 45. Update from binary(10) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -614,6 +702,8 @@ j
 ["xyzw", "base64:type254:eDAweDAxAAAAAA=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type254:eDAweDAxAAAAAA==') WHERE i=1 AND j=CAST('["xyzw", "base64:type254:YQ=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 46. Update from varbinary(1000) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -625,6 +715,8 @@ j
 ["xyzw", "base64:type15:eGFh"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type15:eGFh') WHERE i=1 AND j=CAST('["xyzw", "base64:type254:eDAweDAxAAAAAA=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 47. Update from tinyblob column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -636,6 +728,8 @@ j
 ["xyzw", "base64:type249:uw=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:uw==') WHERE i=1 AND j=CAST('["xyzw", "base64:type15:eGFh"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 48. Update from blob column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -647,6 +741,8 @@ j
 ["xyzw", "base64:type252:zA=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type252:zA==') WHERE i=1 AND j=CAST('["xyzw", "base64:type249:uw=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 49. Update from tinyblob column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -658,6 +754,8 @@ j
 ["xyzw", "base64:type249:3Q=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type249:3Q==') WHERE i=1 AND j=CAST('["xyzw", "base64:type252:zA=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 50. Update from mediumblob column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -669,6 +767,8 @@ j
 ["xyzw", "base64:type250:7g=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type250:7g==') WHERE i=1 AND j=CAST('["xyzw", "base64:type249:3Q=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 51. Update from longblob column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -680,6 +780,8 @@ j
 ["xyzw", "base64:type251:/w=="]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'base64:type251:/w==') WHERE i=1 AND j=CAST('["xyzw", "base64:type250:7g=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 52. Update from char(1) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -691,6 +793,8 @@ j
 ["xyzw", "g"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'g') WHERE i=1 AND j=CAST('["xyzw", "base64:type251:/w=="]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 53. Update from char(10) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -702,6 +806,8 @@ j
 ["xyzw", "hij"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'hij') WHERE i=1 AND j=CAST('["xyzw", "g"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 54. Update from varchar(1000) column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -713,6 +819,8 @@ j
 ["xyzw", "klm"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'klm') WHERE i=1 AND j=CAST('["xyzw", "hij"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 55. Update from tinytext column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -724,6 +832,8 @@ j
 ["xyzw", "nop"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'nop') WHERE i=1 AND j=CAST('["xyzw", "klm"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 56. Update from text column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -735,6 +845,8 @@ j
 ["xyzw", "qrs"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'qrs') WHERE i=1 AND j=CAST('["xyzw", "nop"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 57. Update from tinytext column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -746,6 +858,8 @@ j
 ["xyzw", "tuv"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'tuv') WHERE i=1 AND j=CAST('["xyzw", "qrs"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 58. Update from mediumtext column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -757,6 +871,8 @@ j
 ["xyzw", "wxy"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'wxy') WHERE i=1 AND j=CAST('["xyzw", "tuv"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 59. Update from longtext column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -768,6 +884,8 @@ j
 ["xyzw", "z"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'z') WHERE i=1 AND j=CAST('["xyzw", "wxy"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 60. Update from enum('abc','def','ghi') column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -779,6 +897,8 @@ j
 ["xyzw", "def"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'def') WHERE i=1 AND j=CAST('["xyzw", "z"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 61. Update from set('jkl','mno','pqr') column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -790,6 +910,8 @@ j
 ["xyzw", "jkl,pqr"]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', 'jkl,pqr') WHERE i=1 AND j=CAST('["xyzw", "def"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ---- 62. Update from json column ----
 include/rpl_row_jsondiff_scenario.inc
 # Before update
@@ -801,6 +923,8 @@ j
 ["xyzw", {"a": [1, 2.3, null, false, "text"]}]
 # Decoded rows
 UPDATE `test`.`t` SET j=JSON_REPLACE(j, '$[1]', CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON)) WHERE i=1 AND j=CAST('["xyzw", "jkl,pqr"]' AS JSON) AND nullint IS NULL AND emptystring='' AND quotestring='\\\'"`$%_\b\n\r\t' AND bit_=b'1' AND bit_50_=b'00000000001111100000111110000011111000001111100000' AND bool_false=0 AND bool_true=1 AND tinyint_=-100 AND tinyint_1_=-9 AND tinyint_u_=250 AND tinyint_1_u_=9 AND smallint_=-12345 AND smallint_3_=-987 AND smallint_u_=45678 AND smallint_3_u_=987 AND int_=-1234567 AND int_6_=-123456 AND int_u_=3222111000 AND int_6_u_=987654 AND bigint_=-5444333222111 AND bigint_12_=-6555444333222111 AND bigint_u_=5444333222111 AND bigint_12_u_=6555444333222111 AND decimal_=-987654321 AND decimal_10_5_=-12345.67890 AND decimal_u_=987654321 AND decimal_10_5_u_=12345.67890 AND date_=CAST('2017:05:19' AS DATE) AND datetime_=CAST('2017-05-20 06:00:00' AS DATETIME) AND datetime_6_='2017-05-21 07:01:01.000001' AND UNIX_TIMESTAMP(timestamp_)=1495429322 AND UNIX_TIMESTAMP(timestamp_6_)=1495519383.000003 AND time_=CAST('10:04:04' AS TIME) AND time_6_='10:05:05.000005' AND year_=2018 AND char_='g' AND char_10_='hij' AND varchar_1000_='klm' AND tinytext_='nop' AND text_='qrs' AND text_10_='tuv' AND mediumtext_='wxy' AND longtext_='z' AND json_=CAST('{"a": [1, 2.3, null, false, "text"]}' AS JSON);
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2017:05:19' at row 1 is deprecated. Prefer the standard '-'.
 ######## CLEAN UP ########
 include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = FULL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = '';

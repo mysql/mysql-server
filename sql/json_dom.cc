@@ -2986,8 +2986,11 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
         date_flags |= TIME_FRAC_TRUNCATE;
       if (!str_to_datetime(get_data(), get_data_length(), ltime, date_flags,
                            &status) &&
-          !status.warnings)
+          !status.warnings) {
+        check_deprecated_datetime_format(current_thd, &my_charset_utf8mb4_bin,
+                                         status);
         break;
+      }
     }
       [[fallthrough]];
     default:
@@ -3010,8 +3013,11 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
       set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
       if (!str_to_time(get_data(), get_data_length(), ltime, &status,
                        TIME_STRICT_COLON) &&
-          !status.warnings)
+          !status.warnings) {
+        check_deprecated_datetime_format(current_thd, &my_charset_utf8mb4_bin,
+                                         status);
         break;
+      }
     }
       [[fallthrough]];
     default:

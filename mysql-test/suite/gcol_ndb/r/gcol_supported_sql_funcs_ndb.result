@@ -2431,6 +2431,8 @@ t1	CREATE TABLE `t1` (
   `b` int GENERATED ALWAYS AS (second(`a`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('10:05:03',default);
+Warnings:
+Warning	4095	Delimiter ':' in position 2 in datetime value '10:05:03' at row 1 is deprecated. Prefer the standard '-'.
 select * from t1;
 a	b
 2010-05-03 00:00:00	0

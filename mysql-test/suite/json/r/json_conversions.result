@@ -157,6 +157,7 @@ _mpy multipolygon,
 _gco geometrycollection);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	4096	Delimiter ' ' in position 0 in datetime value ' 00:00:00' at row 1 is superfluous and is deprecated. Please remove.
 # ----------------------------------------------------------------------
 #  I N S E R T   F R O M   J S O N   C O L U M N
 # ----------------------------------------------------------------------

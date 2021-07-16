@@ -35,9 +35,11 @@
 #include "my_config.h"
 
 #include <assert.h>  // assert
-#include <cstddef>   // std::size_t
-#include <cstdint>   // std::int32_t
-#include <limits>    // std::numeric_limits
+#include <algorithm>
+#include <cstddef>  // std::size_t
+#include <cstdint>  // std::int32_t
+#include <cstring>  // strncpy
+#include <limits>   // std::numeric_limits
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>  // struct timeval
@@ -164,6 +166,50 @@ struct MYSQL_TIME_STATUS {
   int warnings{0};
   unsigned int fractional_digits{0};
   unsigned int nanoseconds{0};
+  struct DEPRECATION {  // We only report first offense
+    enum DEPR_KIND {
+      DP_NONE,         // no deprecated delimiter seen yet
+      DP_WRONG_KIND,   // seen a delimiter in correct position, but wrong one
+      DP_WRONG_SPACE,  // seen a space delimiter which isn't 0x20 ' '.
+      DP_SUPERFLUOUS   // seen a superfluous delimiter
+    } m_kind{DP_NONE};
+    char m_delim_seen;
+    bool m_colon;    // for DP_WRONG_KIND: true if we expect ':', else '-'
+    int m_position;  // 0-based in m_arg
+    char m_arg[40];  // the string argument we found a deprecation in
+  } m_deprecation;
+  ///< Register wrong delimiter if it's the first we see for this value
+  ///< @param kind  what kind of deprecation did we see
+  ///< @param arg   the string we try to interpret as a datetime value
+  ///< @param end   points to the character after arg, usually a '\0'
+  ///< @param delim what delimiter was used
+  ///< @param colon used if kind==DP_WRONG_KIND. true: expect ':' else expect'-'
+  void set_deprecation(DEPRECATION::DEPR_KIND kind, const char *arg,
+                       const char *end, const char *delim, bool colon = false) {
+    if (m_deprecation.m_kind == DEPRECATION::DP_NONE) {
+      m_deprecation.m_kind = kind;
+      m_deprecation.m_delim_seen = *delim;
+      m_deprecation.m_colon = colon;
+      const size_t bufsize = sizeof(m_deprecation.m_arg) - 1;  // -1: for '\0'
+      const size_t argsize = end - arg;
+      const size_t size = std::min(bufsize, argsize);
+      std::strncpy(m_deprecation.m_arg, arg, size);
+      m_deprecation.m_arg[size] = '\0';
+      m_deprecation.m_position = delim - arg;
+    }
+  }
+  /// Assignment: don't clobber an existing deprecation, first one wins
+  MYSQL_TIME_STATUS &operator=(const MYSQL_TIME_STATUS &b) {
+    warnings = b.warnings;
+    fractional_digits = b.fractional_digits;
+    nanoseconds = b.nanoseconds;
+    // keep first deprecation
+    if (m_deprecation.m_kind == DEPRECATION::DP_NONE) {
+      m_deprecation = b.m_deprecation;
+    }
+    return *this;
+  }
+  void squelch_deprecation() { m_deprecation.m_kind = DEPRECATION::DP_NONE; }
 };
 
 /**

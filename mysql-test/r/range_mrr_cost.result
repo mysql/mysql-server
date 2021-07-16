@@ -1599,11 +1599,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923';
 a
 2009-09-23
@@ -1624,11 +1627,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATE vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23';
@@ -1636,16 +1643,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009/09/23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923';
 a
 2009-09-23 12:00:00
@@ -1666,11 +1678,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATETIME
 EXPLAIN
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
@@ -1678,11 +1694,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '20090923120000';
 a
 2009-09-23 12:00:00
@@ -1703,11 +1722,15 @@ a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
 a
 2009-09-23 12:00:00
 2009-09-23 12:00:00
 2009-09-23 12:00:00
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 12:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # DATETIME vs DATE
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
@@ -1715,16 +1738,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 X	X	X	NULL	range	a	a	X	X	X	100.00	X
 Warnings:
 X	X	X
+X	X	X
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '/' in position 4 in datetime value '2009/09/23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '20090923000000';
 a
 2009-09-23
@@ -1745,11 +1773,15 @@ a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter '.' in position 4 in datetime value '2009.09.23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
 a
 2009-09-23
 2009-09-23
 2009-09-23
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '2009:09:23 00:00:00' at row 1 is deprecated. Prefer the standard '-'.
 # Test of the new get_date_from_str implementation
 # Behavior differs slightly between the trunk and mysql-pe.
 # The former may give errors for the truncated values, while the latter
@@ -1769,6 +1801,7 @@ str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20'
 1
 Warnings:
 Warning	1292	Truncated incorrect date value: ''
+Warning	4095	Delimiter '/' in position 4 in datetime value '2007/10/20' at row 1 is deprecated. Prefer the standard '-'.
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
 str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND ''
 NULL
@@ -2673,6 +2706,9 @@ b
 2001-01-01
 2001-01-01 00:00:00
 2001.01.01
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 4 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 3 is deprecated. Prefer the standard '-'.
+Warnings:
 
 # range/ref access cannot be used for any of the queries below.
 # See BUG#13814468 about 'Range checked for each record'
@@ -2697,6 +2733,8 @@ a	b
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2718,6 +2756,8 @@ a	b
 Warnings:
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	4095	Delimiter '.' in position 4 in datetime value '2001.01.01' at row 1 is deprecated. Prefer the standard '-'.
+Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1 is deprecated. Prefer the standard '-'.
 
 DROP TABLE t1,t2;
 #

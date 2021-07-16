@@ -139,6 +139,8 @@ e	decimal(3,1)	NO		0.0
 f	bigint	NO		0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+Warnings:
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2001-12-29  20:45:11' at row 1 is superfluous and is deprecated. Please remove.
 describe t2;
 Field	Type	Null	Key	Default	Extra
 d	date	YES		NULL	
@@ -2240,6 +2242,8 @@ DROP TABLE t1, t2, t3;
 SET SQL_MODE= DEFAULT;
 # Test cases added for coverage.
 CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
 # CREATE TABLE..SELECT using fields of another table.
 CREATE TABLE t2 AS SELECT * FROM t1;
 # Default value is copied from the source table column.
@@ -2251,6 +2255,8 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1, t2;
 # CREATE TABLE..SELECT based on trigger fields.
 CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1211:1:1' at row 1 is deprecated. Prefer the standard '-'.
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
 BEGIN
@@ -2258,6 +2264,8 @@ CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
 END
 |
 INSERT INTO t1 VALUES (1, '1111:11:11');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (

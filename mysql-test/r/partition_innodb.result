@@ -1163,6 +1163,11 @@ PARTITION P9 VALUES LESS THAN (9) ENGINE = InnoDB);
 insert into test12 values('Tom1',20,1,'2017-08-25
 12:12:12',1),('Tom2',21,1,'2017-08-25 12:12:12',1),('Tom3',23,1,'2017-08-25
 12:12:12',1);
+Warnings:
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2017-08-25
+12:12:12' at row 1 is deprecated. Prefer the standard ' '.
+Warning	4095	Delimiter '\n' in position 10 in datetime value '2017-08-25
+12:12:12' at row 3 is deprecated. Prefer the standard ' '.
 begin;
 update test12 set grade=3,date=now()  where age=23 and
 partition_id=1;
