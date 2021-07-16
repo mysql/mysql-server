@@ -6,7 +6,8 @@
 cmake_policy(SET CMP0025 NEW)
 
 IF(POLICY CMP0075)
-  CMAKE_POLICY(SET CMP0075 OLD)
+# Keep NEW, set in cmake/cmake_policies.cmake
+# CMAKE_POLICY(SET CMP0075 OLD)
 ENDIF()
 
 project(libfido2 C)
