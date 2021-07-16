@@ -43,6 +43,14 @@ SET(TESTS
   ut0new
 )
 
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+IF(WIN32)
+  ADD_COMPILE_FLAGS(
+    ut0new-t.cc
+    COMPILE_FLAGS "/bigobj"
+    )
+ENDIF()
+
 SET(ALL_INNODB_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
@@ -53,11 +61,8 @@ IF(WIN32)
 ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
   ENABLE_EXPORTS
-  ADD_TEST merge_innodb_tests-t)
-
-TARGET_LINK_LIBRARIES(merge_innodb_tests-t
-  gunit_large
-  server_unittest_library
+  ADD_TEST merge_innodb_tests-t
+  LINK_LIBRARIES gunit_large server_unittest_library
   )
 
 # Download TBB from https://www.threadingbuildingblocks.org
@@ -74,14 +79,12 @@ FOREACH(test ${TESTS})
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
-    ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
-
-  TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large
-    server_unittest_library
+    ENABLE_EXPORTS
+    EXCLUDE_FROM_ALL
+    SKIP_INSTALL
+    LINK_LIBRARIES gunit_large server_unittest_library
+    DEPENDENCIES GenError
     )
-  ADD_DEPENDENCIES(${test}-t GenError)
-
 ENDFOREACH()
 
 ADD_SUBDIRECTORY(lob)
