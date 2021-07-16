@@ -1,0 +1,160 @@
+# Medium Tests: Run on all commits/PRs to dev branch
+
+language: c
+
+git:
+  depth: 1
+
+branches:
+  only:
+  - dev
+  - release
+  - master
+  - travisTest
+
+addons:
+  apt:
+    update: true
+
+env:
+  global:
+    - FUZZERTEST=-T2mn
+      ZSTREAM_TESTTIME=-T2mn
+      DECODECORPUS_TESTTIME=-T1mn
+
+
+matrix:
+  fast_finish: true
+  include:
+    - name: arm64    # ~2.5 mn
+      os: linux
+      arch: arm64
+      script:
+        - make check
+
+    - name: Minimal Decompressor Macros    # ~5mn
+      script:
+        - make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        - make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        - make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
+    - name: static analyzer scanbuild    # ~26mn
+      dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
+      script:
+        - make staticAnalyze
+
+    - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
+      script:
+        - make valgrindinstall
+        - make -C tests clean valgrindTest
+        - make clean
+        - make -C tests test-fuzzer-stackmode
+
+    - name: Qemu ARM emulation + Fuzz Test    # ~13.5mn
+      script:
+        - make arminstall
+        - make armfuzz
+
+    # Introduced to check compat with old toolchains, to prevent e.g. #1872
+    - name: ARM Build Test (on Trusty)
+      dist: trusty
+      script:
+        - make arminstall
+        - make armbuild
+
+    - name: Qemu PPC + Fuzz Test    # ~13mn
+      dist: trusty   # it seems ppc cross-compilation fails on "current"
+      script:
+        - make ppcinstall
+        - make ppcfuzz
+
+    # check release number (release only)
+    - name: Tag-Specific Test
+      if: tag =~ ^v[0-9]\.[0-9]
+      script:
+        - make -C tests checkTag
+        - tests/checkTag "$TRAVIS_BRANCH"
+
+    # tests for release branch and cron job only
+    - name: OS-X    # ~13mn
+      if: branch = release
+      os: osx
+      script:
+        - make test
+        - make -C lib all
+
+    - name: Versions Compatibility Test   # 11.5mn
+      if: branch = release
+      script:
+        - make -C tests versionsTest
+
+    - name: thread sanitizer   # ~29mn
+      if: branch = release
+      script:
+        - make clang38install
+        - CC=clang-3.8 make tsan-test-zstream
+        - CC=clang-3.8 make tsan-fuzztest
+
+    - name: PPC64LE + Fuzz test  # ~13mn
+      if: branch = release
+      arch: ppc64le
+      script:
+        - cat /proc/cpuinfo
+        - make test
+
+    - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
+      dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
+      if: branch = release
+      script:
+        - make ppcinstall
+        - make ppc64fuzz
+
+    # note : we already have aarch64 tests on hardware
+    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
+      if: branch = release
+      dist: xenial
+      script:
+        - make arminstall
+        - make aarch64fuzz
+
+    # meson dedicated test
+    - name: Xenial (Meson + clang)    # ~15mn
+      if: branch = release
+      dist: bionic
+      language: cpp
+      compiler: clang
+      install:
+        - sudo apt-get install -qq liblz4-dev valgrind tree
+        - |
+          travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip' &&
+          unzip ~/ninja.zip -d ~/.local/bin
+        - |
+          travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py' &&
+          python3 ~/get-pip.py --user &&
+          pip3 install --user meson
+      script:
+        - |
+          meson setup \
+            --buildtype=debugoptimized \
+            -Db_lundef=false \
+            -Dauto_features=enabled \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Dbin_contrib=true \
+            -Ddefault_library=both \
+             build/meson builddir
+        - pushd builddir
+        - ninja
+        - meson test --verbose --no-rebuild
+        - DESTDIR=./staging ninja install
+        - tree ./staging
+      after_failure:
+        - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
+
+  allow_failures:
+    - env: ALLOW_FAILURES=true
