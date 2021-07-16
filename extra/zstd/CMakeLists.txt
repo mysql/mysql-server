@@ -10,43 +10,45 @@
 PROJECT(zstd)
 # CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 
+SET(ZZZ "zstd-1.5.0")
 SET(ZSTD_SRCS
-  lib/common/debug.c
-  lib/common/entropy_common.c
-  lib/common/error_private.c
-  lib/common/fse_decompress.c
-  lib/common/pool.c
-  lib/common/threading.c
-  lib/common/xxhash.c
-  lib/common/zstd_common.c
-  lib/compress/fse_compress.c
-  lib/compress/hist.c
-  lib/compress/huf_compress.c
-  lib/compress/zstd_compress.c
-  lib/compress/zstd_compress_literals.c
-  lib/compress/zstd_compress_sequences.c
-  lib/compress/zstd_double_fast.c
-  lib/compress/zstd_fast.c
-  lib/compress/zstd_lazy.c
-  lib/compress/zstd_ldm.c
-  lib/compress/zstdmt_compress.c
-  lib/compress/zstd_opt.c
-  lib/decompress/huf_decompress.c
-  lib/decompress/zstd_ddict.c
-  lib/decompress/zstd_decompress_block.c
-  lib/decompress/zstd_decompress.c
-  lib/deprecated/zbuff_common.c
-  lib/deprecated/zbuff_compress.c
-  lib/deprecated/zbuff_decompress.c
-  lib/dictBuilder/cover.c
-  lib/dictBuilder/divsufsort.c
-  lib/dictBuilder/fastcover.c
-  lib/dictBuilder/zdict.c
+  ${ZZZ}/lib/common/debug.c
+  ${ZZZ}/lib/common/entropy_common.c
+  ${ZZZ}/lib/common/error_private.c
+  ${ZZZ}/lib/common/fse_decompress.c
+  ${ZZZ}/lib/common/pool.c
+  ${ZZZ}/lib/common/threading.c
+  ${ZZZ}/lib/common/xxhash.c
+  ${ZZZ}/lib/common/zstd_common.c
+
+  ${ZZZ}/lib/compress/fse_compress.c
+  ${ZZZ}/lib/compress/hist.c
+  ${ZZZ}/lib/compress/huf_compress.c
+  ${ZZZ}/lib/compress/zstd_compress.c
+  ${ZZZ}/lib/compress/zstd_compress_literals.c
+  ${ZZZ}/lib/compress/zstd_compress_sequences.c
+  ${ZZZ}/lib/compress/zstd_compress_superblock.c
+  ${ZZZ}/lib/compress/zstd_double_fast.c
+  ${ZZZ}/lib/compress/zstd_fast.c
+  ${ZZZ}/lib/compress/zstd_lazy.c
+  ${ZZZ}/lib/compress/zstd_ldm.c
+  ${ZZZ}/lib/compress/zstdmt_compress.c
+  ${ZZZ}/lib/compress/zstd_opt.c
+
+  ${ZZZ}/lib/decompress/huf_decompress.c
+  ${ZZZ}/lib/decompress/zstd_ddict.c
+  ${ZZZ}/lib/decompress/zstd_decompress_block.c
+  ${ZZZ}/lib/decompress/zstd_decompress.c
+
+  ${ZZZ}/lib/dictBuilder/cover.c
+  ${ZZZ}/lib/dictBuilder/divsufsort.c
+  ${ZZZ}/lib/dictBuilder/fastcover.c
+  ${ZZZ}/lib/dictBuilder/zdict.c
 )
 
 ADD_CONVENIENCE_LIBRARY(zstd
   ${ZSTD_SRCS}
-  INCLUDE_DIRECTORIES lib/common
+  INCLUDE_DIRECTORIES ${ZZZ}/lib/common
   )
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
