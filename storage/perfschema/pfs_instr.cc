@@ -642,7 +642,10 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
     pfs->m_transaction_current.m_event_id = 0;
 
     if (klass->is_singleton()) {
+#if 0
+      /* See destroy_thread() */
       assert(klass->m_singleton == nullptr);
+#endif
       klass->m_singleton = pfs;
     }
 
@@ -762,7 +765,38 @@ void destroy_thread(PFS_thread *pfs) {
 
   PFS_thread_class *klass = pfs->m_class;
   if (klass->is_singleton()) {
+#if 0
+    /*
+      In theory, some threads are -- logically -- singletons.
+
+      START XYZ will start a XYZ thread with mysql_thread_create(),
+      and set a global state as "running".
+      STOP XYZ will notify the running thread to stop,
+      and set a global state as "not running".
+
+      In practice, these threads are -- physically -- not singletons.
+
+      STOP XYZ only notifies the running thread to stop,
+      but the MySQL code base in general never calls pthread_join(3).
+      Instead, the running thread, when noticing it should stop,
+      is still executing cleanup actions, until the thread main loop
+      finally terminates and call destroy_thread in the performance schema.
+
+      Because of this, the following sequence:
+        START XYZ --> fork thread #1
+        STOP XYZ --> tell #1 to stop
+        START XYZ --> fork thread #2
+      can create situations when both threads #1 and #2
+      are executing at the same time, until #1 gracefully ends.
+
+      As a result, the assert below is relaxed.
+
+      To enforce it properly,
+      a pre requisite is first to use pthread_join() in the entire code base.
+    */
+
     assert(klass->m_singleton == pfs);
+#endif
     klass->m_singleton = nullptr;
   }
 
