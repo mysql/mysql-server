@@ -383,7 +383,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
-                                      Gtid *first_gtid, const char **errmsg);
+                                      Gtid *first_gtid, std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -856,7 +856,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param errmsg                      Pointer to the error message
   */
   void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
-                                   const char **errmsg);
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -880,7 +880,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   void report_missing_gtids(const Gtid_set *previous_gtid_set,
                             const Gtid_set *slave_executed_gtid_set,
-                            const char **errmsg);
+                            std::string &errmsg);
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want

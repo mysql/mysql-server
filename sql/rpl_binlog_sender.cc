@@ -833,7 +833,7 @@ void Binlog_sender::init_heartbeat_period() {
 int Binlog_sender::check_start_file() {
   char index_entry_name[FN_REFLEN];
   char *name_ptr = nullptr;
-  const char *errmsg;
+  std::string errmsg;
 
   if (m_start_file[0] != '\0') {
     mysql_bin_log.make_log_name(index_entry_name, m_start_file);
@@ -871,9 +871,8 @@ int Binlog_sender::check_start_file() {
     if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
                                            gtid_state->get_server_sidno(),
                                            subset_sidno)) {
-      errmsg = ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
-      set_fatal_error(errmsg);
+      set_fatal_error(ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER));
       return 1;
     }
     /*
@@ -903,16 +902,16 @@ int Binlog_sender::check_start_file() {
       is thrown from there.
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
-      mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, &errmsg);
+      mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, errmsg);
       global_sid_lock->unlock();
-      set_fatal_error(errmsg);
+      set_fatal_error(errmsg.c_str());
       return 1;
     }
     global_sid_lock->unlock();
     Gtid first_gtid = {0, 0};
     if (mysql_bin_log.find_first_log_not_in_gtid_set(
-            index_entry_name, m_exclude_gtid, &first_gtid, &errmsg)) {
-      set_fatal_error(errmsg);
+            index_entry_name, m_exclude_gtid, &first_gtid, errmsg)) {
+      set_fatal_error(errmsg.c_str());
       return 1;
     }
     name_ptr = index_entry_name;
