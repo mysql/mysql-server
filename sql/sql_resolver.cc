@@ -4861,13 +4861,33 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
   if (error) return nullptr;
   if (changed) {
     item->update_used_tables();
-    // Since item is now nullable, mark every expression depending on it
-    // as also potentially nullable. (This is a conservative choice; in some
-    // cases, expressions can be proven non-nullable even for NULL arguments.)
-    WalkItem(item, enum_walk::POSTFIX, [](Item *inner_item) {
-      if (inner_item->has_rollup_expr()) inner_item->set_nullable(true);
-      return false;
-    });
+    // Since item is now nullable, mark every expression (except rollup sum
+    // functions) depending on it as also potentially nullable. (This is a
+    // conservative choice; in some cases, expressions can be proven
+    // non-nullable even for NULL arguments.)
+    class Update_nullability_for_rollup_items : public Item_tree_walker {
+     public:
+      using Item_tree_walker::is_stopped;
+      using Item_tree_walker::stop_at;
+    };
+    Update_nullability_for_rollup_items info;
+    if (WalkItem(
+            item, enum_walk::PREFIX | enum_walk::POSTFIX,
+            [&info](Item *inner_item) {
+              if (info.is_stopped(inner_item)) {
+                return false;
+              } else if (inner_item->type() == Item::SUM_FUNC_ITEM &&
+                         down_cast<Item_sum *>(inner_item)->real_sum_func() ==
+                             Item_sum::ROLLUP_SUM_SWITCHER_FUNC) {
+                info.stop_at(inner_item);
+                return false;
+              } else {
+                inner_item->set_nullable(true);
+                return false;
+              }
+            })) {
+      return nullptr;
+    }
   }
   return item;
 }
