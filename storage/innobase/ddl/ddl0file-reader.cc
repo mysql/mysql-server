@@ -68,7 +68,8 @@ dberr_t File_reader::prepare() noexcept {
   m_offsets[1] = n_fields;
 
   ut_a(m_aux_buf == nullptr);
-  m_aux_buf = UT_NEW_ARRAY(byte, UNIV_PAGE_SIZE_MAX / 2, mem_key_ddl);
+  m_aux_buf = ut::new_arr_withkey<byte>(ut::make_psi_memory_key(mem_key_ddl),
+                                        ut::Count{UNIV_PAGE_SIZE_MAX / 2});
 
   if (m_aux_buf == nullptr) {
     return DB_OUT_OF_MEMORY;

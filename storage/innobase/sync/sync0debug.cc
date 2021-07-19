@@ -315,7 +315,7 @@ struct LatchDebug {
   static void create_instance() UNIV_NOTHROW {
     ut_ad(s_instance == nullptr);
 
-    s_instance = UT_NEW_NOKEY(LatchDebug());
+    s_instance = ut::new_<LatchDebug>();
   }
 
  private:
@@ -612,7 +612,7 @@ Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   } else {
     typedef ThreadMap::value_type value_type;
 
-    Latches *latches = UT_NEW_NOKEY(Latches());
+    Latches *latches = ut::new_withkey<Latches>(UT_NEW_THIS_FILE_PSI_KEY);
 
     ut_a(latches != nullptr);
 
@@ -965,7 +965,7 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
 
         m_mutex.exit();
 
-        UT_DELETE(latches);
+        ut::delete_(latches);
       }
 
       return;
@@ -1142,7 +1142,7 @@ void LatchDebug::shutdown() UNIV_NOTHROW {
     return;
   }
 
-  UT_DELETE(s_instance);
+  ut::delete_(s_instance);
 
   LatchDebug::s_instance = nullptr;
 }
@@ -1531,7 +1531,7 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 static void sync_latch_meta_destroy() {
   for (LatchMetaData::iterator it = latch_meta.begin(); it != latch_meta.end();
        ++it) {
-    UT_DELETE(*it);
+    ut::delete_(*it);
   }
 
   latch_meta.clear();
@@ -1677,10 +1677,10 @@ void sync_check_init(size_t max_threads) {
   ut_d(LatchDebug::s_initialized = true);
 
   /** For collecting latch statistic - SHOW ... MUTEX */
-  mutex_monitor = UT_NEW_NOKEY(MutexMonitor());
+  mutex_monitor = ut::new_<MutexMonitor>();
 
   /** For trcking mutex creation location */
-  create_tracker = UT_NEW_NOKEY(CreateTracker());
+  create_tracker = ut::new_<CreateTracker>();
 
   sync_latch_meta_init();
 
@@ -1702,11 +1702,11 @@ void sync_check_close() {
 
   sync_array_close();
 
-  UT_DELETE(mutex_monitor);
+  ut::delete_(mutex_monitor);
 
   mutex_monitor = nullptr;
 
-  UT_DELETE(create_tracker);
+  ut::delete_(create_tracker);
 
   create_tracker = nullptr;
 

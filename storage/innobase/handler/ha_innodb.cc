@@ -1450,7 +1450,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     innobase_open_tables = nullptr;
 
     for (auto file : innobase_sys_files) {
-      UT_DELETE(file);
+      ut::delete_(file);
     }
     innobase_sys_files.clear();
     innobase_sys_files.shrink_to_fit();
@@ -1873,7 +1873,7 @@ const char *thd_innodb_tmpdir(THD *thd) {
     return (innodb_session);
   }
 
-  innodb_session = UT_NEW_NOKEY(innodb_session_t());
+  innodb_session = ut::new_<innodb_session_t>();
   return (innodb_session);
 }
 
@@ -3886,7 +3886,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
         dict_sys->dynamic_metadata =
             dd_table_open_on_name(thd, nullptr, "mysql/innodb_dynamic_metadata",
                                   false, DICT_ERR_IGNORE_NONE);
-        dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+        dict_persist->table_buffer = ut::new_<DDTableBuffer>();
       }
 
       dict_sys->table_stats =
@@ -3897,7 +3897,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
                                 DICT_ERR_IGNORE_NONE);
       dict_sys->ddl_log = dd_table_open_on_name(
           thd, nullptr, "mysql/innodb_ddl_log", false, DICT_ERR_IGNORE_NONE);
-      log_ddl = UT_NEW_NOKEY(Log_DDL());
+      log_ddl = ut::new_<Log_DDL>();
   }
 
   switch (dict_recovery_mode) {
@@ -5383,8 +5383,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     Tablespace::files_t::const_iterator end = srv_sys_space.m_files.end();
     Tablespace::files_t::const_iterator begin = srv_sys_space.m_files.begin();
     for (Tablespace::files_t::const_iterator it = begin; it != end; ++it) {
-      innobase_sys_files.push_back(UT_NEW_NOKEY(
-          Plugin_tablespace::Plugin_tablespace_file(it->name(), "")));
+      innobase_sys_files.push_back(
+          ut::new_<Plugin_tablespace::Plugin_tablespace_file>(it->name(), ""));
       innodb.add_file(innobase_sys_files.back());
     }
     tablespaces->push_back(&innodb);
@@ -6019,7 +6019,7 @@ static int innobase_close_connection(
     trx_free_for_mysql(trx);
   }
 
-  UT_DELETE(thd_to_innodb_session(thd));
+  ut::delete_(thd_to_innodb_session(thd));
 
   thd_to_innodb_session(thd) = nullptr;
 
@@ -6615,12 +6615,11 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
   memset(marker, 0, sizeof(bool) * ncol);
 
   s_templ->vtempl = static_cast<mysql_row_templ_t **>(
-      ut_zalloc_nokey((ncol + n_v_col) * sizeof *s_templ->vtempl));
+      ut::zalloc((ncol + n_v_col) * sizeof *s_templ->vtempl));
   s_templ->n_col = ncol;
   s_templ->n_v_col = n_v_col;
   s_templ->rec_len = table->s->reclength;
-  s_templ->default_rec =
-      static_cast<byte *>(ut_malloc_nokey(table->s->reclength));
+  s_templ->default_rec = static_cast<byte *>(ut::malloc(table->s->reclength));
   memcpy(s_templ->default_rec, table->s->default_values, table->s->reclength);
 
   /* Mark those columns could be base columns */
@@ -6674,7 +6673,7 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
       }
 
       s_templ->vtempl[z + s_templ->n_col] = static_cast<mysql_row_templ_t *>(
-          ut_malloc_nokey(sizeof *s_templ->vtempl[j]));
+          ut::malloc(sizeof *s_templ->vtempl[j]));
 
       innobase_vcol_build_templ(table, clust_index, field, &vcol->m_col,
                                 s_templ->vtempl[z + s_templ->n_col], z);
@@ -6695,7 +6694,7 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
 #endif
 
       s_templ->vtempl[j] = static_cast<mysql_row_templ_t *>(
-          ut_malloc_nokey(sizeof *s_templ->vtempl[j]));
+          ut::malloc(sizeof *s_templ->vtempl[j]));
 
       innobase_vcol_build_templ(table, clust_index, field, col,
                                 s_templ->vtempl[j], j);
@@ -6765,7 +6764,8 @@ static bool innobase_build_index_translation(
   /* The number of index increased, rebuild the mapping table */
   if (mysql_num_index > share->idx_trans_tbl.array_size) {
     index_mapping = reinterpret_cast<dict_index_t **>(
-        ut_realloc(index_mapping, mysql_num_index * sizeof(*index_mapping)));
+        ut::realloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, index_mapping,
+                            mysql_num_index * sizeof(*index_mapping)));
 
     if (index_mapping == nullptr) {
       /* Report an error if index_mapping continues to be
@@ -6812,7 +6812,7 @@ static bool innobase_build_index_translation(
 func_exit:
   if (!ret) {
     /* Build translation table failed. */
-    ut_free(index_mapping);
+    ut::free(index_mapping);
 
     share->idx_trans_tbl.array_size = 0;
     share->idx_trans_tbl.index_count = 0;
@@ -7205,7 +7205,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     if (m_prebuilt->m_temp_read_shared) {
       if (ib_table->temp_prebuilt == nullptr) {
-        ib_table->temp_prebuilt = UT_NEW_NOKEY(temp_prebuilt_vec());
+        ib_table->temp_prebuilt = ut::new_<temp_prebuilt_vec>();
       }
 
       ib_table->temp_prebuilt->push_back(m_prebuilt);
@@ -7218,7 +7218,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (ib_table->n_v_cols) {
     dict_sys_mutex_enter();
     if (ib_table->vc_templ == nullptr) {
-      ib_table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+      ib_table->vc_templ = ut::new_<dict_vcol_templ_t>();
       ib_table->vc_templ->vtempl = nullptr;
     } else if (ib_table->get_ref_count() == 1) {
       /* Clean and refresh the template if no one else
@@ -8236,8 +8236,8 @@ void ha_innobase::build_template(bool whole_row) {
   n_fields = (ulint)table->s->fields; /* number of columns */
 
   if (!m_prebuilt->mysql_template) {
-    m_prebuilt->mysql_template = (mysql_row_templ_t *)ut_malloc_nokey(
-        n_fields * sizeof(mysql_row_templ_t));
+    m_prebuilt->mysql_template =
+        (mysql_row_templ_t *)ut::malloc(n_fields * sizeof(mysql_row_templ_t));
   }
 
   m_prebuilt->template_type =
@@ -10491,8 +10491,8 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
-  Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
-      max_threads, sampling_seed, sampling_percentage, sampling_method));
+  Histogram_sampler *sampler = ut::new_<Histogram_sampler>(
+      max_threads, sampling_seed, sampling_percentage, sampling_method);
 
   if (sampler == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -10538,7 +10538,7 @@ int ha_innobase::sample_next(void *scan_ctx, uchar *buf) {
 int ha_innobase::sample_end(void *scan_ctx) {
   Histogram_sampler *sampler = static_cast<Histogram_sampler *>(scan_ctx);
 
-  UT_DELETE(sampler);
+  ut::delete_(sampler);
 
   return 0;
 }
@@ -11933,7 +11933,7 @@ bool create_table_info_t::create_option_data_directory_is_valid(bool ignore) {
     is_valid = false;
   }
 
-  ut_free(filepath);
+  ut::free(filepath);
 #endif /* UNIV_HOTBACKUP */
 
   return (is_valid);
@@ -13711,12 +13711,12 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
     if (dd_create_implicit_tablespace(client, m_thd, m_table->space,
                                       m_table->name.m_name, filename, false,
                                       dd_space_id)) {
-      ut_free(filename);
+      ut::free(filename);
       return HA_ERR_GENERIC;
     }
 
     ut_ad(dd_space_id != dd::INVALID_OBJECT_ID);
-    ut_free(filename);
+    ut::free(filename);
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(m_table->flags));
 
@@ -14061,7 +14061,7 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
     error = dd_tablespace_rename(dd_space_id, false, norm_to, new_path);
 
     if (new_path != nullptr) {
-      ut_free(new_path);
+      ut::free(new_path);
     }
   }
 
@@ -14319,7 +14319,7 @@ int innobase_truncate<Table>::rename_tablespace() {
   } else {
     char *ptr = Fil_path::make_ibd_from_table_name(temp_name);
     new_path.assign(ptr);
-    ut_free(ptr);
+    ut::free(ptr);
   }
 
   /* New filepath must not exist. */
@@ -14337,7 +14337,7 @@ int innobase_truncate<Table>::rename_tablespace() {
     }
   }
 
-  ut_free(old_path);
+  ut::free(old_path);
 
   return (convert_error_code_to_mysql(err, m_table->flags, nullptr));
 }
@@ -14355,8 +14355,8 @@ void innobase_truncate<Table>::cleanup() {
   char *tablespace = const_cast<char *>(m_create_info.tablespace);
   char *data_file_name = const_cast<char *>(m_create_info.data_file_name);
 
-  ut_free(tablespace);
-  ut_free(data_file_name);
+  ut::free(tablespace);
+  ut::free(data_file_name);
 }
 
 template <typename Table>
@@ -17206,7 +17206,7 @@ static ib_uint64_t innodb_get_auto_increment_for_uncached(
 
   mutex_exit(&dict_persist->mutex);
 
-  UT_DELETE(readmeta);
+  ut::delete_(readmeta);
 
   return (std::max(meta_autoinc, autoinc));
 }
@@ -19059,7 +19059,7 @@ static void free_share(
                 share);
 
     /* Free any memory from index translation table */
-    ut_free(share->idx_trans_tbl.index_mapping);
+    ut::free(share->idx_trans_tbl.index_mapping);
 
     my_free(share);
 
@@ -23143,7 +23143,7 @@ void innobase_init_vc_templ(dict_table_t *table) {
     return;
   }
 
-  table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+  table->vc_templ = ut::new_<dict_vcol_templ_t>();
   table->vc_templ->vtempl = nullptr;
 
   std::string schema_name;

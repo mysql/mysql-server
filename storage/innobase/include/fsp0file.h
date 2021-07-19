@@ -177,7 +177,7 @@ class Datafile {
     m_last_os_error = 0;
 
     if (m_filepath != nullptr) {
-      ut_free(m_filepath);
+      ut::free(m_filepath);
       m_filepath = nullptr;
       m_filename = nullptr;
     }

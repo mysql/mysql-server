@@ -981,7 +981,7 @@ const char *dict_process_sys_tablespaces(
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID
-@return First filepath (caller must invoke ut_free() on it)
+@return First filepath (caller must invoke ut::free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id) {
   mtr_t mtr;
@@ -1316,7 +1316,7 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
       max_space_id = ut_max(max_space_id, space_id);
     }
 
-    ut_free(filepath);
+    ut::free(filepath);
   }
 
   mtr_commit(&mtr);
@@ -1456,7 +1456,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     if (flags == UINT32_UNDEFINED ||
         fsp_is_system_or_temp_tablespace(space_id)) {
       ut_ad(!fsp_is_undo_tablespace(space_id));
-      ut_free(table_name.m_name);
+      ut::free(table_name.m_name);
       continue;
     }
 
@@ -1465,7 +1465,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
           << "Tablespace " << table_name
           << " is set as DISCARDED. Upgrade will stop, please make sure "
              "there are no discarded Tables/Partitions before upgrading.";
-      ut_free(table_name.m_name);
+      ut::free(table_name.m_name);
       has_discarded_tablespaces = true;
       continue;
     }
@@ -1520,8 +1520,8 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     tablespace, look to see if it is already in the tablespace
     cache. */
     if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
-      ut_free(table_name.m_name);
-      ut_free(space_name_from_dict);
+      ut::free(table_name.m_name);
+      ut::free(space_name_from_dict);
       continue;
     }
 
@@ -1546,7 +1546,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
         filepath = Fil_path::make_ibd_from_table_name(tbl_name);
       } else {
         std::string dict_path(filepath);
-        ut_free(filepath);
+        ut::free(filepath);
         /* Convert 5.7 name to 8.0 for partitioned table path. */
         fil_update_partition_name(space_id, fsp_flags, true, tablespace_name,
                                   dict_path);
@@ -1589,9 +1589,9 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
       max_space_id = ut_max(max_space_id, space_id);
     }
 
-    ut_free(table_name.m_name);
-    ut_free(space_name_from_dict);
-    ut_free(filepath);
+    ut::free(table_name.m_name);
+    ut::free(space_name_from_dict);
+    ut::free(filepath);
   }
 
   mtr_commit(&mtr);
@@ -2077,7 +2077,7 @@ void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
     }
   }
 
-  ut_free(default_filepath);
+  ut::free(default_filepath);
 }
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
@@ -2102,7 +2102,7 @@ void dict_get_and_save_data_dir_path(dict_table_t *table, bool dict_mutex_own) {
 
   if (path != nullptr) {
     dict_save_data_dir_path(table, path);
-    ut_free(path);
+    ut::free(path);
   }
 
   ut_ad(table->data_dir_path != nullptr);
@@ -2236,7 +2236,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
     } else {
       /* Make the temporary tablespace name. */
       shared_space_name =
-          static_cast<char *>(ut_malloc_nokey(strlen(general_space_name) + 20));
+          static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
 
       sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
               static_cast<ulint>(table->space));
@@ -2254,7 +2254,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
 
   /* The tablespace may already be open. */
   if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
-    ut_free(shared_space_name);
+    ut::free(shared_space_name);
     return;
   }
 
@@ -2312,8 +2312,8 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
     table->ibd_file_missing = TRUE;
   }
 
-  ut_free(shared_space_name);
-  ut_free(filepath);
+  ut::free(shared_space_name);
+  ut::free(filepath);
 }
 
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,

@@ -94,7 +94,7 @@ Parallel_reader::~Parallel_reader() {
   }
   for (auto thread_ctx : m_thread_ctxs) {
     if (thread_ctx != nullptr) {
-      UT_DELETE(thread_ctx);
+      ut::delete_(thread_ctx);
     }
   }
 }
@@ -1191,8 +1191,8 @@ dberr_t Parallel_reader::Scan_ctx::create_context(const Range &range,
   // clang-format off
 
   auto ctx = std::shared_ptr<Ctx>(
-      UT_NEW_NOKEY(Ctx(ctx_id, this, range)),
-      [](Ctx *ctx) { UT_DELETE(ctx); });
+      ut::new_<Ctx>(ctx_id, this, range),
+      [](Ctx *ctx) { ut::delete_(ctx); });
 
   // clang-format on
 
@@ -1247,7 +1247,7 @@ void Parallel_reader::parallel_read() {
   }
 
   if (m_sync) {
-    auto ptr = UT_NEW_NOKEY(Thread_ctx{0});
+    auto ptr = ut::new_<Thread_ctx>(0);
 
     if (ptr == nullptr) {
       set_error_state(DB_OUT_OF_MEMORY);
@@ -1272,7 +1272,7 @@ void Parallel_reader::parallel_read() {
 
   for (size_t i = 0; i < m_n_threads; ++i) {
     try {
-      auto ptr = UT_NEW_NOKEY(Thread_ctx{i});
+      auto ptr = ut::new_<Thread_ctx>(i);
       if (ptr == nullptr) {
         set_error_state(DB_OUT_OF_MEMORY);
         return;
@@ -1364,8 +1364,8 @@ dberr_t Parallel_reader::add_scan(trx_t *trx,
   // clang-format off
 
   auto scan_ctx = std::shared_ptr<Scan_ctx>(
-      UT_NEW_NOKEY(Scan_ctx(this, m_scan_ctx_id, trx, config, std::move(f))),
-      [](Scan_ctx *scan_ctx) { UT_DELETE(scan_ctx); });
+      ut::new_<Scan_ctx>(this, m_scan_ctx_id, trx, config, std::move(f)),
+      [](Scan_ctx *scan_ctx) { ut::delete_(scan_ctx); });
 
   // clang-format on
 

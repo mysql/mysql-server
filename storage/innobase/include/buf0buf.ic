@@ -696,7 +696,7 @@ static inline ulint buf_block_get_lock_hash_val(
 static inline buf_page_t *buf_page_alloc_descriptor(void) {
   buf_page_t *bpage;
 
-  bpage = (buf_page_t *)ut_zalloc_nokey(sizeof *bpage);
+  bpage = (buf_page_t *)ut::zalloc(sizeof *bpage);
   ut_ad(bpage);
   UNIV_MEM_ALLOC(bpage, sizeof *bpage);
   /* This is required for valgrind to work correctly. */

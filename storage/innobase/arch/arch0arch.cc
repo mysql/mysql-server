@@ -116,7 +116,8 @@ void arch_remove_dir(const char *dir_path, const char *dir_name) {
 @return error code */
 dberr_t arch_init() {
   if (arch_log_sys == nullptr) {
-    arch_log_sys = UT_NEW(Arch_Log_Sys(), mem_key_archive);
+    arch_log_sys =
+        ut::new_withkey<Arch_Log_Sys>(ut::make_psi_memory_key(mem_key_archive));
 
     if (arch_log_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -126,7 +127,8 @@ dberr_t arch_init() {
   }
 
   if (arch_page_sys == nullptr) {
-    arch_page_sys = UT_NEW(Arch_Page_Sys(), mem_key_archive);
+    arch_page_sys = ut::new_withkey<Arch_Page_Sys>(
+        ut::make_psi_memory_key(mem_key_archive));
 
     if (arch_page_sys == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -148,14 +150,14 @@ dberr_t arch_init() {
 /** Free Page and Log archiver system */
 void arch_free() {
   if (arch_log_sys != nullptr) {
-    UT_DELETE(arch_log_sys);
+    ut::delete_(arch_log_sys);
     arch_log_sys = nullptr;
 
     os_event_destroy(log_archiver_thread_event);
   }
 
   if (arch_page_sys != nullptr) {
-    UT_DELETE(arch_page_sys);
+    ut::delete_(arch_page_sys);
     arch_page_sys = nullptr;
 
     os_event_destroy(page_archiver_thread_event);
@@ -301,11 +303,12 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 
   /* In case of reinitialise. */
   if (m_name_buf != nullptr) {
-    ut_free(m_name_buf);
+    ut::free(m_name_buf);
     m_name_buf = nullptr;
   }
 
-  m_name_buf = static_cast<char *>(ut_malloc(m_name_len, mem_key_archive));
+  m_name_buf = static_cast<char *>(
+      ut::malloc_withkey(ut::make_psi_memory_key(mem_key_archive), m_name_len));
 
   if (m_name_buf == nullptr) {
     return (DB_OUT_OF_MEMORY);

@@ -1273,7 +1273,7 @@ class DDTableBuffer {
   void truncate(void);
 
   /** Get the buffered metadata for a specific table, the caller
-  has to delete the returned std::string object by UT_DELETE
+  has to delete the returned std::string object by ut::delete_
   @param[in]	id	table id
   @param[out]	version	table dynamic metadata version
   @return the metadata saved in a string object, if nothing, the

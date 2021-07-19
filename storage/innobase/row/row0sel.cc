@@ -539,7 +539,7 @@ static void sel_col_prefetch_buf_alloc(
   ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
   column->prefetch_buf = static_cast<sel_buf_t *>(
-      ut_malloc_nokey(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+      ut::malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
   for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
     sel_buf = column->prefetch_buf + i;
@@ -562,11 +562,11 @@ void sel_col_prefetch_buf_free(
     sel_buf = prefetch_buf + i;
 
     if (sel_buf->val_buf_size > 0) {
-      ut_free(sel_buf->data);
+      ut::free(sel_buf->data);
     }
   }
 
-  ut_free(prefetch_buf);
+  ut::free(prefetch_buf);
 }
 
 /** Pops the column values for a prefetched, cached row from the column prefetch
@@ -3650,7 +3650,7 @@ static inline void row_sel_prefetch_cache_init(
 
   /* Reserve space for the magic number. */
   sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-  ptr = static_cast<byte *>(ut_malloc_nokey(sz));
+  ptr = static_cast<byte *>(ut::malloc(sz));
 
   for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
     /* A user has reported memory corruption in these
@@ -4971,7 +4971,7 @@ rec_loop:
 
       if (end_range_cache == nullptr) {
         end_range_cache =
-            static_cast<byte *>(ut_malloc_nokey(prebuilt->mysql_row_len));
+            static_cast<byte *>(ut::malloc(prebuilt->mysql_row_len));
       }
 
       if (clust_templ_for_sec) {
@@ -6020,7 +6020,7 @@ func_exit:
   trx->op_info = "";
 
   if (end_range_cache != nullptr) {
-    ut_free(end_range_cache);
+    ut::free(end_range_cache);
   }
 
   if (heap != nullptr) {
@@ -6029,7 +6029,7 @@ func_exit:
 
 #ifdef UNIV_DEBUG
   if (prev_rec_debug_buf != nullptr) {
-    ut_free(prev_rec_debug_buf);
+    ut::free(prev_rec_debug_buf);
   }
 #endif /* UNIV_DEBUG */
 
@@ -6133,7 +6133,7 @@ dberr_t row_count_rtree_recs(
   prebuilt->search_tuple = entry;
 
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
+  buf = static_cast<byte *>(ut::malloc(bufsize));
 
   ulint cnt = 1000;
 
@@ -6170,7 +6170,7 @@ loop:
       prebuilt->rtr_info->is_dup = nullptr;
 
       prebuilt->search_tuple = search_entry;
-      ut_free(buf);
+      ut::free(buf);
       mem_heap_free(heap);
 
       return (ret);

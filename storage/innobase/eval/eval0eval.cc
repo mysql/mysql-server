@@ -75,13 +75,13 @@ byte *eval_node_alloc_val_buf(
   data = static_cast<byte *>(dfield_get_data(dfield));
 
   if (data != &eval_dummy) {
-    ut_free(data);
+    ut::free(data);
   }
 
   if (size == 0) {
     data = &eval_dummy;
   } else {
-    data = static_cast<byte *>(ut_malloc_nokey(size));
+    data = static_cast<byte *>(ut::malloc(size));
   }
 
   que_node_set_val_buf_size(node, size);
@@ -109,7 +109,7 @@ void eval_node_free_val_buf(que_node_t *node) /*!< in: query graph node */
   if (que_node_get_val_buf_size(node) > 0) {
     ut_a(data);
 
-    ut_free(data);
+    ut::free(data);
   }
 }
 

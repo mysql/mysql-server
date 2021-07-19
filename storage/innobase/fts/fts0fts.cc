@@ -899,12 +899,12 @@ static void fts_words_free(ib_rbt_t *words) /*!< in: rb tree of words */
       fts_node_t *fts_node =
           static_cast<fts_node_t *>(ib_vector_get(word->nodes, i));
 
-      ut_free(fts_node->ilist);
+      ut::free(fts_node->ilist);
       fts_node->ilist = nullptr;
     }
 
     /* NOTE: We are responsible for free'ing the node */
-    ut_free(rbt_remove_node(words, rbt_node));
+    ut::free(rbt_remove_node(words, rbt_node));
   }
 }
 
@@ -1109,7 +1109,7 @@ void fts_cache_node_add_positions(
       new_size = (ulint)(1.2 * new_size);
     }
 
-    ilist = static_cast<byte *>(ut_malloc_nokey(new_size));
+    ilist = static_cast<byte *>(ut::malloc(new_size));
     ptr = ilist + node->ilist_size;
 
     node->ilist_size_alloc = new_size;
@@ -1140,7 +1140,7 @@ void fts_cache_node_add_positions(
     new one into place in the node. */
     if (node->ilist_size > 0) {
       memcpy(ilist, node->ilist, node->ilist_size);
-      ut_free(node->ilist);
+      ut::free(node->ilist);
       if (cache) {
         cache->total_size -= node->ilist_size;
       }
@@ -1187,7 +1187,7 @@ static void fts_cache_add_doc(
     word = fts_tokenizer_word_get(cache, index_cache, &token->text);
 
     if (!word) {
-      ut_free(rbt_remove_node(tokens, node));
+      ut::free(rbt_remove_node(tokens, node));
       continue;
     }
 
@@ -1208,7 +1208,7 @@ static void fts_cache_add_doc(
 
     fts_cache_node_add_positions(cache, fts_node, doc_id, token->positions);
 
-    ut_free(rbt_remove_node(tokens, node));
+    ut::free(rbt_remove_node(tokens, node));
   }
 
   ut_a(rbt_empty(tokens));
@@ -1261,7 +1261,7 @@ void fts_free_aux_names(aux_name_vec_t *aux_vec) {
 
   while (aux_vec->aux_name.size() > 0) {
     char *name = aux_vec->aux_name.back();
-    ut_free(name);
+    ut::free(name);
     aux_vec->aux_name.pop_back();
   }
 
@@ -2609,7 +2609,7 @@ static void fts_trx_table_add_op(
         ib_vector_free(row->fts_indexes);
       }
 
-      ut_free(rbt_remove_node(rows, parent.last));
+      ut::free(rbt_remove_node(rows, parent.last));
       row = nullptr;
     } else if (row->fts_indexes != nullptr) {
       ib_vector_free(row->fts_indexes);
@@ -2697,7 +2697,7 @@ static ulint fts_get_max_cache_size(
   information is used by the callback that reads the value. */
   value.f_n_char = 0;
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = ut_malloc_nokey(value.f_len + 1);
+  value.f_str = ut::malloc(value.f_len + 1);
 
   error =
       fts_config_get_value(trx, fts_table, FTS_MAX_CACHE_SIZE_IN_MB, &value);
@@ -2734,7 +2734,7 @@ static ulint fts_get_max_cache_size(
                                 " cache config value from config table";
   }
 
-  ut_free(value.f_str);
+  ut::free(value.f_str);
 
   return (cache_size_in_mb * 1024 * 1024);
 }
@@ -5071,7 +5071,7 @@ static inline void fts_trx_table_rows_free(
       row->fts_indexes = nullptr;
     }
 
-    ut_free(rbt_remove_node(rows, node));
+    ut::free(rbt_remove_node(rows, node));
   }
 
   ut_a(rbt_empty(rows));
@@ -5115,7 +5115,7 @@ static inline void fts_savepoint_free(
     }
 
     /* NOTE: We are responsible for free'ing the node */
-    ut_free(rbt_remove_node(tables, node));
+    ut::free(rbt_remove_node(tables, node));
   }
 
   ut_a(rbt_empty(tables));
@@ -5652,14 +5652,14 @@ static void fts_undo_last_stmt(
 
       switch (l_row->state) {
         case FTS_INSERT:
-          ut_free(rbt_remove_node(s_rows, parent.last));
+          ut::free(rbt_remove_node(s_rows, parent.last));
           break;
 
         case FTS_DELETE:
           if (s_row->state == FTS_NOTHING) {
             s_row->state = FTS_INSERT;
           } else if (s_row->state == FTS_DELETE) {
-            ut_free(rbt_remove_node(s_rows, parent.last));
+            ut::free(rbt_remove_node(s_rows, parent.last));
           }
           break;
 

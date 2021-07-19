@@ -1081,7 +1081,7 @@ static void srv_init(void) {
   srv_threads.m_purge_workers_n = srv_n_purge_threads;
 
   srv_threads.m_purge_workers =
-      UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_purge_workers_n);
+      ut::new_arr<IB_thread>(ut::Count{srv_threads.m_purge_workers_n});
 
   if (!srv_read_only_mode) {
     /* Number of purge threads + master thread */
@@ -1095,9 +1095,9 @@ static void srv_init(void) {
   srv_threads.m_page_cleaner_workers_n = srv_n_page_cleaners;
 
   srv_threads.m_page_cleaner_workers =
-      UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_page_cleaner_workers_n);
+      ut::new_arr<IB_thread>(ut::Count{srv_threads.m_page_cleaner_workers_n});
 
-  srv_sys = static_cast<srv_sys_t *>(ut_zalloc_nokey(srv_sys_sz));
+  srv_sys = static_cast<srv_sys_t *>(ut::zalloc(srv_sys_sz));
 
   srv_sys->n_sys_threads = n_sys_threads;
 
@@ -1190,7 +1190,7 @@ void srv_free(void) {
 
   trx_i_s_cache_free(trx_i_s_cache);
 
-  ut_free(srv_sys);
+  ut::free(srv_sys);
 
   srv_sys = nullptr;
 
@@ -1198,7 +1198,7 @@ void srv_free(void) {
     for (size_t i = 0; i < srv_threads.m_page_cleaner_workers_n; ++i) {
       srv_threads.m_page_cleaner_workers[i] = {};
     }
-    UT_DELETE_ARRAY(srv_threads.m_page_cleaner_workers);
+    ut::delete_arr(srv_threads.m_page_cleaner_workers);
     srv_threads.m_page_cleaner_workers = nullptr;
   }
 
@@ -1206,7 +1206,7 @@ void srv_free(void) {
     for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
       srv_threads.m_purge_workers[i] = {};
     }
-    UT_DELETE_ARRAY(srv_threads.m_purge_workers);
+    ut::delete_arr(srv_threads.m_purge_workers);
     srv_threads.m_purge_workers = nullptr;
   }
 

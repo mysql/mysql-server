@@ -1078,7 +1078,7 @@ end:
   btr_leaf_page_release(btr_pcur_get_block(&pcur), BTR_SEARCH_LEAF, mtr);
 
   btr_pcur_close(&pcur);
-  ut_free(prev_rec_buf);
+  ut::free(prev_rec_buf);
   mem_heap_free(heap);
 
   return success;
@@ -1777,17 +1777,19 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
 
   /* For each level that is being scanned in the btree, this contains the
   number of different key values for all possible n-column prefixes. */
-  ib_uint64_t *n_diff_on_level =
-      UT_NEW_ARRAY(ib_uint64_t, n_uniq, mem_key_dict_stats_n_diff_on_level);
+  ib_uint64_t *n_diff_on_level = ut::new_arr_withkey<ib_uint64_t>(
+      ut::make_psi_memory_key(mem_key_dict_stats_n_diff_on_level),
+      ut::Count{n_uniq});
 
   /* For each level that is being scanned in the btree, this contains the
   index of the last record from each group of equal records (when
   comparing only the first n columns, n=1..n_uniq). */
-  boundaries_t *n_diff_boundaries = UT_NEW_ARRAY_NOKEY(boundaries_t, n_uniq);
+  boundaries_t *n_diff_boundaries =
+      ut::new_arr<boundaries_t>(ut::Count{n_uniq});
 
   /* For each n-column prefix this array contains the input data that is
   used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-  n_diff_data_t *n_diff_data = UT_NEW_ARRAY_NOKEY(n_diff_data_t, n_uniq);
+  n_diff_data_t *n_diff_data = ut::new_arr<n_diff_data_t>(ut::Count{n_uniq});
 
   /* total_recs is also used to estimate the number of pages on one
   level below, so at the start we have 1 page (the root) */
@@ -1962,9 +1964,9 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
 end:
   mtr_commit(&mtr);
 
-  UT_DELETE_ARRAY(n_diff_boundaries);
+  ut::delete_arr(n_diff_boundaries);
 
-  UT_DELETE_ARRAY(n_diff_on_level);
+  ut::delete_arr(n_diff_on_level);
 
   /* n_prefix == 0 means that the above loop did not end up prematurely
   due to tree being changed and so n_diff_data[] is set up. */
@@ -1972,7 +1974,7 @@ end:
     dict_stats_index_set_n_diff(n_diff_data, index);
   }
 
-  UT_DELETE_ARRAY(n_diff_data);
+  ut::delete_arr(n_diff_data);
 
   if (succeeded) {
     dict_stats_assert_initialized_index(index);

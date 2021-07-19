@@ -108,10 +108,9 @@ hash_table_t *hash_create(ulint n) /*!< in: number of array cells */
 
   prime = ut_find_prime(n);
 
-  table = static_cast<hash_table_t *>(ut_malloc_nokey(sizeof(hash_table_t)));
+  table = static_cast<hash_table_t *>(ut::malloc(sizeof(hash_table_t)));
 
-  array =
-      static_cast<hash_cell_t *>(ut_malloc_nokey(sizeof(hash_cell_t) * prime));
+  array = static_cast<hash_cell_t *>(ut::malloc(sizeof(hash_cell_t) * prime));
 
   /* The default type of hash_table is HASH_TABLE_SYNC_NONE i.e.:
   the caller is responsible for access control to the table. */
@@ -139,8 +138,8 @@ void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 {
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-  ut_free(table->cells);
-  ut_free(table);
+  ut::free(table->cells);
+  ut::free(table);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -156,7 +155,7 @@ void hash_create_sync_obj(hash_table_t *table, latch_id_t id,
   ut_a(level != SYNC_UNKNOWN);
 
   table->rw_locks =
-      static_cast<rw_lock_t *>(ut_malloc_nokey(n_sync_obj * sizeof(rw_lock_t)));
+      static_cast<rw_lock_t *>(ut::malloc(n_sync_obj * sizeof(rw_lock_t)));
 
   for (ulint i = 0; i < n_sync_obj; i++) {
     rw_lock_create(hash_table_locks_key, table->rw_locks + i, level);

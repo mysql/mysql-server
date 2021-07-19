@@ -357,7 +357,7 @@ Ret_t Tester::find_tablespace_file_name(
   char *filename = fil_space_get_first_path(space_id);
   sout << filename;
   set_output(sout);
-  ut_free(filename);
+  ut::free(filename);
   return RET_PASS;
 }
 

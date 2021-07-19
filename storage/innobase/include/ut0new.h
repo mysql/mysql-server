@@ -46,16 +46,16 @@ Standard:
   or
   new(std::nothrow) expression
 InnoDB, default instrumentation:
-  UT_NEW_NOKEY(expression)
+  ut::new_(expression)
 InnoDB, custom instrumentation, preferred:
-  UT_NEW(expression, key)
+  ut::new_withkey(key, expression)
 
 Destroying objects, created with "new":
 ---------------------------------------
 Standard:
   delete ptr
 InnoDB:
-  UT_DELETE(ptr)
+  ut::delete_(ptr)
 
 Creating new arrays with "new[]":
 ---------------------------------
@@ -64,16 +64,16 @@ Standard:
   or
   new(std::nothrow) type[num]
 InnoDB, default instrumentation:
-  UT_NEW_ARRAY_NOKEY(type, num)
+  ut::new_arr<type>(ut::Count{num})
 InnoDB, custom instrumentation, preferred:
-  UT_NEW_ARRAY(type, num, key)
+  ut::new_arr_withkey<type>(key, ut::Count{num})
 
 Destroying arrays, created with "new[]":
 ----------------------------------------
 Standard:
   delete[] ptr
 InnoDB:
-  UT_DELETE_ARRAY(ptr)
+  ut::delete_arr(ptr)
 
 Declaring a type with a std:: container, e.g. std::vector:
 ----------------------------------------------------------
@@ -97,30 +97,23 @@ not be more appropriate):
 Standard:
   malloc(num)
 InnoDB, default instrumentation:
-  ut_malloc_nokey(num)
+  ut::malloc(num)
 InnoDB, custom instrumentation, preferred:
-  ut_malloc(num, key)
+  ut::malloc_withkey(key, num)
 
 Raw block resize:
 -----------------
 Standard:
   realloc(ptr, new_size)
 InnoDB:
-  ut_realloc(ptr, new_size)
+  ut::realloc(ptr, new_size)
 
 Raw block deallocation:
 -----------------------
 Standard:
   free(ptr)
 InnoDB:
-  ut_free(ptr)
-
-Note: the expression passed to UT_NEW() or UT_NEW_NOKEY() must always end
-with (), thus:
-Standard:
-  new int
-InnoDB:
-  UT_NEW_NOKEY(int())
+  ut::free(ptr)
 */
 
 #ifndef ut0new_h
@@ -150,10 +143,44 @@ InnoDB:
 #include "ut0dbg.h"
 #include "ut0ut.h"
 
-#define OUT_OF_MEMORY_MSG                                             \
-  "Check if you should increase the swap file or ulimits of your"     \
-  " operating system. Note that on most 32-bit computers the process" \
-  " memory space is limited to 2 GB or 4 GB."
+namespace ut {
+
+/** Light-weight and type-safe wrapper around the PSI_memory_key
+that eliminates the possibility of introducing silent bugs
+through the course of implicit conversions and makes them
+show up as compile-time errors.
+
+Without this wrapper it was possible to say:
+  aligned_alloc_withkey(10*sizeof(int), key, 64))
+Which would unfortunately compile just fine but it would silently
+introduce a bug because it confuses the order of 10*sizeof(int) and
+key input arguments. Both of them are unsigned types.
+
+With the wrapper, aligned_alloc_withkey(10*sizeof(int), key, 64)) now
+results with a compile-time error and the only proper way to accomplish
+the original intent is to use PSI_memory_key_t wrapper like so:
+  aligned_alloc_withkey(PSI_memory_key_t{key}, 10*sizeof(int), 64))
+
+Or by making use of the convenience function to create one:
+  aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
+*/
+struct PSI_memory_key_t {
+  explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key) {}
+  PSI_memory_key operator()() const { return m_key; }
+  PSI_memory_key m_key;
+};
+
+/** Convenience helper function to create type-safe representation of
+    PSI_memory_key.
+
+    @param[in] key PSI memory key to be held in type-safe PSI_memory_key_t.
+    @return PSI_memory_key_t which wraps the given PSI_memory_key
+ */
+inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
+  return PSI_memory_key_t(key);
+}
+
+}  // namespace ut
 
 /** Maximum number of retries to allocate memory. */
 extern const size_t alloc_max_retries;
@@ -191,12 +218,12 @@ extern PSI_memory_key mem_key_undo_spaces;
 extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
-/** Setup the internal objects needed for UT_NEW() to operate.
-This must be called before the first call to UT_NEW(). */
+/** Setup the internal objects needed for ut::*_withkey() to operate.
+This must be called before the first call to ut::*_withkey(). */
 void ut_new_boot();
 
-/** Setup the internal objects needed for UT_NEW() to operate.
-This must be called before the first call to UT_NEW(). This
+/** Setup the internal objects needed for ut::*_withkey() to operate.
+This must be called before the first call to ut::*_withkey(). This
 version of function might be called several times and it will
 simply skip all calls except the first one, during which the
 initialization will happen. */
@@ -523,16 +550,16 @@ struct force_constexpr {
 #define UT_NEW_THIS_FILE_PSI_INDEX \
   (force_constexpr<ut_new_get_key_by_file(MY_BASENAME)>::value)
 
-#define UT_NEW_THIS_FILE_PSI_KEY    \
-  (UT_NEW_THIS_FILE_PSI_INDEX == -1 \
-       ? PSI_NOT_INSTRUMENTED       \
-       : auto_event_keys[UT_NEW_THIS_FILE_PSI_INDEX])
+#define UT_NEW_THIS_FILE_PSI_KEY                       \
+  (UT_NEW_THIS_FILE_PSI_INDEX == -1                    \
+       ? ut::make_psi_memory_key(PSI_NOT_INSTRUMENTED) \
+       : ut::make_psi_memory_key(auto_event_keys[UT_NEW_THIS_FILE_PSI_INDEX]))
 
 #endif /* __GNUG__ == 5 */
 
 #else
 
-#define UT_NEW_THIS_FILE_PSI_KEY PSI_NOT_INSTRUMENTED
+#define UT_NEW_THIS_FILE_PSI_KEY ut::make_psi_memory_key(PSI_NOT_INSTRUMENTED)
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -601,7 +628,7 @@ class ut_allocator {
   /** Default constructor.
   @param[in] key  performance schema key. */
 #ifdef UNIV_PFS_MEMORY
-  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY)
+  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY())
       : m_key(key)
 #else
   explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
@@ -965,171 +992,6 @@ inline bool operator!=(const ut_allocator<T> &lhs, const ut_allocator<T> &rhs) {
   return (!(lhs == rhs));
 }
 
-#ifdef UNIV_PFS_MEMORY
-
-/** Allocate, trace the allocation and construct an object.
-Use this macro instead of 'new' within InnoDB.
-For example: instead of
-        Foo*	f = new Foo(args);
-use:
-        Foo*	f = UT_NEW(Foo(args), mem_key_some);
-Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successful allocation the returned
-pointer must be passed to UT_DELETE() when no longer needed.
-@param[in]	expr	any expression that could follow "new"
-@param[in]	key	performance schema memory tracing key
-@return pointer to the created object or NULL */
-#define UT_NEW(expr, key)                                           \
-  /* Placement new will return NULL and not attempt to construct an \
-  object if the passed in pointer is NULL, e.g. if allocate() has   \
-  failed to allocate memory and has returned NULL. */               \
-  ::new (ut_allocator<decltype(expr)>(key).allocate(1, NULL, key, false)) expr
-
-/** Allocate, trace the allocation and construct an object.
-Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
-when creating a dedicated memory key is not feasible.
-For example: instead of
-        Foo*	f = new Foo(args);
-use:
-        Foo*	f = UT_NEW_NOKEY(Foo(args));
-Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successful allocation the returned
-pointer must be passed to UT_DELETE() when no longer needed.
-@param[in]	expr	any expression that could follow "new"
-@return pointer to the created object or NULL */
-#define UT_NEW_NOKEY(expr) UT_NEW(expr, PSI_NOT_INSTRUMENTED)
-
-/** Destroy, deallocate and trace the deallocation of an object created by
-UT_NEW() or UT_NEW_NOKEY().
-We can't instantiate ut_allocator without having the type of the object, thus
-we redirect this to a template function. */
-#define UT_DELETE(ptr) ut_delete(ptr)
-
-/** Destroy and account object created by UT_NEW() or UT_NEW_NOKEY().
-@param[in,out]	ptr	pointer to the object */
-template <typename T>
-inline void ut_delete(T *ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
-
-  ut_allocator<T> allocator;
-
-  allocator.destroy(ptr);
-  allocator.deallocate(ptr);
-}
-
-/** Allocate and account 'n_elements' objects of type 'type'.
-Use this macro to allocate memory within InnoDB instead of 'new[]'.
-The returned pointer must be passed to UT_DELETE_ARRAY().
-@param[in]	type		type of objects being created
-@param[in]	n_elements	number of objects to create
-@param[in]	key		performance schema memory tracing key
-@return pointer to the first allocated object or NULL */
-#define UT_NEW_ARRAY(type, n_elements, key) \
-  ut_allocator<type>(key).new_array(n_elements, UT_NEW_THIS_FILE_PSI_KEY)
-
-/** Allocate and account 'n_elements' objects of type 'type'.
-Use this macro to allocate memory within InnoDB instead of 'new[]' and
-instead of UT_NEW_ARRAY() when it is not feasible to create a dedicated key.
-@param[in]	type		type of objects being created
-@param[in]	n_elements	number of objects to create
-@return pointer to the first allocated object or NULL */
-#define UT_NEW_ARRAY_NOKEY(type, n_elements) \
-  UT_NEW_ARRAY(type, n_elements, PSI_NOT_INSTRUMENTED)
-
-/** Destroy, deallocate and trace the deallocation of an array created by
-UT_NEW_ARRAY() or UT_NEW_ARRAY_NOKEY().
-We can't instantiate ut_allocator without having the type of the object, thus
-we redirect this to a template function. */
-#define UT_DELETE_ARRAY(ptr) ut_delete_array(ptr)
-
-/** Destroy and account objects created by UT_NEW_ARRAY() or
-UT_NEW_ARRAY_NOKEY().
-@param[in,out]	ptr	pointer to the first object in the array */
-template <typename T>
-inline void ut_delete_array(T *ptr) {
-  ut_allocator<T>().delete_array(ptr);
-}
-
-/**
-Do not use ut_malloc, ut_zalloc, ut_malloc_nokey, ut_zalloc_nokey,
-and ut_realloc when allocating memory for over-aligned types. We have to use
-aligned_pointer instead, analogously to how we have to use aligned_alloc when
-working with the standard library to handle dynamic allocation for over-aligned
-types. These macros use ut_allocator to allocate raw memory (no type information
-is passed). This is why ut_allocator needs to be instantiated with the byte
-type. This has implications on the max alignment of the objects that are
-allocated using this API. ut_allocator returns memory aligned to
-alignof(std::max_align_t), similarly to library allocation functions. This value
-is 16 bytes on most x64 machines. A static_assert enforces this when using
-UT_NEW, however, since the ut_allocator template is instantiated with byte here
-the assert will not be hit if using alignment >= alignof(std::max_align_t). Not
-meeting the alignment requirements for a type causes undefined behaviour. One
-should avoid using the macros below when writing new code in general, and try to
-remove them when refactoring existing code (in favor of using the UT_NEW). The
-reason behind this lies both in the undefined behaviour problem described above,
-and in the fact that standard C-like malloc use is discouraged in c++ (see
-CppCoreGuidelines - R.10: Avoid malloc() and free()). Using ut_malloc has the
-same problems as the standard library malloc.
-*/
-
-#define ut_malloc(n_bytes, key)                         \
-  static_cast<void *>(ut_allocator<byte>(key).allocate( \
-      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false))
-
-#define ut_zalloc(n_bytes, key)                         \
-  static_cast<void *>(ut_allocator<byte>(key).allocate( \
-      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
-
-#define ut_malloc_nokey(n_bytes)               \
-  static_cast<void *>(                         \
-      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false))
-
-#define ut_zalloc_nokey(n_bytes)               \
-  static_cast<void *>(                         \
-      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
-
-#define ut_realloc(ptr, n_bytes)                               \
-  static_cast<void *>(ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-                          .reallocate(ptr, n_bytes, UT_NEW_THIS_FILE_PSI_KEY))
-
-#define ut_free(ptr)                         \
-  ut_allocator<::byte>(PSI_NOT_INSTRUMENTED) \
-      .deallocate(reinterpret_cast<::byte *>(ptr))
-
-#else /* UNIV_PFS_MEMORY */
-
-/* Fallbacks when memory tracing is disabled at compile time. */
-
-#define UT_NEW(expr, key) ::new (std::nothrow) expr
-#define UT_NEW_NOKEY(expr) ::new (std::nothrow) expr
-#define UT_DELETE(ptr) ::delete ptr
-
-#define UT_NEW_ARRAY(type, n_elements, key) \
-  ::new (std::nothrow) type[n_elements]
-
-#define UT_NEW_ARRAY_NOKEY(type, n_elements) \
-  ::new (std::nothrow) type[n_elements]
-
-#define UT_DELETE_ARRAY(ptr) ::delete[] ptr
-
-#define ut_malloc(n_bytes, key) ::malloc(n_bytes)
-
-#define ut_zalloc(n_bytes, key) ::calloc(1, n_bytes)
-
-#define ut_malloc_nokey(n_bytes) ::malloc(n_bytes)
-
-#define ut_zalloc_nokey(n_bytes) ::calloc(1, n_bytes)
-
-#define ut_realloc(ptr, n_bytes) ::realloc(ptr, n_bytes)
-
-#define ut_free(ptr) ::free(ptr)
-
-#endif /* UNIV_PFS_MEMORY */
-
 namespace ut {
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -1137,111 +999,6 @@ constexpr bool WITH_PFS_MEMORY = true;
 #else
 constexpr bool WITH_PFS_MEMORY = false;
 #endif
-
-/** Light-weight and type-safe wrapper around the PSI_memory_key
-    that eliminates the possibility of introducing silent bugs
-    through the course of implicit conversions and makes them
-    show up as compile-time errors.
-
-    Without this wrapper it was possible to say:
-      aligned_alloc_withkey(10*sizeof(int), key, 64))
-    Which would unfortunately compile just fine but it would silently
-    introduce a bug because it confuses the order of 10*sizeof(int) and
-    key input arguments. Both of them are unsigned types.
-
-    With the wrapper, aligned_alloc_withkey(10*sizeof(int), key, 64)) now
-    results with a compile-time error and the only proper way to accomplish
-    the original intent is to use PSI_memory_key_t wrapper like so:
-      aligned_alloc_withkey(PSI_memory_key_t(key), 10*sizeof(int), 64))
-
-    Or by making use of the convenience function to create one:
-      aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
- */
-struct PSI_memory_key_t {
-  explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key) {}
-  PSI_memory_key operator()() const { return m_key; }
-  PSI_memory_key m_key;
-};
-
-/** Convenience helper function to create type-safe representation of
-    PSI_memory_key.
-
-    @param[in] key PSI memory key to be held in type-safe PSI_memory_key_t.
-    @return PSI_memory_key_t which wraps the given PSI_memory_key
- */
-inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
-  return PSI_memory_key_t(key);
-}
-
-/** Dynamically allocates system page-aligned storage of given size. Instruments
-    the memory with given PSI memory key in case PFS memory support is enabled.
-
-    Actual page-alignment, and thus page-size, will depend on CPU architecture
-    but in general page is traditionally mostly 4K large. In contrast to Unices,
-    Windows do make an exception here and implement 64K granularity on top of
-    regular page-size for some legacy reasons. For more details see:
-      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
-
-    @param[in] key PSI memory key to be used for PFS memory instrumentation.
-    @param[in] size Size of storage (in bytes) requested to be allocated.
-    @return Pointer to the page-aligned storage. nullptr if dynamic storage
-    allocation failed.
-
-    Example:
-     int *x = static_cast<int*>(ut::malloc_page_withkey(key, 10*sizeof(int)));
- */
-inline void *malloc_page_withkey(PSI_memory_key_t key,
-                                 std::size_t size) noexcept {
-  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
-  using page_alloc_impl = detail::Page_alloc_<impl>;
-  return page_alloc_impl::alloc(size, key());
-}
-
-/** Dynamically allocates system page-aligned storage of given size.
-
-    Actual page-alignment, and thus page-size, will depend on CPU architecture
-    but in general page is traditionally mostly 4K large. In contrast to Unices,
-    Windows do make an exception here and implement 64K granularity on top of
-    regular page-size for some legacy reasons. For more details see:
-      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
-
-    @param[in] size Size of storage (in bytes) requested to be allocated.
-    @return Pointer to the page-aligned storage. nullptr if dynamic storage
-    allocation failed.
-
-    Example:
-     int *x = static_cast<int*>(ut::malloc_page(10*sizeof(int)));
- */
-inline void *malloc_page(std::size_t size) noexcept {
-  return ut::malloc_page_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
-                                 size);
-}
-
-/** Retrieves the size of corresponding page-aligned storage.
-
-    @param[in] ptr Pointer which has been obtained through any of the
-    ut::malloc_page*() variants.
- */
-inline size_t page_allocation_size(void *ptr) noexcept {
-  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
-  using page_alloc_impl = detail::Page_alloc_<impl>;
-  return page_alloc_impl::datalen(ptr);
-}
-
-/** Releases storage which has been dynamically allocated through any of
-    the ut::malloc_page*() variants.
-
-    @param[in] ptr Pointer which has been obtained through any of the
-    ut::malloc_page*() variants.
-
-    Example:
-     ut::free_page(ptr);
- */
-inline void free_page(void *ptr) noexcept {
-  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
-  using page_alloc_impl = detail::Page_alloc_<impl>;
-  return page_alloc_impl::free(ptr);
-}
 
 /** Dynamically allocates storage of given size. Instruments the memory with
     given PSI memory key in case PFS memory support is enabled.
@@ -1355,7 +1112,7 @@ inline void *realloc_withkey(PSI_memory_key_t key, void *ptr,
     allocation failed.
 
     Example:
-     int *x = static_cast<int*>(ut::malloc(key, 10*sizeof(int));
+     int *x = static_cast<int*>(ut::malloc(10*sizeof(int));
      x = static_cast<int*>(ut::realloc(key, ptr, 100*sizeof(int)));
  */
 inline void *realloc(void *ptr, std::size_t size) noexcept {
@@ -1400,7 +1157,7 @@ inline void free(void *ptr) noexcept {
      struct A {
        A(int x, int y) : _x(x), _y(y) {}
        int _x, _y;
-     }
+     };
      A *ptr = ut::new_withkey<A>(key, 1, 2);
      assert(ptr->_x == 1);
      assert(ptr->_y == 2);
@@ -1443,7 +1200,7 @@ inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
      struct A {
        A(int x, int y) : _x(x), _y(y) {}
        int _x, _y;
-     }
+     };
      A *ptr = ut::new_<A>(1, 2);
      assert(ptr->_x == 1);
      assert(ptr->_y == 2);
@@ -1784,6 +1541,81 @@ inline size_t pfs_overhead() noexcept {
   using impl = detail::select_malloc_impl_t<WITH_PFS_MEMORY, false>;
   using malloc_impl = detail::Alloc_<impl>;
   return malloc_impl::pfs_overhead();
+}
+
+/** Dynamically allocates system page-aligned storage of given size. Instruments
+    the memory with given PSI memory key in case PFS memory support is enabled.
+
+    Actual page-alignment, and thus page-size, will depend on CPU architecture
+    but in general page is traditionally mostly 4K large. In contrast to Unices,
+    Windows do make an exception here and implement 64K granularity on top of
+    regular page-size for some legacy reasons. For more details see:
+      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_page_withkey(key, 10*sizeof(int)));
+ */
+inline void *malloc_page_withkey(PSI_memory_key_t key,
+                                 std::size_t size) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::alloc(size, key());
+}
+
+/** Dynamically allocates system page-aligned storage of given size.
+
+    Actual page-alignment, and thus page-size, will depend on CPU architecture
+    but in general page is traditionally mostly 4K large. In contrast to Unices,
+    Windows do make an exception here and implement 64K granularity on top of
+    regular page-size for some legacy reasons. For more details see:
+      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_page(10*sizeof(int)));
+ */
+inline void *malloc_page(std::size_t size) noexcept {
+  return ut::malloc_page_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                 size);
+}
+
+/** Retrieves the size of corresponding page-aligned storage.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_page*() variants.
+ */
+inline size_t page_allocation_size(void *ptr) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::datalen(ptr);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::malloc_page*() variants.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_page*() variants.
+
+    Example:
+     ut::free_page(ptr);
+ */
+inline void free_page(void *ptr) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::free(ptr);
 }
 
 /** Dynamically allocates storage of given size and at the address aligned to

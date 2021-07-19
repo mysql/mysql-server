@@ -2572,7 +2572,7 @@ static int i_s_fts_index_cache_fill_one_index(
 
   index_charset = index_cache->charset;
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(ut_malloc_nokey(conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(ut::malloc(conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Go through each word in the index cache */
@@ -2638,7 +2638,7 @@ static int i_s_fts_index_cache_fill_one_index(
     }
   }
 
-  ut_free(conv_str.f_str);
+  ut::free(conv_str.f_str);
 
   return 0;
 }
@@ -2881,7 +2881,7 @@ static void i_s_fts_index_table_free_one_fetch(
       fts_node_t *node;
 
       node = static_cast<fts_node_t *>(ib_vector_get(word->nodes, j));
-      ut_free(node->ilist);
+      ut::free(node->ilist);
     }
 
     fts_word_free(word);
@@ -3012,7 +3012,7 @@ static int i_s_fts_index_table_fill_one_index(
 
   index_charset = fts_index_get_charset(index);
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(ut_malloc_nokey(conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(ut::malloc(conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Iterate through each auxiliary table as described in
@@ -3060,7 +3060,7 @@ static int i_s_fts_index_table_fill_one_index(
   }
 
 func_exit:
-  ut_free(conv_str.f_str);
+  ut::free(conv_str.f_str);
   mem_heap_free(heap);
 
   return ret;
@@ -3300,7 +3300,7 @@ static int i_s_fts_config_fill(
     fts_config_get_value(trx, &fts_table, key_name, &value);
 
     if (allocated) {
-      ut_free(key_name);
+      ut::free(key_name);
     }
 
     OK(field_store_string(fields[FTS_CONFIG_KEY], fts_config_key[i]));
@@ -3954,8 +3954,8 @@ static int i_s_innodb_buffer_stats_fill_table(
     return 0;
   }
 
-  pool_info = (buf_pool_info_t *)ut_zalloc_nokey(srv_buf_pool_instances *
-                                                 sizeof *pool_info);
+  pool_info =
+      (buf_pool_info_t *)ut::zalloc(srv_buf_pool_instances * sizeof *pool_info);
 
   /* Walk through each buffer pool */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -3974,7 +3974,7 @@ static int i_s_innodb_buffer_stats_fill_table(
     }
   }
 
-  ut_free(pool_info);
+  ut::free(pool_info);
 
   return status;
 }
@@ -6787,7 +6787,7 @@ static int i_s_dict_fill_innodb_tablespaces(
         break;
     }
 
-    ut_free(filepath);
+    ut::free(filepath);
   }
 
   if (file.m_total_size == static_cast<os_offset_t>(~0)) {

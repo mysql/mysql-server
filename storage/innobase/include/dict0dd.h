@@ -350,7 +350,7 @@ class DD_instant_col_val_coder {
 
  private:
   /** Clean-up last result */
-  void cleanup() { UT_DELETE_ARRAY(m_result); }
+  void cleanup() { ut::delete_arr(m_result); }
 
  private:
   /** The encoded or decoded stream */

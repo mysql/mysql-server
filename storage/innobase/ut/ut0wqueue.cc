@@ -49,7 +49,7 @@ struct ib_wqueue_t {
 /** Create a new work queue.
  @return work queue */
 ib_wqueue_t *ib_wqueue_create(void) {
-  ib_wqueue_t *wq = static_cast<ib_wqueue_t *>(ut_malloc_nokey(sizeof(*wq)));
+  ib_wqueue_t *wq = static_cast<ib_wqueue_t *>(ut::malloc(sizeof(*wq)));
 
   /* Function ib_wqueue_create() has not been used anywhere,
   not necessary to instrument this mutex */
@@ -70,7 +70,7 @@ void ib_wqueue_free(ib_wqueue_t *wq) /*!< in: work queue */
   ib_list_free(wq->items);
   os_event_destroy(wq->event);
 
-  ut_free(wq);
+  ut::free(wq);
 }
 
 /** Add a work item to the queue.

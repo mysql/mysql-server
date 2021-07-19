@@ -300,7 +300,7 @@ struct Context {
         : m_n_parser_threads(n_parser_threads) {}
 
     /** Destructor. */
-    ~FTS() noexcept { UT_DELETE(m_doc_id); }
+    ~FTS() noexcept { ut::delete_(m_doc_id); }
 
     /** FTS index. */
     dict_index_t *m_index{};

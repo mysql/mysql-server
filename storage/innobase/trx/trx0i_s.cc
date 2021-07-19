@@ -254,7 +254,7 @@ static void table_cache_free(
     /* the memory is actually allocated in
     table_cache_create_empty_row() */
     if (table_cache->chunks[i].base) {
-      ut_free(table_cache->chunks[i].base);
+      ut::free(table_cache->chunks[i].base);
       table_cache->chunks[i].base = nullptr;
     }
   }
@@ -326,7 +326,7 @@ static void *table_cache_create_empty_row(
     chunk = &table_cache->chunks[i];
 
     got_bytes = req_bytes;
-    chunk->base = ut_malloc_nokey(req_bytes);
+    chunk->base = ut::malloc(req_bytes);
 
     got_rows = got_bytes / table_cache->row_size;
 
@@ -1005,7 +1005,7 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
   release trx_i_s_cache_t::rw_lock */
 
   cache->rw_lock =
-      static_cast<rw_lock_t *>(ut_malloc_nokey(sizeof(*cache->rw_lock)));
+      static_cast<rw_lock_t *>(ut::malloc(sizeof(*cache->rw_lock)));
 
   rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 
@@ -1028,7 +1028,7 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
 void trx_i_s_cache_free(trx_i_s_cache_t *cache) /*!< in, own: cache to free */
 {
   rw_lock_free(cache->rw_lock);
-  ut_free(cache->rw_lock);
+  ut::free(cache->rw_lock);
   cache->rw_lock = nullptr;
 
   mutex_free(&cache->last_read_mutex);

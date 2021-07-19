@@ -987,21 +987,21 @@ class Fil_path {
   @param[in]	ext		the file extension to use
   @param[in]      trim            whether last name on the path should
                                   be trimmed
-  @return own: file name; must be freed by ut_free() */
+  @return own: file name; must be freed by ut::free() */
   [[nodiscard]] static char *make(const std::string &path_in,
                                   const std::string &name_in,
                                   ib_file_suffix ext, bool trim = false);
 
   /** Allocate and build a CFG file name from a path.
   @param[in]	path_in		Full path to the filename
-  @return own: file name; must be freed by ut_free() */
+  @return own: file name; must be freed by ut::free() */
   [[nodiscard]] static char *make_cfg(const std::string &path_in) {
     return (make(path_in, "", CFG));
   }
 
   /** Allocate and build a CFP file name from a path.
   @param[in]	path_in		Full path to the filename
-  @return own: file name; must be freed by ut_free() */
+  @return own: file name; must be freed by ut::free() */
   [[nodiscard]] static char *make_cfp(const std::string &path_in) {
     return (make(path_in, "", CFP));
   }
@@ -1012,7 +1012,7 @@ class Fil_path {
                                   the full path and filename
   @param[in]	name_in		nullptr if path is full, or
                                   Table/Tablespace name
-  @return own: file name; must be freed by ut_free() */
+  @return own: file name; must be freed by ut::free() */
   [[nodiscard]] static char *make_ibd(const std::string &path_in,
                                       const std::string &name_in) {
     return (make(path_in, name_in, IBD));
@@ -1021,7 +1021,7 @@ class Fil_path {
   /** Allocate and build a file name from a path, a table or
   tablespace name and a suffix.
   @param[in]	name_in		Table/Tablespace name
-  @return own: file name; must be freed by ut_free() */
+  @return own: file name; must be freed by ut::free() */
   [[nodiscard]] static char *make_ibd_from_table_name(
       const std::string &name_in) {
     return (make("", name_in, IBD));
@@ -1964,7 +1964,7 @@ tablespace.
 /** Convert a file name to a tablespace name. Strip the file name
 prefix and suffix, leaving only databasename/tablename.
 @param[in]	filename	directory/databasename/tablename.ibd
-@return database/tablename string, to be freed with ut_free() */
+@return database/tablename string, to be freed with ut::free() */
 [[nodiscard]] char *fil_path_to_space_name(const char *filename);
 
 /** Returns the space ID based on the tablespace name.

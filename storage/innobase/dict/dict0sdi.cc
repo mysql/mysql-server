@@ -273,7 +273,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 	uint32_t	uncompressed_sdi_len;
 	uint32_t	compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
 	byte*		compressed_sdi = static_cast<byte*>(
-		ut_malloc_nokey(compressed_sdi_len));
+		ut::malloc(compressed_sdi_len));
 
 	dberr_t	err = ib_sdi_get(
 		space_id, &ib_sdi_key,
@@ -295,7 +295,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 		decompressor.decompress();
         }
 
-	ut_free(compressed_sdi);
+	ut::free(compressed_sdi);
 
 	return(err != DB_SUCCESS);
 #endif /* TODO: Enable in WL#9761 */

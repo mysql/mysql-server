@@ -95,7 +95,7 @@ int fts_get_table_id(
 /** Construct the prefix name of an FTS table.
 @param[in]	fts_table	Auxiliary FTS table
 @param[in]	is_5_7		true if we need 5.7 compatible name
-@return own: table name, must be freed with ut_free() */
+@return own: table name, must be freed with ut::free() */
 static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
                                            bool is_5_7) {
   int len;
@@ -117,7 +117,7 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
 
   prefix_name_len = dbname_len + 4 + len + 1;
 
-  prefix_name = static_cast<char *>(ut_malloc_nokey(prefix_name_len));
+  prefix_name = static_cast<char *>(ut::malloc(prefix_name_len));
 
   len = sprintf(prefix_name, "%.*s%s%s", dbname_len, fts_table->parent,
                 is_5_7 ? FTS_PREFIX_5_7 : FTS_PREFIX, table_id);
@@ -129,7 +129,7 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
 }
 
 /** Construct the prefix name of an FTS table.
- @return own: table name, must be freed with ut_free() */
+ @return own: table name, must be freed with ut::free() */
 char *fts_get_table_name_prefix(
     const fts_table_t *fts_table) /*!< in: Auxiliary table type */
 {
@@ -138,7 +138,7 @@ char *fts_get_table_name_prefix(
 
 /** Construct the prefix name of an FTS table in 5.7 compatible name
 @param[in]	fts_table	Auxiliary FTS table
-@return own: table name, must be freed with ut_free() */
+@return own: table name, must be freed with ut::free() */
 char *fts_get_table_name_prefix_5_7(const fts_table_t *fts_table) {
   return (fts_get_table_name_prefix_low(fts_table, true));
 }
@@ -163,7 +163,7 @@ static void fts_get_table_name_low(const fts_table_t *fts_table,
   ut_a(strlen(prefix_name) + 1 + strlen(fts_table->suffix) ==
        static_cast<uint>(len));
 
-  ut_free(prefix_name);
+  ut::free(prefix_name);
 }
 
 /** Construct the name of an ancillary FTS table for the given table.
@@ -237,7 +237,7 @@ que_t *fts_parse_sql(
     dd_table_close(aux_table, thd, &mdl, false);
   }
 
-  ut_free(str);
+  ut::free(str);
 
   return (graph);
 }

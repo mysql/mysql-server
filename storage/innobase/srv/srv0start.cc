@@ -1310,11 +1310,10 @@ static void srv_undo_tablespaces_mark_construction_done() {
   /* Remove the truncate log files if they exist. */
   for (auto space_id : undo::s_under_construction) {
     /* Flush these pages to disk since they were not redo logged. */
-    auto flush_observer =
-        UT_NEW_NOKEY(Flush_observer(space_id, nullptr, nullptr));
+    auto flush_observer = ut::new_<Flush_observer>(space_id, nullptr, nullptr);
 
     flush_observer->flush();
-    UT_DELETE(flush_observer);
+    ut::delete_(flush_observer);
 
     space_id_t space_num = undo::id2num(space_id);
     if (undo::is_active_truncate_log_present(space_num)) {
@@ -1475,7 +1474,8 @@ called once during srv_start(). */
 void undo_spaces_init() {
   ut_ad(undo::spaces == nullptr);
 
-  undo::spaces = UT_NEW(undo::Tablespaces(), mem_key_undo_spaces);
+  undo::spaces = ut::new_withkey<undo::Tablespaces>(
+      ut::make_psi_memory_key(mem_key_undo_spaces));
 
   trx_sys_undo_spaces_init();
 
@@ -1493,14 +1493,14 @@ void undo_spaces_deinit() {
     /* There can't be any active transactions. */
     undo::spaces->clear();
 
-    UT_DELETE(undo::spaces);
+    ut::delete_(undo::spaces);
     undo::spaces = nullptr;
   }
 
   trx_sys_undo_spaces_deinit();
 
   if (undo::space_id_bank != nullptr) {
-    UT_DELETE_ARRAY(undo::space_id_bank);
+    ut::delete_arr(undo::space_id_bank);
     undo::space_id_bank = nullptr;
   }
 }
@@ -2037,8 +2037,8 @@ dberr_t srv_start(bool create_new_db) {
     mutex_create(LATCH_ID_SRV_MONITOR_FILE, &srv_monitor_file_mutex);
 
     if (srv_innodb_status) {
-      srv_monitor_file_name = static_cast<char *>(ut_malloc_nokey(
-          MySQL_datadir_path.len() + 20 + sizeof "/innodb_status."));
+      srv_monitor_file_name = static_cast<char *>(
+          ut::malloc(MySQL_datadir_path.len() + 20 + sizeof "/innodb_status."));
 
       sprintf(srv_monitor_file_name, "%s/innodb_status." ULINTPF,
               static_cast<const char *>(MySQL_datadir_path),
@@ -2567,7 +2567,7 @@ files_checked:
     srv_dict_metadata = recv_recovery_from_checkpoint_finish(*log_sys, false);
 
     if (recv_sys->is_cloned_db && srv_dict_metadata != nullptr) {
-      UT_DELETE(srv_dict_metadata);
+      ut::delete_(srv_dict_metadata);
       srv_dict_metadata = nullptr;
     }
 
@@ -2597,7 +2597,7 @@ files_checked:
         fil_space_release(space);
       }
 
-      dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+      dict_persist->table_buffer = ut::new_<DDTableBuffer>();
       /* We write redo log here. We assume that there should be enough room in
       log files, supposing log_free_check() works fine before crash. */
       srv_dict_metadata->store();
@@ -2924,7 +2924,7 @@ static void apply_dynamic_metadata() {
 
   if (srv_dict_metadata != nullptr) {
     srv_dict_metadata->apply();
-    UT_DELETE(srv_dict_metadata);
+    ut::delete_(srv_dict_metadata);
     srv_dict_metadata = nullptr;
   }
 }
@@ -3663,7 +3663,7 @@ void srv_shutdown() {
     srv_monitor_file = nullptr;
     if (srv_monitor_file_name) {
       unlink(srv_monitor_file_name);
-      ut_free(srv_monitor_file_name);
+      ut::free(srv_monitor_file_name);
     }
     mutex_free(&srv_monitor_file_mutex);
   }
@@ -3690,7 +3690,7 @@ void srv_shutdown() {
   btr_search_sys_free();
   undo_spaces_deinit();
 
-  UT_DELETE(srv_dict_metadata);
+  ut::delete_(srv_dict_metadata);
 
   os_aio_free();
   que_close();
@@ -3732,7 +3732,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
 
   strcpy(filename, filepath);
 
-  ut_free(filepath);
+  ut::free(filepath);
 }
 
 /** Call std::_Exit(3) */

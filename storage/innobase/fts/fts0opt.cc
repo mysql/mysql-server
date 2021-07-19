@@ -386,7 +386,7 @@ static fts_node_t *fts_optimize_read_node(fts_word_t *word, /*!< in: */
 
       case 4: /* ILIST */
         node->ilist_size_alloc = node->ilist_size = len;
-        node->ilist = static_cast<byte *>(ut_malloc_nokey(len));
+        node->ilist = static_cast<byte *>(ut::malloc(len));
         if (len > 0) memcpy(node->ilist, data, len);
         break;
 
@@ -564,7 +564,7 @@ static byte *fts_zip_read_word(
 
         ut_a(zip->pos < ib_vector_size(zip->blocks));
 
-        ut_free(ib_vector_getp(zip->blocks, prev));
+        ut::free(ib_vector_getp(zip->blocks, prev));
         ib_vector_set(zip->blocks, prev, &null);
       }
 
@@ -614,7 +614,7 @@ static byte *fts_zip_read_word(
   if (zip->status != Z_OK) {
     for (ulint i = 0; i < ib_vector_size(zip->blocks); ++i) {
       if (ib_vector_getp(zip->blocks, i)) {
-        ut_free(ib_vector_getp(zip->blocks, i));
+        ut::free(ib_vector_getp(zip->blocks, i));
         ib_vector_set(zip->blocks, i, &null);
       }
     }
@@ -665,7 +665,7 @@ static ibool fts_fetch_index_words(
     if (zip->zp->avail_out == 0) {
       byte *block;
 
-      block = static_cast<byte *>(ut_malloc_nokey(zip->block_sz));
+      block = static_cast<byte *>(ut::malloc(zip->block_sz));
 
       ib_vector_push(zip->blocks, &block);
 
@@ -719,7 +719,7 @@ static void fts_zip_deflate_end(
 
     ut_a(zip->zp->avail_out == 0);
 
-    block = static_cast<byte *>(ut_malloc_nokey(FTS_MAX_WORD_LEN + 1));
+    block = static_cast<byte *>(ut::malloc(FTS_MAX_WORD_LEN + 1));
 
     ib_vector_push(zip->blocks, &block);
 
@@ -1078,16 +1078,16 @@ static dberr_t fts_optimize_encode_node(
 
     new_size = enc_len > FTS_ILIST_MAX_SIZE ? enc_len : FTS_ILIST_MAX_SIZE;
 
-    node->ilist = static_cast<byte *>(ut_malloc_nokey(new_size));
+    node->ilist = static_cast<byte *>(ut::malloc(new_size));
     node->ilist_size_alloc = new_size;
 
   } else if ((node->ilist_size + enc_len) > node->ilist_size_alloc) {
     ulint new_size = node->ilist_size + enc_len;
-    byte *ilist = static_cast<byte *>(ut_malloc_nokey(new_size));
+    byte *ilist = static_cast<byte *>(ut::malloc(new_size));
 
     memcpy(ilist, node->ilist, node->ilist_size);
 
-    ut_free(node->ilist);
+    ut::free(node->ilist);
 
     node->ilist = ilist;
     node->ilist_size_alloc = new_size;
@@ -1296,7 +1296,7 @@ static ib_vector_t *fts_optimize_word(
       enc.src_last_doc_id = 0;
       enc.src_ilist_ptr = nullptr;
 
-      ut_free(src_node->ilist);
+      ut::free(src_node->ilist);
 
       src_node->ilist = nullptr;
       src_node->ilist_size = src_node->ilist_size_alloc = 0;
@@ -1386,7 +1386,7 @@ static ib_vector_t *fts_optimize_word(
       }
     }
 
-    ut_free(node->ilist);
+    ut::free(node->ilist);
     node->ilist = nullptr;
     node->ilist_size = node->ilist_size_alloc = 0;
   }
@@ -1575,7 +1575,7 @@ static void fts_optimize_free(
   fts_doc_ids_free(optim->to_delete);
   fts_optimize_graph_free(&optim->graph);
 
-  ut_free(optim->name_prefix);
+  ut::free(optim->name_prefix);
 
   /* This will free the heap from which optim itself was allocated. */
   mem_heap_free(heap);

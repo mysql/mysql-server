@@ -1380,7 +1380,7 @@ inline void dict_foreign_free(
     dict_foreign_t *foreign) /*!< in, own: foreign key struct */
 {
   if (foreign->v_cols != nullptr) {
-    UT_DELETE(foreign->v_cols);
+    ut::delete_(foreign->v_cols);
   }
 
   mem_heap_free(foreign->heap);
@@ -2475,7 +2475,7 @@ inline void dict_table_mutex_destroy(dict_table_t *table) {
   if (table->mutex_created == os_once::DONE) {
     if (table->mutex != nullptr) {
       mutex_free(table->mutex);
-      UT_DELETE(table->mutex);
+      ut::delete_(table->mutex);
     }
   }
 }
@@ -2488,12 +2488,12 @@ inline void dict_table_autoinc_destroy(dict_table_t *table) {
   if (table->autoinc_mutex_created == os_once::DONE) {
     if (table->autoinc_mutex != nullptr) {
       mutex_free(table->autoinc_mutex);
-      UT_DELETE(table->autoinc_mutex);
+      ut::delete_(table->autoinc_mutex);
     }
 
     if (table->autoinc_persisted_mutex != nullptr) {
       mutex_free(table->autoinc_persisted_mutex);
-      UT_DELETE(table->autoinc_persisted_mutex);
+      ut::delete_(table->autoinc_persisted_mutex);
     }
   }
 }
@@ -2525,7 +2525,7 @@ inline void dict_index_zip_pad_mutex_destroy(dict_index_t *index) {
   if (index->zip_pad.mutex_created == os_once::DONE &&
       index->zip_pad.mutex != nullptr) {
     mutex_free(index->zip_pad.mutex);
-    UT_DELETE(index->zip_pad.mutex);
+    ut::delete_(index->zip_pad.mutex);
   }
 }
 #endif /* !UNIV_HOTBACKUP */

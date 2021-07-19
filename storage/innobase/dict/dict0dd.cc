@@ -77,7 +77,7 @@ const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
                                              size_t *out_len) {
   cleanup();
 
-  m_result = UT_NEW_ARRAY_NOKEY(byte, in_len * 2);
+  m_result = ut::new_arr<byte>(ut::Count{in_len * 2});
   char *result = reinterpret_cast<char *>(m_result);
 
   for (size_t i = 0; i < in_len; ++i) {
@@ -99,7 +99,7 @@ const byte *DD_instant_col_val_coder::decode(const char *stream, size_t in_len,
 
   cleanup();
 
-  m_result = UT_NEW_ARRAY_NOKEY(byte, in_len / 2);
+  m_result = ut::new_arr<byte>(ut::Count{in_len / 2});
 
   for (size_t i = 0; i < in_len / 2; ++i) {
     char c1 = stream[i * 2];
@@ -3744,7 +3744,7 @@ for a given space_id.
 @param[in,out]	heap		heap for store file name.
 @param[in]	table		dict table
 @param[in]	dd_table	dd table obj
-@return First filepath (caller must invoke ut_free() on it)
+@return First filepath (caller must invoke ut::free() on it)
 @retval nullptr if no mysql.tablespace_datafiles entry was found. */
 template <typename Table>
 char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
@@ -3840,7 +3840,7 @@ void dd_get_and_save_data_dir_path(dict_table_t *table, const Table *dd_table,
   if (heap != nullptr) {
     mem_heap_free(heap);
   } else {
-    ut_free(path);
+    ut::free(path);
   }
 }
 
@@ -3869,7 +3869,7 @@ void dd_get_meta_data_filename(dict_table_t *table, dd::Table *dd_table,
 
   strcpy(filename, filepath);
 
-  ut_free(filepath);
+  ut::free(filepath);
 }
 
 /** Opens a tablespace for dd_load_table_one()
@@ -3925,7 +3925,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     } else {
       /* Make the temporary tablespace name. */
       shared_space_name =
-          static_cast<char *>(ut_malloc_nokey(strlen(general_space_name) + 20));
+          static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
 
       sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
               static_cast<ulint>(table->space));
@@ -3944,7 +3944,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   auto is_already_opened = [&]() {
     if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
       dd_get_and_save_data_dir_path(table, dd_table, true);
-      ut_free(shared_space_name);
+      ut::free(shared_space_name);
       return true;
     }
     return false;
@@ -3972,8 +3972,8 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     have happened yet. */
     table->ibd_file_missing = TRUE;
 
-    ut_free(shared_space_name);
-    ut_free(filepath);
+    ut::free(shared_space_name);
+    ut::free(filepath);
     return;
   }
 
@@ -4012,7 +4012,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     table->ibd_file_missing = TRUE;
   }
 
-  ut_free(shared_space_name);
+  ut::free(shared_space_name);
 }
 
 /** Get the space name from mysql.tablespaces for a given space_id.
@@ -4020,7 +4020,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 @param[in,out]	heap		heap for store file name.
 @param[in]	table		dict table
 @param[in]	dd_table	dd table obj
-@return First filepath (caller must invoke ut_free() on it)
+@return First filepath (caller must invoke ut::free() on it)
 @retval nullptr if no mysql.tablespace_datafiles entry was found. */
 template <typename Table>
 char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
@@ -5434,7 +5434,7 @@ static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
                                         table->name.m_name, filename, false,
                                         dd_space_id);
 
-    ut_free(filename);
+    ut::free(filename);
     if (ret) {
       return false;
     }
@@ -5918,7 +5918,7 @@ bool dd_rename_fts_table(const dict_table_t *table, const char *old_name) {
       ut_a(false);
     }
 
-    ut_free(new_path);
+    ut::free(new_path);
   }
 
   if (client->update(dd_table)) {

@@ -1455,8 +1455,8 @@ dberr_t row_ins_check_foreign_constraint(
       }
 
       if (check_table && check_index) {
-        tmp_foreign = static_cast<dict_foreign_t *>(
-            ut_malloc_nokey(sizeof(dict_foreign_t)));
+        tmp_foreign =
+            static_cast<dict_foreign_t *>(ut::malloc(sizeof(dict_foreign_t)));
 
         memcpy(tmp_foreign, foreign, sizeof(*foreign));
 
@@ -1716,7 +1716,7 @@ exit_func:
   if (tmp_open) {
     dict_sys_mutex_enter();
     dd_table_close(check_table, thd, &mdl, true);
-    ut_free(tmp_foreign);
+    ut::free(tmp_foreign);
     dict_sys_mutex_exit();
   }
 

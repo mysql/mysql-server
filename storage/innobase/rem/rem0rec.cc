@@ -1103,9 +1103,9 @@ static rec_t *rec_copy_prefix_to_buf_old(
   prefix_len = area_start + area_end;
 
   if ((*buf == nullptr) || (*buf_size < prefix_len)) {
-    ut_free(*buf);
+    ut::free(*buf);
     *buf_size = prefix_len;
-    *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
+    *buf = static_cast<byte *>(ut::malloc(prefix_len));
   }
 
   ut_memcpy(*buf, rec - area_start, prefix_len);
@@ -1225,9 +1225,9 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
   prefix_len += rec - (lens + 1);
 
   if ((*buf == nullptr) || (*buf_size < prefix_len)) {
-    ut_free(*buf);
+    ut::free(*buf);
     *buf_size = prefix_len;
-    *buf = static_cast<byte *>(ut_malloc_nokey(prefix_len));
+    *buf = static_cast<byte *>(ut::malloc(prefix_len));
   }
 
   memcpy(*buf, lens + 1, prefix_len);

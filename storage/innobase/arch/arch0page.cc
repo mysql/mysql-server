@@ -94,11 +94,11 @@ Arch_Group::~Arch_Group() {
   }
 
   if (m_active_file_name != nullptr) {
-    ut_free(m_active_file_name);
+    ut::free(m_active_file_name);
   }
 
   if (m_durable_file_name != nullptr) {
-    ut_free(m_durable_file_name);
+    ut::free(m_durable_file_name);
   }
 
   if (!is_durable()) {
@@ -157,7 +157,8 @@ dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
     return (err);
   }
 
-  byte *buf = static_cast<byte *>(ut_zalloc(file_size, mem_key_archive));
+  byte *buf = static_cast<byte *>(
+      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_archive), file_size));
 
   /* Make sure that the physical file size is the same as logical by filling
   the file with all-zeroes. Page archiver recovery expects that the physical
@@ -168,7 +169,7 @@ dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
     s_dblwr_file_ctx.flush();
   }
 
-  ut_free(buf);
+  ut::free(buf);
 
   return (err);
 }
@@ -181,7 +182,8 @@ dberr_t Arch_Group::build_active_file_name() {
     return (DB_SUCCESS);
   }
 
-  m_active_file_name = static_cast<char *>(ut_malloc(length, mem_key_archive));
+  m_active_file_name = static_cast<char *>(
+      ut::malloc_withkey(ut::make_psi_memory_key(mem_key_archive), length));
 
   if (m_active_file_name == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -203,7 +205,8 @@ dberr_t Arch_Group::build_durable_file_name() {
     return (DB_SUCCESS);
   }
 
-  m_durable_file_name = static_cast<char *>(ut_malloc(length, mem_key_archive));
+  m_durable_file_name = static_cast<char *>(
+      ut::malloc_withkey(ut::make_psi_memory_key(mem_key_archive), length));
 
   if (m_durable_file_name == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -1508,8 +1511,9 @@ bool ArchPageData::init() {
 
   /* Create memory blocks. */
   for (index = 0; index < m_num_data_blocks; index++) {
-    cur_blk = UT_NEW(Arch_Block(mem_ptr, m_block_size, ARCH_DATA_BLOCK),
-                     mem_key_archive);
+    cur_blk =
+        ut::new_withkey<Arch_Block>(ut::make_psi_memory_key(mem_key_archive),
+                                    mem_ptr, m_block_size, ARCH_DATA_BLOCK);
 
     if (cur_blk == nullptr) {
       return (false);
@@ -1519,8 +1523,9 @@ bool ArchPageData::init() {
     mem_ptr += m_block_size;
   }
 
-  m_reset_block = UT_NEW(Arch_Block(mem_ptr, m_block_size, ARCH_RESET_BLOCK),
-                         mem_key_archive);
+  m_reset_block =
+      ut::new_withkey<Arch_Block>(ut::make_psi_memory_key(mem_key_archive),
+                                  mem_ptr, m_block_size, ARCH_RESET_BLOCK);
 
   if (m_reset_block == nullptr) {
     return (false);
@@ -1528,8 +1533,9 @@ bool ArchPageData::init() {
 
   mem_ptr += m_block_size;
 
-  m_partial_flush_block = UT_NEW(
-      Arch_Block(mem_ptr, m_block_size, ARCH_DATA_BLOCK), mem_key_archive);
+  m_partial_flush_block =
+      ut::new_withkey<Arch_Block>(ut::make_psi_memory_key(mem_key_archive),
+                                  mem_ptr, m_block_size, ARCH_DATA_BLOCK);
 
   if (m_partial_flush_block == nullptr) {
     return (false);
@@ -1541,17 +1547,17 @@ bool ArchPageData::init() {
 /** Delete blocks and buffer */
 void ArchPageData::clean() {
   for (auto &block : m_data_blocks) {
-    UT_DELETE(block);
+    ut::delete_(block);
     block = nullptr;
   }
 
   if (m_reset_block != nullptr) {
-    UT_DELETE(m_reset_block);
+    ut::delete_(m_reset_block);
     m_reset_block = nullptr;
   }
 
   if (m_partial_flush_block != nullptr) {
-    UT_DELETE(m_partial_flush_block);
+    ut::delete_(m_partial_flush_block);
     m_partial_flush_block = nullptr;
   }
 
@@ -1586,7 +1592,8 @@ Arch_Page_Sys::Arch_Page_Sys() {
   mutex_create(LATCH_ID_PAGE_ARCH, &m_mutex);
   mutex_create(LATCH_ID_PAGE_ARCH_OPER, &m_oper_mutex);
 
-  m_ctx = UT_NEW(Page_Arch_Client_Ctx(true), mem_key_archive);
+  m_ctx = ut::new_withkey<Page_Arch_Client_Ctx>(
+      ut::make_psi_memory_key(mem_key_archive), true);
 
   DBUG_EXECUTE_IF("page_archiver_simulate_more_archived_files",
                   ARCH_PAGE_FILE_CAPACITY = 8;
@@ -1600,14 +1607,14 @@ Arch_Page_Sys::~Arch_Page_Sys() {
   ut_ad(m_current_group == nullptr);
 
   for (auto group : m_group_list) {
-    UT_DELETE(group);
+    ut::delete_(group);
   }
 
   Arch_Group::shutdown();
 
   m_data.clean();
 
-  UT_DELETE(m_ctx);
+  ut::delete_(m_ctx);
   mutex_free(&m_mutex);
   mutex_free(&m_oper_mutex);
 }
@@ -2480,9 +2487,9 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
     m_last_lsn = log_sys_lsn;
     m_last_reset_file_index = 0;
 
-    m_current_group =
-        UT_NEW(Arch_Group(log_sys_lsn, ARCH_PAGE_FILE_HDR_SIZE, &m_mutex),
-               mem_key_archive);
+    m_current_group = ut::new_withkey<Arch_Group>(
+        ut::make_psi_memory_key(mem_key_archive), log_sys_lsn,
+        ARCH_PAGE_FILE_HDR_SIZE, &m_mutex);
 
     if (m_current_group == nullptr) {
       acquired_oper_mutex = false;
@@ -2703,7 +2710,7 @@ void Arch_Page_Sys::release(Arch_Group *group, bool is_durable,
 
   if (!group->is_referenced()) {
     m_group_list.remove(group);
-    UT_DELETE(group);
+    ut::delete_(group);
   }
 
   arch_mutex_exit();
@@ -2913,7 +2920,7 @@ bool Arch_Page_Sys::archive(bool *wait) {
     /* Cleanup group, if no reference. */
     if (!m_current_group->is_referenced()) {
       m_group_list.remove(m_current_group);
-      UT_DELETE(m_current_group);
+      ut::delete_(m_current_group);
     }
 
     m_current_group = nullptr;
@@ -3155,7 +3162,7 @@ uint Arch_Page_Sys::purge(lsn_t *purge_lsn) {
 
     if (!group->is_active() && group->get_end_lsn() <= group_purged_lsn) {
       it = m_group_list.erase(it);
-      UT_DELETE(group);
+      ut::delete_(group);
 
       DBUG_PRINT("page_archiver", ("Purged entire group."));
 

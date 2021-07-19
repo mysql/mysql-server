@@ -106,8 +106,8 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   if (m_need_observer) {
     const auto space_id = m_new_table->space;
 
-    auto observer =
-        UT_NEW(Flush_observer(space_id, m_trx, m_stage), mem_key_ddl);
+    auto observer = ut::new_withkey<Flush_observer>(
+        ut::make_psi_memory_key(mem_key_ddl), space_id, m_trx, m_stage);
 
     trx_set_flush_observer(m_trx, observer);
   }
@@ -275,7 +275,8 @@ dberr_t Context::fts_create(dict_index_t *index) noexcept {
   /* There can only be one FTS index per table. */
   ut_a(m_fts.m_ptr == nullptr);
 
-  m_fts.m_ptr = UT_NEW(ddl::FTS(*this, index, m_old_table), mem_key_ddl);
+  m_fts.m_ptr = ut::new_withkey<ddl::FTS>(ut::make_psi_memory_key(mem_key_ddl),
+                                          *this, index, m_old_table);
 
   if (m_fts.m_ptr != nullptr) {
     return m_fts.m_ptr->init(m_fts.m_n_parser_threads);
@@ -339,7 +340,7 @@ dberr_t Context::cleanup(dberr_t err) noexcept {
 
     observer->flush();
 
-    UT_DELETE(observer);
+    ut::delete_(observer);
 
     m_trx->flush_observer = nullptr;
 

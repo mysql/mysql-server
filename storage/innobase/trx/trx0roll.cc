@@ -355,8 +355,8 @@ static void trx_roll_savepoint_free(
 {
   UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-  ut_free(savep->name);
-  ut_free(savep);
+  ut::free(savep->name);
+  ut::free(savep);
 }
 
 /** Frees savepoint structs starting from savep.
@@ -509,13 +509,13 @@ dberr_t trx_savepoint_for_mysql(
 
     UT_LIST_REMOVE(trx->trx_savepoints, savep);
 
-    ut_free(savep->name);
-    ut_free(savep);
+    ut::free(savep->name);
+    ut::free(savep);
   }
 
   /* Create a new savepoint and add it as the last in the list */
 
-  savep = static_cast<trx_named_savept_t *>(ut_malloc_nokey(sizeof(*savep)));
+  savep = static_cast<trx_named_savept_t *>(ut::malloc(sizeof(*savep)));
 
   savep->name = mem_strdup(savepoint_name);
 

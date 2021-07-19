@@ -36,14 +36,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace ddl {
 
 RTree_inserter::RTree_inserter(Context &ctx, dict_index_t *index) noexcept
-    : m_dtuples(UT_NEW(Tuples(), mem_key_ddl)), m_index(index), m_ctx(ctx) {
+    : m_dtuples(ut::new_withkey<Tuples>(ut::make_psi_memory_key(mem_key_ddl))),
+      m_index(index),
+      m_ctx(ctx) {
   m_dml_heap = mem_heap_create(512);
   m_dtuple_heap = mem_heap_create(512);
 }
 
 RTree_inserter::~RTree_inserter() noexcept {
   if (m_dtuples != nullptr) {
-    UT_DELETE(m_dtuples);
+    ut::delete_(m_dtuples);
   }
   if (m_dtuple_heap != nullptr) {
     mem_heap_free(m_dtuple_heap);

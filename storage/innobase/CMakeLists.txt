@@ -52,7 +52,8 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
   page/zipdecompress.cc
   rem/rec.cc
   ut/crc32.cc
-  ut/ut.cc)
+  ut/ut.cc
+  ut/ut0new.cc)
 
 SET(INNOBASE_SOURCES
   api/api0api.cc
@@ -252,7 +253,7 @@ ENDIF()
 
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
-  innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
+    innodb_zipdecompress PRIVATE DISABLE_PSI_MEMORY UNIV_LIBRARY UNIV_NO_ERR_MSGS)
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)

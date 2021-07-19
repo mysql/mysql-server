@@ -583,7 +583,7 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       ptr += SERVER_UUID_LEN;
 
       if (key_id == DEFAULT_MASTER_KEY_ID) {
-        *master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
+        *master_key = static_cast<byte *>(ut::zalloc(KEY_LEN));
         memcpy(*master_key, DEFAULT_MASTER_KEY, strlen(DEFAULT_MASTER_KEY));
       } else {
         ut_ad(strlen(srv_uuid) != 0);
@@ -656,7 +656,7 @@ bool Encryption::decode_encryption_info(space_id_t space_id,
                               KEY_LEN, my_aes_256_ecb, nullptr, false);
 
     if (master_key_id == DEFAULT_MASTER_KEY_ID) {
-      ut_free(master_key);
+      ut::free(master_key);
       /* Re-encrypt tablespace key with current master key */
     } else {
       my_free(master_key);
@@ -827,9 +827,8 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
     os << std::endl;
     ib::info() << os.str();
 
-    byte *check_buf =
-        static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE));
+    byte *check_buf = static_cast<byte *>(ut::malloc(OS_FILE_LOG_BLOCK_SIZE));
+    byte *buf2 = static_cast<byte *>(ut::malloc(OS_FILE_LOG_BLOCK_SIZE));
 
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
@@ -845,8 +844,8 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
       ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
       ib::fatal() << msg.str();
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -880,8 +879,8 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *check_buf = static_cast<byte *>(ut::malloc(src_len));
+    byte *buf2 = static_cast<byte *>(ut::malloc(src_len));
 
     memcpy(check_buf, dst, src_len);
 
@@ -895,8 +894,8 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
       ut_print_buf_hex(msg, check_buf, src_len);
       ib::fatal() << msg.str();
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -1051,8 +1050,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *check_buf = static_cast<byte *>(ut::malloc(src_len));
+    byte *buf2 = static_cast<byte *>(ut::malloc(src_len));
 
     memcpy(check_buf, dst, src_len);
 
@@ -1064,8 +1063,8 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
       ut_print_buf(stderr, check_buf, src_len);
       ut_ad(0);
     }
-    ut_free(buf2);
-    ut_free(check_buf);
+    ut::free(buf2);
+    ut::free(check_buf);
 
     fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
   }

@@ -85,7 +85,7 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
     rw_lock_free(&table->rw_locks[i]);
   }
 
-  ut_free(table->rw_locks);
+  ut::free(table->rw_locks);
   table->rw_locks = nullptr;
 
   table->n_sync_obj = 0;

@@ -140,10 +140,10 @@ void meb_print_page_header(const page_t *page) {
 }
 #endif /* UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
+//#ifndef UNIV_HOTBACKUP
 PSI_memory_key mem_log_recv_page_hash_key;
 PSI_memory_key mem_log_recv_space_hash_key;
-#endif /* !UNIV_HOTBACKUP */
+//#endif /* !UNIV_HOTBACKUP */
 
 /** true when recv_init_crash_recovery() has been called. */
 bool recv_needed_recovery;
@@ -253,7 +253,7 @@ lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len) {
 /** Destructor */
 MetadataRecover::~MetadataRecover() {
   for (auto &table : m_tables) {
-    UT_DELETE(table.second);
+    ut::delete_(table.second);
   }
 }
 
@@ -266,7 +266,7 @@ PersistentTableMetadata *MetadataRecover::getMetadata(table_id_t id) {
   PersistentTables::iterator iter = m_tables.find(id);
 
   if (iter == m_tables.end()) {
-    metadata = UT_NEW_NOKEY(PersistentTableMetadata(id, 0));
+    metadata = ut::new_<PersistentTableMetadata>(id, 0);
 
     m_tables.insert(std::make_pair(id, metadata));
   } else {
@@ -392,7 +392,7 @@ void recv_sys_create() {
     return;
   }
 
-  recv_sys = static_cast<recv_sys_t *>(ut_zalloc_nokey(sizeof(*recv_sys)));
+  recv_sys = static_cast<recv_sys_t *>(ut::zalloc(sizeof(*recv_sys)));
 
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
   mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
@@ -427,8 +427,8 @@ static bool recv_sys_resize_buf() {
                           : recv_sys->buf_len * 2;
 
   /* Resize the buffer to the new size. */
-  recv_sys->buf =
-      static_cast<byte *>(ut_realloc(recv_sys->buf, recv_sys->buf_len));
+  recv_sys->buf = static_cast<byte *>(ut::realloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, recv_sys->buf, recv_sys->buf_len));
 
   ut_ad(recv_sys->buf != nullptr);
 
@@ -456,12 +456,12 @@ static void recv_sys_finish() {
       }
     }
 
-    UT_DELETE(recv_sys->spaces);
+    ut::delete_(recv_sys->spaces);
   }
 
-  ut_free(recv_sys->buf);
+  ut::free(recv_sys->buf);
   ut::aligned_free(recv_sys->last_block);
-  UT_DELETE(recv_sys->metadata_recover);
+  ut::delete_(recv_sys->metadata_recover);
 
   recv_sys->buf = nullptr;
   recv_sys->spaces = nullptr;
@@ -488,7 +488,7 @@ void recv_sys_close() {
 
 #endif /* !UNIV_HOTBACKUP */
 
-  UT_DELETE(recv_sys->dblwr);
+  ut::delete_(recv_sys->dblwr);
 
   call_destructor(&recv_sys->deleted);
   call_destructor(&recv_sys->missing_ids);
@@ -501,7 +501,7 @@ void recv_sys_close() {
 #endif /* !UNIV_HOTBACKUP */
   mutex_free(&recv_sys->writer_mutex);
 
-  ut_free(recv_sys);
+  ut::free(recv_sys);
   recv_sys = nullptr;
 }
 
@@ -611,7 +611,7 @@ void recv_sys_init(ulint max_mem) {
     recv_n_pool_free_frames = 512;
   }
 
-  recv_sys->buf = static_cast<byte *>(ut_malloc_nokey(RECV_PARSING_BUF_SIZE));
+  recv_sys->buf = static_cast<byte *>(ut::malloc(RECV_PARSING_BUF_SIZE));
   recv_sys->buf_len = RECV_PARSING_BUF_SIZE;
 
   recv_sys->len = 0;
@@ -619,7 +619,8 @@ void recv_sys_init(ulint max_mem) {
 
   using Spaces = recv_sys_t::Spaces;
 
-  recv_sys->spaces = UT_NEW(Spaces(), mem_log_recv_space_hash_key);
+  recv_sys->spaces = ut::new_withkey<Spaces>(
+      ut::make_psi_memory_key(mem_log_recv_space_hash_key));
 
   recv_sys->n_addrs = 0;
 
@@ -635,7 +636,7 @@ void recv_sys_init(ulint max_mem) {
 
   recv_max_page_lsn = 0;
 
-  recv_sys->dblwr = UT_NEW_NOKEY(dblwr::recv::DBLWR());
+  recv_sys->dblwr = ut::new_<dblwr::recv::DBLWR>();
 
   new (&recv_sys->deleted) recv_sys_t::Missing_Ids();
 
@@ -645,7 +646,7 @@ void recv_sys_init(ulint max_mem) {
 
   recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
-  recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
+  recv_sys->metadata_recover = ut::new_<MetadataRecover>();
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -665,11 +666,12 @@ static void recv_sys_empty_hash() {
     }
   }
 
-  UT_DELETE(recv_sys->spaces);
+  ut::delete_(recv_sys->spaces);
 
   using Spaces = recv_sys_t::Spaces;
 
-  recv_sys->spaces = UT_NEW(Spaces(), mem_log_recv_space_hash_key);
+  recv_sys->spaces = ut::new_withkey<Spaces>(
+      ut::make_psi_memory_key(mem_log_recv_space_hash_key));
 }
 
 /** Check the consistency of a log header block.
@@ -854,19 +856,19 @@ void recv_sys_free() {
   if (recv_sys->keys != nullptr) {
     for (auto &key : *recv_sys->keys) {
       if (key.ptr != nullptr) {
-        ut_free(key.ptr);
+        ut::free(key.ptr);
         key.ptr = nullptr;
       }
 
       if (key.iv != nullptr) {
-        ut_free(key.iv);
+        ut::free(key.iv);
         key.iv = nullptr;
       }
     }
 
     recv_sys->keys->swap(*recv_sys->keys);
 
-    UT_DELETE(recv_sys->keys);
+    ut::delete_(recv_sys->keys);
     recv_sys->keys = nullptr;
   }
 
@@ -2665,7 +2667,7 @@ void recv_recover_page_func(
       /* We have to copy the record body to a separate
       buffer */
 
-      buf = static_cast<byte *>(ut_malloc_nokey(recv->len));
+      buf = static_cast<byte *>(ut::malloc(recv->len));
 
       recv_data_copy_to_buf(buf, recv);
     } else if (recv->data != nullptr) {
@@ -2747,7 +2749,7 @@ void recv_recover_page_func(
     }
 
     if (recv->len > RECV_DATA_BLOCK_SIZE) {
-      ut_free(buf);
+      ut::free(buf);
     }
   }
 

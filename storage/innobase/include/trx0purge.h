@@ -344,29 +344,29 @@ struct Tablespace {
     vector. This constructor is only used in the global
     undo::Tablespaces object where rollback segments are
     tracked. */
-    m_rsegs = UT_NEW_NOKEY(Rsegs());
+    m_rsegs = ut::new_<Rsegs>();
   }
 
   /** Destructor */
   ~Tablespace() {
     if (m_space_name != nullptr) {
-      ut_free(m_space_name);
+      ut::free(m_space_name);
       m_space_name = nullptr;
     }
 
     if (m_file_name != nullptr) {
-      ut_free(m_file_name);
+      ut::free(m_file_name);
       m_file_name = nullptr;
     }
 
     if (m_log_file_name != nullptr) {
-      ut_free(m_log_file_name);
+      ut::free(m_log_file_name);
       m_log_file_name = nullptr;
     }
 
     /* Clear the cached rollback segments.  */
     if (m_rsegs != nullptr) {
-      UT_DELETE(m_rsegs);
+      ut::delete_(m_rsegs);
       m_rsegs = nullptr;
     }
   }
@@ -660,7 +660,7 @@ class Tablespaces {
   This does not deallocate any memory. */
   void clear() {
     for (auto undo_space : m_spaces) {
-      UT_DELETE(undo_space);
+      ut::delete_(undo_space);
     }
     m_spaces.clear();
   }

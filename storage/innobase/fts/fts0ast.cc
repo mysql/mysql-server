@@ -54,7 +54,7 @@ enum fts_ast_visit_pass_t {
 static fts_ast_node_t *fts_ast_node_create(void) {
   fts_ast_node_t *node;
 
-  node = (fts_ast_node_t *)ut_zalloc_nokey(sizeof(*node));
+  node = (fts_ast_node_t *)ut::zalloc(sizeof(*node));
 
   return (node);
 }
@@ -322,7 +322,7 @@ fts_ast_node_t *fts_ast_free_node(
   /*!< Get next node before freeing the node itself */
   next_node = node->next;
 
-  ut_free(node);
+  ut::free(node);
 
   return (next_node);
 }
@@ -408,7 +408,7 @@ void fts_ast_state_free(fts_ast_state_t *state) /*!< in: ast state to free */
       node->term.ptr = nullptr;
     }
 
-    ut_free(node);
+    ut::free(node);
     node = next;
   }
 
@@ -656,10 +656,10 @@ fts_ast_string_t *fts_ast_string_create(const byte *str, ulint len) {
 
   ut_ad(len > 0);
 
-  ast_str = static_cast<fts_ast_string_t *>(
-      ut_malloc_nokey(sizeof(fts_ast_string_t)));
+  ast_str =
+      static_cast<fts_ast_string_t *>(ut::malloc(sizeof(fts_ast_string_t)));
 
-  ast_str->str = static_cast<byte *>(ut_malloc_nokey(len + 1));
+  ast_str->str = static_cast<byte *>(ut::malloc(len + 1));
 
   ast_str->len = len;
   memcpy(ast_str->str, str, len);
@@ -673,8 +673,8 @@ Free an ast string instance
 @param[in,out] ast_str		string to free */
 void fts_ast_string_free(fts_ast_string_t *ast_str) {
   if (ast_str != nullptr) {
-    ut_free(ast_str->str);
-    ut_free(ast_str);
+    ut::free(ast_str->str);
+    ut::free(ast_str);
   }
 }
 

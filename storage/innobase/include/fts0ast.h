@@ -36,14 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "mem0mem.h"
 
-#ifdef UNIV_PFS_MEMORY
-
-#define malloc(A) ut_malloc_nokey(A)
-#define free(A) ut_free(A)
-#define realloc(P, A) ut_realloc(P, A)
-
-#endif /* UNIV_PFS_MEMORY */
-
 /* The type of AST Node */
 enum fts_ast_type_t {
   FTS_AST_OPER,               /*!< Operator */

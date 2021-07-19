@@ -136,7 +136,7 @@ dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
   v_col->num_base = num_base;
 
   /* Initialize the index list for virtual columns */
-  v_col->v_indexes = UT_NEW_NOKEY(dict_v_idx_list());
+  v_col->v_indexes = ut::new_<dict_v_idx_list>();
 
   v_col->m_col.is_visible = is_visible;
   return (v_col);
@@ -153,7 +153,7 @@ void dict_mem_table_add_s_col(dict_table_t *table, ulint num_base) {
   ut_ad(col != nullptr);
 
   if (table->s_cols == nullptr) {
-    table->s_cols = UT_NEW_NOKEY(dict_s_col_list());
+    table->s_cols = ut::new_<dict_s_col_list>();
   }
 
   s_col.m_col = col;
@@ -423,7 +423,7 @@ static void dict_mem_fill_vcol_has_index(const dict_index_t *index,
 
       if (v_idx.index == index) {
         if (*v_cols == nullptr) {
-          *v_cols = UT_NEW_NOKEY(dict_vcol_set());
+          *v_cols = ut::new_<dict_vcol_set>();
         }
 
         (*v_cols)->insert(v_col);
@@ -479,7 +479,7 @@ static void dict_mem_fill_vcol_set_for_base_col(const char *col_name,
     for (ulint j = 0; j < v_col->num_base; j++) {
       if (strcmp(col_name, table->get_col_name(v_col->base_col[j]->ind)) == 0) {
         if (*v_cols == nullptr) {
-          *v_cols = UT_NEW_NOKEY(dict_vcol_set());
+          *v_cols = ut::new_<dict_vcol_set>();
         }
 
         (*v_cols)->insert(v_col);
@@ -537,7 +537,7 @@ void dict_mem_table_free_foreign_vcol_set(dict_table_t *table) {
     foreign = *it;
 
     if (foreign->v_cols != nullptr) {
-      UT_DELETE(foreign->v_cols);
+      ut::delete_(foreign->v_cols);
       foreign->v_cols = nullptr;
     }
   }
@@ -725,7 +725,7 @@ void dict_mem_index_free(dict_index_t *index) /*!< in: index */
 
     mutex_destroy(&index->rtr_ssn.mutex);
     mutex_destroy(&index->rtr_track->rtr_active_mutex);
-    UT_DELETE(index->rtr_track->rtr_active);
+    ut::delete_(index->rtr_track->rtr_active);
   }
   dict_index_remove_from_v_col_list(index);
 #endif /* !UNIV_HOTBACKUP */

@@ -257,7 +257,7 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
   }
 
   page_no_t *page_arr = static_cast<page_no_t *>(
-      ut_malloc_nokey(sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
+      ut::malloc(sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
 
   ulint num_entries = 0;
 
@@ -349,7 +349,7 @@ scan_again:
 
   /* Drop any remaining batch of search hashed pages. */
   buf_LRU_drop_page_hash_batch(space_id, page_size, page_arr, num_entries);
-  ut_free(page_arr);
+  ut::free(page_arr);
 }
 
 /** While flushing (or removing dirty) pages from a tablespace we don't

@@ -436,7 +436,7 @@ fts_query_lcs(
 	ulint	r = len_p1;
 	ulint	c = len_p2;
 	ulint	size = (r + 1) * (c + 1) * sizeof(ulint);
-	ulint*	table = (ulint*) ut_malloc_nokey(size);
+	ulint*	table = (ulint*) ut::malloc(size);
 
 	/* Traverse the table backwards, from the last row to the first and
 	also from the last column to the first. We compute the smaller
@@ -474,7 +474,7 @@ fts_query_lcs(
 	fts_print_lcs_table(table, r, c);
 	printf("\nLen=%lu\n", len);
 
-	ut_free(table);
+	ut::free(table);
 
 	return(len);
 }
@@ -722,7 +722,7 @@ static void fts_query_remove_doc_id(
   /* Check if the doc id is deleted and it's in our set. */
   if (fts_bsearch(array, 0, static_cast<int>(size), doc_id) < 0 &&
       rbt_search(query->doc_ids, &parent, &doc_id) == 0) {
-    ut_free(rbt_remove_node(query->doc_ids, parent.last));
+    ut::free(rbt_remove_node(query->doc_ids, parent.last));
 
     ut_ad(query->total_size >= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
     query->total_size -= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t);
@@ -853,7 +853,7 @@ static void fts_query_free_doc_ids(
       ranking->words = nullptr;
     }
 
-    ut_free(rbt_remove_node(doc_ids, node));
+    ut::free(rbt_remove_node(doc_ids, node));
 
     ut_ad(query->total_size >= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
     query->total_size -= SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t);
@@ -2692,7 +2692,7 @@ func_exit:
 }
 
 /** Create a wildcard string. It's the responsibility of the caller to
- free the byte* pointer. It's allocated using ut_malloc_nokey().
+ free the byte* pointer. It's allocated using ut::malloc().
  @return ptr to allocated memory */
 static byte *fts_query_get_token(
     fts_ast_node_t *node, /*!< in: the current sub tree */
@@ -2709,7 +2709,7 @@ static byte *fts_query_get_token(
   token->f_str = node->term.ptr->str;
 
   if (node->term.wildcard) {
-    token->f_str = static_cast<byte *>(ut_malloc_nokey(str_len + 2));
+    token->f_str = static_cast<byte *>(ut::malloc(str_len + 2));
     token->f_len = str_len + 1;
 
     memcpy(token->f_str, node->term.ptr->str, str_len);
@@ -2795,7 +2795,7 @@ static dberr_t fts_query_visitor(
       query->error = fts_query_execute(query, &token);
 
       if (ptr) {
-        ut_free(ptr);
+        ut::free(ptr);
       }
 
       break;
@@ -3353,7 +3353,7 @@ static fts_result_t *fts_query_prepare_result(
   DBUG_TRACE;
 
   if (result == nullptr) {
-    result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
+    result = static_cast<fts_result_t *>(ut::zalloc(sizeof(*result)));
 
     result->rankings_by_id =
         rbt_create(sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3468,7 +3468,7 @@ static fts_result_t *fts_query_get_result(
     result = fts_query_prepare_result(query, result);
   } else {
     /* Create an empty result instance. */
-    result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
+    result = static_cast<fts_result_t *>(ut::zalloc(sizeof(*result)));
   }
 
   return result;
@@ -3527,7 +3527,7 @@ static void fts_query_free(fts_query_t *query) /*!< in: query instance to free*/
   }
 
   if (query->word_vector != nullptr) {
-    UT_DELETE(query->word_vector);
+    ut::delete_(query->word_vector);
   }
 
   if (query->heap) {
@@ -3657,7 +3657,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
 
   query.word_map =
       rbt_create_arg_cmp(sizeof(fts_string_t), innobase_fts_text_cmp, charset);
-  query.word_vector = UT_NEW_NOKEY(word_vector_t());
+  query.word_vector = ut::new_<word_vector_t>();
   query.error = DB_SUCCESS;
 
   /* Setup the RB tree that will be used to collect per term
@@ -3709,7 +3709,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   the ut_malloc'ed result and so remember to free it before return. */
 
   lc_query_str_len = query_len * charset->casedn_multiply + charset->mbmaxlen;
-  lc_query_str = static_cast<byte *>(ut_zalloc_nokey(lc_query_str_len));
+  lc_query_str = static_cast<byte *>(ut::zalloc(lc_query_str_len));
 
   /* For binary collations, a case sensitive search is
   performed. Hence don't convert to lower case. */
@@ -3759,7 +3759,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     query.error = fts_ast_visit(FTS_NONE, ast, fts_query_visitor, &query,
                                 &will_be_ignored);
     if (query.error == DB_INTERRUPTED) {
-      ut_free(lc_query_str);
+      ut::free(lc_query_str);
       error = DB_INTERRUPTED;
       goto func_exit;
     }
@@ -3780,7 +3780,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
       *result = fts_query_get_result(&query, *result);
     }
     if (trx_is_interrupted(trx)) {
-      ut_free(lc_query_str);
+      ut::free(lc_query_str);
       if (result != nullptr) {
         fts_query_free_result(*result);
       }
@@ -3790,10 +3790,10 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     error = query.error;
   } else {
     /* still return an empty result set */
-    *result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(**result)));
+    *result = static_cast<fts_result_t *>(ut::zalloc(sizeof(**result)));
   }
 
-  ut_free(lc_query_str);
+  ut::free(lc_query_str);
 
   if (fts_enable_diag_print && (*result)) {
     auto diff_time = ut_time_monotonic_ms() - start_time_ms;
@@ -3833,7 +3833,7 @@ void fts_query_free_result(
       result->rankings_by_rank = nullptr;
     }
 
-    ut_free(result);
+    ut::free(result);
     result = nullptr;
   }
 }
@@ -3979,7 +3979,7 @@ static void fts_print_doc_id(
       it as prefix. */
       while (rbt_search_cmp(result_doc.tokens, &parent, &word, nullptr,
                             innobase_fts_text_cmp_prefix) == 0) {
-        ut_free(rbt_remove_node(result_doc.tokens, parent.last));
+        ut::free(rbt_remove_node(result_doc.tokens, parent.last));
       }
     } else {
       /* We don't check return value, because the word may

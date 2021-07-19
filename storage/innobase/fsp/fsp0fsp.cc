@@ -4936,7 +4936,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
   for (auto &record : ts_encrypt_ddl_records) {
     ut_ad(!record->get_deletable());
-    UT_DELETE(record);
+    ut::delete_(record);
   }
   ts_encrypt_ddl_records.clear();
 

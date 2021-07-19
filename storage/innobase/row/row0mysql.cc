@@ -941,7 +941,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
   btr_pcur_reset(prebuilt->pcur);
   btr_pcur_reset(prebuilt->clust_pcur);
 
-  ut_free(prebuilt->mysql_template);
+  ut::free(prebuilt->mysql_template);
 
   if (prebuilt->ins_graph) {
     que_graph_free_recursive(prebuilt->ins_graph);
@@ -981,7 +981,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked) {
       ptr += 4;
     }
 
-    ut_free(base);
+    ut::free(base);
   }
 
   if (prebuilt->rtr_info) {
@@ -3040,8 +3040,8 @@ error_handling:
   trx->op_info = "";
   trx->dict_operation = TRX_DICT_OP_NONE;
 
-  ut_free(table_name);
-  ut_free(index_name);
+  ut::free(table_name);
+  ut::free(index_name);
 
   return (err);
 }
@@ -3183,7 +3183,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3225,7 +3225,7 @@ loop:
     if (thd != nullptr) {
       /* All these kind of table should not be
       intrinsic ones, so this is no need later. */
-      UT_DELETE(thd_to_innodb_session(thd));
+      ut::delete_(thd_to_innodb_session(thd));
       thd_to_innodb_session(thd) = nullptr;
     }
 
@@ -3248,9 +3248,9 @@ already_dropped:
                           << ut_get_name(nullptr, drop->table_name)
                           << " in background drop queue.",
 
-      ut_free(drop->table_name);
+      ut::free(drop->table_name);
 
-  ut_free(drop);
+  ut::free(drop);
 
   mutex_exit(&row_drop_list_mutex);
 
@@ -3284,8 +3284,8 @@ static ibool row_add_table_to_background_drop_list(
     }
   }
 
-  auto drop = static_cast<row_mysql_drop_t *>(
-      ut_malloc_nokey(sizeof(row_mysql_drop_t)));
+  auto drop =
+      static_cast<row_mysql_drop_t *>(ut::malloc(sizeof(row_mysql_drop_t)));
 
   drop->table_name = mem_strdup(name);
 
@@ -4128,7 +4128,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
 funct_exit:
 
-  ut_free(filepath);
+  ut::free(filepath);
 
   if (locked_dictionary) {
     row_mysql_unlock_data_dictionary(trx);
@@ -4642,7 +4642,7 @@ skip_parallel_read:
 
   ulint cnt = 1000;
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  auto buf = static_cast<byte *>(ut_malloc_nokey(bufsize));
+  auto buf = static_cast<byte *>(ut::malloc(bufsize));
   auto heap = mem_heap_create(100);
 
   auto ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -4677,7 +4677,7 @@ loop:
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:
-      ut_free(buf);
+      ut::free(buf);
       mem_heap_free(heap);
 
       return (ret);

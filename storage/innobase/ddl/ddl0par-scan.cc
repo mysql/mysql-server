@@ -403,7 +403,8 @@ dberr_t Parallel_cursor::copy_row(size_t thread_id, Row &row) noexcept {
 }
 
 Cursor *Cursor::create_cursor(ddl::Context &ctx) noexcept {
-  return UT_NEW(Parallel_cursor(ctx), mem_key_ddl);
+  return ut::new_withkey<Parallel_cursor>(ut::make_psi_memory_key(mem_key_ddl),
+                                          ctx);
 }
 
 }  // namespace ddl

@@ -312,7 +312,7 @@ void lock_sys_create(
 
   lock_sys_sz = sizeof(*lock_sys) + srv_max_n_threads * sizeof(srv_slot_t);
 
-  lock_sys = static_cast<lock_sys_t *>(ut_zalloc_nokey(lock_sys_sz));
+  lock_sys = static_cast<lock_sys_t *>(ut::zalloc(lock_sys_sz));
 
   new (lock_sys) lock_sys_t{};
 
@@ -422,13 +422,13 @@ void lock_sys_close(void) {
     }
   }
   for (auto &cached_lock_mode_name : lock_cached_lock_mode_names) {
-    ut_free(const_cast<char *>(cached_lock_mode_name.second));
+    ut::free(const_cast<char *>(cached_lock_mode_name.second));
   }
   lock_cached_lock_mode_names.clear();
 
   lock_sys->~lock_sys_t();
 
-  ut_free(lock_sys);
+  ut::free(lock_sys);
 
   lock_sys = nullptr;
 }
@@ -5840,7 +5840,7 @@ const char *lock_get_mode_str(const lock_t *lock) /*!< in: lock */
     return "UNKNOWN";
   }
   auto name_string = name_stream.str();
-  char *name_buffer = (char *)ut_malloc_nokey(name_string.length() + 1);
+  char *name_buffer = (char *)ut::malloc(name_string.length() + 1);
   strcpy(name_buffer, name_string.c_str());
   lock_cached_lock_mode_names[key] = name_buffer;
   return (name_buffer);
@@ -6378,7 +6378,7 @@ void lock_trx_alloc_locks(trx_t *trx) {
   constructed, but how can we (the lock-sys) "know" about it and why risk? */
   trx_mutex_enter(trx);
   ulint sz = REC_LOCK_SIZE * REC_LOCK_CACHE;
-  byte *ptr = reinterpret_cast<byte *>(ut_malloc_nokey(sz));
+  byte *ptr = reinterpret_cast<byte *>(ut::malloc(sz));
 
   /* We allocate one big chunk and then distribute it among
   the rest of the elements. The allocated chunk pointer is always
@@ -6389,7 +6389,7 @@ void lock_trx_alloc_locks(trx_t *trx) {
   }
 
   sz = TABLE_LOCK_SIZE * TABLE_LOCK_CACHE;
-  ptr = reinterpret_cast<byte *>(ut_malloc_nokey(sz));
+  ptr = reinterpret_cast<byte *>(ut::malloc(sz));
 
   for (ulint i = 0; i < TABLE_LOCK_CACHE; ++i, ptr += TABLE_LOCK_SIZE) {
     trx->lock.table_pool.push_back(reinterpret_cast<ib_lock_t *>(ptr));

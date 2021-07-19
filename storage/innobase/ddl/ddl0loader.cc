@@ -275,11 +275,11 @@ Loader::~Loader() noexcept {
   }
 
   for (auto builder : m_builders) {
-    UT_DELETE(builder);
+    ut::delete_(builder);
   }
 
   if (m_taskq != nullptr) {
-    UT_DELETE(m_taskq);
+    ut::delete_(m_taskq);
   }
 }
 
@@ -290,7 +290,8 @@ dberr_t Loader::load() noexcept {
 
   const bool sync = m_ctx.m_max_threads <= 1;
 
-  m_taskq = UT_NEW(Task_queue(m_ctx, sync), mem_key_ddl);
+  m_taskq = ut::new_withkey<Task_queue>(ut::make_psi_memory_key(mem_key_ddl),
+                                        m_ctx, sync);
 
   if (m_taskq == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -355,7 +356,7 @@ dberr_t Loader::load() noexcept {
 
   ut_ad(m_taskq->validate() || err != DB_SUCCESS);
 
-  UT_DELETE(m_taskq);
+  ut::delete_(m_taskq);
   m_taskq = nullptr;
 
   return err;
@@ -376,7 +377,8 @@ dberr_t Loader::prepare() noexcept {
   }
 
   for (size_t i = 0; i < m_ctx.m_indexes.size(); ++i) {
-    auto builder = UT_NEW(Builder(m_ctx, *this, i), mem_key_ddl);
+    auto builder = ut::new_withkey<Builder>(
+        ut::make_psi_memory_key(mem_key_ddl), m_ctx, *this, i);
 
     if (builder == nullptr) {
       return DB_OUT_OF_MEMORY;
@@ -462,7 +464,7 @@ dberr_t Loader::scan_and_build_indexes() noexcept {
   }
 
   if (cursor != nullptr) {
-    UT_DELETE(cursor);
+    ut::delete_(cursor);
     cursor = nullptr;
   }
 
@@ -484,7 +486,7 @@ dberr_t Loader::build_all() noexcept {
 
   if (m_ctx.m_fts.m_ptr != nullptr) {
     /* Clean up FTS psort related resource */
-    UT_DELETE(m_ctx.m_fts.m_ptr);
+    ut::delete_(m_ctx.m_fts.m_ptr);
     m_ctx.m_fts.m_ptr = nullptr;
   }
 

@@ -66,7 +66,7 @@ void Datafile::init(const char *name, uint32_t flags) {
 void Datafile::shutdown() {
   close();
 
-  ut_free(m_name);
+  ut::free(m_name);
   m_name = nullptr;
 
   free_filepath();
@@ -74,12 +74,12 @@ void Datafile::shutdown() {
   free_first_page();
 
   if (m_encryption_key != nullptr) {
-    ut_free(m_encryption_key);
+    ut::free(m_encryption_key);
     m_encryption_key = nullptr;
   }
 
   if (m_encryption_iv != nullptr) {
-    ut_free(m_encryption_iv);
+    ut::free(m_encryption_iv);
     m_encryption_iv = nullptr;
   }
 }
@@ -229,7 +229,7 @@ name of the file with its extension and absolute or relative path.
 @param[in]	filepath	filepath to set */
 void Datafile::set_filepath(const char *filepath) {
   free_filepath();
-  m_filepath = static_cast<char *>(ut_malloc_nokey(strlen(filepath) + 1));
+  m_filepath = static_cast<char *>(ut::malloc(strlen(filepath) + 1));
   ::strcpy(m_filepath, filepath);
   set_filename();
 }
@@ -237,7 +237,7 @@ void Datafile::set_filepath(const char *filepath) {
 /** Free the filepath buffer. */
 void Datafile::free_filepath() {
   if (m_filepath != nullptr) {
-    ut_free(m_filepath);
+    ut::free(m_filepath);
     m_filepath = nullptr;
     m_filename = nullptr;
   }
@@ -275,7 +275,7 @@ general tablespace, so just call it that for now. The value of m_name
 will be freed in the destructor.
 @param[in]	name	Tablespace Name if known, nullptr if not */
 void Datafile::set_name(const char *name) {
-  ut_free(m_name);
+  ut::free(m_name);
 
   if (name != nullptr) {
     m_name = mem_strdup(name);
@@ -290,8 +290,7 @@ void Datafile::set_name(const char *name) {
   } else {
 #ifndef UNIV_HOTBACKUP
     /* Give this general tablespace a temporary name. */
-    m_name =
-        static_cast<char *>(ut_malloc_nokey(strlen(general_space_name) + 20));
+    m_name = static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
 
     sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name, m_space_id);
 #else  /* !UNIV_HOTBACKUP */
@@ -301,7 +300,7 @@ void Datafile::set_name(const char *name) {
     It will also not cause name clashes with remote tablespaces or
     tables in schema directory. */
     size_t len = strlen(m_filepath);
-    m_name = static_cast<char *>(ut_malloc_nokey(len + 1));
+    m_name = static_cast<char *>(ut::malloc(len + 1));
     memcpy(m_name, m_filepath, len);
     m_name[len] = '\0';
 #endif /* !UNIV_HOTBACKUP */
@@ -637,9 +636,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   first page can be decrypt by master key, otherwise, this table
   can't be open. And for importing, we skip checking it. */
   if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
-    m_encryption_key =
-        static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
-    m_encryption_iv = static_cast<byte *>(ut_zalloc_nokey(Encryption::KEY_LEN));
+    m_encryption_key = static_cast<byte *>(ut::zalloc(Encryption::KEY_LEN));
+    m_encryption_iv = static_cast<byte *>(ut::zalloc(Encryption::KEY_LEN));
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Got from file %u:", m_space_id);
 #endif
@@ -653,8 +651,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
       m_is_valid = false;
       free_first_page();
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
+      ut::free(m_encryption_key);
+      ut::free(m_encryption_iv);
       m_encryption_key = nullptr;
       m_encryption_iv = nullptr;
       return (DB_INVALID_ENCRYPTION_META);
@@ -667,8 +665,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
     if (recv_recovery_is_on() &&
         memcmp(m_encryption_key, m_encryption_iv, Encryption::KEY_LEN) == 0) {
-      ut_free(m_encryption_key);
-      ut_free(m_encryption_iv);
+      ut::free(m_encryption_key);
+      ut::free(m_encryption_iv);
       m_encryption_key = nullptr;
       m_encryption_iv = nullptr;
     }
@@ -683,8 +681,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   if (fil_space_read_name_and_filepath(m_space_id, &prev_name,
                                        &prev_filepath)) {
     if (0 == strcmp(m_filepath, prev_filepath)) {
-      ut_free(prev_name);
-      ut_free(prev_filepath);
+      ut::free(prev_name);
+      ut::free(prev_filepath);
       return (DB_SUCCESS);
     }
 
@@ -696,8 +694,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                              << ". Cannot open filepath: " << m_filepath
                              << " which uses the same space ID.";
 
-    ut_free(prev_name);
-    ut_free(prev_filepath);
+    ut::free(prev_name);
+    ut::free(prev_filepath);
 
     m_is_valid = false;
 

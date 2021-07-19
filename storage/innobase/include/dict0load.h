@@ -83,7 +83,7 @@ char *dict_get_first_table_name_in_db(
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID
-@return First filepath (caller must invoke ut_free() on it)
+@return First filepath (caller must invoke ut::free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
 char *dict_get_first_path(ulint space_id);
 

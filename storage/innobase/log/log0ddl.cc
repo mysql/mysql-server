@@ -650,7 +650,7 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
       continue;
     }
 
-    DDL_Record *record = UT_NEW_NOKEY(DDL_Record());
+    DDL_Record *record = ut::new_<DDL_Record>();
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }
@@ -676,7 +676,7 @@ dberr_t DDL_Log_Table::search(ulint thread_id, DDL_Records &records) {
   }
 
   for (auto record : records_of_thread_id) {
-    UT_DELETE(record);
+    ut::delete_(record);
   }
 
   return (error);
@@ -714,7 +714,7 @@ dberr_t DDL_Log_Table::search_by_id(ulint id, dict_index_t *index,
       continue;
     }
 
-    DDL_Record *record = UT_NEW_NOKEY(DDL_Record());
+    DDL_Record *record = ut::new_<DDL_Record>();
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }
@@ -1493,7 +1493,7 @@ dberr_t Log_DDL::replay_all() {
 
   for (auto record : records) {
     if (record->get_deletable()) {
-      UT_DELETE(record);
+      ut::delete_(record);
     }
   }
 
@@ -1524,7 +1524,7 @@ dberr_t Log_DDL::replay_by_thread_id(ulint thread_id) {
 
   for (auto record : records) {
     if (record->get_deletable()) {
-      UT_DELETE(record);
+      ut::delete_(record);
     }
   }
 

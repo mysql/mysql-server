@@ -56,7 +56,7 @@ class ReadView {
 
     /**
     Destructor */
-    ~ids_t() { UT_DELETE_ARRAY(m_ptr); }
+    ~ids_t() { ut::delete_arr(m_ptr); }
 
     /** Try and increase the size of the array. Old elements are copied across.
     It is a no-op if n is < current size.

@@ -95,11 +95,11 @@ Ha_innopart_share::Ha_innopart_share(TABLE_SHARE *table_share)
 Ha_innopart_share::~Ha_innopart_share() {
   ut_ad(m_ref_count == 0);
   if (m_table_parts != nullptr) {
-    ut_free(m_table_parts);
+    ut::free(m_table_parts);
     m_table_parts = nullptr;
   }
   if (m_index_mapping != nullptr) {
-    ut_free(m_index_mapping);
+    ut::free(m_index_mapping);
     m_index_mapping = nullptr;
   }
 }
@@ -208,7 +208,7 @@ void Ha_innopart_share::set_v_templ(TABLE *table, dict_table_t *ib_table,
   if (ib_table->n_v_cols > 0) {
     for (ulint i = 0; i < m_tot_parts; i++) {
       if (m_table_parts[i]->vc_templ == nullptr) {
-        m_table_parts[i]->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+        m_table_parts[i]->vc_templ = ut::new_<dict_vcol_templ_t>();
         m_table_parts[i]->vc_templ->vtempl = nullptr;
       } else if (m_table_parts[i]->get_ref_count() == 1) {
         /* Clean and refresh the template */
@@ -272,8 +272,8 @@ dict_table_t **Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
 
   uint tot_parts = part_info->get_tot_partitions();
   size_t table_parts_size = sizeof(dict_table_t *) * tot_parts;
-  dict_table_t **table_parts = static_cast<dict_table_t **>(
-      ut_zalloc(table_parts_size, mem_key_partitioning));
+  dict_table_t **table_parts = static_cast<dict_table_t **>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), table_parts_size));
   if (table_parts == nullptr) {
     return (nullptr);
   }
@@ -296,7 +296,7 @@ dict_table_t **Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
                             &table_parts[i])) {
       ut_ad(table_parts[i] == nullptr);
       close_table_parts(table_parts, i);
-      ut_free(table_parts);
+      ut::free(table_parts);
       return (nullptr);
     }
     i++;
@@ -339,7 +339,7 @@ bool Ha_innopart_share::set_table_parts_and_indexes(
       ut_ad(m_table_parts[i] == table_parts[i]);
     }
 #endif /* UNIV_DEBUG */
-    ut_free(table_parts);
+    ut::free(table_parts);
     return (false);
   }
 
@@ -366,8 +366,8 @@ bool Ha_innopart_share::set_table_parts_and_indexes(
   if (mysql_num_index != 0) {
     size_t alloc_size =
         mysql_num_index * m_tot_parts * sizeof(*m_index_mapping);
-    m_index_mapping = static_cast<dict_index_t **>(
-        ut_zalloc(alloc_size, mem_key_partitioning));
+    m_index_mapping = static_cast<dict_index_t **>(ut::zalloc_withkey(
+        ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
     if (m_index_mapping == nullptr) {
       /* Report an error if index_mapping continues to be
       NULL and mysql_num_index is a non-zero value. */
@@ -419,7 +419,7 @@ bool Ha_innopart_share::set_table_parts_and_indexes(
     }
   }
   if (!index_loaded && m_index_mapping != nullptr) {
-    ut_free(m_index_mapping);
+    ut::free(m_index_mapping);
     m_index_mapping = nullptr;
   }
 
@@ -472,12 +472,12 @@ void Ha_innopart_share::close_table_parts(void) {
 
   if (m_table_parts != nullptr) {
     close_table_parts(m_table_parts, m_tot_parts);
-    ut_free(m_table_parts);
+    ut::free(m_table_parts);
     m_table_parts = nullptr;
   }
 
   if (m_index_mapping != nullptr) {
-    ut_free(m_index_mapping);
+    ut::free(m_index_mapping);
     m_index_mapping = nullptr;
   }
 
@@ -1121,25 +1121,26 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
 #endif /* HA_INNOPART_SUPPORTS_FULLTEXT */
 
   size_t alloc_size = sizeof(*m_ins_node_parts) * m_tot_parts;
-  m_ins_node_parts =
-      static_cast<ins_node_t **>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_ins_node_parts = static_cast<ins_node_t **>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_upd_node_parts) * m_tot_parts;
-  m_upd_node_parts =
-      static_cast<upd_node_t **>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_upd_node_parts = static_cast<upd_node_t **>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_blob_heap_array();
 
   alloc_size = sizeof(*m_trx_id_parts) * m_tot_parts;
-  m_trx_id_parts =
-      static_cast<trx_id_t *>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_trx_id_parts = static_cast<trx_id_t *>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_row_read_type_parts) * m_tot_parts;
-  m_row_read_type_parts =
-      static_cast<ulint *>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_row_read_type_parts = static_cast<ulint *>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_bitset) * UT_BITS_IN_BYTES(m_tot_parts);
-  m_bitset = static_cast<byte *>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_bitset = static_cast<byte *>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   if (m_ins_node_parts == nullptr || m_upd_node_parts == nullptr ||
       m_blob_heap_parts == nullptr || m_trx_id_parts == nullptr ||
@@ -1260,23 +1261,23 @@ int ha_innopart::close() {
   }
 
   if (m_ins_node_parts != nullptr) {
-    ut_free(m_ins_node_parts);
+    ut::free(m_ins_node_parts);
     m_ins_node_parts = nullptr;
   }
   if (m_upd_node_parts != nullptr) {
-    ut_free(m_upd_node_parts);
+    ut::free(m_upd_node_parts);
     m_upd_node_parts = nullptr;
   }
   if (m_trx_id_parts != nullptr) {
-    ut_free(m_trx_id_parts);
+    ut::free(m_trx_id_parts);
     m_trx_id_parts = nullptr;
   }
   if (m_row_read_type_parts != nullptr) {
-    ut_free(m_row_read_type_parts);
+    ut::free(m_row_read_type_parts);
     m_row_read_type_parts = nullptr;
   }
 
-  ut_free(m_bitset);
+  ut::free(m_bitset);
   m_bitset = nullptr;
 
   MONITOR_INC(MONITOR_TABLE_CLOSE);
@@ -1583,7 +1584,8 @@ int ha_innopart::init_record_priority_queue_for_parts(uint used_parts) {
   if (need_clust_index) {
     alloc_size *= 2;
   }
-  buf = ut_zalloc(alloc_size, mem_key_partitioning);
+  buf = ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_partitioning),
+                           alloc_size);
   if (buf == nullptr) {
     return true;
   }
@@ -1593,7 +1595,8 @@ int ha_innopart::init_record_priority_queue_for_parts(uint used_parts) {
   }
   /* mapping from part_id to pcur. */
   alloc_size = m_tot_parts * sizeof(*m_pcur_map);
-  buf = ut_zalloc(alloc_size, mem_key_partitioning);
+  buf = ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_partitioning),
+                           alloc_size);
   if (buf == nullptr) {
     return true;
   }
@@ -1621,7 +1624,7 @@ inline void ha_innopart::destroy_record_priority_queue_for_parts() {
         btr_pcur_free(&m_clust_pcur_parts[i]);
       }
     }
-    ut_free(m_pcur_parts);
+    ut::free(m_pcur_parts);
     m_clust_pcur_parts = nullptr;
     m_pcur_parts = nullptr;
     /* Reset the original m_prebuilt->pcur. */
@@ -1629,7 +1632,7 @@ inline void ha_innopart::destroy_record_priority_queue_for_parts() {
     m_prebuilt->clust_pcur = m_clust_pcur;
   }
   if (m_pcur_map != nullptr) {
-    ut_free(m_pcur_map);
+    ut::free(m_pcur_map);
     m_pcur_map = nullptr;
   }
 }
@@ -2052,8 +2055,8 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
-  Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
-      max_threads, sampling_seed, sampling_percentage, sampling_method));
+  Histogram_sampler *sampler = ut::new_<Histogram_sampler>(
+      max_threads, sampling_seed, sampling_percentage, sampling_method);
 
   if (sampler == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -2114,7 +2117,7 @@ int ha_innopart::sample_next(void *scan_ctx, uchar *buf) {
 
 int ha_innopart::sample_end(void *scan_ctx) {
   auto sampler = static_cast<Histogram_sampler *>(scan_ctx);
-  UT_DELETE(sampler);
+  ut::delete_(sampler);
 
   return 0;
 }
@@ -4142,8 +4145,8 @@ mem_heap_t **ha_innopart::alloc_blob_heap_array() {
   DBUG_TRACE;
 
   const ulint len = sizeof(mem_heap_t *) * m_tot_parts;
-  m_blob_heap_parts =
-      static_cast<mem_heap_t **>(ut_zalloc(len, mem_key_partitioning));
+  m_blob_heap_parts = static_cast<mem_heap_t **>(
+      ut::zalloc_withkey(ut::make_psi_memory_key(mem_key_partitioning), len));
   if (m_blob_heap_parts == nullptr) {
     return nullptr;
   }
@@ -4157,7 +4160,7 @@ void ha_innopart::free_blob_heap_array() {
 
   if (m_blob_heap_parts != nullptr) {
     clear_blob_heaps();
-    ut_free(m_blob_heap_parts);
+    ut::free(m_blob_heap_parts);
     m_blob_heap_parts = nullptr;
   }
 }
