@@ -180,7 +180,7 @@ INSERT INTO t1 VALUES (3);
 --echo # 5. Kill the SQL thread
 --echo #    Check the repo still shows the old values in relation to SHOW REPLICA STATUS
 
-let $sql_applier_process_id= `SELECT Id FROM information_schema.processlist WHERE State= "Replica has read all relay log; waiting for more updates"`;
+--let $sql_applier_process_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_sql'`
 
 --disable_query_log
 --eval KILL $sql_applier_process_id
@@ -346,3 +346,5 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 DROP TABLE t1;
 
 --source include/rpl_end.inc
+
+--connection default
