@@ -1310,7 +1310,8 @@ static void srv_undo_tablespaces_mark_construction_done() {
   /* Remove the truncate log files if they exist. */
   for (auto space_id : undo::s_under_construction) {
     /* Flush these pages to disk since they were not redo logged. */
-    auto flush_observer = ut::new_<Flush_observer>(space_id, nullptr, nullptr);
+    auto flush_observer = ut::new_withkey<Flush_observer>(
+        UT_NEW_THIS_FILE_PSI_KEY, space_id, nullptr, nullptr);
 
     flush_observer->flush();
     ut::delete_(flush_observer);
@@ -2037,8 +2038,9 @@ dberr_t srv_start(bool create_new_db) {
     mutex_create(LATCH_ID_SRV_MONITOR_FILE, &srv_monitor_file_mutex);
 
     if (srv_innodb_status) {
-      srv_monitor_file_name = static_cast<char *>(
-          ut::malloc(MySQL_datadir_path.len() + 20 + sizeof "/innodb_status."));
+      srv_monitor_file_name = static_cast<char *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY,
+          MySQL_datadir_path.len() + 20 + sizeof "/innodb_status."));
 
       sprintf(srv_monitor_file_name, "%s/innodb_status." ULINTPF,
               static_cast<const char *>(MySQL_datadir_path),
@@ -2597,7 +2599,8 @@ files_checked:
         fil_space_release(space);
       }
 
-      dict_persist->table_buffer = ut::new_<DDTableBuffer>();
+      dict_persist->table_buffer =
+          ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
       /* We write redo log here. We assume that there should be enough room in
       log files, supposing log_free_check() works fine before crash. */
       srv_dict_metadata->store();

@@ -74,7 +74,8 @@ struct Cursor {
   @param[in] n_uniq             Number of columns to make they unique key.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t setup_pk_sort(size_t n_uniq) noexcept {
-    auto p = ut::malloc(n_uniq * sizeof(dfield_t));
+    auto p =
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, n_uniq * sizeof(dfield_t));
 
     if (p == nullptr) {
       return DB_OUT_OF_MEMORY;

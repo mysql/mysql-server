@@ -497,7 +497,8 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   need to forbid dtor calls then. */
 
   using log_t_aligned_pointer = std::decay_t<decltype(*log_sys_object)>;
-  log_sys_object = ut::new_<log_t_aligned_pointer>();
+  log_sys_object =
+      ut::new_withkey<log_t_aligned_pointer>(UT_NEW_THIS_FILE_PSI_KEY);
   log_sys_object->alloc();
 
   log_sys = *log_sys_object;
@@ -553,8 +554,8 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 #endif /* UNIV_PFS_RWLOCK */
 #ifdef UNIV_DEBUG
   /* initialize rw_lock without pfs_psi */
-  log.sn_lock_inst =
-      static_cast<rw_lock_t *>(ut::zalloc(sizeof(*log.sn_lock_inst)));
+  log.sn_lock_inst = static_cast<rw_lock_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
   rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
                       __FILE__, __LINE__);
@@ -1040,7 +1041,8 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   }
 
   /* Save the contents. */
-  byte *tmp_buf = ut::new_arr<byte>(ut::Count{end_lsn - start_lsn});
+  byte *tmp_buf = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY,
+                                            ut::Count{end_lsn - start_lsn});
   for (auto i = start_lsn; i < end_lsn; i += OS_FILE_LOG_BLOCK_SIZE) {
     std::memcpy(&tmp_buf[i - start_lsn], &log.buf[i % log.buf_size],
                 OS_FILE_LOG_BLOCK_SIZE);
@@ -1166,7 +1168,8 @@ static void log_allocate_flush_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.flush_events_size = n;
-  log.flush_events = ut::new_arr<os_event_t>(ut::Count{n});
+  log.flush_events =
+      ut::new_arr_withkey<os_event_t>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n});
 
   for (size_t i = 0; i < log.flush_events_size; ++i) {
     log.flush_events[i] = os_event_create();
@@ -1192,7 +1195,8 @@ static void log_allocate_write_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.write_events_size = n;
-  log.write_events = ut::new_arr<os_event_t>(ut::Count{n});
+  log.write_events =
+      ut::new_arr_withkey<os_event_t>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n});
 
   for (size_t i = 0; i < log.write_events_size; ++i) {
     log.write_events[i] = os_event_create();
@@ -1231,7 +1235,8 @@ static void log_allocate_file_header_buffers(log_t &log) {
   const uint32_t n_files = log.n_files;
 
   using Buf_ptr = ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
-  log.file_header_bufs = ut::new_arr<Buf_ptr>(ut::Count{n_files});
+  log.file_header_bufs = ut::new_arr_withkey<Buf_ptr>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                      ut::Count{n_files});
 
   for (uint32_t i = 0; i < n_files; i++) {
     log.file_header_bufs[i].alloc(LOG_FILE_HDR_SIZE);

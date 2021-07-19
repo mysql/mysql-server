@@ -465,7 +465,8 @@ void ibuf_init_at_db_start(void) {
   ulint n_used;
   page_t *header_page;
 
-  ibuf = static_cast<ibuf_t *>(ut::zalloc(sizeof(ibuf_t)));
+  ibuf = static_cast<ibuf_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(ibuf_t)));
 
   /* At startup we intialize ibuf to have a maximum of
   CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the

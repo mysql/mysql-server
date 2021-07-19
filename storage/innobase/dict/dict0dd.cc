@@ -77,7 +77,8 @@ const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
                                              size_t *out_len) {
   cleanup();
 
-  m_result = ut::new_arr<byte>(ut::Count{in_len * 2});
+  m_result = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY,
+                                       ut::Count{in_len * 2});
   char *result = reinterpret_cast<char *>(m_result);
 
   for (size_t i = 0; i < in_len; ++i) {
@@ -99,7 +100,8 @@ const byte *DD_instant_col_val_coder::decode(const char *stream, size_t in_len,
 
   cleanup();
 
-  m_result = ut::new_arr<byte>(ut::Count{in_len / 2});
+  m_result = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY,
+                                       ut::Count{in_len / 2});
 
   for (size_t i = 0; i < in_len / 2; ++i) {
     char c1 = stream[i * 2];
@@ -3924,8 +3926,8 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
       dict_sys_mutex_enter();
     } else {
       /* Make the temporary tablespace name. */
-      shared_space_name =
-          static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
+      shared_space_name = static_cast<char *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
       sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
               static_cast<ulint>(table->space));

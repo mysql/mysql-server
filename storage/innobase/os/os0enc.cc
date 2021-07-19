@@ -583,7 +583,8 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       ptr += SERVER_UUID_LEN;
 
       if (key_id == DEFAULT_MASTER_KEY_ID) {
-        *master_key = static_cast<byte *>(ut::zalloc(KEY_LEN));
+        *master_key = static_cast<byte *>(
+            ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, KEY_LEN));
         memcpy(*master_key, DEFAULT_MASTER_KEY, strlen(DEFAULT_MASTER_KEY));
       } else {
         ut_ad(strlen(srv_uuid) != 0);
@@ -827,8 +828,10 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
     os << std::endl;
     ib::info() << os.str();
 
-    byte *check_buf = static_cast<byte *>(ut::malloc(OS_FILE_LOG_BLOCK_SIZE));
-    byte *buf2 = static_cast<byte *>(ut::malloc(OS_FILE_LOG_BLOCK_SIZE));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
 
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
@@ -879,8 +882,10 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut::malloc(src_len));
-    byte *buf2 = static_cast<byte *>(ut::malloc(src_len));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
 
     memcpy(check_buf, dst, src_len);
 
@@ -1050,8 +1055,10 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
 #ifdef UNIV_ENCRYPT_DEBUG
   {
-    byte *check_buf = static_cast<byte *>(ut::malloc(src_len));
-    byte *buf2 = static_cast<byte *>(ut::malloc(src_len));
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
 
     memcpy(check_buf, dst, src_len);
 

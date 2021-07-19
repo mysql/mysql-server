@@ -1152,7 +1152,8 @@ retry:
   /* Calculate and cache fold values into an array for fast deletion
   from the hash index */
 
-  folds = (ulint *)ut::malloc(n_recs * sizeof(ulint));
+  folds = (ulint *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                      n_recs * sizeof(ulint));
 
   n_cached = 0;
 
@@ -1460,8 +1461,10 @@ static void btr_search_build_page_hash_index(dict_index_t *index,
   /* Calculate and cache fold values and corresponding records into
   an array for fast insertion to the hash index */
 
-  folds = (ulint *)ut::malloc(n_recs * sizeof(ulint));
-  recs = (rec_t **)ut::malloc(n_recs * sizeof(rec_t *));
+  folds = (ulint *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                      n_recs * sizeof(ulint));
+  recs = (rec_t **)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                      n_recs * sizeof(rec_t *));
 
   n_cached = 0;
 

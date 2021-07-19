@@ -118,7 +118,8 @@ sync_array_t::sync_array_t(ulint num_cells) UNIV_NOTHROW : n_reserved(),
                                                            first_free_slot() {
   ut_a(num_cells > 0);
 
-  cells = ut::new_arr<sync_cell_t>(ut::Count{num_cells});
+  cells = ut::new_arr_withkey<sync_cell_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                           ut::Count{num_cells});
 
   n_cells = num_cells;
 
@@ -1026,12 +1027,14 @@ void sync_array_init(ulint n_threads) /*!< in: Number of slots to
 
   sync_array_size = srv_sync_array_size;
 
-  sync_wait_array = ut::new_arr<sync_array_t *>(ut::Count{sync_array_size});
+  sync_wait_array = ut::new_arr_withkey<sync_array_t *>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{sync_array_size});
 
   ulint n_slots = 1 + (n_threads - 1) / sync_array_size;
 
   for (ulint i = 0; i < sync_array_size; ++i) {
-    sync_wait_array[i] = ut::new_<sync_array_t>(n_slots);
+    sync_wait_array[i] =
+        ut::new_withkey<sync_array_t>(UT_NEW_THIS_FILE_PSI_KEY, n_slots);
   }
 }
 

@@ -314,7 +314,8 @@ dict_index_t *dict_mem_index_create(
         mem_heap_alloc(heap, sizeof(*index->rtr_track)));
     mutex_create(LATCH_ID_RTR_ACTIVE_MUTEX,
                  &index->rtr_track->rtr_active_mutex);
-    index->rtr_track->rtr_active = ut::new_<rtr_info_active>();
+    index->rtr_track->rtr_active =
+        ut::new_withkey<rtr_info_active>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */

@@ -515,7 +515,8 @@ dberr_t trx_savepoint_for_mysql(
 
   /* Create a new savepoint and add it as the last in the list */
 
-  savep = static_cast<trx_named_savept_t *>(ut::malloc(sizeof(*savep)));
+  savep = static_cast<trx_named_savept_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*savep)));
 
   savep->name = mem_strdup(savepoint_name);
 

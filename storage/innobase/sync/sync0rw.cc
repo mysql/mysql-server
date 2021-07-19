@@ -179,7 +179,8 @@ static void rw_lock_debug_free(rw_lock_debug_t *info);
 /** Creates a debug info struct.
  @return own: debug info struct */
 static rw_lock_debug_t *rw_lock_debug_create(void) {
-  return ((rw_lock_debug_t *)ut::malloc(sizeof(rw_lock_debug_t)));
+  return ((rw_lock_debug_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                                sizeof(rw_lock_debug_t)));
 }
 
 /** Frees a debug info struct. */

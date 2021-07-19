@@ -487,7 +487,7 @@ struct btr_pcur_t {
   the cursor.
   @return own: persistent cursor */
   static btr_pcur_t *create_for_mysql() {
-    auto pcur = ut::new_<btr_pcur_t>();
+    auto pcur = ut::new_withkey<btr_pcur_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     pcur->m_btr_cur.index = nullptr;
 

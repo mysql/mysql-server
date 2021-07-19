@@ -2466,7 +2466,8 @@ func_start:
   insert_empty:
     ut_ad(!split_rec);
     ut_ad(!insert_left);
-    buf = ut::new_arr<byte>(
+    buf = ut::new_arr_withkey<byte>(
+        UT_NEW_THIS_FILE_PSI_KEY,
         ut::Count{rec_get_converted_size(cursor->index, tuple)});
 
     first_rec = rec_convert_dtuple_to_rec(buf, cursor->index, tuple);

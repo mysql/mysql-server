@@ -1481,7 +1481,8 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
 
   ut_a(id < TRX_RSEG_N_SLOTS);
 
-  undo = static_cast<trx_undo_t *>(ut::malloc(sizeof(*undo)));
+  undo = static_cast<trx_undo_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*undo)));
 
   if (undo == nullptr) {
     return (nullptr);

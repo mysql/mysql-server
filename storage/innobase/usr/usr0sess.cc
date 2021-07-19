@@ -38,7 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 sess_t *sess_open(void) {
   sess_t *sess;
 
-  sess = static_cast<sess_t *>(ut::zalloc(sizeof(*sess)));
+  sess = static_cast<sess_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*sess)));
 
   sess->state = SESS_ACTIVE;
 

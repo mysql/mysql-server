@@ -279,7 +279,8 @@ mem_block_t *mem_heap_create_block_func(
   if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
     ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
 
-    block = static_cast<mem_block_t *>(ut::malloc(len));
+    block = static_cast<mem_block_t *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   } else {
     len = UNIV_PAGE_SIZE;
 
@@ -320,7 +321,8 @@ mem_block_t *mem_heap_create_block_func(
 
 #else  /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */
   len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
-  block = static_cast<mem_block_t *>(ut::malloc(len));
+  block = static_cast<mem_block_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len));
   ut_a(block);
   block->free_block = nullptr;
 #endif /* !UNIV_LIBRARY && !UNIV_HOTBACKUP */

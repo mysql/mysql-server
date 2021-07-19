@@ -225,7 +225,8 @@ void ReadView::ids_t::reserve(ulint n) {
 
   value_type *p = m_ptr;
 
-  m_ptr = ut::new_arr<value_type>(ut::Count{n});
+  m_ptr =
+      ut::new_arr_withkey<value_type>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n});
 
   m_reserved = n;
 
@@ -330,7 +331,7 @@ ReadView::~ReadView() {
 @param size		Number of views to pre-allocate */
 MVCC::MVCC(ulint size) : m_free(), m_views() {
   for (ulint i = 0; i < size; ++i) {
-    ReadView *view = ut::new_<ReadView>();
+    ReadView *view = ut::new_withkey<ReadView>(UT_NEW_THIS_FILE_PSI_KEY);
 
     UT_LIST_ADD_FIRST(m_free, view);
   }
@@ -482,7 +483,7 @@ ReadView *MVCC::get_view() {
     view = UT_LIST_GET_FIRST(m_free);
     UT_LIST_REMOVE(m_free, view);
   } else {
-    view = ut::new_<ReadView>();
+    view = ut::new_withkey<ReadView>(UT_NEW_THIS_FILE_PSI_KEY);
 
     if (view == nullptr) {
       ib::error(ER_IB_MSG_918) << "Failed to allocate MVCC view";

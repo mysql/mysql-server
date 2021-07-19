@@ -538,8 +538,8 @@ static void sel_col_prefetch_buf_alloc(
 
   ut_ad(que_node_get_type(column) == QUE_NODE_SYMBOL);
 
-  column->prefetch_buf = static_cast<sel_buf_t *>(
-      ut::malloc(SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
+  column->prefetch_buf = static_cast<sel_buf_t *>(ut::malloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, SEL_MAX_N_PREFETCH * sizeof(sel_buf_t)));
 
   for (i = 0; i < SEL_MAX_N_PREFETCH; i++) {
     sel_buf = column->prefetch_buf + i;
@@ -3650,7 +3650,7 @@ static inline void row_sel_prefetch_cache_init(
 
   /* Reserve space for the magic number. */
   sz = UT_ARR_SIZE(prebuilt->fetch_cache) * (prebuilt->mysql_row_len + 8);
-  ptr = static_cast<byte *>(ut::malloc(sz));
+  ptr = static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sz));
 
   for (i = 0; i < UT_ARR_SIZE(prebuilt->fetch_cache); i++) {
     /* A user has reported memory corruption in these
@@ -4970,8 +4970,8 @@ rec_loop:
       dict_index_t *key_index = prebuilt->index;
 
       if (end_range_cache == nullptr) {
-        end_range_cache =
-            static_cast<byte *>(ut::malloc(prebuilt->mysql_row_len));
+        end_range_cache = static_cast<byte *>(ut::malloc_withkey(
+            UT_NEW_THIS_FILE_PSI_KEY, prebuilt->mysql_row_len));
       }
 
       if (clust_templ_for_sec) {
@@ -6133,7 +6133,8 @@ dberr_t row_count_rtree_recs(
   prebuilt->search_tuple = entry;
 
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  buf = static_cast<byte *>(ut::malloc(bufsize));
+  buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, bufsize));
 
   ulint cnt = 1000;
 

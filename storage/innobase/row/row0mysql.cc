@@ -3284,8 +3284,8 @@ static ibool row_add_table_to_background_drop_list(
     }
   }
 
-  auto drop =
-      static_cast<row_mysql_drop_t *>(ut::malloc(sizeof(row_mysql_drop_t)));
+  auto drop = static_cast<row_mysql_drop_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(row_mysql_drop_t)));
 
   drop->table_name = mem_strdup(name);
 
@@ -4642,7 +4642,8 @@ skip_parallel_read:
 
   ulint cnt = 1000;
   ulint bufsize = ut_max(UNIV_PAGE_SIZE, prebuilt->mysql_row_len);
-  auto buf = static_cast<byte *>(ut::malloc(bufsize));
+  auto buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, bufsize));
   auto heap = mem_heap_create(100);
 
   auto ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);

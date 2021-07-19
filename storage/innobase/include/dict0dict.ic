@@ -1202,7 +1202,7 @@ This function must not be called concurrently on the same table object.
 inline void dict_table_mutex_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->mutex = ut::new_<ib_mutex_t>();
+  table->mutex = ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_ad(table->mutex != nullptr);
   mutex_create(LATCH_ID_DICT_TABLE, table->mutex);
 }

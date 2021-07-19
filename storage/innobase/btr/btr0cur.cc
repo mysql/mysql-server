@@ -1495,10 +1495,11 @@ retry_page_get:
         retrying_for_search_prev = true;
 
         prev_tree_blocks = static_cast<buf_block_t **>(
-            ut::malloc(sizeof(buf_block_t *) * leftmost_from_level));
+            ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                               sizeof(buf_block_t *) * leftmost_from_level));
 
-        prev_tree_savepoints = static_cast<ulint *>(
-            ut::malloc(sizeof(ulint) * leftmost_from_level));
+        prev_tree_savepoints = static_cast<ulint *>(ut::malloc_withkey(
+            UT_NEW_THIS_FILE_PSI_KEY, sizeof(ulint) * leftmost_from_level));
 
         /* back to the level (leftmost_from_level+1) */
         ulint idx = n_blocks - (leftmost_from_level - 1);

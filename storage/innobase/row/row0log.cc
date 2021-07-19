@@ -1244,7 +1244,8 @@ void row_log_table_blob_free(
   page_no_map *blobs = index->online_log->blobs;
 
   if (blobs == nullptr) {
-    index->online_log->blobs = blobs = ut::new_<page_no_map>();
+    index->online_log->blobs = blobs =
+        ut::new_withkey<page_no_map>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
 #ifdef UNIV_DEBUG
@@ -3063,7 +3064,8 @@ bool row_log_allocate(
   ut_ad(!add_cols || col_map);
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-  log = static_cast<row_log_t *>(ut::malloc(sizeof *log));
+  log = static_cast<row_log_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof *log));
 
   if (log == nullptr) {
     return false;
@@ -3474,7 +3476,8 @@ static dberr_t row_log_apply_ops(const trx_t *trx, dict_index_t *index,
   ut_ad(index->online_log);
   UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-  offsets = static_cast<ulint *>(ut::malloc(i * sizeof *offsets));
+  offsets = static_cast<ulint *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, i * sizeof *offsets));
   offsets[0] = i;
   offsets[1] = dict_index_get_n_fields(index);
 

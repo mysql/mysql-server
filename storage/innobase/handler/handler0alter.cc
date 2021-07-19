@@ -1192,7 +1192,8 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = ut::new_<Parallel_reader_adapter>(max_threads, row_len);
+  auto adapter = ut::new_withkey<Parallel_reader_adapter>(
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len);
 
   if (adapter == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -5207,7 +5208,7 @@ static void alter_fill_stored_column(const TABLE *altered_table,
     s_col.s_pos = i;
 
     if (*s_cols == nullptr) {
-      *s_cols = ut::new_<dict_s_col_list>();
+      *s_cols = ut::new_withkey<dict_s_col_list>(UT_NEW_THIS_FILE_PSI_KEY);
       *s_heap = mem_heap_create(1000);
     }
 
@@ -6075,7 +6076,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
   previous partition invocation. For normal tables this is NULL. */
   ut::delete_(ctx->m_stage);
 
-  ctx->m_stage = ut::new_<Alter_stage>(pk);
+  ctx->m_stage = ut::new_withkey<Alter_stage>(UT_NEW_THIS_FILE_PSI_KEY, pk);
 
   if (m_prebuilt->table->ibd_file_missing ||
       dict_table_is_discarded(m_prebuilt->table)) {
@@ -6102,7 +6103,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     if (ctx->new_table->vc_templ != nullptr && !ctx->need_rebuild()) {
       old_templ = ctx->new_table->vc_templ;
     }
-    s_templ = ut::new_<dict_vcol_templ_t>();
+    s_templ = ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
     s_templ->vtempl = nullptr;
 
     innobase_build_v_templ(altered_table, ctx->new_table, s_templ, nullptr,
@@ -6861,7 +6862,7 @@ when rebuilding the table.
     dict_vcol_templ_t *s_templ = nullptr;
 
     if (ctx->new_table->n_v_cols > 0) {
-      s_templ = ut::new_<dict_vcol_templ_t>();
+      s_templ = ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
       s_templ->vtempl = nullptr;
 
       innobase_build_v_templ(altered_table, ctx->new_table, s_templ, nullptr,
@@ -9827,7 +9828,8 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = ut::new_<Parallel_reader_adapter>(max_threads, row_len);
+  auto adapter = ut::new_withkey<Parallel_reader_adapter>(
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len);
 
   if (adapter == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -10112,8 +10114,8 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
     return HA_ALTER_ERROR;
   }
 
-  ctx_parts->ctx_array =
-      ut::new_arr<inplace_alter_handler_ctx *>(ut::Count{m_tot_parts + 1});
+  ctx_parts->ctx_array = ut::new_arr_withkey<inplace_alter_handler_ctx *>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_tot_parts + 1});
   if (ctx_parts->ctx_array == nullptr) {
     return HA_ALTER_ERROR;
   }
@@ -10121,14 +10123,14 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
   memset(ctx_parts->ctx_array, 0,
          sizeof(inplace_alter_handler_ctx *) * (m_tot_parts + 1));
 
-  ctx_parts->m_old_info =
-      ut::new_arr<alter_table_old_info_t>(ut::Count{m_tot_parts});
+  ctx_parts->m_old_info = ut::new_arr_withkey<alter_table_old_info_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_tot_parts});
   if (ctx_parts->m_old_info == nullptr) {
     return HA_ALTER_ERROR;
   }
 
-  ctx_parts->prebuilt_array =
-      ut::new_arr<row_prebuilt_t *>(ut::Count{m_tot_parts});
+  ctx_parts->prebuilt_array = ut::new_arr_withkey<row_prebuilt_t *>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_tot_parts});
   if (ctx_parts->prebuilt_array == nullptr) {
     return HA_ALTER_ERROR;
   }
@@ -10506,9 +10508,9 @@ bool ha_innopart::prepare_inplace_alter_partition(
     return (true);
   }
 
-  alter_parts *ctx =
-      ut::new_<alter_parts>(m_prebuilt->trx, m_part_share, ha_alter_info,
-                            m_part_info, m_new_partitions);
+  alter_parts *ctx = ut::new_withkey<alter_parts>(
+      UT_NEW_THIS_FILE_PSI_KEY, m_prebuilt->trx, m_part_share, ha_alter_info,
+      m_part_info, m_new_partitions);
 
   if (ctx == nullptr) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));

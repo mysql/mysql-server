@@ -1873,7 +1873,7 @@ const char *thd_innodb_tmpdir(THD *thd) {
     return (innodb_session);
   }
 
-  innodb_session = ut::new_<innodb_session_t>();
+  innodb_session = ut::new_withkey<innodb_session_t>(UT_NEW_THIS_FILE_PSI_KEY);
   return (innodb_session);
 }
 
@@ -3886,7 +3886,8 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
         dict_sys->dynamic_metadata =
             dd_table_open_on_name(thd, nullptr, "mysql/innodb_dynamic_metadata",
                                   false, DICT_ERR_IGNORE_NONE);
-        dict_persist->table_buffer = ut::new_<DDTableBuffer>();
+        dict_persist->table_buffer =
+            ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
       }
 
       dict_sys->table_stats =
@@ -3897,7 +3898,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
                                 DICT_ERR_IGNORE_NONE);
       dict_sys->ddl_log = dd_table_open_on_name(
           thd, nullptr, "mysql/innodb_ddl_log", false, DICT_ERR_IGNORE_NONE);
-      log_ddl = ut::new_<Log_DDL>();
+      log_ddl = ut::new_withkey<Log_DDL>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   switch (dict_recovery_mode) {
@@ -5384,7 +5385,8 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     Tablespace::files_t::const_iterator begin = srv_sys_space.m_files.begin();
     for (Tablespace::files_t::const_iterator it = begin; it != end; ++it) {
       innobase_sys_files.push_back(
-          ut::new_<Plugin_tablespace::Plugin_tablespace_file>(it->name(), ""));
+          ut::new_withkey<Plugin_tablespace::Plugin_tablespace_file>(
+              UT_NEW_THIS_FILE_PSI_KEY, it->name(), ""));
       innodb.add_file(innobase_sys_files.back());
     }
     tablespaces->push_back(&innodb);
@@ -6614,12 +6616,13 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
 
   memset(marker, 0, sizeof(bool) * ncol);
 
-  s_templ->vtempl = static_cast<mysql_row_templ_t **>(
-      ut::zalloc((ncol + n_v_col) * sizeof *s_templ->vtempl));
+  s_templ->vtempl = static_cast<mysql_row_templ_t **>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, (ncol + n_v_col) * sizeof *s_templ->vtempl));
   s_templ->n_col = ncol;
   s_templ->n_v_col = n_v_col;
   s_templ->rec_len = table->s->reclength;
-  s_templ->default_rec = static_cast<byte *>(ut::malloc(table->s->reclength));
+  s_templ->default_rec = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, table->s->reclength));
   memcpy(s_templ->default_rec, table->s->default_values, table->s->reclength);
 
   /* Mark those columns could be base columns */
@@ -6672,8 +6675,9 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
         vcol = dict_table_get_nth_v_col(ib_table, z);
       }
 
-      s_templ->vtempl[z + s_templ->n_col] = static_cast<mysql_row_templ_t *>(
-          ut::malloc(sizeof *s_templ->vtempl[j]));
+      s_templ->vtempl[z + s_templ->n_col] =
+          static_cast<mysql_row_templ_t *>(ut::malloc_withkey(
+              UT_NEW_THIS_FILE_PSI_KEY, sizeof *s_templ->vtempl[j]));
 
       innobase_vcol_build_templ(table, clust_index, field, &vcol->m_col,
                                 s_templ->vtempl[z + s_templ->n_col], z);
@@ -6693,8 +6697,8 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
       ut_ad(!ut_strcmp(name, field->field_name));
 #endif
 
-      s_templ->vtempl[j] = static_cast<mysql_row_templ_t *>(
-          ut::malloc(sizeof *s_templ->vtempl[j]));
+      s_templ->vtempl[j] = static_cast<mysql_row_templ_t *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY, sizeof *s_templ->vtempl[j]));
 
       innobase_vcol_build_templ(table, clust_index, field, col,
                                 s_templ->vtempl[j], j);
@@ -7205,7 +7209,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     if (m_prebuilt->m_temp_read_shared) {
       if (ib_table->temp_prebuilt == nullptr) {
-        ib_table->temp_prebuilt = ut::new_<temp_prebuilt_vec>();
+        ib_table->temp_prebuilt =
+            ut::new_withkey<temp_prebuilt_vec>(UT_NEW_THIS_FILE_PSI_KEY);
       }
 
       ib_table->temp_prebuilt->push_back(m_prebuilt);
@@ -7218,7 +7223,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   if (ib_table->n_v_cols) {
     dict_sys_mutex_enter();
     if (ib_table->vc_templ == nullptr) {
-      ib_table->vc_templ = ut::new_<dict_vcol_templ_t>();
+      ib_table->vc_templ =
+          ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
       ib_table->vc_templ->vtempl = nullptr;
     } else if (ib_table->get_ref_count() == 1) {
       /* Clean and refresh the template if no one else
@@ -8236,8 +8242,8 @@ void ha_innobase::build_template(bool whole_row) {
   n_fields = (ulint)table->s->fields; /* number of columns */
 
   if (!m_prebuilt->mysql_template) {
-    m_prebuilt->mysql_template =
-        (mysql_row_templ_t *)ut::malloc(n_fields * sizeof(mysql_row_templ_t));
+    m_prebuilt->mysql_template = (mysql_row_templ_t *)ut::malloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, n_fields * sizeof(mysql_row_templ_t));
   }
 
   m_prebuilt->template_type =
@@ -10491,8 +10497,9 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
-  Histogram_sampler *sampler = ut::new_<Histogram_sampler>(
-      max_threads, sampling_seed, sampling_percentage, sampling_method);
+  Histogram_sampler *sampler = ut::new_withkey<Histogram_sampler>(
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, sampling_seed, sampling_percentage,
+      sampling_method);
 
   if (sampler == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -23143,7 +23150,8 @@ void innobase_init_vc_templ(dict_table_t *table) {
     return;
   }
 
-  table->vc_templ = ut::new_<dict_vcol_templ_t>();
+  table->vc_templ =
+      ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
   table->vc_templ->vtempl = nullptr;
 
   std::string schema_name;

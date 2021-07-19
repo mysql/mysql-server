@@ -117,7 +117,8 @@ static char *fts_get_table_name_prefix_low(const fts_table_t *fts_table,
 
   prefix_name_len = dbname_len + 4 + len + 1;
 
-  prefix_name = static_cast<char *>(ut::malloc(prefix_name_len));
+  prefix_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, prefix_name_len));
 
   len = sprintf(prefix_name, "%.*s%s%s", dbname_len, fts_table->parent,
                 is_5_7 ? FTS_PREFIX_5_7 : FTS_PREFIX, table_id);

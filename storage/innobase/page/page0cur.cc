@@ -1134,7 +1134,8 @@ byte *page_cur_parse_insert_rec(
   if (mismatch_index + end_seg_len < sizeof buf1) {
     buf = buf1;
   } else {
-    buf = static_cast<byte *>(ut::malloc(mismatch_index + end_seg_len));
+    buf = static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                                 mismatch_index + end_seg_len));
   }
 
   /* Build the inserted record to buf */

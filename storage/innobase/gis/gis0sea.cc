@@ -837,7 +837,8 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
   index = index ? index : cursor->index;
   ut_ad(index);
 
-  rtr_info = static_cast<rtr_info_t *>(ut::zalloc(sizeof(*rtr_info)));
+  rtr_info = static_cast<rtr_info_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*rtr_info)));
 
   rtr_info->allocated = true;
   rtr_info->cursor = cursor;
@@ -849,7 +850,8 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
     rtr_info->matches = static_cast<matched_rec_t *>(
         mem_heap_zalloc(rtr_info->heap, sizeof(*rtr_info->matches)));
 
-    rtr_info->matches->matched_recs = ut::new_<rtr_rec_vector>();
+    rtr_info->matches->matched_recs =
+        ut::new_withkey<rtr_rec_vector>(UT_NEW_THIS_FILE_PSI_KEY);
 
     rtr_info->matches->bufp =
         page_align(rtr_info->matches->rec_buf + UNIV_PAGE_SIZE_MAX + 1);
@@ -858,8 +860,9 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
                    SYNC_LEVEL_VARYING);
   }
 
-  rtr_info->path = ut::new_<rtr_node_path_t>();
-  rtr_info->parent_path = ut::new_<rtr_node_path_t>();
+  rtr_info->path = ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  rtr_info->parent_path =
+      ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
   rtr_info->need_prdt_lock = need_prdt;
   mutex_create(LATCH_ID_RTR_PATH_MUTEX, &rtr_info->rtr_path_mutex);
 
@@ -920,8 +923,9 @@ void rtr_init_rtr_info(
 
   ut_ad(!rtr_info->matches || rtr_info->matches->matched_recs->empty());
 
-  rtr_info->path = ut::new_<rtr_node_path_t>();
-  rtr_info->parent_path = ut::new_<rtr_node_path_t>();
+  rtr_info->path = ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  rtr_info->parent_path =
+      ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
   rtr_info->need_prdt_lock = need_prdt;
   rtr_info->cursor = cursor;
   rtr_info->index = index;
@@ -1012,7 +1016,8 @@ static void rtr_rebuild_path(
     rtr_info_t *rtr_info, /*!< in: RTree search info */
     page_no_t page_no)    /*!< in: need to free rtr_info itself */
 {
-  rtr_node_path_t *new_path = ut::new_<rtr_node_path_t>();
+  rtr_node_path_t *new_path =
+      ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   rtr_node_path_t::iterator rit;
 #ifdef UNIV_DEBUG
@@ -1356,7 +1361,8 @@ static void rtr_non_leaf_insert_stack_push(
   btr_pcur_t *my_cursor;
   page_no_t page_no = block->page.id.page_no();
 
-  my_cursor = static_cast<btr_pcur_t *>(ut::malloc(sizeof(*my_cursor)));
+  my_cursor = static_cast<btr_pcur_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*my_cursor)));
 
   btr_pcur_init(my_cursor);
 

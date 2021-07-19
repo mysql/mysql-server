@@ -1784,12 +1784,13 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   /* For each level that is being scanned in the btree, this contains the
   index of the last record from each group of equal records (when
   comparing only the first n columns, n=1..n_uniq). */
-  boundaries_t *n_diff_boundaries =
-      ut::new_arr<boundaries_t>(ut::Count{n_uniq});
+  boundaries_t *n_diff_boundaries = ut::new_arr_withkey<boundaries_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_uniq});
 
   /* For each n-column prefix this array contains the input data that is
   used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-  n_diff_data_t *n_diff_data = ut::new_arr<n_diff_data_t>(ut::Count{n_uniq});
+  n_diff_data_t *n_diff_data = ut::new_arr_withkey<n_diff_data_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_uniq});
 
   /* total_recs is also used to estimate the number of pages on one
   level below, so at the start we have 1 page (the root) */

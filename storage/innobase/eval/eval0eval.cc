@@ -81,7 +81,8 @@ byte *eval_node_alloc_val_buf(
   if (size == 0) {
     data = &eval_dummy;
   } else {
-    data = static_cast<byte *>(ut::malloc(size));
+    data =
+        static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
   }
 
   que_node_set_val_buf_size(node, size);

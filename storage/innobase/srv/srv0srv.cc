@@ -1080,8 +1080,8 @@ static void srv_init(void) {
 
   srv_threads.m_purge_workers_n = srv_n_purge_threads;
 
-  srv_threads.m_purge_workers =
-      ut::new_arr<IB_thread>(ut::Count{srv_threads.m_purge_workers_n});
+  srv_threads.m_purge_workers = ut::new_arr_withkey<IB_thread>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{srv_threads.m_purge_workers_n});
 
   if (!srv_read_only_mode) {
     /* Number of purge threads + master thread */
@@ -1094,10 +1094,12 @@ static void srv_init(void) {
 
   srv_threads.m_page_cleaner_workers_n = srv_n_page_cleaners;
 
-  srv_threads.m_page_cleaner_workers =
-      ut::new_arr<IB_thread>(ut::Count{srv_threads.m_page_cleaner_workers_n});
+  srv_threads.m_page_cleaner_workers = ut::new_arr_withkey<IB_thread>(
+      UT_NEW_THIS_FILE_PSI_KEY,
+      ut::Count{srv_threads.m_page_cleaner_workers_n});
 
-  srv_sys = static_cast<srv_sys_t *>(ut::zalloc(srv_sys_sz));
+  srv_sys = static_cast<srv_sys_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));
 
   srv_sys->n_sys_threads = n_sys_threads;
 

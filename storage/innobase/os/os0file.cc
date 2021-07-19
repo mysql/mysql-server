@@ -160,7 +160,8 @@ bool os_is_o_direct_supported() {
 
   /* Allocate a new path and move the directory path to it. */
   path_len = dir_len + sizeof "o_direct_test";
-  file_name = static_cast<char *>(ut::zalloc(path_len));
+  file_name = static_cast<char *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, path_len));
   if (add_os_path_separator == true) {
     memcpy(file_name, path, dir_len - 1);
     file_name[dir_len - 1] = OS_PATH_SEPARATOR;
@@ -982,7 +983,8 @@ file::Block *os_alloc_block() noexcept {
     if (retry == MAX_BLOCKS * 3) {
       byte *ptr;
 
-      ptr = static_cast<byte *>(ut::malloc(sizeof(*block) + BUFFER_BLOCK_SIZE));
+      ptr = static_cast<byte *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block) + BUFFER_BLOCK_SIZE));
 
       block = new (ptr) file::Block();
       block->m_ptr = static_cast<byte *>(ptr + sizeof(*block));
@@ -6189,8 +6191,8 @@ dberr_t AIO::init_linux_native_aio() {
 
   ut_a(m_aio_ctx == nullptr);
 
-  m_aio_ctx =
-      static_cast<io_context **>(ut::zalloc(m_n_segments * sizeof(*m_aio_ctx)));
+  m_aio_ctx = static_cast<io_context **>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, m_n_segments * sizeof(*m_aio_ctx)));
 
   if (m_aio_ctx == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -6222,7 +6224,8 @@ dberr_t AIO::init() {
 #ifdef _WIN32
   ut_a(m_handles == NULL);
 
-  m_handles = ut::new_<Handles>(m_slots.size());
+  m_handles =
+      ut::new_withkey<Handles>(UT_NEW_THIS_FILE_PSI_KEY, m_slots.size());
 #endif /* _WIN32 */
 
   if (srv_use_native_aio) {
@@ -6257,7 +6260,8 @@ AIO *AIO::create(latch_id_t id, ulint n, ulint n_segments) {
     return (nullptr);
   }
 
-  AIO *array = ut::new_<AIO>(id, n, n_segments);
+  AIO *array =
+      ut::new_withkey<AIO>(UT_NEW_THIS_FILE_PSI_KEY, id, n, n_segments);
 
   if (array != nullptr && array->init() != DB_SUCCESS) {
     ut::delete_(array);
@@ -6398,7 +6402,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   os_aio_validate();
 
   os_aio_segment_wait_events = static_cast<os_event_t *>(
-      ut::zalloc(n_segments * sizeof *os_aio_segment_wait_events));
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                         n_segments * sizeof *os_aio_segment_wait_events));
 
   if (os_aio_segment_wait_events == nullptr) {
     return false;
@@ -6467,7 +6472,8 @@ void os_fusionio_get_sector_size() {
 
     /* allocate a new path and move the directory path to it. */
     check_path_len = dir_len + sizeof "/check_sector_size";
-    check_file_name = static_cast<char *>(ut::zalloc(check_path_len));
+    check_file_name = static_cast<char *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, check_path_len));
     memcpy(check_file_name, path, dir_len);
 
     /* Construct a check file name. */
@@ -6526,7 +6532,7 @@ page data. */
 void os_create_block_cache() {
   ut_a(block_cache == nullptr);
 
-  block_cache = ut::new_<Blocks>(MAX_BLOCKS);
+  block_cache = ut::new_withkey<Blocks>(UT_NEW_THIS_FILE_PSI_KEY, MAX_BLOCKS);
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
@@ -6536,7 +6542,8 @@ void os_create_block_cache() {
     /* Allocate double of max page size memory, since
     compress could generate more bytes than original
     data. */
-    it->m_ptr = static_cast<byte *>(ut::malloc(BUFFER_BLOCK_SIZE));
+    it->m_ptr = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, BUFFER_BLOCK_SIZE));
 
     ut_a(it->m_ptr != nullptr);
   }

@@ -436,7 +436,7 @@ fts_query_lcs(
 	ulint	r = len_p1;
 	ulint	c = len_p2;
 	ulint	size = (r + 1) * (c + 1) * sizeof(ulint);
-	ulint*	table = (ulint*) ut::malloc(size);
+	ulint*	table = (ulint*) ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size);
 
 	/* Traverse the table backwards, from the last row to the first and
 	also from the last column to the first. We compute the smaller
@@ -2692,7 +2692,8 @@ func_exit:
 }
 
 /** Create a wildcard string. It's the responsibility of the caller to
- free the byte* pointer. It's allocated using ut::malloc().
+ free the byte* pointer. It's allocated using
+ ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY).
  @return ptr to allocated memory */
 static byte *fts_query_get_token(
     fts_ast_node_t *node, /*!< in: the current sub tree */
@@ -2709,7 +2710,8 @@ static byte *fts_query_get_token(
   token->f_str = node->term.ptr->str;
 
   if (node->term.wildcard) {
-    token->f_str = static_cast<byte *>(ut::malloc(str_len + 2));
+    token->f_str = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, str_len + 2));
     token->f_len = str_len + 1;
 
     memcpy(token->f_str, node->term.ptr->str, str_len);
@@ -3353,7 +3355,8 @@ static fts_result_t *fts_query_prepare_result(
   DBUG_TRACE;
 
   if (result == nullptr) {
-    result = static_cast<fts_result_t *>(ut::zalloc(sizeof(*result)));
+    result = static_cast<fts_result_t *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*result)));
 
     result->rankings_by_id =
         rbt_create(sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3468,7 +3471,8 @@ static fts_result_t *fts_query_get_result(
     result = fts_query_prepare_result(query, result);
   } else {
     /* Create an empty result instance. */
-    result = static_cast<fts_result_t *>(ut::zalloc(sizeof(*result)));
+    result = static_cast<fts_result_t *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*result)));
   }
 
   return result;
@@ -3657,7 +3661,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
 
   query.word_map =
       rbt_create_arg_cmp(sizeof(fts_string_t), innobase_fts_text_cmp, charset);
-  query.word_vector = ut::new_<word_vector_t>();
+  query.word_vector = ut::new_withkey<word_vector_t>(UT_NEW_THIS_FILE_PSI_KEY);
   query.error = DB_SUCCESS;
 
   /* Setup the RB tree that will be used to collect per term
@@ -3709,7 +3713,8 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   the ut_malloc'ed result and so remember to free it before return. */
 
   lc_query_str_len = query_len * charset->casedn_multiply + charset->mbmaxlen;
-  lc_query_str = static_cast<byte *>(ut::zalloc(lc_query_str_len));
+  lc_query_str = static_cast<byte *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, lc_query_str_len));
 
   /* For binary collations, a case sensitive search is
   performed. Hence don't convert to lower case. */
@@ -3790,7 +3795,8 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     error = query.error;
   } else {
     /* still return an empty result set */
-    *result = static_cast<fts_result_t *>(ut::zalloc(sizeof(**result)));
+    *result = static_cast<fts_result_t *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(**result)));
   }
 
   ut::free(lc_query_str);

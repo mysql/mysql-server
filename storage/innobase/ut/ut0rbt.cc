@@ -677,19 +677,22 @@ ib_rbt_t *rbt_create(size_t sizeof_value,    /*!< in: sizeof data item */
   ib_rbt_t *tree;
   ib_rbt_node_t *node;
 
-  tree = (ib_rbt_t *)ut::zalloc(sizeof(*tree));
+  tree =
+      (ib_rbt_t *)ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*tree));
 
   tree->sizeof_value = sizeof_value;
 
   /* Create the sentinel (NIL) node. */
-  node = tree->nil = (ib_rbt_node_t *)ut::zalloc(sizeof(*node));
+  node = tree->nil = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = node;
 
   /* Create the "fake" root, the real root node will be the
   left child of this node. */
-  node = tree->root = (ib_rbt_node_t *)ut::zalloc(sizeof(*node));
+  node = tree->root = (ib_rbt_node_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*node));
 
   node->color = IB_RBT_BLACK;
   node->parent = node->left = node->right = tree->nil;
@@ -710,7 +713,8 @@ const ib_rbt_node_t *rbt_insert(
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data. */
-  node = (ib_rbt_node_t *)ut::malloc(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   node->parent = node->left = node->right = tree->nil;
@@ -734,7 +738,8 @@ const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
   ib_rbt_node_t *node;
 
   /* Create the node that will hold the value data */
-  node = (ib_rbt_node_t *)ut::malloc(SIZEOF_NODE(tree));
+  node = (ib_rbt_node_t *)ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                             SIZEOF_NODE(tree));
 
   memcpy(node->value, value, tree->sizeof_value);
   node->parent = node->left = node->right = tree->nil;

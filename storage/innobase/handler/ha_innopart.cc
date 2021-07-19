@@ -208,7 +208,8 @@ void Ha_innopart_share::set_v_templ(TABLE *table, dict_table_t *ib_table,
   if (ib_table->n_v_cols > 0) {
     for (ulint i = 0; i < m_tot_parts; i++) {
       if (m_table_parts[i]->vc_templ == nullptr) {
-        m_table_parts[i]->vc_templ = ut::new_<dict_vcol_templ_t>();
+        m_table_parts[i]->vc_templ =
+            ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
         m_table_parts[i]->vc_templ->vtempl = nullptr;
       } else if (m_table_parts[i]->get_ref_count() == 1) {
         /* Clean and refresh the template */
@@ -2055,8 +2056,9 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
-  Histogram_sampler *sampler = ut::new_<Histogram_sampler>(
-      max_threads, sampling_seed, sampling_percentage, sampling_method);
+  Histogram_sampler *sampler = ut::new_withkey<Histogram_sampler>(
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, sampling_seed, sampling_percentage,
+      sampling_method);
 
   if (sampler == nullptr) {
     Parallel_reader::release_threads(max_threads);

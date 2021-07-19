@@ -1988,7 +1988,7 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
   Fil_shard::s_open_slot = EMPTY_OPEN_SLOT;
 
   for (size_t i = 0; i < n_shards; ++i) {
-    auto shard = ut::new_<Fil_shard>(i);
+    auto shard = ut::new_withkey<Fil_shard>(UT_NEW_THIS_FILE_PSI_KEY, i);
 
     m_shards.push_back(shard);
   }
@@ -3287,7 +3287,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
     return nullptr;
   }
 
-  space = static_cast<fil_space_t *>(ut::zalloc(sizeof(*space)));
+  space = static_cast<fil_space_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*space)));
   /* This could be just a placement new constructor call if, only if it compiles
   OK on SunPro. */
   space->initialize();
@@ -3671,7 +3672,8 @@ void fil_init(ulint max_n_open) {
 
   ut_a(max_n_open > 0);
 
-  fil_system = ut::new_<Fil_system>(MAX_SHARDS, max_n_open);
+  fil_system = ut::new_withkey<Fil_system>(UT_NEW_THIS_FILE_PSI_KEY, MAX_SHARDS,
+                                           max_n_open);
 }
 
 /** Open all the system files.
@@ -5963,7 +5965,8 @@ static char *meb_make_ibbackup_old_name(const char *name) {
   ulint len = strlen(name);
   static const char suffix[] = "_ibbackup_old_vers_";
 
-  path = static_cast<char *>(ut::malloc(len + 15 + sizeof(suffix)));
+  path = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 15 + sizeof(suffix)));
 
   memcpy(path, name, len);
   memcpy(path + len, suffix, sizeof(suffix) - 1);
@@ -6847,7 +6850,8 @@ compared to the size stored in the space header. */
 void Fil_shard::meb_extend_tablespaces_to_stored_len() {
   ut_ad(mutex_owned());
 
-  byte *buf = static_cast<byte *>(ut::malloc(UNIV_PAGE_SIZE));
+  byte *buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
 
   ut_a(buf != nullptr);
 
@@ -8993,7 +8997,8 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   /* The block we will use for every physical page */
   buf_block_t *block;
 
-  block = reinterpret_cast<buf_block_t *>(ut::zalloc(sizeof(*block)));
+  block = reinterpret_cast<buf_block_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block)));
 
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
@@ -11077,7 +11082,8 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   DBUG_EXECUTE_IF("dont_update_key_found_during_REDO_scan", return ptr;);
 
   if (recv_sys->keys == nullptr) {
-    recv_sys->keys = ut::new_<recv_sys_t::Encryption_Keys>();
+    recv_sys->keys =
+        ut::new_withkey<recv_sys_t::Encryption_Keys>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   /* Search if key entry already exists for this tablespace, update it. */
@@ -11092,9 +11098,11 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
 
   /* No existing entry found, create new one and insert it. */
   recv_sys_t::Encryption_Key new_key;
-  new_key.iv = static_cast<byte *>(ut::malloc(Encryption::KEY_LEN));
+  new_key.iv = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
   memcpy(new_key.iv, iv, Encryption::KEY_LEN);
-  new_key.ptr = static_cast<byte *>(ut::malloc(Encryption::KEY_LEN));
+  new_key.ptr = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
   memcpy(new_key.ptr, key, Encryption::KEY_LEN);
   new_key.space_id = space_id;
   new_key.lsn = lsn;

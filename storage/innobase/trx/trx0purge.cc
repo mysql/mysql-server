@@ -209,7 +209,8 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
 }
 
 void trx_purge_sys_mem_create() {
-  purge_sys = static_cast<trx_purge_t *>(ut::zalloc(sizeof(*purge_sys)));
+  purge_sys = static_cast<trx_purge_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*purge_sys)));
 
   purge_sys->state = PURGE_STATE_INIT;
   purge_sys->event = os_event_create();
@@ -260,7 +261,8 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 
   purge_sys->view_active = true;
 
-  purge_sys->rseg_iter = ut::new_<TrxUndoRsegsIterator>(purge_sys);
+  purge_sys->rseg_iter = ut::new_withkey<TrxUndoRsegsIterator>(
+      UT_NEW_THIS_FILE_PSI_KEY, purge_sys);
 }
 
 void trx_purge_sys_close() {
@@ -776,7 +778,8 @@ char *make_space_name(space_id_t space_id) {
 
   size_t size = sizeof(undo_space_name) + 3 + (old ? 0 : 1);
 
-  char *name = static_cast<char *>(ut::malloc(size));
+  char *name =
+      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
 
   snprintf(name, size, (old ? "%s%03" SPACE_ID_PFS : "%s_%03" SPACE_ID_PFS),
            undo_space_name, static_cast<unsigned>(id2num(space_id)));
@@ -798,7 +801,8 @@ char *make_file_name(space_id_t space_id) {
   size_t size = strlen(srv_undo_dir) + (with_sep ? 0 : 1) + sizeof("undo000") +
                 (old ? 0 : 1);
 
-  char *name = static_cast<char *>(ut::malloc(size));
+  char *name =
+      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
 
   memcpy(name, srv_undo_dir, len);
 
@@ -826,7 +830,8 @@ void Tablespace::set_space_name(const char *new_space_name) {
   }
 
   size_t size = strlen(new_space_name) + 1;
-  m_space_name = static_cast<char *>(ut::malloc(size));
+  m_space_name =
+      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
 
   strncpy(m_space_name, new_space_name, size);
 }
@@ -863,7 +868,8 @@ void Tablespace::set_file_name(const char *file_name) {
   }
 
   size_t len = final_fn.size();
-  m_file_name = static_cast<char *>(ut::malloc(len + 1));
+  m_file_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 1));
   memcpy(m_file_name, final_fn.c_str(), len);
   m_file_name[len] = '\0';
 }
@@ -875,7 +881,8 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
   size_t size = strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
                 + strlen(undo::s_log_prefix) + strlen(undo::s_log_ext);
 
-  char *name = static_cast<char *>(ut::malloc(size));
+  char *name =
+      static_cast<char *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size));
 
   memset(name, 0, size);
 
@@ -2620,7 +2627,8 @@ void undo::Tablespaces::init() {
   read without using a latch. */
   m_spaces.reserve(FSP_MAX_UNDO_TABLESPACES);
 
-  m_latch = static_cast<rw_lock_t *>(ut::zalloc(sizeof(*m_latch)));
+  m_latch = static_cast<rw_lock_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*m_latch)));
 
   rw_lock_create(undo_spaces_lock_key, m_latch, SYNC_UNDO_SPACES);
 
@@ -2649,7 +2657,8 @@ void undo::Tablespaces::add(Tablespace &ref_undo_space) {
     return;
   }
 
-  auto undo_space = ut::new_<Tablespace>(ref_undo_space);
+  auto undo_space =
+      ut::new_withkey<Tablespace>(UT_NEW_THIS_FILE_PSI_KEY, ref_undo_space);
 
   m_spaces.push_back(undo_space);
 }

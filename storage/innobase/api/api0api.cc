@@ -845,7 +845,8 @@ ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
   trx_t *trx = static_cast<trx_t *>(ib_trx);
   MDL_ticket *mdl = nullptr;
 
-  normalized_name = static_cast<char *>(ut::malloc(ut_strlen(name) + 1));
+  normalized_name = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, ut_strlen(name) + 1));
   ib_normalize_table_name(normalized_name, name);
 
   ut_ad(ib_trx != nullptr);
@@ -1668,7 +1669,8 @@ static inline ib_err_t ib_cursor_position(
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
   }
-  buf = static_cast<unsigned char *>(ut::malloc(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
   prebuilt->clear_search_tuples();
 
   /* We want to position at one of the ends, row_search_for_mysql()
@@ -1750,7 +1752,8 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
 
   prebuilt->innodb_api_rec = nullptr;
 
-  buf = static_cast<unsigned char *>(ut::malloc(UNIV_PAGE_SIZE));
+  buf = static_cast<unsigned char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, UNIV_PAGE_SIZE));
 
   if (prebuilt->innodb_api) {
     prebuilt->cursor_heap = cursor->heap;
@@ -3365,7 +3368,8 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
   ut_ad(*sdi_len < UINT32_MAX);
   uint32_t uncompressed_sdi_len;
   uint32_t compressed_sdi_len = static_cast<uint32_t>(*sdi_len);
-  byte *compressed_sdi = static_cast<byte *>(ut::malloc(compressed_sdi_len));
+  byte *compressed_sdi = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, compressed_sdi_len));
 
   err = ib_sdi_get(tablespace_id, &sk, compressed_sdi, &compressed_sdi_len,
                    &uncompressed_sdi_len, trx);
