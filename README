@@ -18,3 +18,24 @@ For additional downloads and the source of MySQL, visit
   http://dev.mysql.com/downloads/
 
 MySQL is brought to you by the MySQL team at Oracle.
+
+
+## BUILD
+
+Cmake
+
+```
+cmake ../mysql-server -DWITH_BOOST=/usr/local/boost_1_73_0 -DCMAKE_INSTALL_PREFIX=/out -DCPACK_MONOLITHIC_INSTALL=1 
+```
+
+build Docker container called `mysql-test`
+
+```
+docker build -t mysql-test .
+```
+
+## RUN 
+
+```
+docker run --network host -v mysql:/var/lib/mysql --cap-add=sys_nice  -e MYSQL_ROOT_PASSWORD=secret -e MYSQL_USER=mysql -e MYSQL_PASSWORD=secret --name mysql8 -d mysql-test mysqld --default-authentication-plugin=mysql_native_password
+```

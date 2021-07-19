@@ -1,0 +1,4 @@
+*
+!/build/mysql-8.0.25-linux-x86_64.tar.gz
+!config/
+!docker-entrypoint.sh
