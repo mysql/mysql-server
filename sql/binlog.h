@@ -578,8 +578,7 @@ public:
   */
   bool find_first_log_not_in_gtid_set(char *binlog_file_name,
                                       const Gtid_set *gtid_set,
-                                      Gtid *first_gtid,
-                                      const char **errmsg);
+                                      Gtid *first_gtid, std::string &errmsg);
 
   /**
     Reads the set of all GTIDs in the binary/relay log, and the set
@@ -906,8 +905,8 @@ public:
 
     @return void
   */
-  void report_missing_purged_gtids(const Gtid_set* slave_executed_gtid_set,
-                                   const char** errmsg);
+  void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
+                                   std::string &errmsg);
 
   /**
     Function to report the missing GTIDs.
@@ -931,10 +930,10 @@ public:
 
     @return void
   */
-  void report_missing_gtids(const Gtid_set* previous_gtid_set,
-                            const Gtid_set* slave_executed_gtid_set,
-                            const char** errmsg);
-  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
+  void report_missing_gtids(const Gtid_set *previous_gtid_set,
+                            const Gtid_set *slave_executed_gtid_set,
+                            std::string &errmsg);
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE= 5;
   /*
     It is called by the threads(e.g. dump thread) which want to read
     hot log without LOCK_log protection.
