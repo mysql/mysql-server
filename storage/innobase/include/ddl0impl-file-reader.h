@@ -57,7 +57,7 @@ struct File_reader : private ut::Non_copyable {
   /** Destructor. */
   ~File_reader() noexcept {
     if (m_aux_buf != nullptr) {
-      UT_DELETE_ARRAY(m_aux_buf);
+      ut::delete_arr(m_aux_buf);
     }
   }
 

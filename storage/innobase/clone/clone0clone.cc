@@ -241,7 +241,8 @@ int Clone_Sys::add_clone(const byte *loc, Clone_Handle_Type hdl_type,
   }
 
   /* Create a new clone. */
-  clone_hdl = UT_NEW(Clone_Handle(hdl_type, version, free_idx), mem_key_clone);
+  clone_hdl = ut::new_withkey<Clone_Handle>(
+      ut::make_psi_memory_key(mem_key_clone), hdl_type, version, free_idx);
 
   if (clone_hdl == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Clone_Handle));
@@ -284,7 +285,7 @@ void Clone_Sys::drop_clone(Clone_Handle *clone_handle) {
     --m_num_apply_clones;
   }
 
-  UT_DELETE(clone_handle);
+  ut::delete_(clone_handle);
 }
 
 Clone_Handle *Clone_Sys::get_clone_by_index(const byte *loc, uint loc_len) {
@@ -334,8 +335,9 @@ int Clone_Sys::attach_snapshot(Clone_Handle_Type hdl_type,
   }
 
   /* Create a new snapshot. */
-  snapshot = UT_NEW(Clone_Snapshot(hdl_type, clone_type, free_idx, snapshot_id),
-                    mem_key_clone);
+  snapshot = ut::new_withkey<Clone_Snapshot>(
+      ut::make_psi_memory_key(mem_key_clone), hdl_type, clone_type, free_idx,
+      snapshot_id);
 
   if (snapshot == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Clone_Snapshot));
@@ -367,7 +369,7 @@ void Clone_Sys::detach_snapshot(Clone_Snapshot *snapshot,
   index = snapshot->get_index();
   ut_ad(m_snapshot_arr[index] == snapshot);
 
-  UT_DELETE(snapshot);
+  ut::delete_(snapshot);
 
   m_snapshot_arr[index] = nullptr;
 

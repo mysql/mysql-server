@@ -69,7 +69,7 @@ class Sharded_rw_lock {
     ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
-    m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
+    m_shards = static_cast<Shard *>(ut::zalloc(sizeof(Shard) * n_shards));
 
     for_each([
 #ifdef UNIV_PFS_RWLOCK
@@ -86,7 +86,7 @@ class Sharded_rw_lock {
 
     for_each([](rw_lock_t &lock) { rw_lock_free(&lock); });
 
-    ut_free(m_shards);
+    ut::free(m_shards);
     m_shards = nullptr;
     m_n_shards = 0;
   }

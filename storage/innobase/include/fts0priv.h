@@ -385,7 +385,7 @@ static inline int fts_write_object_id(ib_id_t id, char *str);
 void fts_optimize_add_table(dict_table_t *table); /*!< in: table to add */
 
 /** Construct the prefix name of an FTS table.
- @return own: table name, must be freed with ut_free() */
+ @return own: table name, must be freed with ut::free() */
 [[nodiscard]] char *fts_get_table_name_prefix(
     const fts_table_t *fts_table); /*!< in: Auxiliary table type */
 

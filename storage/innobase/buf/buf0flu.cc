@@ -2825,7 +2825,7 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
   ut_ad(page_cleaner == nullptr);
 
   page_cleaner =
-      static_cast<page_cleaner_t *>(ut_zalloc_nokey(sizeof(*page_cleaner)));
+      static_cast<page_cleaner_t *>(ut::zalloc(sizeof(*page_cleaner)));
 
   mutex_create(LATCH_ID_PAGE_CLEANER, &page_cleaner->mutex);
 
@@ -2835,7 +2835,7 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
   page_cleaner->n_slots = static_cast<ulint>(srv_buf_pool_instances);
 
   page_cleaner->slots = static_cast<page_cleaner_slot_t *>(
-      ut_zalloc_nokey(page_cleaner->n_slots * sizeof(*page_cleaner->slots)));
+      ut::zalloc(page_cleaner->n_slots * sizeof(*page_cleaner->slots)));
 
   ut_d(page_cleaner->n_disabled_debug = 0);
 
@@ -2866,12 +2866,12 @@ static void buf_flush_page_cleaner_close(void) {
 
   mutex_destroy(&page_cleaner->mutex);
 
-  ut_free(page_cleaner->slots);
+  ut::free(page_cleaner->slots);
 
   os_event_destroy(page_cleaner->is_finished);
   os_event_destroy(page_cleaner->is_requested);
 
-  ut_free(page_cleaner);
+  ut::free(page_cleaner);
 
   page_cleaner = nullptr;
 }

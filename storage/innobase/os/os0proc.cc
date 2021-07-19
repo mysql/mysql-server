@@ -185,7 +185,7 @@ void os_mem_free_large(void *ptr, ulint size) {
     UNIV_MEM_FREE(ptr, size);
   }
 #elif !defined OS_MAP_ANON
-  ut_free(ptr);
+  ut::free(ptr);
 #else
 #if defined(UNIV_SOLARIS)
   if (munmap(static_cast<caddr_t>(ptr), size)) {

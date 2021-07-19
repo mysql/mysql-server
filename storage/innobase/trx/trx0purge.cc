@@ -209,7 +209,7 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
 }
 
 void trx_purge_sys_mem_create() {
-  purge_sys = static_cast<trx_purge_t *>(ut_zalloc_nokey(sizeof(*purge_sys)));
+  purge_sys = static_cast<trx_purge_t *>(ut::zalloc(sizeof(*purge_sys)));
 
   purge_sys->state = PURGE_STATE_INIT;
   purge_sys->event = os_event_create();
@@ -260,7 +260,7 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 
   purge_sys->view_active = true;
 
-  purge_sys->rseg_iter = UT_NEW_NOKEY(TrxUndoRsegsIterator(purge_sys));
+  purge_sys->rseg_iter = ut::new_<TrxUndoRsegsIterator>(purge_sys);
 }
 
 void trx_purge_sys_close() {
@@ -282,7 +282,7 @@ void trx_purge_sys_close() {
   mutex_free(&purge_sys->pq_mutex);
 
   if (purge_sys->purge_queue != nullptr) {
-    UT_DELETE(purge_sys->purge_queue);
+    ut::delete_(purge_sys->purge_queue);
     purge_sys->purge_queue = nullptr;
   }
 
@@ -294,13 +294,13 @@ void trx_purge_sys_close() {
 
   purge_sys->heap = nullptr;
 
-  UT_DELETE(purge_sys->rseg_iter);
+  ut::delete_(purge_sys->rseg_iter);
 
   call_destructor(&purge_sys->thds);
   call_destructor(&purge_sys->undo_trunc);
   call_destructor(&purge_sys->rsegs_queue);
 
-  ut_free(purge_sys);
+  ut::free(purge_sys);
 
   purge_sys = nullptr;
 }
@@ -616,8 +616,9 @@ It is initialized with the minimum value in the range so that if a new
 space ID is needed in that range the max space ID will be used first.
 As truncation occurs, the space_ids are assigned from max down to min. */
 void init_space_id_bank() {
-  space_id_bank = UT_NEW_ARRAY(struct space_id_account,
-                               FSP_MAX_UNDO_TABLESPACES, mem_key_undo_spaces);
+  space_id_bank = ut::new_arr_withkey<struct space_id_account>(
+      ut::make_psi_memory_key(mem_key_undo_spaces),
+      ut::Count{FSP_MAX_UNDO_TABLESPACES});
 
   for (size_t slot = 0; slot < FSP_MAX_UNDO_TABLESPACES; slot++) {
     undo::space_id_bank[slot].space_id = SPACE_UNKNOWN;
@@ -775,7 +776,7 @@ char *make_space_name(space_id_t space_id) {
 
   size_t size = sizeof(undo_space_name) + 3 + (old ? 0 : 1);
 
-  char *name = static_cast<char *>(ut_malloc_nokey(size));
+  char *name = static_cast<char *>(ut::malloc(size));
 
   snprintf(name, size, (old ? "%s%03" SPACE_ID_PFS : "%s_%03" SPACE_ID_PFS),
            undo_space_name, static_cast<unsigned>(id2num(space_id)));
@@ -797,7 +798,7 @@ char *make_file_name(space_id_t space_id) {
   size_t size = strlen(srv_undo_dir) + (with_sep ? 0 : 1) + sizeof("undo000") +
                 (old ? 0 : 1);
 
-  char *name = static_cast<char *>(ut_malloc_nokey(size));
+  char *name = static_cast<char *>(ut::malloc(size));
 
   memcpy(name, srv_undo_dir, len);
 
@@ -820,12 +821,12 @@ char *make_file_name(space_id_t space_id) {
 
 void Tablespace::set_space_name(const char *new_space_name) {
   if (m_space_name != nullptr) {
-    ut_free(m_space_name);
+    ut::free(m_space_name);
     m_space_name = nullptr;
   }
 
   size_t size = strlen(new_space_name) + 1;
-  m_space_name = static_cast<char *>(ut_malloc_nokey(size));
+  m_space_name = static_cast<char *>(ut::malloc(size));
 
   strncpy(m_space_name, new_space_name, size);
 }
@@ -858,11 +859,11 @@ void Tablespace::set_file_name(const char *file_name) {
 
   /* We are going to replace any existing m_file_name. */
   if (m_file_name != nullptr) {
-    ut_free(m_file_name);
+    ut::free(m_file_name);
   }
 
   size_t len = final_fn.size();
-  m_file_name = static_cast<char *>(ut_malloc_nokey(len + 1));
+  m_file_name = static_cast<char *>(ut::malloc(len + 1));
   memcpy(m_file_name, final_fn.c_str(), len);
   m_file_name[len] = '\0';
 }
@@ -874,7 +875,7 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
   size_t size = strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
                 + strlen(undo::s_log_prefix) + strlen(undo::s_log_ext);
 
-  char *name = static_cast<char *>(ut_malloc_nokey(size));
+  char *name = static_cast<char *>(ut::malloc(size));
 
   memset(name, 0, size);
 
@@ -2619,7 +2620,7 @@ void undo::Tablespaces::init() {
   read without using a latch. */
   m_spaces.reserve(FSP_MAX_UNDO_TABLESPACES);
 
-  m_latch = static_cast<rw_lock_t *>(ut_zalloc_nokey(sizeof(*m_latch)));
+  m_latch = static_cast<rw_lock_t *>(ut::zalloc(sizeof(*m_latch)));
 
   rw_lock_create(undo_spaces_lock_key, m_latch, SYNC_UNDO_SPACES);
 
@@ -2631,7 +2632,7 @@ void undo::Tablespaces::deinit() {
   clear();
 
   rw_lock_free(m_latch);
-  ut_free(m_latch);
+  ut::free(m_latch);
   m_latch = nullptr;
   mutex_free(&ddl_mutex);
 }
@@ -2648,7 +2649,7 @@ void undo::Tablespaces::add(Tablespace &ref_undo_space) {
     return;
   }
 
-  auto undo_space = UT_NEW_NOKEY(Tablespace(ref_undo_space));
+  auto undo_space = ut::new_<Tablespace>(ref_undo_space);
 
   m_spaces.push_back(undo_space);
 }
@@ -2661,7 +2662,7 @@ void undo::Tablespaces::drop(Tablespace *undo_space) {
 
   for (auto it = m_spaces.begin(); it != m_spaces.end(); it++) {
     if (*it == undo_space) {
-      UT_DELETE(undo_space);
+      ut::delete_(undo_space);
       m_spaces.erase(it);
       break;
     }
@@ -2675,7 +2676,7 @@ void undo::Tablespaces::drop(Tablespace &ref_undo_space) {
 
   for (auto it = m_spaces.begin(); it != m_spaces.end(); it++) {
     if ((*it)->id() == ref_undo_space.id()) {
-      UT_DELETE(*it);
+      ut::delete_(*it);
       m_spaces.erase(it);
       break;
     }

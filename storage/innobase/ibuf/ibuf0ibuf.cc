@@ -438,7 +438,7 @@ void ibuf_close(void) {
   dict_mem_index_free(ibuf->index);
   dict_mem_table_free(ibuf_table);
 
-  ut_free(ibuf);
+  ut::free(ibuf);
   ibuf = nullptr;
 }
 
@@ -465,7 +465,7 @@ void ibuf_init_at_db_start(void) {
   ulint n_used;
   page_t *header_page;
 
-  ibuf = static_cast<ibuf_t *>(ut_zalloc_nokey(sizeof(ibuf_t)));
+  ibuf = static_cast<ibuf_t *>(ut::zalloc(sizeof(ibuf_t)));
 
   /* At startup we intialize ibuf to have a maximum of
   CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the

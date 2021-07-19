@@ -154,7 +154,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_431) << "File Path Specification '" << filepath_spec
                                << "' is missing a file name.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -162,7 +162,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ib::error(ER_IB_MSG_432) << "File Path Specification '" << filepath_spec
                                << "' is missing a file size.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -176,7 +176,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "Invalid File Path Specification: '" << filepath_spec
           << "'. An invalid file size was specified.";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
 
@@ -199,7 +199,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "'. Only the last"
                " file defined can be 'autoextend'.";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
     }
@@ -215,7 +215,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
             << "' Tablespace"
                " doesn't support raw devices";
 
-        ut_free(input_str);
+        ut::free(input_str);
         return (false);
       }
 
@@ -232,7 +232,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
           << "File Path Specification: '" << filepath_spec
           << "' has unrecognized characters after '" << input_str << "'";
 
-      ut_free(input_str);
+      ut::free(input_str);
       return (false);
     }
   }
@@ -242,7 +242,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
                              << "' must contain"
                                 " at least one data file definition";
 
-    ut_free(input_str);
+    ut::free(input_str);
     return (false);
   }
 
@@ -307,7 +307,7 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
   ut_ad(n_files == ulint(m_files.size()));
 
-  ut_free(input_str);
+  ut::free(input_str);
 
   return (true);
 }

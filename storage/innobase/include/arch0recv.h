@@ -44,15 +44,15 @@ class Arch_Recv_Group_Info {
     m_reset_pos.init();
     m_write_pos.init();
 
-    m_last_reset_block =
-        static_cast<byte *>(ut_zalloc(ARCH_PAGE_BLK_SIZE, mem_key_archive));
-    m_last_data_block =
-        static_cast<byte *>(ut_zalloc(ARCH_PAGE_BLK_SIZE, mem_key_archive));
+    m_last_reset_block = static_cast<byte *>(ut::zalloc_withkey(
+        ut::make_psi_memory_key(mem_key_archive), ARCH_PAGE_BLK_SIZE));
+    m_last_data_block = static_cast<byte *>(ut::zalloc_withkey(
+        ut::make_psi_memory_key(mem_key_archive), ARCH_PAGE_BLK_SIZE));
   }
 
   ~Arch_Recv_Group_Info() {
-    ut_free(m_last_reset_block);
-    ut_free(m_last_data_block);
+    ut::free(m_last_reset_block);
+    ut::free(m_last_data_block);
   }
 
   /** Disable assignment. */
@@ -137,10 +137,7 @@ class Arch_Dblwr_Ctx {
   Arch_Dblwr_Ctx() = default;
 
   ~Arch_Dblwr_Ctx() {
-    if (m_buf != nullptr) {
-      UT_DELETE_ARRAY(m_buf);
-    }
-
+    ut::free(m_buf);
     m_file_ctx.close();
   }
 

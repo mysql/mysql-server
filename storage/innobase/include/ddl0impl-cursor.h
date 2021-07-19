@@ -47,7 +47,7 @@ struct Cursor {
   /** Destructor. */
   virtual ~Cursor() noexcept {
     if (m_prev_fields != nullptr) {
-      ut_free(m_prev_fields);
+      ut::free(m_prev_fields);
       m_prev_fields = nullptr;
     }
   }
@@ -74,7 +74,7 @@ struct Cursor {
   @param[in] n_uniq             Number of columns to make they unique key.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t setup_pk_sort(size_t n_uniq) noexcept {
-    auto p = ut_malloc_nokey(n_uniq * sizeof(dfield_t));
+    auto p = ut::malloc(n_uniq * sizeof(dfield_t));
 
     if (p == nullptr) {
       return DB_OUT_OF_MEMORY;

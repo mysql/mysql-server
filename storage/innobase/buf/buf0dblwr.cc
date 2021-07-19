@@ -181,7 +181,7 @@ class Pages {
   /** Destructor */
   ~Pages() noexcept {
     for (auto &page : m_pages) {
-      UT_DELETE(page);
+      ut::delete_(page);
     }
 
     m_pages.clear();
@@ -911,7 +911,7 @@ dberr_t Double_write::create_v2() noexcept {
   ut_a(!s_files.empty());
   ut_a(s_instances == nullptr);
 
-  s_instances = UT_NEW_NOKEY(Instances{});
+  s_instances = ut::new_<Instances>();
 
   if (s_instances == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -920,7 +920,7 @@ dberr_t Double_write::create_v2() noexcept {
   dberr_t err{DB_SUCCESS};
 
   for (uint32_t i = 0; i < s_n_instances; ++i) {
-    auto ptr = UT_NEW_NOKEY(Double_write(i, dblwr::n_pages));
+    auto ptr = ut::new_<Double_write>(i, dblwr::n_pages);
 
     if (ptr == nullptr) {
       err = DB_OUT_OF_MEMORY;
@@ -932,9 +932,9 @@ dberr_t Double_write::create_v2() noexcept {
 
   if (err != DB_SUCCESS) {
     for (auto &dblwr : *s_instances) {
-      UT_DELETE(dblwr);
+      ut::delete_(dblwr);
     }
-    UT_DELETE(s_instances);
+    ut::delete_(s_instances);
     s_instances = nullptr;
   }
 
@@ -947,7 +947,7 @@ void Double_write::shutdown() noexcept {
   }
 
   for (auto dblwr : *s_instances) {
-    UT_DELETE(dblwr);
+    ut::delete_(dblwr);
   }
 
   for (auto &file : s_files) {
@@ -961,31 +961,31 @@ void Double_write::shutdown() noexcept {
   if (s_LRU_batch_segments != nullptr) {
     Batch_segment *s{};
     while (s_LRU_batch_segments->dequeue(s)) {
-      UT_DELETE(s);
+      ut::delete_(s);
     }
-    UT_DELETE(s_LRU_batch_segments);
+    ut::delete_(s_LRU_batch_segments);
     s_LRU_batch_segments = nullptr;
   }
 
   if (s_flush_list_batch_segments != nullptr) {
     Batch_segment *s{};
     while (s_flush_list_batch_segments->dequeue(s)) {
-      UT_DELETE(s);
+      ut::delete_(s);
     }
-    UT_DELETE(s_flush_list_batch_segments);
+    ut::delete_(s_flush_list_batch_segments);
     s_flush_list_batch_segments = nullptr;
   }
 
   if (s_single_segments != nullptr) {
     Segment *s{};
     while (s_single_segments->dequeue(s)) {
-      UT_DELETE(s);
+      ut::delete_(s);
     }
-    UT_DELETE(s_single_segments);
+    ut::delete_(s_single_segments);
     s_single_segments = nullptr;
   }
 
-  UT_DELETE(s_instances);
+  ut::delete_(s_instances);
   s_instances = nullptr;
 }
 
@@ -1547,7 +1547,7 @@ dberr_t Double_write::create_batch_segments(
 
   ut_a(s_LRU_batch_segments == nullptr);
 
-  s_LRU_batch_segments = UT_NEW_NOKEY(Batch_segments(n));
+  s_LRU_batch_segments = ut::new_<Batch_segments>(n);
 
   if (s_LRU_batch_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1555,7 +1555,7 @@ dberr_t Double_write::create_batch_segments(
 
   ut_a(s_flush_list_batch_segments == nullptr);
 
-  s_flush_list_batch_segments = UT_NEW_NOKEY(Batch_segments(n));
+  s_flush_list_batch_segments = ut::new_<Batch_segments>(n);
 
   if (s_flush_list_batch_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1567,7 +1567,7 @@ dberr_t Double_write::create_batch_segments(
 
   for (auto &file : s_files) {
     for (uint32_t i = 0; i < total_pages; i += dblwr::n_pages, ++id) {
-      auto s = UT_NEW_NOKEY(Batch_segment(id, file, i, dblwr::n_pages));
+      auto s = ut::new_<Batch_segment>(id, file, i, dblwr::n_pages);
 
       if (s == nullptr) {
         return DB_OUT_OF_MEMORY;
@@ -1598,7 +1598,7 @@ dberr_t Double_write::create_single_segments(
   const auto n_segments =
       std::max(ulint{2}, ut_2_power_up(SYNC_PAGE_FLUSH_SLOTS));
 
-  s_single_segments = UT_NEW_NOKEY(Segments(n_segments));
+  s_single_segments = ut::new_<Segments>(n_segments);
 
   if (s_single_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1620,7 +1620,7 @@ dberr_t Double_write::create_single_segments(
     const auto start = dblwr::File::s_n_pages;
 
     for (uint32_t i = start; i < start + n_pages; ++i) {
-      auto s = UT_NEW_NOKEY(Segment(file, i, 1UL));
+      auto s = ut::new_<Segment>(file, i, 1UL);
 
       if (s == nullptr) {
         return DB_OUT_OF_MEMORY;
@@ -2350,7 +2350,7 @@ void recv::Pages::add(page_no_t page_no, const byte *page,
     return;
   }
   /* Make a copy of the page contents. */
-  auto dblwr_page = UT_NEW_NOKEY(Page(page_no, page, n_bytes));
+  auto dblwr_page = ut::new_<Page>(page_no, page, n_bytes);
 
   m_pages.push_back(dblwr_page);
 }
@@ -2517,12 +2517,12 @@ const byte *dblwr::recv::find(const recv::Pages *pages,
 
 void dblwr::recv::create(recv::Pages *&pages) noexcept {
   ut_a(pages == nullptr);
-  pages = UT_NEW_NOKEY(recv::Pages{});
+  pages = ut::new_<recv::Pages>();
 }
 
 void dblwr::recv::destroy(recv::Pages *&pages) noexcept {
   if (pages != nullptr) {
-    UT_DELETE(pages);
+    ut::delete_(pages);
     pages = nullptr;
   }
 }

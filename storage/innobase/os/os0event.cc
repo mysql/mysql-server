@@ -529,7 +529,7 @@ states: signaled and nonsignaled. The created event is manual reset: it
 must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
 os_event_t os_event_create() {
-  os_event_t ret = (UT_NEW_NOKEY(os_event()));
+  os_event_t ret = (ut::new_<os_event>());
 /**
  On SuSE Linux we get spurious EBUSY from pthread_mutex_destroy()
  unless we grab and release the mutex here. Current OS version:
@@ -608,7 +608,7 @@ void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 {
   if (event != nullptr) {
-    UT_DELETE(event);
+    ut::delete_(event);
     event = nullptr;
   }
 }

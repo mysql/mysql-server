@@ -225,7 +225,7 @@ void ReadView::ids_t::reserve(ulint n) {
 
   value_type *p = m_ptr;
 
-  m_ptr = UT_NEW_ARRAY_NOKEY(value_type, n);
+  m_ptr = ut::new_arr<value_type>(ut::Count{n});
 
   m_reserved = n;
 
@@ -234,7 +234,7 @@ void ReadView::ids_t::reserve(ulint n) {
   if (p != nullptr) {
     ::memmove(m_ptr, p, size() * sizeof(value_type));
 
-    UT_DELETE_ARRAY(p);
+    ut::delete_arr(p);
   }
 }
 
@@ -330,7 +330,7 @@ ReadView::~ReadView() {
 @param size		Number of views to pre-allocate */
 MVCC::MVCC(ulint size) : m_free(), m_views() {
   for (ulint i = 0; i < size; ++i) {
-    ReadView *view = UT_NEW_NOKEY(ReadView());
+    ReadView *view = ut::new_<ReadView>();
 
     UT_LIST_ADD_FIRST(m_free, view);
   }
@@ -340,7 +340,7 @@ MVCC::~MVCC() {
   while (ReadView *view = UT_LIST_GET_FIRST(m_free)) {
     UT_LIST_REMOVE(m_free, view);
 
-    UT_DELETE(view);
+    ut::delete_(view);
   }
 
   ut_a(UT_LIST_GET_LEN(m_views) == 0);
@@ -482,7 +482,7 @@ ReadView *MVCC::get_view() {
     view = UT_LIST_GET_FIRST(m_free);
     UT_LIST_REMOVE(m_free, view);
   } else {
-    view = UT_NEW_NOKEY(ReadView());
+    view = ut::new_<ReadView>();
 
     if (view == nullptr) {
       ib::error(ER_IB_MSG_918) << "Failed to allocate MVCC view";

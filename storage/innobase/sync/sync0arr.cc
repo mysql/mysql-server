@@ -118,7 +118,7 @@ sync_array_t::sync_array_t(ulint num_cells) UNIV_NOTHROW : n_reserved(),
                                                            first_free_slot() {
   ut_a(num_cells > 0);
 
-  cells = UT_NEW_ARRAY_NOKEY(sync_cell_t, num_cells);
+  cells = ut::new_arr<sync_cell_t>(ut::Count{num_cells});
 
   n_cells = num_cells;
 
@@ -138,7 +138,7 @@ sync_array_t::~sync_array_t() UNIV_NOTHROW {
 
   mutex_free(&mutex);
 
-  UT_DELETE_ARRAY(cells);
+  ut::delete_arr(cells);
 }
 
 sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, ulint n) {
@@ -150,7 +150,7 @@ sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, ulint n) {
 /** Frees the resources in a wait array. */
 static void sync_array_free(sync_array_t *arr) /*!< in, own: sync wait array */
 {
-  UT_DELETE(arr);
+  ut::delete_(arr);
 }
 
 /** Returns the event that the thread owning the cell waits for. */
@@ -1026,12 +1026,12 @@ void sync_array_init(ulint n_threads) /*!< in: Number of slots to
 
   sync_array_size = srv_sync_array_size;
 
-  sync_wait_array = UT_NEW_ARRAY_NOKEY(sync_array_t *, sync_array_size);
+  sync_wait_array = ut::new_arr<sync_array_t *>(ut::Count{sync_array_size});
 
   ulint n_slots = 1 + (n_threads - 1) / sync_array_size;
 
   for (ulint i = 0; i < sync_array_size; ++i) {
-    sync_wait_array[i] = UT_NEW_NOKEY(sync_array_t(n_slots));
+    sync_wait_array[i] = ut::new_<sync_array_t>(n_slots);
   }
 }
 
@@ -1041,7 +1041,7 @@ void sync_array_close(void) {
     sync_array_free(sync_wait_array[i]);
   }
 
-  UT_DELETE_ARRAY(sync_wait_array);
+  ut::delete_arr(sync_wait_array);
   sync_wait_array = nullptr;
 }
 

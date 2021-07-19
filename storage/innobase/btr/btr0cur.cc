@@ -1495,10 +1495,10 @@ retry_page_get:
         retrying_for_search_prev = true;
 
         prev_tree_blocks = static_cast<buf_block_t **>(
-            ut_malloc_nokey(sizeof(buf_block_t *) * leftmost_from_level));
+            ut::malloc(sizeof(buf_block_t *) * leftmost_from_level));
 
         prev_tree_savepoints = static_cast<ulint *>(
-            ut_malloc_nokey(sizeof(ulint) * leftmost_from_level));
+            ut::malloc(sizeof(ulint) * leftmost_from_level));
 
         /* back to the level (leftmost_from_level+1) */
         ulint idx = n_blocks - (leftmost_from_level - 1);
@@ -1676,8 +1676,8 @@ func_exit:
   }
 
   if (retrying_for_search_prev) {
-    ut_free(prev_tree_blocks);
-    ut_free(prev_tree_savepoints);
+    ut::free(prev_tree_blocks);
+    ut::free(prev_tree_savepoints);
   }
 
   if (has_search_latch) {

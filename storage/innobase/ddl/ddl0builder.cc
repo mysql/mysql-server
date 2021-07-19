@@ -320,7 +320,7 @@ Merge_cursor::Merge_cursor(Builder *builder, Dup *dup,
 
 Merge_cursor::~Merge_cursor() noexcept {
   for (auto cursor : m_cursors) {
-    UT_DELETE(cursor);
+    ut::delete_(cursor);
   }
 }
 
@@ -347,9 +347,9 @@ dberr_t Merge_cursor::add_file(const ddl::file_t &file,
                                size_t buffer_size) noexcept {
   ut_a(file.m_fd != OS_FD_CLOSED);
 
-  auto cursor = UT_NEW(
-      File_cursor(m_builder, file.m_fd, buffer_size, file.m_size, m_stage),
-      mem_key_ddl);
+  auto cursor = ut::new_withkey<File_cursor>(
+      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_fd, buffer_size,
+      file.m_size, m_stage);
 
   if (cursor == nullptr) {
     m_err = DB_OUT_OF_MEMORY;
@@ -571,11 +571,11 @@ Builder::Thread_ctx::~Thread_ctx() noexcept {
   file_destroy(&m_file);
 
   if (m_key_buffer != nullptr) {
-    UT_DELETE(m_key_buffer);
+    ut::delete_(m_key_buffer);
   }
 
   if (m_rtree_inserter != nullptr) {
-    UT_DELETE(m_rtree_inserter);
+    ut::delete_(m_rtree_inserter);
   }
 }
 
@@ -597,18 +597,18 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 
 Builder::~Builder() noexcept {
   for (auto thread_ctx : m_thread_ctxs) {
-    UT_DELETE(thread_ctx);
+    ut::delete_(thread_ctx);
   }
 
   m_thread_ctxs.clear();
 
   if (m_local_stage != nullptr) {
     m_local_stage->begin_phase_end();
-    UT_DELETE(m_local_stage);
+    ut::delete_(m_local_stage);
   }
 
   if (m_btr_load != nullptr) {
-    UT_DELETE(m_btr_load);
+    ut::delete_(m_btr_load);
     m_btr_load = nullptr;
   }
 }
@@ -629,7 +629,8 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
   if (m_ctx.m_stage != nullptr) {
     ut_a(m_local_stage == nullptr);
-    m_local_stage = UT_NEW(Alter_stage(*m_ctx.m_stage), mem_key_ddl);
+    m_local_stage = ut::new_withkey<Alter_stage>(
+        ut::make_psi_memory_key(mem_key_ddl), *m_ctx.m_stage);
 
     if (m_local_stage == nullptr) {
       return DB_OUT_OF_MEMORY;
@@ -641,17 +642,18 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
   auto buffer_size = m_ctx.scan_buffer_size(n_threads);
   auto create_thread_ctx = [&](size_t id, dict_index_t *index) -> dberr_t {
-    auto key_buffer =
-        UT_NEW(Key_sort_buffer(index, buffer_size.first), mem_key_ddl);
+    auto key_buffer = ut::new_withkey<Key_sort_buffer>(
+        ut::make_psi_memory_key(mem_key_ddl), index, buffer_size.first);
 
     if (key_buffer == nullptr) {
       return DB_OUT_OF_MEMORY;
     }
 
-    auto thread_ctx = UT_NEW(Thread_ctx(id, key_buffer), mem_key_ddl);
+    auto thread_ctx = ut::new_withkey<Thread_ctx>(
+        ut::make_psi_memory_key(mem_key_ddl), id, key_buffer);
 
     if (thread_ctx == nullptr) {
-      UT_DELETE(key_buffer);
+      ut::delete_(key_buffer);
       key_buffer = nullptr;
     }
 
@@ -662,12 +664,12 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     }
 
     if (is_spatial_index()) {
-      thread_ctx->m_rtree_inserter =
-          UT_NEW(RTree_inserter(m_ctx, index), mem_key_ddl);
+      thread_ctx->m_rtree_inserter = ut::new_withkey<RTree_inserter>(
+          ut::make_psi_memory_key(mem_key_ddl), m_ctx, index);
 
       if (thread_ctx->m_rtree_inserter == nullptr ||
           !thread_ctx->m_rtree_inserter->is_initialized()) {
-        UT_DELETE(key_buffer);
+        ut::delete_(key_buffer);
         return DB_OUT_OF_MEMORY;
       }
     }
@@ -689,9 +691,11 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
       /* Fetch the FTS Doc ID from the row. */
       fts_get_next_doc_id(table, &current);
 
-      fts.m_doc_id = UT_NEW(Gen_sequence(current), mem_key_ddl);
+      fts.m_doc_id = ut::new_withkey<Gen_sequence>(
+          ut::make_psi_memory_key(mem_key_ddl), current);
     } else {
-      fts.m_doc_id = UT_NEW(Fetch_sequence(fts.m_ptr->index()), mem_key_ddl);
+      fts.m_doc_id = ut::new_withkey<Fetch_sequence>(
+          ut::make_psi_memory_key(mem_key_ddl), fts.m_ptr->index());
     }
 
     if (fts.m_doc_id == nullptr) {
@@ -732,7 +736,8 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     const auto trx_id = m_ctx.m_trx->id;
     auto observer = m_ctx.flush_observer();
 
-    m_btr_load = UT_NEW(Btree_load(m_index, trx_id, observer), mem_key_ddl);
+    m_btr_load = ut::new_withkey<Btree_load>(
+        ut::make_psi_memory_key(mem_key_ddl), m_index, trx_id, observer);
 
     if (m_btr_load == nullptr) {
       set_error(DB_OUT_OF_MEMORY);
@@ -850,7 +855,7 @@ dberr_t Builder::copy_fts_column(Copy_ctx &ctx, dfield_t *field) noexcept {
   ut_a(doc_id <= 4294967295u);
 
   if (unlikely(!dfield_is_null(field))) {
-    auto ptr = ut_malloc_nokey(sizeof(FTS::Doc_item) + field->len);
+    auto ptr = ut::malloc(sizeof(FTS::Doc_item) + field->len);
     auto doc_item = static_cast<FTS::Doc_item *>(ptr);
     auto value = static_cast<byte *>(ptr) + sizeof(*doc_item);
 
@@ -1256,7 +1261,7 @@ dberr_t Builder::insert_direct(Cursor &cursor, const Row &row,
 
     if (cursor.eof() || err != DB_SUCCESS) {
       err = m_btr_load->finish(err);
-      UT_DELETE(m_btr_load);
+      ut::delete_(m_btr_load);
       m_btr_load = nullptr;
     } else {
       m_btr_load->release();
@@ -1850,7 +1855,7 @@ dberr_t Builder::create_merge_sort_tasks() noexcept {
   for (auto thread_ctx : m_thread_ctxs) {
     if (thread_ctx->m_key_buffer != nullptr) {
       /* Free up memory that is not going to be used anymore. */
-      UT_DELETE(thread_ctx->m_key_buffer);
+      ut::delete_(thread_ctx->m_key_buffer);
       thread_ctx->m_key_buffer = nullptr;
     }
 
@@ -1892,7 +1897,7 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   }
 
   if (fts.m_ptr != nullptr) {
-    UT_DELETE(fts.m_ptr);
+    ut::delete_(fts.m_ptr);
     fts.m_ptr = nullptr;
   }
 
@@ -2038,7 +2043,7 @@ dberr_t Builder::finish() noexcept {
 void Builder::fallback_to_single_thread() noexcept {
   for (size_t i = 0; i < m_thread_ctxs.size(); ++i) {
     if (i > 0) {
-      UT_DELETE(m_thread_ctxs[i]);
+      ut::delete_(m_thread_ctxs[i]);
       m_thread_ctxs[i] = nullptr;
     }
   }

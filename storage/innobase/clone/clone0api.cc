@@ -1604,7 +1604,8 @@ dberr_t clone_init() {
 
   if (clone_sys == nullptr) {
     ut_ad(Clone_Sys::s_clone_sys_state == CLONE_SYS_INACTIVE);
-    clone_sys = UT_NEW(Clone_Sys(), mem_key_clone);
+    clone_sys =
+        ut::new_withkey<Clone_Sys>(ut::make_psi_memory_key(mem_key_clone));
   }
   Clone_Sys::s_clone_sys_state = CLONE_SYS_ACTIVE;
   Clone_handler::init_xa();
@@ -1617,7 +1618,7 @@ void clone_free() {
   if (clone_sys != nullptr) {
     ut_ad(Clone_Sys::s_clone_sys_state == CLONE_SYS_ACTIVE);
 
-    UT_DELETE(clone_sys);
+    ut::delete_(clone_sys);
     clone_sys = nullptr;
   }
 

@@ -1244,7 +1244,7 @@ void row_log_table_blob_free(
   page_no_map *blobs = index->online_log->blobs;
 
   if (blobs == nullptr) {
-    index->online_log->blobs = blobs = UT_NEW_NOKEY(page_no_map());
+    index->online_log->blobs = blobs = ut::new_<page_no_map>();
   }
 
 #ifdef UNIV_DEBUG
@@ -2703,7 +2703,8 @@ of log that is applied.
 
   UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-  offsets = static_cast<ulint *>(ut_malloc_nokey(i * sizeof *offsets));
+  offsets = static_cast<ulint *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, i * sizeof *offsets));
   offsets[0] = i;
   offsets[1] = dict_index_get_n_fields(index);
 
@@ -2986,7 +2987,7 @@ func_exit:
   mem_heap_free(offsets_heap);
   mem_heap_free(heap);
   row_log_block_free(index->online_log->head);
-  ut_free(offsets);
+  ut::free(offsets);
   return (error);
 }
 
@@ -3062,7 +3063,7 @@ bool row_log_allocate(
   ut_ad(!add_cols || col_map);
   ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 
-  log = static_cast<row_log_t *>(ut_malloc_nokey(sizeof *log));
+  log = static_cast<row_log_t *>(ut::malloc(sizeof *log));
 
   if (log == nullptr) {
     return false;
@@ -3103,12 +3104,12 @@ void row_log_free(row_log_t *&log) /*!< in,own: row log */
 {
   MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
-  UT_DELETE(log->blobs);
+  ut::delete_(log->blobs);
   row_log_block_free(log->tail);
   row_log_block_free(log->head);
   ddl::file_destroy_low(log->fd);
   mutex_free(&log->mutex);
-  ut_free(log);
+  ut::free(log);
   log = nullptr;
 }
 
@@ -3473,7 +3474,7 @@ static dberr_t row_log_apply_ops(const trx_t *trx, dict_index_t *index,
   ut_ad(index->online_log);
   UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
-  offsets = static_cast<ulint *>(ut_malloc_nokey(i * sizeof *offsets));
+  offsets = static_cast<ulint *>(ut::malloc(i * sizeof *offsets));
   offsets[0] = i;
   offsets[1] = dict_index_get_n_fields(index);
 
@@ -3740,7 +3741,7 @@ func_exit:
   mem_heap_free(heap);
   mem_heap_free(offsets_heap);
   row_log_block_free(index->online_log->head);
-  ut_free(offsets);
+  ut::free(offsets);
   return (error);
 }
 

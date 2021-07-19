@@ -339,8 +339,9 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   /* Create a new group. */
   if (create_new_group) {
-    m_current_group = UT_NEW(Arch_Group(start_lsn, LOG_FILE_HDR_SIZE, &m_mutex),
-                             mem_key_archive);
+    m_current_group =
+        ut::new_withkey<Arch_Group>(ut::make_psi_memory_key(mem_key_archive),
+                                    start_lsn, LOG_FILE_HDR_SIZE, &m_mutex);
 
     if (m_current_group == nullptr) {
       arch_mutex_exit();
@@ -491,7 +492,7 @@ void Arch_Log_Sys::release(Arch_Group *group, bool is_durable) {
 
   m_group_list.remove(group);
 
-  UT_DELETE(group);
+  ut::delete_(group);
 
   arch_mutex_exit();
 }
@@ -565,7 +566,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       if (!m_current_group->is_referenced()) {
         m_group_list.remove(m_current_group);
 
-        UT_DELETE(m_current_group);
+        ut::delete_(m_current_group);
       }
 
       m_current_group = nullptr;

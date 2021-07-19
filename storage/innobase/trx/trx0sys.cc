@@ -441,7 +441,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   /* We create the min binary heap here and pass ownership to
   purge when we init the purge sub-system. Purge is responsible
   for freeing the binary heap. */
-  purge_queue = UT_NEW_NOKEY(purge_pq_t());
+  purge_queue = ut::new_<purge_pq_t>();
   ut_a(purge_queue != nullptr);
 
   if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
@@ -560,7 +560,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 void trx_sys_create(void) {
   ut_ad(trx_sys == nullptr);
 
-  trx_sys = static_cast<trx_sys_t *>(ut_zalloc_nokey(sizeof(*trx_sys)));
+  trx_sys = static_cast<trx_sys_t *>(ut::zalloc(sizeof(*trx_sys)));
 
   mutex_create(LATCH_ID_TRX_SYS, &trx_sys->mutex);
   mutex_create(LATCH_ID_TRX_SYS_SERIALISATION, &trx_sys->serialisation_mutex);
@@ -569,7 +569,7 @@ void trx_sys_create(void) {
   UT_LIST_INIT(trx_sys->rw_trx_list);
   UT_LIST_INIT(trx_sys->mysql_trx_list);
 
-  trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
+  trx_sys->mvcc = ut::new_<MVCC>(1024);
 
   trx_sys->serialisation_min_trx_no.store(0);
 
@@ -637,7 +637,7 @@ void trx_sys_close(void) {
 
   trx_sys->tmp_rsegs.~Rsegs();
 
-  UT_DELETE(trx_sys->mvcc);
+  ut::delete_(trx_sys->mvcc);
 
   ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
@@ -653,7 +653,7 @@ void trx_sys_close(void) {
 
   trx_sys->rw_trx_ids.~trx_ids_t();
 
-  ut_free(trx_sys);
+  ut::free(trx_sys);
 
   trx_sys = nullptr;
 }
@@ -761,7 +761,8 @@ Space_Ids *trx_sys_undo_spaces;
 
 /** Initialize trx_sys_undo_spaces, called once during srv_start(). */
 void trx_sys_undo_spaces_init() {
-  trx_sys_undo_spaces = UT_NEW(Space_Ids(), mem_key_undo_spaces);
+  trx_sys_undo_spaces =
+      ut::new_withkey<Space_Ids>(ut::make_psi_memory_key(mem_key_undo_spaces));
 
   trx_sys_undo_spaces->reserve(TRX_SYS_N_RSEGS);
 }
@@ -771,7 +772,7 @@ called once during thread de-initialization. */
 void trx_sys_undo_spaces_deinit() {
   if (trx_sys_undo_spaces != nullptr) {
     trx_sys_undo_spaces->clear();
-    UT_DELETE(trx_sys_undo_spaces);
+    ut::delete_(trx_sys_undo_spaces);
     trx_sys_undo_spaces = nullptr;
   }
 }

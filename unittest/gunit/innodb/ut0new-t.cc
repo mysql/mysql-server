@@ -68,95 +68,6 @@ constexpr T wrapper<T>::INIT_VAL;
 
 TYPED_TEST_SUITE_P(ut0new_t);
 
-TYPED_TEST_P(ut0new_t, ut_new_fundamental_types) {
-  start();
-  const auto MAX = std::numeric_limits<TypeParam>::max();
-  auto p = UT_NEW_NOKEY(TypeParam(MAX));
-  EXPECT_EQ(*p, MAX);
-  UT_DELETE(p);
-
-  p = UT_NEW(TypeParam(MAX - 1), mem_key_buf_buf_pool);
-  EXPECT_EQ(*p, MAX - 1);
-  UT_DELETE(p);
-
-  const int CNT = 5;
-  p = UT_NEW_ARRAY_NOKEY(TypeParam, CNT);
-  for (int i = 0; i < CNT; ++i) {
-    p[i] = MAX;
-    EXPECT_EQ(p[i], MAX);
-  }
-  UT_DELETE_ARRAY(p);
-
-  p = UT_NEW_ARRAY(TypeParam, CNT, mem_key_buf_buf_pool);
-  for (int i = 0; i < CNT; ++i) {
-    p[i] = MAX - 1;
-    EXPECT_EQ(p[i], MAX - 1);
-  }
-  UT_DELETE_ARRAY(p);
-}
-
-TYPED_TEST_P(ut0new_t, ut_new_structs) {
-  start();
-  const auto MAX = std::numeric_limits<TypeParam>::max();
-
-  using w = wrapper<TypeParam>;
-
-  auto p = UT_NEW_NOKEY(w(TypeParam(MAX)));
-  EXPECT_EQ(p->data, MAX);
-  UT_DELETE(p);
-
-  p = UT_NEW(w(TypeParam(MAX - 1)), mem_key_buf_buf_pool);
-  EXPECT_EQ(p->data, MAX - 1);
-  UT_DELETE(p);
-
-  const int CNT = 5;
-
-  p = UT_NEW_ARRAY_NOKEY(w, CNT);
-  for (int i = 0; i < CNT; ++i) {
-    EXPECT_EQ(w::INIT_VAL, p[i].data);
-  }
-  UT_DELETE_ARRAY(p);
-
-  p = UT_NEW_ARRAY(w, CNT, mem_key_buf_buf_pool);
-  for (int i = 0; i < CNT; ++i) {
-    EXPECT_EQ(w::INIT_VAL, p[i].data);
-  }
-  UT_DELETE_ARRAY(p);
-}
-
-TYPED_TEST_P(ut0new_t, ut_malloc) {
-  start();
-  TypeParam *p;
-  const auto MAX = std::numeric_limits<TypeParam>::max();
-  const auto MIN = std::numeric_limits<TypeParam>::min();
-
-  p = static_cast<TypeParam *>(ut_malloc_nokey(sizeof(TypeParam)));
-  *p = MIN;
-  ut_free(p);
-
-  p = static_cast<TypeParam *>(
-      ut_malloc(sizeof(TypeParam), mem_key_buf_buf_pool));
-  *p = MAX;
-  ut_free(p);
-
-  p = static_cast<TypeParam *>(ut_zalloc_nokey(sizeof(TypeParam)));
-  EXPECT_EQ(0, *p);
-  *p = MAX;
-  ut_free(p);
-
-  p = static_cast<TypeParam *>(
-      ut_zalloc(sizeof(TypeParam), mem_key_buf_buf_pool));
-  EXPECT_EQ(0, *p);
-  *p = MAX;
-  ut_free(p);
-
-  p = static_cast<TypeParam *>(ut_malloc_nokey(sizeof(TypeParam)));
-  *p = MAX - 1;
-  p = static_cast<TypeParam *>(ut_realloc(p, 2 * sizeof(TypeParam)));
-  EXPECT_EQ(MAX - 1, p[0]);
-  p[1] = MAX;
-  ut_free(p);
-}
 /* test ut_allocator() */
 TYPED_TEST_P(ut0new_t, ut_vector) {
   start();
@@ -174,8 +85,8 @@ TYPED_TEST_P(ut0new_t, ut_vector) {
   EXPECT_EQ(MIN + 1, v1[1]);
   EXPECT_EQ(MAX, v1[2]);
 
-  /* We use "new" instead of "UT_NEW()" for simplicity here. Real InnoDB
-  code should use UT_NEW(). */
+  /* We use "new" instead of "ut::new_withkey()" for simplicity here. Real
+  InnoDB code should use ut::new_withkey(). */
 
   /* This could of course be written as:
   std::vector<int, ut_allocator<int> >*	v2
@@ -191,25 +102,12 @@ TYPED_TEST_P(ut0new_t, ut_vector) {
   delete v2;
 }
 
-REGISTER_TYPED_TEST_SUITE_P(ut0new_t, ut_new_fundamental_types, ut_new_structs,
-                            ut_malloc, ut_vector);
+REGISTER_TYPED_TEST_SUITE_P(ut0new_t, ut_vector);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(int_types, ut0new_t, int_types);
 INSTANTIATE_TYPED_TEST_SUITE_P(float_types, ut0new_t, floating_point_types);
 INSTANTIATE_TYPED_TEST_SUITE_P(char_types, ut0new_t, char_types);
 INSTANTIATE_TYPED_TEST_SUITE_P(bool, ut0new_t, bool);
-
-static int n_construct = 0;
-
-class cc_t {
- public:
-  cc_t() {
-    n_construct++;
-    if (n_construct % 4 == 0) {
-      throw(1);
-    }
-  }
-};
 
 struct big_t {
   char x[128];
@@ -228,12 +126,12 @@ TEST(ut0new, edgecases) {
   ret = alloc1.allocate(16);
   ASSERT_TRUE(ret != nullptr);
 
-  ret = alloc1.reallocate(ret, 0, UT_NEW_THIS_FILE_PSI_KEY);
+  ret = alloc1.reallocate(ret, 0, UT_NEW_THIS_FILE_PSI_KEY());
   EXPECT_EQ(null_ptr, ret);
 
-  ret = UT_NEW_ARRAY_NOKEY(byte, 0);
+  ret = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{0});
   EXPECT_NE(null_ptr, ret);
-  UT_DELETE_ARRAY((byte *)ret);
+  ut::delete_arr((byte *)ret);
 #endif /* UNIV_PFS_MEMORY */
 
   ut_allocator<big_t> alloc2(mem_key_buf_buf_pool);
@@ -247,7 +145,7 @@ TEST(ut0new, edgecases) {
   ret = alloc2.allocate(16);
   ASSERT_TRUE(ret != nullptr);
   void *ret2 =
-      alloc2.reallocate(ret, too_many_elements, UT_NEW_THIS_FILE_PSI_KEY);
+      alloc2.reallocate(ret, too_many_elements, UT_NEW_THIS_FILE_PSI_KEY());
   EXPECT_EQ(null_ptr, ret2);
   /* If reallocate fails due to too many elements,
   memory is still allocated. Do explicit deallocate do avoid mem leak. */
@@ -267,17 +165,6 @@ TEST(ut0new, edgecases) {
     ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED,
                           false);
   } catch (std::bad_array_new_length &e) {
-    threw = true;
-  }
-  EXPECT_TRUE(threw);
-
-  threw = false;
-  try {
-    cc_t *cc = UT_NEW_ARRAY_NOKEY(cc_t, 16);
-    /* Not reached, but silence a compiler warning
-    about unused 'cc': */
-    ASSERT_TRUE(cc != nullptr);
-  } catch (...) {
     threw = true;
   }
   EXPECT_TRUE(threw);

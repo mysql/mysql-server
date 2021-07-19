@@ -39,7 +39,8 @@ class mpmc_bq {
   /** Constructor
   @param[in]	n_elems		Max number of elements allowed */
   explicit mpmc_bq(size_t n_elems)
-      : m_ring(reinterpret_cast<Cell *>(UT_NEW_ARRAY_NOKEY(Aligned, n_elems))),
+      : m_ring(
+            reinterpret_cast<Cell *>(ut::new_arr<Aligned>(ut::Count{n_elems}))),
         m_capacity(n_elems - 1) {
     /* Should be a power of 2 */
     ut_a((n_elems >= 2) && ((n_elems & (n_elems - 1)) == 0));
@@ -53,7 +54,7 @@ class mpmc_bq {
   }
 
   /** Destructor */
-  ~mpmc_bq() { UT_DELETE_ARRAY(m_ring); }
+  ~mpmc_bq() { ut::delete_arr(m_ring); }
 
   /** Enqueue an element
   @param[in]	data		Element to insert, it will be copied

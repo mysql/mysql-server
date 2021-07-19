@@ -295,7 +295,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
       fts_free_aux_names(fts_drop_aux_vec);
       delete fts_drop_aux_vec;
     }
-    UT_DELETE(m_stage);
+    ut::delete_(m_stage);
     mem_heap_free(heap);
   }
 
@@ -1192,7 +1192,7 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(max_threads, row_len));
+  auto adapter = ut::new_<Parallel_reader_adapter>(max_threads, row_len);
 
   if (adapter == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -1209,7 +1209,7 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
       });
 
   if (err != DB_SUCCESS) {
-    UT_DELETE(adapter);
+    ut::delete_(adapter);
     return (convert_error_code_to_mysql(err, 0, ha_thd()));
   }
 
@@ -1249,7 +1249,7 @@ int ha_innobase::parallel_scan(void *scan_ctx, void **thread_ctxs,
 void ha_innobase::parallel_scan_end(void *parallel_scan_ctx) {
   Parallel_reader_adapter *parallel_reader =
       static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
-  UT_DELETE(parallel_reader);
+  ut::delete_(parallel_reader);
 }
 
 /** Alter the table structure in-place with operations
@@ -3867,7 +3867,7 @@ template <typename Table>
     char *path = fil_space_get_first_path(new_table->space);
     char filename[FN_REFLEN + 1];
     replace_table_name(path, filename, old_table->name.m_name);
-    ut_free(path);
+    ut::free(path);
 
     bool discarded = false;
     if (dict_table_is_file_per_table(old_table)) {
@@ -5207,7 +5207,7 @@ static void alter_fill_stored_column(const TABLE *altered_table,
     s_col.s_pos = i;
 
     if (*s_cols == nullptr) {
-      *s_cols = UT_NEW_NOKEY(dict_s_col_list());
+      *s_cols = ut::new_<dict_s_col_list>();
       *s_heap = mem_heap_create(1000);
     }
 
@@ -5769,7 +5769,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       }
 
       if (s_cols != nullptr) {
-        UT_DELETE(s_cols);
+        ut::delete_(s_cols);
         mem_heap_free(s_heap);
       }
 
@@ -5777,7 +5777,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
 
     if (s_cols != nullptr) {
-      UT_DELETE(s_cols);
+      ut::delete_(s_cols);
       mem_heap_free(s_heap);
     }
   }
@@ -6073,9 +6073,9 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
   /* For partitioned tables this could be already allocated from a
   previous partition invocation. For normal tables this is NULL. */
-  UT_DELETE(ctx->m_stage);
+  ut::delete_(ctx->m_stage);
 
-  ctx->m_stage = UT_NEW_NOKEY(Alter_stage(pk));
+  ctx->m_stage = ut::new_<Alter_stage>(pk);
 
   if (m_prebuilt->table->ibd_file_missing ||
       dict_table_is_discarded(m_prebuilt->table)) {
@@ -6102,7 +6102,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     if (ctx->new_table->vc_templ != nullptr && !ctx->need_rebuild()) {
       old_templ = ctx->new_table->vc_templ;
     }
-    s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+    s_templ = ut::new_<dict_vcol_templ_t>();
     s_templ->vtempl = nullptr;
 
     innobase_build_v_templ(altered_table, ctx->new_table, s_templ, nullptr,
@@ -6116,7 +6116,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     not need to come in here to rebuild template with add_v.
     Please also see the assertion in innodb_v_adjust_idx_col() */
 
-    s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+    s_templ = ut::new_withkey<dict_vcol_templ_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     add_v = static_cast<dict_add_v_col_t *>(
         mem_heap_alloc(ctx->heap, sizeof *add_v));
@@ -6152,7 +6152,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
       ut_ad(ctx->need_rebuild() ||
             ha_alter_info->virtual_column_add_count > 0 || rebuild_templ);
       dict_free_vc_templ(s_templ);
-      UT_DELETE(s_templ);
+      ut::delete_(s_templ);
 
       ctx->new_table->vc_templ = old_templ;
     }
@@ -6861,7 +6861,7 @@ when rebuilding the table.
     dict_vcol_templ_t *s_templ = nullptr;
 
     if (ctx->new_table->n_v_cols > 0) {
-      s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
+      s_templ = ut::new_<dict_vcol_templ_t>();
       s_templ->vtempl = nullptr;
 
       innobase_build_v_templ(altered_table, ctx->new_table, s_templ, nullptr,
@@ -6877,7 +6877,7 @@ when rebuilding the table.
     if (s_templ) {
       ut_ad(ctx->need_rebuild());
       dict_free_vc_templ(s_templ);
-      UT_DELETE(s_templ);
+      ut::delete_(s_templ);
       ctx->new_table->vc_templ = nullptr;
     }
 
@@ -7924,11 +7924,11 @@ class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
       for (uint i = 0; i < m_tot_parts; i++) {
         destroy(ctx_array[i]);
       }
-      ut_free(ctx_array);
+      ut::free(ctx_array);
     }
 
     if (m_old_info != nullptr) {
-      ut_free(m_old_info);
+      ut::free(m_old_info);
     }
 
     if (prebuilt_array) {
@@ -7938,7 +7938,7 @@ class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
         prebuilt_array[i]->table = nullptr;
         row_prebuilt_free(prebuilt_array[i], false);
       }
-      ut_free(prebuilt_array);
+      ut::free(prebuilt_array);
     }
   }
 };
@@ -8038,7 +8038,7 @@ Altered_partitions::~Altered_partitions() {
       }
     }
 
-    ut_free(m_new_table_parts);
+    ut::free(m_new_table_parts);
   }
 
   if (m_ins_nodes != nullptr) {
@@ -8055,37 +8055,38 @@ Altered_partitions::~Altered_partitions() {
       }
     }
 
-    ut_free(m_ins_nodes);
+    ut::free(m_ins_nodes);
   }
 
-  ut_free(m_bitset);
-  ut_free(m_trx_ids);
+  ut::free(m_bitset);
+  ut::free(m_trx_ids);
 }
 
 /** Initialize the object.
 @return false on success else true. */
 bool Altered_partitions::initialize() {
   size_t alloc_size = sizeof(*m_new_table_parts) * m_num_new_parts;
-  m_new_table_parts =
-      static_cast<dict_table_t **>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_new_table_parts = static_cast<dict_table_t **>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_ins_nodes) * m_num_new_parts;
-  m_ins_nodes =
-      static_cast<ins_node_t **>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_ins_nodes = static_cast<ins_node_t **>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_bitset) * UT_BITS_IN_BYTES(m_num_new_parts);
-  m_bitset = static_cast<byte *>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_bitset = static_cast<byte *>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   alloc_size = sizeof(*m_trx_ids) * m_num_new_parts;
-  m_trx_ids =
-      static_cast<trx_id_t *>(ut_zalloc(alloc_size, mem_key_partitioning));
+  m_trx_ids = static_cast<trx_id_t *>(ut::zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_partitioning), alloc_size));
 
   if (m_new_table_parts == nullptr || m_ins_nodes == nullptr ||
       m_bitset == nullptr || m_trx_ids == nullptr) {
-    ut_free(m_new_table_parts);
-    ut_free(m_ins_nodes);
-    ut_free(m_bitset);
-    ut_free(m_trx_ids);
+    ut::free(m_new_table_parts);
+    ut::free(m_ins_nodes);
+    ut::free(m_bitset);
+    ut::free(m_trx_ids);
 
     return (true);
   }
@@ -9166,38 +9167,31 @@ alter_part *alter_part_factory::create_one_low(uint &part_id, uint old_part_id,
 
   switch (state) {
     case PART_NORMAL:
-      alter_part = UT_NEW(
-          alter_part_normal(part_id, state,
-                            m_part_share->get_table_part_ref(old_part_id)),
-          mem_key_partitioning);
+      alter_part = ut::new_withkey<alter_part_normal>(
+          ut::make_psi_memory_key(mem_key_partitioning), part_id, state,
+          m_part_share->get_table_part_ref(old_part_id));
       break;
     case PART_TO_BE_ADDED:
-      alter_part = UT_NEW(
-          alter_part_add(part_id, state,
-                         m_part_share->get_table_share()->normalized_path.str,
-                         tablespace, m_trx, m_ha_alter_info, m_file_per_table,
-                         m_part_share->next_auto_inc_val, conflict),
-          mem_key_partitioning);
+      alter_part = ut::new_withkey<alter_part_add>(
+          ut::make_psi_memory_key(mem_key_partitioning), part_id, state,
+          m_part_share->get_table_share()->normalized_path.str, tablespace,
+          m_trx, m_ha_alter_info, m_file_per_table,
+          m_part_share->next_auto_inc_val, conflict);
       break;
     case PART_TO_BE_DROPPED:
     case PART_TO_BE_REORGED:
     case PART_REORGED_DROPPED:
-      alter_part = UT_NEW(
-          alter_part_drop(part_id, state,
-                          m_part_share->get_table_share()->normalized_path.str,
-                          m_trx, m_part_share->get_table_part_ref(old_part_id),
-                          conflict),
-          mem_key_partitioning);
+      alter_part = ut::new_withkey<alter_part_drop>(
+          ut::make_psi_memory_key(mem_key_partitioning), part_id, state,
+          m_part_share->get_table_share()->normalized_path.str, m_trx,
+          m_part_share->get_table_part_ref(old_part_id), conflict);
       break;
     case PART_CHANGED:
-      alter_part = UT_NEW(
-          alter_part_change(
-              part_id, state,
-              m_part_share->get_table_share()->normalized_path.str, tablespace,
-              m_trx, m_part_share->get_table_part_ref(old_part_id),
-              m_ha_alter_info, m_file_per_table,
-              m_part_share->next_auto_inc_val),
-          mem_key_partitioning);
+      alter_part = ut::new_withkey<alter_part_change>(
+          ut::make_psi_memory_key(mem_key_partitioning), part_id, state,
+          m_part_share->get_table_share()->normalized_path.str, tablespace,
+          m_trx, m_part_share->get_table_part_ref(old_part_id), m_ha_alter_info,
+          m_file_per_table, m_part_share->next_auto_inc_val);
       break;
     default:
       ut_ad(0);
@@ -9591,11 +9585,11 @@ inline static bool is_common_state(partition_state s) {
 /** Destructor */
 alter_parts::~alter_parts() {
   for (alter_part *alter_part : m_news) {
-    UT_DELETE(alter_part);
+    ut::delete_(alter_part);
   }
 
   for (alter_part *alter_part : m_to_drop) {
-    UT_DELETE(alter_part);
+    ut::delete_(alter_part);
   }
 }
 
@@ -9833,7 +9827,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(max_threads, row_len));
+  auto adapter = ut::new_<Parallel_reader_adapter>(max_threads, row_len);
 
   if (adapter == nullptr) {
     Parallel_reader::release_threads(max_threads);
@@ -9873,7 +9867,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
       ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                   m_prebuilt->table->name.m_name);
 
-      UT_DELETE(adapter);
+      ut::delete_(adapter);
       return HA_ERR_NO_SUCH_TABLE;
     }
 
@@ -9888,7 +9882,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
         });
 
     if (err != DB_SUCCESS) {
-      UT_DELETE(adapter);
+      ut::delete_(adapter);
       return (convert_error_code_to_mysql(err, 0, ha_thd()));
     }
   }
@@ -9914,7 +9908,7 @@ int ha_innopart::parallel_scan(void *scan_ctx, void **thread_ctxs,
 
 void ha_innopart::parallel_scan_end(void *parallel_scan_ctx) {
   auto adapter = static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
-  UT_DELETE(adapter);
+  ut::delete_(adapter);
 }
 
 /** Check if InnoDB supports a particular alter table in-place.
@@ -10119,7 +10113,7 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
   }
 
   ctx_parts->ctx_array =
-      UT_NEW_ARRAY_NOKEY(inplace_alter_handler_ctx *, m_tot_parts + 1);
+      ut::new_arr<inplace_alter_handler_ctx *>(ut::Count{m_tot_parts + 1});
   if (ctx_parts->ctx_array == nullptr) {
     return HA_ALTER_ERROR;
   }
@@ -10128,12 +10122,13 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
          sizeof(inplace_alter_handler_ctx *) * (m_tot_parts + 1));
 
   ctx_parts->m_old_info =
-      UT_NEW_ARRAY_NOKEY(alter_table_old_info_t, m_tot_parts);
+      ut::new_arr<alter_table_old_info_t>(ut::Count{m_tot_parts});
   if (ctx_parts->m_old_info == nullptr) {
     return HA_ALTER_ERROR;
   }
 
-  ctx_parts->prebuilt_array = UT_NEW_ARRAY_NOKEY(row_prebuilt_t *, m_tot_parts);
+  ctx_parts->prebuilt_array =
+      ut::new_arr<row_prebuilt_t *>(ut::Count{m_tot_parts});
   if (ctx_parts->prebuilt_array == nullptr) {
     return HA_ALTER_ERROR;
   }
@@ -10449,13 +10444,13 @@ bool ha_innopart::prepare_for_copy_partitions(
     total_parts *= ha_alter_info->modified_part_info->num_subparts;
   }
 
-  m_new_partitions =
-      UT_NEW(Altered_partitions(total_parts), mem_key_partitioning);
+  m_new_partitions = ut::new_withkey<Altered_partitions>(
+      ut::make_psi_memory_key(mem_key_partitioning), total_parts);
 
   if (m_new_partitions == nullptr) {
     return (true);
   } else if (m_new_partitions->initialize()) {
-    UT_DELETE(m_new_partitions);
+    ut::delete_(m_new_partitions);
     m_new_partitions = nullptr;
     return (true);
   }
@@ -10512,8 +10507,8 @@ bool ha_innopart::prepare_inplace_alter_partition(
   }
 
   alter_parts *ctx =
-      UT_NEW_NOKEY(alter_parts(m_prebuilt->trx, m_part_share, ha_alter_info,
-                               m_part_info, m_new_partitions));
+      ut::new_<alter_parts>(m_prebuilt->trx, m_part_share, ha_alter_info,
+                            m_part_info, m_new_partitions);
 
   if (ctx == nullptr) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -10608,10 +10603,10 @@ bool ha_innopart::commit_inplace_alter_partition(
   if (commit) {
     int error = ctx->try_commit(*old_dd_tab, *new_dd_tab, table, altered_table);
     if (!error) {
-      UT_DELETE(ctx);
+      ut::delete_(ctx);
       ha_alter_info->handler_ctx = nullptr;
 
-      UT_DELETE(m_new_partitions);
+      ut::delete_(m_new_partitions);
       m_new_partitions = nullptr;
 
       if (altered_table->found_next_number_field) {
@@ -10631,10 +10626,10 @@ bool ha_innopart::commit_inplace_alter_partition(
   }
 
   ctx->rollback();
-  UT_DELETE(ctx);
+  ut::delete_(ctx);
   ha_alter_info->handler_ctx = nullptr;
 
-  UT_DELETE(m_new_partitions);
+  ut::delete_(m_new_partitions);
   m_new_partitions = nullptr;
 
   return (false);

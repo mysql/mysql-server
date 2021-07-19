@@ -1481,7 +1481,7 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
 
   ut_a(id < TRX_RSEG_N_SLOTS);
 
-  undo = static_cast<trx_undo_t *>(ut_malloc_nokey(sizeof(*undo)));
+  undo = static_cast<trx_undo_t *>(ut::malloc(sizeof(*undo)));
 
   if (undo == nullptr) {
     return (nullptr);
@@ -1544,7 +1544,7 @@ void trx_undo_mem_free(trx_undo_t *undo) /*!< in: the undo object to be freed */
 {
   ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
-  ut_free(undo);
+  ut::free(undo);
 }
 
 /** Create a new undo log in the given rollback segment.

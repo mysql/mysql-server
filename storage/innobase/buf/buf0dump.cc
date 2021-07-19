@@ -275,7 +275,7 @@ static void buf_dump(ibool obey_shutdown) {
       }
     }
 
-    dump = static_cast<buf_dump_t *>(ut_malloc_nokey(n_pages * sizeof(*dump)));
+    dump = static_cast<buf_dump_t *>(ut::malloc(n_pages * sizeof(*dump)));
 
     if (dump == nullptr) {
       mutex_exit(&buf_pool->LRU_list_mutex);
@@ -303,7 +303,7 @@ static void buf_dump(ibool obey_shutdown) {
       ret = fprintf(f, SPACE_ID_PF "," PAGE_NO_PF "\n", BUF_DUMP_SPACE(dump[j]),
                     BUF_DUMP_PAGE(dump[j]));
       if (ret < 0) {
-        ut_free(dump);
+        ut::free(dump);
         fclose(f);
         buf_dump_status(STATUS_ERR, "Cannot write to '%s': %s", tmp_filename,
                         strerror(errno));
@@ -319,7 +319,7 @@ static void buf_dump(ibool obey_shutdown) {
       }
     }
 
-    ut_free(dump);
+    ut::free(dump);
   }
 
   ret = fclose(f);
@@ -484,7 +484,7 @@ static void buf_load() {
   }
 
   if (dump_n != 0) {
-    dump = static_cast<buf_dump_t *>(ut_malloc_nokey(dump_n * sizeof(*dump)));
+    dump = static_cast<buf_dump_t *>(ut::malloc(dump_n * sizeof(*dump)));
   } else {
     fclose(f);
     ut_sprintf_timestamp(now);
@@ -513,7 +513,7 @@ static void buf_load() {
       }
       /* else */
 
-      ut_free(dump);
+      ut::free(dump);
       fclose(f);
       buf_load_status(STATUS_ERR,
                       "Error parsing '%s', unable"
@@ -523,7 +523,7 @@ static void buf_load() {
     }
 
     if (space_id > ULINT32_MASK || page_no > ULINT32_MASK) {
-      ut_free(dump);
+      ut::free(dump);
       fclose(f);
       buf_load_status(STATUS_ERR,
                       "Error parsing '%s': bogus"
@@ -545,7 +545,7 @@ static void buf_load() {
   fclose(f);
 
   if (dump_n == 0) {
-    ut_free(dump);
+    ut::free(dump);
     ut_sprintf_timestamp(now);
     buf_load_status(STATUS_INFO,
                     "Buffer pool(s) load completed at %s"
@@ -622,7 +622,7 @@ static void buf_load() {
         fil_space_release(space);
       }
       buf_load_abort_flag = FALSE;
-      ut_free(dump);
+      ut::free(dump);
       buf_load_status(STATUS_INFO, "Buffer pool(s) load aborted on request");
       /* Premature end, set estimated = completed = i and
       end the current stage event. */
@@ -641,7 +641,7 @@ static void buf_load() {
     fil_space_release(space);
   }
 
-  ut_free(dump);
+  ut::free(dump);
 
   ut_sprintf_timestamp(now);
 

@@ -243,7 +243,7 @@ struct TrxFactory {
   static void init(trx_t *trx) {
     /* Explicitly call the constructor of the already
     allocated object. trx_t objects are allocated by
-    ut_zalloc() in Pool::Pool() which would not call
+    ut::zalloc_withkey() in Pool::Pool() which would not call
     the constructors of the trx_t members. */
     new (trx) trx_t();
 
@@ -253,10 +253,10 @@ struct TrxFactory {
 
     trx->dict_operation_lock_mode = 0;
 
-    trx->xid = UT_NEW_NOKEY(xid_t());
+    trx->xid = ut::new_<xid_t>();
 
     trx->detailed_error =
-        reinterpret_cast<char *>(ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
+        reinterpret_cast<char *>(ut::zalloc(MAX_DETAILED_ERROR_LEN));
 
     trx->lock.lock_heap = mem_heap_create_typed(1024, MEM_HEAP_FOR_LOCK_HEAP);
 
@@ -288,8 +288,8 @@ struct TrxFactory {
 
     ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-    UT_DELETE(trx->xid);
-    ut_free(trx->detailed_error);
+    ut::delete_(trx->xid);
+    ut::free(trx->detailed_error);
 
     mutex_free(&trx->mutex);
     mutex_free(&trx->undo_mutex);
@@ -302,14 +302,14 @@ struct TrxFactory {
       /* See lock_trx_alloc_locks() why we only free
       the first element. */
 
-      ut_free(trx->lock.rec_pool[0]);
+      ut::free(trx->lock.rec_pool[0]);
     }
 
     if (!trx->lock.table_pool.empty()) {
       /* See lock_trx_alloc_locks() why we only free
       the first element. */
 
-      ut_free(trx->lock.table_pool[0]);
+      ut::free(trx->lock.table_pool[0]);
     }
 
     trx->lock.rec_pool.~lock_pool_t();
@@ -410,14 +410,14 @@ static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 
 /** Create the trx_t pool */
 void trx_pool_init() {
-  trx_pools = UT_NEW_NOKEY(trx_pools_t(MAX_TRX_BLOCK_SIZE));
+  trx_pools = ut::new_<trx_pools_t>(MAX_TRX_BLOCK_SIZE);
 
   ut_a(trx_pools != nullptr);
 }
 
 /** Destroy the trx_t pool */
 void trx_pool_close() {
-  UT_DELETE(trx_pools);
+  ut::delete_(trx_pools);
 
   trx_pools = nullptr;
 }

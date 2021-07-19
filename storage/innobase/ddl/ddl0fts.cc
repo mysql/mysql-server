@@ -342,8 +342,9 @@ FTS::Parser::Parser(size_t id, Context &ctx, Dup *dup,
     : m_id(id), m_dup(dup), m_ctx(ctx), m_doc_id_32_bit(doc_id_32_bit) {}
 
 dberr_t FTS::Parser::init(size_t n_threads) noexcept {
-  m_docq = Docq_ptr(UT_NEW(Docq(DOC_ITEM_QUEUE_SIZE), mem_key_ddl),
-                    [](Docq *docq) { UT_DELETE(docq); });
+  m_docq = Docq_ptr(ut::new_withkey<Docq>(ut::make_psi_memory_key(mem_key_ddl),
+                                          DOC_ITEM_QUEUE_SIZE),
+                    [](Docq *docq) { ut::delete_(docq); });
 
   if (m_docq == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -354,8 +355,9 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
 
   for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
     m_handlers[i] = Handler_ptr(
-        UT_NEW(Handler(i, m_dup->m_index, buffer_size.first), mem_key_ddl),
-        [](Handler *handler) { UT_DELETE(handler); });
+        ut::new_withkey<Handler>(ut::make_psi_memory_key(mem_key_ddl), i,
+                                 m_dup->m_index, buffer_size.first),
+        [](Handler *handler) { ut::delete_(handler); });
 
     auto &handler = m_handlers[i];
 
@@ -381,7 +383,7 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
   auto err = get_error();
 
   if (err != DB_SUCCESS) {
-    ut_free(doc_item);
+    ut::free(doc_item);
     return err;
   }
 
@@ -393,7 +395,7 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
     auto err = get_error();
 
     if (err != DB_SUCCESS) {
-      UT_DELETE(doc_item);
+      ut::delete_(doc_item);
       m_memory_used.fetch_sub(sz, std::memory_order_relaxed);
       return err;
     }
@@ -535,7 +537,7 @@ int FTS::Parser::add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
   ut_ad(boolean_info->position >= 0);
 
   auto ptr = static_cast<byte *>(
-      ut_malloc_nokey(sizeof(Token) + sizeof(fts_string_t) + str.f_len));
+      ut::malloc(sizeof(Token) + sizeof(fts_string_t) + str.f_len));
 
   auto fts_token = reinterpret_cast<Token *>(ptr);
 
@@ -649,7 +651,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
     if (!fts_check_token(&str, nullptr, is_ngram, nullptr)) {
       if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->m_token_list, fts_token);
-        ut_free(fts_token);
+        ut::free(fts_token);
       } else {
         t_ctx->m_processed_len += inc;
       }
@@ -667,7 +669,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
                          doc->charset)) {
       if (parser != nullptr) {
         UT_LIST_REMOVE(t_ctx->m_token_list, fts_token);
-        ut_free(fts_token);
+        ut::free(fts_token);
       } else {
         t_ctx->m_processed_len += inc;
       }
@@ -768,7 +770,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
 
     if (parser != nullptr) {
       UT_LIST_REMOVE(t_ctx->m_token_list, fts_token);
-      ut_free(fts_token);
+      ut::free(fts_token);
     } else {
       t_ctx->m_processed_len += inc;
     }
@@ -784,7 +786,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
 
 void FTS::Parser::get_next_doc_item(FTS::Doc_item *&doc_item) noexcept {
   if (doc_item != nullptr) {
-    ut_free(doc_item);
+    ut::free(doc_item);
     doc_item = nullptr;
   }
 
@@ -1118,7 +1120,7 @@ dberr_t FTS::Inserter::write_word(Insert *ins_ctx,
       ret = err;
     }
 
-    ut_free(fts_node->ilist);
+    ut::free(fts_node->ilist);
     fts_node->ilist = nullptr;
   }
 
@@ -1306,7 +1308,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
     if (ins_ctx.m_btr_bulk != nullptr) {
       err = ins_ctx.m_btr_bulk->finish(err);
-      UT_DELETE(ins_ctx.m_btr_bulk);
+      ut::delete_(ins_ctx.m_btr_bulk);
     }
 
     trx_free_for_background(trx);
@@ -1317,8 +1319,8 @@ dberr_t FTS::Inserter::insert(Builder *builder,
   };
 
   /* Create bulk load instance */
-  ins_ctx.m_btr_bulk =
-      UT_NEW(Btree_load(aux_index, trx->id, observer), mem_key_ddl);
+  ins_ctx.m_btr_bulk = ut::new_withkey<Btree_load>(
+      ut::make_psi_memory_key(mem_key_ddl), aux_index, trx->id, observer);
 
   /* Create tuple for insert. */
   ins_ctx.m_tuple =
@@ -1432,8 +1434,8 @@ dberr_t FTS::create(size_t n_threads) noexcept {
   ut_a(m_parsers.empty());
 
   for (size_t i = 0; i < n_threads; ++i) {
-    auto parser =
-        UT_NEW(Parser(i, m_ctx, &m_dup, m_doc_id_32_bit), mem_key_ddl);
+    auto parser = ut::new_withkey<Parser>(ut::make_psi_memory_key(mem_key_ddl),
+                                          i, m_ctx, &m_dup, m_doc_id_32_bit);
 
     if (parser == nullptr) {
       destroy();
@@ -1450,7 +1452,8 @@ dberr_t FTS::create(size_t n_threads) noexcept {
     }
   }
 
-  m_inserter = UT_NEW(Inserter(m_ctx, &m_dup, m_doc_id_32_bit), mem_key_ddl);
+  m_inserter = ut::new_withkey<Inserter>(ut::make_psi_memory_key(mem_key_ddl),
+                                         m_ctx, &m_dup, m_doc_id_32_bit);
 
   if (m_inserter == nullptr) {
     destroy();
@@ -1462,13 +1465,13 @@ dberr_t FTS::create(size_t n_threads) noexcept {
 
 void FTS::destroy() noexcept {
   for (auto parser : m_parsers) {
-    UT_DELETE(parser);
+    ut::delete_(parser);
   }
 
   m_parsers.clear();
 
   if (m_inserter != nullptr) {
-    UT_DELETE(m_inserter);
+    ut::delete_(m_inserter);
     m_inserter = nullptr;
   }
 }
@@ -1655,7 +1658,7 @@ dberr_t FTS::scan_finished(dberr_t err) noexcept {
   }
 
   for (auto parser : m_parsers) {
-    UT_DELETE(parser);
+    ut::delete_(parser);
   }
 
   m_parsers.clear();

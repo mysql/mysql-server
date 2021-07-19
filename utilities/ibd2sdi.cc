@@ -719,8 +719,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
   }
 
   if (page_size.is_compressed() && fil_page_get_type(buf) == FIL_PAGE_SDI) {
-    byte *uncomp_buf =
-        static_cast<byte *>(ut_malloc_nokey(2 * page_size.logical()));
+    byte *uncomp_buf = static_cast<byte *>(ut::malloc(2 * page_size.logical()));
 
     byte *uncomp_page =
         static_cast<byte *>(ut_align(uncomp_buf, page_size.logical()));
@@ -754,7 +753,7 @@ static size_t fetch_page(ib_tablespace *ts, page_no_t page_num,
       memcpy(buf, uncomp_page, page_size.logical());
     }
 
-    ut_free(uncomp_buf);
+    ut::free(uncomp_buf);
   }
 
   return n_bytes;

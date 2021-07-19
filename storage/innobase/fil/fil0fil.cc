@@ -1988,7 +1988,7 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
   Fil_shard::s_open_slot = EMPTY_OPEN_SLOT;
 
   for (size_t i = 0; i < n_shards; ++i) {
-    auto shard = UT_NEW_NOKEY(Fil_shard(i));
+    auto shard = ut::new_<Fil_shard>(i);
 
     m_shards.push_back(shard);
   }
@@ -2001,7 +2001,7 @@ Fil_system::~Fil_system() {
   Fil_shard::s_open_slot = 0;
 
   for (auto shard : m_shards) {
-    UT_DELETE(shard);
+    ut::delete_(shard);
   }
 
   m_shards.clear();
@@ -3166,7 +3166,7 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
 
     os_event_destroy(file.sync_event);
 
-    ut_free(file.name);
+    ut::free(file.name);
   }
 
   call_destructor(&space->files);
@@ -3174,8 +3174,8 @@ void Fil_shard::space_free_low(fil_space_t *&space) {
   ut_ad(space->size == 0);
 
   rw_lock_free(&space->latch);
-  ut_free(space->name);
-  ut_free(space);
+  ut::free(space->name);
+  ut::free(space);
 
   space = nullptr;
 }
@@ -3287,7 +3287,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
     return nullptr;
   }
 
-  space = static_cast<fil_space_t *>(ut_zalloc_nokey(sizeof(*space)));
+  space = static_cast<fil_space_t *>(ut::zalloc(sizeof(*space)));
   /* This could be just a placement new constructor call if, only if it compiles
   OK on SunPro. */
   space->initialize();
@@ -3671,7 +3671,7 @@ void fil_init(ulint max_n_open) {
 
   ut_a(max_n_open > 0);
 
-  fil_system = UT_NEW_NOKEY(Fil_system(MAX_SHARDS, max_n_open));
+  fil_system = ut::new_<Fil_system>(MAX_SHARDS, max_n_open);
 }
 
 /** Open all the system files.
@@ -4410,7 +4410,7 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
   if (cfg_name != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfg_name, nullptr);
 
-    ut_free(cfg_name);
+    ut::free(cfg_name);
   }
 
   auto cfp_name = Fil_path::make_cfp(path);
@@ -4418,10 +4418,10 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
   if (cfp_name != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfp_name, nullptr);
 
-    ut_free(cfp_name);
+    ut::free(cfp_name);
   }
 
-  ut_free(path);
+  ut::free(path);
 
   return err;
 }
@@ -4564,7 +4564,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     /* Currently post DDL operations are never rolled back. */
     /* purecov: begin deadcode */
     ut_ad(false);
-    ut_free(path);
+    ut::free(path);
     return DB_ERROR;
     /* purecov: end */
   }
@@ -4598,7 +4598,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     if (cfg_name != nullptr) {
       os_file_delete_if_exists(innodb_data_file_key, cfg_name, nullptr);
 
-      ut_free(cfg_name);
+      ut::free(cfg_name);
     }
 
     char *cfp_name = Fil_path::make_cfp(path);
@@ -4606,7 +4606,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     if (cfp_name != nullptr) {
       os_file_delete_if_exists(innodb_data_file_key, cfp_name, nullptr);
 
-      ut_free(cfp_name);
+      ut::free(cfp_name);
     }
   }
 
@@ -4661,7 +4661,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     err = DB_TABLESPACE_NOT_FOUND;
   }
 
-  ut_free(path);
+  ut::free(path);
   return err;
 }
 
@@ -4680,7 +4680,7 @@ dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id,
   char *path{};
   auto err = wait_for_pending_operations(space_id, space, &path);
 
-  ut_free(path);
+  ut::free(path);
 
   return err;
 }
@@ -4922,7 +4922,7 @@ and a suffix.
                                 name
 @param[in]	ext		the file extension to use
 @param[in]	trim		whether last name on the path should be trimmed
-@return own: file name; must be freed by ut_free() */
+@return own: file name; must be freed by ut::free() */
 char *Fil_path::make(const std::string &path_in, const std::string &name_in,
                      ib_file_suffix ext, bool trim) {
   /* The path should be a directory and should not contain the
@@ -5246,7 +5246,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       old file name with new file name. */
       dberr_t err = log_ddl->write_rename_space_log(space_id, new_file_name,
                                                     old_file_name);
-      ut_free(new_file_name);
+      ut::free(new_file_name);
       if (err != DB_SUCCESS) {
         return err;
       }
@@ -5402,8 +5402,8 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
   mutex_release();
 
-  ut_free(old_file_name);
-  ut_free(old_space_name);
+  ut::free(old_file_name);
+  ut::free(old_space_name);
 
   return success ? DB_SUCCESS : DB_ERROR;
 }
@@ -5487,7 +5487,7 @@ dberr_t Fil_system::rename_tablespace_name(space_id_t space_id,
 
   mutex_release_all();
 
-  ut_free(old_space_name);
+  ut::free(old_space_name);
 
   return DB_SUCCESS;
 }
@@ -5955,7 +5955,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 #else  /* !UNIV_HOTBACKUP */
 
 /** Allocates a file name for an old version of a single-table tablespace.
-The string must be freed by caller with ut_free()!
+The string must be freed by caller with ut::free()!
 @param[in]	name		Original file name
 @return own: file name */
 static char *meb_make_ibbackup_old_name(const char *name) {
@@ -5963,7 +5963,7 @@ static char *meb_make_ibbackup_old_name(const char *name) {
   ulint len = strlen(name);
   static const char suffix[] = "_ibbackup_old_vers_";
 
-  path = static_cast<char *>(ut_malloc_nokey(len + 15 + sizeof(suffix)));
+  path = static_cast<char *>(ut::malloc(len + 15 + sizeof(suffix)));
 
   memcpy(path, name, len);
   memcpy(path + len, suffix, sizeof(suffix) - 1);
@@ -6011,7 +6011,7 @@ bool fil_space_read_name_and_filepath(space_id_t space_id, char **name,
 /** Convert a file name to a tablespace name. Strip the file name
 prefix and suffix, leaving only databasename/tablename.
 @param[in]	filename	directory/databasename/tablename.ibd
-@return database/tablename string, to be freed with ut_free() */
+@return database/tablename string, to be freed with ut::free() */
 char *fil_path_to_space_name(const char *filename) {
   std::string path{filename};
   auto pos = path.find_last_of(Fil_path::SEPARATOR);
@@ -6185,7 +6185,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
     ut_a(success);
 
-    ut_free(new_path);
+    ut::free(new_path);
 
     return FIL_LOAD_ID_CHANGED;
   }
@@ -6221,7 +6221,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
     ut_a(success);
 
-    ut_free(new_path);
+    ut::free(new_path);
     return FIL_LOAD_OK;
   }
 #endif /* UNIV_HOTBACKUP */
@@ -6344,7 +6344,7 @@ bool Fil_shard::adjust_space_name(fil_space_t *space,
 
     space->name = new_space_name;
 
-    ut_free(old_space_name);
+    ut::free(old_space_name);
   }
 
   /* Update the undo::Tablespace::name. Since the fil_shard mutex is held by
@@ -6847,7 +6847,7 @@ compared to the size stored in the space header. */
 void Fil_shard::meb_extend_tablespaces_to_stored_len() {
   ut_ad(mutex_owned());
 
-  byte *buf = static_cast<byte *>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+  byte *buf = static_cast<byte *>(ut::malloc(UNIV_PAGE_SIZE));
 
   ut_a(buf != nullptr);
 
@@ -6901,7 +6901,7 @@ void Fil_shard::meb_extend_tablespaces_to_stored_len() {
     mutex_acquire();
   }
 
-  ut_free(buf);
+  ut::free(buf);
 }
 
 /** Extends all tablespaces to the size stored in the space header. During the
@@ -7041,8 +7041,8 @@ static void meb_set_encryption_key(const fil_space_t *space) {
                                << " for tablespace" << space->name << "!";
     }
 
-    ut_free(key.iv);
-    ut_free(key.ptr);
+    ut::free(key.iv);
+    ut::free(key.ptr);
 
     key.iv = nullptr;
     key.ptr = nullptr;
@@ -7158,7 +7158,7 @@ void meb_fil_name_process(const char *name, space_id_t space_id) {
 
   fil_system->meb_name_process(file_name, space_id, false);
 
-  ut_free(file_name);
+  ut::free(file_name);
 }
 
 /** Test, if a file path name contains a back-link ("../").
@@ -7363,7 +7363,7 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
 
   meb_fil_name_process(to_name, page_id.space());
 
-  ut_free(new_name);
+  ut::free(new_name);
 }
 
 /** Process a MLOG_FILE_DELETE redo record.
@@ -7390,7 +7390,7 @@ static void meb_tablespace_redo_delete(const page_id_t &page_id,
     ut_a(err == DB_SUCCESS);
   }
 
-  ut_free(file_name);
+  ut::free(file_name);
 }
 
 #endif /* UNIV_HOTBACKUP */
@@ -8623,7 +8623,7 @@ void fil_close() {
     return;
   }
 
-  UT_DELETE(fil_system);
+  ut::delete_(fil_system);
 
   fil_system = nullptr;
 }
@@ -8966,7 +8966,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
                                 " open the tablespace file "
                              << filepath;
 
-    ut_free(filepath);
+    ut::free(filepath);
 
     return DB_TABLESPACE_NOT_FOUND;
 
@@ -8993,7 +8993,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   /* The block we will use for every physical page */
   buf_block_t *block;
 
-  block = reinterpret_cast<buf_block_t *>(ut_zalloc_nokey(sizeof(*block)));
+  block = reinterpret_cast<buf_block_t *>(ut::zalloc(sizeof(*block)));
 
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
@@ -9091,11 +9091,11 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   os_file_close(file);
 
   ut::aligned_free(page);
-  ut_free(filepath);
+  ut::free(filepath);
 
   mutex_free(&block->mutex);
 
-  ut_free(block);
+  ut::free(block);
 
   return err;
 }
@@ -9122,7 +9122,7 @@ bool fil_delete_file(const char *path) {
   if (cfg_filepath != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfg_filepath, nullptr);
 
-    ut_free(cfg_filepath);
+    ut::free(cfg_filepath);
   }
 
   char *cfp_filepath = Fil_path::make_cfp(path);
@@ -9130,7 +9130,7 @@ bool fil_delete_file(const char *path) {
   if (cfp_filepath != nullptr) {
     os_file_delete_if_exists(innodb_data_file_key, cfp_filepath, nullptr);
 
-    ut_free(cfp_filepath);
+    ut::free(cfp_filepath);
   }
 
   return success;
@@ -9178,7 +9178,7 @@ dberr_t fil_rename_precheck(const dict_table_t *old_table,
     }
 
     path.assign(path_ptr);
-    ut_free(path_ptr);
+    ut::free(path_ptr);
 
     return DB_SUCCESS;
   };
@@ -10003,8 +10003,8 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
                                << " for tablespace" << space->name << "!";
     }
 
-    ut_free(key.iv);
-    ut_free(key.ptr);
+    ut::free(key.iv);
+    ut::free(key.ptr);
 
     key.iv = nullptr;
     key.ptr = nullptr;
@@ -11077,7 +11077,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   DBUG_EXECUTE_IF("dont_update_key_found_during_REDO_scan", return ptr;);
 
   if (recv_sys->keys == nullptr) {
-    recv_sys->keys = UT_NEW_NOKEY(recv_sys_t::Encryption_Keys());
+    recv_sys->keys = ut::new_<recv_sys_t::Encryption_Keys>();
   }
 
   /* Search if key entry already exists for this tablespace, update it. */
@@ -11092,9 +11092,9 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
 
   /* No existing entry found, create new one and insert it. */
   recv_sys_t::Encryption_Key new_key;
-  new_key.iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+  new_key.iv = static_cast<byte *>(ut::malloc(Encryption::KEY_LEN));
   memcpy(new_key.iv, iv, Encryption::KEY_LEN);
-  new_key.ptr = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+  new_key.ptr = static_cast<byte *>(ut::malloc(Encryption::KEY_LEN));
   memcpy(new_key.ptr, key, Encryption::KEY_LEN);
   new_key.space_id = space_id;
   new_key.lsn = lsn;

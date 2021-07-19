@@ -391,7 +391,7 @@ class AbstractCallback : public PageCallback {
         m_table_flags(UINT32_UNDEFINED) UNIV_NOTHROW {}
 
   /** Free any extent descriptor instance */
-  ~AbstractCallback() override { UT_DELETE_ARRAY(m_xdes); }
+  ~AbstractCallback() override { ut::delete_arr(m_xdes); }
 
   /** Determine the page size to use for traversing the tablespace
   @param file_size size of the tablespace file in bytes
@@ -451,7 +451,7 @@ class AbstractCallback : public PageCallback {
   dberr_t set_current_xdes(page_no_t page_no, const page_t *page) UNIV_NOTHROW {
     m_xdes_page_no = page_no;
 
-    UT_DELETE_ARRAY(m_xdes);
+    ut::delete_arr(m_xdes);
     m_xdes = nullptr;
 
     ulint state;
@@ -460,10 +460,10 @@ class AbstractCallback : public PageCallback {
     state = mach_read_ulint(xdesc + XDES_STATE, MLOG_4BYTES);
 
     if (state != XDES_FREE) {
-      m_xdes = UT_NEW_ARRAY_NOKEY(xdes_t, m_page_size.physical());
+      m_xdes = ut::new_arr<xdes_t>(ut::Count{m_page_size.physical()});
 
       /* Trigger OOM */
-      DBUG_EXECUTE_IF("ib_import_OOM_13", UT_DELETE_ARRAY(m_xdes);
+      DBUG_EXECUTE_IF("ib_import_OOM_13", ut::delete_arr(m_xdes);
                       m_xdes = nullptr;);
 
       if (m_xdes == nullptr) {
@@ -733,10 +733,10 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
     return (DB_CORRUPTION);
   }
 
-  cfg->m_indexes = UT_NEW_ARRAY_NOKEY(row_index_t, cfg->m_n_indexes);
+  cfg->m_indexes = ut::new_arr<row_index_t>(ut::Count{cfg->m_n_indexes});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_11", UT_DELETE_ARRAY(cfg->m_indexes);
+  DBUG_EXECUTE_IF("ib_import_OOM_11", ut::delete_arr(cfg->m_indexes);
                   cfg->m_indexes = nullptr;);
 
   if (cfg->m_indexes == nullptr) {
@@ -755,10 +755,10 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
 
     ulint len = strlen(name) + 1;
 
-    cfg_index->m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+    cfg_index->m_name = ut::new_arr<byte>(ut::Count{len});
 
     /* Trigger OOM */
-    DBUG_EXECUTE_IF("ib_import_OOM_12", UT_DELETE_ARRAY(cfg_index->m_name);
+    DBUG_EXECUTE_IF("ib_import_OOM_12", ut::delete_arr(cfg_index->m_name);
                     cfg_index->m_name = nullptr;);
 
     if (cfg_index->m_name == nullptr) {
@@ -967,7 +967,7 @@ class PageConverter : public AbstractCallback {
 row_import destructor. */
 row_import::~row_import() UNIV_NOTHROW {
   for (ulint i = 0; m_indexes != nullptr && i < m_n_indexes; ++i) {
-    UT_DELETE_ARRAY(m_indexes[i].m_name);
+    ut::delete_arr(m_indexes[i].m_name);
 
     if (m_indexes[i].m_fields == nullptr) {
       continue;
@@ -977,21 +977,21 @@ row_import::~row_import() UNIV_NOTHROW {
     ulint n_fields = m_indexes[i].m_n_fields;
 
     for (ulint j = 0; j < n_fields; ++j) {
-      UT_DELETE_ARRAY(const_cast<char *>(fields[j].name()));
+      ut::delete_arr(const_cast<char *>(fields[j].name()));
     }
 
-    UT_DELETE_ARRAY(fields);
+    ut::delete_arr(fields);
   }
 
   for (ulint i = 0; m_col_names != nullptr && i < m_n_cols; ++i) {
-    UT_DELETE_ARRAY(m_col_names[i]);
+    ut::delete_arr(m_col_names[i]);
   }
 
-  UT_DELETE_ARRAY(m_cols);
-  UT_DELETE_ARRAY(m_indexes);
-  UT_DELETE_ARRAY(m_col_names);
-  UT_DELETE_ARRAY(m_table_name);
-  UT_DELETE_ARRAY(m_hostname);
+  ut::delete_arr(m_cols);
+  ut::delete_arr(m_indexes);
+  ut::delete_arr(m_col_names);
+  ut::delete_arr(m_table_name);
+  ut::delete_arr(m_hostname);
 
   if (m_heap != nullptr) {
     mem_heap_free(m_heap);
@@ -1478,11 +1478,11 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
     }
 
     ut_ad(index != nullptr);
-    UT_DELETE_ARRAY(cfg_index[i].m_name);
+    ut::delete_arr(cfg_index[i].m_name);
 
     ulint len = strlen(index->name) + 1;
 
-    cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+    cfg_index[i].m_name = ut::new_arr<byte>(ut::Count{len});
 
     if (cfg_index[i].m_name == nullptr) {
       err = DB_OUT_OF_MEMORY;
@@ -1504,14 +1504,14 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
       dict_set_corrupted(index);
       ib::warn(ER_IB_MSG_940) << "Skipping FTS index: " << index->name;
     } else if (i < m_n_indexes) {
-      UT_DELETE_ARRAY(cfg_index[i].m_name);
+      ut::delete_arr(cfg_index[i].m_name);
 
       ulint len = strlen(index->name) + 1;
 
-      cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+      cfg_index[i].m_name = ut::new_arr<byte>(ut::Count{len});
 
       /* Trigger OOM */
-      DBUG_EXECUTE_IF("ib_import_OOM_14", UT_DELETE_ARRAY(cfg_index[i].m_name);
+      DBUG_EXECUTE_IF("ib_import_OOM_14", ut::delete_arr(cfg_index[i].m_name);
                       cfg_index[i].m_name = nullptr;);
 
       if (cfg_index[i].m_name == nullptr) {
@@ -2627,10 +2627,10 @@ static dberr_t row_import_cfg_read_string(
 
   ulint n_fields = index->m_n_fields;
 
-  index->m_fields = UT_NEW_ARRAY_NOKEY(dict_field_t, n_fields);
+  index->m_fields = ut::new_arr<dict_field_t>(ut::Count{n_fields});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_4", UT_DELETE_ARRAY(index->m_fields);
+  DBUG_EXECUTE_IF("ib_import_OOM_4", ut::delete_arr(index->m_fields);
                   index->m_fields = nullptr;);
 
   if (index->m_fields == nullptr) {
@@ -2674,10 +2674,10 @@ static dberr_t row_import_cfg_read_string(
     /* Include the NUL byte in the length. */
     ulint len = mach_read_from_4(ptr);
 
-    byte *name = UT_NEW_ARRAY_NOKEY(byte, len);
+    byte *name = ut::new_arr<byte>(ut::Count{len});
 
     /* Trigger OOM */
-    DBUG_EXECUTE_IF("ib_import_OOM_5", UT_DELETE_ARRAY(name); name = nullptr;);
+    DBUG_EXECUTE_IF("ib_import_OOM_5", ut::delete_arr(name); name = nullptr;);
 
     if (name == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -2714,10 +2714,10 @@ static dberr_t row_import_cfg_read_string(
   ut_a(cfg->m_n_indexes > 0);
   ut_a(cfg->m_n_indexes < 1024);
 
-  cfg->m_indexes = UT_NEW_ARRAY_NOKEY(row_index_t, cfg->m_n_indexes);
+  cfg->m_indexes = ut::new_arr<row_index_t>(ut::Count{cfg->m_n_indexes});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_6", UT_DELETE_ARRAY(cfg->m_indexes);
+  DBUG_EXECUTE_IF("ib_import_OOM_6", ut::delete_arr(cfg->m_indexes);
                   cfg->m_indexes = nullptr;);
 
   if (cfg->m_indexes == nullptr) {
@@ -2804,10 +2804,10 @@ static dberr_t row_import_cfg_read_string(
       return (DB_CORRUPTION);
     }
 
-    cfg_index->m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+    cfg_index->m_name = ut::new_arr<byte>(ut::Count{len});
 
     /* Trigger OOM */
-    DBUG_EXECUTE_IF("ib_import_OOM_7", UT_DELETE_ARRAY(cfg_index->m_name);
+    DBUG_EXECUTE_IF("ib_import_OOM_7", ut::delete_arr(cfg_index->m_name);
                     cfg_index->m_name = nullptr;);
 
     if (cfg_index->m_name == nullptr) {
@@ -2884,7 +2884,7 @@ static dberr_t row_import_read_indexes(
 @return	the bytes stream, caller has to free the memory if not nullptr */
 [[nodiscard]] static byte *row_import_read_bytes(FILE *file, size_t length) {
   size_t read = 0;
-  byte *r = UT_NEW_ARRAY_NOKEY(byte, length);
+  byte *r = ut::new_arr<byte>(ut::Count{length});
 
   if (length == 0) {
     return (r);
@@ -2905,7 +2905,7 @@ static dberr_t row_import_read_indexes(
 
   errno = EINVAL;
 
-  UT_DELETE_ARRAY(r);
+  ut::delete_arr(r);
 
   return (nullptr);
 }
@@ -2929,14 +2929,14 @@ Refer to row_quiesce_write_default_value() for the format details.
   }
 
   if (str[0] == 0) {
-    UT_DELETE_ARRAY(str);
+    ut::delete_arr(str);
     *read = false;
     return (DB_SUCCESS);
   }
 
   *read = true;
 
-  UT_DELETE_ARRAY(str);
+  ut::delete_arr(str);
 
   /* Null byte */
   if ((str = row_import_read_bytes(file, 1)) == nullptr) {
@@ -2948,11 +2948,11 @@ Refer to row_quiesce_write_default_value() for the format details.
   }
 
   if (str[0] == 1) {
-    UT_DELETE_ARRAY(str);
+    ut::delete_arr(str);
     col->set_default(nullptr, UNIV_SQL_NULL, *heap);
     return (DB_SUCCESS);
   } else {
-    UT_DELETE_ARRAY(str);
+    ut::delete_arr(str);
 
     /* Legnth bytes */
     if ((str = row_import_read_bytes(file, 4)) == nullptr) {
@@ -2961,7 +2961,7 @@ Refer to row_quiesce_write_default_value() for the format details.
 
     size_t length = mach_read_from_4(str);
 
-    UT_DELETE_ARRAY(str);
+    ut::delete_arr(str);
 
     /* Value bytes */
     if (((str = row_import_read_bytes(file, length)) == nullptr) &&
@@ -2971,7 +2971,7 @@ Refer to row_quiesce_write_default_value() for the format details.
 
     col->set_default(str, length, *heap);
 
-    UT_DELETE_ARRAY(str);
+    ut::delete_arr(str);
 
     return (DB_SUCCESS);
   }
@@ -2991,10 +2991,10 @@ Refer to row_quiesce_write_default_value() for the format details.
   ut_a(cfg->m_n_cols > 0);
   ut_a(cfg->m_n_cols < 1024);
 
-  cfg->m_cols = UT_NEW_ARRAY_NOKEY(dict_col_t, cfg->m_n_cols);
+  cfg->m_cols = ut::new_arr<dict_col_t>(ut::Count{cfg->m_n_cols});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_8", UT_DELETE_ARRAY(cfg->m_cols);
+  DBUG_EXECUTE_IF("ib_import_OOM_8", ut::delete_arr(cfg->m_cols);
                   cfg->m_cols = nullptr;);
 
   if (cfg->m_cols == nullptr) {
@@ -3003,10 +3003,10 @@ Refer to row_quiesce_write_default_value() for the format details.
 
   memset(cfg->m_cols, 0x0, sizeof(*cfg->m_cols) * cfg->m_n_cols);
 
-  cfg->m_col_names = UT_NEW_ARRAY_NOKEY(byte *, cfg->m_n_cols);
+  cfg->m_col_names = ut::new_arr<byte *>(ut::Count{cfg->m_n_cols});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_9", UT_DELETE_ARRAY(cfg->m_col_names);
+  DBUG_EXECUTE_IF("ib_import_OOM_9", ut::delete_arr(cfg->m_col_names);
                   cfg->m_col_names = nullptr;);
 
   if (cfg->m_col_names == nullptr) {
@@ -3066,10 +3066,10 @@ Refer to row_quiesce_write_default_value() for the format details.
       return (DB_CORRUPTION);
     }
 
-    cfg->m_col_names[i] = UT_NEW_ARRAY_NOKEY(byte, len);
+    cfg->m_col_names[i] = ut::new_arr<byte>(ut::Count{len});
 
     /* Trigger OOM */
-    DBUG_EXECUTE_IF("ib_import_OOM_10", UT_DELETE_ARRAY(cfg->m_col_names[i]);
+    DBUG_EXECUTE_IF("ib_import_OOM_10", ut::delete_arr(cfg->m_col_names[i]);
                     cfg->m_col_names[i] = nullptr;);
 
     if (cfg->m_col_names[i] == nullptr) {
@@ -3135,10 +3135,10 @@ Refer to row_quiesce_write_default_value() for the format details.
   ulint len = mach_read_from_4(value);
 
   /* NUL byte is part of name length. */
-  cfg->m_hostname = UT_NEW_ARRAY_NOKEY(byte, len);
+  cfg->m_hostname = ut::new_arr<byte>(ut::Count{len});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_1", UT_DELETE_ARRAY(cfg->m_hostname);
+  DBUG_EXECUTE_IF("ib_import_OOM_1", ut::delete_arr(cfg->m_hostname);
                   cfg->m_hostname = nullptr;);
 
   if (cfg->m_hostname == nullptr) {
@@ -3169,10 +3169,10 @@ Refer to row_quiesce_write_default_value() for the format details.
   len = mach_read_from_4(value);
 
   /* NUL byte is part of name length. */
-  cfg->m_table_name = UT_NEW_ARRAY_NOKEY(byte, len);
+  cfg->m_table_name = ut::new_arr<byte>(ut::Count{len});
 
   /* Trigger OOM */
-  DBUG_EXECUTE_IF("ib_import_OOM_2", UT_DELETE_ARRAY(cfg->m_table_name);
+  DBUG_EXECUTE_IF("ib_import_OOM_2", ut::delete_arr(cfg->m_table_name);
                   cfg->m_table_name = nullptr;);
 
   if (cfg->m_table_name == nullptr) {
@@ -3830,7 +3830,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     filepath = Fil_path::make_ibd_from_table_name(table->name.m_name);
   }
 
-  DBUG_EXECUTE_IF("ib_import_OOM_15", ut_free(filepath); filepath = nullptr;);
+  DBUG_EXECUTE_IF("ib_import_OOM_15", ut::free(filepath); filepath = nullptr;);
 
   if (filepath == nullptr) {
     row_mysql_unlock_data_dictionary(trx);
@@ -3862,7 +3862,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_FILE_NOT_FOUND, filepath,
                 err, ut_strerr(err));
 
-    ut_free(filepath);
+    ut::free(filepath);
 
     return row_import_cleanup(prebuilt, trx, err);
   }
@@ -3899,7 +3899,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     }
   }
 
-  ut_free(filepath);
+  ut::free(filepath);
 
   err = ibuf_check_bitmap_on_import(trx, table->space);
 

@@ -179,11 +179,11 @@ static void rw_lock_debug_free(rw_lock_debug_t *info);
 /** Creates a debug info struct.
  @return own: debug info struct */
 static rw_lock_debug_t *rw_lock_debug_create(void) {
-  return ((rw_lock_debug_t *)ut_malloc_nokey(sizeof(rw_lock_debug_t)));
+  return ((rw_lock_debug_t *)ut::malloc(sizeof(rw_lock_debug_t)));
 }
 
 /** Frees a debug info struct. */
-static void rw_lock_debug_free(rw_lock_debug_t *info) { ut_free(info); }
+static void rw_lock_debug_free(rw_lock_debug_t *info) { ut::free(info); }
 #endif /* UNIV_DEBUG */
 
 /** Creates, or rather, initializes an rw-lock object in a specified memory

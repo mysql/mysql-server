@@ -497,7 +497,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   need to forbid dtor calls then. */
 
   using log_t_aligned_pointer = std::decay_t<decltype(*log_sys_object)>;
-  log_sys_object = UT_NEW_NOKEY(log_t_aligned_pointer{});
+  log_sys_object = ut::new_<log_t_aligned_pointer>();
   log_sys_object->alloc();
 
   log_sys = *log_sys_object;
@@ -554,7 +554,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 #ifdef UNIV_DEBUG
   /* initialize rw_lock without pfs_psi */
   log.sn_lock_inst =
-      static_cast<rw_lock_t *>(ut_zalloc_nokey(sizeof(*log.sn_lock_inst)));
+      static_cast<rw_lock_t *>(ut::zalloc(sizeof(*log.sn_lock_inst)));
   new (log.sn_lock_inst) rw_lock_t;
   rw_lock_create_func(log.sn_lock_inst, SYNC_LOG_SN, "log.sn_lock_inst",
                       __FILE__, __LINE__);
@@ -683,7 +683,7 @@ void log_sys_close() {
 
 #ifdef UNIV_DEBUG
   rw_lock_free_func(log.sn_lock_inst);
-  ut_free(log.sn_lock_inst);
+  ut::free(log.sn_lock_inst);
   log.sn_lock_inst = nullptr;
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_PFS_RWLOCK
@@ -713,7 +713,7 @@ void log_sys_close() {
   os_event_destroy(log.sn_lock_event);
 
   log_sys_object->dealloc();
-  UT_DELETE(log_sys_object);
+  ut::delete_(log_sys_object);
   log_sys_object = nullptr;
 
   log_sys = nullptr;
@@ -1040,7 +1040,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
   }
 
   /* Save the contents. */
-  byte *tmp_buf = UT_NEW_ARRAY_NOKEY(byte, end_lsn - start_lsn);
+  byte *tmp_buf = ut::new_arr<byte>(ut::Count{end_lsn - start_lsn});
   for (auto i = start_lsn; i < end_lsn; i += OS_FILE_LOG_BLOCK_SIZE) {
     std::memcpy(&tmp_buf[i - start_lsn], &log.buf[i % log.buf_size],
                 OS_FILE_LOG_BLOCK_SIZE);
@@ -1056,7 +1056,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
     std::memcpy(&log.buf[i % new_size], &tmp_buf[i - start_lsn],
                 OS_FILE_LOG_BLOCK_SIZE);
   }
-  UT_DELETE_ARRAY(tmp_buf);
+  ut::delete_arr(tmp_buf);
 
   log_calc_buf_size(log);
 
@@ -1166,7 +1166,7 @@ static void log_allocate_flush_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.flush_events_size = n;
-  log.flush_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
+  log.flush_events = ut::new_arr<os_event_t>(ut::Count{n});
 
   for (size_t i = 0; i < log.flush_events_size; ++i) {
     log.flush_events[i] = os_event_create();
@@ -1180,7 +1180,7 @@ static void log_deallocate_flush_events(log_t &log) {
     os_event_destroy(log.flush_events[i]);
   }
 
-  UT_DELETE_ARRAY(log.flush_events);
+  ut::delete_arr(log.flush_events);
   log.flush_events = nullptr;
 }
 
@@ -1192,7 +1192,7 @@ static void log_allocate_write_events(log_t &log) {
   ut_a((n & (n - 1)) == 0);
 
   log.write_events_size = n;
-  log.write_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
+  log.write_events = ut::new_arr<os_event_t>(ut::Count{n});
 
   for (size_t i = 0; i < log.write_events_size; ++i) {
     log.write_events[i] = os_event_create();
@@ -1206,7 +1206,7 @@ static void log_deallocate_write_events(log_t &log) {
     os_event_destroy(log.write_events[i]);
   }
 
-  UT_DELETE_ARRAY(log.write_events);
+  ut::delete_arr(log.write_events);
   log.write_events = nullptr;
 }
 
@@ -1231,7 +1231,7 @@ static void log_allocate_file_header_buffers(log_t &log) {
   const uint32_t n_files = log.n_files;
 
   using Buf_ptr = ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
-  log.file_header_bufs = UT_NEW_ARRAY_NOKEY(Buf_ptr, n_files);
+  log.file_header_bufs = ut::new_arr<Buf_ptr>(ut::Count{n_files});
 
   for (uint32_t i = 0; i < n_files; i++) {
     log.file_header_bufs[i].alloc(LOG_FILE_HDR_SIZE);
@@ -1242,7 +1242,7 @@ static void log_deallocate_file_header_buffers(log_t &log) {
   ut_a(log.n_files > 0);
   ut_a(log.file_header_bufs != nullptr);
 
-  UT_DELETE_ARRAY(log.file_header_bufs);
+  ut::delete_arr(log.file_header_bufs);
   log.file_header_bufs = nullptr;
 }
 

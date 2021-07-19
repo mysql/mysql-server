@@ -111,7 +111,8 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
 
 dberr_t Parallel_reader_adapter::init(
     Parallel_reader::Thread_ctx *reader_thread_ctx, row_prebuilt_t *prebuilt) {
-  auto thread_ctx = UT_NEW(Thread_ctx(), mem_key_archive);
+  auto thread_ctx =
+      ut::new_withkey<Thread_ctx>(ut::make_psi_memory_key(mem_key_archive));
 
   if (thread_ctx == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -260,7 +261,7 @@ dberr_t Parallel_reader_adapter::end(
 
   m_end_fn(m_thread_ctxs[thread_id]);
 
-  UT_DELETE(thread_ctx);
+  ut::delete_(thread_ctx);
   reader_thread_ctx->set_callback_ctx<Thread_ctx>(nullptr);
 
   return (err);

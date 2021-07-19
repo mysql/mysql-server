@@ -62,7 +62,7 @@ struct Pool {
 
     ut_a(m_start == nullptr);
 
-    m_start = reinterpret_cast<Element *>(ut_zalloc_nokey(m_size));
+    m_start = reinterpret_cast<Element *>(ut::zalloc(m_size));
 
     m_last = m_start;
 
@@ -87,7 +87,7 @@ struct Pool {
       Factory::destroy(&elem->m_type);
     }
 
-    ut_free(m_start);
+    ut::free(m_start);
     m_end = m_last = m_start = nullptr;
     m_size = 0;
   }
@@ -270,7 +270,7 @@ struct PoolManager {
 
       ut_ad(n_pools == m_pools.size());
 
-      pool = UT_NEW_NOKEY(PoolType(m_size));
+      pool = ut::new_<PoolType>(m_size);
 
       if (pool != nullptr) {
         ut_ad(n_pools <= m_pools.size());
@@ -306,7 +306,7 @@ struct PoolManager {
     for (it = m_pools.begin(); it != end; ++it) {
       PoolType *pool = *it;
 
-      UT_DELETE(pool);
+      ut::delete_(pool);
     }
 
     m_pools.clear();

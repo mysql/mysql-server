@@ -160,7 +160,7 @@ bool os_is_o_direct_supported() {
 
   /* Allocate a new path and move the directory path to it. */
   path_len = dir_len + sizeof "o_direct_test";
-  file_name = static_cast<char *>(ut_zalloc_nokey(path_len));
+  file_name = static_cast<char *>(ut::zalloc(path_len));
   if (add_os_path_separator == true) {
     memcpy(file_name, path, dir_len - 1);
     file_name[dir_len - 1] = OS_PATH_SEPARATOR;
@@ -177,13 +177,13 @@ bool os_is_o_direct_supported() {
 
   /* If Failed */
   if (file_handle == -1) {
-    ut_free(file_name);
+    ut::free(file_name);
     return (false);
   }
 
   ::close(file_handle);
   unlink(file_name);
-  ut_free(file_name);
+  ut::free(file_name);
 
   return (true);
 #else
@@ -982,8 +982,7 @@ file::Block *os_alloc_block() noexcept {
     if (retry == MAX_BLOCKS * 3) {
       byte *ptr;
 
-      ptr = static_cast<byte *>(
-          ut_malloc_nokey(sizeof(*block) + BUFFER_BLOCK_SIZE));
+      ptr = static_cast<byte *>(ut::malloc(sizeof(*block) + BUFFER_BLOCK_SIZE));
 
       block = new (ptr) file::Block();
       block->m_ptr = static_cast<byte *>(ptr + sizeof(*block));
@@ -1018,7 +1017,7 @@ void os_free_block(file::Block *block) noexcept {
   a temporary block, we need to free it directly. */
   if (std::less<file::Block *>()(block, &block_cache->front()) ||
       std::greater<file::Block *>()(block, &block_cache->back())) {
-    ut_free(block);
+    ut::free(block);
   }
 }
 
@@ -1239,7 +1238,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
   }
 
   if (slot->encrypt_log_buf != nullptr) {
-    ut_free(slot->encrypt_log_buf);
+    ut::free(slot->encrypt_log_buf);
     slot->encrypt_log_buf = nullptr;
   }
 
@@ -1290,7 +1289,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
     }
 
     if (slot->encrypt_log_buf != nullptr) {
-      ut_free(slot->encrypt_log_buf);
+      ut::free(slot->encrypt_log_buf);
       slot->encrypt_log_buf = nullptr;
     }
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
@@ -1837,9 +1836,9 @@ void test_os_file_get_parent_dir(const char *child_dir,
         << "os_file_get_parent_dir('" << child << "') returned '" << parent
         << "', instead of '" << expected << "'.";
   }
-  ut_free(parent);
-  ut_free(child);
-  ut_free(expected);
+  ut::free(parent);
+  ut::free(child);
+  ut::free(expected);
 }
 
 /* Test the function os_file_get_parent_dir. */
@@ -1899,7 +1898,7 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
     dberr_t err = os_file_create_subdirs_if_needed(subdir);
 
     if (err != DB_SUCCESS) {
-      ut_free(subdir);
+      ut::free(subdir);
 
       return (err);
     }
@@ -1907,7 +1906,7 @@ dberr_t os_file_create_subdirs_if_needed(const char *path) {
     success = os_file_create_directory(subdir, false);
   }
 
-  ut_free(subdir);
+  ut::free(subdir);
 
   return (success ? DB_SUCCESS : DB_ERROR);
 }
@@ -5067,7 +5066,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       }
 
       if (encrypt_log_buf != nullptr) {
-        ut_free(encrypt_log_buf);
+        ut::free(encrypt_log_buf);
       }
 
       return (original_n);
@@ -5097,7 +5096,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   }
 
   if (encrypt_log_buf != nullptr) {
-    ut_free(encrypt_log_buf);
+    ut::free(encrypt_log_buf);
   }
 
   if (*err != DB_IO_DECRYPT_FAIL) {
@@ -6190,8 +6189,8 @@ dberr_t AIO::init_linux_native_aio() {
 
   ut_a(m_aio_ctx == nullptr);
 
-  m_aio_ctx = static_cast<io_context **>(
-      ut_zalloc_nokey(m_n_segments * sizeof(*m_aio_ctx)));
+  m_aio_ctx =
+      static_cast<io_context **>(ut::zalloc(m_n_segments * sizeof(*m_aio_ctx)));
 
   if (m_aio_ctx == nullptr) {
     return (DB_OUT_OF_MEMORY);
@@ -6223,7 +6222,7 @@ dberr_t AIO::init() {
 #ifdef _WIN32
   ut_a(m_handles == NULL);
 
-  m_handles = UT_NEW_NOKEY(Handles(m_slots.size()));
+  m_handles = ut::new_<Handles>(m_slots.size());
 #endif /* _WIN32 */
 
   if (srv_use_native_aio) {
@@ -6258,10 +6257,10 @@ AIO *AIO::create(latch_id_t id, ulint n, ulint n_segments) {
     return (nullptr);
   }
 
-  AIO *array = UT_NEW_NOKEY(AIO(id, n, n_segments));
+  AIO *array = ut::new_<AIO>(id, n, n_segments);
 
   if (array != nullptr && array->init() != DB_SUCCESS) {
-    UT_DELETE(array);
+    ut::delete_(array);
 
     array = nullptr;
   }
@@ -6278,7 +6277,7 @@ AIO::~AIO() {
 #endif /* WIN_ASYNC_IO */
 
 #ifdef _WIN32
-  UT_DELETE(m_handles);
+  ut::delete_(m_handles);
 #endif /* _WIN32 */
 
   mutex_destroy(&m_mutex);
@@ -6289,7 +6288,7 @@ AIO::~AIO() {
 #if defined(LINUX_NATIVE_AIO)
   if (srv_use_native_aio) {
     m_events.clear();
-    ut_free(m_aio_ctx);
+    ut::free(m_aio_ctx);
   }
 #endif /* LINUX_NATIVE_AIO */
 
@@ -6399,7 +6398,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   os_aio_validate();
 
   os_aio_segment_wait_events = static_cast<os_event_t *>(
-      ut_zalloc_nokey(n_segments * sizeof *os_aio_segment_wait_events));
+      ut::zalloc(n_segments * sizeof *os_aio_segment_wait_events));
 
   if (os_aio_segment_wait_events == nullptr) {
     return false;
@@ -6416,19 +6415,19 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
 /** Free the AIO arrays */
 void AIO::shutdown() {
-  UT_DELETE(s_ibuf);
+  ut::delete_(s_ibuf);
   s_ibuf = nullptr;
 
-  UT_DELETE(s_log);
+  ut::delete_(s_log);
   s_log = nullptr;
 
-  UT_DELETE(s_writes);
+  ut::delete_(s_writes);
   s_writes = nullptr;
 
-  UT_DELETE(s_sync);
+  ut::delete_(s_sync);
   s_sync = nullptr;
 
-  UT_DELETE(s_reads);
+  ut::delete_(s_reads);
   s_reads = nullptr;
 }
 
@@ -6468,7 +6467,7 @@ void os_fusionio_get_sector_size() {
 
     /* allocate a new path and move the directory path to it. */
     check_path_len = dir_len + sizeof "/check_sector_size";
-    check_file_name = static_cast<char *>(ut_zalloc_nokey(check_path_len));
+    check_file_name = static_cast<char *>(ut::zalloc(check_path_len));
     memcpy(check_file_name, path, dir_len);
 
     /* Construct a check file name. */
@@ -6484,7 +6483,7 @@ void os_fusionio_get_sector_size() {
           << " Please confirm O_DIRECT is"
           << " supported and remove the file " << check_file_name
           << " if it exists.";
-      ut_free(check_file_name);
+      ut::free(check_file_name);
       errno = 0;
       return;
     }
@@ -6508,7 +6507,7 @@ void os_fusionio_get_sector_size() {
     close(check_file);
     unlink(check_file_name);
 
-    ut_free(check_file_name);
+    ut::free(check_file_name);
     errno = 0;
 
     os_io_ptr_align = sector_size;
@@ -6527,7 +6526,7 @@ page data. */
 void os_create_block_cache() {
   ut_a(block_cache == nullptr);
 
-  block_cache = UT_NEW_NOKEY(Blocks(MAX_BLOCKS));
+  block_cache = ut::new_<Blocks>(MAX_BLOCKS);
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
@@ -6537,7 +6536,7 @@ void os_create_block_cache() {
     /* Allocate double of max page size memory, since
     compress could generate more bytes than original
     data. */
-    it->m_ptr = static_cast<byte *>(ut_malloc_nokey(BUFFER_BLOCK_SIZE));
+    it->m_ptr = static_cast<byte *>(ut::malloc(BUFFER_BLOCK_SIZE));
 
     ut_a(it->m_ptr != nullptr);
   }
@@ -6553,10 +6552,10 @@ void meb_free_block_cache() {
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
     ut_a(!it->m_in_use);
-    ut_free(it->m_ptr);
+    ut::free(it->m_ptr);
   }
 
-  UT_DELETE(block_cache);
+  ut::delete_(block_cache);
 
   block_cache = nullptr;
 }
@@ -6598,17 +6597,17 @@ void os_aio_free() {
     os_event_destroy(os_aio_segment_wait_events[i]);
   }
 
-  ut_free(os_aio_segment_wait_events);
+  ut::free(os_aio_segment_wait_events);
   os_aio_segment_wait_events = nullptr;
   os_aio_n_segments = 0;
 
   for (Blocks::iterator it = block_cache->begin(); it != block_cache->end();
        ++it) {
     ut_a(!it->m_in_use);
-    ut_free(it->m_ptr);
+    ut::free(it->m_ptr);
   }
 
-  UT_DELETE(block_cache);
+  ut::delete_(block_cache);
 
   block_cache = nullptr;
 }
@@ -6862,7 +6861,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
         slot->buf_block = encrypted_block;
 
         if (slot->encrypt_log_buf != nullptr) {
-          ut_free(slot->encrypt_log_buf);
+          ut::free(slot->encrypt_log_buf);
         }
 
         slot->encrypt_log_buf = encrypt_log_buf;

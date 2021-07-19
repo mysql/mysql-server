@@ -127,13 +127,12 @@ void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
   if (src->m_old_rec != nullptr) {
     /* We have an old buffer, but it is too small. */
     if (dst->m_old_rec_buf != nullptr && dst->m_buf_size < src->m_buf_size) {
-      ut_free(dst->m_old_rec_buf);
+      ut::free(dst->m_old_rec_buf);
       dst->m_old_rec_buf = nullptr;
     }
     /* We don't have a buffer, but we should have one. */
     if (dst->m_old_rec_buf == nullptr) {
-      dst->m_old_rec_buf =
-          static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+      dst->m_old_rec_buf = static_cast<byte *>(ut::malloc(src->m_buf_size));
       dst->m_buf_size = src->m_buf_size;
     }
 

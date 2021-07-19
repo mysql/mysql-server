@@ -590,7 +590,7 @@ Used for mutexes which have PFS keys defined under UNIV_PFS_MUTEX.
 @param[in]	key		PFS key */
 #define LATCH_ADD_MUTEX(id, level, key) \
   latch_meta[LATCH_ID_##id] =           \
-      UT_NEW_NOKEY(latch_meta_t(LATCH_ID_##id, #id, level, #level, key))
+      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level, key)
 
 #ifdef UNIV_PFS_RWLOCK
 /** Latch element.
@@ -600,20 +600,20 @@ Used for rwlocks which have PFS keys defined under UNIV_PFS_RWLOCK.
 @param[in]	key		PFS key */
 #define LATCH_ADD_RWLOCK(id, level, key) \
   latch_meta[LATCH_ID_##id] =            \
-      UT_NEW_NOKEY(latch_meta_t(LATCH_ID_##id, #id, level, #level, key))
+      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level, key)
 #else
-#define LATCH_ADD_RWLOCK(id, level, key)    \
-  latch_meta[LATCH_ID_##id] = UT_NEW_NOKEY( \
-      latch_meta_t(LATCH_ID_##id, #id, level, #level, PSI_NOT_INSTRUMENTED))
+#define LATCH_ADD_RWLOCK(id, level, key)              \
+  latch_meta[LATCH_ID_##id] = ut::new_<latch_meta_t>( \
+      LATCH_ID_##id, #id, level, #level, PSI_NOT_INSTRUMENTED)
 #endif /* UNIV_PFS_RWLOCK */
 
 #else
 #define LATCH_ADD_MUTEX(id, level, key) \
   latch_meta[LATCH_ID_##id] =           \
-      UT_NEW_NOKEY(latch_meta_t(LATCH_ID_##id, #id, level, #level))
+      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level)
 #define LATCH_ADD_RWLOCK(id, level, key) \
   latch_meta[LATCH_ID_##id] =            \
-      UT_NEW_NOKEY(latch_meta_t(LATCH_ID_##id, #id, level, #level))
+      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level)
 #endif /* UNIV_PFS_MUTEX */
 
 /** Default latch counter */
@@ -654,7 +654,7 @@ class LatchCounter {
     m_mutex.destroy();
 
     for (Count *count : m_counters) {
-      UT_DELETE(count);
+      ut::delete_(count);
     }
   }
 
@@ -679,7 +679,7 @@ class LatchCounter {
     Count *count;
 
     if (m_counters.empty()) {
-      count = UT_NEW_NOKEY(Count());
+      count = ut::new_<Count>();
       m_counters.push_back(count);
     } else {
       ut_a(m_counters.size() == 1);

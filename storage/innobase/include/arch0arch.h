@@ -544,7 +544,7 @@ class Arch_File_Ctx {
     close();
 
     if (m_name_buf != nullptr) {
-      ut_free(m_name_buf);
+      ut::free(m_name_buf);
     }
   }
 

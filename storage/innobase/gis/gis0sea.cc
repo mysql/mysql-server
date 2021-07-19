@@ -69,7 +69,7 @@ static void rtr_adjust_parent_path(
     } else {
       if (rtr_info->parent_path->back().cursor) {
         btr_pcur_close(rtr_info->parent_path->back().cursor);
-        ut_free(rtr_info->parent_path->back().cursor);
+        ut::free(rtr_info->parent_path->back().cursor);
       }
 
       rtr_info->parent_path->pop_back();
@@ -173,7 +173,7 @@ static bool rtr_pcur_getnext_from_path(
       /* Cleanup unused parent info */
       if (rtr_info->parent_path->back().cursor) {
         btr_pcur_close(rtr_info->parent_path->back().cursor);
-        ut_free(rtr_info->parent_path->back().cursor);
+        ut::free(rtr_info->parent_path->back().cursor);
       }
 
       old_level = rtr_info->parent_path->back().level;
@@ -837,7 +837,7 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
   index = index ? index : cursor->index;
   ut_ad(index);
 
-  rtr_info = static_cast<rtr_info_t *>(ut_zalloc_nokey(sizeof(*rtr_info)));
+  rtr_info = static_cast<rtr_info_t *>(ut::zalloc(sizeof(*rtr_info)));
 
   rtr_info->allocated = true;
   rtr_info->cursor = cursor;
@@ -849,7 +849,7 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
     rtr_info->matches = static_cast<matched_rec_t *>(
         mem_heap_zalloc(rtr_info->heap, sizeof(*rtr_info->matches)));
 
-    rtr_info->matches->matched_recs = UT_NEW_NOKEY(rtr_rec_vector());
+    rtr_info->matches->matched_recs = ut::new_<rtr_rec_vector>();
 
     rtr_info->matches->bufp =
         page_align(rtr_info->matches->rec_buf + UNIV_PAGE_SIZE_MAX + 1);
@@ -858,8 +858,8 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
                    SYNC_LEVEL_VARYING);
   }
 
-  rtr_info->path = UT_NEW_NOKEY(rtr_node_path_t());
-  rtr_info->parent_path = UT_NEW_NOKEY(rtr_node_path_t());
+  rtr_info->path = ut::new_<rtr_node_path_t>();
+  rtr_info->parent_path = ut::new_<rtr_node_path_t>();
   rtr_info->need_prdt_lock = need_prdt;
   mutex_create(LATCH_ID_RTR_PATH_MUTEX, &rtr_info->rtr_path_mutex);
 
@@ -920,8 +920,8 @@ void rtr_init_rtr_info(
 
   ut_ad(!rtr_info->matches || rtr_info->matches->matched_recs->empty());
 
-  rtr_info->path = UT_NEW_NOKEY(rtr_node_path_t());
-  rtr_info->parent_path = UT_NEW_NOKEY(rtr_node_path_t());
+  rtr_info->path = ut::new_<rtr_node_path_t>();
+  rtr_info->parent_path = ut::new_<rtr_node_path_t>();
   rtr_info->need_prdt_lock = need_prdt;
   rtr_info->cursor = cursor;
   rtr_info->index = index;
@@ -955,15 +955,15 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
 
     if (cur) {
       btr_pcur_close(cur);
-      ut_free(cur);
+      ut::free(cur);
     }
   }
 
-  UT_DELETE(rtr_info->parent_path);
+  ut::delete_(rtr_info->parent_path);
   rtr_info->parent_path = nullptr;
 
   if (rtr_info->path != nullptr) {
-    UT_DELETE(rtr_info->path);
+    ut::delete_(rtr_info->path);
     rtr_info->path = nullptr;
     initialized = true;
   }
@@ -983,7 +983,7 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
   if (free_all) {
     if (rtr_info->matches) {
       if (rtr_info->matches->matched_recs != nullptr) {
-        UT_DELETE(rtr_info->matches->matched_recs);
+        ut::delete_(rtr_info->matches->matched_recs);
       }
 
       /* Clear any space references in the page copied. */
@@ -1002,7 +1002,7 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
     }
 
     if (rtr_info->allocated) {
-      ut_free(rtr_info);
+      ut::free(rtr_info);
     }
   }
 }
@@ -1012,7 +1012,7 @@ static void rtr_rebuild_path(
     rtr_info_t *rtr_info, /*!< in: RTree search info */
     page_no_t page_no)    /*!< in: need to free rtr_info itself */
 {
-  rtr_node_path_t *new_path = UT_NEW_NOKEY(rtr_node_path_t());
+  rtr_node_path_t *new_path = ut::new_<rtr_node_path_t>();
 
   rtr_node_path_t::iterator rit;
 #ifdef UNIV_DEBUG
@@ -1033,14 +1033,15 @@ static void rtr_rebuild_path(
 #endif /* UNIV_DEBUG */
   }
 
-  UT_DELETE(rtr_info->path);
+  ut::delete_(rtr_info->path);
 
   ut_ad(new_path->size() == before_size - 1);
 
   rtr_info->path = new_path;
 
   if (!rtr_info->parent_path->empty()) {
-    rtr_node_path_t *new_parent_path = UT_NEW_NOKEY(rtr_node_path_t());
+    rtr_node_path_t *new_parent_path =
+        ut::new_withkey<rtr_node_path_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
     for (rit = rtr_info->parent_path->begin();
          rit != rtr_info->parent_path->end(); ++rit) {
@@ -1051,7 +1052,7 @@ static void rtr_rebuild_path(
 
         if (cur) {
           btr_pcur_close(cur);
-          ut_free(cur);
+          ut::free(cur);
         }
 
         continue;
@@ -1059,7 +1060,7 @@ static void rtr_rebuild_path(
 
       new_parent_path->push_back(next_rec);
     }
-    UT_DELETE(rtr_info->parent_path);
+    ut::delete_(rtr_info->parent_path);
     rtr_info->parent_path = new_parent_path;
   }
 }
@@ -1355,7 +1356,7 @@ static void rtr_non_leaf_insert_stack_push(
   btr_pcur_t *my_cursor;
   page_no_t page_no = block->page.id.page_no();
 
-  my_cursor = static_cast<btr_pcur_t *>(ut_malloc_nokey(sizeof(*my_cursor)));
+  my_cursor = static_cast<btr_pcur_t *>(ut::malloc(sizeof(*my_cursor)));
 
   btr_pcur_init(my_cursor);
 

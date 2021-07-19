@@ -467,14 +467,11 @@ class Parallel_reader {
 
   /** Context information related to each parallel reader thread. */
   std::vector<Thread_ctx *, ut_allocator<Thread_ctx *>> m_thread_ctxs;
-
-  friend class Ctx;
-  friend class Scan_ctx;
 };
 
 /** Parallel reader context. */
 class Parallel_reader::Scan_ctx {
- private:
+ public:
   /** Constructor.
   @param[in]  reader          Parallel reader that owns this context.
   @param[in]  id              ID of this scan context.
@@ -484,7 +481,6 @@ class Parallel_reader::Scan_ctx {
   Scan_ctx(Parallel_reader *reader, size_t id, trx_t *trx,
            const Parallel_reader::Config &config, F &&f);
 
- public:
   /** Destructor. */
   ~Scan_ctx() = default;
 
@@ -675,7 +671,6 @@ class Parallel_reader::Scan_ctx {
   std::atomic_size_t m_s_locks{};
 
   friend class Parallel_reader;
-  friend class Parallel_reader::Ctx;
 
   Scan_ctx(Scan_ctx &&) = delete;
   Scan_ctx(const Scan_ctx &) = delete;
@@ -685,7 +680,7 @@ class Parallel_reader::Scan_ctx {
 
 /** Parallel reader execution context. */
 class Parallel_reader::Ctx {
- private:
+ public:
   /** Constructor.
   @param[in]    id              Thread ID.
   @param[in]    scan_ctx        Scan context.
@@ -693,7 +688,6 @@ class Parallel_reader::Ctx {
   Ctx(size_t id, Scan_ctx *scan_ctx, const Scan_ctx::Range &range)
       : m_id(id), m_range(range), m_scan_ctx(scan_ctx) {}
 
- public:
   /** Destructor. */
   ~Ctx() = default;
 

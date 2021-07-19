@@ -63,6 +63,7 @@ class Page_load : private ut::Non_copyable {
     size_t m_n_rec_before{};
   };
 
+ public:
   /** Constructor
   @param[in]	index		          B-tree index
   @param[in]	trx_id		        Transaction id
@@ -92,6 +93,7 @@ class Page_load : private ut::Non_copyable {
     }
   }
 
+ private:
   /** Initialize members and allocate page if needed and start mtr.
   @note Must be called and only once right after constructor.
   @return error code */
@@ -283,7 +285,6 @@ class Page_load : private ut::Non_copyable {
   bool m_modified{};
 
   friend class Btree_load;
-  friend class ut_allocator<Page_load>;
 };
 
 dberr_t Page_load::init() noexcept {
@@ -1025,8 +1026,8 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
   IF_ENABLED("ddl_btree_build_oom", return DB_OUT_OF_MEMORY;)
 
   /* Create a sibling page_loader. */
-  auto sibling_page_loader = UT_NEW_NOKEY(
-      Page_load(m_index, m_trx_id, FIL_NULL, level, m_flush_observer));
+  auto sibling_page_loader =
+      ut::new_<Page_load>(m_index, m_trx_id, FIL_NULL, level, m_flush_observer);
 
   if (sibling_page_loader == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1036,7 +1037,7 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
     auto err = sibling_page_loader->init();
 
     if (err != DB_SUCCESS) {
-      UT_DELETE(sibling_page_loader);
+      ut::delete_(sibling_page_loader);
       return err;
     }
   }
@@ -1047,7 +1048,7 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
 
     if (err != DB_SUCCESS) {
       sibling_page_loader->rollback();
-      UT_DELETE(sibling_page_loader);
+      ut::delete_(sibling_page_loader);
       return err;
     }
   }
@@ -1057,7 +1058,7 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
 
   m_page_loaders[level] = sibling_page_loader;
 
-  UT_DELETE(page_loader);
+  ut::delete_(page_loader);
 
   page_loader = sibling_page_loader;
 
@@ -1107,8 +1108,8 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
 
   /* Check if we need to create a Page_load for the level. */
   if (level + 1 > m_page_loaders.size()) {
-    auto page_loader = UT_NEW_NOKEY(
-        Page_load(m_index, m_trx_id, FIL_NULL, level, m_flush_observer));
+    auto page_loader = ut::new_<Page_load>(m_index, m_trx_id, FIL_NULL, level,
+                                           m_flush_observer);
 
     if (page_loader == nullptr) {
       return DB_OUT_OF_MEMORY;
@@ -1207,7 +1208,7 @@ dberr_t Btree_load::finalize_page_loads(dberr_t err,
       page_loader->rollback();
     }
 
-    UT_DELETE(page_loader);
+    ut::delete_(page_loader);
   }
 
   return err;

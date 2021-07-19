@@ -530,7 +530,7 @@ static inline ulint mem_heap_get_size(mem_heap_t *heap) /*!< in: heap */
 static inline char *mem_strdup(const char *str) /*!< in: string to be copied */
 {
   ulint len = strlen(str) + 1;
-  return (static_cast<char *>(memcpy(ut_malloc_nokey(len), str, len)));
+  return (static_cast<char *>(memcpy(ut::malloc(len), str, len)));
 }
 
 /** Makes a NUL-terminated copy of a nonterminated string.
@@ -541,7 +541,7 @@ static inline char *mem_strdupl(const char *str, /*!< in: string to be copied */
   if (static_cast<long>(len) < 0) {
     return nullptr;  // GCC bug #91397.
   }
-  char *s = static_cast<char *>(ut_malloc_nokey(len + 1));
+  char *s = static_cast<char *>(ut::malloc(len + 1));
   s[len] = 0;
   if (len > 0) {
     memcpy(s, str, len);

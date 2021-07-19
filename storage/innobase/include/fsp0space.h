@@ -66,11 +66,11 @@ class Tablespace {
     ut_ad(m_files.empty());
     ut_ad(m_space_id == SPACE_UNKNOWN);
     if (m_name != nullptr) {
-      ut_free(m_name);
+      ut::free(m_name);
       m_name = nullptr;
     }
     if (m_path != nullptr) {
-      ut_free(m_path);
+      ut::free(m_path);
       m_path = nullptr;
     }
   }

@@ -90,7 +90,8 @@ static void dict_stats_recalc_pool_init() {
 
   const PSI_memory_key key = mem_key_dict_stats_bg_recalc_pool_t;
 
-  recalc_pool = UT_NEW(recalc_pool_t(recalc_pool_allocator_t(key)), key);
+  recalc_pool = ut::new_withkey<recalc_pool_t>(ut::make_psi_memory_key(key),
+                                               recalc_pool_allocator_t(key));
 
   recalc_pool->reserve(RECALC_POOL_INITIAL_SLOTS);
 }
@@ -102,7 +103,7 @@ static void dict_stats_recalc_pool_deinit() {
 
   recalc_pool->clear();
 
-  UT_DELETE(recalc_pool);
+  ut::delete_(recalc_pool);
   recalc_pool = nullptr;
 }
 

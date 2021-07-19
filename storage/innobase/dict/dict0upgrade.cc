@@ -1184,7 +1184,7 @@ int dd_upgrade_tablespace(THD *thd) {
       dict_sys_mutex_exit();
 
       std::string orig_name(filename);
-      ut_free(filename);
+      ut::free(filename);
       filename = nullptr;
 
       /* To migrate statistics from 57 satistics tables, we rename the

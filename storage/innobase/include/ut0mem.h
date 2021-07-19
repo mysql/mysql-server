@@ -93,7 +93,7 @@ ulint ut_strlcpy(char *dst,       /*!< in: destination buffer */
 Concatenate 3 strings.*/
 char *ut_str3cat(
     /* out, own: concatenated string, must be
-    freed with ut_free() */
+    freed with ut::free() */
     const char *s1,  /* in: string 1 */
     const char *s2,  /* in: string 2 */
     const char *s3); /* in: string 3 */

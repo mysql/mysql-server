@@ -653,7 +653,7 @@ class Log_DDL {
 extern Log_DDL *log_ddl;
 
 /** Close the DDL log system */
-inline void ddl_log_close() { UT_DELETE(log_ddl); }
+inline void ddl_log_close() { ut::delete_(log_ddl); }
 
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
