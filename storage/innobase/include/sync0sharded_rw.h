@@ -69,7 +69,8 @@ class Sharded_rw_lock {
     ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
-    m_shards = static_cast<Shard *>(ut::zalloc(sizeof(Shard) * n_shards));
+    m_shards = static_cast<Shard *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(Shard) * n_shards));
 
     for_each([
 #ifdef UNIV_PFS_RWLOCK

@@ -588,9 +588,9 @@ Used for mutexes which have PFS keys defined under UNIV_PFS_MUTEX.
 @param[in]	id		Latch id
 @param[in]	level		Latch level
 @param[in]	key		PFS key */
-#define LATCH_ADD_MUTEX(id, level, key) \
-  latch_meta[LATCH_ID_##id] =           \
-      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level, key)
+#define LATCH_ADD_MUTEX(id, level, key)                      \
+  latch_meta[LATCH_ID_##id] = ut::new_withkey<latch_meta_t>( \
+      UT_NEW_THIS_FILE_PSI_KEY, LATCH_ID_##id, #id, level, #level, key)
 
 #ifdef UNIV_PFS_RWLOCK
 /** Latch element.
@@ -598,22 +598,23 @@ Used for rwlocks which have PFS keys defined under UNIV_PFS_RWLOCK.
 @param[in]	id		Latch id
 @param[in]	level		Latch level
 @param[in]	key		PFS key */
-#define LATCH_ADD_RWLOCK(id, level, key) \
-  latch_meta[LATCH_ID_##id] =            \
-      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level, key)
+#define LATCH_ADD_RWLOCK(id, level, key)                     \
+  latch_meta[LATCH_ID_##id] = ut::new_withkey<latch_meta_t>( \
+      UT_NEW_THIS_FILE_PSI_KEY, LATCH_ID_##id, #id, level, #level, key)
 #else
-#define LATCH_ADD_RWLOCK(id, level, key)              \
-  latch_meta[LATCH_ID_##id] = ut::new_<latch_meta_t>( \
-      LATCH_ID_##id, #id, level, #level, PSI_NOT_INSTRUMENTED)
+#define LATCH_ADD_RWLOCK(id, level, key)                                     \
+  latch_meta[LATCH_ID_##id] =                                                \
+      ut::new_withkey<latch_meta_t>(UT_NEW_THIS_FILE_PSI_KEY, LATCH_ID_##id, \
+                                    #id, level, #level, PSI_NOT_INSTRUMENTED)
 #endif /* UNIV_PFS_RWLOCK */
 
 #else
-#define LATCH_ADD_MUTEX(id, level, key) \
-  latch_meta[LATCH_ID_##id] =           \
-      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level)
-#define LATCH_ADD_RWLOCK(id, level, key) \
-  latch_meta[LATCH_ID_##id] =            \
-      ut::new_<latch_meta_t>(LATCH_ID_##id, #id, level, #level)
+#define LATCH_ADD_MUTEX(id, level, key)                      \
+  latch_meta[LATCH_ID_##id] = ut::new_withkey<latch_meta_t>( \
+      UT_NEW_THIS_FILE_PSI_KEY, LATCH_ID_##id, #id, level, #level)
+#define LATCH_ADD_RWLOCK(id, level, key)                     \
+  latch_meta[LATCH_ID_##id] = ut::new_withkey<latch_meta_t>( \
+      UT_NEW_THIS_FILE_PSI_KEY, LATCH_ID_##id, #id, level, #level)
 #endif /* UNIV_PFS_MUTEX */
 
 /** Default latch counter */
@@ -679,7 +680,7 @@ class LatchCounter {
     Count *count;
 
     if (m_counters.empty()) {
-      count = ut::new_<Count>();
+      count = ut::new_withkey<Count>(UT_NEW_THIS_FILE_PSI_KEY);
       m_counters.push_back(count);
     } else {
       ut_a(m_counters.size() == 1);

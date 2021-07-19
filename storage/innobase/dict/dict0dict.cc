@@ -315,7 +315,8 @@ static void dict_table_stats_latch_alloc(void *table_void) {
 
   /* Note: rw_lock_create() will call the constructor */
 
-  table->stats_latch = static_cast<rw_lock_t *>(ut::malloc(sizeof(rw_lock_t)));
+  table->stats_latch = static_cast<rw_lock_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(rw_lock_t)));
 
   ut_a(table->stats_latch != nullptr);
 
@@ -706,11 +707,12 @@ This function must not be called concurrently on the same table object.
 static void dict_table_autoinc_alloc(void *table_void) {
   dict_table_t *table = static_cast<dict_table_t *>(table_void);
 
-  table->autoinc_mutex = ut::new_<ib_mutex_t>();
+  table->autoinc_mutex = ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(table->autoinc_mutex != nullptr);
   mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 
-  table->autoinc_persisted_mutex = ut::new_<ib_mutex_t>();
+  table->autoinc_persisted_mutex =
+      ut::new_withkey<ib_mutex_t>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(table->autoinc_persisted_mutex != nullptr);
   mutex_create(LATCH_ID_PERSIST_AUTOINC, table->autoinc_persisted_mutex);
 }
@@ -1010,10 +1012,11 @@ ibool dict_table_col_in_clustered_key(
 
 /** Inits the data dictionary module. */
 void dict_init(void) {
-  dict_operation_lock =
-      static_cast<rw_lock_t *>(ut::zalloc(sizeof(*dict_operation_lock)));
+  dict_operation_lock = static_cast<rw_lock_t *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_operation_lock)));
 
-  dict_sys = static_cast<dict_sys_t *>(ut::zalloc(sizeof(*dict_sys)));
+  dict_sys = static_cast<dict_sys_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_sys)));
 
   UT_LIST_INIT(dict_sys->table_LRU);
   UT_LIST_INIT(dict_sys->table_non_LRU);
@@ -3036,7 +3039,8 @@ static dict_index_t *dict_index_build_internal_clust(
   }
 
   /* Remember the table columns already contained in new_index */
-  indexed = static_cast<ibool *>(ut::zalloc(table->n_cols * sizeof *indexed));
+  indexed = static_cast<ibool *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, table->n_cols * sizeof *indexed));
 
   /* Mark the table columns already contained in new_index */
   for (i = 0; i < new_index->n_def; i++) {
@@ -3114,7 +3118,8 @@ static dict_index_t *dict_index_build_internal_non_clust(
   dict_index_copy(new_index, index, table, 0, index->n_fields);
 
   /* Remember the table columns already contained in new_index */
-  indexed = static_cast<ibool *>(ut::zalloc(table->n_cols * sizeof *indexed));
+  indexed = static_cast<ibool *>(ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, table->n_cols * sizeof *indexed));
 
   /* Mark the table columns already contained in new_index */
   for (i = 0; i < new_index->n_def; i++) {
@@ -3816,8 +3821,8 @@ void dict_print_info_on_foreign_key_in_create_format(FILE *file, trx_t *trx,
 
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void) {
-  dict_persist =
-      static_cast<dict_persist_t *>(ut::zalloc(sizeof(*dict_persist)));
+  dict_persist = static_cast<dict_persist_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_persist)));
 
   mutex_create(LATCH_ID_DICT_PERSIST_DIRTY_TABLES, &dict_persist->mutex);
 
@@ -5383,8 +5388,8 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
     *version = 0;
   }
 
-  std::string *metadata =
-      ut::new_<std::string>(reinterpret_cast<const char *>(field), len);
+  std::string *metadata = ut::new_withkey<std::string>(
+      UT_NEW_THIS_FILE_PSI_KEY, reinterpret_cast<const char *>(field), len);
 
   mtr.commit();
 
@@ -5654,10 +5659,11 @@ Persister *Persisters::add(persistent_type_t type) {
 
   switch (type) {
     case PM_INDEX_CORRUPTED:
-      persister = ut::new_<CorruptedIndexPersister>();
+      persister =
+          ut::new_withkey<CorruptedIndexPersister>(UT_NEW_THIS_FILE_PSI_KEY);
       break;
     case PM_TABLE_AUTO_INC:
-      persister = ut::new_<AutoIncPersister>();
+      persister = ut::new_withkey<AutoIncPersister>(UT_NEW_THIS_FILE_PSI_KEY);
       break;
     default:
       ut_ad(0);

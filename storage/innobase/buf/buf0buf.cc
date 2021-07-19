@@ -1226,8 +1226,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     buf_pool->n_chunks = buf_pool_size / srv_buf_pool_chunk_unit;
     chunk_size = srv_buf_pool_chunk_unit;
 
-    buf_pool->chunks = reinterpret_cast<buf_chunk_t *>(
-        ut::zalloc(buf_pool->n_chunks * sizeof(*chunk)));
+    buf_pool->chunks = reinterpret_cast<buf_chunk_t *>(ut::zalloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, buf_pool->n_chunks * sizeof(*chunk)));
     buf_pool->chunks_old = nullptr;
 
     UT_LIST_INIT(buf_pool->LRU);
@@ -1306,13 +1306,14 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     buf_pool->no_flush[i] = os_event_create();
   }
 
-  buf_pool->watch =
-      (buf_page_t *)ut::zalloc(sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
+  buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
     buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
   }
 
-  /* All fields are initialized by ut::zalloc(). */
+  /* All fields are initialized by ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY).
+   */
 
   buf_pool->try_LRU_scan = TRUE;
 
@@ -1443,9 +1444,11 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 
   buf_pool_resizing = false;
 
-  buf_pool_ptr = (buf_pool_t *)ut::zalloc(n_instances * sizeof *buf_pool_ptr);
+  buf_pool_ptr = (buf_pool_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, n_instances * sizeof *buf_pool_ptr);
 
-  buf_chunk_map_reg = ut::new_<buf_pool_chunk_map_t>();
+  buf_chunk_map_reg =
+      ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   std::vector<dberr_t> errs;
 
@@ -2241,7 +2244,8 @@ withdraw_retry:
   }
 
   ut::delete_(buf_chunk_map_reg);
-  buf_chunk_map_reg = ut::new_<buf_pool_chunk_map_t>();
+  buf_chunk_map_reg =
+      ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   /* add/delete chunks */
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2294,8 +2298,8 @@ withdraw_retry:
       /* reallocate buf_pool->chunks */
       const ulint new_chunks_size = buf_pool->n_chunks_new * sizeof(*chunk);
 
-      buf_chunk_t *new_chunks =
-          reinterpret_cast<buf_chunk_t *>(ut::zalloc(new_chunks_size));
+      buf_chunk_t *new_chunks = reinterpret_cast<buf_chunk_t *>(
+          ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, new_chunks_size));
 
       DBUG_EXECUTE_IF("buf_pool_resize_chunk_null",
                       buf_pool_resize_chunk_make_null(&new_chunks););
@@ -6074,9 +6078,11 @@ static void buf_print_instance(buf_pool_t *buf_pool) {
 
   size = buf_pool->curr_size;
 
-  index_ids = static_cast<index_id_t *>(ut::malloc(size * sizeof *index_ids));
+  index_ids = static_cast<index_id_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, size * sizeof *index_ids));
 
-  counts = static_cast<ulint *>(ut::malloc(sizeof(ulint) * size));
+  counts = static_cast<ulint *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(ulint) * size));
 
   mutex_enter(&buf_pool->LRU_list_mutex);
   mutex_enter(&buf_pool->free_list_mutex);
@@ -6546,15 +6552,16 @@ void buf_print_io(FILE *file) /*!< in/out: buffer where to print */
   one extra buf_pool_info_t, the last one stores
   aggregated/total values from all pools */
   if (srv_buf_pool_instances > 1) {
-    pool_info = (buf_pool_info_t *)ut::zalloc((srv_buf_pool_instances + 1) *
-                                              sizeof *pool_info);
+    pool_info = (buf_pool_info_t *)ut::zalloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY,
+        (srv_buf_pool_instances + 1) * sizeof *pool_info);
 
     pool_info_total = &pool_info[srv_buf_pool_instances];
   } else {
     ut_a(srv_buf_pool_instances == 1);
 
-    pool_info_total = pool_info =
-        static_cast<buf_pool_info_t *>(ut::zalloc(sizeof *pool_info));
+    pool_info_total = pool_info = static_cast<buf_pool_info_t *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof *pool_info));
   }
 
   os_rmb;

@@ -537,7 +537,8 @@ int FTS::Parser::add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
   ut_ad(boolean_info->position >= 0);
 
   auto ptr = static_cast<byte *>(
-      ut::malloc(sizeof(Token) + sizeof(fts_string_t) + str.f_len));
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                         sizeof(Token) + sizeof(fts_string_t) + str.f_len));
 
   auto fts_token = reinterpret_cast<Token *>(ptr);
 

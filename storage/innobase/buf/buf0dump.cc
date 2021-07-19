@@ -275,7 +275,8 @@ static void buf_dump(ibool obey_shutdown) {
       }
     }
 
-    dump = static_cast<buf_dump_t *>(ut::malloc(n_pages * sizeof(*dump)));
+    dump = static_cast<buf_dump_t *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, n_pages * sizeof(*dump)));
 
     if (dump == nullptr) {
       mutex_exit(&buf_pool->LRU_list_mutex);
@@ -484,7 +485,8 @@ static void buf_load() {
   }
 
   if (dump_n != 0) {
-    dump = static_cast<buf_dump_t *>(ut::malloc(dump_n * sizeof(*dump)));
+    dump = static_cast<buf_dump_t *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, dump_n * sizeof(*dump)));
   } else {
     fclose(f);
     ut_sprintf_timestamp(now);

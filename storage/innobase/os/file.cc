@@ -166,7 +166,8 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
     /* Add a safety margin of an additional 50% */
     ulint n_bytes = header.m_original_size + (header.m_original_size / 2);
 
-    dst = reinterpret_cast<byte *>(ut::malloc(n_bytes));
+    dst = reinterpret_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, n_bytes));
 
     if (dst == nullptr) {
       return (DB_OUT_OF_MEMORY);

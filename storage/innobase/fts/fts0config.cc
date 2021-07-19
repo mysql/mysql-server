@@ -134,7 +134,8 @@ char *fts_config_create_index_param_name(
   len = strlen(param);
 
   /* Caller is responsible for deleting name. */
-  name = static_cast<char *>(ut::malloc(len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
+  name = static_cast<char *>(ut::malloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
   ::strcpy(name, param);
   name[len] = '_';
 
@@ -277,7 +278,8 @@ dberr_t fts_config_get_index_ulint(trx_t *trx,          /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut::malloc(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
   error = fts_config_get_index_value(trx, index, name, &value);
 
@@ -342,7 +344,8 @@ dberr_t fts_config_get_ulint(trx_t *trx,             /*!< in: transaction */
   /* We set the length of value to the max bytes it can hold. This
   information is used by the callback that reads the value.*/
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = static_cast<byte *>(ut::malloc(value.f_len + 1));
+  value.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1));
 
   error = fts_config_get_value(trx, fts_table, name, &value);
 

@@ -253,12 +253,12 @@ dberr_t Tablespace_pool::initialize(bool create_new_db) {
 
   ut_ad(m_active == nullptr && m_free == nullptr);
 
-  m_active = ut::new_<Pool>();
+  m_active = ut::new_withkey<Pool>(UT_NEW_THIS_FILE_PSI_KEY);
   if (m_active == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
 
-  m_free = ut::new_<Pool>();
+  m_free = ut::new_withkey<Pool>(UT_NEW_THIS_FILE_PSI_KEY);
   if (m_free == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
@@ -276,7 +276,7 @@ dberr_t Tablespace_pool::initialize(bool create_new_db) {
 dberr_t Tablespace_pool::expand(size_t size) {
   ut_ad(!m_pool_initialized || mutex_own(&m_mutex));
   for (size_t i = 0; i < size; i++) {
-    Tablespace *ts = ut::new_<Tablespace>();
+    Tablespace *ts = ut::new_withkey<Tablespace>(UT_NEW_THIS_FILE_PSI_KEY);
 
     if (ts == nullptr) {
       return (DB_OUT_OF_MEMORY);
@@ -367,7 +367,8 @@ dberr_t open_or_create(bool create_new_db) {
     return (err);
   }
 
-  tbsp_pool = ut::new_<Tablespace_pool>(INIT_SIZE);
+  tbsp_pool =
+      ut::new_withkey<Tablespace_pool>(UT_NEW_THIS_FILE_PSI_KEY, INIT_SIZE);
   if (tbsp_pool == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }

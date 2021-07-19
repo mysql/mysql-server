@@ -441,7 +441,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   /* We create the min binary heap here and pass ownership to
   purge when we init the purge sub-system. Purge is responsible
   for freeing the binary heap. */
-  purge_queue = ut::new_<purge_pq_t>();
+  purge_queue = ut::new_withkey<purge_pq_t>(UT_NEW_THIS_FILE_PSI_KEY);
   ut_a(purge_queue != nullptr);
 
   if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
@@ -560,7 +560,8 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 void trx_sys_create(void) {
   ut_ad(trx_sys == nullptr);
 
-  trx_sys = static_cast<trx_sys_t *>(ut::zalloc(sizeof(*trx_sys)));
+  trx_sys = static_cast<trx_sys_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*trx_sys)));
 
   mutex_create(LATCH_ID_TRX_SYS, &trx_sys->mutex);
   mutex_create(LATCH_ID_TRX_SYS_SERIALISATION, &trx_sys->serialisation_mutex);
@@ -569,7 +570,7 @@ void trx_sys_create(void) {
   UT_LIST_INIT(trx_sys->rw_trx_list);
   UT_LIST_INIT(trx_sys->mysql_trx_list);
 
-  trx_sys->mvcc = ut::new_<MVCC>(1024);
+  trx_sys->mvcc = ut::new_withkey<MVCC>(UT_NEW_THIS_FILE_PSI_KEY, 1024);
 
   trx_sys->serialisation_min_trx_no.store(0);
 

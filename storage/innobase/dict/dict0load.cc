@@ -2235,8 +2235,8 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
 
     } else {
       /* Make the temporary tablespace name. */
-      shared_space_name =
-          static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
+      shared_space_name = static_cast<char *>(ut::malloc_withkey(
+          UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
       sprintf(shared_space_name, "%s_" ULINTPF, general_space_name,
               static_cast<ulint>(table->space));

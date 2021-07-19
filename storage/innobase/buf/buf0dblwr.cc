@@ -911,7 +911,7 @@ dberr_t Double_write::create_v2() noexcept {
   ut_a(!s_files.empty());
   ut_a(s_instances == nullptr);
 
-  s_instances = ut::new_<Instances>();
+  s_instances = ut::new_withkey<Instances>(UT_NEW_THIS_FILE_PSI_KEY);
 
   if (s_instances == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -920,7 +920,8 @@ dberr_t Double_write::create_v2() noexcept {
   dberr_t err{DB_SUCCESS};
 
   for (uint32_t i = 0; i < s_n_instances; ++i) {
-    auto ptr = ut::new_<Double_write>(i, dblwr::n_pages);
+    auto ptr = ut::new_withkey<Double_write>(UT_NEW_THIS_FILE_PSI_KEY, i,
+                                             dblwr::n_pages);
 
     if (ptr == nullptr) {
       err = DB_OUT_OF_MEMORY;
@@ -1547,7 +1548,8 @@ dberr_t Double_write::create_batch_segments(
 
   ut_a(s_LRU_batch_segments == nullptr);
 
-  s_LRU_batch_segments = ut::new_<Batch_segments>(n);
+  s_LRU_batch_segments =
+      ut::new_withkey<Batch_segments>(UT_NEW_THIS_FILE_PSI_KEY, n);
 
   if (s_LRU_batch_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1555,7 +1557,8 @@ dberr_t Double_write::create_batch_segments(
 
   ut_a(s_flush_list_batch_segments == nullptr);
 
-  s_flush_list_batch_segments = ut::new_<Batch_segments>(n);
+  s_flush_list_batch_segments =
+      ut::new_withkey<Batch_segments>(UT_NEW_THIS_FILE_PSI_KEY, n);
 
   if (s_flush_list_batch_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1567,7 +1570,8 @@ dberr_t Double_write::create_batch_segments(
 
   for (auto &file : s_files) {
     for (uint32_t i = 0; i < total_pages; i += dblwr::n_pages, ++id) {
-      auto s = ut::new_<Batch_segment>(id, file, i, dblwr::n_pages);
+      auto s = ut::new_withkey<Batch_segment>(UT_NEW_THIS_FILE_PSI_KEY, id,
+                                              file, i, dblwr::n_pages);
 
       if (s == nullptr) {
         return DB_OUT_OF_MEMORY;
@@ -1598,7 +1602,8 @@ dberr_t Double_write::create_single_segments(
   const auto n_segments =
       std::max(ulint{2}, ut_2_power_up(SYNC_PAGE_FLUSH_SLOTS));
 
-  s_single_segments = ut::new_<Segments>(n_segments);
+  s_single_segments =
+      ut::new_withkey<Segments>(UT_NEW_THIS_FILE_PSI_KEY, n_segments);
 
   if (s_single_segments == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1620,7 +1625,7 @@ dberr_t Double_write::create_single_segments(
     const auto start = dblwr::File::s_n_pages;
 
     for (uint32_t i = start; i < start + n_pages; ++i) {
-      auto s = ut::new_<Segment>(file, i, 1UL);
+      auto s = ut::new_withkey<Segment>(UT_NEW_THIS_FILE_PSI_KEY, file, i, 1UL);
 
       if (s == nullptr) {
         return DB_OUT_OF_MEMORY;
@@ -2350,7 +2355,8 @@ void recv::Pages::add(page_no_t page_no, const byte *page,
     return;
   }
   /* Make a copy of the page contents. */
-  auto dblwr_page = ut::new_<Page>(page_no, page, n_bytes);
+  auto dblwr_page =
+      ut::new_withkey<Page>(UT_NEW_THIS_FILE_PSI_KEY, page_no, page, n_bytes);
 
   m_pages.push_back(dblwr_page);
 }
@@ -2517,7 +2523,7 @@ const byte *dblwr::recv::find(const recv::Pages *pages,
 
 void dblwr::recv::create(recv::Pages *&pages) noexcept {
   ut_a(pages == nullptr);
-  pages = ut::new_<recv::Pages>();
+  pages = ut::new_withkey<recv::Pages>(UT_NEW_THIS_FILE_PSI_KEY);
 }
 
 void dblwr::recv::destroy(recv::Pages *&pages) noexcept {

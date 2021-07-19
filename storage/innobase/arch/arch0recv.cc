@@ -83,13 +83,12 @@ dberr_t Arch_Dblwr_Ctx::init(const char *dblwr_path,
                              uint64_t dblwr_file_size) {
   m_file_size = dblwr_file_size;
 
-  m_buf = static_cast<byte *>(ut::zalloc(m_file_size));
+  m_buf = static_cast<byte *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, m_file_size));
 
   if (m_buf == nullptr) {
     return DB_OUT_OF_MEMORY;
   }
-
-  memset(m_buf, 0, m_file_size);
 
   auto err = m_file_ctx.init(ARCH_DIR, dblwr_path, dblwr_base_file,
                              dblwr_num_files, m_file_size);

@@ -650,7 +650,7 @@ dberr_t DDL_Log_Table::search_all(DDL_Records &records) {
       continue;
     }
 
-    DDL_Record *record = ut::new_<DDL_Record>();
+    DDL_Record *record = ut::new_withkey<DDL_Record>(UT_NEW_THIS_FILE_PSI_KEY);
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }
@@ -714,7 +714,7 @@ dberr_t DDL_Log_Table::search_by_id(ulint id, dict_index_t *index,
       continue;
     }
 
-    DDL_Record *record = ut::new_<DDL_Record>();
+    DDL_Record *record = ut::new_withkey<DDL_Record>(UT_NEW_THIS_FILE_PSI_KEY);
     convert_to_ddl_record(index->is_clustered(), rec, offsets, *record);
     records.push_back(record);
   }

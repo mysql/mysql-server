@@ -64,7 +64,7 @@ Standard:
   or
   new(std::nothrow) type[num]
 InnoDB, default instrumentation:
-  ut::new_arr<type>(ut::Count{num})
+  ut::new_arr_withkey<type>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{num})
 InnoDB, custom instrumentation, preferred:
   ut::new_arr_withkey<type>(key, ut::Count{num})
 
@@ -97,7 +97,7 @@ not be more appropriate):
 Standard:
   malloc(num)
 InnoDB, default instrumentation:
-  ut::malloc(num)
+  ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, num)
 InnoDB, custom instrumentation, preferred:
   ut::malloc_withkey(key, num)
 
@@ -1029,7 +1029,8 @@ inline void *malloc_withkey(PSI_memory_key_t key, std::size_t size) noexcept {
     allocation failed.
 
     Example:
-     int *x = static_cast<int*>(ut::malloc(10*sizeof(int)));
+     int *x = static_cast<int*>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+   10*sizeof(int)));
  */
 inline void *malloc(std::size_t size) noexcept {
   return ut::malloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
@@ -1064,7 +1065,8 @@ inline void *zalloc_withkey(PSI_memory_key_t key, std::size_t size) noexcept {
     dynamic storage allocation failed.
 
     Example:
-     int *x = static_cast<int*>(ut::zalloc(10*sizeof(int)));
+     int *x = static_cast<int*>(ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+   10*sizeof(int)));
  */
 inline void *zalloc(std::size_t size) noexcept {
   return ut::zalloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
@@ -1112,8 +1114,9 @@ inline void *realloc_withkey(PSI_memory_key_t key, void *ptr,
     allocation failed.
 
     Example:
-     int *x = static_cast<int*>(ut::malloc(10*sizeof(int));
-     x = static_cast<int*>(ut::realloc(key, ptr, 100*sizeof(int)));
+     int *x = static_cast<int*>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+   10*sizeof(int)); x = static_cast<int*>(ut::realloc(key, ptr,
+   100*sizeof(int)));
  */
 inline void *realloc(void *ptr, std::size_t size) noexcept {
   return ut::realloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), ptr,
@@ -1190,10 +1193,10 @@ inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
     it automatically cleans up the raw memory allocated for it.
 
     Example 1:
-     int *ptr = ut::new_<int>();
+     int *ptr = ut::new_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY);
 
     Example 2:
-     int *ptr = ut::new_<int>(10);
+     int *ptr = ut::new_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY, 10);
      assert(*ptr == 10);
 
     Example 3:
@@ -1201,7 +1204,7 @@ inline T *new_withkey(PSI_memory_key_t key, Args &&... args) {
        A(int x, int y) : _x(x), _y(y) {}
        int _x, _y;
      };
-     A *ptr = ut::new_<A>(1, 2);
+     A *ptr = ut::new_withkey<A>(UT_NEW_THIS_FILE_PSI_KEY, 1, 2);
      assert(ptr->_x == 1);
      assert(ptr->_y == 2);
  */
@@ -1335,7 +1338,7 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
     cleans up the raw memory allocated for T instances.
 
     Example 1:
-     int *ptr = ut::new_arr<int>(
+     int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY,
                     std::forward_as_tuple(1),
                     std::forward_as_tuple(2));
      assert(ptr[0] == 1);
@@ -1346,7 +1349,7 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
        A(int x, int y) : _x(x), _y(y) {}
        int _x, _y;
      };
-     A *ptr = ut::new_arr<A>(
+     A *ptr = ut::new_arr_withkey<A>(UT_NEW_THIS_FILE_PSI_KEY,
                 std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
                 std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
                 std::forward_as_tuple(8, 9));
@@ -1362,7 +1365,7 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
        A(int x, int y) : _x(x), _y(y) {}
        int _x, _y;
      };
-     A *ptr = ut::new_arr<A>(
+     A *ptr = ut::new_arr_withkey<A>(UT_NEW_THIS_FILE_PSI_KEY,
                 std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
                 std::forward_as_tuple(), std::forward_as_tuple(6, 7),
                 std::forward_as_tuple());
@@ -1384,15 +1387,16 @@ inline T *new_arr(Args &&... args) {
     Without having a separate overload with this type, creating an array of
     default-initialized instances of T through the ut::new_arr*(Args &&... args)
     overload would have been impossible because:
-      int *ptr = ut::new_arr<int>(5);
+      int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY, 5);
     wouldn't even compile and
-      int *ptr = ut::new_arr<int>(std::forward_as_tuple(5));
-    would compile but would not have intended effect. It would create an array
-    holding 1 integer element that is initialized to 5.
+      int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY,
+   std::forward_as_tuple(5)); would compile but would not have intended effect.
+   It would create an array holding 1 integer element that is initialized to 5.
 
     Given that function templates cannot be specialized, having an overload
     crafted specifically for given case solves the problem:
-      int *ptr = ut::new_arr<int>(ut::Count{5});
+      int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY,
+   ut::Count{5});
 */
 struct Count {
   explicit Count(size_t count) : m_count(count) {}
@@ -1483,14 +1487,15 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Count count) {
     cleans up the raw memory allocated for T instances.
 
     Example 1:
-     int *ptr = ut::new_arr<int>(ut::Count{2});
+     int *ptr = ut::new_arr_withkey<int>(UT_NEW_THIS_FILE_PSI_KEY,
+   ut::Count{2});
 
     Example 2:
      struct A {
        A() : _x(10), _y(100) {}
        int _x, _y;
      };
-     A *ptr = ut::new_arr<A>(ut::Count{5});
+     A *ptr = ut::new_arr_withkey<A>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{5});
      assert(ptr[0]->_x == 10 && ptr[0]->_y == 100);
      assert(ptr[1]->_x == 10 && ptr[1]->_y == 100);
      assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
@@ -1503,7 +1508,7 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Count count) {
        int _x, _y;
      };
      // Following cannot compile because A is not default-constructible
-     A *ptr = ut::new_arr<A>(ut::Count{5});
+     A *ptr = ut::new_arr_withkey<A>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{5});
  */
 template <typename T>
 inline T *new_arr(Count count) {

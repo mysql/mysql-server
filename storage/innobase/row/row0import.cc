@@ -460,7 +460,8 @@ class AbstractCallback : public PageCallback {
     state = mach_read_ulint(xdesc + XDES_STATE, MLOG_4BYTES);
 
     if (state != XDES_FREE) {
-      m_xdes = ut::new_arr<xdes_t>(ut::Count{m_page_size.physical()});
+      m_xdes = ut::new_arr_withkey<xdes_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                           ut::Count{m_page_size.physical()});
 
       /* Trigger OOM */
       DBUG_EXECUTE_IF("ib_import_OOM_13", ut::delete_arr(m_xdes);
@@ -733,7 +734,8 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
     return (DB_CORRUPTION);
   }
 
-  cfg->m_indexes = ut::new_arr<row_index_t>(ut::Count{cfg->m_n_indexes});
+  cfg->m_indexes = ut::new_arr_withkey<row_index_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{cfg->m_n_indexes});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_11", ut::delete_arr(cfg->m_indexes);
@@ -755,7 +757,8 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
 
     ulint len = strlen(name) + 1;
 
-    cfg_index->m_name = ut::new_arr<byte>(ut::Count{len});
+    cfg_index->m_name =
+        ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
     /* Trigger OOM */
     DBUG_EXECUTE_IF("ib_import_OOM_12", ut::delete_arr(cfg_index->m_name);
@@ -1482,7 +1485,8 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
 
     ulint len = strlen(index->name) + 1;
 
-    cfg_index[i].m_name = ut::new_arr<byte>(ut::Count{len});
+    cfg_index[i].m_name =
+        ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
     if (cfg_index[i].m_name == nullptr) {
       err = DB_OUT_OF_MEMORY;
@@ -1508,7 +1512,8 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
 
       ulint len = strlen(index->name) + 1;
 
-      cfg_index[i].m_name = ut::new_arr<byte>(ut::Count{len});
+      cfg_index[i].m_name =
+          ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
       /* Trigger OOM */
       DBUG_EXECUTE_IF("ib_import_OOM_14", ut::delete_arr(cfg_index[i].m_name);
@@ -2627,7 +2632,8 @@ static dberr_t row_import_cfg_read_string(
 
   ulint n_fields = index->m_n_fields;
 
-  index->m_fields = ut::new_arr<dict_field_t>(ut::Count{n_fields});
+  index->m_fields = ut::new_arr_withkey<dict_field_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                      ut::Count{n_fields});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_4", ut::delete_arr(index->m_fields);
@@ -2674,7 +2680,8 @@ static dberr_t row_import_cfg_read_string(
     /* Include the NUL byte in the length. */
     ulint len = mach_read_from_4(ptr);
 
-    byte *name = ut::new_arr<byte>(ut::Count{len});
+    byte *name =
+        ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
     /* Trigger OOM */
     DBUG_EXECUTE_IF("ib_import_OOM_5", ut::delete_arr(name); name = nullptr;);
@@ -2714,7 +2721,8 @@ static dberr_t row_import_cfg_read_string(
   ut_a(cfg->m_n_indexes > 0);
   ut_a(cfg->m_n_indexes < 1024);
 
-  cfg->m_indexes = ut::new_arr<row_index_t>(ut::Count{cfg->m_n_indexes});
+  cfg->m_indexes = ut::new_arr_withkey<row_index_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{cfg->m_n_indexes});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_6", ut::delete_arr(cfg->m_indexes);
@@ -2804,7 +2812,8 @@ static dberr_t row_import_cfg_read_string(
       return (DB_CORRUPTION);
     }
 
-    cfg_index->m_name = ut::new_arr<byte>(ut::Count{len});
+    cfg_index->m_name =
+        ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
     /* Trigger OOM */
     DBUG_EXECUTE_IF("ib_import_OOM_7", ut::delete_arr(cfg_index->m_name);
@@ -2884,7 +2893,8 @@ static dberr_t row_import_read_indexes(
 @return	the bytes stream, caller has to free the memory if not nullptr */
 [[nodiscard]] static byte *row_import_read_bytes(FILE *file, size_t length) {
   size_t read = 0;
-  byte *r = ut::new_arr<byte>(ut::Count{length});
+  byte *r =
+      ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{length});
 
   if (length == 0) {
     return (r);
@@ -2991,7 +3001,8 @@ Refer to row_quiesce_write_default_value() for the format details.
   ut_a(cfg->m_n_cols > 0);
   ut_a(cfg->m_n_cols < 1024);
 
-  cfg->m_cols = ut::new_arr<dict_col_t>(ut::Count{cfg->m_n_cols});
+  cfg->m_cols = ut::new_arr_withkey<dict_col_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                ut::Count{cfg->m_n_cols});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_8", ut::delete_arr(cfg->m_cols);
@@ -3003,7 +3014,8 @@ Refer to row_quiesce_write_default_value() for the format details.
 
   memset(cfg->m_cols, 0x0, sizeof(*cfg->m_cols) * cfg->m_n_cols);
 
-  cfg->m_col_names = ut::new_arr<byte *>(ut::Count{cfg->m_n_cols});
+  cfg->m_col_names = ut::new_arr_withkey<byte *>(UT_NEW_THIS_FILE_PSI_KEY,
+                                                 ut::Count{cfg->m_n_cols});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_9", ut::delete_arr(cfg->m_col_names);
@@ -3066,7 +3078,8 @@ Refer to row_quiesce_write_default_value() for the format details.
       return (DB_CORRUPTION);
     }
 
-    cfg->m_col_names[i] = ut::new_arr<byte>(ut::Count{len});
+    cfg->m_col_names[i] =
+        ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
     /* Trigger OOM */
     DBUG_EXECUTE_IF("ib_import_OOM_10", ut::delete_arr(cfg->m_col_names[i]);
@@ -3135,7 +3148,8 @@ Refer to row_quiesce_write_default_value() for the format details.
   ulint len = mach_read_from_4(value);
 
   /* NUL byte is part of name length. */
-  cfg->m_hostname = ut::new_arr<byte>(ut::Count{len});
+  cfg->m_hostname =
+      ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_1", ut::delete_arr(cfg->m_hostname);
@@ -3169,7 +3183,8 @@ Refer to row_quiesce_write_default_value() for the format details.
   len = mach_read_from_4(value);
 
   /* NUL byte is part of name length. */
-  cfg->m_table_name = ut::new_arr<byte>(ut::Count{len});
+  cfg->m_table_name =
+      ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{len});
 
   /* Trigger OOM */
   DBUG_EXECUTE_IF("ib_import_OOM_2", ut::delete_arr(cfg->m_table_name);

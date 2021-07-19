@@ -256,8 +256,8 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
     return;
   }
 
-  page_no_t *page_arr = static_cast<page_no_t *>(
-      ut::malloc(sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
+  page_no_t *page_arr = static_cast<page_no_t *>(ut::malloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(page_no_t) * BUF_LRU_DROP_SEARCH_SIZE));
 
   ulint num_entries = 0;
 

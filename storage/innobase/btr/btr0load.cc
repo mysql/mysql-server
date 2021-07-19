@@ -1027,7 +1027,8 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
 
   /* Create a sibling page_loader. */
   auto sibling_page_loader =
-      ut::new_<Page_load>(m_index, m_trx_id, FIL_NULL, level, m_flush_observer);
+      ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx_id,
+                                 FIL_NULL, level, m_flush_observer);
 
   if (sibling_page_loader == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -1108,8 +1109,9 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
 
   /* Check if we need to create a Page_load for the level. */
   if (level + 1 > m_page_loaders.size()) {
-    auto page_loader = ut::new_<Page_load>(m_index, m_trx_id, FIL_NULL, level,
-                                           m_flush_observer);
+    auto page_loader =
+        ut::new_withkey<Page_load>(UT_NEW_THIS_FILE_PSI_KEY, m_index, m_trx_id,
+                                   FIL_NULL, level, m_flush_observer);
 
     if (page_loader == nullptr) {
       return DB_OUT_OF_MEMORY;

@@ -253,10 +253,10 @@ struct TrxFactory {
 
     trx->dict_operation_lock_mode = 0;
 
-    trx->xid = ut::new_<xid_t>();
+    trx->xid = ut::new_withkey<xid_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
-    trx->detailed_error =
-        reinterpret_cast<char *>(ut::zalloc(MAX_DETAILED_ERROR_LEN));
+    trx->detailed_error = reinterpret_cast<char *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, MAX_DETAILED_ERROR_LEN));
 
     trx->lock.lock_heap = mem_heap_create_typed(1024, MEM_HEAP_FOR_LOCK_HEAP);
 
@@ -410,7 +410,8 @@ static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 
 /** Create the trx_t pool */
 void trx_pool_init() {
-  trx_pools = ut::new_<trx_pools_t>(MAX_TRX_BLOCK_SIZE);
+  trx_pools = ut::new_withkey<trx_pools_t>(UT_NEW_THIS_FILE_PSI_KEY,
+                                           MAX_TRX_BLOCK_SIZE);
 
   ut_a(trx_pools != nullptr);
 }

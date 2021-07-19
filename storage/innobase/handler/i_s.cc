@@ -2572,7 +2572,8 @@ static int i_s_fts_index_cache_fill_one_index(
 
   index_charset = index_cache->charset;
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(ut::malloc(conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Go through each word in the index cache */
@@ -3012,7 +3013,8 @@ static int i_s_fts_index_table_fill_one_index(
 
   index_charset = fts_index_get_charset(index);
   conv_str.f_len = system_charset_info->mbmaxlen * FTS_MAX_WORD_LEN_IN_CHAR;
-  conv_str.f_str = static_cast<byte *>(ut::malloc(conv_str.f_len));
+  conv_str.f_str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, conv_str.f_len));
   conv_str.f_n_char = 0;
 
   /* Iterate through each auxiliary table as described in
@@ -3954,8 +3956,8 @@ static int i_s_innodb_buffer_stats_fill_table(
     return 0;
   }
 
-  pool_info =
-      (buf_pool_info_t *)ut::zalloc(srv_buf_pool_instances * sizeof *pool_info);
+  pool_info = (buf_pool_info_t *)ut::zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, srv_buf_pool_instances * sizeof *pool_info);
 
   /* Walk through each buffer pool */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {

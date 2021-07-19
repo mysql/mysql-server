@@ -49,7 +49,8 @@ class Sdi_Compressor {
     uLongf zlen = compressBound(static_cast<uLong>(m_src_len));
     auto src = reinterpret_cast<const Bytef *>(m_sdi);
 
-    m_comp_sdi = static_cast<byte *>(ut::malloc(zlen));
+    m_comp_sdi =
+        static_cast<byte *>(ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, zlen));
     ut_ad(m_comp_sdi != nullptr);
 
     switch (

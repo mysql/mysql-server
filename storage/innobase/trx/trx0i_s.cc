@@ -326,7 +326,7 @@ static void *table_cache_create_empty_row(
     chunk = &table_cache->chunks[i];
 
     got_bytes = req_bytes;
-    chunk->base = ut::malloc(req_bytes);
+    chunk->base = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, req_bytes);
 
     got_rows = got_bytes / table_cache->row_size;
 
@@ -1004,8 +1004,8 @@ void trx_i_s_cache_init(trx_i_s_cache_t *cache) /*!< out: cache to init */
   release trx_i_s_cache_t::last_read_mutex
   release trx_i_s_cache_t::rw_lock */
 
-  cache->rw_lock =
-      static_cast<rw_lock_t *>(ut::malloc(sizeof(*cache->rw_lock)));
+  cache->rw_lock = static_cast<rw_lock_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*cache->rw_lock)));
 
   rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 

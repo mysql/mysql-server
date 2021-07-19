@@ -39,8 +39,8 @@ class mpmc_bq {
   /** Constructor
   @param[in]	n_elems		Max number of elements allowed */
   explicit mpmc_bq(size_t n_elems)
-      : m_ring(
-            reinterpret_cast<Cell *>(ut::new_arr<Aligned>(ut::Count{n_elems}))),
+      : m_ring(reinterpret_cast<Cell *>(ut::new_arr_withkey<Aligned>(
+            UT_NEW_THIS_FILE_PSI_KEY, ut::Count{n_elems}))),
         m_capacity(n_elems - 1) {
     /* Should be a power of 2 */
     ut_a((n_elems >= 2) && ((n_elems & (n_elems - 1)) == 0));

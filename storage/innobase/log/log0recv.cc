@@ -266,7 +266,8 @@ PersistentTableMetadata *MetadataRecover::getMetadata(table_id_t id) {
   PersistentTables::iterator iter = m_tables.find(id);
 
   if (iter == m_tables.end()) {
-    metadata = ut::new_<PersistentTableMetadata>(id, 0);
+    metadata = ut::new_withkey<PersistentTableMetadata>(
+        UT_NEW_THIS_FILE_PSI_KEY, id, 0);
 
     m_tables.insert(std::make_pair(id, metadata));
   } else {
@@ -392,7 +393,8 @@ void recv_sys_create() {
     return;
   }
 
-  recv_sys = static_cast<recv_sys_t *>(ut::zalloc(sizeof(*recv_sys)));
+  recv_sys = static_cast<recv_sys_t *>(
+      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
 
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
   mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
@@ -611,7 +613,8 @@ void recv_sys_init(ulint max_mem) {
     recv_n_pool_free_frames = 512;
   }
 
-  recv_sys->buf = static_cast<byte *>(ut::malloc(RECV_PARSING_BUF_SIZE));
+  recv_sys->buf = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, RECV_PARSING_BUF_SIZE));
   recv_sys->buf_len = RECV_PARSING_BUF_SIZE;
 
   recv_sys->len = 0;
@@ -636,7 +639,8 @@ void recv_sys_init(ulint max_mem) {
 
   recv_max_page_lsn = 0;
 
-  recv_sys->dblwr = ut::new_<dblwr::recv::DBLWR>();
+  recv_sys->dblwr =
+      ut::new_withkey<dblwr::recv::DBLWR>(UT_NEW_THIS_FILE_PSI_KEY);
 
   new (&recv_sys->deleted) recv_sys_t::Missing_Ids();
 
@@ -646,7 +650,8 @@ void recv_sys_init(ulint max_mem) {
 
   recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
-  recv_sys->metadata_recover = ut::new_<MetadataRecover>();
+  recv_sys->metadata_recover =
+      ut::new_withkey<MetadataRecover>(UT_NEW_THIS_FILE_PSI_KEY);
 
   mutex_exit(&recv_sys->mutex);
 }
@@ -2667,7 +2672,8 @@ void recv_recover_page_func(
       /* We have to copy the record body to a separate
       buffer */
 
-      buf = static_cast<byte *>(ut::malloc(recv->len));
+      buf = static_cast<byte *>(
+          ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, recv->len));
 
       recv_data_copy_to_buf(buf, recv);
     } else if (recv->data != nullptr) {

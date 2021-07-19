@@ -229,7 +229,8 @@ name of the file with its extension and absolute or relative path.
 @param[in]	filepath	filepath to set */
 void Datafile::set_filepath(const char *filepath) {
   free_filepath();
-  m_filepath = static_cast<char *>(ut::malloc(strlen(filepath) + 1));
+  m_filepath = static_cast<char *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, strlen(filepath) + 1));
   ::strcpy(m_filepath, filepath);
   set_filename();
 }
@@ -290,7 +291,8 @@ void Datafile::set_name(const char *name) {
   } else {
 #ifndef UNIV_HOTBACKUP
     /* Give this general tablespace a temporary name. */
-    m_name = static_cast<char *>(ut::malloc(strlen(general_space_name) + 20));
+    m_name = static_cast<char *>(ut::malloc_withkey(
+        UT_NEW_THIS_FILE_PSI_KEY, strlen(general_space_name) + 20));
 
     sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name, m_space_id);
 #else  /* !UNIV_HOTBACKUP */
@@ -300,7 +302,8 @@ void Datafile::set_name(const char *name) {
     It will also not cause name clashes with remote tablespaces or
     tables in schema directory. */
     size_t len = strlen(m_filepath);
-    m_name = static_cast<char *>(ut::malloc(len + 1));
+    m_name = static_cast<char *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 1));
     memcpy(m_name, m_filepath, len);
     m_name[len] = '\0';
 #endif /* !UNIV_HOTBACKUP */
@@ -636,8 +639,10 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   first page can be decrypt by master key, otherwise, this table
   can't be open. And for importing, we skip checking it. */
   if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
-    m_encryption_key = static_cast<byte *>(ut::zalloc(Encryption::KEY_LEN));
-    m_encryption_iv = static_cast<byte *>(ut::zalloc(Encryption::KEY_LEN));
+    m_encryption_key = static_cast<byte *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
+    m_encryption_iv = static_cast<byte *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Got from file %u:", m_space_id);
 #endif

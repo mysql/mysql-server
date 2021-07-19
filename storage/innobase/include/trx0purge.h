@@ -344,7 +344,7 @@ struct Tablespace {
     vector. This constructor is only used in the global
     undo::Tablespaces object where rollback segments are
     tracked. */
-    m_rsegs = ut::new_<Rsegs>();
+    m_rsegs = ut::new_withkey<Rsegs>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   /** Destructor */

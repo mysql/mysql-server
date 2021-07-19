@@ -315,7 +315,7 @@ struct LatchDebug {
   static void create_instance() UNIV_NOTHROW {
     ut_ad(s_instance == nullptr);
 
-    s_instance = ut::new_<LatchDebug>();
+    s_instance = ut::new_withkey<LatchDebug>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
  private:
@@ -1677,10 +1677,10 @@ void sync_check_init(size_t max_threads) {
   ut_d(LatchDebug::s_initialized = true);
 
   /** For collecting latch statistic - SHOW ... MUTEX */
-  mutex_monitor = ut::new_<MutexMonitor>();
+  mutex_monitor = ut::new_withkey<MutexMonitor>(UT_NEW_THIS_FILE_PSI_KEY);
 
   /** For trcking mutex creation location */
-  create_tracker = ut::new_<CreateTracker>();
+  create_tracker = ut::new_withkey<CreateTracker>(UT_NEW_THIS_FILE_PSI_KEY);
 
   sync_latch_meta_init();
 

@@ -132,7 +132,8 @@ void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
     }
     /* We don't have a buffer, but we should have one. */
     if (dst->m_old_rec_buf == nullptr) {
-      dst->m_old_rec_buf = static_cast<byte *>(ut::malloc(src->m_buf_size));
+      dst->m_old_rec_buf = static_cast<byte *>(
+          ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src->m_buf_size));
       dst->m_buf_size = src->m_buf_size;
     }
 

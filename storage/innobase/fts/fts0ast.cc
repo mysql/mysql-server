@@ -54,7 +54,8 @@ enum fts_ast_visit_pass_t {
 static fts_ast_node_t *fts_ast_node_create(void) {
   fts_ast_node_t *node;
 
-  node = (fts_ast_node_t *)ut::zalloc(sizeof(*node));
+  node = (fts_ast_node_t *)ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
+                                              sizeof(*node));
 
   return (node);
 }
@@ -656,10 +657,11 @@ fts_ast_string_t *fts_ast_string_create(const byte *str, ulint len) {
 
   ut_ad(len > 0);
 
-  ast_str =
-      static_cast<fts_ast_string_t *>(ut::malloc(sizeof(fts_ast_string_t)));
+  ast_str = static_cast<fts_ast_string_t *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(fts_ast_string_t)));
 
-  ast_str->str = static_cast<byte *>(ut::malloc(len + 1));
+  ast_str->str = static_cast<byte *>(
+      ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, len + 1));
 
   ast_str->len = len;
   memcpy(ast_str->str, str, len);

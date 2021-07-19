@@ -1109,7 +1109,8 @@ void fts_cache_node_add_positions(
       new_size = (ulint)(1.2 * new_size);
     }
 
-    ilist = static_cast<byte *>(ut::malloc(new_size));
+    ilist = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, new_size));
     ptr = ilist + node->ilist_size;
 
     node->ilist_size_alloc = new_size;
@@ -2697,7 +2698,7 @@ static ulint fts_get_max_cache_size(
   information is used by the callback that reads the value. */
   value.f_n_char = 0;
   value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
-  value.f_str = ut::malloc(value.f_len + 1);
+  value.f_str = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, value.f_len + 1);
 
   error =
       fts_config_get_value(trx, fts_table, FTS_MAX_CACHE_SIZE_IN_MB, &value);

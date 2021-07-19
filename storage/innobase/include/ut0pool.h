@@ -62,7 +62,8 @@ struct Pool {
 
     ut_a(m_start == nullptr);
 
-    m_start = reinterpret_cast<Element *>(ut::zalloc(m_size));
+    m_start = reinterpret_cast<Element *>(
+        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, m_size));
 
     m_last = m_start;
 
@@ -270,7 +271,7 @@ struct PoolManager {
 
       ut_ad(n_pools == m_pools.size());
 
-      pool = ut::new_<PoolType>(m_size);
+      pool = ut::new_withkey<PoolType>(UT_NEW_THIS_FILE_PSI_KEY, m_size);
 
       if (pool != nullptr) {
         ut_ad(n_pools <= m_pools.size());

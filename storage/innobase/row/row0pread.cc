@@ -1191,7 +1191,7 @@ dberr_t Parallel_reader::Scan_ctx::create_context(const Range &range,
   // clang-format off
 
   auto ctx = std::shared_ptr<Ctx>(
-      ut::new_<Ctx>(ctx_id, this, range),
+      ut::new_withkey<Ctx>(UT_NEW_THIS_FILE_PSI_KEY, ctx_id, this, range),
       [](Ctx *ctx) { ut::delete_(ctx); });
 
   // clang-format on
@@ -1247,7 +1247,7 @@ void Parallel_reader::parallel_read() {
   }
 
   if (m_sync) {
-    auto ptr = ut::new_<Thread_ctx>(0);
+    auto ptr = ut::new_withkey<Thread_ctx>(UT_NEW_THIS_FILE_PSI_KEY, 0);
 
     if (ptr == nullptr) {
       set_error_state(DB_OUT_OF_MEMORY);
@@ -1272,7 +1272,7 @@ void Parallel_reader::parallel_read() {
 
   for (size_t i = 0; i < m_n_threads; ++i) {
     try {
-      auto ptr = ut::new_<Thread_ctx>(i);
+      auto ptr = ut::new_withkey<Thread_ctx>(UT_NEW_THIS_FILE_PSI_KEY, i);
       if (ptr == nullptr) {
         set_error_state(DB_OUT_OF_MEMORY);
         return;
@@ -1364,7 +1364,7 @@ dberr_t Parallel_reader::add_scan(trx_t *trx,
   // clang-format off
 
   auto scan_ctx = std::shared_ptr<Scan_ctx>(
-      ut::new_<Scan_ctx>(this, m_scan_ctx_id, trx, config, std::move(f)),
+      ut::new_withkey<Scan_ctx>(UT_NEW_THIS_FILE_PSI_KEY, this, m_scan_ctx_id, trx, config, std::move(f)),
       [](Scan_ctx *scan_ctx) { ut::delete_(scan_ctx); });
 
   // clang-format on

@@ -1455,8 +1455,8 @@ dberr_t row_ins_check_foreign_constraint(
       }
 
       if (check_table && check_index) {
-        tmp_foreign =
-            static_cast<dict_foreign_t *>(ut::malloc(sizeof(dict_foreign_t)));
+        tmp_foreign = static_cast<dict_foreign_t *>(ut::malloc_withkey(
+            UT_NEW_THIS_FILE_PSI_KEY, sizeof(dict_foreign_t)));
 
         memcpy(tmp_foreign, foreign, sizeof(*foreign));
 
