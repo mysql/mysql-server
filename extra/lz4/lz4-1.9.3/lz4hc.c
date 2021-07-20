@@ -51,7 +51,7 @@
 /*===    Dependency    ===*/
 #define LZ4_HC_STATIC_LINKING_ONLY
 #include "lz4hc.h"
-
+#include "my_compiler.h"
 
 /*===   Common definitions   ===*/
 #if defined(__GNUC__)
@@ -1025,6 +1025,7 @@ void LZ4_resetStreamHC (LZ4_streamHC_t* LZ4_streamHCPtr, int compressionLevel)
 }
 
 void LZ4_resetStreamHC_fast (LZ4_streamHC_t* LZ4_streamHCPtr, int compressionLevel)
+SUPPRESS_UBSAN_CLANG10
 {
     DEBUGLOG(4, "LZ4_resetStreamHC_fast(%p, %d)", LZ4_streamHCPtr, compressionLevel);
     if (LZ4_streamHCPtr->internal_donotuse.dirty) {
