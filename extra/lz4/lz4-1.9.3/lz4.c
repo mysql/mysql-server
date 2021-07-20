@@ -115,6 +115,7 @@
 
 #define LZ4_STATIC_LINKING_ONLY  /* LZ4_DISTANCE_MAX */
 #include "lz4.h"
+#include "my_compiler.h"
 /* see also "memory routines" below */
 
 
@@ -860,6 +861,7 @@ LZ4_FORCE_INLINE int LZ4_compress_generic_validated(
                  const dict_directive dictDirective,
                  const dictIssue_directive dictIssue,
                  const int acceleration)
+SUPPRESS_UBSAN_CLANG10
 {
     int result;
     const BYTE* ip = (const BYTE*) source;
@@ -1566,6 +1568,7 @@ int LZ4_compress_fast_continue (LZ4_stream_t* LZ4_stream,
                                 const char* source, char* dest,
                                 int inputSize, int maxOutputSize,
                                 int acceleration)
+SUPPRESS_UBSAN_CLANG10
 {
     const tableType_t tableType = byU32;
     LZ4_stream_t_internal* streamPtr = &LZ4_stream->internal_donotuse;

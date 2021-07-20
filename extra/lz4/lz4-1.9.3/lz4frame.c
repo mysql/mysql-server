@@ -96,6 +96,7 @@
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"
 
+#include "my_compiler.h"
 
 /*-************************************
 *  Debug
@@ -826,6 +827,7 @@ size_t LZ4F_compressUpdate(LZ4F_cctx* cctxPtr,
                            void* dstBuffer, size_t dstCapacity,
                      const void* srcBuffer, size_t srcSize,
                      const LZ4F_compressOptions_t* compressOptionsPtr)
+SUPPRESS_UBSAN_CLANG10
 {
     LZ4F_compressOptions_t cOptionsNull;
     size_t const blockSize = cctxPtr->maxBlockSize;
