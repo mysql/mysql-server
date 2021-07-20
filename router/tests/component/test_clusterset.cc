@@ -1463,7 +1463,7 @@ TEST_P(ClusterMarkedInvalidInTheMetadataTest,
           view_id + 1, /*this_cluster_id*/ cluster.id,
           /*target_cluster_id*/ kPrimaryClusterId, http_port, clusterset_data_,
           /*router_options*/
-          R"({"target_cluster" : "primary", "invalidate_routing_policy" : ")" +
+          R"({"target_cluster" : "primary", "invalidated_cluster_policy" : ")" +
               policy + "\" }");
     }
   }
