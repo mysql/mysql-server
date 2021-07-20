@@ -1042,7 +1042,7 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
 
   /* Save the contents. */
   byte *tmp_buf = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY,
-                                            ut::Count{end_lsn - start_lsn});
+                                            ut::Count(end_lsn - start_lsn));
   for (auto i = start_lsn; i < end_lsn; i += OS_FILE_LOG_BLOCK_SIZE) {
     std::memcpy(&tmp_buf[i - start_lsn], &log.buf[i % log.buf_size],
                 OS_FILE_LOG_BLOCK_SIZE);
