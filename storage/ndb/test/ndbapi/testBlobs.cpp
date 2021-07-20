@@ -22,12 +22,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <string>
-
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
-#include <NdbIndexStat.hpp>
 #include <NdbSleep.h>
 #include <NdbTest.hpp>
 #include <NdbTick.h>
@@ -529,23 +526,6 @@ static unsigned
 urandom(unsigned n)
 {
   return n == 0 ? 0 : ndb_rand() % n;
-}
-
-static int
-createIndexStatTables()
-{
-  NdbIndexStat index_stat;
-  // Check if the index stat tables are present. They're needed for auto index
-  // stats to be created
-  if (index_stat.check_systables(g_ndb) == 0) {
-    return 0;
-  }
-
-  if (index_stat.create_systables(g_ndb) != 0) {
-    return -1;
-  }
-
-  return 0;
 }
 
 static int
@@ -4736,11 +4716,6 @@ testmain()
     DBG("random seed = " << g_opt.m_seed);
     ndb_srand(g_opt.m_seed);
   }
-
-  const std::string test_db_name{g_ndb->getDatabaseName()};
-  g_ndb->setDatabaseName("mysql");
-  CHK(createIndexStatTables() == 0);
-  g_ndb->setDatabaseName(test_db_name.c_str());
 
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
     for (int storage= 0; storage < 2; storage++) {

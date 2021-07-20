@@ -3958,6 +3958,9 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testMgm);
   testMgm.setCreateTable(false);
   testMgm.setRunAllTables(true);
+  // Disable ensuring index stat tables since use of NdbApi is turned off for
+  // this test
+  testMgm.setEnsureIndexStatTables(false);
   return testMgm.execute(argc, argv);
 }
 

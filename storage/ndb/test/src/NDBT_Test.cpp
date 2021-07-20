@@ -858,6 +858,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
    runonce = false;
    m_noddl = false;
    m_forceShort = false;
+   m_ensureIndexStatTables = true;
 }
 
 
@@ -905,6 +906,10 @@ bool NDBT_TestSuite::getLogging() const {
 
 bool NDBT_TestSuite::getForceShort() const {
   return m_forceShort;
+}
+
+void NDBT_TestSuite::setEnsureIndexStatTables(bool val) {
+  m_ensureIndexStatTables = val;
 }
 
 bool NDBT_TestSuite::timerIsOn(){
@@ -1275,25 +1280,39 @@ runCreateTable(NDBT_Context* ctx, NDBT_Step* step)
 
 
 static int
-runCreateIndexStatTables(NDBT_Context* ctx, NDBT_Step* step)
+runEnsureIndexStatTables(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb ndb(&ctx->m_cluster_connection, "mysql");
   ndb.init(1);
 
   NdbIndexStat index_stat;
-
   if (index_stat.check_systables(&ndb) == 0) {
     return NDBT_OK;
   }
 
   if (index_stat.create_systables(&ndb) != 0) {
-    g_err << "runCreateIndexStatTables: Failed to create index stat tables."
+    g_err << "runEnsureIndexStatTables: Failed to create index stat tables. "
           << "Error = " << index_stat.getNdbError().code << ": "
           << index_stat.getNdbError().message << endl;
     return NDBT_FAILED;
   }
-
+  // Index stat tables created successfully
   return NDBT_OK;
+}
+
+
+static bool indexStatTablesExist(Ndb_cluster_connection *connection)
+{
+  Ndb ndb(connection, "mysql");
+  ndb.init(1);
+
+  NdbIndexStat index_stat;
+  if (index_stat.check_systables(&ndb) == 0)
+  {
+    // Stat tables exist
+    return true;
+  }
+  return false;
 }
 
 
@@ -1365,12 +1384,6 @@ runCheckTableExists(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setTab(pDictTab);
   ctx->setProperty("$table", tab_name);
 
-  return NDBT_OK;
-}
-
-static int
-runEmptyCreateIndexStatTables(NDBT_Context* ctx, NDBT_Step* step)
-{
   return NDBT_OK;
 }
 
@@ -1659,13 +1672,9 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
       NDBT_TESTFUNC* createFunc= NULL;
       const char* dropFuncName= NULL;
       NDBT_TESTFUNC* dropFunc= NULL;
-      const char *indexStatFuncName = nullptr;
-      NDBT_TESTFUNC *indexStatFunc = nullptr;
 
       if (!m_noddl)
       {
-        indexStatFuncName = "runCreateIndexStatTables";
-        indexStatFunc = &runCreateIndexStatTables;
         createFuncName= m_createAll ? "runCreateTables" : "runCreateTable";
         createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
         dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
@@ -1676,8 +1685,6 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
         /* No DDL allowed, so we substitute 'do nothing' variants
          * of the create + drop table test procs
          */
-        indexStatFuncName = "runEmptyCreateIndexStatTables";
-        indexStatFunc = &runEmptyCreateIndexStatTables;
         createFuncName= "runCheckTableExists";
         createFunc= &runCheckTableExists;
         dropFuncName= "runEmptyDropTable";
@@ -1685,16 +1692,11 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
       }
 
       NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
-      NDBT_Initializer* pti1 =
+      NDBT_Initializer* pti =
         new NDBT_Initializer(pt,
                              createFuncName,
                              *createFunc);
-      pt->addInitializer(pti1, true);
-      NDBT_Initializer* pti2 =
-        new NDBT_Initializer(pt,
-                             indexStatFuncName,
-                             *indexStatFunc);
-      pt->addInitializer(pti2, true);
+      pt->addInitializer(pti, true);
       NDBT_Finalizer* ptf =
         new NDBT_Finalizer(pt,
                            dropFuncName,
@@ -1741,6 +1743,33 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     }
   }
 
+  if (m_ensureIndexStatTables && !m_noddl)
+  {
+    /* Ensure that the index stat system tables are present. This is done in an
+     * initializer which checks if the tables are present and creates them if
+     * needed
+     */
+    for (unsigned t = 0; t < tests.size(); t++)
+    {
+      NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
+      NDBT_Initializer* pti =
+        new NDBT_Initializer(pt,
+                             "runEnsureIndexStatTables",
+                             &runEnsureIndexStatTables);
+      pt->addInitializer(pti, true);
+    }
+
+    for (unsigned t = 0; t < explicitTests.size(); t++)
+    {
+      NDBT_TestCaseImpl1* pt= (NDBT_TestCaseImpl1*)tests[t];
+      NDBT_Initializer* pti =
+        new NDBT_Initializer(pt,
+                             "runEnsureIndexStatTables",
+                             &runEnsureIndexStatTables);
+      pt->addInitializer(pti, true);
+    }
+  }
+
   if (opt_print == true){
     printExecutionTree();
     return 0;
@@ -1762,6 +1791,12 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   con.set_optimized_node_selection(opt_ndb_optimized_node_selection);
+
+  if (m_ensureIndexStatTables && m_noddl && !indexStatTablesExist(&con))
+  {
+    ndbout << "Index stat system tables are missing and can't be created "
+           << "since --noddl is enabled." << endl;
+  }
 
   if(argc == 0){
     // No table specified
