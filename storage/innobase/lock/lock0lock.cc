@@ -381,23 +381,6 @@ void lock_sys_resize(ulint n_cells) {
   HASH_MIGRATE(old_hash, lock_sys->prdt_page_hash, lock_t, hash,
                lock_rec_lock_fold);
   hash_table_free(old_hash);
-
-  /* need to update block->lock_hash_val */
-  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-    buf_pool_t *buf_pool = buf_pool_from_array(i);
-
-    mutex_enter(&buf_pool->LRU_list_mutex);
-
-    for (auto bpage : buf_pool->LRU) {
-      if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
-        buf_block_t *block;
-        block = reinterpret_cast<buf_block_t *>(bpage);
-
-        block->lock_hash_val = lock_rec_hash(bpage->id);
-      }
-    }
-    mutex_exit(&buf_pool->LRU_list_mutex);
-  }
 }
 
 /** Closes the lock system at database shutdown. */

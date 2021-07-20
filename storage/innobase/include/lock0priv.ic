@@ -121,20 +121,7 @@ static inline lock_t *lock_rec_get_first_on_page(
     hash_table_t *lock_hash,  /*!< in: lock hash table */
     const buf_block_t *block) /*!< in: buffer block */
 {
-  ut_ad(locksys::owns_page_shard(block->get_page_id()));
-
-  const page_id_t page_id = block->page.id;
-  ulint hash = buf_block_get_lock_hash_val(block);
-
-  for (lock_t *lock = static_cast<lock_t *>(HASH_GET_FIRST(lock_hash, hash));
-       lock != nullptr;
-       lock = static_cast<lock_t *>(HASH_GET_NEXT(hash, lock))) {
-    if (page_id == lock->rec_lock.page_id) {
-      return (lock);
-    }
-  }
-
-  return (nullptr);
+  return lock_rec_get_first_on_page_addr(lock_hash, block->page.id);
 }
 
 /** Gets the next explicit lock request on a record.

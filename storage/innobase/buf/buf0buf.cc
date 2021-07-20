@@ -1630,9 +1630,6 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     new_block->n_fields = 1;
     new_block->left_side = TRUE;
 
-    new_block->lock_hash_val = block->lock_hash_val;
-    ut_ad(new_block->lock_hash_val == lock_rec_hash(new_block->page.id));
-
     rw_lock_x_unlock(hash_lock);
     mutex_exit(&block->mutex);
     mutex_exit(&new_block->mutex);
@@ -3763,8 +3760,6 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   /* Set after buf_relocate(). */
   block->page.buf_fix_count.store(1);
 
-  block->lock_hash_val = lock_rec_hash(m_page_id);
-
   UNIV_MEM_DESC(&block->page.zip.data, page_zip_get_size(&block->page.zip));
 
   if (buf_page_get_state(&block->page) == BUF_BLOCK_ZIP_PAGE) {
@@ -4612,8 +4607,6 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 #endif /* UNIV_DEBUG_VALGRIND */
 
   buf_block_init_low(block);
-
-  block->lock_hash_val = lock_rec_hash(page_id);
 
   buf_page_init_low(&block->page);
 
