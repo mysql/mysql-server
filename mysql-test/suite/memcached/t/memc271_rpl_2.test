@@ -242,11 +242,12 @@ SELECT c1,c2,c21 FROM t1;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
+--disable_connect_log
 source include/rpl_end.inc;
 
 connection default;
+--echo connection default;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 SET @@global.transaction_isolation= @transaction_isolation;
-

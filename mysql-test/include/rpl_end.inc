@@ -233,18 +233,16 @@ if ($rpl_multi_source)
 # we restore the gtid state by sourcing rpl_change_topology below
 
 # Restore state for GTID_ONLY
---connection default
---let $_rpl_server= $rpl_server_count
---let $_rpl_one= _1
-while ($_rpl_server)
+
+if ($rpl_gtid_only)
 {
-  --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
-
-  if ($rpl_gtid_only)
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
   {
-  --disable_query_log
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
 
+    --disable_query_log
     if (!$rpl_multi_source)
     {
       CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
@@ -261,8 +259,8 @@ while ($_rpl_server)
       }
     }
     --enable_query_log
+    --dec $_rpl_server
   }
-  --dec $_rpl_server
 }
 
 --let $use_gtids= 0
