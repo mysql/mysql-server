@@ -1082,7 +1082,7 @@ static bool update_target_cluster_from_metadata(
   }
 
   const std::string invalidated_cluster_routing_policy_str =
-      get_router_option_str(options_str, "invalidate_routing_policy", "",
+      get_router_option_str(options_str, "invalidated_cluster_policy", "",
                             out_error);
 
   if (invalidated_cluster_routing_policy_str == "accept_ro") {
