@@ -347,4 +347,3 @@ DROP TABLE t1;
 
 --source include/rpl_end.inc
 
---connection default
