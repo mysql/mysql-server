@@ -623,11 +623,6 @@ pointing to a buffer frame containing a file page.
 static inline void buf_ptr_get_fsp_addr(const void *ptr, space_id_t *space,
                                         fil_addr_t *addr);
 
-/** Gets the hash value of a block. This can be used in searches in the
- lock hash table.
- @return lock hash value */
-[[nodiscard]] static inline ulint buf_block_get_lock_hash_val(
-    const buf_block_t *block); /*!< in: block */
 #ifdef UNIV_DEBUG
 /** Finds a block in the buffer pool that points to a
 given compressed page. Used only to confirm that buffer pool does not contain a
@@ -1687,10 +1682,6 @@ struct buf_block_t {
   bool in_withdraw_list;
 #endif /* UNIV_DEBUG */
 
-  /** hashed value of the page address in the record lock hash table;
-  protected by buf_block_t::lock (or buf_block_t::mutex in buf_page_get_gen(),
-  buf_page_init_for_read() and buf_page_create()) */
-  uint32_t lock_hash_val;
   /** @} */
 
   /** @name Hash search fields (unprotected)

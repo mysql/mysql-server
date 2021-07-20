@@ -1397,7 +1397,6 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   /* Skip buf_block_t::lock as it was already initialized by rtr_create_rtr_info
    */
   ut_ad(rw_lock_validate(&matches->block.lock));
-  matches->block.lock_hash_val = block->lock_hash_val;
   matches->block.n_hash_helps = block->n_hash_helps;
   matches->block.n_bytes = block->n_bytes;
   matches->block.n_fields = block->n_fields;
