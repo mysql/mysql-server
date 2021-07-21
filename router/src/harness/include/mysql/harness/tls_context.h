@@ -63,6 +63,7 @@ enum class TlsVerify { NONE, PEER };
 class HARNESS_TLS_EXPORT TlsLibraryContext {
  public:
   TlsLibraryContext();
+  ~TlsLibraryContext();
 };
 
 /**
