@@ -158,11 +158,11 @@ perl mysql-test-run.pl --force --debug-server --timer   --comment=rpl_row_table_
 
 perl mysql-test-run.pl --debug-server --timer --force  --comment=rpl_row_table_STA --vardir=var-sta-rpl-table-n_mix --mysqld=--binlog-format=row  --mysqld=--replica-parallel-workers=0 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
 
-# binlog-transaction-dependency-tracking=WRITESET with MTA replica-parellel-type=logical-clock
+# binlog-transaction-dependency-tracking=WRITESET with MTA replica-parellel-type=logical_clock
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --comment=rpl_MTA-lc-binlog-txn-dependency-tracking --vardir=var-rpl-MTA-lc-binlog-txn-dependency-tracking --do-suite=rpl --mysqld=--binlog-format=row --no-skip --mysqld=--binlog-transaction-dependency-tracking=WRITESET
 
-# Rpl suite with MTA replica-parallel-type=logical-clock and replica-preserve-commit-order=0
-perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical-clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
+# Rpl suite with MTA replica-parallel-type=logical_clock and replica-preserve-commit-order=0
+perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-timeout=60  --comment=rpl-mta-lc-norpco --vardir=var-rpl-mta-lc-norpco  --mysqld=--replica-parallel-workers=4 --mysqld=--replica-parallel-type=logical_clock --mysqld=--replica-preserve-commit-order=0 --do-suite=rpl --no-skip
 
 # Rpl suite with Transaction-writeset-extraction disabled
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --comment=rpl_without_txn_write_set_extraction --vardir=var-rpl_txn_write_set_extraction_disabled --suite=rpl,rpl_gtid,rpl_nogtid  --mysqld=--transaction-write-set-extraction=OFF --no-skip
