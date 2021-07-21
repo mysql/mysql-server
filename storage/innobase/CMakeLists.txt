@@ -29,6 +29,11 @@ ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 # Expand PSI_XXX_CALL into direct calls to the performance_schema.
 ADD_DEFINITIONS(-DPFS_DIRECT_CALL)
 
+# Treat warnings as errors on MSVC for InnoDB
+IF(WIN32)
+  ADD_COMPILE_OPTIONS("/WX")
+ENDIF()
+
 # TODO: Fix up all non-canonical include paths and remove this.
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql

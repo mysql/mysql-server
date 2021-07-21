@@ -4864,7 +4864,7 @@ void AIO::simulated_put_read_threads_to_sleep() {
   for (ulint i = 0; i < os_aio_n_segments; i++) {
     AIO *array{};
 
-    get_array_and_local_segment(array, i);
+    (void)get_array_and_local_segment(array, i);
 
     if (array == s_reads) {
       os_event_reset(os_aio_segment_wait_events[i]);

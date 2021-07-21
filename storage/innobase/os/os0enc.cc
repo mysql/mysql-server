@@ -157,18 +157,15 @@ void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv) {
 
   @returns status of key generation
     @retval true  Success
-    @retval fales Error. No error is raised.
+    @retval false Error. No error is raised.
 */
 bool generate_key(const char *key_id, const char *key_type, size_t key_length) {
   if (key_id == nullptr || key_type == nullptr || key_length == 0) {
     return false;
   }
 
-  if (keyring_generator_service->generate(key_id, nullptr, key_type,
-                                          key_length) == true) {
-    return false;
-  }
-  return true;
+  return keyring_generator_service->generate(key_id, nullptr, key_type,
+                                             key_length) == 0;
 }
 
 /**
