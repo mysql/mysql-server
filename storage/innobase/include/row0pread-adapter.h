@@ -182,6 +182,10 @@ class Parallel_reader_adapter {
     /** Number of records sent to the adapter. */
     size_t m_n_sent{};
 
+    /** Partition ID for the records in buffer. Must be set when adding more
+    records to be sent i.e. while incrementing m_n_read. */
+    size_t m_partition_id{std::numeric_limits<size_t>::max()};
+
     /** Buffer to store records to be sent to the adapter. */
     std::vector<byte, ut_allocator<byte>> m_buffer;
   };
