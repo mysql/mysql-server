@@ -721,12 +721,9 @@ class fatal : public logger {
   explicit fatal(int err, Args &&... args)
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
 
-  /** Destructor. */
-  ~fatal() override;
-#else
-  /** Destructor. */
-  ~fatal() override;
 #endif /* !UNIV_NO_ERR_MSGS */
+  /** Destructor. */
+  ~fatal() override;
 };
 
 /** Emit an error message if the given predicate is true, otherwise emit a

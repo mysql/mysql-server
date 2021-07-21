@@ -552,10 +552,23 @@ void logger::log_event(std::string msg) {
 }
 logger::~logger() { log_event(m_oss.str()); }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable : 4722)
+#endif /* _WIN32 */
+
 fatal::~fatal() {
   log_event("[FATAL] " + m_oss.str());
   ut_error;
 }
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+#ifdef _WIN32
+#pragma warning(pop)
+#endif /* _WIN32 */
 
 fatal_or_error::~fatal_or_error() {
   if (m_fatal) {
