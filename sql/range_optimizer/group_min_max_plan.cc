@@ -1512,7 +1512,8 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
   Quick_ranges_array key_infix_ranges(return_mem_root);
   uint num_infix_keyparts = used_key_parts - group_key_parts;
   for (uint i = 0; i < num_infix_keyparts; i++) {
-    key_infix_ranges.push_back(new Quick_ranges(return_mem_root));
+    key_infix_ranges.push_back(new (return_mem_root)
+                                   Quick_ranges(return_mem_root));
   }
   if (key_infix_len > 0) {
     if (range_tree) {
