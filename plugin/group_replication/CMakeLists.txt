@@ -106,6 +106,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery_channel_state_observer.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
+  src/services/get_system_variable/get_system_variable.cc
   src/services/message_service/message_service.cc
   src/services/notification/notification.cc
   src/services/status_service/status_service.cc
