@@ -733,8 +733,6 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     m_scan_ctx->set_error_state(err);
   }
 
-  m_thread_ctx->m_prev_partition_id = partition_id();
-
   mem_heap_free(heap);
 
   if (call_end_page && m_scan_ctx->m_reader->m_finish_callback) {

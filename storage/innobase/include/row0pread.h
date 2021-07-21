@@ -259,9 +259,6 @@ class Parallel_reader {
     /** Thread ID. */
     size_t m_thread_id{std::numeric_limits<size_t>::max()};
 
-    /** Partition ID of the index the thread had processed earlier. */
-    size_t m_prev_partition_id{std::numeric_limits<size_t>::max()};
-
     /** Callback information related to the thread.
     @note Needs to be created and destroyed by the callback itself. */
     void *m_callback_ctx{};
