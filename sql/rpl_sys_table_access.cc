@@ -269,7 +269,7 @@ bool Rpl_sys_table_access::delete_all_rows() {
       key_access.init(table, Rpl_sys_key_access::enum_key_type::INDEX_NEXT);
   if (!key_error) {
     do {
-      error |= table->file->ha_delete_row(table->record[0]);
+      error |= (table->file->ha_delete_row(table->record[0]) != 0);
       if (error) {
         return true;
       }
@@ -315,7 +315,7 @@ bool Rpl_sys_table_access::increment_version() {
     error |= table_version->file->ha_write_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }
@@ -348,7 +348,7 @@ bool Rpl_sys_table_access::update_version(ulonglong version) {
     error |= table_version->file->ha_write_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }
@@ -396,7 +396,7 @@ bool Rpl_sys_table_access::delete_version() {
     error |= table_version->file->ha_delete_row(table_version->record[0]);
   }
 
-  error |= key_access.deinit();
+  error |= (key_access.deinit() != 0);
 
   return error;
 }

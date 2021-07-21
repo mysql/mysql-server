@@ -6126,7 +6126,7 @@ longlong Item_func_grouping::val_int() {
     while (real_item->type() == REF_ITEM)
       real_item = *((down_cast<Item_ref *>(real_item))->ref);
     if (has_rollup_result(real_item)) {
-      result += 1 << (arg_count - (i + 1));
+      result += 1ULL << (arg_count - (i + 1));
     }
   }
   return result;

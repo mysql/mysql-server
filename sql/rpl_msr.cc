@@ -389,7 +389,7 @@ bool Rpl_channel_filters::build_do_and_ignore_table_hashes() {
     if (it->second->build_do_table_hash() ||
         it->second->build_ignore_table_hash()) {
       LogErr(ERROR_LEVEL, ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES);
-      return -1;
+      return true;
     }
   }
   m_channel_to_filter_lock->unlock();

@@ -1380,12 +1380,12 @@ bool channel_change_source_connection_auto_failover(const char *channel,
 
   if (status && !mi->is_source_connection_auto_failover()) {
     mi->set_source_connection_auto_failover();
-    error |= flush_master_info(mi, true, true, false);
+    error |= (flush_master_info(mi, true, true, false) != 0);
   }
 
   if (!status && mi->is_source_connection_auto_failover()) {
     mi->unset_source_connection_auto_failover();
-    error |= flush_master_info(mi, true, true, false);
+    error |= (flush_master_info(mi, true, true, false) != 0);
   }
 
   unlock_slave_threads(mi);

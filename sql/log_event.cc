@@ -4763,7 +4763,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (default_table_encryption != 0xff) {
         assert(default_table_encryption == 0 || default_table_encryption == 1);
         if (thd->variables.default_table_encryption !=
-                default_table_encryption &&
+                static_cast<bool>(default_table_encryption) &&
             !security_context.skip_priv_checks() &&
             !security_context.has_access({SUPER_ACL}) &&
             !security_context.has_access(
@@ -6084,7 +6084,7 @@ bool Xid_log_event::do_commit(THD *thd_arg) {
                   DBUG_SUICIDE(););
   thd_arg->mdl_context.release_transactional_locks();
 
-  error |= mysql_bin_log.gtid_end_transaction(thd_arg);
+  error |= (mysql_bin_log.gtid_end_transaction(thd_arg) != 0);
 
   /*
     The parser executing a SQLCOM_COMMIT or SQLCOM_ROLLBACK will reset the
@@ -10175,7 +10175,8 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD *thd) {
       already. So there should be no need to rollback the transaction.
     */
     assert(!thd->transaction_rollback_request);
-    error |= (error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd));
+    error |= ((error != 0) ? static_cast<int>(trans_rollback_stmt(thd))
+                           : static_cast<int>(trans_commit_stmt(thd)));
 
     /*
       Now what if this is not a transactional engine? we still need to

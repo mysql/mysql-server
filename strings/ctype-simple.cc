@@ -47,6 +47,10 @@
 #include "stdarg.h"
 #include "template_utils.h"
 
+static inline longlong longlong_with_sign(bool negative, longlong ll) {
+  return negative ? -static_cast<longlong>(ll) : static_cast<longlong>(ll);
+}
+
 /*
   Returns the number of bytes required for strnxfrm().
 */
@@ -528,12 +532,12 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return negative ? LLONG_MIN : LLONG_MAX;
   }
 
-  return negative ? -i : i;
+  return longlong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;
   if (endptr != nullptr) *endptr = nptr;
-  return 0L;
+  return 0LL;
 }
 
 ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
@@ -603,7 +607,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return (~(ulonglong)0);
   }
 
-  return negative ? -i : i;
+  return longlong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;

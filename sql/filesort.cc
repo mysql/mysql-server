@@ -416,7 +416,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   // before that.
   DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
   if (source_iterator->Init()) {
-    return HA_POS_ERROR;
+    return true;
   }
 
   /*

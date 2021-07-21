@@ -2966,7 +2966,7 @@ bool JOIN::get_best_combination() {
     have frame buffer tmp tables, but those are not relevant here).
   */
   uint num_tmp_tables =
-      (!group_list.empty() || (implicit_grouping && m_windows.elements) > 0
+      (!group_list.empty() || (implicit_grouping && m_windows.elements > 0)
            ? 1
            : 0) +
       (select_distinct ? (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +

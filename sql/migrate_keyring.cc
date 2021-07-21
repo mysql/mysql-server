@@ -82,7 +82,7 @@ Destination_keyring_component::Destination_keyring_component(
     component, we only support reading configuration from
     plugin directory
   */
-  if (keyring_load_service_->load(opt_plugin_dir, nullptr) == true) {
+  if (keyring_load_service_->load(opt_plugin_dir, nullptr) != 0) {
     return;
   }
 

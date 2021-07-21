@@ -185,6 +185,10 @@ class NonzeroSubsetsOf {
 inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
 
 // Returns a bitmap representing the semi-open interval [start, end).
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
 inline uint64_t BitsBetween(unsigned start, unsigned end) {
   assert(end >= start);
   assert(end <= 64);
@@ -198,6 +202,7 @@ inline uint64_t BitsBetween(unsigned start, unsigned end) {
     return (uint64_t{1} << end) - (uint64_t{1} << start);
   }
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 // The same, just with a different name for clarity.
 inline uint64_t TablesBetween(unsigned start, unsigned end) {

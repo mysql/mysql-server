@@ -4067,7 +4067,8 @@ String *mysql_generate_uuid(String *str) {
         with a clock_seq value (initialized random below), we use a separate
         randominit() here
       */
-      randominit(&uuid_rand, tmp + (ulong)thd,
+      randominit(&uuid_rand,
+                 tmp + static_cast<ulong>(reinterpret_cast<uintptr_t>(thd)),
                  tmp + (ulong)atomic_global_query_id);
       for (i = 0; i < (int)sizeof(mac); i++)
         mac[i] = (uchar)(my_rnd(&uuid_rand) * 255);
