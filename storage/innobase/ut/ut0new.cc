@@ -35,6 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_compiler.h"
 #include "ut0new.h"
 
+/** System-default huge (large) page setting. */
+const size_t large_page_default_size = ut::detail::large_page_size();
+
 /** Maximum number of retries to allocate memory. */
 const size_t alloc_max_retries = 60;
 

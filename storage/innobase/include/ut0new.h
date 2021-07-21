@@ -1623,6 +1623,68 @@ inline void free_page(void *ptr) noexcept {
   return page_alloc_impl::free(ptr);
 }
 
+/** Dynamically allocates memory backed up by large (huge) pages. Instruments
+    the memory with given PSI memory key in case PFS memory support is enabled.
+
+    For large (huge) pages to be functional, usually some steps in system admin
+    preparation is required. Exact steps vary from system to system.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(
+                ut::malloc_large_page_withkey(key, 10*sizeof(int))
+              );
+ */
+inline void *malloc_large_page_withkey(PSI_memory_key_t key,
+                                       std::size_t size) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  return large_page_alloc_impl::alloc(size, key());
+}
+
+/** Dynamically allocates memory backed up by large (huge) pages.
+
+    For large (huge) pages to be functional, usually some steps in system admin
+    preparation is required. Exact steps vary from system to system.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_large_page(10*sizeof(int)));
+ */
+inline void *malloc_large_page(std::size_t size) noexcept {
+  return ut::malloc_large_page_withkey(
+      make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
+}
+
+/** Retrieves the size of corresponding large (huge) aligned storage.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*() variants.
+ */
+inline size_t large_page_allocation_size(void *ptr) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  return large_page_alloc_impl::datalen(ptr);
+}
+
+inline void free_large_page(void *ptr) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  return large_page_alloc_impl::free(ptr);
+}
+
 /** Dynamically allocates storage of given size and at the address aligned to
     the requested alignment. Instruments the memory with given PSI memory key
     in case PFS memory support is enabled.

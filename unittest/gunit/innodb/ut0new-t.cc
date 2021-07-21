@@ -1105,6 +1105,93 @@ INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
                                ut0new_page_malloc_free_non_pod_types,
                                all_non_pod_types);
 
+// Allocating memory backed by huge (large) pages generally requires some prior
+// system admin setup. When there's no such setup, we don't want to make our CI
+// systems red. We skip the test instead and by doing it we are denoting that
+// test was neither failed nor successful with the message explaining possible
+// reasons. Solaris and OSX for example do not require any prior setup whereas
+// Linux and Windows do.
+#define SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)       \
+  if (!ptr)                                                        \
+    GTEST_SKIP()                                                   \
+        << "Huge-page support seems not to be enabled on this "    \
+           "platform or underlying huge-page allocation function " \
+           "was not used correctly. Please check. Skipping the test ...";
+
+// Large-page alloc/free - fundamental types
+template <typename T>
+class ut0new_large_malloc_free_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fundamental_types);
+TYPED_TEST_P(ut0new_large_malloc_free_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs
+                  ? static_cast<type *>(ut::malloc_large_page_withkey(
+                        ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                  : static_cast<type *>(ut::malloc_large_page(sizeof(type)));
+  SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  ut::free_large_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(FundamentalTypes,
+                               ut0new_large_malloc_free_fundamental_types,
+                               all_fundamental_types);
+
+// Large-page alloc/free - pod types
+template <typename T>
+class ut0new_large_malloc_free_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_pod_types);
+TYPED_TEST_P(ut0new_large_malloc_free_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs
+                  ? static_cast<type *>(ut::malloc_large_page_withkey(
+                        ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                  : static_cast<type *>(ut::malloc_large_page(sizeof(type)));
+  SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  ut::free_large_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(PodTypes, ut0new_large_malloc_free_pod_types,
+                               all_pod_types);
+
+// Large-page alloc/free - non-pod types
+template <typename T>
+class ut0new_large_malloc_free_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_non_pod_types);
+TYPED_TEST_P(ut0new_large_malloc_free_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  type *ptr = with_pfs
+                  ? static_cast<type *>(ut::malloc_large_page_withkey(
+                        ut::make_psi_memory_key(pfs_key), sizeof(type)))
+                  : static_cast<type *>(ut::malloc_large_page(sizeof(type)));
+  SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+  EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  // Referencing non-pod type members through returned pointer is UB.
+  // Solely releasing it is ok.
+  //
+  // Using it otherwise is UB because ut::large_malloc_* functions are raw
+  // memory management functions which do not invoke constructors neither
+  // they know which type they are operating with. That is why we would be end
+  // up accessing memory of not yet instantiated object (UB).
+  ut::free_large_page(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
+                               ut0new_large_malloc_free_non_pod_types,
+                               all_non_pod_types);
+
 // aligned alloc/free - fundamental types
 template <typename T>
 class aligned_alloc_free_fundamental_types : public ::testing::Test {};

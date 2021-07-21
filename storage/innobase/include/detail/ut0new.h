@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "storage/innobase/include/detail/ut/aligned_alloc.h"
 #include "storage/innobase/include/detail/ut/alloc.h"
+#include "storage/innobase/include/detail/ut/large_page_alloc.h"
 #include "storage/innobase/include/detail/ut/page_alloc.h"
 #include "storage/innobase/include/ut0tuple.h"
 

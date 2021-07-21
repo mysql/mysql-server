@@ -48,6 +48,18 @@ constexpr size_t calc_align(size_t n, size_t m) {
   return (n + (m - 1)) & ~(m - 1);
 }
 
+/** Calculates the biggest multiple of m that is not bigger than n
+    when m is a power of two.  In other words, rounds n down to m * k.
+    @param n in: number to round down
+    @param m in: alignment, must be a power of two
+    @return n rounded down to the biggest possible integer multiple of m */
+constexpr size_t pow2_round(size_t n, size_t m) {
+  // This is a copy pasta from ut0ut.h but consuming that header from
+  // this file bursts the build into flames. Let's at least stick to the
+  // similar name.
+  return (n & ~(m - 1));
+}
+
 }  // namespace detail
 }  // namespace ut
 
