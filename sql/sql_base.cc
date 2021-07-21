@@ -104,8 +104,9 @@
 #include "sql/item_subselect.h"
 #include "sql/lock.h"  // mysql_lock_remove
 #include "sql/log.h"
-#include "sql/log_event.h"  // Query_log_event
-#include "sql/mysqld.h"     // replica_open_temp_tables
+#include "sql/log_event.h"           // Query_log_event
+#include "sql/mysqld.h"              // replica_open_temp_tables
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manage
 #include "sql/nested_join.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"  // key_memory_TABLE
@@ -3822,10 +3823,14 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
       new_thd.store_globals();
       new_thd.set_db(thd->db());
       new_thd.variables.gtid_next.set_automatic();
+      Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+      thd_manager->add_thd(&new_thd);
       result = mysql_bin_log.write_stmt_directly(
           &new_thd, temp_buf.c_ptr_safe(), temp_buf.length(), SQLCOM_TRUNCATE);
       new_thd.restore_globals();
       thd->store_globals();
+      new_thd.release_resources();
+      thd_manager->remove_thd(&new_thd);
       return result;
     }
   }
