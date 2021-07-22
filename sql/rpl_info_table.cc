@@ -527,7 +527,7 @@ end:
 bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
                                    const char *param_table,
                                    MY_BITMAP const *nullable_bitmap,
-                                   uint *counter) {
+                                   ulonglong *counter) {
   int error = 1;
   TABLE *table = nullptr;
   sql_mode_t saved_mode;
@@ -578,6 +578,54 @@ end:
   info->access->drop_thd(thd);
   delete info;
   return error;
+}
+
+std::pair<bool, bool> Rpl_info_table::table_in_use(
+    uint nparam, const char *param_schema, const char *param_table,
+    MY_BITMAP const *nullable_bitmap) {
+  bool error{false};
+  bool empty{false};
+
+  TABLE *table = nullptr;
+  Open_tables_backup backup;
+  Rpl_info_table *info = nullptr;
+
+  DBUG_TRACE;
+
+  if (!(info = new Rpl_info_table(nparam, param_schema, param_table, 0, nullptr,
+                                  nullable_bitmap)))
+    return std::make_pair(true, false);
+
+  THD *thd = info->access->create_thd();
+  sql_mode_t saved_mode = thd->variables.sql_mode;
+
+  /*
+    Opens and locks the rpl_info table before accessing it.
+  */
+  if (!info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                                to_lex_cstring(info->str_table),
+                                info->get_number_info(), TL_READ, &table,
+                                &backup)) {
+    /*
+      Check if table is in use
+    */
+    std::tie(error, empty) = info->access->is_table_in_use(table);
+    if (error) {
+      LogErr(WARNING_LEVEL, ER_RPL_CANT_SCAN_INFO_TABLE, info->str_schema.str,
+             info->str_table.str);
+    }
+  }
+  /* else:
+    We cannot simply print out a warning message at this
+    point because this may represent a bootstrap.
+  */
+
+  // Unlocks and closes the rpl_info table.
+  error = info->access->close_table(thd, table, &backup, error) || error;
+  thd->variables.sql_mode = saved_mode;
+  info->access->drop_thd(thd);
+  delete info;
+  return std::make_pair(error != 0, empty);
 }
 
 void Rpl_info_table::do_end_info() {}
