@@ -43,8 +43,13 @@ SET(TESTS
   ut0new
 )
 
+# Treat warnings as errors on MSVC for InnoDB's unittests
+IF(MSVC)
+  ADD_COMPILE_OPTIONS("/WX")
+ENDIF()
+
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
-IF(WIN32)
+IF(MSVC)
   ADD_COMPILE_FLAGS(
     ut0new-t.cc
     COMPILE_FLAGS "/bigobj"
