@@ -179,9 +179,11 @@ SHOW WARNINGS;
 DROP TABLE ndb$test;
 
 
-## 4) Table with primary key/indexes not supported
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
 --error ER_TOO_MANY_KEYS
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
 
 ## 5) Table with blobs not supported
 --error ER_TABLE_CANT_HANDLE_BLOB

@@ -663,11 +663,11 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$blocks",
-                   "block_number INT UNSIGNED, "
+                   "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "block_name VARCHAR(512)",
                },
                {"ndbinfo", "ndb$config_params",
-                "param_number INT UNSIGNED, "
+                "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
                 "param_name VARCHAR(512), "
                 "param_description VARCHAR(512), "
                 "param_type VARCHAR(512), "
@@ -679,7 +679,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dblqh_tcconnect_state",
-                   "state_int_value INT UNSIGNED, "
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "state_name VARCHAR(256), "
                    "state_friendly_name VARCHAR(256), "
                    "state_description VARCHAR(256)",
@@ -687,7 +687,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dbtc_apiconnect_state",
-                   "state_int_value INT UNSIGNED, "
+                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "state_name VARCHAR(256), "
                    "state_friendly_name VARCHAR(256), "
                    "state_description VARCHAR(256)",
@@ -695,7 +695,7 @@ struct lookup {
                {
                    "ndbinfo",
                    "ndb$dict_obj_types",
-                   "type_id INT UNSIGNED, "
+                   "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
                    "type_name VARCHAR(512)",
                },
                {

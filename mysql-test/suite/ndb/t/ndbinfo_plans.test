@@ -94,7 +94,52 @@ SELECT table_name from rowcounts WHERE est_rows = 0;
 DROP TEMPORARY TABLE rowcounts;
 DROP PROCEDURE populate_sizes;
 
+## Show the indexes on virtual tables
+SELECT table_name, constraint_name, column_name, ordinal_position
+  FROM information_schema.key_column_usage
+  WHERE table_schema = 'ndbinfo';
+
+SELECT * FROM blocks ORDER BY block_number DESC;
+
 --vertical_results
+
+## Query results validate that index seek operations are correct,
+## and plans show use of the index
+select * from blocks where block_number=245;
+let $key= query_get_value(explain select * from blocks where block_number=245,key,1);
+echo $key;
+assert($key == "PRIMARY");
+
+select * from blocks where block_number in (250,251);
+
+explain format=tree select * from blocks where block_number in (250,251);
+explain format=tree select * from blocks order by block_number;
+explain format=tree select * from blocks where block_number < 250;
+## Can scan backwards:
+explain format=tree select * from blocks where block_number > 250
+  order by block_number desc;
+
+select * from dict_obj_types where type_id = 6;
+
+## No row at 7:
+select * from dict_obj_types where type_id = 7;
+
+select * from dict_obj_types where type_id in (1,2,6);
+
+let $key= query_get_value(explain select * from dict_obj_types where type_id = 6,key,1);
+echo $key;
+assert($key == "PRIMARY");
+
+select state_int_value, state_name from ndb$dblqh_tcconnect_state where state_int_value = 9;
+
+select param_number, param_name from ndb$config_params where param_number = 161;
+let $key= query_get_value(explain select param_name from config_params where param_number = 161, key, 1);
+echo $key;
+assert($key == "PRIMARY");
+
+## No row:
+select param_name from ndb$config_params where param_number = 1;
+select param_name from ndb$config_params where param_number = 40000;
 
 ## The plan for counters
 explain format=tree select * from counters;
@@ -104,6 +149,7 @@ explain format=tree select * from memory_per_fragment;
 
 
 ## Create an all-MyISAM version of memory_per_fragment for comparison
+## (now with a primary key in the MyISAM version as well)
 ## and explain the same query
 --disable_query_log
 --disable_result_log
@@ -114,6 +160,7 @@ CREATE TABLE ndb$dict_obj_info engine=myisam
   as select * from ndbinfo.ndb$dict_obj_info limit 14;
 CREATE TABLE ndb$dict_obj_types engine=myisam
   as select * from ndbinfo.ndb$dict_obj_types;
+ALTER TABLE ndb$dict_obj_types ADD PRIMARY KEY (type_id);
 
 CREATE VIEW memory_per_fragment AS
    SELECT name.fq_name, parent_name.fq_name AS parent_fq_name,

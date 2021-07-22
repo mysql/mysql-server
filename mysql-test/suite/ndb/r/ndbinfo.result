@@ -458,9 +458,11 @@ Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existi
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 DROP TABLE ndb$test;
 
-## 4) Table with primary key/indexes not supported
-CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
-ERROR 42000: Too many keys specified; max 0 keys allowed
+## 4) Primary key is supported after the fix for bug#28658625,
+##    but tables are still limited to a single index.
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
+                       index(node_id)) ENGINE = ndbinfo;
+ERROR 42000: Too many keys specified; max 1 keys allowed
 
 ## 5) Table with blobs not supported
 CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
@@ -953,7 +955,6 @@ Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine 
 SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 Warnings:
-Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
 Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
 
 DROP VIEW view_on_table_which_does_not_exist_in_ndb;
