@@ -539,6 +539,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
             // into.
             (cur_tree->root->part == cur_part - cur_index_info->key_part) &&
             // There should not be any disjuntive predicates on the key part.
+            cur_tree->root->first() != nullptr &&
             cur_tree->root->first()->next == nullptr) {
           SEL_ARG *range = cur_tree->root->first();
           const uint is_open_range =
