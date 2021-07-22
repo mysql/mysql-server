@@ -131,7 +131,31 @@ class Rpl_info_table : public Rpl_info_handler {
   */
   static bool do_count_info(uint nparam, const char *param_schema,
                             const char *param_table,
-                            MY_BITMAP const *nullable_bitmap, uint *counter);
+                            MY_BITMAP const *nullable_bitmap,
+                            ulonglong *counter);
+  /**
+    Returns if the table is being used, meaning it contains at least a
+    line or some concurrency related error was returned when looking at
+    the table identified by: param_schema.param_table
+
+    @param[in]  nparam           Number of fields in the table.
+    @param[in]  param_schema     Table's schema.
+    @param[in]  param_table      Table's name.
+    @param[in]  nullable_bitmap  bitmap that holds the fields that are
+                                 allowed to be `NULL`-
+    @param[out] counter          Number of entries found.
+
+    @retval a pair of booleans
+            First element is true if an error occurred, false otherwise.
+            Second element is true if the table is not empty or an access error
+            occurred meaning someone else is accessing it. False if the table
+            is empty.
+  */
+  static std::pair<bool, bool> table_in_use(uint nparam,
+                                            const char *param_schema,
+                                            const char *param_table,
+                                            MY_BITMAP const *nullable_bitmap);
+
   static int do_reset_info(uint nparam, const char *param_schema,
                            const char *param_table, const char *channel_name,
                            MY_BITMAP const *nullable_bitmap);

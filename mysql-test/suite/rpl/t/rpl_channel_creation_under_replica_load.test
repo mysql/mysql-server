@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# This test checks that channels can be created while load is put on the replica
+#
+# ==== Implementation ====
+#
+# 0. The test needs 2 servers, one with load, and a replica where channels are created
+# 1. Create a table on the source and use Slap to apply load on the server
+# 2. Create 20 channels, 1 per second in the replica
+# 3. Check the data was replicated and 20 channel were created
+# 4. Cleanup
+#
+# ==== References ====
+#
+# Bug#33090128 RANDOM ERROR 1201: COULD NOT INITIALIZE MASTER INFO STRUCTURE; ON CHANGE MASTER
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 1. Create a table on the source and use Slap to apply load on the server
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=1000 --query="INSERT INTO test.t1 (b) VALUES (1)" --concurrency=10 --silent 2>&1
+
+--echo #
+--echo # 2. Create 20 channels, 1 per second in the replica
+
+--source include/rpl_connection_slave.inc
+
+--let $limit=20
+
+--disable_result_log
+--let $iteration=1
+while ( $iteration <= $limit )
+{
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = 'h', SOURCE_PORT = 1 FOR CHANNEL 'channel_$iteration' ;
+  --inc $iteration
+  --sleep 1
+}
+--enable_result_log
+
+--echo #
+--echo # 3. Check the data was replicated and 20 channel were created
+
+--let $wait_timeout= 200
+--let $wait_condition= SELECT COUNT(*)=10000 FROM test.t1
+--source include/wait_condition.inc
+
+# 21 channels: 20 created + default channel
+--let $assert_text= 'There are 21 channels in the replica'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration, count, 1] = 21
+--source include/assert.inc
+
+--echo #
+--echo # 4. Cleanup
+
+--let $iteration=1
+while ( $iteration <= $limit )
+{
+  --eval RESET REPLICA ALL FOR CHANNEL 'channel_$iteration' ;
+  --inc $iteration
+}
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE test.t1;
+
+--source include/rpl_end.inc
