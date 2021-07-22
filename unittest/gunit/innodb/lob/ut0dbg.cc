@@ -27,7 +27,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0dbg.h"
 
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          ulint line) {
   fflush(stderr);
   fflush(stdout);
   abort();
