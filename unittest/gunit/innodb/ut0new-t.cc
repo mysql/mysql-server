@@ -164,7 +164,7 @@ TEST(ut0new, edgecases) {
   try {
     ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED,
                           false);
-  } catch (std::bad_array_new_length &e) {
+  } catch (std::bad_array_new_length &) {
     threw = true;
   }
   EXPECT_TRUE(threw);
@@ -850,7 +850,7 @@ TEST(
     auto ptr = ut::new_arr_withkey<Type_that_may_throw>(
         ut::make_psi_memory_key(pfs_key), ut::Count(7));
     ASSERT_FALSE(ptr);
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error &) {
     exception_thrown_and_caught = true;
   }
   EXPECT_TRUE(exception_thrown_and_caught);
@@ -882,7 +882,7 @@ TEST(
         std::forward_as_tuple(2, 3), std::forward_as_tuple(4, 5),
         std::forward_as_tuple(6, 7), std::forward_as_tuple(8, 9));
     ASSERT_FALSE(ptr);
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error &) {
     exception_thrown_and_caught = true;
   }
   EXPECT_TRUE(exception_thrown_and_caught);
@@ -909,7 +909,7 @@ TEST(
     auto ptr = ut::new_arr_withkey<Type_that_always_throws>(
         ut::make_psi_memory_key(pfs_key), ut::Count(7));
     ASSERT_FALSE(ptr);
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error &) {
     exception_thrown_and_caught = true;
   }
   EXPECT_TRUE(exception_thrown_and_caught);
@@ -939,7 +939,7 @@ TEST(
         std::forward_as_tuple(2, 3), std::forward_as_tuple(4, 5),
         std::forward_as_tuple(6, 7), std::forward_as_tuple(8, 9));
     ASSERT_FALSE(ptr);
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error &) {
     exception_thrown_and_caught = true;
   }
   EXPECT_TRUE(exception_thrown_and_caught);
@@ -965,7 +965,7 @@ TEST(ut0new_new_delete,
     auto ptr = ut::new_withkey<Type_that_always_throws>(
         ut::make_psi_memory_key(pfs_key));
     ASSERT_FALSE(ptr);
-  } catch (std::runtime_error &e) {
+  } catch (std::runtime_error &) {
     exception_thrown_and_caught = true;
   }
   EXPECT_TRUE(exception_thrown_and_caught);
