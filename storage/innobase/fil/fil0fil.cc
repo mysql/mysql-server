@@ -2524,10 +2524,12 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 @param[in]	is_raw		true if a raw device or a raw disk partition
 @param[in]	atomic_write	true if the file has atomic write enabled
 @param[in]	max_pages	maximum number of pages in file
+@param[in]	mmap address only applies if log
 @return pointer to the file name
 @retval nullptr if error */
 char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
-                      bool is_raw, bool atomic_write, page_no_t max_pages) {
+                      bool is_raw, bool atomic_write, page_no_t max_pages,
+                      void *map_addr) {
   auto shard = fil_system->shard_by_id(space->id);
 
   fil_node_t *file;
@@ -2535,6 +2537,13 @@ char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
   file = shard->create_node(name, size, space, is_raw,
                             IORequest::is_punch_hole_supported(), atomic_write,
                             max_pages);
+
+  // add mmap address if belongs to log
+  if (space->id == dict_sys_t::s_log_space_first_id && map_addr != NULL) {
+    file->map_addr = map_addr;
+  } else {
+    file->map_addr = NULL;
+  }
 
   return file == nullptr ? nullptr : file->name;
 }
@@ -7723,12 +7732,42 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   }
 
   if (req_type.is_read()) {
+    // next step read/write also to mmap file
+    // if (page_id.space() == SYSTEM_TABLE_SPACE) {
+    //   DBUG_PRINT("ib_log mmap", ("read at %p space %lu no %lu %d",
+    //                              file->handle.map_addr + offset));
+    //   memcpy(file->handle.map_addr + offset, buf, len);
+    // }
+
+    DBUG_PRINT("ib_log do_redo_io",
+               ("read %p space %lu no %lu", file->handle.map_addr + offset,
+                page_id.space(), page_no));
+
     err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
 
   } else {
     ut_ad(!srv_read_only_mode);
 
     err = os_file_write(req_type, file->name, file->handle, buf, offset, len);
+    DBUG_PRINT(
+        "ib_log do_redo_io",
+        ("write %p %p %d filename: %s space %lu logspace %lu  no %lu name: %s "
+         "handle: %d",
+         file->map_addr, file->map_addr + offset, offset, file->name,
+         page_id.space(), dict_sys_t::s_log_space_first_id,
+         static_cast<unsigned int>(page_no), space->name, file->handle.m_file));
+
+    // writing to redo log tablespace
+    // next step read/write also to mmap file
+    // if (page_id.space() == SYSTEM_TABLE_SPACE) {
+    //   DBUG_PRINT("ib_log mmap",
+    //              ("write at %p space %u no %u %d",
+    //               file->handle.map_addr + offset, page_id.space(), page_no,
+    //               page_id.space() == dict_sys_t::s_log_space_first_id));
+    //   memcpy(file->handle.map_addr + offset, buf, len);
+    //   compareFile(file->handle.m_file,
+    //               static_cast<unsigned int *>(file->handle.map_addr));
+    // }
   }
 
   if (type.is_write()) {
@@ -7744,6 +7783,31 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   }
 
   return err;
+}
+
+int compareFile(int f_handle, unsigned int *addr) {
+  int N = 10000;
+  char buf1[N];
+  int i = 0;
+  size_t r1;
+  do {
+    r1 = read(f_handle, buf1, N);
+    if (r1 == 0) {
+      // reached end of file
+      break;
+    }
+
+    LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, "comparing file %p",
+           static_cast<void *>(addr + i * N));
+
+    if (memcmp(buf1, static_cast<void *>(addr + i * N), r1)) {
+      return 0;
+    }
+    i++;
+
+  } while (r1 != 0);
+
+  return 1;
 }
 
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,

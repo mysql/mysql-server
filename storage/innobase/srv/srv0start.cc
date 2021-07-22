@@ -296,6 +296,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_ERROR);
   }
 
+  // map log file
+  file->map_addr =
+      mmap(NULL, srv_log_file_size_requested, PROT_READ | PROT_WRITE,
+           MAP_PRIVATE, static_cast<int>(file->m_file), 0);
+  if (file->map_addr == MAP_FAILED) {
+    DBUG_PRINT("ib_log do_redo_io:", ("mmaping FAILED!!!!!!!"));
+    return (DB_ERROR);
+  }
+
   auto size = srv_log_file_size >> 20;
 
   ib::info(ER_IB_MSG_CREATE_LOG_FILE, name);
@@ -421,16 +430,17 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
   const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
 
-  logfile0 = fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                             log_space, false, false);
+  logfile0 =
+      fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
+                      log_space, false, false, PAGE_NO_MAX, files[0].map_addr);
 
   ut_a(logfile0 != nullptr);
 
   for (unsigned i = 1; i < srv_n_log_files; i++) {
     sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
-
     if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                        log_space, false, false) == nullptr) {
+                        log_space, false, false, PAGE_NO_MAX,
+                        files[i].map_addr) == nullptr) {
       ib::error(ER_IB_MSG_1066, logfilename);
 
       return (DB_ERROR);

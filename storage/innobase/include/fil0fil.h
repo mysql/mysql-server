@@ -111,7 +111,7 @@ class page_id_t;
 
 using Filenames = std::vector<std::string, ut_allocator<std::string>>;
 using Space_ids = std::vector<space_id_t, ut_allocator<space_id_t>>;
-
+int compareFile(int f_handle, unsigned int *addr);
 /** File types */
 enum fil_type_t : uint8_t {
   /** temporary tablespace (temporary undo log or tables) */
@@ -164,6 +164,9 @@ struct fil_node_t {
 
   /** file name; protected by Fil_shard::m_mutex and log_sys->mutex. */
   char *name;
+
+  /** mmap starting addres for this file */
+  void *map_addr;
 
   /** whether this file is open. Note: We set the is_open flag after
   we increase the write the MLOG_FILE_OPEN record to redo log. Therefore
@@ -1388,7 +1391,7 @@ void fil_space_set_imported(space_id_t space_id);
 @retval nullptr if error */
 char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
                       bool is_raw, bool atomic_write,
-                      page_no_t max_pages = PAGE_NO_MAX)
+                      page_no_t max_pages = PAGE_NO_MAX, void *map_addr = NULL)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Create a space memory object and put it to the fil_system hash table.
