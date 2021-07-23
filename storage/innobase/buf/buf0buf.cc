@@ -3018,6 +3018,10 @@ DECLARE_THREAD(buf_resize_thread)(
 {
 	my_thread_init();
 
+#ifdef UNIV_PFS_THREAD
+    pfs_register_thread(buf_resize_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 	srv_buf_resize_thread_active = true;
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {

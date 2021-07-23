@@ -503,6 +503,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(srv_purge_thread),
 	PSI_KEY(srv_worker_thread),
 	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(buf_resize_thread),
 };
 # endif /* UNIV_PFS_THREAD */
 
