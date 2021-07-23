@@ -51,5 +51,5 @@ docker rm $(docker stop $(docker ps -a -q --filter name=mysql8 --format="{{.ID}}
 ### simple run docker
 
 ````
- docker build -t mysql-test . &&  docker rm $(docker stop $(docker ps -a -q --filter name=mysql8 --format="{{.ID}}")) && docker run --network host -v $PWD/logs:/tmp --cap-add=sys_nice  -e MYSQL_ROOT_PASSWORD=secret -e MYSQL_USER=mysql -e MYSQL_PASSWORD=secret --name mysql8 -d mysql-test mysqld --default-authentication-plugin=mysql_native_password --debug=d:S:F:L:f
+ docker build -t mysql-test . &&  docker rm $(docker stop $(docker ps -a -q --filter name=mysql8 --format="{{.ID}}")) && docker run --network host --cap-add=sys_nice  -e MYSQL_ROOT_PASSWORD=secret -e MYSQL_USER=mysql -e MYSQL_PASSWORD=secret --name mysql8 -d mysql-test mysqld --default-authentication-plugin=mysql_native_password --debug=d:S:F:L:f
  ```

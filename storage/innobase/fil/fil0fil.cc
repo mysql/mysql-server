@@ -40,6 +40,7 @@ The tablespace memory cache */
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
+#include "extra/robin-hood-hashing/robin_hood.h"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
 #include "fsp0space.h"
@@ -1226,6 +1227,12 @@ class Fil_shard {
   @param[in]	space		Tablespace for which we want to
                                   wait for IO to stop */
   static void wait_for_io_to_stop(const fil_space_t *space);
+
+  /** Compare file content against content at specified address
+  @param[in]	f_node	f_node to file
+  @param[in]	addr	address that should contain same content
+  @return any error returned by the callback function. */
+  dberr_t compareFile(fil_node_t *f_node, unsigned char *addr);
 
  private:
   /** We keep log files and system tablespace files always open; this is
@@ -7732,15 +7739,9 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   }
 
   if (req_type.is_read()) {
-    // next step read/write also to mmap file
-    // if (page_id.space() == SYSTEM_TABLE_SPACE) {
-    //   DBUG_PRINT("ib_log mmap", ("read at %p space %lu no %lu %d",
-    //                              file->handle.map_addr + offset));
-    //   memcpy(file->handle.map_addr + offset, buf, len);
-    // }
-
     DBUG_PRINT("ib_log do_redo_io",
-               ("read %p space %lu no %lu", file->handle.map_addr + offset,
+               ("read %p space %u no %u",
+                static_cast<unsigned char *>(file->map_addr) + offset,
                 page_id.space(), page_no));
 
     err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
@@ -7751,23 +7752,23 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
     err = os_file_write(req_type, file->name, file->handle, buf, offset, len);
     DBUG_PRINT(
         "ib_log do_redo_io",
-        ("write %p %p %d filename: %s space %lu logspace %lu  no %lu name: %s "
+        ("write %p %p %lu filename: %s space %u logspace %u  no %u name: %s "
          "handle: %d",
-         file->map_addr, file->map_addr + offset, offset, file->name,
-         page_id.space(), dict_sys_t::s_log_space_first_id,
+         file->map_addr, static_cast<unsigned char *>(file->map_addr) + offset,
+         offset, file->name, page_id.space(), dict_sys_t::s_log_space_first_id,
          static_cast<unsigned int>(page_no), space->name, file->handle.m_file));
 
     // writing to redo log tablespace
     // next step read/write also to mmap file
-    // if (page_id.space() == SYSTEM_TABLE_SPACE) {
-    //   DBUG_PRINT("ib_log mmap",
-    //              ("write at %p space %u no %u %d",
-    //               file->handle.map_addr + offset, page_id.space(), page_no,
-    //               page_id.space() == dict_sys_t::s_log_space_first_id));
-    //   memcpy(file->handle.map_addr + offset, buf, len);
-    //   compareFile(file->handle.m_file,
-    //               static_cast<unsigned int *>(file->handle.map_addr));
-    // }
+    if (page_id.space() == dict_sys_t::s_log_space_first_id) {
+      memcpy(static_cast<unsigned char *>(file->map_addr) + offset, buf, len);
+
+#ifdef UNIV_DEBUG
+      dberr_t err =
+          compareFile(file, static_cast<unsigned char *>(file->map_addr));
+      ut_a(err == DB_SUCCESS);
+#endif
+    }
   }
 
   if (type.is_write()) {
@@ -7785,29 +7786,75 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   return err;
 }
 
-int compareFile(int f_handle, unsigned int *addr) {
-  int N = 10000;
-  char buf1[N];
+dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
+  long unsigned int N = 10000;
+  char *buf1 = new char[N];
+
   int i = 0;
-  size_t r1;
+
+  if (!f_node->is_open) {
+    bool success = open_file(f_node, false);
+    ut_a(success);
+  }
+
+  os_offset_t f_size = os_file_get_size(f_node->handle);
+  IORequest request(IORequest::READ);
+
+  // rewrite this loop because it is essentially a while true loop and only
+  // exists because of the break below
   do {
-    r1 = read(f_handle, buf1, N);
-    if (r1 == 0) {
-      // reached end of file
+    // we are at the end of the file
+    if (f_size < N) {
+      dberr_t err = os_file_read(request, f_node->name, f_node->handle, buf1,
+                                 i * N, f_size);
+      ut_a(err == DB_SUCCESS);
+      if (memcmp(buf1, static_cast<unsigned char *>(addr + i * N), f_size) !=
+          0) {
+        return DB_FAIL;
+      }
       break;
-    }
+    } else {
+      dberr_t err =
+          os_file_read(request, f_node->name, f_node->handle, buf1, i * N, N);
+      ut_a(err == DB_SUCCESS);
 
-    LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, "comparing file %p",
-           static_cast<void *>(addr + i * N));
+      if (i % 2000 == 0) {
+        DBUG_PRINT("ib_log do_redo_io",
+                   ("compare file agains mmap_file buf: %s mmap: "
+                    "%s left to "
+                    "compare: %lu",
+                    buf1, static_cast<unsigned char *>(addr + i * N), f_size));
+      }
+      if (strlen(buf1) != 0) {
+        DBUG_PRINT("ib_log do_redo_io",
+                   ("cond1 compare file agains mmap_file buf: %d mmap: "
+                    "%d left to "
+                    "compare: %lu",
+                    robin_hood::hash_bytes(buf1, N),
+                    robin_hood::hash_bytes(
+                        static_cast<unsigned char *>(addr + i * N), N),
+                    f_size));
+      }
+      if (strlen(reinterpret_cast<char *>(addr + i * N)) != 0) {
+        DBUG_PRINT("ib_log do_redo_io",
+                   ("cond2 compare file agains mmap_file buf: %d mmap: "
+                    "%d left to "
+                    "compare: %lu",
+                    robin_hood::hash_bytes(buf1, N),
+                    robin_hood::hash_bytes(
+                        static_cast<unsigned char *>(addr + i * N), N),
+                    f_size));
+      }
 
-    if (memcmp(buf1, static_cast<void *>(addr + i * N), r1)) {
-      return 0;
+      if (memcmp(buf1, static_cast<unsigned char *>(addr + i * N), N) != 0) {
+        return DB_FAIL;
+      }
     }
+    f_size -= N;
     i++;
+  } while (f_size >= 0);
 
-  } while (r1 != 0);
-
-  return 1;
+  return DB_SUCCESS;
 }
 
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,

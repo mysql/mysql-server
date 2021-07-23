@@ -111,7 +111,7 @@ class page_id_t;
 
 using Filenames = std::vector<std::string, ut_allocator<std::string>>;
 using Space_ids = std::vector<space_id_t, ut_allocator<space_id_t>>;
-int compareFile(int f_handle, unsigned int *addr);
+
 /** File types */
 enum fil_type_t : uint8_t {
   /** temporary tablespace (temporary undo log or tables) */
