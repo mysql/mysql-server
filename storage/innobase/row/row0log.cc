@@ -253,8 +253,9 @@ struct row_log_t {
   if (log_buf.block == nullptr) {
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
-    log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size);
+    log_buf.block = static_cast<uint8_t *>(ut::malloc_large_page_withkey(
+        ut::make_psi_memory_key(mem_key_row_log_buf), srv_sort_buf_size,
+        ut::fallback_to_normal_page_t{}));
 
     if (log_buf.block == nullptr) {
       return false;
@@ -267,10 +268,8 @@ struct row_log_t {
 @param[in,out]	log_buf	Buffer used for log operation */
 static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_TRACE;
-  if (log_buf.block != nullptr) {
-    ut_allocator<byte>(mem_key_row_log_buf).deallocate_large(log_buf.block);
-    log_buf.block = nullptr;
-  }
+  ut::free_large_page(log_buf.block, ut::fallback_to_normal_page_t{});
+  log_buf.block = nullptr;
 }
 
 /** Logs an operation to a secondary index that is (or was) being created. */

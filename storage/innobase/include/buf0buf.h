@@ -2181,8 +2181,6 @@ struct buf_pool_t {
   Protected by zip_hash_mutex. */
   ulint buddy_n_frames;
 #endif
-  /** Allocator used for allocating memory for the the "chunks" member. */
-  ut_allocator<unsigned char> allocator;
 
   /** Number of buffer pool chunks */
   volatile ulint n_chunks;

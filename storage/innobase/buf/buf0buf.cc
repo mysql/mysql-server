@@ -869,7 +869,9 @@ bool buf_chunk_t::madvise_dont_dump() {
 
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
   ut_ad(mutex_own(&chunks_mutex));
-  chunk->mem = allocator.allocate_large(mem_size);
+  chunk->mem = static_cast<uint8_t *>(ut::malloc_large_page_withkey(
+      ut::make_psi_memory_key(mem_key_buf_buf_pool), mem_size,
+      ut::fallback_to_normal_page_t{}));
   if (chunk->mem == nullptr) {
     return false;
   }
@@ -890,7 +892,7 @@ void buf_pool_t::deallocate_chunk(buf_chunk_t *chunk) {
       innobase_disable_core_dump();
     }
   }
-  allocator.deallocate_large(chunk->mem);
+  ut::free_large_page(chunk->mem, ut::fallback_to_normal_page_t{});
 }
 
 bool buf_pool_t::madvise_dump() {
@@ -1009,9 +1011,8 @@ static buf_chunk_t *buf_chunk_init(
   it is bigger, we may allocate more blocks than requested. */
 
   frame = (byte *)ut_align(chunk->mem, UNIV_PAGE_SIZE);
-  chunk->size =
-      ut_allocator<byte>::large_page_size(chunk->mem) / UNIV_PAGE_SIZE -
-      (frame != chunk->mem);
+  chunk->size = ut::large_page_allocation_size(chunk->mem) / UNIV_PAGE_SIZE -
+                (frame != chunk->mem);
 
   /* Subtract the space needed for block descriptors. */
   {
@@ -1219,8 +1220,6 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   mutex_create(LATCH_ID_BUF_POOL_ZIP, &buf_pool->zip_mutex);
   mutex_create(LATCH_ID_BUF_POOL_FLUSH_STATE, &buf_pool->flush_state_mutex);
 
-  new (&buf_pool->allocator) ut_allocator<unsigned char>(mem_key_buf_buf_pool);
-
   if (buf_pool_size > 0) {
     mutex_enter(&buf_pool->chunks_mutex);
     buf_pool->n_chunks = buf_pool_size / srv_buf_pool_chunk_unit;
@@ -1407,8 +1406,6 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   ha_clear(buf_pool->page_hash);
   hash_table_free(buf_pool->page_hash);
   hash_table_free(buf_pool->zip_hash);
-
-  buf_pool->allocator.~ut_allocator();
 }
 
 /** Frees the buffer pool global data structures. */

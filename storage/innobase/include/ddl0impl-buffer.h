@@ -53,7 +53,9 @@ struct PFS_buffer : private ut::Non_copyable {
     ut_a(m_size == 0);
     ut_a(m_ptr == nullptr);
 
-    m_ptr = m_alloc.allocate_large(size);
+    m_ptr = static_cast<byte *>(
+        ut::malloc_large_page_withkey(ut::make_psi_memory_key(mem_key_ddl),
+                                      size, ut::fallback_to_normal_page_t{}));
 
     if (m_ptr != nullptr) {
       m_size = size;
@@ -65,10 +67,8 @@ struct PFS_buffer : private ut::Non_copyable {
 
   /** Deallocate the memory. */
   void deallocate() noexcept {
-    if (m_ptr != nullptr) {
-      m_alloc.deallocate_large(m_ptr);
-      m_ptr = nullptr;
-    }
+    ut::free_large_page(m_ptr, ut::fallback_to_normal_page_t{});
+    m_ptr = nullptr;
   }
 
   /** Pointer to allocated buffer. */
@@ -76,9 +76,6 @@ struct PFS_buffer : private ut::Non_copyable {
 
   /** Number of bytes allocated. */
   size_t m_size{};
-
-  /** For PFS monitoring. */
-  Allocator m_alloc{mem_key_ddl};
 };
 
 /** Buffer used for reading and writing to the temporary files. */

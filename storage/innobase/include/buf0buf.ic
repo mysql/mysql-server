@@ -56,7 +56,7 @@ struct buf_chunk_t {
   buf_block_t *blocks; /*!< array of buffer control blocks */
 
   /** Get the size of 'mem' in bytes. */
-  size_t mem_size() const { return ut_allocator<byte>::large_page_size(mem); }
+  size_t mem_size() const { return ut::large_page_allocation_size(mem); }
 
   /** Advices the OS that this chunk should not be dumped to a core file.
   Emits a warning to the log if could not succeed.
