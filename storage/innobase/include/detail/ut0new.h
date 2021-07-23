@@ -54,7 +54,6 @@ inline void construct(void *mem, size_t offset, Tuple &&tuple) {
   using N_args_seq = std::make_index_sequence<std::tuple_size<Tuple>::value>;
   construct_impl<T>(mem, offset, tuple, N_args_seq{});
 }
-
 /** Generic utility function which invokes placement-new statement on type T.
     Arguments to be passed to T constructor are contained within tuple-like
     container. To be able to unpack arguments from tuple-like container at
@@ -91,7 +90,6 @@ template <size_t Count, typename T, size_t Offset, size_t N_args_per_T,
 struct Loop<Count, Count, T, Offset, N_args_per_T, Tuple_idx, Tuple> {
   static void run(void *mem, Tuple &&args) {}
 };
-
 }  // namespace detail
 }  // namespace ut
 

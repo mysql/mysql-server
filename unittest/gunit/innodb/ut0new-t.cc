@@ -1192,6 +1192,97 @@ INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
                                ut0new_large_malloc_free_non_pod_types,
                                all_non_pod_types);
 
+// Large-page alloc/free with page-aligned fallback - fundamental types
+template <typename T>
+class ut0new_large_malloc_free_fallback_fundamental_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_fundamental_types);
+TYPED_TEST_P(ut0new_large_malloc_free_fallback_fundamental_types,
+             fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  for (auto default_cfg : {true, false}) {
+    auto ret = with_pfs ? ut::malloc_large_page_withkey(
+                              ut::make_psi_memory_key(pfs_key), sizeof(type),
+                              ut::fallback_to_normal_page_t{}, default_cfg)
+                        : ut::malloc_large_page(sizeof(type),
+                                                ut::fallback_to_normal_page_t{},
+                                                default_cfg);
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
+    EXPECT_GE(
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
+        sizeof(type));
+    ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+  }
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    FundamentalTypes, ut0new_large_malloc_free_fallback_fundamental_types,
+    all_fundamental_types);
+
+// Large-page alloc/free with page-aligned fallback - pod types
+template <typename T>
+class ut0new_large_malloc_free_fallback_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_pod_types);
+TYPED_TEST_P(ut0new_large_malloc_free_fallback_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  for (auto default_cfg : {true, false}) {
+    auto ret = with_pfs ? ut::malloc_large_page_withkey(
+                              ut::make_psi_memory_key(pfs_key), sizeof(type),
+                              ut::fallback_to_normal_page_t{}, default_cfg)
+                        : ut::malloc_large_page(sizeof(type),
+                                                ut::fallback_to_normal_page_t{},
+                                                default_cfg);
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
+    EXPECT_GE(
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
+        sizeof(type));
+    ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+  }
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_pod_types,
+                            pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(PodTypes,
+                               ut0new_large_malloc_free_fallback_pod_types,
+                               all_pod_types);
+
+// Large-page alloc/free with page-aligned fallback - non-pod types
+template <typename T>
+class ut0new_large_malloc_free_fallback_non_pod_types : public ::testing::Test {
+};
+TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_non_pod_types);
+TYPED_TEST_P(ut0new_large_malloc_free_fallback_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  for (auto default_cfg : {true, false}) {
+    auto ret = with_pfs ? ut::malloc_large_page_withkey(
+                              ut::make_psi_memory_key(pfs_key), sizeof(type),
+                              ut::fallback_to_normal_page_t{}, default_cfg)
+                        : ut::malloc_large_page(sizeof(type),
+                                                ut::fallback_to_normal_page_t{},
+                                                default_cfg);
+    EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
+    EXPECT_GE(
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
+        sizeof(type));
+    // Referencing non-pod type members through returned pointer is UB.
+    // Solely releasing it is ok.
+    //
+    // Using it otherwise is UB because ut::large_malloc_* functions are raw
+    // memory management functions which do not invoke constructors neither
+    // they know which type they are operating with. That is why we would be end
+    // up accessing memory of not yet instantiated object (UB).
+    ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+  }
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
+                               ut0new_large_malloc_free_fallback_non_pod_types,
+                               all_non_pod_types);
+
 // aligned alloc/free - fundamental types
 template <typename T>
 class aligned_alloc_free_fundamental_types : public ::testing::Test {};

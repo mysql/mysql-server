@@ -1597,10 +1597,20 @@ inline void *malloc_page(std::size_t size) noexcept {
                                  size);
 }
 
-/** Retrieves the size of corresponding page-aligned storage.
+/** Retrieves the total amount of bytes that are available for application code
+    to use.
+
+    Amount of bytes returned does _not_ have to match bytes requested
+    through ut::malloc_page*(). This is so because bytes requested will always
+    be implicitly rounded up to the next regular page size (e.g. 4K).
 
     @param[in] ptr Pointer which has been obtained through any of the
     ut::malloc_page*() variants.
+    @return Number of bytes available.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_page(10*sizeof(int)));
+     assert(page_allocation_size(x) == CPU_PAGE_SIZE);
  */
 inline size_t page_allocation_size(void *ptr) noexcept {
   using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
@@ -1613,11 +1623,12 @@ inline size_t page_allocation_size(void *ptr) noexcept {
 
     @param[in] ptr Pointer which has been obtained through any of the
     ut::malloc_page*() variants.
+    @return True if releasing the page-aligned memory was successful.
 
     Example:
      ut::free_page(ptr);
  */
-inline void free_page(void *ptr) noexcept {
+inline bool free_page(void *ptr) noexcept {
   using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
   using page_alloc_impl = detail::Page_alloc_<impl>;
   return page_alloc_impl::free(ptr);
@@ -1668,10 +1679,22 @@ inline void *malloc_large_page(std::size_t size) noexcept {
       make_psi_memory_key(PSI_NOT_INSTRUMENTED), size);
 }
 
-/** Retrieves the size of corresponding large (huge) aligned storage.
+/** Retrieves the total amount of bytes that are available for application code
+    to use.
+
+    Amount of bytes returned does _not_ have to match bytes requested
+    through ut::malloc_large_page*(). This is so because bytes requested will
+    always be implicitly rounded up to the next multiple of huge-page size (e.g.
+    2MiB). Exact huge-page size value that is going to be used will be stored
+    in large_page_default_size.
 
     @param[in] ptr Pointer which has been obtained through any of the
     ut::malloc_large_page*() variants.
+    @return Number of bytes available.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_large_page(10*sizeof(int)));
+     assert(large_page_allocation_size(x) == HUGE_PAGE_SIZE);
  */
 inline size_t large_page_allocation_size(void *ptr) noexcept {
   using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
@@ -1679,10 +1702,134 @@ inline size_t large_page_allocation_size(void *ptr) noexcept {
   return large_page_alloc_impl::datalen(ptr);
 }
 
-inline void free_large_page(void *ptr) noexcept {
+/** Releases storage which has been dynamically allocated through any of
+    the ut::malloc_large_page*() variants.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*() variants.
+    @return True if releasing the large (huge) page-aligned memory was
+    successful.
+
+    Example:
+     ut::free_large_page(ptr);
+ */
+inline bool free_large_page(void *ptr) noexcept {
   using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
   using large_page_alloc_impl = detail::Large_alloc_<impl>;
   return large_page_alloc_impl::free(ptr);
+}
+
+/* Helper type for tag-dispatch */
+struct fallback_to_normal_page_t {};
+
+/** Dynamically allocates memory backed up by large (huge) pages. In the event
+    that large (huge) pages are unavailable or disabled explicitly through
+    os_use_large_pages, it will fallback to dynamic allocation backed by
+    page-aligned memory. Instruments the memory with given PSI memory key in
+    case PFS memory support is enabled.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(
+                ut::malloc_large_page_withkey(
+                  key,
+                  10*sizeof(int),
+                  fallback_to_normal_page_t{}
+                )
+              );
+ */
+inline void *malloc_large_page_withkey(
+    PSI_memory_key_t key, std::size_t size, fallback_to_normal_page_t,
+    bool large_pages_enabled = os_use_large_pages) noexcept {
+  void *large_page_mem = nullptr;
+  if (large_pages_enabled) {
+    large_page_mem = malloc_large_page_withkey(key, size);
+  }
+  return large_page_mem ? large_page_mem : malloc_page_withkey(key, size);
+}
+
+/** Dynamically allocates memory backed up by large (huge) pages. In the event
+    that large (huge) pages are unavailable or disabled explicitly through
+    os_use_large_pages, it will fallback to dynamic allocation backed by
+    page-aligned memory.
+
+    NOTE: Given that this function will _NOT_ be instrumenting the allocation
+    through PFS, observability for particular parts of the system which want to
+    use it will be lost or in best case inaccurate. Please have a strong reason
+    to do so.
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(
+                ut::malloc_large_page(
+                  10*sizeof(int),
+                  fallback_to_normal_page_t{}
+                )
+              );
+ */
+inline void *malloc_large_page(
+    std::size_t size, fallback_to_normal_page_t,
+    bool large_pages_enabled = os_use_large_pages) noexcept {
+  return ut::malloc_large_page_withkey(
+      make_psi_memory_key(PSI_NOT_INSTRUMENTED), size,
+      fallback_to_normal_page_t{}, large_pages_enabled);
+}
+
+/** Retrieves the total amount of bytes that are available for application code
+    to use.
+
+    Amount of bytes returned does _not_ have to match bytes requested
+    through ut::malloc_large_page*(fallback_to_normal_page_t). This is so
+    because bytes requested will always be implicitly rounded up to the next
+    multiple of either huge-page size (e.g. 2MiB) or regular page size (e.g.
+    4K).
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*(fallback_to_normal_page_t) variants.
+    @return Number of bytes available for use..
+ */
+inline size_t large_page_allocation_size(void *ptr,
+                                         fallback_to_normal_page_t) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page)
+    return ut::page_allocation_size(ptr);
+  return ut::large_page_allocation_size(ptr);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::malloc_large_page*(fallback_to_normal_page_t) variants.
+
+    Whether the pointer is representing area backed up by regular or huge-pages,
+    this function will know the difference and therefore act accordingly.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*(fallback_to_normal_page_t) variants.
+    @return True if releasing the memory was successful.
+
+    Example:
+     ut::free_large_page(ptr);
+ */
+inline bool free_large_page(void *ptr, fallback_to_normal_page_t) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+
+  bool success;
+  if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page) {
+    success = free_page(ptr);
+  } else {
+    success = free_large_page(ptr);
+  }
+  assert(success);
+  return success;
 }
 
 /** Dynamically allocates storage of given size and at the address aligned to
