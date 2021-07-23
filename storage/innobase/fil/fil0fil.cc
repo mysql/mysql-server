@@ -7746,6 +7746,10 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 
     err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
 
+    // read from mmap file
+    if (page_id.space() == dict_sys_t::s_log_space_first_id) {
+      buf = static_cast<unsigned char *>(file->map_addr) + offset;
+    }
   } else {
     ut_ad(!srv_read_only_mode);
 
@@ -7818,17 +7822,10 @@ dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
           os_file_read(request, f_node->name, f_node->handle, buf1, i * N, N);
       ut_a(err == DB_SUCCESS);
 
-      if (i % 2000 == 0) {
-        DBUG_PRINT("ib_log do_redo_io",
-                   ("compare file agains mmap_file buf: %s mmap: "
-                    "%s left to "
-                    "compare: %lu",
-                    buf1, static_cast<unsigned char *>(addr + i * N), f_size));
-      }
       if (strlen(buf1) != 0) {
         DBUG_PRINT("ib_log do_redo_io",
-                   ("cond1 compare file agains mmap_file buf: %d mmap: "
-                    "%d left to "
+                   ("cond1 compare file agains mmap_file buf: %lu mmap: "
+                    "%lu left to "
                     "compare: %lu",
                     robin_hood::hash_bytes(buf1, N),
                     robin_hood::hash_bytes(
@@ -7837,8 +7834,8 @@ dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
       }
       if (strlen(reinterpret_cast<char *>(addr + i * N)) != 0) {
         DBUG_PRINT("ib_log do_redo_io",
-                   ("cond2 compare file agains mmap_file buf: %d mmap: "
-                    "%d left to "
+                   ("cond2 compare file agains mmap_file buf: %lu mmap: "
+                    "%lu left to "
                     "compare: %lu",
                     robin_hood::hash_bytes(buf1, N),
                     robin_hood::hash_bytes(

@@ -554,6 +554,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   *size = os_file_get_size(*file);
 
+  // map file
+  file->map_addr =
+      mmap(NULL, srv_log_file_size_requested, PROT_READ | PROT_WRITE,
+           MAP_PRIVATE, static_cast<int>(file->m_file), 0);
+
   ret = os_file_close(*file);
   ut_a(ret);
   return (DB_SUCCESS);
@@ -2336,7 +2341,8 @@ dberr_t srv_start(bool create_new_db) {
       const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
 
       if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
-                          log_space, false, false) == nullptr) {
+                          log_space, false, false, PAGE_NO_MAX,
+                          files[j].map_addr) == nullptr) {
         return (srv_init_abort(DB_ERROR));
       }
     }

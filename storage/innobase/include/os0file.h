@@ -170,7 +170,7 @@ struct pfs_os_file_t {
   os_file_t m_file;
 
   // start address of mapping of file
-  void *map_addr;
+  void *map_addr = NULL;
 };
 
 static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
