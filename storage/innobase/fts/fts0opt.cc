@@ -2851,7 +2851,7 @@ fts_optimize_sync_table(
 Optimize all FTS tables.
 @return Dummy return */
 os_thread_ret_t
-fts_optimize_thread(
+DECLARE_THREAD(fts_optimize_thread)(
 /*================*/
 	void*		arg)			/*!< in: work queue*/
 {
@@ -2863,6 +2863,10 @@ fts_optimize_thread(
 
 	ut_ad(!srv_read_only_mode);
 	my_thread_init();
+
+#ifdef UNIV_PFS_THREAD
+    pfs_register_thread(fts_optimize_thread_key);
+#endif /* UNIV_PFS_THREAD */
 
 	ut_ad(fts_slots);
 
