@@ -221,6 +221,8 @@ class DelayCheck {
   time_t start_time_;
 };
 
+namespace std {
+
 std::ostream &operator<<(std::ostream &os, const ServerMode &v) {
   switch (v) {
     case ServerMode::ReadOnly:
@@ -250,6 +252,8 @@ std::ostream &operator<<(std::ostream &os, const ManagedInstance &v) {
 
   return os;
 }
+
+}  // namespace std
 
 MATCHER(PartialInstanceMatcher, "" /* defaults to 'uuid matcher' */) {
   using namespace ::testing;
