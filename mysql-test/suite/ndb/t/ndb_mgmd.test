@@ -95,4 +95,16 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
+# Bug#32901321
+--echo #
+--echo # check if NDB_MGMD hangs when the hostname is not proper
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -c localhst,localggg --ndb-nodeid=3 --configdir=$MYSQLTEST_VARDIR > $dump_file 2>&1
+--let $assert_text= Mgmd gives error when can not resolve address in connectstring
+--let $assert_select= ERROR    -- Illegal connect string : Unable to resolve any of the address in connect string
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 --remove_file $dump_file

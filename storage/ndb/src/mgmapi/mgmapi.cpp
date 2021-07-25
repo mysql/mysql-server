@@ -817,6 +817,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
+    Uint32 invalid_Address = 0;
     // do all the mgmt servers
     for (i = 0; i < cfg.ids.size(); i++)
     {
@@ -881,6 +882,27 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
           DBUG_RETURN(-1);
         }
       }
+
+      // return immediately when all the hostnames are invalid.
+      struct in6_addr addr;
+      if (Ndb_getInAddr6(&addr, cfg.ids[i].name.c_str()) != 0) {
+        invalid_Address++;
+        if (cfg.ids.size() - invalid_Address == 0) {
+          fprintf(handle->errstream,
+                  "Unable to resolve any of the address"
+                  " in connect string: %s\n",
+                  cfg.makeConnectString(buf, sizeof(buf)));
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve any of the address"
+                   " in connect string: %s\n",
+                   cfg.makeConnectString(buf, sizeof(buf)));
+          DBUG_RETURN(-1);
+        } else {
+          continue;
+        }
+      }
+
       sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
       if (ndb_socket_valid(sockfd))
 	break;

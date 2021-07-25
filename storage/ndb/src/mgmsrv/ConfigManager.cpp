@@ -2202,14 +2202,31 @@ ConfigManager::fetch_config(void)
                         "using '%s'...",
                         m_config_retriever.get_connectstring(buf, sizeof(buf)));
 
-    if (m_config_retriever.is_connected() ||
-        m_config_retriever.do_connect(30 /* retry */,
-                                      1 /* delay */,
-                                      0 /* verbose */) == 0)
+    if (!m_config_retriever.is_connected())
+    {
+      int ret = m_config_retriever.do_connect(30 /* retry */,
+        1 /* delay */,
+        0 /* verbose */);
+      if (ret == 0)
+      {
+        //connection success
+        g_eventLogger->info("Connected to '%s:%d'...",
+          m_config_retriever.get_mgmd_host(),
+          m_config_retriever.get_mgmd_port());
+        break;
+      }
+      else if (ret == -2)
+      {
+        //premanent error, return without re-try
+        g_eventLogger->error("%s", m_config_retriever.getErrorString());
+        DBUG_RETURN(NULL);
+      }
+    }
+    else
     {
       g_eventLogger->info("Connected to '%s:%d'...",
-                          m_config_retriever.get_mgmd_host(),
-                          m_config_retriever.get_mgmd_port());
+        m_config_retriever.get_mgmd_host(),
+        m_config_retriever.get_mgmd_port());
       break;
     }
   }
