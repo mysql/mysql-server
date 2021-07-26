@@ -9774,11 +9774,14 @@ bool fill_record_n_invoke_before_triggers(
         if any other column of the row is updated.
       */
       if (*is_row_changed &&
-          (optype_info->function_defaults_apply_on_columns(table->write_set)))
-        optype_info->set_function_defaults(table);
+          (optype_info->function_defaults_apply_on_columns(table->write_set))) {
+        if (optype_info->set_function_defaults(table)) return true;
+      }
     } else if (optype_info->function_defaults_apply_on_columns(
-                   table->write_set))
-      optype_info->set_function_defaults(table);
+                   table->write_set)) {
+      if (optype_info->set_function_defaults(table)) return true;
+    }
+    return false;
   };
 
   /*
@@ -9798,11 +9801,12 @@ bool fill_record_n_invoke_before_triggers(
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, nullptr, num_fields);
 
-      fill_function_defaults();
+      rc = fill_function_defaults();
 
-      rc = fill_record(thd, table, fields, values, nullptr,
-                       &insert_into_fields_bitmap,
-                       raise_autoinc_has_expl_non_null_val);
+      if (!rc)
+        rc = fill_record(thd, table, fields, values, nullptr,
+                         &insert_into_fields_bitmap,
+                         raise_autoinc_has_expl_non_null_val);
 
       if (!rc)
         rc = call_before_insert_triggers(thd, table, event,
@@ -9814,9 +9818,10 @@ bool fill_record_n_invoke_before_triggers(
                        raise_autoinc_has_expl_non_null_val);
 
       if (!rc) {
-        fill_function_defaults();
-        rc = table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
-                                               true);
+        rc = fill_function_defaults();
+        if (!rc)
+          rc = table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
+                                                 true);
         // For UPDATE operation, check if row is updated by the triggers.
         if (!rc &&
             optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION &&
@@ -9840,7 +9845,7 @@ bool fill_record_n_invoke_before_triggers(
     if (fill_record(thd, table, fields, values, nullptr, nullptr,
                     raise_autoinc_has_expl_non_null_val))
       return true;
-    fill_function_defaults();
+    if (fill_function_defaults()) return true;
     return check_record(thd, fields);
   }
 }

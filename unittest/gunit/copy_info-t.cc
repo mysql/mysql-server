@@ -285,7 +285,7 @@ TEST_F(CopyInfoTest, setFunctionDefaults) {
   // We do not care about the argument to store_timestamp().
   EXPECT_CALL(b, store_timestamp(_)).Times(1);
   EXPECT_CALL(c, store_timestamp(_)).Times(0);
-  insert.set_function_defaults(&table);
+  EXPECT_FALSE(insert.set_function_defaults(&table));
 }
 
 }  // namespace copy_info_unittest

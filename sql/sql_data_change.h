@@ -277,7 +277,7 @@ class COPY_INFO {
                   my_error has already been called so the calling function
                   only needs to bail out.
   */
-  bool set_function_defaults(TABLE *table);
+  [[nodiscard]] bool set_function_defaults(TABLE *table);
 
   /**
      Adds the columns that are bound to receive default values from a function
