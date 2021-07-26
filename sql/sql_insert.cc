@@ -3061,8 +3061,9 @@ void Query_result_create::store_values(THD *thd,
     columns defined in CREATE TABLE SELECT. Hence calling set_function_defaults
     explicitly.
   */
-  if (info.function_defaults_apply_on_columns(table->write_set))
-    info.set_function_defaults(table);
+  if (info.function_defaults_apply_on_columns(table->write_set)) {
+    if (info.set_function_defaults(table)) return;
+  }
 
   fill_record_n_invoke_before_triggers(thd, table_fields, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);

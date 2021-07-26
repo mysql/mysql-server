@@ -500,9 +500,9 @@ bool partition_info::set_used_partition(THD *thd,
     overhead. Not yet done, since mostly only one DEFAULT function per
     table, or at least very few such columns.
   */
-  if (info.function_defaults_apply_on_columns(&full_part_field_set))
-    info.set_function_defaults(table);
-
+  if (info.function_defaults_apply_on_columns(&full_part_field_set)) {
+    if (info.set_function_defaults(table)) return true;
+  }
   {
     /*
       This function is used in INSERT; 'values' are supplied by user,

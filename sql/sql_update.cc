@@ -2661,8 +2661,9 @@ bool Query_result_update::do_updates(THD *thd) {
           are set before before-triggers are called; here, it's the opposite
           order.
         */
-        update_operations[offset]->set_function_defaults(table);
-
+        if (update_operations[offset]->set_function_defaults(table)) {
+          goto err;
+        }
         /*
           It is safe to not invoke CHECK OPTION for VIEW if records are same.
           In this case the row is coming from the view and thus should satisfy
