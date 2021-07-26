@@ -341,7 +341,7 @@ bool is_port_available(const uint16_t port) {
 #elif defined(_WIN32)
   const std::string &netstat_cmd{"netstat -p tcp -n -a | findstr LISTEN"};
 #elif defined(__sun)
-  const std::string &netstat_cmd{"netstat -n -P tcp | grep LISTEN"};
+  const std::string &netstat_cmd{"netstat -na -P tcp | grep LISTEN"};
 #else
   // BSD and MacOS
   const std::string &netstat_cmd{"netstat -p tcp -an | grep LISTEN"};
@@ -361,8 +361,26 @@ bool is_port_available(const uint16_t port) {
 
   std::string line;
   while (std::getline(file, line)) {
-    if (pattern_found(line,
-                      "127\\..*[.:]" + std::to_string(port) + "[^\\d]?")) {
+    // Check if netstat output contains listening port <XYZ> given the following
+    // netstat outputs:
+    //
+    // MacOS
+    // tcp46   0   0 *.XYZ             *.*          LISTEN
+    // tcp4    0   0 127.0.0.1.XYZ     *.*          LISTEN
+    //
+    // Windows
+    //  TCP    127.0.0.1:XYZ          0.0.0.0:0              LISTENING
+    //  TCP    0.0.0.0:XYZ            0.0.0.0:0              LISTENING
+    //
+    //  Linux/BSD
+    //  tcp     0    0 0.0.0.0:XYZ       0.0.0.0:*               LISTEN
+    //  tcp     0    0 127.0.0.1:XYZ     0.0.0.0:*               LISTEN
+    //
+    //  SunOS
+    //  *.XYZ                 *.*              0      0  256000      0 LISTEN
+    //  127.0.0.1.XYZ         *.*              0      0  256000      0 LISTEN
+    if (pattern_found(
+            line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) + "[^\\d]?")) {
       return false;
     }
   }
