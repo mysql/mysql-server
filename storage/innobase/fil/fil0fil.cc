@@ -2520,7 +2520,9 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
        space->id == dict_sys_t::s_log_space_first_id ||
        space->purpose == FIL_TYPE_TEMPORARY || space->files.size() == 1);
 
-  return &space->files.front();
+  // can return back since this is the added file. This should not cause any
+  // issues since all occurences only check for null pointer refrence.
+  return &space->files.back();
 }
 
 /** Attach a file to a tablespace. File must be closed.
@@ -2547,6 +2549,9 @@ char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
 
   // add mmap address if belongs to log
   if (space->id == dict_sys_t::s_log_space_first_id && map_addr != NULL) {
+    DBUG_PRINT("ib_log do_redo_io:",
+               ("adding map_addr to file %s strcut %p fd: %d old: %p",
+                file->name, map_addr, file->handle.m_file, file->map_addr));
     file->map_addr = map_addr;
   } else {
     file->map_addr = NULL;
@@ -7744,34 +7749,36 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
                 static_cast<unsigned char *>(file->map_addr) + offset,
                 page_id.space(), page_no));
 
-    err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
-
     // read from mmap file
     if (page_id.space() == dict_sys_t::s_log_space_first_id) {
-      buf = static_cast<unsigned char *>(file->map_addr) + offset;
+      memcpy(buf,static_cast<unsigned char *>(file->map_addr) + offset,len);
+    } else {
+      err = os_file_read(req_type, file->name, file->handle, buf, offset, len);
     }
+
   } else {
     ut_ad(!srv_read_only_mode);
-
-    err = os_file_write(req_type, file->name, file->handle, buf, offset, len);
-    DBUG_PRINT(
-        "ib_log do_redo_io",
-        ("write %p %p %lu filename: %s space %u logspace %u  no %u name: %s "
-         "handle: %d",
-         file->map_addr, static_cast<unsigned char *>(file->map_addr) + offset,
-         offset, file->name, page_id.space(), dict_sys_t::s_log_space_first_id,
-         static_cast<unsigned int>(page_no), space->name, file->handle.m_file));
-
     // writing to redo log tablespace
     // next step read/write also to mmap file
     if (page_id.space() == dict_sys_t::s_log_space_first_id) {
       memcpy(static_cast<unsigned char *>(file->map_addr) + offset, buf, len);
 
+      // ONLY NEEEDED WHEN WANT TO SYNC WITH ON DISK FILE
+      // int errsync = msync(static_cast<unsigned char *>(file->map_addr),
+      //                     srv_log_file_size_requested, MS_SYNC);
+      // DBUG_PRINT("ib_log do_redo_io",
+      //            ("msync %d %s args: %p %lu", errsync, strerror(errno),
+      //             static_cast<unsigned char *>(file->map_addr) + offset,
+      //             len));
+      // ut_a(errsync == 0);
+
 #ifdef UNIV_DEBUG
-      dberr_t err =
-          compareFile(file, static_cast<unsigned char *>(file->map_addr));
-      ut_a(err == DB_SUCCESS);
+      // dberr_t err =
+      //     compareFile(file, static_cast<unsigned char *>(file->map_addr));
+      // ut_a(err == DB_SUCCESS);
 #endif
+    } else {
+      err = os_file_write(req_type, file->name, file->handle, buf, offset, len);
     }
   }
 
@@ -7791,8 +7798,8 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 }
 
 dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
-  long unsigned int N = 10000;
-  char *buf1 = new char[N];
+  long int N = 10000;
+  char *buf1 = new char[N]();
 
   int i = 0;
 
@@ -7802,18 +7809,27 @@ dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
   }
 
   os_offset_t f_size = os_file_get_size(f_node->handle);
+  long int f_size_left = static_cast<long int>(f_size);
   IORequest request(IORequest::READ);
 
   // rewrite this loop because it is essentially a while true loop and only
   // exists because of the break below
   do {
     // we are at the end of the file
-    if (f_size < N) {
+    if (f_size_left < N) {
       dberr_t err = os_file_read(request, f_node->name, f_node->handle, buf1,
-                                 i * N, f_size);
+                                 i * N, f_size_left);
       ut_a(err == DB_SUCCESS);
-      if (memcmp(buf1, static_cast<unsigned char *>(addr + i * N), f_size) !=
-          0) {
+      if (memcmp(buf1, static_cast<unsigned char *>(addr + i * N),
+                 f_size_left) != 0) {
+        DBUG_PRINT("ib_log do_redo_io",
+                   ("cond1 compare file failed mmap_file buf: %lu mmap: "
+                    "%lu left to "
+                    "compare: %lu  %s %s",
+                    robin_hood::hash_bytes(buf1, N),
+                    robin_hood::hash_bytes(
+                        static_cast<unsigned char *>(addr + i * N), N),
+                    f_size, buf1, static_cast<unsigned char *>(addr + i * N)));
         return DB_FAIL;
       }
       break;
@@ -7822,34 +7838,21 @@ dberr_t Fil_shard::compareFile(fil_node_t *f_node, unsigned char *addr) {
           os_file_read(request, f_node->name, f_node->handle, buf1, i * N, N);
       ut_a(err == DB_SUCCESS);
 
-      if (strlen(buf1) != 0) {
-        DBUG_PRINT("ib_log do_redo_io",
-                   ("cond1 compare file agains mmap_file buf: %lu mmap: "
-                    "%lu left to "
-                    "compare: %lu",
-                    robin_hood::hash_bytes(buf1, N),
-                    robin_hood::hash_bytes(
-                        static_cast<unsigned char *>(addr + i * N), N),
-                    f_size));
-      }
-      if (strlen(reinterpret_cast<char *>(addr + i * N)) != 0) {
-        DBUG_PRINT("ib_log do_redo_io",
-                   ("cond2 compare file agains mmap_file buf: %lu mmap: "
-                    "%lu left to "
-                    "compare: %lu",
-                    robin_hood::hash_bytes(buf1, N),
-                    robin_hood::hash_bytes(
-                        static_cast<unsigned char *>(addr + i * N), N),
-                    f_size));
-      }
-
       if (memcmp(buf1, static_cast<unsigned char *>(addr + i * N), N) != 0) {
+        DBUG_PRINT("ib_log do_redo_io",
+                   ("cond compare file failed mmap_file buf: %lu mmap: "
+                    "%lu left to "
+                    "compare: %lu  %s %s",
+                    robin_hood::hash_bytes(buf1, N),
+                    robin_hood::hash_bytes(
+                        static_cast<unsigned char *>(addr + i * N), N),
+                    f_size, buf1, static_cast<unsigned char *>(addr + i * N)));
         return DB_FAIL;
       }
     }
-    f_size -= N;
+    f_size_left -= N;
     i++;
-  } while (f_size >= 0);
+  } while (f_size_left >= 0);
 
   return DB_SUCCESS;
 }

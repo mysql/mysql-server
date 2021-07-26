@@ -299,7 +299,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   // map log file
   file->map_addr =
       mmap(NULL, srv_log_file_size_requested, PROT_READ | PROT_WRITE,
-           MAP_PRIVATE, static_cast<int>(file->m_file), 0);
+           MAP_SHARED, static_cast<int>(file->m_file), 0);
+
+  DBUG_PRINT("ib_log do_redo_io:",
+             ("mmaping in create_log_file  name: %s addr: %p fd: %d", name,
+              file->map_addr, file->m_file));
+
   if (file->map_addr == MAP_FAILED) {
     DBUG_PRINT("ib_log do_redo_io:", ("mmaping FAILED!!!!!!!"));
     return (DB_ERROR);
@@ -430,6 +435,9 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
   const ulonglong file_pages = srv_log_file_size / UNIV_PAGE_SIZE;
 
+  DBUG_PRINT("ib_log do_redo_io:",
+             ("adding mmap in create_log_files  name: %s addr: %p fd: %d",
+              logfilename, files[0].map_addr, files[0].m_file));
   logfile0 =
       fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
                       log_space, false, false, PAGE_NO_MAX, files[0].map_addr);
@@ -438,6 +446,9 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
   for (unsigned i = 1; i < srv_n_log_files; i++) {
     sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
+    DBUG_PRINT("ib_log do_redo_io:",
+               ("adding mmap in create_log_files  name: %s addr: %p fd: %d",
+                logfilename, files[i].map_addr, files[i].m_file));
     if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
                         log_space, false, false, PAGE_NO_MAX,
                         files[i].map_addr) == nullptr) {
@@ -557,7 +568,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   // map file
   file->map_addr =
       mmap(NULL, srv_log_file_size_requested, PROT_READ | PROT_WRITE,
-           MAP_PRIVATE, static_cast<int>(file->m_file), 0);
+           MAP_SHARED, static_cast<int>(file->m_file), 0);
+  DBUG_PRINT("ib_log do_redo_io:",
+             ("mmaping in open_log_file  name: %s addr: %p fd: %d", name,
+              file->map_addr, file->m_file));
+  if (file->map_addr == MAP_FAILED) {
+    DBUG_PRINT("ib_log do_redo_io:", ("mmaping FAILED!!!!!!!"));
+    return (DB_ERROR);
+  }
 
   ret = os_file_close(*file);
   ut_a(ret);
