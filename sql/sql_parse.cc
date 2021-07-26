@@ -6250,13 +6250,12 @@ const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs) {
 */
 
 static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
-  THD *tmp = nullptr;
   uint error = ER_NO_SUCH_THREAD;
   Find_thd_with_id find_thd_with_id(id);
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));
-  tmp = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  THD_ptr tmp = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   Security_context *sctx = thd->security_context();
   if (tmp) {
     /*
@@ -6296,7 +6295,6 @@ static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
         error = 0;
     } else
       error = ER_KILL_DENIED_ERROR;
-    mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
   DEBUG_SYNC(thd, "kill_thd_end");
   DBUG_PRINT("exit", ("%d", error));

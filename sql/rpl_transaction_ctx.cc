@@ -98,16 +98,15 @@ int set_transaction_ctx(
                        transaction_termination_ctx.m_sidno,
                        transaction_termination_ctx.m_gno));
 
-  THD *thd = nullptr;
   uint error = ER_NO_SUCH_THREAD;
   Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id);
 
-  thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd) {
-    error = thd->get_transaction()
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd_ptr) {
+    error = thd_ptr->get_transaction()
                 ->get_rpl_transaction_ctx()
                 ->set_rpl_transaction_ctx(transaction_termination_ctx);
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
   return error;
 }
