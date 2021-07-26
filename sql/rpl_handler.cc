@@ -1281,6 +1281,39 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
   return binlog_relay_io_delegate->remove_observer(observer);
 }
 
+static bool is_show_status(enum_sql_command sql_command) {
+  switch (sql_command) {
+    case SQLCOM_SHOW_VARIABLES:
+    case SQLCOM_SHOW_STATUS:
+    case SQLCOM_SHOW_ENGINE_LOGS:
+    case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_MUTEX:
+    case SQLCOM_SHOW_PROCESSLIST:
+    case SQLCOM_SHOW_MASTER_STAT:
+    case SQLCOM_SHOW_SLAVE_STAT:
+    case SQLCOM_SHOW_CHARSETS:
+    case SQLCOM_SHOW_COLLATIONS:
+    case SQLCOM_SHOW_BINLOGS:
+    case SQLCOM_SHOW_OPEN_TABLES:
+    case SQLCOM_SHOW_SLAVE_HOSTS:
+    case SQLCOM_SHOW_BINLOG_EVENTS:
+    case SQLCOM_SHOW_WARNS:
+    case SQLCOM_SHOW_ERRORS:
+    case SQLCOM_SHOW_STORAGE_ENGINES:
+    case SQLCOM_SHOW_PRIVILEGES:
+    case SQLCOM_SHOW_STATUS_PROC:
+    case SQLCOM_SHOW_STATUS_FUNC:
+    case SQLCOM_SHOW_PLUGINS:
+    case SQLCOM_SHOW_EVENTS:
+    case SQLCOM_SHOW_PROFILE:
+    case SQLCOM_SHOW_PROFILES:
+    case SQLCOM_SHOW_RELAYLOG_EVENTS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   DBUG_TRACE;
   LEX *lex = thd->lex;
@@ -1295,9 +1328,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     return 0;
   }
 
-  bool is_show = ((sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
-                  (sql_command != SQLCOM_BINLOG_BASE64_EVENT)) ||
-                 (sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
+  bool is_show = is_show_status(sql_command);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
   bool is_query_block = (sql_command == SQLCOM_SELECT);
   bool is_do = (sql_command == SQLCOM_DO);
