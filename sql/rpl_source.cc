@@ -1052,10 +1052,7 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
         is_zombie_thread =
             ((thd->server_id == cur_thd->server_id) && !tmp_uuid.length());
       }
-      if (is_zombie_thread) {
-        mysql_mutex_lock(&thd->LOCK_thd_data);
-        return true;
-      }
+      if (is_zombie_thread) return true;
     }
     return false;
   }
@@ -1090,9 +1087,9 @@ void kill_zombie_dump_threads(THD *thd) {
   if (replica_uuid.length() == 0 && thd->server_id == 0) return;
 
   Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
-  THD *tmp =
+  THD_ptr tmp_ptr =
       Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
-  if (tmp) {
+  if (tmp_ptr) {
     /*
       Here we do not call kill_one_thread() as
       it will be slow because it will iterate through the list
@@ -1101,17 +1098,16 @@ void kill_zombie_dump_threads(THD *thd) {
     if (log_error_verbosity > 2) {
       if (replica_uuid.length()) {
         LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED, "UUID",
-               replica_uuid.c_ptr(), "UUID", tmp->thread_id());
+               replica_uuid.c_ptr(), "UUID", tmp_ptr->thread_id());
       } else {
         char numbuf[32];
         snprintf(numbuf, sizeof(numbuf), "%u", thd->server_id);
         LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED, "server_id",
-               numbuf, "server_id", tmp->thread_id());
+               numbuf, "server_id", tmp_ptr->thread_id());
       }
     }
-    tmp->duplicate_slave_id = true;
-    tmp->awake(THD::KILL_QUERY);
-    mysql_mutex_unlock(&tmp->LOCK_thd_data);
+    tmp_ptr->duplicate_slave_id = true;
+    tmp_ptr->awake(THD::KILL_QUERY);
   }
 }
 

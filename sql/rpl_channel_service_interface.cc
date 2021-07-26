@@ -1016,16 +1016,16 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
   int result = -1;
 
   Find_thd_with_id find_thd_with_id(thread_id);
-  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-  if (thd) {
-    if (thd->get_current_stage_key() ==
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd_ptr) {
+    if (thd_ptr->get_current_stage_key() ==
         (worker ? stage_replica_waiting_event_from_coordinator
                 : stage_replica_has_read_all_relay_log)
             .m_key)
       result = 1;
     else
       result = 0;
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   return result;

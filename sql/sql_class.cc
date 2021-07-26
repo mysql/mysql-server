@@ -531,8 +531,6 @@ THD::THD(bool enable_plugins)
   mysql_audit_init_thd(this);
   net.vio = nullptr;
   system_thread = NON_SYSTEM_THREAD;
-  cleanup_done = false;
-  m_release_resources_done = false;
   peer_port = 0;  // For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled = true;
   m_resource_group_ctx.m_cur_resource_group = nullptr;
@@ -926,7 +924,7 @@ void THD::cleanup_connection(void) {
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
   running_explain_analyze = false;
-  cleanup_done = false;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE;
   init();
   stmt_map.reset();
   user_vars.clear();
@@ -963,6 +961,12 @@ void THD::cleanup_connection(void) {
 #endif
 }
 
+bool THD::is_cleanup_done() {
+  return (m_thd_life_cycle_stage ==
+              enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN ||
+          m_thd_life_cycle_stage >= enum_thd_life_cycle_stages::CLEANED_UP);
+}
+
 /*
   Do what's needed when one invokes change user.
   Also used during THD::release_resources, i.e. prior to THD destruction.
@@ -972,7 +976,7 @@ void THD::cleanup(void) {
   XID_STATE *xs = trn_ctx->xid_state();
 
   DBUG_TRACE;
-  assert(cleanup_done == 0);
+  assert(!is_cleanup_done());
   DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed = KILL_CONNECTION;
@@ -1057,20 +1061,47 @@ void THD::cleanup(void) {
     If we have a Security_context, make sure it is "logged out"
   */
 
-  cleanup_done = true;
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+}
+
+bool THD::release_resources_done() const {
+  return m_thd_life_cycle_stage ==
+         enum_thd_life_cycle_stages::RESOURCES_RELEASED;
+}
+
+bool THD::is_being_disposed() const {
+#ifndef NDEBUG
+  if (current_thd != this) mysql_mutex_assert_owner(&LOCK_thd_data);
+#endif
+  return (m_thd_life_cycle_stage >=
+          enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL);
+}
+
+void THD::start_disposal() {
+  mysql_mutex_assert_owner(&LOCK_thd_data);
+  assert(!is_being_disposed());
+
+  if (m_thd_life_cycle_stage == enum_thd_life_cycle_stages::ACTIVE_AND_CLEAN)
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::CLEANED_UP;
+  else
+    m_thd_life_cycle_stage = enum_thd_life_cycle_stages::SCHEDULED_FOR_DISPOSAL;
 }
 
 /**
   Release most resources, prior to THD destruction.
  */
 void THD::release_resources() {
-  assert(m_release_resources_done == false);
-
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_query_plan);
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  // Mark THD life cycle state as "SCHEDULED_FOR_DISPOSAL".
+  start_disposal();
 
   /* Close connection */
   if (is_classic_protocol() && get_protocol_classic()->get_vio()) {
@@ -1080,13 +1111,13 @@ void THD::release_resources() {
 
   /* modification plan for UPDATE/DELETE should be freed. */
   assert(query_plan.get_modification_plan() == nullptr);
-  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
   stmt_map.reset(); /* close all prepared statements */
-  if (!cleanup_done) cleanup();
+  if (!is_cleanup_done()) cleanup();
 
   mdl_context.destroy();
   ha_close_connection(this);
@@ -1129,7 +1160,7 @@ void THD::release_resources() {
 
   mysql_mutex_unlock(&LOCK_status);
 
-  m_release_resources_done = true;
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::RESOURCES_RELEASED;
 }
 
 THD::~THD() {
@@ -1137,7 +1168,7 @@ THD::~THD() {
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
 
-  if (!m_release_resources_done) release_resources();
+  if (!release_resources_done()) release_resources();
 
   clear_next_event_pos();
 
@@ -1189,6 +1220,8 @@ THD::~THD() {
   if (m_token_array != nullptr) {
     my_free(m_token_array);
   }
+
+  m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
 }
 
 /**

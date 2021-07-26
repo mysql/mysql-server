@@ -2324,7 +2324,6 @@ class Find_thd_query_lock : public Find_THD_Impl {
   }
   bool operator()(THD *thd) override {
     if (thd->thread_id() == m_id) {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
       thd->lock_query_plan();
       m_thd = thd;
       return true;
@@ -2344,10 +2343,8 @@ class Find_thd_query_lock : public Find_THD_Impl {
 */
 bool Sql_cmd_explain_other_thread::execute(THD *thd) {
   bool res = false;
-  THD *query_thd = nullptr;
   bool send_ok = false;
   const char *user;
-  bool unlock_thd_data = false;
   const std::string &db_name = thd->db().str ? thd->db().str : "";
   THD::Query_plan *qp;
   DEBUG_SYNC(thd, "before_explain_other");
@@ -2373,21 +2370,21 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
 
   // Pick thread
   Find_thd_query_lock find_thd_query_lock(m_thread_id);
+  THD_ptr query_thd_ptr;
   if (!thd->killed) {
-    query_thd =
+    query_thd_ptr =
         Global_THD_manager::get_instance()->find_thd(&find_thd_query_lock);
-    if (query_thd) unlock_thd_data = true;
   }
 
-  if (!query_thd) {
+  if (!query_thd_ptr) {
     my_error(ER_NO_SUCH_THREAD, MYF(0), m_thread_id);
     goto err;
   }
 
-  qp = &query_thd->query_plan;
+  qp = &query_thd_ptr->query_plan;
 
-  if (query_thd->get_protocol()->connection_alive() &&
-      !query_thd->system_thread && qp->get_command() != SQLCOM_END) {
+  if (query_thd_ptr->get_protocol()->connection_alive() &&
+      !query_thd_ptr->system_thread && qp->get_command() != SQLCOM_END) {
     /*
       Don't explain:
       1) Prepared statements
@@ -2413,7 +2410,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
         (!qp->get_lex()->m_sql_cmd ||
          qp->get_lex()->m_sql_cmd->is_prepared()))  // (4)
     {
-      Security_context *tmp_sctx = query_thd->security_context();
+      Security_context *tmp_sctx = query_thd_ptr->security_context();
       assert(tmp_sctx->user().str);
       if (user && strcmp(tmp_sctx->user().str, user)) {
         my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
@@ -2422,8 +2419,6 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
                  (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         goto err;
       }
-      mysql_mutex_unlock(&query_thd->LOCK_thd_data);
-      unlock_thd_data = false;
     } else {
       /*
         Note that we send "not supported" for a supported stmt (e.g. SELECT)
@@ -2441,14 +2436,12 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
 
   if (qp->is_single_table_plan())
     res = explain_single_table_modification(
-        thd, query_thd, qp->get_modification_plan(),
+        thd, query_thd_ptr.get(), qp->get_modification_plan(),
         qp->get_lex()->unit->first_query_block());
   else
-    res = explain_query(thd, query_thd, qp->get_lex()->unit);
+    res = explain_query(thd, query_thd_ptr.get(), qp->get_lex()->unit);
 
 err:
-  if (unlock_thd_data) mysql_mutex_unlock(&query_thd->LOCK_thd_data);
-
   DEBUG_SYNC(thd, "after_explain_other");
   if (!res && send_ok) my_ok(thd, 0);
 

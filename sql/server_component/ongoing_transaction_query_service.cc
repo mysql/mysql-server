@@ -23,6 +23,7 @@
 #include <sql/current_thd.h>
 #include <sql/mysqld_thd_manager.h>
 #include <sql/sql_lex.h>
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "sql/sql_class.h"  // THD
 
@@ -37,6 +38,9 @@ class Get_running_transactions : public Do_THD_Impl {
   */
   void operator()(THD *thd) override {
     if (thd->is_killed() || thd->is_error()) return;
+
+    MUTEX_LOCK(lock_thd_data, &thd->LOCK_thd_data);
+    if (thd->is_being_disposed()) return;
 
     TX_TRACKER_GET(tst);
 
