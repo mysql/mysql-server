@@ -11404,6 +11404,9 @@ ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
 ER_PREPARE_FOR_PRIMARY_ENGINE
   eng "Retry the statement using the primary storage engine."
 
+ER_USER_LOGIN_WITH_EXPIRED_PASSWORD
+  eng "Login failed for user '%-.48s'@'%-.64s' due to an expired password."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
