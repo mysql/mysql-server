@@ -729,6 +729,7 @@ ENDIF()
 INCLUDE(CMakePushCheckState)
 
 # Add macros
+INCLUDE(add_custom_target)
 INCLUDE(pkg-config)
 INCLUDE(character_sets)
 INCLUDE(cmake_parse_arguments)
@@ -2031,12 +2032,13 @@ INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
 # available, but should be repeated on each "make" just in case someone
 # does "cmake ; make ; git pull ; make".
 CREATE_INFO_SRC(${CMAKE_BINARY_DIR}/Docs)
-ADD_CUSTOM_TARGET(INFO_SRC ALL
+MY_ADD_CUSTOM_TARGET(INFO_SRC ALL
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_src.cmake
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
 # Build flags: This must be postponed to the make phase.
-ADD_CUSTOM_TARGET(INFO_BIN ALL
+MY_ADD_CUSTOM_TARGET(INFO_BIN ALL
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/cmake/info_bin.cmake
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )

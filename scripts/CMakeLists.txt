@@ -68,7 +68,7 @@ ADD_CUSTOM_COMMAND(
 )
 
 # Add target for the above to be built
-ADD_CUSTOM_TARGET(GenFixPrivs
+MY_ADD_CUSTOM_TARGET(GenFixPrivs
   ALL
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.h
 )
@@ -152,7 +152,7 @@ ADD_CUSTOM_COMMAND(
 
 # Add target for the above to be built
 IF(NOT WITHOUT_SERVER)
-  ADD_CUSTOM_TARGET(GenBootstrapPriv
+  MY_ADD_CUSTOM_TARGET(GenBootstrapPriv
     ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h

@@ -40,7 +40,7 @@ SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_router_extra.wxs;
 ${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs;
 ${CMAKE_BINARY_DIR}/packaging/WiX/redist_check.wxs")
 
-ADD_CUSTOM_TARGET(
+MY_ADD_CUSTOM_TARGET(
   configure_mysql_router_extra ALL
   COMMAND ${CMAKE_COMMAND}
   -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter.conf.in

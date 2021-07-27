@@ -564,6 +564,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${HAVE_OPENSSL_DLL}"
           "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_DLL_NAME}"
+          COMMAND "${CMAKE_COMMAND}" -E touch cmakefiles/copy_openssl_dlls
           )
         MESSAGE(STATUS "INSTALL ${HAVE_CRYPTO_DLL} to ${INSTALL_BINDIR}")
         MESSAGE(STATUS "INSTALL ${HAVE_OPENSSL_DLL} to ${INSTALL_BINDIR}")

@@ -1159,7 +1159,7 @@ IF(MSVC)
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}"
     DEPENDS create_def binlog binlogevents_static mysys mytime rpl slave sql_main strings vio
   )
-  ADD_CUSTOM_TARGET(GenMysqldDef ALL
+  MY_ADD_CUSTOM_TARGET(GenMysqldDef ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def)
 
   ADD_DEPENDENCIES(sql_main GenError)
@@ -1289,17 +1289,17 @@ MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql
   PROPERTIES COMPILE_FLAGS "-DDISABLE_PSI_FILE=1 -DABBR_ARE_USED")
 
-ADD_CUSTOM_TARGET(
-        GenServerSource
-        DEPENDS ${GEN_SOURCES}
+MY_ADD_CUSTOM_TARGET(
+  GenServerSource
+  DEPENDS ${GEN_SOURCES}
 )
 
-ADD_CUSTOM_TARGET(
-        GenDigestServerSource
-        DEPENDS ${GEN_DIGEST_SOURCES}
+MY_ADD_CUSTOM_TARGET(
+  GenDigestServerSource
+  DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
-ADD_CUSTOM_TARGET(
+MY_ADD_CUSTOM_TARGET(
   GenKeywordList
   DEPENDS ${GEN_KEYWORD_LIST_SOURCES}
 )
