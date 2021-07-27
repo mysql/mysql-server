@@ -535,7 +535,7 @@ transaction pool.
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
-typedef std::vector<ib_lock_t *, ut_allocator<ib_lock_t *>> lock_pool_t;
+typedef std::vector<ib_lock_t *, ut::allocator<ib_lock_t *>> lock_pool_t;
 
 /** Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state
  captures the state of the query thread during the execution of a query.
@@ -743,7 +743,7 @@ transaction. We store pointers to the table objects in memory because
 we know that a table object will not be destroyed while a transaction
 that modified it is running. */
 typedef std::set<dict_table_t *, std::less<dict_table_t *>,
-                 ut_allocator<dict_table_t *>>
+                 ut::allocator<dict_table_t *>>
     trx_mod_tables_t;
 
 /** The transaction handle

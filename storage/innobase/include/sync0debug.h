@@ -135,8 +135,8 @@ class Sync_point {
   static void erase(const THD *thd, const std::string &target) noexcept;
 
  private:
-  using Targets = std::vector<std::string, ut_allocator<std::string>>;
-  using Sync_points = std::vector<Sync_point, ut_allocator<Sync_point>>;
+  using Targets = std::vector<std::string, ut::allocator<std::string>>;
+  using Sync_points = std::vector<Sync_point, ut::allocator<Sync_point>>;
 
   /** Mutex protecting access to Sync_point infrastructure. */
   static std::mutex s_mutex;

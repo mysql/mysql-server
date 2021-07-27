@@ -109,8 +109,8 @@ extern bool replay_in_datadir;
 struct trx_t;
 class page_id_t;
 
-using Filenames = std::vector<std::string, ut_allocator<std::string>>;
-using Space_ids = std::vector<space_id_t, ut_allocator<space_id_t>>;
+using Filenames = std::vector<std::string, ut::allocator<std::string>>;
+using Space_ids = std::vector<space_id_t, ut::allocator<space_id_t>>;
 
 /** File types */
 enum fil_type_t : uint8_t {
@@ -229,7 +229,7 @@ struct fil_node_t {
 /** Tablespace or log data space */
 struct fil_space_t {
   using List_node = UT_LIST_NODE_T(fil_space_t);
-  using Files = std::vector<fil_node_t, ut_allocator<fil_node_t>>;
+  using Files = std::vector<fil_node_t, ut::allocator<fil_node_t>>;
 
   /** Release the reserved free extents.
   @param[in]	n_reserved	number of reserved extents */
@@ -301,7 +301,7 @@ struct fil_space_t {
 
  public:
   using Observer = Flush_observer;
-  using Flush_observers = std::vector<Observer *, ut_allocator<Observer *>>;
+  using Flush_observers = std::vector<Observer *, ut::allocator<Observer *>>;
 
   /** When the tablespace was extended last. */
   ib::Timer m_last_extended{};

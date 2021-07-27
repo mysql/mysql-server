@@ -5117,7 +5117,7 @@ static void lock_rec_block_validate(const page_id_t &page_id) {
 }
 
 bool lock_validate() {
-  typedef std::set<page_id_t, std::less<page_id_t>, ut_allocator<page_id_t>>
+  typedef std::set<page_id_t, std::less<page_id_t>, ut::allocator<page_id_t>>
       page_addr_set;
 
   page_addr_set pages;

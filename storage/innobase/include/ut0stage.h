@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 // Forward declaration.
 class Alter_stage;
-using Alter_stages = std::vector<Alter_stage *, ut_allocator<Alter_stage *>>;
+using Alter_stages = std::vector<Alter_stage *, ut::allocator<Alter_stage *>>;
 
 /** Class used to report ALTER TABLE progress via performance_schema.
 The only user of this class is the ALTER TABLE code and it calls the methods
@@ -156,7 +156,7 @@ class Alter_stage {
   using Counter = std::pair<uint64_t, uint64_t>;
   using Progress = std::pair<PSI_stage_progress *, Counter>;
   using Stage = std::pair<const PSI_stage_info *, Progress>;
-  using Stages = std::vector<Stage, ut_allocator<Stage>>;
+  using Stages = std::vector<Stage, ut::allocator<Stage>>;
 
   /** Progress counters for the various stages. */
   Stage m_stage{};

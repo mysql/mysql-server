@@ -150,7 +150,7 @@ class Parallel_reader_adapter {
 
   /** MySQL row meta data. This is common across partitions. */
   struct MySQL_row {
-    using Column_meta_data = std::vector<ulong, ut_allocator<ulong>>;
+    using Column_meta_data = std::vector<ulong, ut::allocator<ulong>>;
 
     /** Column offsets. */
     Column_meta_data m_offsets{};
@@ -187,7 +187,7 @@ class Parallel_reader_adapter {
     size_t m_partition_id{std::numeric_limits<size_t>::max()};
 
     /** Buffer to store records to be sent to the adapter. */
-    std::vector<byte, ut_allocator<byte>> m_buffer;
+    std::vector<byte, ut::allocator<byte>> m_buffer;
   };
 
   /** Prebuilt to use for conversion to MySQL row format.

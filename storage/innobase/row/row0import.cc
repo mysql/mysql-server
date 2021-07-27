@@ -592,7 +592,7 @@ struct FetchIndexRootPages : public AbstractCallback {
     page_no_t m_page_no; /*!< Root page number */
   };
 
-  typedef std::vector<Index, ut_allocator<Index>> Indexes;
+  typedef std::vector<Index, ut::allocator<Index>> Indexes;
 
   /** Constructor
   @param trx covering (user) transaction

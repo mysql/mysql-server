@@ -106,7 +106,7 @@ struct Latched {
 };
 
 /** Thread specific latches. This is ordered on level in descending order. */
-typedef std::vector<Latched, ut_allocator<Latched>> Latches;
+typedef std::vector<Latched, ut::allocator<Latched>> Latches;
 
 /** The deadlock detector. */
 struct LatchDebug {
@@ -116,7 +116,7 @@ struct LatchDebug {
 
   /** For tracking a thread's latches. */
   typedef std::map<std::thread::id, Latches *, std::less<std::thread::id>,
-                   ut_allocator<std::pair<const std::thread::id, Latches *>>>
+                   ut::allocator<std::pair<const std::thread::id, Latches *>>>
       ThreadMap;
 
   /** Constructor */
@@ -359,7 +359,7 @@ struct LatchDebug {
   };
 
   typedef std::map<latch_level_t, std::string, latch_level_less,
-                   ut_allocator<std::pair<const latch_level_t, std::string>>>
+                   ut::allocator<std::pair<const latch_level_t, std::string>>>
       Levels;
 
   /** Mutex protecting the deadlock detector data structures. */
@@ -1633,7 +1633,7 @@ struct CreateTracker {
 
   /** Map the mutex instance to where it was created */
   typedef std::map<const void *, File, std::less<const void *>,
-                   ut_allocator<std::pair<const void *const, File>>>
+                   ut::allocator<std::pair<const void *const, File>>>
       Files;
 
   typedef OSMutex Mutex;

@@ -142,10 +142,10 @@ of keys. For example if a btree level is:
 index: 0,1,2,3,4,5,6,7,8,9,10,11,12
 data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
-typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t>> boundaries_t;
+typedef std::vector<ib_uint64_t, ut::allocator<ib_uint64_t>> boundaries_t;
 
 /** Allocator type used for index_map_t. */
-typedef ut_allocator<std::pair<const char *const, dict_index_t *>>
+typedef ut::allocator<std::pair<const char *const, dict_index_t *>>
     index_map_t_allocator;
 
 /** Auxiliary map used for sorting indexes by name in dict_stats_save(). */

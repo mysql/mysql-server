@@ -286,7 +286,7 @@ inline std::ostream &operator<<(std::ostream &out, const trx_rseg_t &rseg) {
   return (rseg.print(out));
 }
 
-using Rsegs_Vector = std::vector<trx_rseg_t *, ut_allocator<trx_rseg_t *>>;
+using Rsegs_Vector = std::vector<trx_rseg_t *, ut::allocator<trx_rseg_t *>>;
 using Rseg_Iterator = Rsegs_Vector::iterator;
 
 /** This is a wrapper for a std::vector of trx_rseg_t object pointers. */
@@ -588,11 +588,11 @@ class TrxUndoRsegs {
 };
 
 typedef std::priority_queue<
-    TrxUndoRsegs, std::vector<TrxUndoRsegs, ut_allocator<TrxUndoRsegs>>,
+    TrxUndoRsegs, std::vector<TrxUndoRsegs, ut::allocator<TrxUndoRsegs>>,
     TrxUndoRsegs>
     purge_pq_t;
 
-typedef std::vector<trx_id_t, ut_allocator<trx_id_t>> trx_ids_t;
+typedef std::vector<trx_id_t, ut::allocator<trx_id_t>> trx_ids_t;
 
 struct TrxVersion {
   TrxVersion(trx_t *trx);
@@ -601,5 +601,5 @@ struct TrxVersion {
   ulint m_version;
 };
 
-typedef std::vector<TrxVersion, ut_allocator<TrxVersion>> hit_list_t;
+typedef std::vector<TrxVersion, ut::allocator<TrxVersion>> hit_list_t;
 #endif /* trx0types_h */

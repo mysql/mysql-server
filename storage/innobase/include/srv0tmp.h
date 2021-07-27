@@ -135,7 +135,7 @@ Once a session disconnects, the tablespaces are truncated and released
 to the pool. */
 class Tablespace_pool {
  public:
-  using Pool = std::list<Tablespace *, ut_allocator<Tablespace *>>;
+  using Pool = std::list<Tablespace *, ut::allocator<Tablespace *>>;
 
   /** Tablespace_pool constructor
   @param[in]    init_size    Initial size of the tablespace pool */

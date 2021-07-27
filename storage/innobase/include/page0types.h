@@ -245,7 +245,7 @@ struct page_zip_stat_t {
 
 /** Compression statistics types */
 typedef std::map<index_id_t, page_zip_stat_t, std::less<index_id_t>,
-                 ut_allocator<std::pair<const index_id_t, page_zip_stat_t>>>
+                 ut::allocator<std::pair<const index_id_t, page_zip_stat_t>>>
     page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */

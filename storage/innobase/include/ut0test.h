@@ -316,7 +316,7 @@ struct Tester {
 
  private:
   /** List of open tables. */
-  std::list<dict_table_t *, ut_allocator<dict_table_t *>> m_open_tables{};
+  std::list<dict_table_t *, ut::allocator<dict_table_t *>> m_open_tables{};
 
   /** Current thread object. */
   THD *m_thd{};
@@ -331,7 +331,7 @@ struct Tester {
 
   using Function_executor = Ret_t (Tester::*)(std::vector<std::string> &);
   using Pair = std::pair<const std::string, Function_executor>;
-  using Allocator = ut_allocator<Pair>;
+  using Allocator = ut::allocator<Pair>;
 
   /** Mapping b/w the command name and the function to execute. */
   std::map<std::string, Function_executor, std::less<std::string>, Allocator>

@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Currently this can be the system tablespace or a temporary table tablespace */
 class Tablespace {
  public:
-  typedef std::vector<Datafile, ut_allocator<Datafile>> files_t;
+  typedef std::vector<Datafile, ut::allocator<Datafile>> files_t;
 
   /** Data file information - each Datafile can be accessed globally */
   files_t m_files;

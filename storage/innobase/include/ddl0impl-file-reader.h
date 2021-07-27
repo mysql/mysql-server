@@ -105,7 +105,7 @@ struct File_reader : private ut::Non_copyable {
   [[nodiscard]] dberr_t next() noexcept;
 
  public:
-  using Offsets = std::vector<ulint, ut_allocator<ulint>>;
+  using Offsets = std::vector<ulint, ut::allocator<ulint>>;
 
   /** Index that the records belong to. */
   dict_index_t *m_index{};

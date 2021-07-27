@@ -57,10 +57,10 @@ using Latch_release = std::function<dberr_t()>;
 struct Cursor;
 struct Builder;
 
-using Builders = std::vector<Builder *, ut_allocator<Builder *>>;
+using Builders = std::vector<Builder *, ut::allocator<Builder *>>;
 
 /** Start offsets in the file, from where to merge records. */
-using Merge_offsets = std::deque<os_offset_t, ut_allocator<os_offset_t>>;
+using Merge_offsets = std::deque<os_offset_t, ut::allocator<os_offset_t>>;
 
 /** Information about temporary files used in merge sort */
 struct file_t {

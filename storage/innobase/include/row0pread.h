@@ -110,7 +110,7 @@ class Parallel_reader {
   spawned. */
   constexpr static size_t MAX_TOTAL_THREADS{MAX_THREADS + MAX_RESERVED_THREADS};
 
-  using Links = std::vector<page_no_t, ut_allocator<page_no_t>>;
+  using Links = std::vector<page_no_t, ut::allocator<page_no_t>>;
 
   // Forward declaration.
   class Ctx;
@@ -406,11 +406,11 @@ class Parallel_reader {
   // clang-format off
   using Ctxs =
       std::list<std::shared_ptr<Ctx>,
-                ut_allocator<std::shared_ptr<Ctx>>>;
+                ut::allocator<std::shared_ptr<Ctx>>>;
 
   using Scan_ctxs =
       std::list<std::shared_ptr<Scan_ctx>,
-                ut_allocator<std::shared_ptr<Scan_ctx>>>;
+                ut::allocator<std::shared_ptr<Scan_ctx>>>;
 
   // clang-format on
 
@@ -454,7 +454,7 @@ class Parallel_reader {
   std::atomic<dberr_t> m_err{DB_SUCCESS};
 
   /** List of threads used for paralle_read purpose. */
-  std::vector<IB_thread, ut_allocator<IB_thread>> m_parallel_read_threads;
+  std::vector<IB_thread, ut::allocator<IB_thread>> m_parallel_read_threads;
 
   /** Number of threads currently doing parallel reads. */
   static std::atomic_size_t s_active_threads;
@@ -463,7 +463,7 @@ class Parallel_reader {
   bool m_sync;
 
   /** Context information related to each parallel reader thread. */
-  std::vector<Thread_ctx *, ut_allocator<Thread_ctx *>> m_thread_ctxs;
+  std::vector<Thread_ctx *, ut::allocator<Thread_ctx *>> m_thread_ctxs;
 };
 
 /** Parallel reader context. */
@@ -508,12 +508,12 @@ class Parallel_reader::Scan_ctx {
   using Savepoint = std::pair<ulint, buf_block_t *>;
 
   /** For releasing the S latches after processing the blocks. */
-  using Savepoints = std::vector<Savepoint, ut_allocator<Savepoint>>;
+  using Savepoints = std::vector<Savepoint, ut::allocator<Savepoint>>;
 
   /** The first cursor should read up to the second cursor [f, s). */
   using Range = std::pair<std::shared_ptr<Iter>, std::shared_ptr<Iter>>;
 
-  using Ranges = std::vector<Range, ut_allocator<Range>>;
+  using Ranges = std::vector<Range, ut::allocator<Range>>;
 
   /** @return the scan context ID. */
   [[nodiscard]] size_t id() const { return m_id; }

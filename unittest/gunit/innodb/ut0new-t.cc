@@ -25,6 +25,7 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <stdexcept>
+#include <vector>
 
 #include "storage/innobase/include/detail/ut0new.h"
 #include "storage/innobase/include/univ.i"
@@ -34,140 +35,13 @@ namespace innodb_ut0new_unittest {
 
 static auto pfs_key = 12345;
 
-static void start() { ut_new_boot_safe(); }
-
-using int_types =
-    ::testing::Types<short int, unsigned short int, int, unsigned int, long int,
-                     unsigned long int, long long int, unsigned long long int>;
-
-using char_types = ::testing::Types<char, unsigned char, wchar_t>;
-
-using floating_point_types = ::testing::Types<float, double, long double>;
-
-/**
- * This is a typed test template, it's instantiated below for all primitive
- * types. This way we can cover all the supported fundamental alignments and
- * sizes.
- */
-template <class T>
-class ut0new_t : public ::testing::Test {
- protected:
-  ut_allocator<T> allocator;
-};
-
-template <class T>
-struct wrapper {
- public:
-  static constexpr T INIT_VAL = std::numeric_limits<T>::min() + 1;
-  wrapper(T data = INIT_VAL) : data(data) {}
-  T data;
-};
-
-template <class T>
-constexpr T wrapper<T>::INIT_VAL;
-
-TYPED_TEST_SUITE_P(ut0new_t);
-
-/* test ut_allocator() */
-TYPED_TEST_P(ut0new_t, ut_vector) {
-  start();
-
-  typedef ut_allocator<TypeParam> vec_allocator_t;
-  typedef std::vector<TypeParam, vec_allocator_t> vec_t;
-  const auto MAX = std::numeric_limits<TypeParam>::max();
-  const auto MIN = std::numeric_limits<TypeParam>::min();
-
-  vec_t v1;
-  v1.push_back(MIN);
-  v1.push_back(MIN + 1);
-  v1.push_back(MAX);
-  EXPECT_EQ(MIN, v1[0]);
-  EXPECT_EQ(MIN + 1, v1[1]);
-  EXPECT_EQ(MAX, v1[2]);
-
-  /* We use "new" instead of "ut::new_withkey()" for simplicity here. Real
-  InnoDB code should use ut::new_withkey(). */
-
-  /* This could of course be written as:
-  std::vector<int, ut_allocator<int> >*	v2
-  = new std::vector<int, ut_allocator<int> >(ut_allocator<int>(
-  mem_key_buf_buf_pool)); */
-  vec_t *v2 = new vec_t(vec_allocator_t(mem_key_buf_buf_pool));
-  v2->push_back(MIN);
-  v2->push_back(MIN + 1);
-  v2->push_back(MAX);
-  EXPECT_EQ(MIN, v2->at(0));
-  EXPECT_EQ(MIN + 1, v2->at(1));
-  EXPECT_EQ(MAX, v2->at(2));
-  delete v2;
-}
-
-REGISTER_TYPED_TEST_SUITE_P(ut0new_t, ut_vector);
-
-INSTANTIATE_TYPED_TEST_SUITE_P(int_types, ut0new_t, int_types);
-INSTANTIATE_TYPED_TEST_SUITE_P(float_types, ut0new_t, floating_point_types);
-INSTANTIATE_TYPED_TEST_SUITE_P(char_types, ut0new_t, char_types);
-INSTANTIATE_TYPED_TEST_SUITE_P(bool, ut0new_t, bool);
-
-struct big_t {
-  char x[128];
-};
-
 /* test edge cases */
 TEST(ut0new, edgecases) {
-  ut_allocator<byte> alloc1(mem_key_buf_buf_pool);
-  void *ret;
-  const void *null_ptr = nullptr;
-
-  ret = alloc1.allocate_large(0);
-  EXPECT_EQ(null_ptr, ret);
-
 #ifdef UNIV_PFS_MEMORY
-  ret = alloc1.allocate(16);
-  ASSERT_TRUE(ret != nullptr);
-
-  ret = alloc1.reallocate(ret, 0, UT_NEW_THIS_FILE_PSI_KEY());
-  EXPECT_EQ(null_ptr, ret);
-
-  ret = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{0});
-  EXPECT_NE(null_ptr, ret);
-  ut::delete_arr((byte *)ret);
+  auto ptr = ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{0});
+  EXPECT_NE(nullptr, ptr);
+  ut::delete_arr((byte *)ptr);
 #endif /* UNIV_PFS_MEMORY */
-
-  ut_allocator<big_t> alloc2(mem_key_buf_buf_pool);
-
-  const ut_allocator<big_t>::size_type too_many_elements =
-      std::numeric_limits<ut_allocator<big_t>::size_type>::max() /
-          sizeof(big_t) +
-      1;
-
-#ifdef UNIV_PFS_MEMORY
-  ret = alloc2.allocate(16);
-  ASSERT_TRUE(ret != nullptr);
-  void *ret2 =
-      alloc2.reallocate(ret, too_many_elements, UT_NEW_THIS_FILE_PSI_KEY());
-  EXPECT_EQ(null_ptr, ret2);
-  /* If reallocate fails due to too many elements,
-  memory is still allocated. Do explicit deallocate do avoid mem leak. */
-  alloc2.deallocate(static_cast<big_t *>(ret));
-#endif /* UNIV_PFS_MEMORY */
-
-  bool threw = false;
-  try {
-    ret = alloc2.allocate(too_many_elements);
-  } catch (...) {
-    threw = true;
-  }
-  EXPECT_TRUE(threw);
-
-  threw = false;
-  try {
-    ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED,
-                          false);
-  } catch (std::bad_array_new_length &) {
-    threw = true;
-  }
-  EXPECT_TRUE(threw);
 }
 
 struct Pod_type {
@@ -1759,6 +1633,307 @@ TEST(aligned_array_pointer, distance_between_elements_in_arr) {
   }
 
   ptr.dealloc();
+}
+
+template <bool With_pfs, typename T>
+struct select_allocator_variant {
+  using type = ut::detail::allocator_base<T>;
+};
+template <typename T>
+struct select_allocator_variant<false, T> {
+  using type = ut::detail::allocator_base_pfs<T>;
+};
+template <bool With_pfs, typename T>
+using select_allocator_variant_t =
+    typename select_allocator_variant<With_pfs, T>::type;
+
+// allocator - fundamental types
+template <typename T>
+class ut0new_allocator_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_allocator_fundamental_types);
+TYPED_TEST_P(ut0new_allocator_fundamental_types, fundamental_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  auto n_elements = 100;
+  ut::allocator<T, allocator_variant> a(pfs_key);
+
+  auto ptr = a.allocate(n_elements);
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+
+  ptr[0] = std::numeric_limits<T>::max();
+  EXPECT_EQ(ptr[0], std::numeric_limits<T>::max());
+  ptr[n_elements - 1] = std::numeric_limits<T>::min();
+  EXPECT_EQ(ptr[n_elements - 1], std::numeric_limits<T>::min());
+
+  a.deallocate(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(FundamentalTypes,
+                               ut0new_allocator_fundamental_types,
+                               all_fundamental_types);
+
+// allocator - pod types
+template <typename T>
+class ut0new_allocator_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_allocator_pod_types);
+TYPED_TEST_P(ut0new_allocator_pod_types, pod_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  auto n_elements = 100;
+  ut::allocator<T, allocator_variant> a(pfs_key);
+
+  auto ptr = a.allocate(n_elements);
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+
+  a.deallocate(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(PodTypes, ut0new_allocator_pod_types,
+                               all_pod_types);
+
+// allocator - non_pod types
+template <typename T>
+class ut0new_allocator_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_allocator_non_pod_types);
+TYPED_TEST_P(ut0new_allocator_non_pod_types, non_pod_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  auto n_elements = 100;
+  ut::allocator<T, allocator_variant> a(pfs_key);
+  auto ptr = a.allocate(n_elements);
+
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignof(max_align_t) ==
+              0);
+
+  a.deallocate(ptr);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_non_pod_types, non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes, ut0new_allocator_non_pod_types,
+                               all_non_pod_types);
+
+// allocator - std::vector with fundamental types
+template <typename T>
+class ut0new_allocator_std_vector_with_fundamental_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_fundamental_types);
+TYPED_TEST_P(ut0new_allocator_std_vector_with_fundamental_types,
+             std_vector_with_fundamental_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  std::vector<T, ut::allocator<T, allocator_variant>> vec;
+  vec.push_back(std::numeric_limits<T>::max());
+  vec.push_back(std::numeric_limits<T>::min());
+  vec.push_back(std::numeric_limits<T>::max());
+  vec.push_back(std::numeric_limits<T>::min());
+
+  EXPECT_TRUE(
+      reinterpret_cast<std::uintptr_t>(&vec[0]) % alignof(max_align_t) == 0);
+
+  EXPECT_EQ(vec[0], std::numeric_limits<T>::max());
+  EXPECT_EQ(vec[1], std::numeric_limits<T>::min());
+  EXPECT_EQ(vec[2], std::numeric_limits<T>::max());
+  EXPECT_EQ(vec[3], std::numeric_limits<T>::min());
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_fundamental_types,
+                            std_vector_with_fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    FundamentalTypes, ut0new_allocator_std_vector_with_fundamental_types,
+    all_fundamental_types);
+
+// allocator - std::vector with pod types
+template <typename T>
+class ut0new_allocator_std_vector_with_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_pod_types);
+TYPED_TEST_P(ut0new_allocator_std_vector_with_pod_types,
+             std_vector_with_pod_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  constexpr auto min = std::numeric_limits<int>::min();
+  constexpr auto max = std::numeric_limits<int>::max();
+  std::vector<T, ut::allocator<T, allocator_variant>> vec;
+  vec.push_back({min, min});
+  vec.push_back({min, max});
+  vec.push_back({max, min});
+  vec.push_back({max, max});
+
+  EXPECT_TRUE(
+      reinterpret_cast<std::uintptr_t>(&vec[0]) % alignof(max_align_t) == 0);
+
+  EXPECT_EQ(vec[0].x, min);
+  EXPECT_EQ(vec[0].y, min);
+  EXPECT_EQ(vec[1].x, min);
+  EXPECT_EQ(vec[1].y, max);
+  EXPECT_EQ(vec[2].x, max);
+  EXPECT_EQ(vec[2].y, min);
+  EXPECT_EQ(vec[3].x, max);
+  EXPECT_EQ(vec[3].y, max);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_pod_types,
+                            std_vector_with_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(PodTypes,
+                               ut0new_allocator_std_vector_with_pod_types,
+                               all_pod_types);
+
+// allocator - std::vector with non_pod types
+template <typename T>
+class ut0new_allocator_std_vector_with_non_pod_types : public ::testing::Test {
+};
+TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_non_pod_types);
+TYPED_TEST_P(ut0new_allocator_std_vector_with_non_pod_types,
+             std_vector_with_non_pod_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  std::vector<T, ut::allocator<T, allocator_variant>> vec;
+  vec.push_back({1, 2, std::string("a")});
+  vec.push_back({3, 4, std::string("b")});
+  vec.push_back({5, 6, std::string("c")});
+  vec.push_back({7, 8, std::string("d")});
+  vec.push_back({9, 10, std::string("e")});
+
+  EXPECT_TRUE(
+      reinterpret_cast<std::uintptr_t>(&vec[0]) % alignof(max_align_t) == 0);
+
+  EXPECT_EQ(vec[0].x, 1);
+  EXPECT_EQ(vec[0].y, 2);
+  EXPECT_TRUE(vec[0].s == std::string("a"));
+
+  EXPECT_EQ(vec[1].x, 3);
+  EXPECT_EQ(vec[1].y, 4);
+  EXPECT_TRUE(vec[1].s == std::string("b"));
+
+  EXPECT_EQ(vec[2].x, 5);
+  EXPECT_EQ(vec[2].y, 6);
+  EXPECT_TRUE(vec[2].s == std::string("c"));
+
+  EXPECT_EQ(vec[3].x, 7);
+  EXPECT_EQ(vec[3].y, 8);
+  EXPECT_TRUE(vec[3].s == std::string("d"));
+
+  EXPECT_EQ(vec[4].x, 9);
+  EXPECT_EQ(vec[4].y, 10);
+  EXPECT_TRUE(vec[4].s == std::string("e"));
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_allocator_std_vector_with_non_pod_types,
+                            std_vector_with_non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(NonPodTypes,
+                               ut0new_allocator_std_vector_with_non_pod_types,
+                               all_non_pod_types);
+
+// allocator - std::vector with default_constructible_pod types
+template <typename T>
+class ut0new_allocator_std_vector_with_default_constructible_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_allocator_std_vector_with_default_constructible_pod_types);
+TYPED_TEST_P(ut0new_allocator_std_vector_with_default_constructible_pod_types,
+             std_vector_with_default_constructible_pod_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  std::vector<T, ut::allocator<T, allocator_variant>> vec;
+  vec.push_back({});
+  vec.push_back({});
+  vec.push_back({});
+  vec.push_back({});
+
+  EXPECT_TRUE(
+      reinterpret_cast<std::uintptr_t>(&vec[0]) % alignof(max_align_t) == 0);
+
+  EXPECT_EQ(vec[0].x, 0);
+  EXPECT_EQ(vec[0].y, 1);
+  EXPECT_EQ(vec[1].x, 0);
+  EXPECT_EQ(vec[1].y, 1);
+  EXPECT_EQ(vec[2].x, 0);
+  EXPECT_EQ(vec[2].y, 1);
+  EXPECT_EQ(vec[3].x, 0);
+  EXPECT_EQ(vec[3].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_allocator_std_vector_with_default_constructible_pod_types,
+    std_vector_with_default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    DefaultConstructiblePodTypes,
+    ut0new_allocator_std_vector_with_default_constructible_pod_types,
+    all_default_constructible_pod_types);
+
+// allocator - std::vector with default_non_pod_constructible types
+template <typename T>
+class ut0new_allocator_std_vector_with_default_non_pod_constructible_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_allocator_std_vector_with_default_non_pod_constructible_types);
+TYPED_TEST_P(
+    ut0new_allocator_std_vector_with_default_non_pod_constructible_types,
+    std_vector_with_default_non_pod_constructible_types) {
+  using T = typename TypeParam::type;
+  using allocator_variant = select_allocator_variant_t<TypeParam::with_pfs, T>;
+
+  std::vector<T, ut::allocator<T, allocator_variant>> vec;
+  vec.push_back({});
+  vec.push_back({});
+  vec.push_back({});
+  vec.push_back({});
+  vec.push_back({});
+
+  EXPECT_TRUE(
+      reinterpret_cast<std::uintptr_t>(&vec[0]) % alignof(max_align_t) == 0);
+
+  EXPECT_EQ(vec[0].x, 0);
+  EXPECT_EQ(vec[0].y, 1);
+  EXPECT_TRUE(vec[0].s == std::string("non-pod-string"));
+
+  EXPECT_EQ(vec[1].x, 0);
+  EXPECT_EQ(vec[1].y, 1);
+  EXPECT_TRUE(vec[1].s == std::string("non-pod-string"));
+
+  EXPECT_EQ(vec[2].x, 0);
+  EXPECT_EQ(vec[2].y, 1);
+  EXPECT_TRUE(vec[2].s == std::string("non-pod-string"));
+
+  EXPECT_EQ(vec[3].x, 0);
+  EXPECT_EQ(vec[3].y, 1);
+  EXPECT_TRUE(vec[3].s == std::string("non-pod-string"));
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_allocator_std_vector_with_default_non_pod_constructible_types,
+    std_vector_with_default_non_pod_constructible_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    NonPodTypes,
+    ut0new_allocator_std_vector_with_default_non_pod_constructible_types,
+    all_default_constructible_non_pod_types);
+
+TEST(ut0new_allocator, throws_bad_array_new_length_when_max_size_is_exceeded) {
+  struct big_t {
+    char x[128];
+  };
+
+  ut::allocator<big_t> alloc(mem_key_buf_buf_pool);
+
+  const ut::allocator<big_t>::size_type too_many_elements =
+      std::numeric_limits<ut::allocator<big_t>::size_type>::max() /
+          sizeof(big_t) +
+      1;
+
+  big_t *ptr = nullptr;
+  bool threw = false;
+  try {
+    ptr = alloc.allocate(too_many_elements);
+  } catch (std::bad_array_new_length &) {
+    threw = true;
+  }
+  EXPECT_TRUE(threw);
+  EXPECT_FALSE(ptr);
 }
 
 }  // namespace innodb_ut0new_unittest

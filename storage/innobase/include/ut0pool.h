@@ -140,7 +140,7 @@ struct Pool {
  private:
   /* We only need to compare on pointer address. */
   typedef std::priority_queue<Element *,
-                              std::vector<Element *, ut_allocator<Element *>>,
+                              std::vector<Element *, ut::allocator<Element *>>,
                               std::greater<Element *>>
       pqueue_t;
 
@@ -320,7 +320,7 @@ struct PoolManager {
   PoolManager(const PoolManager &);
   PoolManager &operator=(const PoolManager &);
 
-  typedef std::vector<PoolType *, ut_allocator<PoolType *>> Pools;
+  typedef std::vector<PoolType *, ut::allocator<PoolType *>> Pools;
 
   /** Size of each block */
   size_t m_size;

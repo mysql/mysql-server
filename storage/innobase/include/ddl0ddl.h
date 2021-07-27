@@ -505,8 +505,8 @@ struct Context {
   [[nodiscard]] bool is_interrupted() noexcept;
 
  private:
-  using Key_numbers = std::vector<size_t, ut_allocator<size_t>>;
-  using Indexes = std::vector<dict_index_t *, ut_allocator<dict_index_t *>>;
+  using Key_numbers = std::vector<size_t, ut::allocator<size_t>>;
+  using Indexes = std::vector<dict_index_t *, ut::allocator<dict_index_t *>>;
 
   /** Common error code for all index builders running in prallel. */
   std::atomic<dberr_t> m_err{DB_SUCCESS};
@@ -573,7 +573,7 @@ struct Context {
   bool m_skip_pk_sort{};
 
   /** Non null columns. */
-  std::vector<size_t, ut_allocator<size_t>> m_nonnull{};
+  std::vector<size_t, ut::allocator<size_t>> m_nonnull{};
 
   /** Number of unique columns in the key. */
   size_t m_n_uniq{};

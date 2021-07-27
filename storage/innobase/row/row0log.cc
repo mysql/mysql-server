@@ -161,8 +161,9 @@ If a page number maps to 0, it is an off-page column that has been freed.
 If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
-typedef std::map<page_no_t, row_log_table_blob_t, std::less<page_no_t>,
-                 ut_allocator<std::pair<const page_no_t, row_log_table_blob_t>>>
+typedef std::map<
+    page_no_t, row_log_table_blob_t, std::less<page_no_t>,
+    ut::allocator<std::pair<const page_no_t, row_log_table_blob_t>>>
     page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation

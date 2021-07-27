@@ -157,7 +157,7 @@ struct FTS {
   struct Inserter;
 
   using Threads = std::vector<std::thread>;
-  using Parsers = std::vector<Parser *, ut_allocator<Parser *>>;
+  using Parsers = std::vector<Parser *, ut::allocator<Parser *>>;
 
   /** For parsing the documents, there is one per thread. */
   Parsers m_parsers{};

@@ -2732,8 +2732,8 @@ index.
 static ibool dict_index_find_and_set_cols(const dict_table_t *table,
                                           dict_index_t *index,
                                           const dict_add_v_col_t *add_v) {
-  std::vector<ulint, ut_allocator<ulint>> col_added;
-  std::vector<ulint, ut_allocator<ulint>> v_col_added;
+  std::vector<ulint, ut::allocator<ulint>> col_added;
+  std::vector<ulint, ut::allocator<ulint>> v_col_added;
 
   ut_ad(table != nullptr && index != nullptr);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);

@@ -1106,7 +1106,7 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
   /** Storage for the (key, val) tuples. */
   std::atomic<arr_node_t *> m_data;
 
-  typedef ut_allocator<arr_node_t *> hollow_alloc_t;
+  typedef ut::allocator<arr_node_t *> hollow_alloc_t;
   typedef std::list<arr_node_t *, hollow_alloc_t> hollow_t;
 
   /** Container for hollow (semi-destroyed) objects that have been

@@ -72,12 +72,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 
 /** Set of table_id */
-typedef std::set<table_id_t, std::less<table_id_t>, ut_allocator<table_id_t>>
+typedef std::set<table_id_t, std::less<table_id_t>, ut::allocator<table_id_t>>
     table_id_set;
 
 /** Map of transactions to affected table_id */
 typedef std::map<trx_t *, table_id_set, std::less<trx_t *>,
-                 ut_allocator<std::pair<trx_t *const, table_id_set>>>
+                 ut::allocator<std::pair<trx_t *const, table_id_set>>>
     trx_table_map;
 
 /** Map of resurrected transactions to affected table_id */
