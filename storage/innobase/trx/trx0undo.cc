@@ -1967,6 +1967,7 @@ void trx_undo_insert_cleanup(trx_undo_ptr_t *undo_ptr, bool noredo) {
 
     rseg->unlatch();
 
+    DEBUG_SYNC_C("innodb_commit_wait_for_truncate");
     trx_undo_seg_free(undo, noredo);
 
     rseg->latch();
