@@ -168,8 +168,15 @@ ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE)
-  STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  # Note: this is still experimental on Windows.
+  IF(MSVC)
+    STRING_APPEND(CMAKE_C_FLAGS   " /WX")
+    STRING_APPEND(CMAKE_CXX_FLAGS " /WX")
+  ENDIF()
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    STRING_APPEND(MY_C_WARNING_FLAGS   " -Werror")
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -Werror")
+  ENDIF()
 ENDIF()
 
 # Set warning flags for gcc/g++/clang/clang++
