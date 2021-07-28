@@ -6394,16 +6394,25 @@ bool Query_block::replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
   Item_singlerow_subselect::Scalar_subquery_replacement info(
       subquery->item, *tr->table->field, this, subquery->m_add_coalesce);
 
+  // ROLLUP wrappers might have been added to the expression at this point. Take
+  // care to transform the inner item and keep the rollup wrappers as is.
+  bool with_rollup_wrapper = is_rollup_group_wrapper(*expr);
+  Item *orig_unwrapped_item = unwrap_rollup_group(*expr);
   Item *new_item = (*expr)->transform(&Item::replace_scalar_subquery,
                                       pointer_cast<uchar *>(&info));
   if (new_item == nullptr) return true;
 
-  // If we replaced an item contained in the transformed query block, save it
-  // for rollback and retain its name so the metadata column name remains
-  // correct.
+  // If we replaced an item contained in the transformed query block,
+  // retain its name so the metadata column name remains correct.
   if (*expr != new_item) {
     new_item->item_name.set((*expr)->item_name.ptr());
     *expr = new_item;
+  } else if (with_rollup_wrapper) {
+    // If the original expression was a rollup group item, the inner item of the
+    // expression might have changed.
+    Item *new_unwrapped_item = unwrap_rollup_group(new_item);
+    if (new_unwrapped_item != orig_unwrapped_item)
+      new_unwrapped_item->item_name.set((*expr)->item_name.ptr());
   }
 
   new_item->update_used_tables();
@@ -7548,17 +7557,20 @@ bool Query_block::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     do {
       old_size = fields.size();
       for (Item *&select_expr : fields) {
-        // If we have a rollup group item, we need to unwrap it to transform.
-        // E.g. if we have Item_rollup_group_item(subquery), we need to
-        // find the subquery in the outer query block and replace it.
-        select_expr = unwrap_rollup_group(select_expr);
-        Item *prev_value = select_expr;
+        // At this time, expression could be wrapped in a rollup group
+        // wrapper. It is the inner item of the rollup group item that
+        // gets replaced. We take care to retain the rollup wrappers.
+        Item *prev_value = unwrap_rollup_group(select_expr);
         if (replace_subquery_in_expr(thd, &subquery, tl, &select_expr))
           return true;
-        if (select_expr != prev_value) {
+        Item *unwrapped_select_expr = unwrap_rollup_group(select_expr);
+        if (unwrapped_select_expr != prev_value) {
+          // If we replace a subquery in the select field list, possibly
+          // hidden inside a rollup wrapper, replace corresponding item
+          // in base_ref_items
           for (size_t i = 0; i < fields.size(); i++) {
             if (base_ref_items[i] == prev_value)
-              base_ref_items[i] = select_expr;
+              base_ref_items[i] = unwrapped_select_expr;
           }
         }
         if (fields.size() != old_size) {
