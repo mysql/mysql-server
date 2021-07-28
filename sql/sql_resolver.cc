@@ -5994,7 +5994,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     resolve_placeholder_tables below, we can go back and modify the references
     at this level.
   */
-  std::vector<Item **> contrib_exprs;
+  std::unordered_map<Item **, bool> contrib_exprs;
 
   // We want permanent changes
   {
@@ -6154,18 +6154,21 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
     // We will find all fields mentioned above by checking fields, which
     // has any hidden fields induced by ORDER BY or window specifications, in
-    // addition to fields from the select expressions.
+    // addition to fields from the select expressions. We also make a note
+    // of the expression's hidden status to mark the expression as hidden
+    // when it is replaced with derived table expression later.
     for (Item *&item : fields) {
-      contrib_exprs.push_back(&item);
+      contrib_exprs.emplace(std::pair<Item **, bool>(&item, item->hidden));
     }
 
     // Collect fields in expr, but not from inside grouped aggregates.
     Item::Collect_item_fields_or_view_refs info{&item_fields_or_view_refs,
                                                 this};
     for (auto expr : contrib_exprs) {
-      if ((*expr)->walk(&Item::collect_item_field_or_view_ref_processor,
-                        enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX,
-                        pointer_cast<uchar *>(&info)))
+      if ((*expr.first)
+              ->walk(&Item::collect_item_field_or_view_ref_processor,
+                     enum_walk::SUBQUERY_PREFIX | enum_walk::POSTFIX,
+                     pointer_cast<uchar *>(&info)))
         return true; /* purecov: inspected */
     }
 
@@ -6181,7 +6184,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
           lfi.remove();
       }
     }
-    // We now have all fields and view refefences; now find only unique ones.
+    // We now have all fields and view references; now find only unique ones.
     lfi.init(item_fields_or_view_refs);
     while ((lf = lfi++)) {
       if (lf->type() == Item::FIELD_ITEM) {
@@ -6329,14 +6332,27 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     for (auto vr : unique_view_refs) {
       for (auto expr : contrib_exprs) {
         Item::Item_view_ref_replacement info(vr->real_item(), *field_ptr, this);
-        Item *new_item = (*expr)->transform(&Item::replace_item_view_ref,
-                                            pointer_cast<uchar *>(&info));
+        Item *new_item = (*expr.first)
+                             ->transform(&Item::replace_item_view_ref,
+                                         pointer_cast<uchar *>(&info));
         if (new_item == nullptr) return true;
-        if (new_item != *expr) *expr = new_item;
+        if (new_item != *expr.first) {
+          // Replace in base_ref_items
+          for (size_t i = 0; i < fields.size(); i++) {
+            if (base_ref_items[i] == *expr.first) {
+              base_ref_items[i] = new_item;
+              break;
+            }
+          }
+          // Replace in fields
+          *expr.first = new_item;
+          // Mark this expression as hidden if it was hidden in this query
+          // block.
+          (*expr.first)->hidden = expr.second;
+        }
       }
       ++field_ptr;
     }
-
     // field_ptr now points to the first of the fields added to the select list
     // of the derived table's query block. We now create new fields for this
     // block which will point to the corresponding fields moved to the derived
@@ -6354,13 +6370,37 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       pair.second->context = &new_derived->context;
 
       for (auto expr : contrib_exprs) {
-        Item::Item_field_replacement info(pair.first, replaces_field, this);
-        Item *new_item = (*expr)->transform(&Item::replace_item_field,
-                                            pointer_cast<uchar *>(&info));
+        Item_field *replacement = replaces_field;
+        // If this expression was hidden, we need to make a copy of the derived
+        // table field. The same derived table field cannot be marked both
+        // hidden and visible if the field replaces two different expressions
+        // in the transforming query block.
+        if (expr.second == true) {
+          auto hidden_field = new (thd->mem_root) Item_field(*field_ptr);
+          if (hidden_field == nullptr) return true;
+          hidden_field->item_name.set(pair.second->orig_name.ptr());
+          pair.second->orig_name.set(nullptr, 0);
+          pair.second->context = &new_derived->context;
+          replacement = hidden_field;
+        }
+        Item::Item_field_replacement info(pair.first, replacement, this);
+        Item *new_item = (*expr.first)
+                             ->transform(&Item::replace_item_field,
+                                         pointer_cast<uchar *>(&info));
         if (new_item == nullptr) return true;
-        if (new_item != *expr) *expr = new_item;
+        if (new_item != *expr.first) {
+          // Replace in base_ref_items
+          for (size_t i = 0; i < fields.size(); i++) {
+            if (base_ref_items[i] == *expr.first) {
+              base_ref_items[i] = new_item;
+              break;
+            }
+          }
+          // Replace in fields
+          (*expr.first) = new_item;
+          (*expr.first)->hidden = expr.second;
+        }
       }
-
       ++field_ptr;
     }
 

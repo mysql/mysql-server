@@ -2266,4 +2266,27 @@ set sql_mode=default;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#33079592: ASSERTION `SELECT->BASE_REF_ITEMS[ITEM_IDX] == ITEM' FAILED
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+SET optimizer_switch='subquery_to_derived=default';
+# This will throw error
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+# This should throw error. But does not because before the full group by verification
+# happens, order by elements are removed (not correct for this case).
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+SET optimizer_switch='subquery_to_derived=on';
+# This will throw error (not as precise as when the transformation is off)
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+# This will throw error. Since the order by field is now visible in the derived
+# table.
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+DROP TABLE t1;
 SET optimizer_switch='subquery_to_derived=default';
