@@ -43,7 +43,7 @@ namespace ut {
 namespace detail {
 
 /** Superpage size to be used (2MB). */
-static constexpr auto PAGE_SIZE = VM_FLAGS_SUPERPAGE_SIZE_2MB;
+static constexpr auto SUPER_PAGE_SIZE = VM_FLAGS_SUPERPAGE_SIZE_2MB;
 
 /** Allocates memory backed by large (huge) pages.
 
@@ -55,7 +55,7 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
       mmap(0,
            pow2_round(n_bytes + (large_page_default_size - 1),
                       large_page_default_size),
-           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, PAGE_SIZE, 0);
+           PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, SUPER_PAGE_SIZE, 0);
   return (ptr != (void *)-1) ? ptr : nullptr;
 }
 
@@ -86,7 +86,7 @@ inline size_t large_page_size() {
   // if that value may change, in which case we can at least provide a
   // guideline through static_assert message.
   static_assert(
-      PAGE_SIZE == VM_FLAGS_SUPERPAGE_SIZE_2MB,
+      SUPER_PAGE_SIZE == VM_FLAGS_SUPERPAGE_SIZE_2MB,
       "superpage size is not the one that has been expected (2MB). In case this \
       is a wanted change, please tweak this static_assert _and_ modify this function \
       to return appropriate new superpage size value.");
