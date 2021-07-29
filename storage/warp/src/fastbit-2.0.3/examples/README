@@ -1,0 +1,18 @@
+This directory contains a few relative simple examples.
+
+ibis.cpp -- this program demonstrates how to use the lower-level data
+	partitions directly.   This is also the program used for
+	tests defined in directory ../tests.
+
+thula.cpp -- this program demonstrates how to use the ibis::table
+	interface.  It can only perform queries.
+
+ardea.cpp -- this program demonstrates how to use the ibis::tablex
+	interface to add new data records.  It supports additions of
+	data both through columns and rows, but does not support
+	queries.
+
+tcapi.c -- this program demonstrates how to use the C API for accessing
+	FastBit functions.  Since it requires a C++ compiler to make an
+	executable, it is a not particularly useful in itself.  However,
+	it is useful for exporting FastBit functions to other languages.

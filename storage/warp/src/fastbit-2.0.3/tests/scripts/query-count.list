@@ -1,0 +1,41 @@
+# the separator between query and hist (;) can not appear in the query expressions
+from test0 where sqrt(i0)*sqrt(i0) > 70 and i1 > 20; 29
+from test0 where (i2 < 0 OR i2 > 70) and i1 < 20; 20
+from test0 where (i0 < 0 OR i0 > 70) and (i1 > 100 OR i1 < 80); 9
+from test0 where i2 > 70 and i1 > 20; 8
+from test0 where i2 > 71 and i1 > 23; 4
+from test0 where (i2 < 0 OR i2 > 70) and i1 > 30; 0
+from test0 where i2 = 70 and i1 > 20; 1
+from test0 where i2 = 50 and i1 = 49; 1
+from test0 where i0 = 30 and i1 = 49; 0
+from test0 where 13 <= sqrt((i0*i0+i1*i1)/2) < 30 and 15 <= i1 < 49; 15
+from test0 where 13 <= i0 < 31 and 15 <= i1 < 49; 16
+from test0 where 13 <= i0 < 32 and 15 <= i1 < 49; 17
+from test0 where 13 <= i0 < 30 and 15 <= i2 < 70; 0
+from test0 where 13 <= i2 < 31 and 15 <= i1 < 69; 0
+from test0 where 13 <= i2 < 32 and 15 <= i1 < 69; 1
+from test0 where (i0 = 50 || i0 = 49) and (i1 = 50 || i1 = 49); 2
+from test0 where (i2 = 50 || i2 = 49) and (i1 = 50 || i1 = 49); 2
+from test0 where i2 > 90; 9
+from test0 where 0 <= 10 ** log10(i0) < 99; 99
+from test0 where -1 <= exp(log(i1)) < 99; 99
+from test0 where -2 <= i2 < 99; 99
+from test0 where -3 < i0 < 99; 98
+from test0 where -4 < i1 < 99; 98
+from test0 where -5 < i2 < 99; 98
+from test1 where sqrt(c4z0)<100; 1000
+from test1 where c2z0<99; 991
+from test1 where c2z0>0; 991
+from test1 where c2z0 in (8 10 12 14 16 18 20 22 24 26 28 29 30 31 32 33 34); 183
+from test1 where c2z0 in (71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99); 280
+from test1 where c2z1>50; 133
+from test1 where c2z2>70; 3
+from test1 where c4z0>7000; 300
+from test1 where c4z1>50; 565
+from test1 where c4z2>70; 12
+from test1 where z0=0; 1000
+from test1 where z1=0; 0
+from test1 where c6z0<2000; 2
+from test1 where c2z2 > 50 && c6z0 > 2000; 7
+from test1 where c2z1 == 50 && c6z0 == 522316; 1
+from test1 where c2z2 == 4 && z1 = 1 && z0 < 1; 19

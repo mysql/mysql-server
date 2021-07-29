@@ -1,0 +1,18 @@
+
+
+2D-Joint distribution of a and b from table t1 subject to the condition c>50 with 625 bins on 25 x 25 cells
+0	[0, 4) [0, 4)	8
+26	[4, 8) [4, 8)	8
+52	[8, 12) [8, 12)	8
+78	[12, 16) [12, 16)	8
+104	[16, 20) [16, 20)	8
+130	[20, 24) [20, 24)	8
+156	[24, 28) [24, 28)	8
+182	[28, 32) [28, 32)	8
+208	[32, 36) [32, 36)	8
+234	[36, 40) [36, 40)	8
+260	[40, 44) [40, 44)	8
+286	[44, 48) [44, 48)	8
+312	[48, 52) [48, 52)	2
+  Number of occupied cells = 13, total count = 98, number of rows in t1 = 200
+

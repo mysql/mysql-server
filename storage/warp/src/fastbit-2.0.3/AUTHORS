@@ -1,0 +1,32 @@
+John Wu <John.Wu@ACM.org>
+With support from Kurt Stockinger, Ekow Otoo and Arie Shoshani
+
+
+With contributions in the form of sources code, patches, data files and
+test queries from (in chronological order of the first contribution):
+Aaron Hong
+Mark Sordo
+Jochen Schlosser
+David Kantowitz
+Matthias Vallentin
+Andrey Kolchanov
+Norbert Heusser
+David B. Marks
+Alexandre Maurel
+Jan Steemann
+Luca Deri
+Andreas Streichardt
+Shiran Pasternak
+Bernd Jaenichen
+Jon Strabala
+Chen Hang
+Justin Swanhart
+Divya Chandrasekar
+Petr Valen
+
+
+
+Many users have identified bugs and suggested fixes, their names are
+mentioned in ChangeLog together with the bugs and suggestions.
+
+Contributors with code in the directory contrib are listed with their code.

@@ -1,0 +1,382 @@
+*** COMPILING ON WINDOWS ***
+As of 2014, FastBit source code starts to make use of some C++11x
+features that are not supported yet in MS Visual Studio, therefore,
+there is no way to compile with Visual Studio until C++0x is
+supported.  However, it is possible to compile with CYGWIN or MinGW.
+****************************
+
+
+FastBit is packaged with GNU build tools.  In most cases, this means you
+only need to run
+
+./configure && make
+
+to build the library and the examples.  The following instructions are
+for customization and trouble-shooting your configuration and building
+process.
+
+On systems where make (or gmake) can support parallel builds, it is safe
+to invoke the parallel build options to build the library and the
+executables, for example,
+
+gmake -j 3 all
+
+Since it take a while (~ 20 min with GCC and ~ 2 min with clang) to
+build the libraries, it is a good idea to spawn multiple jobs to compile
+them.  However, it is NOT safe to run the tests in parallel because
+different jobs will attempt to write the same files.  The commands 'make
+check', 'make more-check', and 'make full-check' must be run as serial
+jobs (with only one thread of execution).
+
+If you are compiling with GCC, please choose version 4.8 for better
+support of the extensive template use.  For clang compiler suite, use
+version 3.5 or later.
+
+To place the executable files and libraries in their expected locations,
+execute 'make install'.  As usual, the location of the installed files
+is specified by the variable 'prefix', e.g., (it is usually better to
+specify installation direcotry on the command line of configure, see
+note 13 )
+
+make prefix=${HOME} install
+
+which will put the executables in ${HOME}/bin and libraries in
+${HOME}/lib.  Prior to installation, the executables and libraries are
+located in various hidden directories selected by libtools.  For
+example, libfastbit.a is usually located in src/.libs and the
+executables in examples are in examples/.libs.
+
+
+----------
+Configuration Options
+
+Run './configure --help' to review all options available.  The majority
+of the options are standard options available to all GNU build tools.
+There are only a few additional options
+  --enable-debug [debugging option]
+  --enable-xopt  [extra optimization option]
+
+The default for the 1st option is left to the configure script itself,
+which in absence of any direction will normally enable the debug option.
+The default for the 2nd option is "no", in which case, the flag present
+in CXXFLAGS or the default determined by the configure script will be
+used.  With --enable-xopt, the optimization flag -O5 will be used if the
+compiler accepts it otherwise -O3 will be append to the list of compiler
+options.  The option -O5 is generally supported by GCC compilers and can
+slightly improve the performance of some query operations, but may also
+introduce errors due to excessive compiler "optimization."  In most
+cases, we suggest users to leave both of these options as their default
+values.
+
+If CXXFLAGS is specified on the command line of configure or is present
+as an evironment variable, the configure script will not add its usual
+default options, which is typically "-g -O2".  If CXXFLAGS is specified,
+it should include desired optimization flags.
+
+The configure script will attempt to detect whether a JDK is available
+when it is run, however, the detection mechanism primarily rely on the
+presence of environment variable JAVA_HOME.  If this variable is not
+defined or you want to use a different JDK, you may use the following
+option of the configure script to explicitly specify the path of JDK,
+
+  --with-java=full-path-to-jdk
+
+On MS Windows with visual studio, the path to JDK must be explicitly
+speicified in the visual studio for the java project.  Here are some
+steps to take
+
+(1) open the windows explorer, navigate to win directory in your FastBit
+    directory, double click on ibis.sln should invoke visual studio if
+    your machine have visual studio,
+
+(2) the solution includes 7 projects, right click on the java project,
+    select properties from the menu,
+
+(3) then select C++ from the list of Configuration Properties for the
+    project, modify the "Additional Include Directories" field to
+    include the JDK directory on your machine
+
+To make sure the Java Native Interface is not compiled, use the option
+
+  --without-java
+
+
+NOTE: FastBit requires pthread support, on a MinGW installation, be sure
+      install pthread library.  On MS Windows, install some pthread
+      win32 <http://sourceware.org/pthreads-win32/>.  Users need to
+      specify the directory containing the header files and the library
+      files using similar procedure.  The "Additional Libary
+      Directories" that need to be modified is under "Linker" in the
+      list of Configuration Properties.
+
+NOTE: The Makefiles in directory contrib are updated with the configure
+      script, but they are not built as part of normal make command.
+      One needs to go into each subdirectory of contrib and execute the
+      make command there.
+
+
+----------
+Compiler Macros
+
+There are a number of compiler macros for controlling certain internal
+FastBit parameters.  When you find unexpected troubles with FastBit,
+they might come in handy.  Here is a list in the order of potential
+usefulness.
+
+WITHOUT_FASTBIT_CONFIG_H
+
+  This macro must be defined if the system can not run the configure
+  script in the main directory.  The configure script produces the file
+  src/fastbit-config.h that contains macros about the specific compiler
+  and machine setup.  When WITHOUT_FASTBIT_CONFIG_H is defined, the
+  source code will not attempt to include src/fastbit-config.h.  The
+  macros defined in it will take on default values.  This option has
+  been mainly tested on MS Windows platform with VisualStudio.  For
+  convenience, we have made sure this macro is not necessary under the
+  specific environment of MS windows with VisualStudio, all other
+  platforms that can not run the configure script, must define this
+  macro!
+
+FASTBIT_MAX_WAIT_TIME
+
+  Defines the amount of time (in seconds) the file manager shall wait
+  before giving up on its attempt to acquire the desired amount of
+  memory.  Presumably, while waiting, other tasks would have finished
+  and released the memory being used.  The default time is 600 seconds
+  in normal operations and 5 seconds if DEBUG is defined.
+
+FASTBIT_MIN_MAP_SIZE
+
+  FastBit will attempt to use memory map to read large data files if
+  mmap and its associated functions are available.  This defines the
+  minimal file size (in bytes) before it will attempt to use mmap.
+
+DEBUG
+
+  Turning on DEBUG will enable FastBit to print a lot of diagnostic
+  messages about its internal operations.  It is useful for debugging
+  FastBit internal operations.
+
+WAH_CHECK_SIZE
+
+  Instruct WAH compression functions to check the size of the bitmaps
+  when they are constructed.  This may be useful if one suspects that
+  the WAH compressed bitmap are not what they supposed to be.  This
+  option was used by the developers for debugging.  If you encounter any
+  problem that require this option to fix, please report such cases to
+  fastbit-users@hpcrdm.lbl.gov.
+
+FASTBIT_READ_BITVECTOR0
+
+  In earlier (pre-release) versions of FastBit, it always reads the
+  first bitmap of every bitmap index regardless of whether it is
+  actually used.  Because of this legacy, it is possible there are
+  functions that still rely on this old behavior.  If you encounter
+  certain unexpected problems, turning this option "on" may resolve
+  them.  Please report such cases to fastbit-users@hpcrdm.lbl.gov.
+
+FASTBIT_EXPAND_ALL_TYPES
+
+  The macro FASTBIT_EXPAND_ALL_TYPES controls whether all ten different
+  columns will have its own template instance function.  By default,
+  with FASTBIT_EXPAND_ALL_TYPES not defined, only five instances are
+  generated.  The columns of type BYTE and SHORT are converted to INT
+  and passed to the function that handles INT.  The columns of type
+  UBYTE and USHORT are converted to UINT.  Similarly, the type ULONG is
+  converted LONG and handled as LONG.  The first two convertions may
+  only increase run time, but will not affect the correctness of the
+  program.  However, the last conversion may cause correctness issues if
+  the unsigned 64-bit integers actually have the sign bit set to 1,
+  i.e., > 2^63 (= 9,223,372,036,854,775,808 ~ 9x10^18).
+
+FASTBIT_SYNC_WRITE
+
+  If this macro is defined, FastBit will attempt to make sure the files
+  opened for write operations synchronize its in-memory content with
+  on-disk content before closing the files.  This reduces the likelihood
+  of data corruption in case of program crash, but it also makes the
+  program waits for disk operations to complete.  The delay can be
+  especially painful if there are numerous write operaitons.
+
+FASTBIT_USE_LONG_OFFSETS
+
+  For FastBit to write index files with 64-bit bitmap offsets.  Without
+  defining this compiler macro, FastBit will only use 64-bit offsets if
+  the index size is expected to be larger than 2GB.  This macro only
+  affects the writing function, the reading function will always check
+  the header to determine the expected bitmap offset size.
+
+
+----------
+Known Issues
+
+    If you have encountered an issue with FastBit code, this list of
+    known issues might be of help.  In addition, you might check out the
+    mailing list archive at
+    <https://hpcrdm.lbl.gov/pipermail/fastbit-users/> to see if the
+    issue has already been addressed.  The mail messages are searchable
+    through the search boxes on any of the FastBit web pages.  Of course
+    mailing your question to <fastbit-users@hpcrdm.lbl.gov> is always an
+    option.
+
+    Before you spend any time figuring out a problem, it might be
+    helpful to check whether the problem still exists with the current
+    source code.  A nightly snapshot of the SVN repository for the code
+    is available for download at
+    <https://codeforge.lbl.gov/snapshots.php?group_id=44>.  The snapshot
+    is built daily between 2 and 3 AM Pacific Time zone (USA).
+
+(1) Many compilers will issue lots of warnings about potential loss of
+    data in various assignments, for example, trying to assign a 32-bit
+    integer to a 32-bit floating-point number (type float).  In some
+    cases, we have tried to prevent such conversions, but in many cases
+    we have left this option open to the users, for example, it is
+    possible for a user to retrieve the values of a 32-bit integer
+    column as floats by calling ibis::table::getColumnAsFloats.  Callers
+    should be aware that such conversion may lose precision.  This type
+    of conversion may also occur when comparing two types of columns
+    directly (without indexes), for example if a where clause contains "A
+    < B" and A is a signed integer but B is a unsigned integer.  Users
+    should be aware of such problems.
+
+(2) Under cygwin, some times, the read-write lock may print out warning
+    messages, but the operations seem to carry on without any problem.
+    We have not tried to figure out what are the causes of these
+    problems, if you have information about them or know how to fix the
+    problems, we would like to hear about them.  Email your suggestions
+    to <fastbit-users@hpcrdm.lbl.gov>.
+
+(3) The tests in 'make check' do a very minimal amount of testing.  To
+    perform more through testing, use 'make more-check' or 'make
+    full-check'.  The tests in 'make more-check' may take ~ 15 min,
+    while 'make full-check' may make take several hours.  These longer
+    tests write a large number of files into the test directory, which
+    defaults to tests/tmp.  It is a good idea to use a local file
+    system instead of a remotely mounted file system for test directory.
+    To change the test directory use variable TESTDIR, e.g.,
+
+    make TESTDIR=/tmp/kwu/tests full-check
+
+    which will use /tmp/kwu/tests as the test directory.
+
+    Running tests under cygwin takes much longer than on a linux
+    machine.  If you have any suggestions on improving this setup,
+    please email <fastbit-users@hpcrdm.lbl.gov>.
+
+(4) The tests in 'check-marksdb' involves a long series of arithmetic
+    operations.  Depending on the implementation of math library, a
+    slightly different d values may be outputted causing the tests to
+    fail.  Please examine the differences between file marksdb-[1234]
+    against the ones in directory tests.  If the values differ only in
+    the last one or two digits, then the tests run fine.  However, if
+    they are different beyond the last two digits, please report the
+    problem to <fastbit-users@hpcrdm.lbl.gov>.
+
+(5) Due to extensive uses of C++11 features (such as unordered_map and
+    unique_ptr), the current release of FastBit can only be compiled
+    with GCC 4.8 or clang 3.5
+
+(6) Certain machines with a large mount of memory actually limits the
+    amount of memory each process may use.  In such cases, the default
+    cache size of half of the physical memory size may be over the limit
+    of the memory allowed by the OS.  It is important to coordinate
+    these two limits.  More specifically, the memory used by FastBit
+    memory cache should be less than the OS limit, otherwise, FastBit
+    program may crash due to memory allocation problems.  For example,
+    on jacquard.nersc.gov, the maximum virtual memory allowed per
+    process is 2GB for certain class of interactive jobs, but there are
+    6GB of physical memory.  By default, FastBit will attempt to use 3GB
+    of memory, which is over the OS assigned memory limit.  In this
+    case, adding an RC file with something like
+    "fileManager.maxBytes=1.8GB" will reduce the memory allowed to
+    FastBit and avoid memory usage problem.
+
+(7) Certain linux clusters do not support shared libraries on compute
+    nodes, even though shared libraries are supported on the front end.
+    In such a case, the configure script will detect shared libraries as
+    supported.  Use option --disable-shared to prevent it from trying to
+    build the shared library.  For example, Cray XT systems (e.g., XT4
+    franklin.nersc.gov and XT5 hopper.nersc.gov) do not support shared
+    libraries on the compute nodes.  In fact on a Cray XT5 system,
+    it is not able to produce a .so file.
+
+(8) FastBit makes extensive use of STL objects, this causes a problem
+    when one wants to build a DLL on a windows machine.  There is at
+    least on success story of using STLport to replace the STL from
+    visual studio and build DLL successfully, see
+    <https://hpcrdm.lbl.gov/pipermail/fastbit-users/2008-June/000127.html>.
+
+(9) The test 12 of check-ibis fails when the PGI compiler is used to
+    compile the code.  It encounters a segmentation violation some times
+    inside a string construtor and some times in the constructor of
+    string stream object.  We would guess that the PGI compiler might
+    not be producinga thread-safe operator new.  If you have any clue as
+    what is really going on or how to get around the problem, please
+    send your suggestions or corrections to
+    <fastbit-users@hpcrdm.lbl.gov>.
+
+(10) If the configure script finds a working version of javac, but fails
+     to find a working version of java, it is likely that CLASSPATH is
+     not set correctly.  One common problem on a unix/linux machine is
+     that the current directory is not in CLASSPATH.  One way to fix
+     such a problem is to prepend the dot in front of CLASSPATH,
+     e.g. (in boune shell)
+
+     CLASSPATH=.:$CLASSPATH
+
+(11) If you encounter a "libtool: Version mismatch error," you should be
+     able to overwrite the file libtool with a copy from your current
+     system, e.g., /usr/bin/libtool.  Alternatively, run the following
+     commands before trying to run configure script again
+
+     aclocal && automake && autoconf
+
+(12) The header file FlexLexer.h in /usr/include directory could be too
+     old to work with the files selectLexer.cc and whereLexer.cc.  This
+     will cause a compiler error of some sort.  Here is an example:
+
+whereLexer.cc: In member function 'virtual ibis::whereParser::token::yytokentype ibis::whereLexer::lex(ibis::whereParser::semantic_type*, ibis::location*)':
+whereLexer.cc:1244: error: 'yywrap' was not declared in this scope
+
+     In this case, explicitly add '-I ${PWD}/win' to CXXFLAGS can force
+     the FlexLexer.h in directory win to be included, e.g.,
+
+     make -j 4 CXXFLAGS="-O3 -I ${PWD}/win" all
+
+(13) If you build FastBit Java native interface, make sure --prefix is
+     specified at configure command line, otherwise "make install" may
+     complain about libfastbitjni.lo can not be installed in any
+     directory other than /usr/local/lib (if you have specified --prefix
+     but wanted to install in a different directory, you might see a
+     similar message).  The automatic build script apparently remembers
+     the path generated by configure script and does not know how to
+     make use of the prefix specified on the command line of make.
+
+(14) The configure script should not need root privillege to run.  In
+     fact, running it with sudo can causes permission problems with some
+     temporary files and therefore cause the configure script to fail.
+     The only command that may need root privillege would be the 'make
+     install' command if the files are to be installed in a privilleged
+     directory such as /usr or /usr/local.
+
+(15) Compile on windows under various versions of visual studio
+     encounters the following error message:
+     ...VC\INCLUDE\stdint.h(18): error C2632: 'short' followed by 'short' is illegal
+     This reference to stdint.h is caused by the inclusion of STL
+     header file "vector".  In the code we can control, we have avoided
+     referring to stdint.h, but we have to use vector and is not sure
+     how to tell vector not to include stdint.h.  If you know a way to
+     deal with this, please let us know.
+
+(16) the make command on MinGW32 does not appear to function properly in
+     multithread mode; the command 'make -j 2' will be stuck after
+     compiling the first two files.
+
+
+
+----------
+Trouble Shooting
+
+When you report problems you encounter, we will use this section for
+work-around to the problems that we can solve.
+

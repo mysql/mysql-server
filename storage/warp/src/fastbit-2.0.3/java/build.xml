@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+
+<project name="FastBitJava" basedir="." default="info">
+
+  <property file="build.properties" />
+  <property name="src.dir" value="."/>
+  <property name="build.dir" value="build"/>
+  <property name="distr.dir" value="distr"/>
+  <property name="doc.dir" value="doc"/>
+  <property name="tmp.dir" value="tmp"/>
+  <property name="jar.name" value="fastbit.jar"/>
+
+  <target name="info">
+    <echo message="FastBit java"/>
+    <echo message="ant buildJar - build fastbit.jar"/>
+    <echo message="ant test - perform basic FastBitJava tests"/>
+    <echo message="ant clean - clear classes and tmp data"/>
+    <echo message="ant all - all tasks"/>
+  </target>
+
+  <target name="init">
+    <mkdir dir="${build.dir}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${build.dir}"/>
+    <delete dir="${distr.dir}"/>
+    <delete dir="${tmp.dir}"/>
+  </target>
+
+  <path id="master-classpath">
+    <fileset dir="tests/lib">
+      <include name="*.jar"/>
+    </fileset>
+    <pathelement path="${build.dir}"/>
+  </path>
+
+  <target name="build" depends="init">
+    <javac debug="on" srcdir="${src.dir}" destdir="${build.dir}" encoding="UTF-8" >
+      <classpath refid="master-classpath"/>
+    </javac>
+  </target>
+
+  <target name="buildJar" depends="build">
+    <mkdir dir="${distr.dir}"/>
+    <jar destfile="${distr.dir}/${jar.name}">
+      <fileset dir="${build.dir}"/>
+    </jar>
+  </target>
+
+  <target name="test" depends="init,build,buildJar" description="Run JUnit Tests" >
+    <mkdir dir="${tmp.dir}"/>
+    <junit printsummary="on"
+           fork="true" dir="."
+           haltonfailure="false"
+           failureproperty="tests.failed"
+           showoutput="true">
+
+      <jvmarg value="-Xms128m"/>
+      <jvmarg value="-Xmx512m"/>
+      <jvmarg value="-Djava.library.path=${fastbit.library.path}"/>
+
+      <classpath refid="master-classpath"/>
+      <formatter type="brief" usefile="false"/>
+
+      <batchtest>
+        <fileset dir="${build.dir}">
+          <include name="tests/**.*"/>
+        </fileset>
+      </batchtest>
+
+    </junit>
+
+    <fail if="tests.failed">
+      ***********************************************************
+      ***********************************************************
+      ****  One or more tests failed!  Check the output ...  ****
+      ***********************************************************
+      ***********************************************************
+    </fail>
+  </target>
+
+  <target name="all" depends="init,build,buildJar,test">
+  </target>
+
+</project>

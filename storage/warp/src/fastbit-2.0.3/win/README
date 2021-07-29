@@ -1,0 +1,140 @@
+************************************************************************
+* WARNING: Due to the uses of C++11 and C99 features, as of late 2014, *
+* FastBit code can only be compiled on MS Windows under CygWin or      *
+* MinGW with the latest GCC/G++ compilers!                             *
+************************************************************************
+
+
+
+This directory contains a makefile (Win.mak) and a set of project files
+for building the library and the examples.  They require Visual Studio
+.NET or later as well as a version of pthreads-win32.  You have to edit
+these files to point to the correct locations of the compiler and the
+pthreads-win32 library!
+
+Pthreads-win32 is available for download (under LGPL, for free) from
+http://sourceware.org/pthreads-win32/
+
+NOTE: Visual Studio may produce a large number of warnings, most of
+which are harmless as far as we know.  However, if you do notice
+something of consequence, please report them to
+<fastbit-users@hpcrdm.lbl.gov>.
+
+NOTE: Win.mak works with nmake that comes with Visual Studio.  Invoke it
+with command line such as
+
+nmake -f Win.mak all
+
+NOTE: On a multi-core machine, VisualStudio 2008 will try to build
+multiple projects at the same time without checking whether there are
+potential dependencies!  This can cause a lot of problems because most
+of the existing projects share the same set of intermediate files.  The
+best course of action is to build one project at a time when using
+VisualStudio.  Alternatively, use 'nmake -f Win.mak' which builds the
+executables sequentially.
+
+It is possible to build a DLL library that exports ibis::part and
+ibis::query interface as well as the C API of Fastbit.
+To use the nmake system directly, one may build the DLL library and the
+test program tcapi.exe with the following commands (on one line)
+
+nmake -f Win.mak clean && nmake -f Win.mak dll && nmake -f win.mak trydll
+
+The test program trydll.cpp is a modified version of
+..\examples\ibis.cpp with troublesome functions removed.  It maintains
+the key functionality of ibis.cpp, which exercises the ibis::part and
+ibis::query functions.
+
+The test program tcapi.c exercises the C API of FastBit.  Please refere
+the source code ..\examples\tcapi.c for usage of tcapi.exe.
+
+Here is a set of commands to try, assuming that you've built tcapi.exe
+and trydll.exe in this directory.
+
+# generate a sample data with 100 rows and 3 columns named a, b, and c
+tcapi.exe -v
+# the following two commands should produce the same number of hits
+tcapi.exe tmp "a=0"
+trydll.exe -d tmp -q "where a=0"
+# the following two commands should print same values for column c
+tcapi.exe tmp "a < 10" c f
+trydll.exe -d tmp -q "select c where a < 10"
+
+
+To compile under MinGW/MSYS with dll use the following command
+make -f MinGW.mak pthreads-w32 dll trydll tcapi
+
+NOTE: In case examples/ibis.cpp fails to compile, try win/trydll.cpp
+instead.
+
+Known problem with DLL under MS windows (either Visual studio or MinGW/MSYS)
+
+As of Dec. 22, 2007, the biggest problem seems to be the use of
+ibis::bitvector in a client code.  Somehow pointers to
+ibis::bitvector (created by the DLL) are fine, but a locally declared
+ibis::bitvector object has problems of creating the underlying support
+object array_t<uint32_t> (compiler may complain about array_t<unsigned
+long int> instead).  If you are a familiar with such type of problem,
+please email your suggestion to <fastbit-users@hpcrdm.lbl.gov>.
+
+NOTE: Due to extensive uses of std::map and other STL classes in class
+      hierarchy ibis::table, they are not suitable for DLL exporting
+      <http://support.microsoft.com/kb/168958>.  The ibis::part and
+      ibis::query interface and the C API seem to work fine.
+
+NOTE: The test suite in ../tests rely on too many features that are only
+      available on Unix type of machines and can not be run on MS
+      Windows.
+
+Sept. 27, 2008 On some windows machines, under visual studio, the
+compilation fails once in a while for not being able to write certain
+files.  Usually rebuild a second time fix the problem -- not sure where
+is the real problem.
+
+Oct. 1, 2008 added FlexLexer.h so that the new version of parser code
+can compile under MS windows systems
+
+Nov. 11, 2008: If your version of VisualStudio complains about the
+version of the project files being too new or too old, you should be
+able to open those files in a text editor and change the version numbers
+to those of your VisualStudio installation.  The few times I have tried
+this, they all worked out fine.  If you have a better solution to this
+little problem, please email yours to <fastbit-users@hpcrdm.lbl.gov>.
+
+Jan. 28, 2009: Since verion 1.0.2, FastBit attempts to use atomic
+operation InterlockedExchangeAdd64 and friends to update the counters
+such as the total memory usage.  However, some of these functions are
+only available on Windows Vista.  One recommended detection of Vista is
+based on a macro called WINVER (or NTDDI_VERSION).  However, Visual
+Studio does not seem to define WINVER or NTDDI_VERSION, at least on my
+test machines.  If you encounter any indication that
+InterlockedExchangeAdd64 is not available, at run time, linking time or
+compile time, you might add /D "WINVER=0x0501" to the compiler options.
+The following web page has more information about WINVER
+<http://msdn.microsoft.com/en-us/library/aa383745(VS.85).aspx>
+
+May 5, 2009: Users may explicitly define the macro
+WITHOUT_FASTBIT_CONFIG_H to inform the compiler to not include
+../src/config.h.  On systems that could not run ../configure, the file
+../src/configure either does not existing or was created for another
+system.  In this case, one need to defined WITHOUT_FASTBIT_CONFIG_H if
+not using VisualStudio compilers.
+
+Dec 13, 2009: complaints about 'LPCWSTR'
+The FastBit source code is developed without considering multi-byte
+character sets nor unicode character set.  As such, the "Character Set"
+field in General tab of "Configuration Properties" of you visual studio
+project must be "Not Set", i.e., can be neither "multi-byte character
+set" nor "Unicode".  If you create a new visual studio project with a
+newer version of visual studio, the default character set might be
+unicode.  Be sure to change it to "Not Set."
+
+Jan 17, 2012: MinGW-w64 can downloaded from
+<http://sourceforge.net/projects/mingw-w64/>
+This site also have the necessary 64-bit pthread implementation needed
+for compiling FastBit
+(Information from Dominique Prunier <dominique dot prunier at watch4net dot com>)
+
+Mar 5, 2012: renamed Dominique's MinGW.mak to xMinGW.mak
+xMinGW.mak is meant for cross compiling on ubuntu to produce MS Windows binary
+

@@ -1,0 +1,601 @@
+<!--?xml version="1.0" encoding="US-ascii"?-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
+"https://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">
+<HTML xmlns="https://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:dc="https://purl.org/dc/elements/1.1/"
+      xmlns:foaf="https://xmlns.com/foaf/0.1/">
+<head>
+<meta name="dc:creator" content="John Wu"/>
+<meta name="KEYWORDS" content="FastBit, free download, data preparation,
+data conversion, ibis::table, ibis::part"/>
+<link rel="StyleSheet" href="https://sdm.lbl.gov/fastbit/style.css"
+ type="text/css"/>
+<link rev="made" href="mailto:John.Wu at acm.org"/>
+<link rel="SHORTCUT ICON" HREF="https://sdm.lbl.gov/fastbit/favicon.ico"/>
+<title>How to Load Data</title>
+</head>
+
+<body>
+<table cellspacing=0 border="0px" cellpadding=2 width="100%" align=center>
+<tr>
+<td colspan=7 align=right border=0><A href="https://sdm.lbl.gov/fastbit"><img class=noborder
+src="https://sdm.lbl.gov/fastbit/fastbit.gif" alt="FastBit"></A>
+</td></tr>
+<tr><td colspan=7 bgcolor=#009900 height=5></td></tr>
+<tr>
+<td class=other>&nbsp;</td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/">FastBit Front Page</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/publications.html">Research Publications</A></td>
+<td class=current><A href="index.html">Software Documentation</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/src/">Software Download</A></td>
+<td class=other><A rel="license" href="https://sdm.lbl.gov/fastbit/src/license.txt">Software License</A></td>
+<td class=other>&nbsp;</td>
+</tr>
+</table>
+<p class=small>
+<B>Organization</B>: <A HREF="https://www.lbl.gov/">LBNL</A> &raquo;
+<A HREF="https://crd.lbl.gov/">CRD</A> &raquo;
+<A HREF="https://sdm.lbl.gov/">SDM</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit">FastBit</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit/doc">Documentation</A> &raquo;
+Data Loading </p>
+
+<H1>How to load data</H1>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://www.google.com/cse" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3693400486576159:3jwiifucrd4" />
+    <input type="hidden" name="ie" value="ISO-8859-1" />
+    <input type="text" name="q" size="31" />
+    <input type="hidden" name="num" value="100" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+</DIV>
+
+<H2>Overview</H2>
+<p class=standout>
+In <A HREF="quickstart.html">quickstart.html</A>, a brief intruction for
+the loading data into FastBit was given.  In this document, we give
+further details for those who want to know the internal structures in
+order to make more extensive uses of FastBit.</p>
+
+<p style="font-size:small; text-align: right;">
+<A HREF="https://sdm.lbl.gov/fastbit/data/samples.html">Sample data
+  and usage examples</A>
+</p>
+
+<p>
+Recall that FastBit stores a data table in multiple partitions and each
+partition is stored in one directory on the file system.  Next, we will
+first briefly describe how to use <code>ardea</code> to to create this
+directory, then give more details of the files in this directory, and
+finally end with some advices on how different functions can be used to
+integrate data into existing tables.
+
+<H2>Using Existing Command Line Tools</H2>
+<p>
+Starting with ASCII form of data in the Comma-Separated Values (CSV)
+format, there is a command line tool named <code>ardea</code> that can
+digest the data and create the raw binary files and metadata files for
+FastBit.  Very briefly, a CSV file contains values of a data table in
+ASCII format with commas (and possibly white spaces) as delimiters.  It
+has all columns of a row on one line, and usually does not contain
+neither names of the columns or types of the columns.  Therefore it is
+necessary to supply this information from elsewhere.  The executable
+<code>ardea</code> has four options that deals with reading CSV data.
+
+<ul>
+  <li><code>-d output-dir</code><br>
+
+  Specifies the output directory to contain the data partition generated.
+  Only one <code>-d</code> option is expected, if multiple of them are
+  specified, the last one overwrite all previous ones.
+
+  <li><code>-n name-of-partition</code><br>
+
+  Specifies the name of the data partition.  If a name is not specified,
+  it will keep the name of the existing data in the output directory,
+  however, if the output directory is empty, it will use the directory
+  name.  If the directory name is '.' or '..', then it will use a digest
+  of the time stamp and size information as the name of the data
+  partition.
+
+  <li><code>-m name:type[, name:type, ...]</code><br>
+
+  Specifies the names and types of the columns.  The names and types given
+  here must in the same order as the columns in the CSV file.  When multiple
+  option <code>-m</code> are specified, they are concatenated together.
+
+  <li><code>-t text-filename</code><br>
+
+  Specifies the name of the text file to be read.  Multiple
+  <code>-t</code> options may be used to specify multiple text files.
+
+  <li><code>-r a-row-in-text-form</code><br>
+  Specifies a single row of a table in ASCII form.  Multiple rows may be
+  specified by using multiple <code>-r</code> options.  In
+  <code>ardea</code> text files are processed before individual rows
+  specified by option <code>-r</code>.
+
+  <li><code>-M metadatafilename</code><br>
+  Specifies a file containing the names and types.  The format of this
+  metadata file can be either simple name:type pairs as required by the
+  <code>-m</code> option, or the more verbose form used in '-part.txt'
+  files.
+
+  <li><code>-tags "name1=value1, name2=value2, ..."</code><br>
+  Specifies optional name-value pairs to be associated with the
+  dataset.  These name-value pairs are also called meta tags in FastBit
+  source code.  The names used in meta tags can also be used in query
+  expressions, in which cases, they are equivalent to columns with a
+  single text value (i.e., a categorical value).
+
+<li><code>-b delimiters</code><br>
+
+Specifies delimiters to use to parsing fields in the CSV files.  When
+any one of the delimiters is encountered, the current field being
+processed is terminated.  By default, the delimiters are any type of
+space or the coma, which means that any space can terminate a field as
+well as the coma.  To use coma alone, specify "<code>-b ,</code>"
+explicitly.  Consecutive apparences of delimiters are treated a single
+delimiter.  There is NO support for multi-character delimiter.
+
+</ul>
+
+Regarding column names, FastBit imposes the following restrictions.  The
+same restriction also apply to names of data partitions.
+<A name="colname"></A>
+<ul>
+<li> Column names must be composed from alphanumeric characters plus
+underscore, parentheses, brackets.
+<li> Column names must start with an alphabet or a underscore.
+<li> Column names are case-insensitive.
+</ul>
+
+Following the above specification, some examples of valid column names
+are "col1", "c0ll" and "c01l" (clearly they are too confusing and only
+one of them should be used).  Some examples of invalid names are "6e5",
+"e-f", and "e.f".  Note also that columns named "name" and "NaMe" are
+treated as a single column.
+
+<p>
+The executable <code>ardea</code> supports a subset of the data types
+that are supported by query processing functions.  The following is a
+complete list of data types supported by <code>ardea</code>
+
+<A name="types"></A>
+<ul>
+<li><code>byte</code>: 8-bit signed integer.
+<li><code>short</code>: 16-bit signed integer.
+<li><code>int</code>: 32-bit signed integer.
+<li><code>long</code>: 64-bit signed integer.
+<li><code>unsigned byte</code>: unsigned 8-bit signed integer.
+<li><code>unsigned short</code>: unsigned 16-bit signed integer.
+<li><code>unsigned int</code>: unsigned 32-bit signed integer.
+<li><code>unsigned long</code>: unsigned 64-bit signed integer.
+<li><code>float</code>: 32-bit IEEE floating-point values.
+<li><code>double</code>: 64-bit IEEE floating-point values.
+<li><code>key</code>: String values with a small number of distinct choices.
+<li><code>text</code>: Arbitrary string values.
+</ul>
+
+Except the unsigned integer types, all other types start with a
+different letter and <code>ardea</code> only test the first letter in
+these cases.  The first letter can be in either upper or lower case.
+Therefore the example given
+in <A HREF="quickstart.html">quickstart.html</A> can be shorten slightly
+as
+
+<pre>
+examples/ardea -d tmp -m "a:i,b:f,c:s" -t tests/test0.csv
+</pre>
+
+<p>
+<em>NOTE</em>: String values containing blank spaces must quoted because
+blank space is assumed to be delimiter as well.
+
+<p>
+<em>NOTE</em>: Quotes inside strings can be escaped with backslash.
+
+<p>
+If the data directory specified in <code>-d</code> option already
+contains some data, the new rows are appended to the existing records.
+If there is any mismatching in column names, NULL values will be used to
+pad the rows.  If there is any mismatching in the data types, the new
+data type will be used and the existing records will be left unchanged.
+Only differences of between signed integer and unsigned integers are
+allowed, other mismatches will be flagged and nothing will be written.</p>
+
+<p>
+The CSV files in directory <code>tests</code> are not exactly the
+standard CSV files, they contain an extra header line in each file.  The
+command <code>ardea</code> skips them because they can not be properly
+parsed into the data types specified.  These header lines are here to
+help the program in directory <code>tests</code> named
+<code>readcsv</code>.  In most cases, the CSV files produced by other
+systems will not have this extra header line.  We mention the program
+<code>readcsv</code> because it could serve as an example for those who
+want write their own program to read data for FastBit.  The source code
+for <code>readcsv</code> is <code>tests/readcsv.cpp</code>.
+
+
+<H2>Files in a Data Partition</H2>
+In a directory containing a data partition, there are files for each
+column and the metadata file named <code>-part.txt</code>.  For example,
+after building the indexes in the directory <code>tmp</code> generated
+by the above commend, we have the following files,
+<pre>
+-rw-r--r-- 1 kwu Users  402 Aug  3 20:35 -part.txt
+-rw-r--r-- 1 kwu Users  400 Aug  3 20:35 a
+-rw-r--r-- 1 kwu Users 3520 Aug  4 23:14 a.idx
+-rw-r--r-- 1 kwu Users  400 Aug  3 20:35 b
+-rw-r--r-- 1 kwu Users 3520 Aug  4 23:14 b.idx
+-rw-r--r-- 1 kwu Users  200 Aug  3 20:35 c
+-rw-r--r-- 1 kwu Users 3520 Aug  4 23:14 c.idx
+</pre>
+
+In this listing, we see three files with the column names we've given on
+the command line <code>a</code>, <code>b</code> and <code>c</code>.  The
+metadata file <code>-part.txt</code> and three index files named
+<code>a.idx</code>, <code>b.idx</code> and <code>c.idx</code>.  Each
+index file contains all information necessary to reconstruct a bitmap
+index, including the bitmaps and the keyvalues associated with each
+bitmap.  As described in <A
+HREF="https://sdm.lbl.gov/ps/LBNL-62756.html">LBNL-62756</A>, the
+bitmaps and the keyvalues are densely packed.  This design allows us to
+answer typicaly range queries efficiently.  The specific details of each
+bitmap index is documented with the function <code>write</code> in each
+index class.</p>
+
+<p>
+In addition to the above files, there are a few other files that FastBit
+uses.  If one plans to share the FastBit data directory with other
+applications, make sure none of them use the same names as FastBit.
+
+<ul>
+<li><code>-part.txt</code>: the metadata file for a data partition.
+During certain operations, FastBit may store additional information into
+this file.  If you have a pre-release version of FastBit, this file may
+be called <code>table.tdc</code>.
+
+<li><code>colname</code>: name of the data file for a column.  Note that
+column names can not contain dot (.) or space, see <A
+HREF="#colname">full list of restrictions</A>.
+
+<li><code>colname.idx</code>: name of the index file associated with
+column <code>colname</code>.  There can be one index for each column
+following this naming convention.
+
+<li><code>colname.msk</code>: the bit vector containing the mask for
+null values of the column.  The <code>i</code>th bit of this vector is
+set to <code>1</code> if the value of this column is not null.
+
+<li><code>colname.bin</code>: a reorder version of the values.  When
+values are binned, it is possible to generate this file to speed up
+certain search operations.
+
+<li><code>colname.sp</code>: starting positions of strings in the raw
+data file of string valued column.  Note that the raw string values are
+stored one after another along with their null terminators.  This file
+contains information to speed up the reading specific string from the
+raw data file.
+
+<li><code>colname.tdlist</code>: the term-document list used to build
+index <code>ibis::keywords</code>.  In this context, it is assumed that
+each row of this column is assumed to text document.
+
+<li><code>colname.terms</code>: terms defined in
+<code>colname.tdlist</code>.  This file is always used together with
+<code>colname.idx</code>.
+
+<li><code>colname.dic</code>: the dictionary of a low cardinality
+string-valued column.  The low cardinality string-valued columns, also
+known as "categorical values", are essentially treated as an integer
+column by translating each distinct string value to an integer.
+
+<li><code>colname.int</code>: the integers version of the categorical
+values (translated through the dictionary).
+
+</ul>
+
+Most of these files are output files used by FastBit, if a file with the
+same existing in the directory for the data partition, it is likely to
+be overwritten or removed by FastBit.</p>
+
+<p>
+To convert data from another format to be used by FastBit, the key data
+files to produce are <code>-part.txt</code> and the binary data files
+for columns.  Next, we describe the content of these files.
+
+<h2>Conversion to binary data</h2>
+
+Overall, FastBit views user data as tables consisting of rows and
+columns.  This is similar to most common database systems.  What is
+different is that it organizes each column of the data in its own binary
+file.  In contrast, most existing database management systems organizes
+data of each row together.  A typical layout of data table on paper is
+to show the rows horizontally and the columns vertically, thus the
+common data layout is known as the horizontal organization and our
+column-oriented organization is known as the vertical organization.  The
+vertical organization ensures that only homogeneous data is in a file,
+which reduce access overhead in many data warehousing type of
+applications.
+
+<p>
+Unless your data happen to be in vertically organized binary files,
+you will have to do a conversion.  The conversion process basically
+reads the data in its original format and produce a copy in raw binary
+form, with each column going to its own file.
+The following are all the necessary requirements.
+
+<ol>
+<li> All files to be appended to one data partition shall be in directory.
+
+<li> The <code>i</code>th data value of each data file forms the
+<code>i</code>th row of the table.  Therefore, they must be all from the
+<code>i</code>th row.
+
+<li> Write all data values in raw binary format.  The string values are
+to be written as raw bytes with null terminators and an empty string
+must have a null terminator.
+
+<li> An ASCII file named <code>-part.txt</code> that describes the
+data files in the directory.  The required information includes
+<ul>
+<li> Number of rows in the directory.
+<li> Number of columns in the directory.
+<li> Names of the columns.
+<li> Data types of the columns.
+</ul>
+<A HREF="#types">Currently supported data types are given above</A>.
+</ol>
+
+<p>
+We mentioned two examples program for converting ASCII data into
+vertically partitioned raw binary data files before,
+<code>tests/readcsv.cpp</code> and <code>examples/readcsv.cpp</code>.
+One may follow these examples to develop new one.
+
+
+<h2>Appending new data to an existing table</h2>
+
+FastBit IBIS implementation was initially designed to run as a server.
+To minimize the down time while appending new data, it maintains two
+copies of the same data and it performs the append operation in three
+steps:
+
+<ol>
+
+<li> First, the new data is appended to a backup copy of the active data
+directory.
+
+<li> The role of the backup directory and the active directory is
+swapped.  This is the only time the clients have to be locked out and
+the operation itself takes negligible amount of time.
+
+<li> The user may perform some integrity tests on the newly combined
+data and choose either to rollback the append operation or commit it.
+
+</ol>
+
+During an append operation, three directories are used, a directory to
+hold the new data, an active directory that can be used to answer user
+queries and a backup directory for accepting new data.  If there is no
+more rows to be added, the backup directory is never used again and can
+be removed.
+
+A configuration file is required to tell FastBit where are various
+resources such the data directory and the backup directory.  These
+directories can be specified as follows,
+
+<pre>
+dataDirectory = full-path-to-the-data-directory
+backupDirectory = full-path-to-the-backup-directory
+</pre>
+
+A <A href="#samplerc">sample configuration file</A> can be found at the
+end of this document.  Typically, the <code>dataDirectory</code> is a
+parent directory that contains the directories for different partitions,
+where each partition is stored in its own directory.  In particular, if a
+new partition is created, it is created as a new directory under the
+<code>dataDirectory</code>.
+
+<p>
+If a configuration file is not specified, the new data will appear in a
+directory named <code>.ibis</code> in the current working directory.
+
+<h3>Appending data through <code>ibis</code> command line tool</h3>
+Using the <code>ibis</code> command line tool, this three steps can be
+performed with one invocation using the <em>-a</em> option.  This option
+takes one mandatory arguments, which is the name of the directory
+containing the data to be appended.  It also take two optional arguments
+in the form of <em>to table_name</em>, where the word
+<em>table_name</em> is the name of a table the new data is to be
+appended.  The word <em>to</em> is used to make the command line
+slightly more friendly.
+
+<h3>Appending data through <code>ibis::part</code> API</h3> The
+operation of appending new data to the backup directory and swapping the
+roles of the active directory and the backup directory is performed in
+one function named <code>append</code>.  It has the following
+definition.
+
+<pre>
+int ibis::part::append(const char *newDataDir);
+</pre>
+
+This function returns the number of rows appended if it is successful,
+otherwise it returns an negative values as error code.
+
+<p>
+The function to perform the integrity check is called
+<code>selfTest</code>, which is defined as follows,
+
+<pre>
+int ibis::part::selfTest(int numThreads=0, const char *prefix=0) const;
+</pre>
+This function performs a set of predefined tests and return the number
+of failures encountered.  The function may take two arguments.  The
+first is the number of threads to be used and the second is a prefixed
+used to get extra control information from the configuration files.
+Both arguments to this function are optional.
+
+<p>
+If the integrity tests went fine, one may commit the append operation by
+calling <code>commit</code>, which has the following definition.
+
+<pre>
+int ibis::part::commit(const char *newDataDir);
+</pre>
+
+Similar to function <code>append</code>, this function returns the
+number of rows appended or an negative error code.
+
+<p>
+<em>NOTE</em>: The argument to <code>commit</code> should be the
+same as the argument to <code>append</code>.
+
+<p>
+If the append operation failed the integrity tests, one may rollback the
+append operation by calling <code>rollback</code>.
+
+<pre>
+int ibis::part::rollback();
+</pre>
+
+This function either return the number of rows removed or an negative
+number indicating error.
+
+<h3>Append data without the backup directory</h3>
+
+By only specifying the active data directory for a partition, it is
+possible to call <code>ibis::part::append</code> to work without the
+backup directory.  Of course, the function <code>commit</code> and
+<code>rollback</code> would do nothing.  If the <code>append</code>
+operation failed, one will have to do a manual recovery.  FastBit does
+not have to a tool to automate this recovery at this point in time.
+
+<hr align=left width=25%>
+<A name="sample"></A><h2>Appendix: Sample files</h2>
+
+Here is a sample <strong>-part.txt</strong> file with 6 columns and 1
+million rows.  The six different columns are of six different types
+supported by IBIS.  The description can be any text on one line.
+
+<pre>
+BEGIN HEADER
+DataSet.Name=testData
+Number_of_rows=1000000
+Number_of_columns=6
+Table_State=1
+END HEADER
+
+BEGIN Column
+name=i9
+description=integers 0, 1, ..., and 9
+data_type=Int
+END Column
+
+BEGIN Column
+name=j1
+description=integers 0 and 1
+data_type=Unsigned
+END Column
+
+BEGIN Column
+name=f0
+description=float values 0 and 1
+data_type=Float
+END Column
+
+BEGIN Column
+name=d0
+description=double 0, same as i0
+data_type=Double
+END Column
+
+BEGIN Column
+name=s1
+description=26-lower case alphabets
+data_type=Category
+END Column
+
+BEGIN Column
+name=t1
+description=26-lower case alphabets, same as s1
+data_type=String
+END Column
+</pre>
+
+<p>
+<a name="samplerc">
+A sample <code>ibis</code> configuration file.</a>
+
+<pre>
+dataDirectory=/data/jwu/index
+backupDirectory=/data/jwu/backup
+CacheDirectory=/tmp/QECache
+fileManager.maxBytes=300Mb
+longTests=true
+preferMMapIndex=1
+</pre>
+
+<p>
+Note, the source code distribution also distributes two very small sets
+of data for testing.  Some larger datasets are available on-line,
+<A HREF="https://sdm.lbl.gov/fastbit/data/samples.html">follow this link
+  to download these samples</A>.
+</p>
+
+<p><B>Warning:</B> The number of rows in each data patition is recorded
+with a 32-bit integer, which limits the maximum number of rows in a data
+partition to be 2<sup>32</sup> (~ 4 billion).  However, here are a
+number of more limitations on the number of rows that should be put in a
+data partition.
+<ul>
+  <li> Each column is loaded into memory when the raw data is needed.
+  If your machine has 2GB of memory, then the maximum number of rows in
+  a data partition with 8-byte double-precision floating-point values is
+  250 million.</li>
+  <li> In order to build an index, both the raw data and the index must
+  fit in the memory.  This imposes an even lower upper bound on the
+  number of rows in a data partition.  To be safe, we assume the index
+  size is going to take 5N words, where N is the number of rows in the
+  partition.  Due to memory fragmentation, these 5N words might actually
+  occupy an address space of size 10N words.  Therefore, we typically
+  partition data so that each column takes no more than one-tenth of the
+  memory.</li>
+  <!--li> Even if you have a machine is very large amount of memory, there
+  is another limitation due to the size of the word used to record the
+  positions of the bitmaps in a data file.  The positions are recorded
+  using 32-bit integers, therefore, the maximum size of an index is
+  2<sup>32</sup> bytes (~ 4GB).  If the index file has more than 4GB, at
+  least one of the bitmaps will not be reconstructed correctly.  One may
+  observe intermittent errors or incorrect answers in this situation.</li-->
+  <li> Currently the result table of a query is stored in memory.  This
+  places an upper bound on how many rows can be stored in such a table.</li>
+</ul>
+</p>
+
+<div class=footer>
+<a href="contact.html">Contact us</a><BR>
+<a href="https://www.lbl.gov/Disclaimers.html">Disclaimers</a><br>
+<A HREF="https://sdm.lbl.gov/fastbit/">FastBit web site</A><br>
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users">FastBit mailing
+list</A><br>
+<SCRIPT language=JavaScript>
+        document.write(document.lastModified)
+</SCRIPT>
+</div>
+
+<script src="https://www.google-analytics.com/ga.js"
+type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-812953-1";
+pageTracker._trackPageview();
+</script>
+</body>
+</html>

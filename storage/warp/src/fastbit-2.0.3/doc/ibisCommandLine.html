@@ -1,0 +1,573 @@
+<!--?xml version="1.0" encoding="US-ascii"?-->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
+"https://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:dc="https://purl.org/dc/elements/1.1/"
+      xmlns:foaf="https://xmlns.com/foaf/0.1/">
+<head>
+<meta name="dc:creator" content="John Wu"/>
+<meta name="keywords" content="FastBit, ibis, command line tool, usage"/>
+<link rel="StyleSheet" href="https://sdm.lbl.gov/fastbit/style.css"
+ type="text/css"/>
+<link rev="made" href="mailto:John.Wu@acm.org"/>
+<link rel="SHORTCUT ICON" HREF="https://sdm.lbl.gov/fastbit/favicon.ico"/>
+<title>FastBit IBIS Command Line Interface Document</title>
+</head>
+
+<body>
+<table cellspacing=0 border="0px" cellpadding=2 width="100%" align=center>
+<tr>
+<td colspan=7 align=right border=0><A href="https://sdm.lbl.gov/fastbit"><img class=noborder
+src="https://sdm.lbl.gov/fastbit/fastbit.gif" alt="FastBit"></A>
+</td></tr>
+<tr><td colspan=7 bgcolor=#009900 height=5></td></tr>
+<tr>
+<td class=other>&nbsp;</td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/">FastBit Front Page</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/publications.html">Research Publications</A></td>
+<td class=current><A href="index.html">Software Documentation</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/src/">Software Download</A></td>
+<td class=other><A rel="license" href="https://sdm.lbl.gov/fastbit/src/license.txt">Software License</A></td>
+<td class=other>&nbsp;</td>
+</tr>
+</table>
+<p class=small>
+<B>Organization</B>: <A HREF="https://www.lbl.gov/">LBNL</A> &raquo;
+<A HREF="https://crd.lbl.gov/">CRD</A> &raquo;
+<A HREF="https://sdm.lbl.gov/">SDM</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit">FastBit</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit/doc">Documentation</A> &raquo;
+Command Line Tool </p>
+
+<H1>FastBit IBIS Command Line Interface Document</H1>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://www.google.com/cse" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3693400486576159:3jwiifucrd4" />
+    <input type="hidden" name="ie" value="ISO-8859-1" />
+    <input type="text" name="q" size="31" />
+    <input type="hidden" name="num" value="100" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+</DIV>
+
+<p class=standout>
+IBIS <A href="#ibis">[1]</A> is an Implementation of Bitmap Indexing
+System named <A href="https://sdm.lbl.gov/fastbit">FastBit</A>.
+This document explains the command line tool named <code>ibis</code>,
+which is a shorthand for <emph>Interactive Bitmap Index Search</emph>.
+Under FastBit, user data is organized into containers called tables and
+each table consists of an arbitrary number of rows and columns.  In
+SQL algebra, the rows and columns are also called tuples and attributes.
+In this document, we will use the terms attribute and column
+interchangeably.</p>
+<p>
+A table is physically organized into one or more data partitions, so
+that one column from a partition can comfortably fit in computer memory.
+Each data partition is stored in a directory on file systems and the
+command line tool <code>ibis</code> works with data directories.
+
+<ul>
+<li><A href="#example">An example</A></li>
+<li><A href="#options">List of options</A></li>
+<li><A href="#select">Query statement syntax</A></li>
+<li><A href="#output">Sample output</A></li>
+</ul>
+
+<h2><A name="example">An example</A></h2>
+
+Take the dataset on <code>falkland.jgi-psf.org</code> as an example, the
+following command prints all the machine names (<code>mchn</code>) and the
+temperature values (<code>tmpr</code>) where the temperature is not one of
+the nominal values (55 for MegaBace and 60 for ABI).
+
+<pre>
+/home/kwu/bin/ibis -c /home/kwu/bin/ibis.rc -v -q "select mchn, tmpr where ! (tmpr == 55 || tmpr == 60)"
+</pre>
+
+On the particular machine, the most current version of the ibis
+executable is <code>/home/kwu/bin/ibis</code>.  The file name following
+option <code>-c</code> is the configuration file name.  Alternatively, one
+may directly specify the data directory on command line use '-d
+data-directory-path'.  The particular file
+contains the current version of JGI trace data header information.  The
+attribute names <A href="#trac">[2]</A> are available in the data directories
+<code>/psf/QC/Projects/IBIS/Datasets</code>.
+
+<p>
+The main option is <code>-q</code> which is followed by a query string.  The
+basic syntax follows that of SQL, however, only the basic features of
+the SQL's select statement is implemented.  Here we will first mention a
+few limitations that might cause non-descriptive failures of ibis.
+
+<ul>
+
+<li> If two instance's of ibis are run at the same to create indexes,
+they may overwrite each other's output and produce something that is
+totally unusable.
+
+<li> The computation of the functions SUM and AVG are performed using in
+the arithmetic supported on the type of the selected variable.  For
+example, if variable a is an integer, the function SUM(a) will be
+computed using integer arithmetic.  This may lead to overflow in certain
+cases.  The same overflow problem affects both SUM and AVG.
+
+<li> No multiple-table operations are supported.  If multiple tables are
+specified, it will simply apply the same condition on all the tables.
+This is mostly used to split a large dataset into more manageable
+chunks.
+
+</ul>
+
+<p>
+The option <code>-v</code> tells ibis to be verbose.  If this option is not
+supplied, only the number of hits and the result of the select clause
+are printed.  The result of the select clause may be appended to a file
+instead of printed to standard output.  To use this option, specify
+'-output name'.
+
+
+<h2><A name="options">List of options</A></h2>
+
+Here is the full list of options.  Additional information about command
+line options, including those not mentioned here, please see the <A
+ HREF="https://sdm.lbl.gov/fastbit/doc/html/ibis_8cpp.html">inline
+documentation of ibis.cpp</A>.
+
+<ul>
+
+<li><code>-a[ppend] data_dir [[to] output_directory or partition_name]</code>
+<br>Take the data in the named directory and append it to the data
+parition with the specified name or a directory with the specified path.
+In the current implementation, the second argument
+following <code>-a</code> is checked to see it is a directory first.
+If it is a directory name, then it is used as a directory name,
+otherwise, the second argument is used to find a data partition with
+the same name (with a case-insensitive search).</p><p>
+<em>Note</em>: If no second argument is provided, ibis attempts to use
+the meta tags contained in the table to generate a name.  If no meta
+tags are found, it will generate a random name.
+<p>
+More information about loading data can be found in <A
+href="dataLoading.html">dataLoading.html</a>.
+
+
+<li><A name="build"></A>
+<code>-b[uild-index] [num-threads|indexing-option|name-option-pair]</code>
+<br>Instruct FastBit to build indexes of all datasets known.  Usually FastBit
+builds indexes as needed, therefore there is no need to explicitly build
+indexes.
+<p>
+The option <code>-b</code> may be followed by one of three types of
+arguments, an integer to indicate the number of simultaneous
+threads to use while building the indexes, a bare indexing option to indicate
+the type of indexes to build for all columns, or a name-option pair to
+  indicate indexing option for a subset of columns.  An
+  indexing option is a string for the following form,
+"<code>&lt;binning nbins=1000/&gt; &lt;encoding range ncomp=2/&gt;</code>".
+Additional ifnormation about the indexing option is available at <A
+HREF="indexSpec.html">indexSpec.html</A>.
+</p>
+<p>
+  A name-option pair starts with a column name or a name pattern,
+  followed by the semicolon ':' and an indexing option string.  There is
+  no need to put spaces around the semicolon, in fact, ibis.cpp prefers
+  to have no spaces or any other separator around the semicolon.
+The name pattern may use SQL wild cards or c-shell wild cards.  The
+following example name-option pair
+  "c*:<code>&lt;binning precision=2/&gt;</code>" will index all
+columns whose names starting with the letter "c" with the indexing option
+"<code>&lt;binning precision=2/&gt;</code>".
+</p>
+<p>Multiple -b options may appear on the command line.  The name-option
+pairs are used in the order as they appear on the command line.  Only
+the last bare indexing option is used if any is specified.  The integer
+values following -b are added together.  An option -b appearing by
+itself is treated the same as '-b 1', therefore multple bare -b options will
+inrease the number of threads used to build indexes.
+For example, the following set of -b options,
+<pre>
+-b "a%:&lt;binning none/&gt;" -b ".b*:&lt;encoding interval-equality/&gt;" -b -b -b "bit-slice"
+</pre>
+will build indexes with two threads.  All columns with 'a' as the first
+letter of their name will be index without binning (i.e., "&lt;binning
+none/&gt;").  Columns whose name does not match the first pattern will
+be compared to the second pattern, all those with names containing b as
+the second letter will be indexed with the option "&lt;encoding
+interval-equality/&gt;".  The columns whose names do not match either
+one of the two patterns will be indexed with the option "bit-slice".
+</p>
+<p>
+Since building indexes is an expensive operation, FastBit by default
+only builds new index for a column if no index currently exists.  To
+force FastBit to remove existing indexes and rebuild them from
+scratch, specify option <code>-z</code> in addition.
+</p>
+<p>
+<em>Note</em>: The numbre of threads to use depends heavily on the
+amount of memory available.  Indexes are built one column of a data
+partition at a time.  Each thread works one a column of a partition at
+any given time, and the index for the column is built completely
+in-memory before written to disk.  If your data partitions are large,
+then each threads will require a lot of memory to complete it work.  The
+default number of threads to use for index building is one (1).
+</p>
+
+<li><code>-c[onf] conf_file</code>
+
+<br>Specify a configuration file.  If no configuration file is
+specified, it will look for a file named "ibis.rc" in the current
+working directory.  If that file does not exist, it will also look at
+the environment variable named IBISRC.  If the environment variable is
+defined, its value is taken to be the rc file.  One of the most
+noticeable entries defined in the rc file is the "DataDir1" and
+"DataDir2" entries.  They define the data directories used by IBIS.  On
+UNIX systems, <code>ibis</code> will also recursively traverse the
+directories to find directory pairs with the same name and the matching
+<code>-part.txt</code> files.  Each such pair defined a partition.  If
+different data partitions have the same name, only the last one will be
+kept.
+<p>
+Using a pair of directories for a data partition was intended to improve
+reliability and reduce the transition time when appending data.  In most
+cases, it is fine to use only one directory for each data partition, in
+which case, one simply do not specify "DataDir2".  More information
+about the configuration file is available in <A
+HREF="dataLoading.html">dataLoading.html</A>.
+
+
+<li><A name="data"></A><code>-d[atadir] data_dir [backup_dir]</code>
+
+<br>As an alternative to specify the data directories in a configuration
+file, one may specified them directly on the command line.  The effect
+of "data_dir" and "backup_dir" are the same as "DataDir1" and "DataDir2"
+in the RC file.
+
+<li><code>-e[stimation-only]</code>
+<br>Output a range for the number of hits rather than the exact number
+of hits.  Note, the estimation is applicable to queries contain
+only simple range conditions without negation.  Otherwise, the
+estimation may return 0 as both the upper and lower bound of the number
+of hits.
+
+<li><code>-h[elp]</code>
+<Br>Print a short usage statement.
+
+<li><code>-i[nteractive]]</code> <br>Tell ibis to enter an interactive
+mode after finishing processing the command line arguments.  In the
+interactive mode, the user may directly use the SELECT statement
+described below with the option <code>-q</code> or use a query file
+containing the select statements followed by ';' in a query file using
+the option <code>-f</code>.  There are also a small number of other
+commands that can be used in the interactive mode.  Type "help" in the
+interactive mode to see a list.
+
+<li><code>-l[logfile] logfilename</code>
+<br>Redirect all messages printed out by <code>ibis</code> to the named
+file.  The file is opened in append mode, therefore the existing content
+is preserved.  The only message that may still be printed to standard
+output is something indicating the name of the message file.
+
+<p>
+<em>NOTE</em>: this file contains the error messages and other
+information.  If option <code>-o</code> is also specified, the file
+specified in that option will contain the results of select statements.
+</p>
+
+<li><code>-n[o-estimation]</code>
+<br>Forces <code>ibis</code> to evaluate the number of hits without
+first performing an estimation.
+
+<p>
+<em>NOTE</em>: options <code>-no-estimation</code> and
+<code>-estimation-only</code> are mutually exclusive, the one that
+appears later will overwrite the one that appears early on the same
+command line.
+</p>
+
+<li><code>-o[utput-[with-header|as-binary]] name</code>
+
+<br>Tell <code>ibis</code> to append the result of select statements to
+the named file/directory.  The program <code>ibis</code> scans for the
+letter b to determine whether or not to output results in binary first.
+When outputting in binary format, the name is taken to the directory to
+contain the output.  This binary format is usable by FastBit.  If the
+letter b is not found, <code>ibis</code> will write the selected data in
+ASCII format.  If it finds the letter h in this option, it will also
+write a header before writing the ASCII data.
+
+<p> <em>NOTE</em>: the results from multiple select clauses on the same
+command line will be written to the same output file or directory.  When
+outputting in the binary format (-output-as-binary), the given name is
+taken to be a directory name, in all other cases, the given name is
+taken to be the output file name.  When output binary data, the new
+results is always appended; when writing in ASCII format, the existing
+file content will be erased regardless of whether the query processing
+is successful or not.  In cases of error, the output file would be
+empty.
+
+<p>
+<em>NOTE</em>: When outputting ASCII data with header, the results from each
+select clause will have its own header since different select clause
+might have different columns.
+<p>
+<em>NOTE</em>: When outputting binary data, the resulting directory will
+contain a superset of all columns.  A new set of data is always assumed
+to be a new set of rows to the data table.  Any missing values, such as
+those existing columns that do not appear in the new set or new columns
+that do not appear in the old rows, will be assumed to be NULL values.
+<p>
+<em>NOTE</em>: this option controls the output of the results from
+select statments only.  Other messages, such as errors, progress
+information, and debug information, may be redirected with option
+<code>-l</code>.
+</p>
+
+<li><code>-p[rint] [Parts|Columns|Distributions|column-name [:
+conditions]]</code>
+<br>Print information about the tables known to ibis program.
+
+<li><A name="query"></A><code>-q[uery] [SELECT ...] [FROM ...] WHERE ...</code>
+<br>On most systems the strings following <code>-q</code> must be quoted in
+order for them to be perceived as one argument.
+
+<li><code>-f query-file-name</code><br> A list of select statements can
+be placed in a file, where each select statement is followed by a
+semi-column ';' per SQL standard.  This option take the query file name
+and read the queries into an internal list of queries.  It is possible
+to execute the queries using multiple threads with the option
+<code>-th</code>.
+
+<li><code>-rid[-check] [filename]</code>
+
+<br>This option will tells <code>ibis</code> to verify the RIDs can be
+used in queries of their own.  If the optional file name is present, the
+RIDs will also be written into the named file.
+
+<li><code>-reorder data_dir[:colname1,colname2,...]</code>
+
+<br>This option instructs <code>ibis</code> to reorder the data in the
+specified directory.  An optional list of column name may be used to
+specify which columns are to be used as sorting keys.  If no key is
+specified, the integer valued columns will be used and the one with the
+smallest range of values will be used first.
+
+<br>Rules for distinguishing between -rid-check and -reorder:
+<ul>
+  <li>If the second letter is 'i' or 'I', then it is assume to be
+  -rid-check,
+  <li>otherwise it is assumed to -reorder if there is an argument
+  following it,
+  <li>if there is no argument follor '-r', the option is assumed to be
+  -rid-check.
+</ul>
+
+<li><code>-s[quential-scan]</code>
+<br>For ibis to check the answer produced from the index operations with
+a sequence scan of the raw data.
+
+<li><code>-t[=n]</code>
+<br>Instructs ibis to perform predefined self tests.  If a positive
+integer is provided, it takes the given number as the number of tests to
+perform.
+
+<li><code>-th=n</code>
+<br>Instructs ibis to start <code>n</code> threads to answer queries.
+Typically, the queries would be specified through the option <code>-f</code>.
+
+<li><code>-v[=n]</code>
+<br>Any integer can be specified as the verbose level.  Typically range
+are 1 -- 20.  Use a negative number to mute <code>ibis</code>.
+
+<li><code>-y [rowidlist|conditions]</code>
+<br>This option tells IBIS to yank the specified rows from further query
+processing.  It can take either a file with a list of row numbers or a
+set of condititions in the same syntax as the where clauses.  The rows
+with ids matching the row ids in the named file or matching the
+specified conditions will be marked as "inactive" in future query
+processing.
+
+<br>This options can be reversed by <code>-k
+[rowidlist|conditions]</code>.
+
+<br>An additional option <code>-z</code> can be used together with
+<code>-y</code> to tell IBIS to zap the inactive rows away.
+
+</ul>
+
+<h2><A name="select">Query statement syntax</A></h2>
+<p>
+The command line tool <code>ibis</code> supports a limited version of
+the SQL select statement.  It recognizes four key words, SELECT, FROM
+WHERE and ORDER BY.  The key words are not case-sensitive, neither are
+the names of variables or functions described below.</p>
+
+<p>
+The key word SELECT must be followed by a list of attribute names or one
+of the supported functions, separated by commas (,).
+The attribute names must be from the available datasets.  If any name is
+not in the available dataset, IBIS treats it same as no attribute
+provided.  If no attribute is provided, the SELECT key must not be used.
+In which case, only the number of hits would be printed.  The four
+functions each take one argument that must be a column name of an
+available dataset.  The variables not appearing in any functions are
+implicitly passed to a SQL 'GROUP BY' clause and the functions are
+defined on the groups defined by this implicit 'GROUP BY' clause.  For
+example, the select clause 'SELECT mchn, avg(q20), min(snra)' will order
+the selected records according to machine name (mchn), and for each
+machine the average Q20 score and the minimum SNRA value will be
+computed.
+<B>NOTE</B> that the current version of ibis.cpp does not support
+explicit a 'GROUP BY' clause.
+</p>
+
+<p>  The supported functions are:
+<ul>
+  <li> AVG: average
+  <li> MAX: maximum
+  <li> MIN: minimum
+  <li> SUM: sum
+  <li> COUNT: count the number of rows of the named variable.  The
+  actual value of the name is ignored, it may be '*'.
+  <li> COUNTDISTINCT: count the number of distinct value of the named variable.
+  <li> VAR: variance
+  <li> VARP: population variance
+  <li> STDEV: standard deviation
+  <li> STDEVP: population standard deviation
+  <li> GROUP_CONCAT: concatenate the string version of the values using
+  coma as separator
+  <li> MEDIAN: median of the column values.  Note that this function can
+  not be evaluated progressively.  Any select clause including this
+  function will require all intermediate values to be stored in memory
+  before this function can be evaluated.  This can significantly
+  increase the memory requirement and may lead to <code>ibis</code> to
+  run out of memory and crash!
+</ul>
+
+<p>
+The key word FROM must be followed by a list of table names.
+Conceptually, the data under the management of IBIS are organized into
+tables; and each table must have a name.  The table names in this clause
+may contain wild cards, '%' and '_', where '%' matches zero or more any
+characters and '_' matches exactly one character as in SQL "LIKE"
+expression.  If no table name is specified, the key word FROM must not
+be used.  In which case, all know data table would be queried.
+
+<p>
+The key word WHERE must be followed by a set of range conditions joined
+by logical operators 'AND', 'OR', 'XOR', and '!'.  A range condition
+can be one-sided as "A = 5" or "B > 10", or two-sided as "10 <= B < 20."
+The supported operators are = (alternatively ==), <, <=, >, and >=.  The
+range condition that involves only one attribute with constant bounds are
+known as simple conditions, which can be very efficiently processed by
+IBIS.  A range condition can also involve multiple attributes, such as,
+"A < B <= 5", or even arithmetic expressions, such as, "sin(A) + fabs(B)
+< sqrt(cx*cx+cy*cy)".  Note all one-argument and two-argument arithmetic
+functions available in <code>math.h</code> are supported.  The key word
+WHERE and the conditions following it are essential to a query and can
+<b>not</b> be ommited.
+
+<p>
+The select clause may also contain arithmetic expressions, e.g.,
+<pre>
+-q "select pressure, sqrt(vx*vx+vy*vy+vz*vz) where temperature > 1000"
+</pre>
+
+<p>
+A select clause of "count(*)" will produce a result table of exactly one
+row and one column as dictacted by the SQL standard.  One would have to
+examine the content of this trivial table to find out exactly how many
+hits are produced.  To bypass this extra step, simply omitting the
+select clause in this case.
+
+<p>
+The key word ORDER BY is optional.  If it appears, it can only be
+followed by list of column names, no wild cards, no arithmetic
+function.  Furthermore, the column names in the ORDER BY clause must be
+a subset of columns specified as output from the SELECT clause.
+
+<h2><A name="output">Sample output</A></h2>
+Here is a sample output produced on October 17, 2014 using the sample
+data star2002.  The following sample output is produced in the directory
+tests.
+
+<pre>
+$ scripts/star2002.sh
+  <<<...output skipped...>>>
+$ ../examples/ibis -d star2002 -q "select eventFile, avg(Pt) where primaryTracks > 2900" -v
+
+Constructed a part named star2002
+filter::sift2(SELECT eventFile, avg(Pt) FROM 1 data partition WHERE 2900 < ...) -- processing data partition star2002
+From star2002 Where 2900 < primaryTracks --> 20
+countQuery::evaluate -- duration: 0.014331 sec(CPU), 0.019357 sec(elapsed)
+SELECT eventFile, avg(Pt) FROM T-star2002 WHERE primaryTracks > 2900 produced a table with 20 rows and 2 columns
+-- the first 2 rows (of 20) from the result table for "SELECT eventFile, avg(Pt) FROM T-star2002 WHERE primaryTracks > 2900"
+1811167, 128.994491577148
+1811207, 42.6615257263184
+
+tableSelect:: complete evaluation of SELECT eventFile, avg(Pt) FROM T-star2002 WHERE primaryTracks > 2900 took 0.029337 CPU seconds, 0.052798 elapsed seconds
+/Users/john/src/ibis/examples/.libs/ibis -- total CPU time 0.037031 s, total elapsed time 0.081198 s
+</pre>
+
+<p>
+The number of hits is printed in the following line
+<pre>
+From star2002 Where 2900 < primaryTracks --> 20
+</pre>
+
+<p>
+The SELECT clause produced the output with the following
+heading.
+<pre>
+Query LT55J4AkJu400000 produces 32 distinct tuples of columns mchn,tmpr
+</pre>
+
+<p>
+In this particular case, it prints the machine name with the abnormal
+temperature, 'MegaBACE # MB 424', and the abnormal temperature values,
+which incidentally all appears to be multiple of 8.
+
+<h2>Endnotes</h2>
+<ol>
+
+<li> <A name="trac"></A>FastBit IBIS has been released as open source
+software under LGPL <A
+HREF="https://sdm.lbl.gov/fastbit/src/license.txt">license</A>.  You may
+download a free copy from <A
+HREF="https://codeforge.lbl.gov/frs/?group_id=44">FastBit download page</A>.
+
+<li> <A name="ibis"></A>Additional documentation about FastBit can be
+found on-line at <A HREF="https://sdm.lbl.gov/fastbit/">FastBit
+website</A>.  Questions may be directed to <A
+HREF="mailto:fastbit-users@hpcrdm.lbl.gov">fastbit-users@hpcrdm.lbl.gov</A>
+(free <A
+HREF="https://hpcrdm.lbl.gov/mailman/listinfo/fastbit-users">subscription</A>
+required, <A
+HREF="https://hpcrdm.lbl.gov/mailman/listinfo/fastbit-users">click
+here</A>).
+
+</ol>
+
+
+<div class=footer>
+<A HREF="contact.html">Contact us</a><BR>
+<A HREF="https://www.lbl.gov/Disclaimers.html">Disclaimers</A><BR>
+<A HREF="https://sdm.lbl.gov/fastbit/">FastBit web site</A><br>
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users">FastBit mailing
+list</A><br>
+<SCRIPT language=JavaScript>
+        document.write(document.lastModified)
+</SCRIPT>
+</div>
+
+<script src="https://www.google-analytics.com/ga.js"
+type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-812953-1";
+pageTracker._trackPageview();
+</script>
+</body>
+</html>

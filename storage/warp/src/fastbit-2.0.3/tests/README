@@ -1,0 +1,61 @@
+This directory contains a set of tests on predefined data records.  The
+simplest way to run them is to issue 'make check' from either this
+directory or the directory above this one.  When it passes a test, it
+will print
+
+Passed such-and-such test
+
+or
+
+All 40 queries match the expected results
+
+In case of failure, it will indicate where to find the detailed logs
+about the error.  Please review the error logs for clues to resolve the
+problems.  To request for help, please email
+<fastbit-users@hpcrdm.lbl.gov>.
+
+A more extensive test option is also available by issuing 'make
+more-check' or 'make full-check' from either this directory or the
+directory above this one.  These options go through larger sets of tests
+on a large data set and 'full-check' even runs through a few old
+indexing options that have not been used by the developers for a while.
+
+
+About the data: There are two CSV files named test0.csv and test1.csv.
+They are converted into the binary format used by FastBit with readcsv
+(compiled from readcsv.cpp).  Larger test data sets are simply
+replicated from these two small data sets.
+
+About the tests: There are two types of tests, the tests built into
+ibis::part class (ibis::part::selfTest) and a set of queries defined in
+scripts/query-count.list (parsed by scripts/match-count.pl).  All tests
+are executed through the executable compiled from ibis.cpp (in directory
+../examples).
+
+By default, the test data files are created in a subdirectory named tmp
+in this directory.  This location can be moved by selecting a different
+value for TESTDIR.  Because the test scripts generate a few files with
+the same names as those in this directory, NEVER sets TESTDIR to
+the name of this directory!
+
+On many linux/unix systems, the elapsed time (or real time) reported by
+'time make check' should be about 15s.  Under sygwin on MS Windows, it
+might be quite a bit longer because the process of launching a shell
+script takes significantly longer there.  If you are running on a
+linux/unix variant and 'time make check' reports significantly more time
+than 15s, it is possible there might be something wrong and we would
+like to hear about it.
+
+
+----------
+KNOWN PROBLEMS
+
+-- The command 'make full-check' and 'make more-check' takes a very long
+   time on cygwin compared to other systems.  If you have any
+   suggestions on address this problem, please post it to
+   <fastbit-users@hpcrdm.lbl.gov>.
+
+-- This suite of tests rely on perl and other GNU tools.  You will need
+   these tools in order to run the tests.  Suggestions for improving the
+   portability of test scripts can be sent to
+   <fastbit-users@hpcrdm.lbl.gov>.

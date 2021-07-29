@@ -1,0 +1,364 @@
+<!--?xml version="1.0" encoding="US-ascii"?-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
+"https://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">
+<HTML xmlns="https://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:dc="https://purl.org/dc/elements/1.1/"
+      xmlns:foaf="https://xmlns.com/foaf/0.1/">
+<head>
+<meta name="dc:creator" content="John Wu"/>
+<meta name="KEYWORDS" content="FastBit, IBIS, data distribution, API"/>
+<link rel="StyleSheet" href="https://sdm.lbl.gov/fastbit/style.css"
+ type="text/css"/>
+<link rev="made" href="mailto:John.Wu@acm.org"/>
+<link rel="SHORTCUT ICON" HREF="https://sdm.lbl.gov/fastbit/favicon.ico"/>
+<title>FastBit Quick Start</title>
+</head>
+
+<body>
+<table cellspacing=0 border="0px" cellpadding=2 width="100%" align=center>
+<tr>
+<td colspan=7 align=right border=0><A href="https://sdm.lbl.gov/fastbit"><img class=noborder
+src="https://sdm.lbl.gov/fastbit/fastbit.gif" alt="FastBit"></A>
+</td></tr>
+<tr><td colspan=7 bgcolor=#009900 height=5></td></tr>
+<tr>
+<td class=other>&nbsp;</td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/">FastBit Front Page</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/publications.html">Research Publications</A></td>
+<td class=current><A href="index.html">Software Documentation</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/src/">Software Download</A></td>
+<td class=other><A rel="license" href="https://sdm.lbl.gov/fastbit/src/license.txt">Software License</A></td>
+<td class=other>&nbsp;</td>
+</tr>
+</table>
+<p class=small>
+<B>Organization</B>: <A HREF="https://www.lbl.gov/">LBNL</A> &raquo;
+<A HREF="https://crd.lbl.gov/">CRD</A> &raquo;
+<A HREF="https://sdm.lbl.gov/">SDM</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit">FastBit</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit/doc">Documentation</A> &raquo;
+Quick Start </p>
+
+<H1>FastBit Quick Start</H1>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://www.google.com/cse" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3693400486576159:3jwiifucrd4" />
+    <input type="hidden" name="ie" value="ISO-8859-1" />
+    <input type="text" name="q" size="31" />
+    <input type="hidden" name="num" value="100" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+</DIV>
+
+<p>
+This quick start outlines the steps for a few tasks that one might do
+with FastBit software, such as preparing data, querying, and changing
+indexing options.  Only the basic instructioins are contained here, more
+detailed instructions for these tasks and information on trouble
+shooting are provided else where as indicated.
+</p>
+
+<A name="preparation"></A><H2>Preparing Data for FastBit</H2>
+<p>
+This section briefly desribes the FastBit data format, and the tools
+available for converting ASCII data files.
+</p>
+<H3>Utilities for converting data</H3>
+<p>
+If you have your data in an ASCII format known as Comma Separated Values
+(CSV), which many database systems utilize for input and output, you can
+use the command line tool <code>ardea</code> for converting the CSV
+files into directories that can be used by FastBit.  (The executable
+<code>ardea</code> is built by command <code>make all</code> from the
+top level directory of the FastBit source code.)  The following command
+line converts the file <code>tests/test0.csv</code> to the FastBit data
+partition in directory <code>tmp</code>.
+
+<pre>
+examples/ardea -d tmp -m "a:int, b:float, c:short" -t tests/test0.csv
+</pre>
+
+It reads the first column as 32-bit integers with column name
+<code>a</code>, the second column as 32-bit floating-point values with
+column name <code>b</code>, and the third column as 16-bit integer
+values with column name <code>c</code>.  The resulting binary files and
+the metadata file are writtent to directory <code>tmp</code>.  The
+following is a listing of the files in <code>tmp</code>.  The file sizes
+of <code>a</code>, <code>b</code> and <code>c</code> should be exactly
+400 bytes, 400 bytes and 200 bytes as shown.
+</p>
+<pre>
+-rw-r--r-- 1 kwu Users 402 Jul 30 13:38 -part.txt
+-rw-r--r-- 1 kwu Users 400 Jul 30 13:38 a
+-rw-r--r-- 1 kwu Users 400 Jul 30 13:38 b
+-rw-r--r-- 1 kwu Users 200 Jul 30 13:38 c
+</pre>
+
+<p>
+For additional information about preparing data, read <A
+HREF="dataLoading.html">dataLoading.html</A>.
+</p>
+<H3>FastBit Data organization</H3>
+
+<p> FastBit treats data as tables with rows and columns.  A large table
+may be partitioned into many data partitions.  To prepare data for
+FastBit, one needs to build these partition separately.  Each partition
+is stored in a directory in you file system, with each column stored as
+a separated file in raw binary form.  The name of the data file is the
+name of the column.  The column name can only contain alphanumeric
+characters plus the underscore (_) and must start with an alphabet.
+Furthermore, all column names are case insensitive.</p>
+
+<p>
+There must be a metadata file named <code>-part.txt</code> in the directory
+for a data partition.  This file contains information such as the name
+of the partition, the number of rows in the partition, the number of
+columns, column names and so on.  Here is an example with the minimal
+necessary information,
+<pre>
+BEGIN HEADER
+name=testData
+Number_of_rows=1000000
+Number_of_columns=2
+END HEADER
+
+BEGIN Column
+name=f1
+data_type=float
+END Column
+
+BEGIN Column
+name=j2
+data_type=unsigned
+END Column
+</pre>
+</p><p>
+Once the binary data files and the metadata file <code>-part.txt</code> are
+in place, FastBit can make use of the data partition and we can query
+the data with the command line tool named <code>ibis</code> built from
+<code>examples/ibis.cpp</code>.
+</p>
+<p>
+FastBit typically reads a whole data file containing a column into memory
+when part of the file is needed.  This imposes a limit on the number of
+rows that can be stored in a partition.  In addition, the size of a
+partition is internally recorded with a 32-bit unsigned integer, which
+has a limit of 2<sup>32</sup> rows, which is a hard upper bound on the
+number rows for a partition.  Typically, for a machine with a few
+gigabytes of memory, we recommend a data partition to contain between 1
+million and 100 million rows.</p>
+<p style="font-size:small; text-align: right;">
+<A HREF="https://sdm.lbl.gov/fastbit/data/samples.html">Larger samples
+  and more usage examples</A>
+</p>
+
+<H2>Querying Existing Data</H2>
+<p>
+After preparing a data partition, we can try some queries.
+Both programs <code>ibis</code> and <code>thula</code> can be used accomplish
+this task.  Assuming directry <code>tmp</code> has been prepared with the above
+<code>ardea</code> command line, the following two commands should both
+produce 1 hit.
+<pre>
+examples/ibis -d tmp -q "where a = 0"
+examples/thula -d tmp -w "a = 0"
+</pre>
+The following two commands both produce 9 hits.
+<pre>
+examples/ibis -d tmp -q "where a = b and c < 10"
+examples/thula -d tmp -w "a = b and c < 10"
+</pre>
+</p><p>
+The above commands directly use the data directories specified on
+command line.  To specify more than one direcoty per command or to
+specify additional parameters to control the execution of FastBit, one
+may use a configuration file.  For example, the following configuration
+file specifies two data directories and tell FastBit to store temporary
+files in <code>/tmp/FastBitCache</code>.
+<pre>
+timestep1.dataDir=/data/jwu/ts1
+timestep2.dataDir=/data/jwu/ts2
+CacheDirectory=/tmp/FastBitCache
+</pre>
+The configuration file can be passed to any command line tool with
+option <code>-c rc-filename</code>.
+</p>
+<p>
+With all command line tools, a useful option is <code>-h</code>, which will
+cause them to print out usage information.  Another useful option is
+<code>-v</code>, which can be used to instruct them to print out more
+information about their progress.  Multiple <code>-v</code> options can
+be used if more verbose output is desired.
+</p>
+<p>
+Note that both <code>ibis</code> and <code>thula</code> answer queries, but
+they exercise different interfaces to the underlying indexing functions.  In
+addition, <code>ibis</code> also supports a lot more operations.  A
+description of these functions are available in <A
+HREF="ibisCommandLine.html">ibisCommandLine.html</A>.
+</p>
+
+<H2>Controling the Indexes</H2>
+<p>
+FastBit implements more than a dozen different bitmap indexes and also
+offers a number of ways to control which one is used for query
+processing.  An easy way to build index is to use the <code>ibis</code>
+program, such as
+
+<pre>
+examples/ibis -v -d tmp -b "&lt;binning none/&gt;&lt;encoding equality/&gt;"
+</pre>
+
+which builds the basic bitmap index (with no binning, equality
+encoding), other possible indexes are described in <A
+HREF="indexSpec.html">indexSpec.html</A>.</p>
+<p>
+When an index exists, the above command does not check whether the
+existing index is of the specified type.  To remove the existing indexes
+and build new ones, add <code>-z</code> in addition to option
+<code>-b</code>.  The existing query processing function can only work
+with one index per column (per data partition).  There is no way to
+build multiple indexes for one column in a data partition.</p>
+<p>
+Alternatively, one may manually remove all index (<code>*.idx</code>) files
+from a directory or edit the file <code>-part.txt</code> to specify
+indexing options to the whole partition or a specific column.  For
+example, the following <code>-part.txt</code> modifies the above one by
+adding an indexing option to the whole partition and one for column
+<code>j2</code>.
+
+<pre>
+BEGIN HEADER
+name=testData
+Number_of_rows=1000000
+Number_of_columns=2
+index=&lt;binning precision=2/&gt;&lt;encoding equality/&gt;
+END HEADER
+
+BEGIN Column
+name=f1
+data_type=float
+END Column
+
+BEGIN Column
+name=j2
+data_type=unsigned
+index=&lt;binning none/&gt;&lt;encoding equality/&gt;
+END Column
+</pre>
+</p>
+
+<H2>Calling FastBit Functions</H2>
+<p>
+All useful FastBit functions and classes are in the name space of
+<code>ibis</code>.  There are two levels of interfaces, one is more abstract
+and the other is more concrete.  The abstract interface is implemented as
+class <code>ibis::table</code>, and the concrete interface is implemented as
+class <code>ibis::part</code> (a shorthand for partition).  We will next
+briefly describe a handful of key functions from these two classes.
+Note that before doing anything, one should call <code>ibis::init</code> to
+read the configuration file if there is one.</p>
+
+<h3>Class <code>ibis::table</code></h3>
+<p>
+One normally instantiates an <code>ibis::table</code> object by calling
+the function <code>ibis::table::create</code> with the data directory as the
+argument.  This is done in file <code>example/thula.cpp</code>.</p>
+<p>
+There are two functions, <code>ibis::table::estimate</code>, which gives a
+lower and a upper bound on the number of hits, and
+<code>ibis::table::select</code>, which produces another table containing
+the selected values.  Both of these functions are documented in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1table.html">table.h</A>.
+The following is a snipet of source code that builds an
+<code>ibis::table</code> object from directory <code>tmp</code>, and estimate
+the number of hits of query condition "a = 0".
+<pre>
+ibis::table *tbl = ibis::table::create("tmp");
+uint64_t nhmin, nhmax;
+tbl->estimate("a = 0", nhmin, nhmax);
+</pre>
+For a more realistic example, see file <code>examples/thula.cpp</code>.
+</p>
+<p>
+Additional information about the functions defined in
+<code>ibis::table</code> and related classes can be found in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/table_8h.html">table.h</A>.
+</p>
+
+<h3>Class <code>ibis::part</code></h3>
+<p>
+The more concrete interface is represented by class <code>ibis::part</code>.
+Each <code>ibis::part</code> corresponds to exactly one data directory
+described above.  Currently, the constructor of <code>ibis::part</code>
+requires two arguments both being directory names.  It is safe to
+pass the data directory name as the first argument and pass a nil
+pointer as the second argument, see <code>examples/ibis.cpp</code> for an
+example.</p>
+<p>
+To process any query with <code>ibis::part</code>, one needs to instantiate
+<code>ibis::query</code> objects.  The following code snippet demonstrates
+how to create an <code>ibis::part</code> from directory <code>tmp</code>, an
+<code>ibis::query</code> object for the query condition "a = b and c < 10",
+then evaluate the query and find out the number of hits.
+<pre>
+ibis::part par("tmp", 0);
+ibis::query que("username", &par);
+que.setWhereClause("a = b and c < 10");
+que.evaluate();
+long nhits = que.getNumHits();
+</pre>
+The class <code>ibis::part</code> is documented in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1part.html">part.h</A>,
+and the class <code>ibis::query</code> is documented in 
+<A HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1query.html">query.h</A>.
+A more realistic example can be found in <code>examples/ibis.cpp</code>.
+
+<h3>Class <code>ibis::index</code></h3>
+<p>
+The most interesting component of FastBit is the class hierarchy of
+<code>ibis::index</code>.  A potentially useful task is to extend these
+compressed bitmap indexes in this class hierarchy.  The class
+<code>ibis::index</code> is documented in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1index.html">index.h</A>.
+Inside FastBit, an index is created through the class
+<code>ibis::column::indexLock</code>, which in turn calls
+<code>ibis::column::loadIndex</code>, which then invokes the index factory
+<code>ibis::index::create</code>.  The main reason for using
+<code>ibis::column::indexLock</code> is to track how many
+queries are using an index simultaneously.  It is possible to bypass all
+these layers of code by directly invoking the constructor of a concrete
+index class.</p>
+<p>
+There are two types of indexes in FastBit, binned and unbinned.  The
+binned class all derive from <code>ibis::bin</code>, and most of the
+unbinned classes derive from <code>ibis::relic</code> that implements the
+basic bitmap index.  The class <code>ibis::bin</code> is defined in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1bin.html">ibin.h</A>
+and the class <code>ibis::relic</code> is defined in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1relic.html">irelic.h</A>.
+Note that all concrete index classes are defined in files starting with
+letter <code>i</code>.</p>
+
+<div class=footer>
+<A HREF="contact.html">Contact us</a><BR>
+<A HREF="https://www.lbl.gov/Disclaimers.html">Disclaimers</a><br>
+<A HREF="https://sdm.lbl.gov/fastbit/">FastBit web site</A><br>
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users">FastBit mailing list</A><br>
+<SCRIPT language=JavaScript>
+        document.write(document.lastModified)
+</SCRIPT>
+</div>
+
+<script src="https://www.google-analytics.com/ga.js"
+type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-812953-1";
+pageTracker._trackPageview();
+</script>
+</body>
+</html>

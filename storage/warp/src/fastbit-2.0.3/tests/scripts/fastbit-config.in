@@ -1,0 +1,109 @@
+#! /bin/sh
+#
+# Initially written by John Wu <John.Wu at acm.org> on Jun 1 2009
+# Copyright (c) 2009-2015 the Regents of the University of California
+#
+# This file is part of FastBit project distributed under the terms of
+# LGPL.  By continuing to use, modify, or distribute this file you
+# indicate that you have read the license and understand and accept it
+# fully.
+
+prefix=@prefix@
+includedir=@includedir@
+libdir=@prefix@@libdir@
+
+usage()
+{
+  cat <<EOF
+Usage: fastbit-config [OPTION]...
+Get @PACKAGE_STRING@ compilation and linking information.
+
+Options:
+  --prefix      display \`--prefix' value used for building the FastBit library
+  --version     display FastBit version number
+  --libs        display flags for linking with the FastBit library
+  --cflags      display CFLAGS for compiling with the FastBit library
+  --cxxflags    display CXXFLAGS for compiling with the FastBit library
+  --cxxextra    display extra CXXFLAGS (in addition to CFLAGS) for compiling with the FastBit library
+
+Note: include <fastbit/ibis.h> in C++ code
+Note: include <fastbit/capi.h> in C code
+EOF
+  exit $1
+}
+
+if test $# -eq 0 ; then
+  usage 1 1>&2
+fi
+
+while test $# -gt 0 ; do
+  case $1 in
+  --prefix)
+    echo_prefix=yes
+    ;;
+  --version)
+    echo_fb_version=yes
+    ;;
+  --cflags)
+    echo_cflags=yes
+    ;;
+  --cxxflags)
+    echo_cxxflags=yes
+    ;;
+  --cxxextra)
+    echo_cxxextra=yes
+    ;;
+  --libs)
+    echo_libs=yes
+    ;;
+  *)
+    usage 1 1>&2
+    ;;
+  esac
+  shift
+done
+
+if test "$echo_prefix" = "yes" ; then
+  echo $prefix
+fi
+
+if test "$echo_exec_prefix" = "yes" ; then
+  echo $exec_prefix
+fi
+
+if test "$echo_fb_version" = "yes" ; then
+  echo "@PACKAGE_STRING@"
+fi
+
+if test "$echo_cflags" = "yes" ; then
+  cflags="@DEFS@ @AM_CPPFLAGS@ @PTHREAD_CFLAGS@"
+  if test "$includedir" != "/usr/include" ; then
+    echo $cflags -I$includedir
+  else
+    echo $cflags
+  fi
+fi
+
+if test "$echo_cxxflags" = "yes" ; then
+  cxxflags="@DEFS@ @AM_CPPFLAGS@ @EXTRA_CXXFLAGS@ @PTHREAD_CFLAGS@"
+  if test "$includedir" != "/usr/include" ; then
+    echo $cxxflags -I$includedir
+  else
+    echo $cxxflags
+  fi
+fi
+
+if test "$echo_cxxextra" = "yes" ; then
+  echo "@EXTRA_CXXFLAGS@"
+fi
+
+if test "$echo_libs" = "yes" ; then
+  libs="-lfastbit @LIBS@ @PTHREAD_LIBS@"
+  if test "$libdir" != "/usr/lib" && test "$libdir" != "/usr/lib64"; then
+    echo -L$libdir $libs
+  else
+    echo $libs
+  fi
+fi
+ 
+# EOF

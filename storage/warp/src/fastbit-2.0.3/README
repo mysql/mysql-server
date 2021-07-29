@@ -1,0 +1,83 @@
+*** COMPILING ON WINDOWS ***
+As of 2014, FastBit source code starts to make use of some C++11x
+features that are not supported yet in MS Visual Studio, therefore,
+there is no way to compile with Visual Studio until C++0x is
+supported.  However, it is possible to compile with CYGWIN.
+****************************
+
+
+
+This directory contains the current version of FastBit (code named
+IBIS).  Please report any problem you've encountered in using this
+package to <fastbit-users@hpcrdm.lbl.gov>.
+
+Please feel free to post any success story or paper you wrote that makes
+use of FastBit in some way.  Your success stories will be encouragement
+for the developers and users.
+
+
+This software is packaged with GNU build tools.  On systems that
+support such tools, you should be able to build it by running the
+following two commands in this directory
+
+./configure
+make
+
+Due to the uses of a number of C++11 features, such as, unique_ptr and
+unordered_map, the current version of the source code requires GCC 4.8
+or clang 3.5 to compile.  If your C++ compiler supports C++11, please
+give it a try and let us know.
+
+Further information about installation is available in file INSTALL in
+this directory.  For installation on a MS Windows system using Visual
+Studio, follow instructions in win/README.
+
+To check the correctness of the build, run the following command
+
+make check
+
+Read the file README in tests directory to find out more about the tests.
+
+The main body of the source code is located in directory src.  The code
+is built into a single library named libfastbit.la on systems with
+libtools.
+
+Some examples of using the library are located in the directory examples.
+The following is a brief description of the four examples.
+
+-- ibis.cpp exercises much of the functions of the lower level indexing
+   functions.
+-- tcapi.c is an example of using the C API querying defined in capi.h.
+-- thula.cpp exercises the querying interface defined in class
+   ibis::table.
+-- ardea.cpp exercises the functions to extend a table (API defined in
+   ibis::tablex).
+
+The directory doc contains a number of HTML files that documents key
+features of FastBit.  In particular, the file quickstart.html contains
+brief instructions for basic tasks and should be useful starting for
+those not familiar with FastBit already.
+
+There is considerable amount of in-line documentation in the source
+code; execute the following command to invoke doxygen and extract the
+in-line documentation
+
+make docs
+
+The resulting documentation is in directory doc/html.
+Alternatively, you may view the on-line version of the documents at
+http://sdm.lbl.gov/fastbit/doc/.
+
+
+The FastBit mailing list could be a valuable resource.  It is archived
+on line at http://hpcrdm.lbl.gov/mailman/private/fastbit-users/.  If you have
+question not answered in the documents or the mailing list, post your
+questions to the FastBit mailing list.  You need to first join the
+mailing list by visiting
+https://hpcrdm.lbl.gov/mailman/listinfo/fastbit-users.
+
+Before reporting a problem, it might be helpful to check whether the
+problem still exist with the current source code.  A nightly snapshot of
+the SVN repository for the code is available for download at
+<https://codeforge.lbl.gov/snapshots.php?group_id=44>.  The snapshot is
+built daily between 2 and 3 AM Pacific Time zone (USA).

@@ -1,0 +1,9 @@
+This directory contains files for unit tests prepared by Andrey
+Kolchanov <kolchanov at gmail.com>.  It exercises some basic
+functionality of FastBit Java Native Interface (class
+gov.lbl.fastbit.FastBit), FastBitStringReader and FastBitStringWriter.
+Andrey also contributed FastBitStringRead and FastBitStringWriter.
+
+Note the jar files in the lib directory are required for running the
+tests.
+

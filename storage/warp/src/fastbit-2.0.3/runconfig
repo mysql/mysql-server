@@ -1,0 +1,65 @@
+#!/usr/bin/env perl
+#
+# A script used by the authors of FastBit to configure the package on a
+# few common machines used.  Terse comments are provided in hoping they
+# might be instructive for configuring the package on other machines.
+#
+use Env qw(HOME HOSTNAME PWD SYS);
+
+if (! ${HOSTNAME}) {
+  $HOSTNAME=`hostname | tr -d '[[:space:]]'`;
+}
+if (! ${SYS}) {
+  $SYS=`uname -s`;
+}
+print "Configuring on ${HOSTNAME} with ${SYS}\n";
+
+if (${HOSTNAME} =~ m/^bit/) {
+  # on a Mac used by a developer, enable maintainer mode, use debug options # CC=gcc-mp-4.7 CXX=g++-mp-4.7 # CC=clang CXX=clang++ -gdwarf-2
+  # -DFASTBIT_RECURSIVE_UNLOAD 
+  $cmd="./configure --prefix=${HOME}/tmp --enable-maintainer-mode --with-java CFLAGS='-g -O0 -Wall' CXXFLAGS='-g -O0 -Wall'";
+} elsif (${HOSTNAME} =~ m/^data5[.lbl.gov]?$/) {
+  # on data5, know where is java and where to install, use extra optimization
+  $cmd="./configure --enable-xopt --disable-debug --with-java=/software/jdk1.7.0 --prefix=/data/john/Linux";
+} elsif (${HOSTNAME} =~ m/^d\w+[.lbl.gov]?$/) {
+  # on sdm group's linux machines, know where is java and where to install
+  $cmd="./configure --enable-xopt --disable-debug --with-java=/software/jdk1.7.0 --prefix=/fastbit/`uname -s`";
+} elsif (${HOSTNAME} =~ m/^edison\w+[.nersc.gov]?$/) {
+  # on the front end of edison at NERSC, the default compiler is from Intel
+  print "\nPlease make sure that PrgEnv-gnu is used, for example by executing 'module swap PrgEnv-intel PrgEnv-gnu'\n\n";
+  $cmd="./configure --without-getpwuid --with-quiet-nan CFLAGS='-fPIC -O3 -std=c++11' CXXFLAGS='-fPIC -O3 -std=c++11' --without-java --prefix=/project/projectdirs/m1248/edison/gnu";
+  #$cmd="./configure CC=icc CXX=icpc --without-getpwuid --with-quiet-nan CFLAGS='-fPIC -g -O3' CXXFLAGS='-fPIC -g -O3' --without-java --prefix=/project/projectdirs/m1248/edison/intel";
+} elsif (${HOSTNAME} =~ m/^hopper\w+[.nersc.gov]?$/) {
+  # on the front end of hopper at NERSC, there is a choice to be made about what compiler to use
+  # print "\nPlease make sure that PrgEnv-gnu is used, for example by executing 'module swap PrgEnv-pgi PrgEnv-gnu'\n\n";
+  $cmd="./configure --without-getpwuid --with-quiet-nan CFLAGS='-fPIC -O3 -std=c++11' CXXFLAGS='-fPIC -O3 -std=c++11' --without-java --prefix=/project/projectdirs/m1248/hopper/gnu";
+  #$cmd="./configure CC=pgcc CXX=pgCC --without-getpwuid --with-quiet-nan CFLAGS='-fPIC -O3' CXXFLAGS='-fPIC -O3' --without-java --prefix=/project/projectdirs/m1248/hopper/pgi";
+} elsif (${HOSTNAME} =~ m/^sith/) {# sith.ccs.ornl.gov
+  # on sith at ORNL, try GNU compilers
+  $cmd="./configure --prefix=${HOME}/`uname -s`/sith-gnu --without-java --enable-xopt --disable-debug"
+} elsif (${HOSTNAME} =~ m/^titan/) {#[-\w+]?[.ornl.gov]?$
+  # on titan at ORNL, try GNU compilers
+  $cmd="./configure --prefix=${HOME}/`uname -s`/titan-gnu --without-java --enable-xopt --disable-debug --disable-shared --without-getpwuid --with-quiet-nan"
+  # on titan at ORNL, need to choose between PGI and GNU compilers
+  #$cmd="env CC=pgcc CXX=pgCC ./configure --prefix=${HOME}/`uname -s`/tital-pgi --without-java --enable-xopt --disable-debug --disable-shared"
+} elsif (${HOSTNAME} =~ m/^mira/) {# mira at ALCF
+  # need bgclang
+  print "\nPlease use +mpiwrapper-bgclang in .soft\n\n";
+  $cmd="env CC=bgclang CXX=bgclang++11 ./configure --prefix=${HOME}/`uname -s` --without-java --disable-debug --disable-shared"
+} elsif (${HOSTNAME} =~ m/^cvr\w+[\.nersc\.gov]?$/) {
+  # on carver at NERSC, use the GNU compilers, no debugging
+  $cmd="./configure --without-getpwuid --with-quiet-nan --enable-xopt --disable-debug --without-java --prefix=/project/projectdirs/m1248/carver";
+} elsif (defined $ENV{"NERSC_HOST"}) {
+  # on other NERSC machines, use the GNU compilers, no debugging
+  use Env qw(NERSC_HOST);
+  $cmd="./configure --prefix=/project/projectdirs/m1248/${NERSC_HOST}/gnu --without-getpwuid --with-quiet-nan --disable-debug --enable-xopt";
+} else {	# based on system type ${SYS}
+  if (${SYS} =~ m/CYGWIN/i || ${SYS} =~ m/MINGW/i) {
+    $cmd="env CPPFLAGS=-DHAVE_STRUCT_TIMESPEC CXXPPFLAGS='-std=gnu++0x -U__STRICT_ANSI__ -DHAVE_STRUCT_TIMESPEC' CFLAGS='-O0 -g -DHAVE_STRUCT_TIMESPEC' CXXFLAGS='-O0 -g -DHAVE_STRUCT_TIMESPEC -std=gnu++0x -U__STRICT_ANSI__' ./configure --with-pthread --prefix=${PWD}/${SYS}";
+  }
+  else { # default options on generic linux/unix machines
+    $cmd="./configure --prefix=${PWD}/${SYS}";
+  }
+}
+print "$cmd\n\n";
+system($cmd);

@@ -1,0 +1,10 @@
+Number of rows produced by "SELECT l, count(*) WHERE l IN (1,2)": 2
+1, 1
+2, 2
+Number of rows produced by "SELECT l, count(*) WHERE l IN (1)": 1
+1, 1
+Number of rows produced by "SELECT l, count(*) WHERE l IN (3)": 1
+3, 3
+Number of rows produced by "SELECT l, count(*) WHERE l IN (1,3)": 2
+1, 1
+3, 3

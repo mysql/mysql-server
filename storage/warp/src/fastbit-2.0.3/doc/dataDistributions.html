@@ -1,0 +1,414 @@
+<!--?xml version="1.0" encoding="US-ascii"?-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
+"https://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">
+<HTML xmlns="https://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:dc="https://purl.org/dc/elements/1.1/"
+      xmlns:foaf="https://xmlns.com/foaf/0.1/">
+<head>
+<meta name="dc:creator" content="John Wu"/>
+<meta name="KEYWORDS" content="FastBit, IBIS, data distribution, API"/>
+<link rel="StyleSheet" href="https://sdm.lbl.gov/fastbit/style.css"
+ type="text/css"/>
+<link rev="made" href="mailto:John.Wu at acm.org"/>
+<link rel="SHORTCUT ICON" HREF="https://sdm.lbl.gov/fastbit/favicon.ico"/>
+<title>How to compute data distributions using FastBit ibis::part API</title>
+</head>
+
+<body>
+<table cellspacing=0 border="0px" cellpadding=2 width="100%" align=center>
+<tr>
+<td colspan=7 align=right border=0><A href="https://sdm.lbl.gov/fastbit"><img class=noborder
+src="https://sdm.lbl.gov/fastbit/fastbit.gif" alt="FastBit"></A>
+</td></tr>
+<tr><td colspan=7 bgcolor=#009900 height=5></td></tr>
+<tr>
+<td class=other>&nbsp;</td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/">FastBit Front Page</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/publications.html">Research Publications</A></td>
+<td class=current><A href="index.html">Software Documentation</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/src/">Software Download</A></td>
+<td class=other><A rel="license" href="https://sdm.lbl.gov/fastbit/src/license.txt">Software License</A></td>
+<td class=other>&nbsp;</td>
+</tr>
+</table>
+<p class=small>
+<B>Organization</B>: <A HREF="https://www.lbl.gov/">LBNL</A> &raquo;
+<A HREF="https://crd.lbl.gov/">CRD</A> &raquo;
+<A HREF="https://sdm.lbl.gov/">SDM</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit">FastBit</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit/doc">Documentation</A> &raquo;
+Data Distribution </p>
+
+<H1>How to compute data distributions using FastBit ibis::part API</H1>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://www.google.com/cse" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3693400486576159:3jwiifucrd4" />
+    <input type="hidden" name="ie" value="ISO-8859-1" />
+    <input type="text" name="q" size="31" />
+    <input type="hidden" name="num" value="100" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+</DIV>
+
+<P class=standout>
+FastBit uses the metaphor of rows and columns to describe user data.
+Given a set of user data (called a table), the process of finding the
+distribution of a column takes two steps, one to find the names of the
+columns available and one to actually compute the distribution of a
+particular column.  If you need instructions on how to prepare the data,
+read the section on <A HREF="quickstart.html#preparation">Preparing Data
+for FastBit</A> or <A HREF="dataLoading.html">dataLoading.html</A>.
+
+<H2>Using Command Line Tool</H2>
+One can use option <code>-print</code> to instruction <code>ibis</code>
+command line tool to print a variety of information.  Here is a more
+in-depth explanation of this option.
+
+<pre>
+-p[rint] [Parts|Columns|Distributions|column-name [:conditions]]
+</pre>
+
+The four different arguments to this option is as follows.
+<ul>
+<li> <code>Parts</code> is for printing the names of all data partitions
+known to the program <code>ibis</code>, either through the
+configuration files or the <code>-d</code> options.
+
+<li> <code>Columns</code> is for printing the names of all columns in each
+partition.
+
+<li> <code>Distributions</code> is for printing the cumulative
+distribution of every column of every partition.
+
+<li> <code>column-name [:conditions]</code> is for printing information
+about the named column (from every table containing such a column).  It
+also prints a detailed data distribution.  One may apply a set of
+conditions to restrict the computation.  The syntax for the conditions
+is same as that for the where-clause of the queries.  For example, the
+following option instructs <code>ibis</code> to print the cumulative
+distribution of variable <code>temperature</code> subject to the
+condition that <code>pressure > 1000 and H2O > 1e-5</code>.
+
+<pre>
+-print "temperature : pressure > 1000 and H2O > 1e-5"
+</pre>
+
+<p>
+<em>Note</em>: a quote is needed to ensure the string following option
+<code>-p</code> is passed as one single string.
+
+<p>
+<em>Note</em>: if the column-name happens to be the name of a data
+partition, some basic information about the partition is printed.
+
+
+<h2>Finding out the name of the variables</h2>
+
+The function <code>ibis::part::getInfo()</code> returns a pointer to a
+new <code>ibis::part::info</code> object.  This object contains a list
+of column descriptions defined as follows.
+<pre>
+ibis::part::info* ibis::part::getInfo() const;
+
+struct ibis::part::info {
+    const char* name;		// Table name.
+    const char* description;	// A free-form description of the table.
+    const char* metaTags;	// A string of name-value pairs.
+    const size_t nrows;	// The number of rows in the table.
+    // The list of columns in the table.
+    std::vector&lt;ibis::column::info*&gt; cols;
+
+    info(const ibis::part& tbl);	// The constructor.
+    ~info();
+};
+
+struct ibis::column::info {
+    const char* name;		// Column name.
+    const char* description;	// A description about the column.
+    const double expectedMin;	// The expected lower bound.
+    const double expectedMax;	// The expected upper bound.
+    const DATA_TYPE type;	// The type of the values.
+
+    info(const ibis::column& col);
+};
+
+// DATA_TYPE is declared in class ibis::column.  Each values has to be
+// preceded by ibis::column for safe use.  For example, INT has to be
+// referred to as ibis::column::INT.
+enum ibis::column::DATA_TYPE
+{RID=0,  // Row ids (8-byte)
+ KEY,    // categorical (string) values, low-cardinality string values
+ STRING, // arbitrary strings
+ FLOAT,  // IEEE 32-bit floating-point numbers
+ DOUBLE, // IEEE 64-bit floating-point numbers
+ FID,    // File ids (unsigned integers)
+ INT,    // signed 4-byte integers
+ UINT,   // unsigned 4-byte integers
+ BYTE,   // signed 1-byte integers
+ UBYTE,  // unsigned 1-byte integers
+ SHORT,  // signed 2-byte integers
+ USHORT, // unsigned 2-byte integers
+ LONG,   // signed 8-byte integers
+ ULONG}; // unsigned 8-byte integers
+</pre>
+
+Alternatively, the user may construct an <code>ibis::part::info</code>
+object by invoking its constructor.
+
+<br>
+<b>NOTE</b>: Both <code>ibis::part::info</code> and
+<code>ibis::column::info</code> will become ill-defined if the
+<code>ibis::part</code> and <code>ibis::column</code> used to create
+them are deleted.  Delete the <code>info</code> objects first.
+
+<br>
+<b>NOTE</b>: The variables <code>expectedMin</code> and
+<code>expectedMax</code> are expected values typically provided by the
+user who setup the data table.  For example, a mass fraction is expected
+to be between 0 and 1.  In a typical application, there is an expected
+range for most of the variables/columns.  Due to one reason or another,
+the actual values may be outside of the range.
+
+<p>
+The actual minimum and maximum value can be obtained by calling the
+following functions by providing the column name as the argument,
+
+<pre>
+// The actual minimum value in the named column.
+double ibis::part::getActualMin(const char *cname) const;
+// The actual maximum value in the named column.
+double ibis::part::getActualMax(const char *cname) const;
+</pre>
+
+If the column object is accessible, one may called the following
+functions instead,
+<pre>
+// Compute the actual minimum value by reading the data or examining
+// the index.  It returns DBL_MAX in case of error.
+double ibis::column::getActualMin() const;
+// Compute the actual maximum value by reading the data or examining
+// the index.  It returns -DBL_MAX in case of error.
+double ibis::column::getActualMax() const;
+</pre>
+
+<br>
+<b>NOTE</b>: The functions that computes the actual minimum and the
+maximum can make use of bitmap indices if they exist, otherwise they are
+computed by reading the user data.
+
+<h2>Computing Binned Histogram</h2>
+
+<h3>One-dimensional histogram</h3>
+The following function counts the number of records falls between two
+consecutive values in the array <code>bounds</code>.
+<pre>
+long ibis::part::getDistribution
+     (const char *cname, const char *cond,
+      std::vector&lt;double&gt;& bounds,
+      std::vector&lt;size_t&gt;& counts) const;
+</pre>
+
+The argument <code>cname</code> is the name of the variable whose
+distribution is to be computed.  A set of arbitrary conditions can be
+applied in selecting the records.  The syntax of conditions is the same
+as the where clause.  For example, if there are two variables in the
+table named <code>A</code> and <code>B</code>, one may specify a set of
+conditions such as "A > 5 and B < 6" or "A > sqrt(B) and 1 < B < 4."
+<p>
+If this function is called with a set of values in ascending order in
+array <code>bounds</code>, the content of <code>bounds</code> will be
+used to define bin boundaries.  Otherwise, this function will use a
+simple strategy to select bin boundaries either based on binning
+structure of the index for variable <code>cname</code> or a simple
+linear division of between the minimum and the maximum values selected.
+<p>
+Given <code>n</code> values in <code>bounds</code>, <code>n+1</code>
+bins are defined as follows.  The first bin is for any value that is
+less than the first value in <code>bounds</code>, typically displayed as
+<code>(..., bounds[0])</code>.  The second bin is for the values between
+<code>bounds[0]</code> and <code>bounds[1]</code>, more specifically
+<code>[bounds[0], bounds[1])</code>, which includes the left boundary of
+the bin but not the right boundary.  There are <code>n-1</code> such
+bins <code>[bounds[i], bounds[i+1])</code>.  The last bin is for any
+value that is greater than or equal to <code>bounds[n-1]</code>,
+<code>[bounds[n-1], ...)</code>.  The array <code>counts</code> contains
+<code>n+1</code> values, one for each of the bins, indicating the number
+of records fall in the bin.  The following is an illustration of the
+bins,
+<pre>
+bin   0: (...,         bounds[0])
+bin   1: [bounds[0],   bounds[1])
+bin   2: [bounds[1],   bounds[2])
+...
+bin n-1: [bounds[n-2], bounds[n-1])
+bin   n: [bounds[n-1], ...)
+</pre>
+
+<p>
+This function returns the number of bins upon successful completion.  On
+failure, a negative number is returned. 
+
+<h3>An Example</h3>
+
+Assuming we have an <code>ibis::part</code> object called
+<code>T</code> with columns named <code>A</code>, <code>B</code>, and
+<code>C</code>.  To count the values of <code>A</code> between 0 and 100
+in 10 bins and subject to the addition condition that <code>B > 5 and 3
+<= C < 17</code>, we could do the following
+
+<pre>
+char *cond="B > 5 and 3 <= C < 17 and 0 <= A <= 100";
+std::vector<double> bounds;
+for (int i = 10; i < 100; i += 10)
+    bounds.push_back(i);
+std::vector<size_t> counts;
+long ierr = T.getDistribution("A", cond, bounds, counts);
+</pre>
+
+Because the bins built by <code>getDistribution</code> have open bins on
+both sides, it necessary to explicitly limit the range of values for
+<code>A</code>.  In the above example, we assume that the user wanted to
+include the value 0 in the first bin and the value 100 in the last bin.
+If this is not the case, one need to modify the condtions accordingly.
+For example, to include 0 but exclude 100, one may use the following set
+of conditions,
+<pre>
+char *cond="B > 5 and 3 <= C < 17 and 0 <= A < 100";
+</pre>
+
+<h3>Two-dimensional histogram</h3>
+A function is also provided to compute joint distribution of two
+variables.
+<pre>
+long ibis::part::getJointDistribution
+     (const char *cname1, const char* cname2, const char *cond,
+      std::vector&lt;double&gt;& bounds1,
+      std::vector&lt;double&gt;& bounds2,
+      std::vector&lt;size_t&gt;& counts) const;
+</pre>
+
+This function has very similar calling sequence as the function
+<code>getDistribution</code>.  The main difference is that there are two
+variable names and two set of bin boundaries.  Let
+<code>n<sub>1</sub></code> denote the number of values in array
+<code>bounds1</code> and <code>n<sub>2</sub></code> denote the number of
+values in array <code>bounds2</code>, there are
+<code>n<sub>1</sub>+1</code> bins for variable 1 and
+<code>n<sub>2</sub>+1</code> bins for variable 2.  Algotether, there are
+<code>(n<sub>1</sub>+1)(n<sub>2</sub>+1)</code> bins.  Similar to
+<code>getDistribution</code>, this function also return the number of
+bins upon successful completion.
+<p>
+The two-dimensional bins are linearized in array <code>counts</code> in
+the usually raster scan order.  For each bin of variable 1, it packs all
+the bins defined by variables two one after another as illustrated in
+the following diagram.
+
+<pre>
+(..., bounds1[0])	(..., bounds2[0])
+(..., bounds1[0])	[bounds2[0], bounds[1])
+(..., bounds1[0])	[bounds2[1], bounds[2])
+...
+(..., bounds1[0])	[bounds2[n2-1], ...)
+[bounds1[0], bounds1[1])(..., bounds2[0])
+[bounds1[0], bounds1[1])[bounds2[0], bounds[1])
+[bounds1[0], bounds1[1])[bounds2[1], bounds[2])
+...
+[bounds1[1], bounds1[2])[bounds2[n2-1], ...)
+[bounds1[2], bounds1[3])(..., bounds2[0])
+...
+[bounds1[n1-1], ...)	(..., bounds2[0])
+[bounds1[n1-1], ...)	[bounds2[0], bounds2[1])
+[bounds1[n1-1], ...)	[bounds2[1], bounds2[2])
+...
+[bounds1[n1-1], ...)	[bounds2[n2-1], ...)
+</pre>
+
+
+<h2>Computing Cumulative Data Distribution</h2>
+
+Having a <code>table</code> object, there are two ways to compute a
+column distribution, one makes use of <code>std::vector</code> to
+compute a more accurate distribution and the other tries to fill the
+distribution into two user provided arrays.
+
+<pre>
+long ibis::part::getCumulativeDistribution
+     (const char *cname, std::vector&lt;double&gt;& bounds,
+      std::vector&lt;size_t&gt;& counts) const;
+long ibis::part::getCumulativeDistribution
+     (const char *cname, size_t nbc,
+      double *bounds, size_t *counts) const;
+long ibis::part::getCumulativeDistribution
+     (const char *cname, const char *conditions,
+      std::vector&lt;double&gt;& bounds,
+      std::vector&lt;size_t&gt;& counts) const;
+long ibis::part::getCumulativeDistribution
+     (const char *cname, const char *conditions,
+      size_t nbc, double *bounds, size_t *counts) const;
+</pre>
+
+In the above functions, the argument <code>cname</code> is for the
+column name (i.e., <code>ibis::column::info::name</code>).  The value
+<code>counts[i]</code> stores the number of rows whose column
+<code>cname</code> contains values less than <code>bounds[i]</code>.  If
+there is no NULL values in the column, the value of
+<code>counts[0]</code> would be zero and the last element of
+<code>bounds</code> would have a value that is larger than the actual
+maximum.
+
+<p>
+A set of conditions may be applied to restriction the computation of the
+data distribution.  For example, if there are two variables in the table
+named <code>A</code> and <code>B</code>, one may specify a set of
+conditions such as "A > 5 and B < 6" or "A > sqrt(B) and 1 < B < 4."
+When a set of conditions is specified, the cumulative data distribution
+returned is the distribution of the column subject to the conditions.
+This is useful for conditional analysis.
+
+<p>
+The input argument <code>nbc</code> is the maximum number of values to
+be stored in the two pointers that appear later in the calling sequence.
+The actual number of values stored in <code>bounds</code> and
+<code>counts</code> is never more than <code>nbc</code>.
+
+<p>
+If a column object is available, one may directly call the following
+function to get the data distribution, which is equivalent to the first
+version of the <code>ibis::part::getCumulativeDistribution</code>.
+<pre>
+long
+ibis::column::getCumulativeDistribution(std::vector&lt;double&gt;& bounds,
+                                  std::vector&lt;size_t&gt;& counts) const;
+</pre>
+
+<br>
+<b>NOTE</b>: An invocation of any version of
+<code>getCumulativeDistribution</code> will cause a bitmap index to be
+created if one does not exist already.  This may take some time.
+However, this will reduce the time required in the future operations.
+
+
+<div class=footer>
+<a href="contact.html">Contact us</a><BR>
+<a href="https://www.lbl.gov/Disclaimers.html">Disclaimers</a><br>
+<A HREF="https://sdm.lbl.gov/fastbit/">FastBit web site</A><br>
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users/">FastBit mailing
+list</A><br>
+<SCRIPT language=JavaScript>
+        document.write(document.lastModified)
+</SCRIPT>
+</div>
+
+<script src="https://www.google-analytics.com/ga.js"
+type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-812953-1";
+pageTracker._trackPageview();
+</script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!--?xml version="1.0" encoding="US-ascii"?-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
+"https://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd">
+<HTML xmlns="https://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:dc="https://purl.org/dc/elements/1.1/"
+      xmlns:foaf="https://xmlns.com/foaf/0.1/">
+<head>
+<meta name="dc:creator" content="John Wu"/>
+<meta name="KEYWORDS" content="FastBit, IBIS, data distribution, API"/>
+<link rel="StyleSheet" href="https://sdm.lbl.gov/fastbit/style.css"
+ type="text/css"/>
+<link rev="made" href="mailto:John.Wu@acm.org"/>
+<link rel="SHORTCUT ICON" HREF="https://sdm.lbl.gov/fastbit/favicon.ico"/>
+<title>FastBit Indexing Options</title>
+</head>
+
+<body>
+<table cellspacing=0 border="0px" cellpadding=2 width="100%" align=center>
+<tr>
+<td colspan=7 align=right border=0><A href="https://sdm.lbl.gov/fastbit"><img class=noborder
+src="https://sdm.lbl.gov/fastbit/fastbit.gif" alt="FastBit"></A>
+</td></tr>
+<tr><td colspan=7 bgcolor=#009900 height=5></td></tr>
+<tr>
+<td class=other>&nbsp;</td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/">FastBit Front Page</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/publications.html">Research Publications</A></td>
+<td class=current><A href="index.html">Software Documentation</A></td>
+<td class=other><A href="https://sdm.lbl.gov/fastbit/src/">Software Download</A></td>
+<td class=other><A rel="license" href="https://sdm.lbl.gov/fastbit/src/license.txt">Software License</A></td>
+<td class=other>&nbsp;</td>
+</tr>
+</table>
+<p class=small>
+<B>Organization</B>: <A HREF="https://www.lbl.gov/">LBNL</A> &raquo;
+<A HREF="https://crd.lbl.gov/">CRD</A> &raquo;
+<A HREF="https://sdm.lbl.gov/">SDM</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit">FastBit</A> &raquo;
+<A HREF="https://sdm.lbl.gov/fastbit/doc">Documentation</A> &raquo;
+Indexing Options </p>
+
+<H1>Options for building bitmap indexes</H1>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://www.google.com/cse" id="cse-search-box">
+  <div>
+    <input type="hidden" name="cx" value="partner-pub-3693400486576159:3jwiifucrd4" />
+    <input type="hidden" name="ie" value="ISO-8859-1" />
+    <input type="text" name="q" size="31" />
+    <input type="hidden" name="num" value="100" />
+    <input type="submit" name="sa" value="Search" />
+  </div>
+</form>
+</DIV>
+
+<p>
+The process of building a bitmap index is conceptually divided into
+three steps, binning, encoding, and compressing.  The options for each
+of these steps are controlled separately.  The options string has the
+following format
+<pre>
+index=&lt;binning ... /&gt; &lt;encoding ... /&gt; &lt;compressing ... /&gt;
+</pre>
+
+<p>
+<em>NOTE</em>: all keywords, such as binning, encoding and compressing,
+should be written lower case.
+</p><p>
+<em>NOTE</em>: do not leave any space between keywords and the equal sign (=)
+following them.
+</p>
+<H3>Binning Options</H3> The basic idea of bitmap index is to generate
+one bitmap to represent the presence of each distinct value.  This
+strategy is generally regarded as efficient for attributes with low
+cardinalities.  For attributes with high cardinalities, one way to
+reduce the number of bitmaps is to bin the values and produce one bitmap
+for each bin.  The value of <code>&lt;binning /&gt;</code> option can be
+one of the following where the separator can be either space or comma
+and no space is allowed around equal signs
+
+<DL>
+<DT>&#8226;&nbsp;<code>default</code>
+
+<dd> The default binning option is to generate bins with 2-digit
+  precision bin boundaries, which is equivalent to <code>&lt;binning
+  precision=2 /&gt;</code>.
+  
+<dd> <em>NOTE</em>: leaving binning option blank (<code>&lt;binning
+      /&gt;</code>) is equivalent to this default binning option.
+
+<DT>&#8226;&nbsp;<code>none</code>
+
+<dd> Don't use bins, produce one bitmap for each distinct attribute
+      value.
+
+<DT>&#8226;&nbsp;<code>[nbins=xxx, ]binFile="xxx"</code>
+
+<dd>  Read the bin boundaries from the named file.  If nbins is not
+      specified, all the values are read.  If nbins is specified, read
+      nbins of the values unless the end-of-file is reached.
+
+<dd> <em>NOTE</em>: The file name should be quoted.  Unquoted file name
+      can not have any special character such as '/', '&gt;', ',', ' '
+      and ';'.
+
+<DT>&#8226;&nbsp;<code>nbins=xxx, equal-weight</code>
+
+<dd> Generate equal-weight bins, i.e., each bin would have the same
+     number of records (or as close to equal as possible).  The number
+     of bins is specified by <code>nbins</code>.  This options will
+     cause the data to be scanned twice once for generating the
+     histogram and once to actually build the index.  To allow the
+     software to sample the data instead of building the full histogram,
+     omit '<code>equal-weight</code>'.
+
+<DT>&#8226;&nbsp;<code>precision=dd</code>
+
+<dd> Generate bins corresponding to the reduced precision floating-point
+     numbers.  The bin boundaries will have <code>dd</code> significant
+     digits.  Any queries involving constants with no more than
+     <code>dd</code> significant digits will be answered precisely with
+     this index.  Queries involving constants with more than
+     <code>dd</code> significant digits will not be full answered with
+     the index.  FastBit will have to scan the base data to fully
+     resolve them.
+
+<DT>&#8226;&nbsp;<code>start=xxx, end=xxx, nbins=xxx, scale=linear|log|simple</code>
+
+<dd> Dividing the range <code>[start, end]</code> into
+     <code>nbins</code> either using log scale or linear scale.  If
+     scale is not specified, it is assumed to be linear, unless start
+     and end are specified and are both positive and <code>start &lt;
+     end/nbins</code>.  In which case, scale is assumed to be
+     logarithm.  This assumption is reasonable since the user has gone
+     through the trouble of specifying a small start value which
+     otherwise can more conveniently be expressed as zero.
+
+<dd> If either <code>start</code> or <code>end</code> is missing, we
+     scan the data once to determine the actual minimum and maximum
+     value.  If end is not specified, it will be the maximum value, if
+     the start is not specified, it will be the minimum value.  For
+     integer variables, if <code>(end-start) &lt; nbins</code>, each
+     integer value would be placed in its own bin.  Two additional bins
+     are also generated, one for values less than start and the other
+     for values larger than end.
+
+<dd> Following C/C++ convention, the range <code>[start, end]</code>
+     includes <code>start</code> but excludes <code>end</code>.  Each
+     bin also has the same convention, i.e., it includes the left
+     boundary but excludes the right boundary.  The only exception is
+     the left most bin which is defined to be everything less than
+     <code>start</code>.  All fields in the format are optional.  If
+     <code>nbins</code> is not specified, it is assumed to be 10,000.
+
+<dd> If the '<code>scale</code>' option is not specified, the current
+     software samples about 100 data points per bin and generates a set
+     of equal-weight bins based on the sampled data.  To get the basic
+     equal-width bins, "<code>scale=linear</code>" must be specified.
+
+<dd> The values of <code>scale</code> field is parsed as follows.  If
+     the first letter after the equal sign is 'l' or 'L', the value is
+     assumed to either 'linear' or 'log'.  If the second letter is 'o'
+     or 'O', it will be treated as 'log', otherwise, it is assumed to
+     be 'linear'.  If '<code>scale=</code>' is present, but the letter
+     following the equal sign is not 'l', then the option is assumed to
+     be '<code>scale=simple</code>'.  With '<code>linear</code>' and
+     '<code>log</code>' options, the current software attempts to
+     generate bin boundaries that have short decimal point
+     representation.  The option '<code>simple</code>' tell the
+     software to generate a simpler equal-width bin boundaries without
+     attempting to reduce the decimal representation of the bin
+     boundaries.
+
+<dd> <em>Note</em>: NO space is allowed around the equal sign.  The
+     keywords '<code>start</code>', '<code>end</code>',
+     '<code>nbins</code>' and '<code>scale</code>' must be spelled as
+     shown here.  The parser for dealing with bin specifications is very
+     limited!
+
+<DT>&#8226;&nbsp;<code>(start, end, nbins, scale)(start, end, nbins, scale)...</code>
+
+<dd> This form is a generalization of the above one.  For each range
+     <code>[start, end)</code>, it generates <code>nbins</code> if
+     possible.  The values <code>start</code> and <code>end</code> must
+     be specified.  The default value for <code>nbins</code> in this
+     case is one (1) and the default value for <code>scale</code> is
+     <code>linear</code>.
+
+<dd> It is possible to neglect the keywords in this form, i.e., there is
+     not need to say <code>(start=x1, end=x2, nbins=n1,
+     scale=linear)</code>, but simply <code>(x1, x2, n1,
+     linear)</code>.  The restriction is that the four fields must
+     appear in the above order.  </DL>
+<p>
+When binning is used, it is possible to also produce a set of file
+containing reordered values (according to the bin number) so as to
+reduce the time required for candidate check.  Add
+'<code>reorder</code>' to the binning specification to invoke this
+option.  At this point, reorder only works with 1-component equality
+encoding and 1-component range encoding.
+</p>
+
+<H3>Bitmap Encoding Options</H3>
+After the values are divided into bins, the next step is to encode values
+as bitmaps.  The simplest encoding scheme is to have one bitmap for
+each bin.  In this case, a bit value of one (1) indicates an entry is in
+a specified bin.  The current bitmap indexing software supports a number
+of different encoding schemes.
+<dl>
+<DT>&#8226;&nbsp;<code>equality</code>
+
+<dd> The equality encoding.  The basic bitmap indexing scheme proposed
+     is a bitmap index with no binning and equality encoding.
+
+<DT>&#8226;&nbsp;<code>range</code>
+
+<dd> This encoding scheme uses the same number of bitmaps as the
+     equality encoding, but is designed to make range queries more
+     efficiently at the cost of more disk storage.  With the range
+     encoding most of the bitmaps have enough 1s in them to make them
+     unlikely to be compressed.  On large cardinality columns, a
+     range-encoded index could take up a lot more space than the base
+     data or the equality-encoded index.  This encoding method is only
+     recommended for columns with low column cardinalities.
+
+<DT>&#8226;&nbsp;<code>interval</code>
+
+<dd> This encoding scheme uses about half as many bitmaps as equality
+     encoding, and is also efficient for range queries.  An
+     interval-encoded index takes about half as much space as the range
+     encoded index, however, it may still be many times larger than the
+     corresponding equality-encoded index.  This encoding method is only
+     recommended for columns with low column cardinalities.
+
+<DT>&#8226;&nbsp;<code>ncomp=ddd</code>
+
+<dd> The above three encoding schemes can take <code>ncomp</code> as the
+     secondary option to indicate the number of components in the
+     encoding.  When this option is not specified, the number of
+     components is taken to be one.  The maximum number of components
+     is the logarithm of the number of bins, which leads to binary
+     encoding.  However, the special implementation of the binary
+     encoding has further optimization to take advantage of the fact
+     that every component has basis size of two.
+
+<DT>&#8226;&nbsp;<code>equality-equality</code>
+<DT>&#8226;&nbsp;<code>interval-equality</code>
+<DT>&#8226;&nbsp;<code>range-equality</code>
+
+<dd> Two-level bitmap encodings.  Use the equality encoding at the fine
+     level to control the index size; use a coarse level to reduce the
+     number of bitmaps accessed to answer a query.
+
+</dl>
+
+<H3>Compression Options</H3>
+Only WAH compression is supported in the public release of FastBit.
+All bitmaps are compressed at construction time.  Options are
+provided to uncompress some or all of them.  Supported options are
+<dl>
+<DT>&#8226;&nbsp;<code>uncompressDenseBitmaps [density &gt; ddd]</code>
+
+<dd> Uncompress those bitmaps with bit density greater than the
+     specified value.  If a density is not specified, it is assumed to
+     be 1/8, i.e., if more than one in eight bits are one, then the
+     bitmap is uncompressed.  In some cases, decompressing dense bitmaps
+     may improve overall query processing speed.
+
+<DT>&#8226;&nbsp;<code>uncompressLargeBitmaps [compration &gt; ddd]</code>
+
+<dd> Uncompress those bitmaps with compression ratio greater than the
+     specified value.  If the compression value is not specified, it is
+     assumed to be 0.75, i.e., if the compressed bitmap takes more than
+     three quarters of the space of the uncompressed one, uncompress it.
+
+<DT>&#8226;&nbsp;<code>uncompressAll</code>
+
+<dd> Uncompress all bitmaps.  <b>Used only for debugging purposes</b>.
+
+</dl>
+It is usually a good idea to leave out the compression option and let
+the software compress all the bitmaps.
+
+<H3>Additional options</H3>
+There is a set of options in the form of 'index=xxx', most of which
+should be considered deprecated.  However, some of them are very useful.
+The following is a short list.
+
+<dl>
+<DT>&#8226;&nbsp;<code>index=none</code>
+
+<dd> DO NOT use any index.
+
+<DT>&#8226;&nbsp;<code>index=basic</code>
+
+<dd> Equivalent to index=&lt;binning none/&gt;.
+
+<DT>&#8226;&nbsp;<code>index=binary</code>
+
+<dd> The binary encoding scheme.  In this case, a bin number is
+     represented in a binary form, and each bit of the binary value is
+     placed in a bitmap.  This encoding scheme uses the minimal number of
+     bitmaps.
+
+<DT>&#8226;&nbsp;<code>index=bit-slice</code>
+
+<dd> This is a special version of the binary encoding for unsigned
+  integers.  This version directly uses the binary digits of the base
+  data.  This version closely resembles the bit-slice index proposed by
+  <a HREF="https://www.cs.umb.edu/~poneil/SIGBSTMH.pdf">Patrick O'Neil</A>.
+
+<DT>&#8226;&nbsp;<code>index=bak2 [precision=p]</code>
+<DT>&#8226;&nbsp;<code>index=bak [precision=p]</code>
+
+<dd> Generate bins where each bin contains the values that rounds the
+     same value.  For example, if the precision is 2 (the default value
+     if the precision is not specified), then the values in each bin
+     will have the same 2-digit decimal value after rounding.  These
+     bins can be generated with one-pass through the data and are useful
+     in data with a wide range of distributions.
+
+<dd> The difference between '<code>bak</code>' and '<code>bak2</code>'
+    is that '<code>bak2</code>' splits each bin produced by
+    '<code>bak</code>' in two so that the 2-digit decimal value itself
+    is a bin boundary.  Normally, one should use '<code>bak2</code>'
+    rather than '<code>bak</code>'.
+
+<dd> This option is superseded by <code>&lt;binning
+     precision=d/&gt;</code>.
+
+<DT>&#8226;&nbsp;<code>index=bin/bin</code>
+<DT>&#8226;&nbsp;<code>index=bin/range</code>
+<DT>&#8226;&nbsp;<code>index=range/bin</code>
+<DT>&#8226;&nbsp;<code>index=range/range</code>
+
+<dd> These four options are left over from an attempt to generate
+     multi-level bitmap indexes.  They are two-level schemes that uses
+     different encoding schemes with each level.
+
+<dd> Use <code>&lt;encoding equality-equality/&gt;</code>,
+     <code>&lt;encoding interval-equality/&gt;</code> or
+     <code>&lt;encoding range-equality/&gt;</code> instead.
+
+</dl>
+
+<H4>Options for building a keyword index</H4>
+
+A keyword index may be built for a string column (not for categorical
+values).  Currently, this keyword index is built from a .tdlist file
+that contains term-document matrix in the form of 
+<pre>
+term: docid, docid, docid
+</pre>
+
+Since the document identifiers (docid) are provided as values only,
+FastBit needs to know the column name of the document ids to correctly
+translate the tdlist into bitmaps.  The recommended way to specify the
+name of document identifier is to use an index entry in file
+<code>-part.txt</code>, such as
+
+<pre>
+index=keywords, docidname=mid
+</pre>
+
+<b>Note</b>: the document identifiers must be 4-byte integers.  If the
+docidname field is not specified, the integer values in the
+term-document list are taken to be the row numbers (starting from 0).
+This alternative option can be potentially faster because it requires
+less internal lookups to map the ids to bitmaps, but it is less
+flexible.  For example, if you reorder the data or delete some rows, the
+term-document list will be wrong.
+
+<p>
+Alternatively, the docidname may be specified in an RC file (say,
+ibis.rc) in the form of
+<pre>
+table-name.column-name.docIDName=mid
+</pre>
+
+<p>
+<b>Note about unbinned indexes</b>:  If the explicit minimum and
+maximum values are known, FastBit IBIS implementation may be able to
+avoid storing the distinct values.  This feature is implemented through
+ibis::direkte and is invoked through ibis::index::create.
+</p>
+
+<A name="suggestions"><H3>Some Suggestions</H3></A>
+<ol>
+  
+<li>The first option to try might be to just leave it blank or not
+specified any indexing options at all.  This invokes the default option
+in FastBit, which has been tuned to some extend and can work reasonably
+well.  Of course, as you get to know you data and queries better, you
+might want to specify something a little more intelligent.</li>
+<br>
+
+<p>The key parameter to consider when deciding what indexing option to
+use is the column cardinality, which we will simply call cardinality in
+the following.</p>
+<li>If the cardinality of a column is no more than 100, the binning
+option should be <code>none</code>.  The following two might be
+reasonable choices.
+<pre>
+&lt;binning none/&gt;&lt;encoding interval/&gt;
+&lt;binning none/&gt;&lt;encoding equality/&gt;
+</pre>
+The main trade-off between them is that the interval encoding is better
+suited for range conditions, while the equality encoding is better
+suited for equality conditions.  If you know your query conditions, then
+you can pick the one or the other.  However, if you don't what type of
+query conditions are going to be used, use interval encoding is a
+reasonable choice.  On the other hand, if you are always going to deal
+with one-sided range conditions, such as "A < 5" or "A >= 10", then it
+is best to use the range encoding
+<pre>
+&lt;binning none/&gt;&lt;encoding range/&gt;
+</pre>
+In short, if you have a situation where the cardinality is very low,
+you can choose an encoding based on your query workload.
+</li>
+
+<li>If the cardinality is less than say 1 million (more precisely, N/10,
+where N is the number of rows), our recommendation is
+<pre>
+&lt;binning none/&gt;&lt;encoding interval-equality/&gt;
+</pre>
+This option has been proven to be quite effective in tests and analyses.
+</li>
+
+<li>If the cardinality is higher than 1 million, we recommend
+<pre>
+&lt;binning none&gt;&lt;encoding binary/&gt;
+</pre>
+This produces what is known as the bit-sliced index.  Alternatively, you
+may bin the values, a situation we will considered next.
+</li>
+
+<li>For floating-point values, it is most likely you don't know exactly
+what is the column cardinality.  In this case, it is natural to assume
+the cardinality is very high, and bin the values.  Next, we discuss two
+reasonable approaches to binning, one is to specify the number of bins,
+and the other to specify the precision of the bins.  Of course it is
+also possible to tell FastBit exactly where to put the bin boundaries as
+indicated above.
+
+<p>
+If you specify the number of bins, e.g.,
+<pre>
+&lt;binning nbins=2000/&gt;&lt;encoding interval-equality/&gt;
+</pre>
+then FastBit builds a set of approximate equal-weight bins, i.e., each
+bin will contain approximate the same number of rows.  This minimize the
+worst case behavior during query answering.  This is appropriate if you
+don't know what the query conditions are going to be like.  However, if
+you do know something about the query conditions, for example, the
+precision of the constants used in the query expressions, then the next
+option is better.
+</p>
+<p>
+If the constants in the query conditions always have a relatively small
+number of significant digits, for example, the following query
+conditions use constants with 2 significant digits, "A > 1.5e6" or "A <
+9.6E-3", in which case, the following binning specification will
+guarantee all such query conditions be answered using index only
+(therefore fast).
+<pre>
+&lt;binning precision=2/&gt;&lt;encoding interval-equality/&gt;
+</pre>
+</p>
+</li>
+
+</ol>
+
+<DIV style="width: 18em; float: right; align: right; border-width: 0px; margin: 1em;">
+<form action="https://google.lbl.gov/search" method="GET" name="gs">
+<table cellspacing="0" cellpadding="0">
+<tr>
+<td valign="middle"><font size="-1">
+<input type="text" name="q" size="30" maxlength="256" value=""></font></td>
+<td valign="middle">&nbsp;
+<input value="xml_no_dtd" name="output" type="hidden"></input>
+<input value="date:AD:L:d1" name="sort" type="hidden"></input>
+<input value="UTF-8" name="ie" type="hidden"></input>
+<input value="" name="lr" type="hidden"></input>
+<input value="default_frontend" name="client" type="hidden"></input>
+<input value="UTF-8" name="oe" type="hidden"></input>
+<input type="hidden" name="numgm" value="5"></input>
+<input value="default_frontend" name="proxystylesheet" type="hidden"></input>
+<input type="hidden" name="site" value="ALL"></input>
+<input type="hidden" name="num" value="40"></input>
+<input value="Search" name="btnG" type="submit"></input></td>
+</tr>
+</table>
+</form>
+</DIV>
+
+If none of the above apply to your situation, please look through the
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users/">archieves of
+FastBit mailing list</A> or post your question to the mailing list.
+
+<H3>Further Reading</H3>
+<p>
+A description of the binning, encoding and compression techniques used
+in FastBit is available in <A
+HREF="https://sdm.lbl.gov/ps/LBNL-59952.html">LBNL-59952</A>.
+Additional research publications can be found in <A
+HREF="https://sdm.lbl.gov/fastbit/publications.html">FastBit publication
+list</A>.  Technical details of the FastBit index implementation is
+fully documented in <A
+HREF="https://sdm.lbl.gov/fastbit/doc/html/classibis_1_1index.html">index.h</A>.
+</p>
+
+<div class=footer>
+<A HREF="contact.html">Contact us</a><BR>
+<A HREF="https://www.lbl.gov/Disclaimers.html">Disclaimers</a><br>
+<A HREF="https://sdm.lbl.gov/fastbit/">FastBit web site</A><br>
+<A HREF="https://hpcrdm.lbl.gov/pipermail/fastbit-users/">FastBit
+mailing list</A><br>
+<SCRIPT language=JavaScript>
+document.write(document.lastModified)
+</SCRIPT>
+
+<script src="https://www.google-analytics.com/ga.js"
+type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-812953-1";
+pageTracker._trackPageview();
+</script>
+</div>
+</body> </html>

@@ -1,0 +1,12 @@
+Number of rows satisfying "s='tr100'": 2
+s[0] = tr100
+s[1] = tr100
+Number of rows satisfying "s='tr1000'": 2
+s[0] = tr1000
+s[1] = tr1000
+Number of rows satisfying "s='tr10000'": 2
+s[0] = tr10000
+s[1] = tr10000
+Number of rows satisfying "s='tr111110000'": 2
+s[0] = tr111110000
+s[1] = tr111110000
