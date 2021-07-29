@@ -432,6 +432,13 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES TARGET_ARG)
     FOREACH(LIB ${SSL_LIBRARIES})
       STRING_APPEND(LINKER_EXTRA_FLAGS " ${LIB}")
     ENDFOREACH()
+
+    # __NULL_IMPORT_DESCRIPTOR already defined, second definition ignored
+    # Same symbol from both libssl and libcrypto
+    # But: Lib.exe has no /IGNORE option, see
+    # https://docs.microsoft.com/en-us/cpp/build/reference/running-lib?view=msvc-160
+    # STRING_APPEND(LINKER_EXTRA_FLAGS " /IGNORE:LNK4006")
+
     SET_TARGET_PROPERTIES(${TARGET}
       PROPERTIES STATIC_LIBRARY_FLAGS "${LINKER_EXTRA_FLAGS}")
   ENDIF()

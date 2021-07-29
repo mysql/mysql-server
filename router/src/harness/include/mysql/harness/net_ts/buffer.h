@@ -675,7 +675,7 @@ class transfer_exactly {
    */
   size_t operator()(const std::error_code &ec, size_t n) const {
     // "unspecificed non-zero number"
-    size_t N = std::numeric_limits<size_t>::max();
+    constexpr size_t N = std::numeric_limits<size_t>::max();
 
     if (!ec && n < exact_) return std::min(exact_ - n, N);
 

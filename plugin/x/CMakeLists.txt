@@ -116,9 +116,3 @@ IF(DISABLE_MYSQLX_PROTOBUF_LITE)
   MESSAGE(STATUS "MYSQLX - Using protobuf instead protobuf-lite")
   ADD_DEFINITIONS(-DUSE_MYSQLX_FULL_PROTO)
 ENDIF()
-
-# ICU headers for WIN32 need extra info about their libs state
-IF(WIN32)
-  ADD_DEFINITIONS(-DU_STATIC_IMPLEMENTATION)
-ENDIF()
-

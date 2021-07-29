@@ -404,13 +404,13 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x02, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
   // t2/t3.
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[0].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -440,13 +440,13 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[0].selectivity);
 
   // t1/t2; since the predicate is null-rejecting on t2, we can rewrite.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x02, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[1].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -477,7 +477,7 @@ TEST_F(MakeHypergraphTest, OuterJoinNonNullRejecting) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(1.0 - (0.9 * 0.9),
+  EXPECT_FLOAT_EQ(1.0F - (0.9F * 0.9F),
                   graph.edges[0].selectivity);  // OR of two conditions.
 
   // t1/{t2,t3}; the predicate is not null-rejecting (unlike the previous test),
@@ -485,7 +485,7 @@ TEST_F(MakeHypergraphTest, OuterJoinNonNullRejecting) {
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x06, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[1].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -516,13 +516,13 @@ TEST_F(MakeHypergraphTest, SemiJoin) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[0].selectivity);
 
   // t1/{t2,t3}.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x06, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::SEMIJOIN, graph.edges[1].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -554,13 +554,13 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[0].selectivity);
 
   // t1/{t2,t3}.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x06, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::ANTIJOIN, graph.edges[1].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -590,12 +590,12 @@ TEST_F(MakeHypergraphTest, Predicates) {
   EXPECT_EQ(0x01, graph.graph.edges[0].left);
   EXPECT_EQ(0x02, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.1F, graph.edges[0].selectivity);
 
   ASSERT_EQ(2, graph.predicates.size());
   EXPECT_EQ("(t1.x = 2)", ItemToString(graph.predicates[0].condition));
   EXPECT_EQ(0x01, graph.predicates[0].total_eligibility_set);  // Only t1.
-  EXPECT_FLOAT_EQ(0.1,
+  EXPECT_FLOAT_EQ(0.1F,
                   graph.predicates[0].selectivity);  // No specific information.
 
   EXPECT_EQ("((t2.y = 3) or (t2.y is null))",
@@ -637,14 +637,14 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
   EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
-  EXPECT_FLOAT_EQ(1.0, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(1.0F, graph.edges[0].selectivity);
 
   // t2/{t1,t3}. This join should also carry the predicate.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);
   EXPECT_EQ(0x06, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
   EXPECT_EQ(1, graph.edges[1].expr->join_conditions.size());
-  EXPECT_FLOAT_EQ(1.0, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(1.0F, graph.edges[1].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -1303,7 +1303,7 @@ TEST_F(HypergraphOptimizerTest, SingleTable) {
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
   EXPECT_EQ(m_fake_tables["t1"], root->table_scan().table);
-  EXPECT_FLOAT_EQ(100, root->num_output_rows);
+  EXPECT_FLOAT_EQ(100.0F, root->num_output_rows);
 }
 
 TEST_F(HypergraphOptimizerTest,
@@ -1324,24 +1324,24 @@ TEST_F(HypergraphOptimizerTest,
   // with a nested loop.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
   EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
-  EXPECT_FLOAT_EQ(6, root->num_output_rows);  // 60 rows, 10% selectivity.
+  EXPECT_FLOAT_EQ(6.0F, root->num_output_rows);  // 60 rows, 10% selectivity.
 
   // The condition should be posted directly on t2.
   AccessPath *outer = root->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::FILTER, outer->type);
   EXPECT_EQ("(t2.y = 3)", ItemToString(outer->filter().condition));
-  EXPECT_FLOAT_EQ(0.3, outer->num_output_rows);  // 10% default selectivity.
+  EXPECT_FLOAT_EQ(0.3F, outer->num_output_rows);  // 10% default selectivity.
 
   AccessPath *outer_child = outer->filter().child;
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
   EXPECT_EQ(m_fake_tables["t2"], outer_child->table_scan().table);
-  EXPECT_FLOAT_EQ(3, outer_child->num_output_rows);
+  EXPECT_FLOAT_EQ(3.0F, outer_child->num_output_rows);
 
   // The inner part should have a join condition as a filter.
   AccessPath *inner = root->nested_loop_join().inner;
   ASSERT_EQ(AccessPath::FILTER, inner->type);
   EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
-  EXPECT_FLOAT_EQ(20, inner->num_output_rows);  // 10% default selectivity.
+  EXPECT_FLOAT_EQ(20.0F, inner->num_output_rows);  // 10% default selectivity.
 
   AccessPath *inner_child = inner->filter().child;
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
@@ -1373,7 +1373,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
   EXPECT_EQ(RelationalExpression::LEFT_JOIN,
             join->hash_join().join_predicate->expr->type);
   EXPECT_FLOAT_EQ(
-      200, join->num_output_rows);  // Selectivity overridden by outer join.
+      200.0F, join->num_output_rows);  // Selectivity overridden by outer join.
 
   // The t1 condition should be pushed down to t1, since it's outer to the join.
   AccessPath *outer = join->hash_join().outer;
@@ -1387,7 +1387,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
   AccessPath *inner = join->hash_join().inner;
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
   EXPECT_EQ(m_fake_tables["t2"], inner->table_scan().table);
-  EXPECT_FLOAT_EQ(3, inner->num_output_rows);
+  EXPECT_FLOAT_EQ(3.0F, inner->num_output_rows);
 }
 
 // NOTE: We don't test selectivity here, because it's not necessarily
@@ -1572,7 +1572,7 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
   AccessPath *outer = root->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
   EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
-  EXPECT_FLOAT_EQ(1000000.0, outer->num_output_rows);
+  EXPECT_FLOAT_EQ(1000000.0F, outer->num_output_rows);
 
   // The inner part should also be nested-loop.
   AccessPath *inner = root->nested_loop_join().inner;
@@ -1584,16 +1584,16 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
   AccessPath *t2_path = inner->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2_path->type);
   EXPECT_EQ(m_fake_tables["t2"], t2_path->table_scan().table);
-  EXPECT_FLOAT_EQ(100.0, t2_path->num_output_rows);
+  EXPECT_FLOAT_EQ(100.0F, t2_path->num_output_rows);
 
   // t3 should use the unique index, and thus be capped at one row.
   AccessPath *t3_path = inner->nested_loop_join().inner;
   ASSERT_EQ(AccessPath::EQ_REF, t3_path->type);
   EXPECT_EQ(m_fake_tables["t3"], t3_path->eq_ref().table);
-  EXPECT_FLOAT_EQ(1.0, t3_path->num_output_rows);
+  EXPECT_FLOAT_EQ(1.0F, t3_path->num_output_rows);
 
   // t2/t3 is 100 * 1, obviously.
-  EXPECT_FLOAT_EQ(100.0, inner->num_output_rows);
+  EXPECT_FLOAT_EQ(100.0F, inner->num_output_rows);
 
   // The root should have t1 multiplied by t2/t3;
   // since the join predicate is already applied (and subsumed),
@@ -3029,7 +3029,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
   // with t1 on the left side.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
   EXPECT_EQ(JoinType::OUTER, root->nested_loop_join().join_type);
-  EXPECT_FLOAT_EQ(10.0, root->num_output_rows);
+  EXPECT_FLOAT_EQ(10.0F, root->num_output_rows);
 
   AccessPath *outer = root->nested_loop_join().outer;
   ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
@@ -3072,7 +3072,7 @@ TEST_F(HypergraphSecondaryEngineTest, SingleTable) {
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
   EXPECT_EQ(m_fake_tables["t1"], root->table_scan().table);
-  EXPECT_FLOAT_EQ(200, root->num_output_rows);
+  EXPECT_FLOAT_EQ(200.0F, root->num_output_rows);
 }
 
 TEST_F(HypergraphSecondaryEngineTest, SimpleInnerJoin) {

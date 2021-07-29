@@ -126,6 +126,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
 
   # Add unit test, do not install it.
   IF (ARG_ADD_TEST)
+    ADD_DEPENDENCIES(unittest_all ${target})
     ADD_TEST(${ARG_ADD_TEST}
       ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)

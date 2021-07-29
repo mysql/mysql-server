@@ -103,11 +103,7 @@ IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(gen_keyword_list.cc COMPILE_FLAGS ${HAS_MISSING_PROFILE})
 ENDIF()
 
-# ICU headers for WIN32 need extra info about their libs state
 IF(WIN32)
-  MY_ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
-    U_STATIC_IMPLEMENTATION)
-
   # Activate necessary dllexport/dllimport declarations.
   ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
 ENDIF()

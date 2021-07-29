@@ -51,3 +51,10 @@ FOREACH(test ${TESTS})
     mysqlgcs
     )
 ENDFOREACH()
+
+IF(WIN32)
+  # LNK4286: symbol 'unknown_sqlstate' is imported from mysqlclient.lib
+  MY_TARGET_LINK_OPTIONS(
+    group_replication_gcs_mysql_network_provider-t "/ignore:4286"
+    )
+ENDIF()

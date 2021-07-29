@@ -34,6 +34,8 @@
 
 #include "xcom/network/network_provider_manager.h"
 
+#include "my_compiler.h"
+
 static const char *ssl_mode_options[] = {"DISABLED", "PREFERRED", "REQUIRED",
                                          "VERIFY_CA", "VERIFY_IDENTITY"};
 
@@ -98,6 +100,10 @@ bool Network_provider_manager::start_network_provider(
   return net_provider ? net_provider->start() : true;
 }
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// TODO: fix Bug #33184321
+// unsafe mix of type 'bool' and type 'int'
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4805)
 bool Network_provider_manager::stop_all_network_providers() {
   bool retval = false;
   for (auto &&i : m_network_providers) {
@@ -108,6 +114,7 @@ bool Network_provider_manager::stop_all_network_providers() {
 
   return retval;
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 bool Network_provider_manager::stop_network_provider(
     enum_transport_protocol provider_key) {

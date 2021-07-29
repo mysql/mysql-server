@@ -91,6 +91,11 @@ IF(SOLARIS)
   LIST(REMOVE_ITEM GCS_XCOM_TESTS xcom/gcs_xcom_network_provider)
 ENDIF()
 
+IF(WIN32)
+  # UINT8_MAX: macro redefinition
+  ADD_COMPILE_FLAGS(xcom/gcs_xcom_site_def-t.cc COMPILE_FLAGS "/wd4005")
+ENDIF()
+
 ###
 ### Configure the tests and add target
 ###

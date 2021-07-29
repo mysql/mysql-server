@@ -40,6 +40,17 @@ IF(WIN32)
     ${XCOM_BASEDIR}/windeps/sunrpc/xdr_mem.c
     ${XCOM_BASEDIR}/windeps/sunrpc/xdr.c
     )
+
+  # /wd4311 'type cast': pointer truncation from 'const caddr_t' to 'u_long'
+  # /wd4312 'type cast': conversion from 'long' to 'void *' of greater size
+  ADD_COMPILE_FLAGS(
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_sizeof.c
+    COMPILE_FLAGS "/wd4311" "/wd4312"
+    )
+  ADD_COMPILE_FLAGS(
+    ${XCOM_BASEDIR}/windeps/sunrpc/xdr_mem.c
+    COMPILE_FLAGS "/wd4311"
+    )
 ENDIF()
 
 IF(APPLE)

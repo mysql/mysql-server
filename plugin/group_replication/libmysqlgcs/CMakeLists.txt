@@ -220,6 +220,11 @@ ADD_LIBRARY(mysqlgcs STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
 # but pick up symbols from the server:
 # TARGET_LINK_LIBRARIES(mysqlgcs mysys)
 
+IF(WIN32)
+  # UINT8_MAX: macro redefinition
+  TARGET_COMPILE_OPTIONS(mysqlgcs PRIVATE "/wd4005")
+ENDIF()
+
 IF(TIRPC_LIBRARIES)
   TARGET_LINK_LIBRARIES(mysqlgcs ${TIRPC_LIBRARIES})
 ENDIF()

@@ -49,8 +49,6 @@
 
 using mysql_harness::Path;
 
-const unsigned TcpPortPool::kPortsRange;
-
 #ifndef _WIN32
 bool UniqueId::lock_file(const std::string &file_name) {
   lock_file_fd_ = open(file_name.c_str(), O_RDWR | O_CREAT, 0666);
