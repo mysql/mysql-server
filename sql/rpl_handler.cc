@@ -1330,8 +1330,8 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
 
   bool is_show = is_show_status(sql_command);
   bool is_set = (sql_command == SQLCOM_SET_OPTION);
-  bool is_query_block = (sql_command == SQLCOM_SELECT);
-  bool is_do = (sql_command == SQLCOM_DO);
+  bool is_query_block =
+      (sql_command == SQLCOM_SELECT || sql_command == SQLCOM_DO);
   bool is_empty = (sql_command == SQLCOM_EMPTY_QUERY);
   bool is_use = (sql_command == SQLCOM_CHANGE_DB);
   bool is_stop_gr = (sql_command == SQLCOM_STOP_GROUP_REPLICATION);
@@ -1339,8 +1339,8 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   bool is_reset_persist =
       (sql_command == SQLCOM_RESET && lex->option_type == OPT_PERSIST);
 
-  if ((is_set || is_do || is_show || is_empty || is_use || is_stop_gr ||
-       is_shutdown || is_reset_persist) &&
+  if ((is_set || is_show || is_empty || is_use || is_stop_gr || is_shutdown ||
+       is_reset_persist) &&
       !lex->uses_stored_routines()) {
     return 0;
   }
@@ -1348,7 +1348,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   if (is_query_block) {
     bool is_udf = false;
 
-    // if select is an udf function
+    // If SELECT or DO is a UDF
     Query_block *query_block_elem = lex->unit->first_query_block();
     while (query_block_elem != nullptr) {
       for (Item *item : query_block_elem->visible_fields()) {
@@ -1363,7 +1363,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     }
 
     if (!is_udf && all_tables == nullptr) {
-      // SELECT that don't use tables and isn't a UDF
+      // SELECT or DO that don't use tables and isn't a UDF
       hold_command = false;
     }
 
