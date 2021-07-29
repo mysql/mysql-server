@@ -5268,7 +5268,6 @@ extern "C" void *handle_slave_io(void *arg) {
                  ER_THD(thd, ER_SLAVE_FATAL_ERROR), "error in mysql_init()");
       goto err;
     }
-    mysql_extension_set_server_extn(mysql, &mi->server_extn);
 
     THD_STAGE_INFO(thd, stage_connecting_to_source);
 
@@ -8105,7 +8104,6 @@ static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
 int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
                       bool suppress_warnings, const std::string &host,
                       const uint port, bool is_io_thread) {
-  int slave_was_killed = 0;
   int last_errno = -2;  // impossible error
   ulong err_count = 0;
   char llbuff[22];
@@ -8232,13 +8230,25 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   const char *tmp_host = host.empty() ? mi->host : host.c_str();
   uint tmp_port = (port == 0) ? mi->port : port;
 
-  while (
-      !(slave_was_killed = is_io_thread ? io_slave_killed(thd, mi)
-                                        : monitor_io_replica_killed(thd, mi)) &&
-      (reconnect
-           ? mysql_reconnect(mysql) != 0
-           : mysql_real_connect(mysql, tmp_host, user, password, nullptr,
-                                tmp_port, nullptr, client_flag) == nullptr)) {
+  bool replica_was_killed{false};
+  bool connected{false};
+
+  while (!connected) {
+    replica_was_killed = is_io_thread ? io_slave_killed(thd, mi)
+                                      : monitor_io_replica_killed(thd, mi);
+    if (replica_was_killed) break;
+
+    if (reconnect) {
+      connected = !mysql_reconnect(mysql);
+    } else {
+      // Set this each time mysql_real_connect() is called to make a connection
+      mysql_extension_set_server_extn(mysql, &mi->server_extn);
+
+      connected = mysql_real_connect(mysql, tmp_host, user, password, nullptr,
+                                     tmp_port, nullptr, client_flag);
+    }
+    if (connected) break;
+
     /*
        SHOW REPLICA STATUS will display the number of retries which
        would be real retry counts instead of mi->retry_count for
@@ -8263,14 +8273,14 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
     */
     if (++err_count == mi->retry_count) {
       if (is_network_error(last_errno) && is_io_thread) mi->set_network_error();
-      slave_was_killed = 1;
+      replica_was_killed = true;
       break;
     }
     slave_sleep(thd, mi->connect_retry,
                 is_io_thread ? io_slave_killed : monitor_io_replica_killed, mi);
   }
 
-  if (!slave_was_killed) {
+  if (!replica_was_killed) {
     if (is_io_thread) {
       mi->clear_error();  // clear possible left over reconnect error
       mi->reset_network_error();
@@ -8290,8 +8300,8 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
     thd->set_active_vio(mysql->net.vio);
   }
   mysql->reconnect = true;
-  DBUG_PRINT("exit", ("slave_was_killed: %d", slave_was_killed));
-  return slave_was_killed;
+  DBUG_PRINT("exit", ("replica_was_killed: %d", replica_was_killed));
+  return replica_was_killed;
 }
 
 /*
