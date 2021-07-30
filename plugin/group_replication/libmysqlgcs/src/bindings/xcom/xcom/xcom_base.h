@@ -200,7 +200,8 @@ typedef void (*xcom_full_global_view_receiver)(site_def const *site,
                                                node_set nodes);
 void set_xcom_full_global_view_receiver(xcom_full_global_view_receiver x);
 
-typedef void (*xcom_data_receiver)(synode_no message_id, node_set nodes,
+typedef void (*xcom_data_receiver)(synode_no message_id, synode_no origin,
+                                   site_def const *site, node_set nodes,
                                    u_int size, synode_no last_removed,
                                    char *data);
 void set_xcom_data_receiver(xcom_data_receiver x);
@@ -251,6 +252,7 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);
 app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
                                         xcom_event_horizon event_horizon);
+app_data_ptr init_get_leaders_msg(app_data *a, uint32_t group_id);
 app_data_ptr init_set_cache_size_msg(app_data *a, uint64_t cache_limit);
 app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id);
 app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size);
@@ -460,6 +462,38 @@ bool_t should_handle_need_boot(site_def const *site, pax_msg *p);
  */
 void init_need_boot_op(pax_msg *p, node_address *identity);
 
+int xcom_client_set_max_leaders(connection_descriptor *fd, node_no max_leaders,
+                                uint32_t group_id);
+
+void init_set_max_leaders(uint32_t group_id, app_data *a, node_no max_leaders);
+void init_set_leaders(uint32_t group_id, app_data *a,
+                      leader_array const leaders);
+void init_set_leaders(uint32_t group_id, app_data *a, u_int n,
+                      char const *names[]);
+void init_set_leaders(uint32_t group_id, app_data *leader_app,
+                      leader_array const leaders, app_data *max_app,
+                      node_no max_leaders);
+void init_set_leaders(uint32_t group_id, app_data *leader_app, u_int n,
+                      char const *names[], app_data *max_app,
+                      node_no max_leaders);
+
+int xcom_client_set_leaders(connection_descriptor *fd,
+                            leader_array const leaders, uint32_t group_id);
+int xcom_client_set_leaders(connection_descriptor *fd, u_int n,
+                            char const *names[], uint32_t group_id);
+int xcom_client_set_leaders(connection_descriptor *fd,
+                            leader_array const leaders, node_no max_leaders,
+                            uint32_t group_id);
+int xcom_client_set_leaders(connection_descriptor *fd, u_int n,
+                            char const *names[], node_no max_leaders,
+                            uint32_t group_id);
+
+int xcom_client_get_leaders(connection_descriptor *fd, uint32_t group_id,
+                            leader_info_data *leaders);
+
+typedef void (*xcom_election_cb)(leader_array leaders);
+void set_xcom_election_cb(xcom_election_cb x);
+
 static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #if defined(_WIN32)
   strerror_s(buf, len, nr);
@@ -483,6 +517,8 @@ synode_no get_default_start(app_data_ptr a);
 synode_no get_last_delivered_msg();
 void set_log_end(gcs_snapshot *gcs);
 
+extern "C" void synthesize_leaders(leader_array *leaders);
+
 #define XCOM_FSM(action, arg)                           \
   do {                                                  \
     const char *s = xcom_fsm(action, arg);              \
@@ -491,5 +527,6 @@ void set_log_end(gcs_snapshot *gcs);
   } while (0)
 
 int pm_finished(pax_machine *p);
+bool_t handle_max_leaders(app_data_ptr a);
 
 #endif

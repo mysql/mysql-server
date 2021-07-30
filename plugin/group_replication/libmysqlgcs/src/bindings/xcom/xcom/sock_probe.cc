@@ -36,17 +36,18 @@
 #include "xcom/x_platform.h"
 #include "xcom/xcom_cfg.h"
 #include "xcom/xcom_detector.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xdr_gen/xcom_vp.h"
 
 #ifdef _WIN32
-#include "xcom/sock_probe_win32.cc"
+#include "xcom/sock_probe_win32.h"
 #else
-#include "xcom/sock_probe_ix.cc"
+#include "xcom/sock_probe_ix.h"
 #endif
 
 /* compare two sockaddr */
-static bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
+bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
   size_t size_to_compare;
   if (x->sa_family != y->sa_family) return 0;
 
@@ -92,7 +93,7 @@ node_no xcom_find_node_index(node_list *nodes) {
   struct addrinfo *saved_addr = nullptr;
   std::string net_namespace;
 
-  sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
+  sock_probe *s = (sock_probe *)xcom_calloc((size_t)1, sizeof(sock_probe));
 
   Network_namespace_manager *ns_mgr = cfg_app_get_network_namespace_manager();
   if (ns_mgr) ns_mgr->channel_get_network_namespace(net_namespace);
@@ -172,7 +173,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
   if (match_port && !match_port(port)) return 0;
 
   {
-    sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
+    sock_probe *s = (sock_probe *)xcom_calloc((size_t)1, sizeof(sock_probe));
 
     Network_namespace_manager *ns_mgr = cfg_app_get_network_namespace_manager();
     if (ns_mgr) ns_mgr->channel_get_network_namespace(net_namespace);

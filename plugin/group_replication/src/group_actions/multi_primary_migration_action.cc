@@ -22,7 +22,9 @@
 
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include <plugin/group_replication/include/plugin_handlers/persistent_variables_handler.h>
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/consensus_leaders_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
 
 bool send_multi_primary_action_message(Plugin_gcs_message *message) {
@@ -236,8 +238,18 @@ end:
     log_result_execution(multi_primary_switch_aborted && !action_terminated,
                          mode_is_set);
 
-  if ((!multi_primary_switch_aborted && !error) || action_terminated)
+  if ((!multi_primary_switch_aborted && !error) || action_terminated) {
+    Member_version const communication_protocol =
+        convert_to_mysql_version(gcs_module->get_protocol_version());
+    Gcs_member_identifier const my_gcs_id =
+        local_member_info->get_gcs_member_id();
+
+    consensus_leaders_handler->set_consensus_leaders(
+        communication_protocol, false, Group_member_info::MEMBER_ROLE_PRIMARY,
+        my_gcs_id);
+
     return Group_action::GROUP_ACTION_RESULT_TERMINATED;
+  }
 
   if (action_killed) {
     return Group_action::GROUP_ACTION_RESULT_KILLED;

@@ -309,7 +309,8 @@ Gcs_xcom_communication::process_recovered_packet(
   std::memcpy(data.get(), recovered_data.data.data_val, data_len);
   // Create the packet.
   packet = Gcs_packet::make_incoming_packet(
-      std::move(data), data_len, recovered_data.synode, m_msg_pipeline);
+      std::move(data), data_len, recovered_data.synode, recovered_data.origin,
+      m_msg_pipeline);
 
   /*
    The packet should always be a user data packet, but rather than asserting
@@ -528,7 +529,7 @@ Gcs_message *Gcs_xcom_communication::convert_packet_to_message(
     /* purecov: end */
   }
   // Get packet origin.
-  packet_synode = packet_in.get_delivery_synode();
+  packet_synode = packet_in.get_origin_synode();
   node = xcom_nodes->get_node(packet_synode.get_synod().node);
   origin = Gcs_member_identifier(node->get_member_id());
   intf = static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());

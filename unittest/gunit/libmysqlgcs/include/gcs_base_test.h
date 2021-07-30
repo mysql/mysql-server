@@ -72,4 +72,6 @@ class GcsBaseTestNoLogging : public ::testing::Test {
   virtual ~GcsBaseTestNoLogging() = default;
 };
 
+enum class XComLeaderConfiguration { ONE, ALL };
+
 #endif  // GCS_BASE_TEST_INCLUDED

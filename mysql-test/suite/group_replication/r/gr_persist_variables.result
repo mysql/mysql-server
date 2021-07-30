@@ -56,6 +56,7 @@ SET PERSIST group_replication_local_address = @@GLOBAL.group_replication_local_a
 SET PERSIST group_replication_member_expel_timeout = @@GLOBAL.group_replication_member_expel_timeout;
 SET PERSIST group_replication_member_weight = @@GLOBAL.group_replication_member_weight;
 SET PERSIST group_replication_message_cache_size = @@GLOBAL.group_replication_message_cache_size;
+SET PERSIST group_replication_paxos_single_leader = @@GLOBAL.group_replication_paxos_single_leader;
 SET PERSIST group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 SET PERSIST group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
 SET PERSIST group_replication_recovery_compression_algorithms = @@GLOBAL.group_replication_recovery_compression_algorithms;
@@ -83,7 +84,7 @@ SET PERSIST group_replication_transaction_size_limit = @@GLOBAL.group_replicatio
 SET PERSIST group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 SET PERSIST group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 
-include/assert.inc ['Expect 59 persisted variables.']
+include/assert.inc ['Expect 60 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -92,9 +93,9 @@ include/assert.inc ['Expect 59 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 59 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST.']
-include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST is equal to its global value.']
+include/assert.inc ['Expect 60 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 59 variables which last value was set through SET PERSIST.']
+include/assert.inc ['Expect 59 variables which last value was set through SET PERSIST is equal to its global value.']
 
 ############################################################
 # 3. Test RESET PERSIST.
@@ -132,6 +133,7 @@ RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_member_expel_timeout;
 RESET PERSIST group_replication_member_weight;
 RESET PERSIST group_replication_message_cache_size;
+RESET PERSIST group_replication_paxos_single_leader;
 RESET PERSIST group_replication_poll_spin_loops;
 RESET PERSIST group_replication_recovery_complete_at;
 RESET PERSIST group_replication_recovery_compression_algorithms;

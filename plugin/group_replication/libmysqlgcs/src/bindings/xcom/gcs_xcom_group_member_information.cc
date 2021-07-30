@@ -136,7 +136,7 @@ std::pair<bool, node_address *> Gcs_xcom_node_information::make_xcom_identity(
   /* Get our unique XCom identifier to pass it along to XCom. */
   // Address.
   const std::string &address_str = get_member_id().get_member_id();
-  char *address[] = {const_cast<char *>(address_str.c_str())};
+  char const *address[]{address_str.c_str()};
   // Incarnation.
   bool error_creating_blob;
   blob incarnation_blob;
@@ -378,7 +378,7 @@ void Gcs_xcom_nodes::clear_nodes() {
   m_size = 0;
 }
 
-bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs,
+bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char const ***ptr_addrs,
                             blob **ptr_uuids) {
   /*
     If there is information already encoded, free it first.
@@ -389,7 +389,7 @@ bool Gcs_xcom_nodes::encode(unsigned int *ptr_size, char ***ptr_addrs,
     /* purecov: end */
   }
 
-  m_addrs = static_cast<char **>(std::calloc(m_size, sizeof(char *)));
+  m_addrs = static_cast<char const **>(std::calloc(m_size, sizeof(char *)));
   m_uuids = static_cast<blob *>(std::calloc(m_size, sizeof(blob)));
 
   /*

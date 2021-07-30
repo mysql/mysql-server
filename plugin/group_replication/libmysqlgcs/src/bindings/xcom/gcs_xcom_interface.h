@@ -98,6 +98,14 @@ class Gcs_xcom_config {
    * @returns true if the event horizons are the same, false otherwise
    */
   bool same_event_horizon(xcom_event_horizon const &event_horizon) const;
+  /**
+   * Checks whether this configuration's membership matches the given
+   * membership.
+   *
+   * @param xcom_nodes the membership to compare against
+   * @returns true if the memberships are the same, false otherwise
+   */
+  bool same_xcom_nodes_v3(Gcs_xcom_nodes const &xcom_nodes) const;
   /*
    * This class will have a singleton object, so we delete the {copy,move}
    * {constructor,assignment}. This way the compiler slaps us on the wrist if we

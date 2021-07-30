@@ -69,9 +69,11 @@ SET(GROUP_REPLICATION_SOURCES
   src/perfschema/pfs.cc
   src/perfschema/table_replication_group_configuration_version.cc
   src/perfschema/table_replication_group_member_actions.cc
+  src/perfschema/table_communication_information.cc
   src/pipeline_factory.cc
   src/pipeline_stats.cc
   src/plugin.cc
+  src/plugin_handlers/consensus_leaders_handler.cc
   src/plugin_handlers/group_partition_handling.cc
   src/plugin_handlers/member_actions_handler.cc
   src/plugin_handlers/member_actions_handler_configuration.cc

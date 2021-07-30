@@ -55,7 +55,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenario) {
   app_data a;
   std::string address("127.0.0.1:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -73,7 +73,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioV6) {
   app_data a;
   std::string address("[::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -92,7 +92,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioMalformed) {
   app_data a;
   std::string address("::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   a.body.c_t = add_node_type;
@@ -110,7 +110,7 @@ TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenarioMalformed) {
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenario) {
   std::string address("127.0.0.1:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   site_def *sd = new_site_def();
@@ -128,7 +128,7 @@ TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenario) {
 TEST_F(XcomBase, XcomNewClientEligibleDowngradeScenarioFail) {
   std::string address("[::1]:12345");
 
-  char *names[] = {const_cast<char *>(address.c_str())};
+  char const *names[]{address.c_str()};
   node_address *na = new_node_address(1, names);
 
   site_def *sd = new_site_def();
@@ -202,6 +202,11 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
   synode.msgno = 0;
   synode.node = 0;
 
+  synode_no origin;
+  origin.group_id = 12345;
+  origin.msgno = 0;
+  origin.node = 1;
+
   synode_no_array synodes;
   synodes.synode_no_array_len = 1;
   synodes.synode_no_array_val = &synode;
@@ -213,6 +218,7 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
   /* Add the synode to the cache, and set it as decided. */
   char const *const payload = "Message in a bottle";
   app_data_ptr a = new_app_data();
+  a->unique_id = origin;
   a->body.c_t = app_type;
   a->body.app_u_u.data.data_len = std::strlen(payload) + 1;
   a->body.app_u_u.data.data_val = const_cast<char *>(payload);
@@ -230,6 +236,7 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   ASSERT_EQ(result.synode_app_data_array_len, 1);
   ASSERT_EQ(synode_eq(result.synode_app_data_array_val[0].synode, synode), 1);
+  ASSERT_EQ(synode_eq(result.synode_app_data_array_val[0].origin, origin), 1);
   ASSERT_EQ(result.synode_app_data_array_val[0].data.data_len,
             p->a->body.app_u_u.data.data_len);
   ASSERT_EQ(std::strcmp(result.synode_app_data_array_val[0].data.data_val,
@@ -772,8 +779,7 @@ TEST_F(XcomBase, HandleBootWithoutIdentity) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -807,8 +813,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -844,8 +849,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *names[]{"127.0.0.1:10001"};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -885,8 +889,8 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
   synod.node = 0;
 
   // Fake node information.
-  char *name = const_cast<char *>("127.0.0.1:10001");
-  char *names[] = {name};
+  char const *name{"127.0.0.1:10001"};
+  char const *names[]{name};
   blob uuid;
   uuid.data.data_len = 1;
   uuid.data.data_val = const_cast<char *>("1");
@@ -900,8 +904,8 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
 
   pax_msg *need_boot = pax_msg_new(synod, nullptr);
   // need_boot_op with two identities.
-  char *other_name = const_cast<char *>("127.0.0.1:10002");
-  char *two_names[] = {name, other_name};
+  char const *other_name{"127.0.0.1:10002"};
+  char const *two_names[] = {name, other_name};
   blob two_uuids[] = {uuid, uuid};
   node_address *identity = ::new_node_address_uuid(2, two_names, two_uuids);
   need_boot->op = need_boot_op;

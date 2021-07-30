@@ -23,7 +23,10 @@
 #ifndef XCOM_TRANSPORT_H
 #define XCOM_TRANSPORT_H
 
+#include "xcom/server_struct.h"
+#include "xcom/site_struct.h"
 #include "xcom/xcom_common.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define XDR_INT_SIZE 4
 #define MSG_HDR_SIZE (3 * XDR_INT_SIZE)
@@ -211,7 +214,7 @@ xcom_proto minimum_ipv6_version();
  * @param port the resulting port
  * @return int true (1) in case of parse error
  */
-int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port);
+int get_ip_and_port(char const *address, char ip[IP_MAX_SIZE], xcom_port *port);
 
 /**
  * @brief Checks if an incoming node is eligible to enter the group

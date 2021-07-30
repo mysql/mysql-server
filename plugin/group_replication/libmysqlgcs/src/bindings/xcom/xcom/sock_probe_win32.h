@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file sock_probe_win32.cc
   Utility functions to check if a network address or name matches an
   interface on the machine we are running on. This is useful to deduce
   the node number from a list of network addresses or names. The node
@@ -93,7 +92,7 @@ static int init_sock_probe(sock_probe *s) {
 
   out_buflen = WORKING_BUFFER_SIZE;
 
-  s->addresses = (IP_ADAPTER_ADDRESSES *)malloc(out_buflen);
+  s->addresses = (IP_ADAPTER_ADDRESSES *)xcom_malloc(out_buflen);
   if (s->addresses == NULL) return 1;
 
   retval = GetAdaptersAddresses(family, flags, NULL, s->addresses, &out_buflen);
@@ -228,7 +227,7 @@ static void get_sockaddr(sock_probe *s, int count, struct sockaddr **out,
       if (interface_info.network_address->Address.lpSockaddr->sa_family ==
           AF_INET) {
         struct sockaddr_in *out_value =
-            (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
+            (struct sockaddr_in *)xcom_malloc(sizeof(struct sockaddr_in));
         ConvertLengthToIpv4Mask(
             interface_info.network_address->OnLinkPrefixLength,
             &out_value->sin_addr.s_addr);
@@ -236,7 +235,7 @@ static void get_sockaddr(sock_probe *s, int count, struct sockaddr **out,
       } else {
         long i, j;
         struct sockaddr_in6 *out_value =
-            (struct sockaddr_in6 *)calloc(1, sizeof(struct sockaddr_in6));
+            (struct sockaddr_in6 *)xcom_calloc(1, sizeof(struct sockaddr_in6));
         for (i = interface_info.network_address->OnLinkPrefixLength, j = 0;
              i > 0; i -= 8, ++j) {
           out_value->sin6_addr.s6_addr[j] =

@@ -25,16 +25,14 @@
 #include "xcom/xcom_cfg.h"
 
 #include "xcom/node_list.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
-
-/* Reasonable initial cache limit */
-#define DEFAULT_CACHE_LIMIT 1000000000ULL
 
 cfg_app_xcom_st *the_app_xcom_cfg = NULL;
 
 void init_cfg_app_xcom() {
   if (!the_app_xcom_cfg)
-    the_app_xcom_cfg = (cfg_app_xcom_st *)malloc(sizeof(cfg_app_xcom_st));
+    the_app_xcom_cfg = (cfg_app_xcom_st *)xcom_malloc(sizeof(cfg_app_xcom_st));
 
   the_app_xcom_cfg->m_poll_spin_loops = 0;
   the_app_xcom_cfg->m_cache_limit = DEFAULT_CACHE_LIMIT;

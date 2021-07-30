@@ -56,6 +56,8 @@ class Communication_protocol_action final : public Group_action {
   Group_action_diagnostics *get_execution_info() final;
 
  private:
+  int set_consensus_leaders() const;
+
   /** Stores textual information about the action's execution. */
   Group_action_diagnostics m_diagnostics;
 

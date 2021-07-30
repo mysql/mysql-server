@@ -1,0 +1,135 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server3]
+SET sql_log_bin = 0;
+call mtr.add_suppression("This member is configured with a group_replication_paxos_single_leader option value of*");
+SET sql_log_bin = 1;
+
+####
+# 0) Verify that the default value of
+# group_replication_paxos_single_leader is true
+####
+
+[connection server1]
+SET @@GLOBAL.group_replication_paxos_single_leader = default;
+include/assert.inc [The default of group_replication_paxos_single_leader should be 0]
+
+####
+# 1) The test requires three servers.
+####
+
+SET @@GLOBAL.group_replication_paxos_single_leader = 1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+####
+# 2) Verify that the UUID present in
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and in
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE is the UUID of the primary
+####
+
+[connection server1]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+
+####
+# 3) Change the value of group_replication_paxos_single_leader to false
+####
+
+[connection server1]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+
+####
+# 4) Verify that the value of the new sysvar is false
+####
+
+include/assert.inc [The value of group_replication_paxos_single_leader should be 0]
+
+####
+# 5) The group should still be using single-leader
+####
+
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server3]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [The first server's UUID should be the only UUID in WRITE_CONSENSUS_LEADERS_ACTUAL]
+
+####
+# 6) Reboot the plugin (add only 2 of the members)
+####
+
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = 0;
+include/start_group_replication.inc
+
+####
+# 7) Verify that the UUIDs contained in
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_PREFERRED and in
+# WRITE_CONSENSUS_LEADERS_MEMBER_ID_ACTIVE contain all the UUIDs of all
+# the members in the group
+####
+
+[connection server1]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+[connection server2]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+
+####
+# 8) Change the sysvar value on the third member to true
+####
+
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+
+####
+# 9) Try to add the third member
+####
+
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server1]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Member 3 should not have been added to the group]
+[connection server2]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_PREFERRED]
+include/assert.inc [All members should be in WRITE_CONSENSUS_LEADERS_ACTUAL]
+include/assert.inc [Member 3 should not have been added to the group]
+
+####
+# 10) Cleanup.
+####
+
+[connection server1]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+[connection server2]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+[connection server3]
+SET GLOBAL group_replication_paxos_single_leader = 1;
+[connection server1]
+include/group_replication_end.inc

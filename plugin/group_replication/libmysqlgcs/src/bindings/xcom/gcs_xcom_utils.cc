@@ -668,8 +668,10 @@ std::string gcs_protocol_to_mysql_version(Gcs_protocol_version protocol) {
     case Gcs_protocol_version::V2:
       version = "8.0.16";
       break;
+    case Gcs_protocol_version::HIGHEST_KNOWN:
+      version = "8.0.27";
+      break;
     case Gcs_protocol_version::UNKNOWN:
-    case Gcs_protocol_version::V3:
     case Gcs_protocol_version::V4:
     case Gcs_protocol_version::V5:
       /* This should not happen... */

@@ -24,6 +24,7 @@
 #define XCOM_DETECTOR_H
 
 #include "xcom/xcom_limits.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define DETECTOR_LIVE_TIMEOUT 5.0
 

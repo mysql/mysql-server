@@ -343,7 +343,8 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   }
 
   MOCK_METHOD3(new_node_address_uuid,
-               node_address *(unsigned int n, char *names[], blob uuids[]));
+               node_address *(unsigned int n, char const *names[],
+                              blob uuids[]));
   MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
   MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *con,
                                           node_list *nl, uint32_t group_id));
@@ -357,6 +358,13 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                     xcom_event_horizon event_horizon));
   MOCK_METHOD2(xcom_client_set_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon event_horizon));
+  MOCK_METHOD2(xcom_client_set_max_leaders,
+               bool(uint32_t group_id, node_no max_leaders));
+  MOCK_METHOD4(xcom_client_set_leaders,
+               bool(uint32_t group_id, u_int n, char const *names[],
+                    node_no max_nr_leaders));
+  MOCK_METHOD2(xcom_client_get_leaders,
+               bool(uint32_t gid, leader_info_data &leaders));
   MOCK_METHOD4(xcom_client_get_synode_app_data,
                bool(connection_descriptor *con, uint32_t group_id,
                     synode_no_array &synodes, synode_app_data_array &reply));
@@ -1076,9 +1084,14 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
   uuid_2.encode(reinterpret_cast<uchar **>(&blob_2.data.data_val),
                 &blob_2.data.data_len);
 
-  node_address node_addrs[2] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12346"), blob_2, {x_1_0, x_1_2}}};
+  node_address node_addrs[2] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12346"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   // Common unit test data
   Gcs_xcom_view_identifier *view_id = new Gcs_xcom_view_identifier(999999, 27);
@@ -1258,10 +1271,18 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
   uuid_3.encode(reinterpret_cast<uchar **>(&blob_3.data.data_val),
                 &blob_3.data.data_len);
 
-  node_address node_addrs[3] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12341"), blob_3, {x_1_0, x_1_2}}};
+  node_address node_addrs[3] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12343"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12341"),
+                                 blob_3,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(3, node_addrs, site_config);
@@ -1382,9 +1403,14 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
   uuid_2.encode(reinterpret_cast<uchar **>(&blob_2.data.data_val),
                 &blob_2.data.data_len);
 
-  node_address node_addrs[2] = {
-      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
-      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}}};
+  node_address node_addrs[2] = {{const_cast<char *>("127.0.0.1:12345"),
+                                 blob_1,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN},
+                                {const_cast<char *>("127.0.0.1:12343"),
+                                 blob_2,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);
@@ -2230,8 +2256,10 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
   uuid.encode(reinterpret_cast<uchar **>(&blob.data.data_val),
               &blob.data.data_len);
 
-  node_address node_addrs[1] = {
-      {const_cast<char *>(member_id_2.c_str()), blob, {x_1_0, x_1_2}}};
+  node_address node_addrs[1] = {{const_cast<char *>(member_id_2.c_str()),
+                                 blob,
+                                 {x_1_0, x_1_2},
+                                 P_PROP | P_ACC | P_LEARN}};
 
   site_def *site_config = new_site_def();
   init_site_def(1, node_addrs, site_config);

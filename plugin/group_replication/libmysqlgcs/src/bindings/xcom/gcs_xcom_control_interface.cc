@@ -1324,7 +1324,7 @@ bool Gcs_xcom_control::is_this_node_in(
 bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
                                                 synode_no message_id,
                                                 Gcs_xcom_nodes *xcom_nodes,
-                                                bool same_view,
+                                                bool do_not_deliver_to_client,
                                                 synode_no max_synode) {
   bool ret = false;
   bool free_built_members = false;
@@ -1354,7 +1354,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
     current_members = const_cast<std::vector<Gcs_member_identifier> *>(
         &current_view->get_members());
   MYSQL_GCS_LOG_TRACE("::xcom_receive_global_view():: My node_id is %d",
-                      xcom_nodes->get_node_no())
+                      xcom_nodes->get_node_no());
 
   /*
     Identify which nodes are alive and which are considered faulty.
@@ -1465,10 +1465,10 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
 
   /*
     If nobody has joined or left the group, there is no need to install any
-    view. This fact is denoted by the same_view flag and the execution only
-    gets so far because we may have to kill some faulty members. Note that
-    the code could be optimized but we are focused on correctness for now
-    and any possible optimization will be handled in the future.
+    view. This fact is denoted by the do_not_deliver_to_client flag and the
+    execution only gets so far because we may have to kill some faulty members.
+    Note that the code could be optimized but we are focused on correctness for
+    now and any possible optimization will be handled in the future.
 
     Views that contain a node marked as faulty are also ignored. This is
     done because XCOM does not deliver messages to or accept messages from
@@ -1484,13 +1484,13 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
     If the execution has managed to pass these steps, the node is alive and
     it is time to start building the view.
   */
-  if (same_view || failed_members.size() != 0) {
+  if (do_not_deliver_to_client || failed_members.size() != 0) {
     MYSQL_GCS_LOG_TRACE(
         "(My node_id is %d) ::xcom_receive_global_view():: "
         "Discarding view because nothing has changed. "
-        "Same view flag is %d, number of failed nodes is %llu"
+        "Do not deliver to client flag is %d, number of failed nodes is %llu"
         ", number of joined nodes is %llu, number of left nodes is %llu",
-        xcom_nodes->get_node_no(), same_view,
+        xcom_nodes->get_node_no(), do_not_deliver_to_client,
         static_cast<long long unsigned>(failed_members.size()),
         static_cast<long long unsigned>(joined_members.size()),
         static_cast<long long unsigned>(left_members.size()));
@@ -1585,6 +1585,8 @@ end:
   return ret;
 }
 
+extern uint32_t get_my_xcom_id();
+
 void Gcs_xcom_control::process_control_message(
     Gcs_message *msg, Gcs_protocol_version maximum_supported_protocol_version,
     Gcs_protocol_version used_protocol_version) {
@@ -1601,8 +1603,9 @@ void Gcs_xcom_control::process_control_message(
           msg->get_message_data().get_payload_length()));
 
   MYSQL_GCS_LOG_TRACE(
-      "::process_control_message():: From: %s regarding view_id: %s in %s",
-      msg->get_origin().get_member_id().c_str(),
+      "xcom_id %x ::process_control_message():: From: %s regarding view_id: %s "
+      "in %s",
+      get_my_xcom_id(), msg->get_origin().get_member_id().c_str(),
       ms_info->get_view_id()->get_representation().c_str(),
       get_node_address()->get_member_address().c_str())
 
@@ -1614,18 +1617,21 @@ void Gcs_xcom_control::process_control_message(
   MYSQL_GCS_DEBUG_EXECUTE(
       synode_no configuration_id = ms_info->get_configuration_id();
       if (!m_view_control->is_view_changing()){MYSQL_GCS_LOG_DEBUG(
-          "There is no state exchange going on. Ignoring exchangeable data "
+          "xcom_id %x There is no state exchange going on. Ignoring "
+          "exchangeable data "
           "because its from a previous state exchange phase. Message is "
           "from group_id (%u), msg_no(%llu), node_no(%llu)",
-          configuration_id.group_id,
+          get_my_xcom_id(), configuration_id.group_id,
           static_cast<long long unsigned>(configuration_id.msgno),
           static_cast<long long unsigned>(
               configuration_id
-                  .node))} MYSQL_GCS_LOG_DEBUG("There is a state exchange "
+                  .node))} MYSQL_GCS_LOG_DEBUG("xcom_id %x There is a state "
+                                               "exchange "
                                                "going on. Message is "
                                                "from group_id (%u), "
                                                "msg_no(%llu), "
                                                "node_no(%llu)",
+                                               get_my_xcom_id(),
                                                configuration_id.group_id,
                                                static_cast<long long unsigned>(
                                                    configuration_id.msgno),

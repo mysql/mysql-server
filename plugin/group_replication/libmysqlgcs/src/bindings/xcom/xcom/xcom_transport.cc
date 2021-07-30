@@ -74,7 +74,7 @@
 
 #endif
 
-#define MY_XCOM_PROTO x_1_8
+#define MY_XCOM_PROTO x_1_9
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -202,12 +202,12 @@ int flush_srv_buf(server *s, int64_t *ret) {
   u_int buflen;
   END_ENV;
 
+  int64_t sent{0};
   TASK_BEGIN
   ep->buflen = s->out_buf.n;
   reset_srv_buf(&s->out_buf);
   if (s->con->fd >= 0) {
     if (ep->buflen) {
-      int64_t sent;
       IFDBG(D_TRANSPORT, FN; PTREXP(stack); NDBG(ep->buflen, u));
       /* LOCK_FD(s->con.fd, 'w'); */
       TASK_CALL(task_write(s->con, s->out_buf.buf, ep->buflen, &sent));
@@ -295,6 +295,7 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
   char *buf;
   END_ENV;
 
+  int64_t sent{0};
   TASK_BEGIN
   p->to = to;
   IFDBG(D_NONE, FN; PTREXP(stack); PTREXP(s); PTREXP(p); NDBG(s->con.fd, d));
@@ -311,7 +312,6 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
       serialize_msg(p, s->con->x_proto, &ep->buflen, &ep->buf);
       IFDBG(D_TRANSPORT, FN; NDBG(ep->buflen, u));
       if (ep->buflen) {
-        int64_t sent;
         /* Not enough space? Flush the buffer */
         if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
           TASK_CALL(flush_srv_buf(s, ret));
@@ -380,24 +380,20 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
   char buf[MSG_HDR_SIZE];
   END_ENV;
 
+  int64_t sent{0};
   TASK_BEGIN
   if (con->fd >= 0) {
     con->snd_tag = tag;
     write_protoversion(VERS_PTR((unsigned char *)ep->buf), x_proto);
     put_header_1_0((unsigned char *)ep->buf, 0, x_type, tag);
-
-    {
-      int64_t sent;
-
-      TASK_CALL(task_write(con, ep->buf, MSG_HDR_SIZE, &sent));
-      if (con->fd < 0) {
-        TASK_FAIL;
-      }
-      if (sent <= 0) {
-        shutdown_connection(con);
-      }
-      TASK_RETURN(sent);
+    TASK_CALL(task_write(con, ep->buf, MSG_HDR_SIZE, &sent));
+    if (con->fd < 0) {
+      TASK_FAIL;
     }
+    if (sent <= 0) {
+      shutdown_connection(con);
+    }
+    TASK_RETURN(sent);
   } else {
     TASK_FAIL;
   }
@@ -436,8 +432,8 @@ int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
   */
   if (xdr.x_ops) {
     s = XDRFUNC(&xdr, xdrdata);
+    xdr_destroy(&xdr);
   }
-  xdr_destroy(&xdr);
   return s;
 }
 
@@ -488,7 +484,7 @@ static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
     Allocate space for version number, length field, type, tag, and serialized
     message. Explicit type case suppress the warnings on 32bits.
   */
-  buf = (unsigned char *)calloc((size_t)1, (size_t)tot_buflen);
+  buf = (unsigned char *)xcom_calloc((size_t)1, (size_t)tot_buflen);
   if (buf) {
     /* Write protocol version */
     write_protoversion(buf, x_proto);
@@ -515,17 +511,6 @@ static inline int old_proto_knows(xcom_proto x_proto [[maybe_unused]],
   return 1;
 }
 
-/* must match enum x_proto */
-extern "C" bool_t xdr_pax_msg_1_0(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_1(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_2(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_3(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
-extern "C" bool_t xdr_pax_msg_1_8(XDR *, pax_msg *);
-
 static xdrproc_t pax_msg_func[] = {
     reinterpret_cast<xdrproc_t>(0),
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_0),
@@ -536,7 +521,8 @@ static xdrproc_t pax_msg_func[] = {
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_5),
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_6),
     reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_7),
-    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_8)};
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_8),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_9)};
 
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen,
                   char **buf) {
@@ -588,7 +574,7 @@ static int maxservers = 0;
 static server *mksrv(char *srv, xcom_port port) {
   server *s;
 
-  s = (server *)calloc((size_t)1, sizeof(*s));
+  s = (server *)xcom_calloc((size_t)1, sizeof(*s));
 
   IFDBG(D_NONE, FN; PTREXP(s); STREXP(srv));
   if (s == 0) {
@@ -800,7 +786,7 @@ static int dial(server *s) {
   END_ENV;
 
   TASK_BEGIN
-  IFDBG(D_NONE, FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u);
+  IFDBG(D_BUG, FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u);
         STRLIT(s->srv); NDBG(s->port, u));
 
   // Delete old connection
@@ -822,6 +808,9 @@ static int dial(server *s) {
     }
 
     unblock_fd(s->con->fd);
+    IFDBG(D_BUG, FN; STRLIT(" dial connected ");
+          NPUT(get_nodeno(get_site_def()), u); STRLIT(s->srv);
+          NDBG(s->port, u));
     set_connected(s->con, CON_FD);
     alive(s);
     update_detected(get_site_def_rw());
@@ -912,11 +901,6 @@ int send_to_all_except_self(site_def const *s, pax_msg *p, const char *dbg) {
   return retval;
 }
 /* purecov: end */
-
-/* Send to self in site */
-int send_to_self_site(site_def const *s, pax_msg *p) {
-  return _send_server_msg(s, get_nodeno(s), p);
-}
 
 /* Send to all servers */
 int send_to_all(pax_msg *p, const char *dbg) {
@@ -1072,10 +1056,8 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
 
   IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); PTREXP(s); NDBG(n, u));
 
-  TASK_BEGIN
-
-      (void)
-  s;
+  int64_t nread{0};
+  TASK_BEGIN(void) s;
   ep->left = n;
   ep->bytes = (char *)p;
 
@@ -1095,7 +1077,6 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   } else {
     /* Buffered read makes sense */
     while (ep->left > 0) {
-      int64_t nread;
       /* Buffer is empty, reset and read */
       reset_srv_buf(buf);
 
@@ -1225,7 +1206,7 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   /* OK, we can grok this version */
 
   /* Allocate buffer space for message */
-  ep->bytes = (char *)calloc((size_t)1, (size_t)ep->msgsize);
+  ep->bytes = (char *)xcom_calloc((size_t)1, (size_t)ep->msgsize);
   if (!ep->bytes) {
     TASK_FAIL;
   }
@@ -1338,7 +1319,7 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   /* OK, we can grok this version */
 
   /* Allocate buffer space for message */
-  ep->bytes = (char *)calloc((size_t)1, (size_t)ep->msgsize);
+  ep->bytes = (char *)xcom_calloc((size_t)1, (size_t)ep->msgsize);
   if (!ep->bytes) {
     TASK_FAIL;
   }
@@ -1363,6 +1344,7 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   TASK_END;
 }
 
+#if 0
 int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
                x_msg_type *x_type, unsigned int *tag, int64_t *ret) {
   DECL_ENV
@@ -1389,6 +1371,7 @@ int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
   FINALLY
   TASK_END;
 }
+#endif
 
 /* Sender task */
 
@@ -1426,6 +1409,7 @@ int sender_task(task_arg arg) {
 #endif
   END_ENV;
 
+  int64_t ret_code{0};
   TASK_BEGIN
 
   ep->channel_empty_time = task_now();
@@ -1497,7 +1481,6 @@ int sender_task(task_arg arg) {
       }
       CHANNEL_GET(&ep->s->outgoing, &ep->link, msg_link);
       {
-        int64_t ret_code;
         /* IFDBG(D_NONE, FN; PTREXP(stack); PTREXP(ep->link));
         IFDBG(D_NONE, FN; PTREXP(&ep->s->outgoing);
                COPY_AND_FREE_GOUT(dbg_msg_link(ep->link)););
@@ -1681,9 +1664,9 @@ void update_servers(site_def *s, cargo_type operation) {
       char *name = NULL;
       xcom_port port = 0;
 
-      name = (char *)malloc(IP_MAX_SIZE);
+      name = (char *)xcom_malloc(IP_MAX_SIZE);
 
-      /* In this specific place, addr mut have been validated elsewhere,
+      /* In this specific place, addr must have been validated elsewhere,
          specifically when the node is added. */
       if (get_ip_and_port(addr, name, &port)) {
         G_INFO("Error parsing ip:port for new server. Incorrect value is %s",
@@ -1719,6 +1702,7 @@ void update_servers(site_def *s, cargo_type operation) {
             /* purecov: end */
           }
         }
+        IFDBG(D_BUG, FN; PTREXP(s->servers[i]));
       }
     }
     /* Zero the rest */
@@ -1932,6 +1916,9 @@ static int match_ipv6(parse_buf *p) {
         G_DEBUG("Malformed IPv6 address '%s'", p->address);
         return 0;
       }
+    } else if (!isxdigit(*(p->in))) {
+      G_DEBUG("Malformed IPv6 address '%s'", p->address);
+      return 0;
     }
     p->in++;
   }
@@ -1964,15 +1951,24 @@ static int match_address(parse_buf *p) {
 static int match_ip_and_port(char const *address, char ip[IP_MAX_SIZE],
                              xcom_port *port) {
   parse_buf p;
+  // Sanity check before return
+  auto ok_ip = [&ip]() { return ip[0] != 0; };
 
   /* Sanity checks */
-  if (address == NULL || (strlen(address) == 0) || ip == NULL) {
+  if (address == NULL || (strlen(address) == 0)) {
     return 0;
   }
 
   /* Zero the output buffer and port */
-  memset(ip, 0, IP_MAX_SIZE);
-  *port = 0;
+  if (ip)
+    memset(ip, 0, IP_MAX_SIZE);
+  else
+    return 0;
+
+  if (port)
+    *port = 0;
+  else
+    return 0;
 
   p.in = p.address = address;
   p.out = ip;
@@ -1987,11 +1983,12 @@ static int match_ip_and_port(char const *address, char ip[IP_MAX_SIZE],
   p.in++;
   if (*(p.in) == ':') { /* We have a port */
     p.in++;
-    return match_port(&p, port);
+    return ok_ip() && match_port(&p, port);
   }
-  return NO_PORT_IN_ADDRESS; /* No :port, but that may be OK */
+  return ok_ip() && NO_PORT_IN_ADDRESS; /* No :port, but that may be OK */
 }
 
-int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port) {
+int get_ip_and_port(char const *address, char ip[IP_MAX_SIZE],
+                    xcom_port *port) {
   return !match_ip_and_port(address, ip, port);
 }

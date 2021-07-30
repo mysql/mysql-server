@@ -621,6 +621,48 @@ enum enum_gcs_error Gcs_operations::set_write_concurrency(
   return result;
 }
 
+enum enum_gcs_error Gcs_operations::set_leader(
+    Gcs_member_identifier const &leader) {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->set_single_leader(leader);
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+enum enum_gcs_error Gcs_operations::set_everyone_leader() {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->set_everyone_leader();
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+enum enum_gcs_error Gcs_operations::get_leaders(
+    std::vector<Gcs_member_identifier> &preferred_leaders,
+    std::vector<Gcs_member_identifier> &actual_leaders) {
+  DBUG_TRACE;
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->rdlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->get_leaders(preferred_leaders, actual_leaders);
+  }
+
+  gcs_operations_lock->unlock();
+  return result;
+}
+
 uint32_t Gcs_operations::get_minimum_write_concurrency() const {
   DBUG_TRACE;
   uint32_t result = 0;

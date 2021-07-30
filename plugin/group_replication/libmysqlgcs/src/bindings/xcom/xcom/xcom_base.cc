@@ -270,6 +270,8 @@
 #include <windows.h>
 #endif
 
+#include <memory>
+
 #include "xcom/app_data.h"
 #include "xcom/get_synode_app_data.h"
 #include "xcom/node_no.h"
@@ -287,6 +289,7 @@
 #include "xdr_gen/xcom_vp.h"
 
 #include "xcom/bitset.h"
+#include "xcom/leader_info_data.h"
 #include "xcom/node_list.h"
 #include "xcom/node_set.h"
 #include "xcom/pax_msg.h"
@@ -315,6 +318,9 @@
 #include <openssl/ssl.h>
 
 #endif
+
+#include <queue>
+#include <tuple>
 
 /* Defines and constants */
 
@@ -346,7 +352,7 @@ static int const no_duplicate_payload = 1;
 static int use_buffered_read = 1;
 
 /* Used to handle OOM errors */
-static unsigned short oom_abort = 0;
+int oom_abort = 0;
 
 /* Forward declarations */
 long xcom_unique_long(void);
@@ -368,14 +374,26 @@ extern int detector_task(task_arg arg);
 static int finished(pax_machine *p);
 static int accepted(pax_machine *p);
 static int started(pax_machine *p);
-static synode_no first_free_synode(synode_no msgno);
+static synode_no first_free_synode_local(synode_no msgno);
 static void free_forced_config_site_def();
 static void activate_sweeper();
 static void force_pax_machine(pax_machine *p, int enforcer);
+static void propose_noop_2p(synode_no find, pax_machine *p);
 static void handle_need_snapshot(linkage *reply_queue, pax_msg *pm);
 static void handle_skip(site_def const *site, pax_machine *p, pax_msg *m);
-
-extern void bit_set_or(bit_set *x, bit_set const *y);
+static void paxos_fsm(pax_machine *paxos, site_def const *site,
+                      paxos_event event, pax_msg *mess);
+static inline bool is_leader(site_def *site);
+int is_active_leader(node_no x, site_def *site);
+static msg_handler *primary_dispatch_table();
+static msg_handler *secondary_dispatch_table();
+static void recompute_node_sets(site_def const *old_site, site_def *new_site);
+void recompute_timestamps(detector_state const old_timestamp,
+                          node_list const *old_nodes,
+                          detector_state new_timestamp,
+                          node_list const *new_nodes);
+void analyze_leaders(site_def *site);
+static inline int ignore_message(synode_no x, site_def *site, char const *dbg);
 
 /* Global variables */
 
@@ -426,6 +444,53 @@ static uint64_t lsn = 0;         /* Current log sequence number */
 synode_no get_current_message() { return current_message; }
 
 static channel prop_input_queue; /* Proposer task input queue */
+
+enum class synode_allocation_type { todo = 0, local, remote, global };
+enum class synode_reservation_status : int {
+  number_ok,
+  no_nodes,
+  delivery_timeout
+};
+
+#if 0
+static char const *synode_allocation_type_to_str(synode_allocation_type x) {
+  switch (x) {
+    case synode_allocation_type::todo:
+      return "todo";
+    case synode_allocation_type::local:
+      return "local";
+    case synode_allocation_type::remote:
+      return "remote";
+    case synode_allocation_type::global:
+      return "global";
+    default:
+      return "";
+  }
+}
+#endif
+
+// A pool of synode numbers implemented as a queue
+struct synode_pool {
+  std::queue<std::pair<synode_no, synode_allocation_type>> data;
+  linkage queue;
+
+  synode_pool() { link_init(&queue, TYPE_HASH("task_env")); }
+
+  void put(synode_no synode, synode_allocation_type allocation) {
+    data.push({synode, allocation});
+    task_wakeup(&queue);
+  }
+
+  auto get() {
+    auto retval = data.front();
+    data.pop();
+    return retval;
+  }
+
+  bool empty() { return data.empty(); }
+};
+
+synode_pool synode_number_pool;
 
 extern int client_boot_done;
 extern int netboot_ok;
@@ -517,12 +582,14 @@ static site_def const *latest_event_horizon_reconfig() {
  *
  *   start(R) + event_horizon(R) + 1
  */
+#ifdef PERMISSIVE_EH_ACTIVE_CONFIG
 /* purecov: begin deadcode */
 static synode_no add_default_event_horizon(synode_no s) {
   s.msgno += EVENT_HORIZON_MIN + 1;
   return s;
 }
 /* purecov: end */
+#endif
 
 static synode_no add_event_horizon(synode_no s) {
   site_def const *active_config = find_site_def(executed_msg);
@@ -543,7 +610,7 @@ static synode_no add_event_horizon(synode_no s) {
     /* purecov: begin deadcode */
     assert(active_config != NULL);
     return null_synode;
-    /* purecov: end */
+/* purecov: end */
 #endif
   }
 }
@@ -612,6 +679,7 @@ synode_no incr_synode(synode_no synode) {
   return ret; /* Change this if we change message number type */
 }
 
+#if 0
 synode_no decr_synode(synode_no synode) {
   synode_no ret = synode;
   if (ret.node == 0) {
@@ -621,6 +689,7 @@ synode_no decr_synode(synode_no synode) {
   ret.node--;
   return ret; /* Change this if we change message number type */
 }
+#endif
 
 static void skip_value(pax_msg *p) {
   IFDBG(D_NONE, FN; SYCEXP(p->synode));
@@ -767,7 +836,7 @@ static inline int majority(bit_set const *nodeset, site_def const *s, int all,
   ((p)->proposer.msg->a ? (p)->proposer.msg->a->consensus == cons_all : 0)
 
 /* See if a majority of acceptors have answered our prepare */
-static int prep_majority(site_def const *site, pax_machine *p) {
+static int prep_majority(site_def const *site, pax_machine const *p) {
   int ok = 0;
 
   assert(p);
@@ -775,13 +844,13 @@ static int prep_majority(site_def const *site, pax_machine *p) {
   assert(p->proposer.msg);
   /* IFDBG(D_NONE, FN; BALCEXP(p->proposer.bal)); */
   ok = majority(p->proposer.prep_nodeset, site, IS_CONS_ALL(p),
-                p->proposer.bal.cnt == 1,
+                p->proposer.bal.cnt <= 1,
                 p->proposer.msg->force_delivery || p->force_delivery);
   return ok;
 }
 
 /* See if a majority of acceptors have answered our propose */
-static int prop_majority(site_def const *site, pax_machine *p) {
+static int prop_majority(site_def const *site, pax_machine const *p) {
   int ok = 0;
 
   assert(p);
@@ -789,7 +858,7 @@ static int prop_majority(site_def const *site, pax_machine *p) {
   assert(p->proposer.msg);
   /* IFDBG(D_NONE, FN; BALCEXP(p->proposer.bal)); */
   ok = majority(p->proposer.prop_nodeset, site, IS_CONS_ALL(p),
-                p->proposer.bal.cnt == 1,
+                p->proposer.bal.cnt <= 1,
                 p->proposer.msg->force_delivery || p->force_delivery);
   return ok;
 }
@@ -886,10 +955,18 @@ static void empty_prop_input_queue() {
   IFDBG(D_NONE, FN; STRLIT("prop_input_queue empty"));
 }
 
+static void empty_synode_number_pool() {
+  while (!synode_number_pool.data.empty()) {
+    synode_number_pool.data.pop();
+  }
+}
+
 /* De-initialize the xcom thread */
 void xcom_thread_deinit() {
   IFDBG(D_BUG, FN; STRLIT("Empty proposer input queue"));
   empty_prop_input_queue();
+  IFDBG(D_BUG, FN; STRLIT("Empty synode number pool"));
+  empty_synode_number_pool();
   IFDBG(D_BUG, FN; STRLIT("Empty link free list"));
   empty_link_free_list();
   IFDBG(D_BUG, FN; STRLIT("De-initialize cache"));
@@ -914,6 +991,38 @@ static void create_proposers() {
     set_task(&proposer[i], task_new(proposer_task, int_arg(i), "proposer_task",
                                     XCOM_THREAD_DEBUG));
   }
+}
+
+static synode_no *proposer_synodes[PROPOSERS];
+
+static void add_proposer_synode(int i, synode_no *syn_ptr) {
+  if (i >= 0 && i < PROPOSERS) {
+    proposer_synodes[i] = syn_ptr;
+  }
+}
+
+static void remove_proposer_synode(int i) { add_proposer_synode(i, NULL); }
+
+static synode_no get_proposer_synode(int i) {
+  if (i >= 0 && i < PROPOSERS && proposer_synodes[i]) {
+    return *proposer_synodes[i];
+  } else {
+    return null_synode;
+  }
+}
+
+static synode_no min_proposer_synode() {
+  synode_no s_min;
+  int i;
+  for (i = 0; i < PROPOSERS; i++) {
+    s_min = get_proposer_synode(i);
+    if (!synode_eq(null_synode, s_min)) break;  // Initial value
+  }
+  for (; i < PROPOSERS; i++) {
+    if (synode_lt(get_proposer_synode(i), s_min))
+      s_min = get_proposer_synode(i);
+  }
+  return s_min;
 }
 
 static void terminate_proposers() {
@@ -943,12 +1052,12 @@ static void set_proposer_startpoint() {
   IFDBG(D_NONE, FN; STRLIT("changing current message"));
   if (synode_gt(max_synode, get_current_message())) {
     if (max_synode.msgno <= 1)
-      set_current_message(first_free_synode(max_synode));
+      set_current_message(first_free_synode_local(max_synode));
     else
-      set_current_message(incr_msgno(first_free_synode(max_synode)));
+      set_current_message(incr_msgno(first_free_synode_local(max_synode)));
   }
   if (synode_gt(executed_msg, get_current_message())) {
-    set_current_message(first_free_synode(executed_msg));
+    set_current_message(first_free_synode_local(executed_msg));
   }
 }
 
@@ -960,42 +1069,43 @@ static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
 static xcom_state_change_cb xcom_expel_cb = 0;
 static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
+static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_begin_cb = NULL;
+static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_restart_cb = NULL;
+static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_init_cb = NULL;
+static xcom_recovery_cb MY_ATTRIBUTE((unused)) recovery_end_cb = NULL;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
-
+void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
 void set_xcom_comms_cb(xcom_state_change_cb x) { xcom_comms_cb = x; }
+void set_xcom_expel_cb(xcom_state_change_cb x) { xcom_expel_cb = x; }
+
+void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
+  xcom_try_pop_from_input_cb = pop;
+}
+
+#ifdef XCOM_STANDALONE
 /* purecov: begin deadcode */
 void set_xcom_terminate_cb(xcom_state_change_cb x) { xcom_terminate_cb = x; }
 /* purecov: end */
-void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
 
-static xcom_recovery_cb recovery_begin_cb = NULL;
 /* purecov: begin deadcode */
 void set_xcom_recovery_begin_cb(xcom_recovery_cb x) { recovery_begin_cb = x; }
 /* purecov: end */
 
-static xcom_recovery_cb recovery_restart_cb = NULL;
 /* purecov: begin deadcode */
 void set_xcom_recovery_restart_cb(xcom_recovery_cb x) {
   recovery_restart_cb = x;
 }
 /* purecov: end */
 
-static xcom_recovery_cb recovery_init_cb = NULL;
 /* purecov: begin deadcode */
 void set_xcom_recovery_init_cb(xcom_recovery_cb x) { recovery_init_cb = x; }
 /* purecov: end */
 
-static xcom_recovery_cb recovery_end_cb = NULL;
 /* purecov: begin deadcode */
 void set_xcom_recovery_end_cb(xcom_recovery_cb x) { recovery_end_cb = x; }
 /* purecov: end */
-
-void set_xcom_expel_cb(xcom_state_change_cb x) { xcom_expel_cb = x; }
-
-void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
-  xcom_try_pop_from_input_cb = pop;
-}
+#endif
 
 /**
  * These fields are used to signal XCom's request queue. After a request
@@ -1029,10 +1139,12 @@ static bool_t xcom_input_signal_connection_shutdown_ssl_wait_for_peer() {
     ssl_error_code = SSL_read(input_signal_connection->ssl_fd, buf, 1024);
   } while (ssl_error_code > 0);
 
-  bool_t const successful =
-      (SSL_get_error(input_signal_connection->ssl_fd, ssl_error_code) ==
-       SSL_ERROR_ZERO_RETURN);
-  return successful;
+  {
+    bool_t const successful =
+        (SSL_get_error(input_signal_connection->ssl_fd, ssl_error_code) ==
+         SSL_ERROR_ZERO_RETURN);
+    return successful;
+  }
 }
 
 static bool_t xcom_input_signal_connection_shutdown_ssl() {
@@ -1167,7 +1279,8 @@ static int local_server_shutdown_ssl(connection_descriptor *con, void *buf,
     do {
       TASK_CALL(task_read(con, buf, n, &ep->nr_read));
     } while (ep->nr_read > 0);
-    ep->ssl_error_code = SSL_get_error(con->ssl_fd, ep->nr_read);
+    ep->ssl_error_code =
+        SSL_get_error(con->ssl_fd, static_cast<int>(ep->nr_read));
     ep->something_went_wrong = (ep->ssl_error_code != SSL_ERROR_ZERO_RETURN);
   }
   if (ep->something_went_wrong) TERMINATE;
@@ -1323,6 +1436,9 @@ static bool_t local_server_is_setup() {
   return xcom_try_pop_from_input_cb != NULL;
 }
 
+static void init_time_queue();
+static int paxos_timer_task(task_arg arg MY_ATTRIBUTE((unused)));
+
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
 
@@ -1406,12 +1522,16 @@ int xcom_taskmain2(xcom_port listen_port) {
              XCOM_THREAD_DEBUG);
 #endif
 
+    init_time_queue();
+    task_new(paxos_timer_task, null_arg, "paxos_timer_task", XCOM_THREAD_DEBUG);
     IFDBG(D_BUG, FN; STRLIT("XCOM is listening on "); NPUT(listen_port, d));
   }
 
+#ifdef XCOM_STANDALONE
   if (recovery_init_cb) recovery_init_cb();
 
   if (recovery_begin_cb) recovery_begin_cb();
+#endif
 
   task_loop();
 cleanup:
@@ -1485,18 +1605,22 @@ static int skip_msg(pax_msg *p) {
 }
 
 static void brand_app_data(pax_msg *p) {
-  if (p->a) {
-    p->a->app_key.msgno = p->synode.msgno;
-    p->a->app_key.node = p->synode.node;
-    p->a->app_key.group_id = p->a->group_id = p->synode.group_id;
+  app_data_ptr a = p->a;
+  while (a) {
+    a->app_key = p->synode;
+    a->group_id = p->synode.group_id;
+    IFDBG(D_NONE, FN; PTREXP(a); SYCEXP(p->synode); SYCEXP(a->app_key));
+    a = a->next;
   }
 }
 
 static synode_no my_unique_id(synode_no synode) {
   assert(my_id != 0);
+  site_def const *site = find_site_def(synode);
   /* Random number derived from node number and timestamp which uniquely defines
    * this instance */
   synode.group_id = my_id;
+  synode.node = get_nodeno(site);
   return synode;
 }
 
@@ -1533,7 +1657,6 @@ static void set_learn_type(pax_msg *p) {
 static void init_learn_msg(pax_msg *p) {
   set_learn_type(p);
   p->reply_to = p->proposal;
-  brand_app_data(p);
 }
 
 static int send_learn_msg(site_def const *site, pax_msg *p) {
@@ -1549,7 +1672,6 @@ static pax_msg *create_tiny_learn_msg(pax_machine *pm, pax_msg *p) {
   tiny_learn_msg->msg_type = p->a ? normal : no_op;
   tiny_learn_msg->op = tiny_learn_op;
   tiny_learn_msg->reply_to = pm->proposer.bal;
-  brand_app_data(tiny_learn_msg);
 
   return tiny_learn_msg;
 }
@@ -1677,6 +1799,7 @@ static synode_no getstart(app_data_ptr a) {
   return retval;
 }
 
+#ifdef PERMISSIVE_EH_ACTIVE_CONFIG
 /* purecov: begin deadcode */
 synode_no get_default_start(app_data_ptr a) {
   synode_no retval = null_synode;
@@ -1685,7 +1808,7 @@ synode_no get_default_start(app_data_ptr a) {
   if (a && a->group_id == null_id) {
     a->group_id = a->app_key.group_id; /* app_key may have valid group */
   }
-  G_DEBUG("pid %d getstart group_id %x", xpid(), a->group_id);
+  G_DEBUG("pid %d getstart group_id %x", xpid(), a ? a->group_id : 0);
   if (!a || a->group_id == null_id) {
     retval.group_id = new_id();
   } else {
@@ -1699,11 +1822,14 @@ synode_no get_default_start(app_data_ptr a) {
   return retval;
 }
 /* purecov: end */
+#endif
 
+#if TASK_DBUG_ON
 /* purecov: begin deadcode */
 static void dump_xcom_node_names(site_def const *site) {
   u_int i;
-  char buf[NSERVERS * 256]; /* Big enough */
+  constexpr const size_t bufsize = NSERVERS * 256;
+  char buf[bufsize]; /* Big enough */
   char *p = buf;
   if (!site) {
     G_INFO("pid %d no site", xpid());
@@ -1711,12 +1837,14 @@ static void dump_xcom_node_names(site_def const *site) {
   }
   *p = 0;
   for (i = 0; i < site->nodes.node_list_len; i++) {
-    p = strcat(p, site->nodes.node_list_val[i].address);
-    p = strcat(p, " ");
+    p = strncat(p, site->nodes.node_list_val[i].address, bufsize - 1);
+    p = strncat(p, " ", bufsize - 1);
   }
+  buf[bufsize - 1] = 0;
   G_INFO("pid %d node names %s", xpid(), buf);
 }
 /* purecov: end */
+#endif
 
 void site_install_action(site_def *site, cargo_type operation) {
   IFDBG(D_NONE, FN; NDBG(get_nodeno(get_site_def()), u));
@@ -1727,7 +1855,8 @@ void site_install_action(site_def *site, cargo_type operation) {
   site->nodeno = xcom_find_node_index(&site->nodes);
   push_site_def(site);
   IFDBG(D_NONE, dump_xcom_node_names(site));
-  IFDBG(D_BUG, FN; SYCEXP(site->start); SYCEXP(site->boot_key));
+  IFDBG(D_BUG, FN; SYCEXP(site->start); SYCEXP(site->boot_key);
+        NUMEXP(site->max_active_leaders));
   IFDBG(D_BUG, FN; COPY_AND_FREE_GOUT(dbg_site_def(site)));
   set_group(get_group_id(site));
   if (get_maxnodes(get_site_def())) {
@@ -1752,6 +1881,38 @@ void site_install_action(site_def *site, cargo_type operation) {
   );
 }
 
+static void active_leaders(site_def *site, leader_array *leaders) {
+  u_int i;
+  u_int n;
+  /* Synthesize leaders by copying all node names of active leaders */
+  for (i = 0, n = 0; i < site->nodes.node_list_len; i++) {
+    if (is_active_leader(i, site)) n++;
+  }
+  leaders->leader_array_len = n;
+  if (n) {
+    leaders->leader_array_val = static_cast<leader *>(
+        xcom_calloc((size_t)leaders->leader_array_len, sizeof(leader)));
+    for (i = 0, n = 0; i < site->nodes.node_list_len; i++) {
+      if (is_active_leader(i, site)) {
+        leaders->leader_array_val[n++].address =
+            strdup(site->nodes.node_list_val[i].address);
+      }
+    }
+  } else {
+    leaders->leader_array_val = nullptr;
+  }
+}
+
+extern "C" void synthesize_leaders(leader_array *leaders) {
+  // Default value meaning 'not set by client '
+  leaders->leader_array_len = 0;
+  leaders->leader_array_val = nullptr;
+}
+
+static bool leaders_set_by_client(site_def const *site) {
+  return site->leaders.leader_array_len != 0;
+}
+
 static site_def *create_site_def_with_start(app_data_ptr a, synode_no start) {
   site_def *site = new_site_def();
   IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
@@ -1759,12 +1920,37 @@ static site_def *create_site_def_with_start(app_data_ptr a, synode_no start) {
                 a->body.app_u_u.nodes.node_list_val, site);
   site->start = start;
   site->boot_key = a->app_key;
+
+// If SINGLE_WRITER_ONLY is defined, ALL configs will be single writer. Used for
+// running all tests in single writer mode
+#ifdef SINGLE_WRITER_ONLY
+  site->max_active_leaders = 1; /*Single writer */
+#else
+  site->max_active_leaders = active_leaders_all; /* Set to all nodes*/
+#endif
+
   return site;
 }
+
+static xcom_proto constexpr single_writer_support = x_1_9;
 
 static site_def *install_ng_with_start(app_data_ptr a, synode_no start) {
   if (a) {
     site_def *site = create_site_def_with_start(a, start);
+    site_def const *old_site = get_site_def();
+
+    // The reason why we need to recompute node sets and time stamps, is that
+    // node sets and time stamps are stored in the site_def indexed by node
+    // number, but they really are related to a specific node, not a specific
+    // node number. When the site_def changes, the node number of a node may
+    // change, thus invalidating the mapping from node numbers to node sets and
+    // timestamps. But given the old and new definition, it is possible to
+    // remap.
+    if (old_site && old_site->x_proto >= single_writer_support) {
+      recompute_node_sets(old_site, site);
+      recompute_timestamps(old_site->detected, &old_site->nodes, site->detected,
+                           &site->nodes);
+    }
     site_install_action(site, a->body.c_t);
     return site;
   }
@@ -1782,7 +1968,7 @@ site_def *install_node_group(app_data_ptr a) {
 
 void set_max_synode(synode_no synode) {
   max_synode = synode; /* Track max synode number */
-  IFDBG(D_NONE, FN; STRLIT("new "); SYCEXP(max_synode));
+  IFDBG(D_BASE, FN; STRLIT("new "); SYCEXP(max_synode));
   activate_sweeper();
 }
 
@@ -1831,6 +2017,7 @@ static uint64_t assign_lsn() {
   return lsn;
 }
 
+#if TASK_DBUG_ON
 /* purecov: begin deadcode */
 static int check_lsn(app_data_ptr a) {
   while (a) {
@@ -1840,6 +2027,7 @@ static int check_lsn(app_data_ptr a) {
   return 1;
 }
 /* purecov: end */
+#endif
 
 static void propose_noop(synode_no find, pax_machine *p);
 
@@ -1952,12 +2140,189 @@ static inline int is_view(cargo_type x) { return x == view_msg; }
 static inline int is_config(cargo_type x) {
   return x == unified_boot_type || x == add_node_type ||
          x == remove_node_type || x == set_event_horizon_type ||
-         x == force_config_type;
+         x == force_config_type || x == set_max_leaders ||
+         x == set_leaders_type;
 }
 
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
 static int prop_started = 0;
 static int prop_finished = 0;
+
+/* Find a free slot locally.
+   Note that we will happily increment past the event horizon.
+   The caller is thus responsible for checking the validity of the
+   returned value by calling too_far() and ignore_message(). */
+static synode_no local_synode_allocator(synode_no synode) {
+  assert(!synode_eq(synode, null_synode));
+
+  // Ensure node number of synode is ours, whilst also ensuring that the synode
+  // is monotonically increasing
+  node_no const my_nodeno = get_nodeno(find_site_def(synode));
+  if (my_nodeno >= synode.node) {
+    synode.node = my_nodeno;
+  } else {
+    synode = incr_msgno(synode);
+  }
+
+  while (is_busy(synode)) {
+    synode = incr_msgno(synode);
+  }
+  assert(!synode_eq(synode, null_synode));
+  return synode;
+}
+
+/* Find a likely free slot globally.
+   Note that we will happily increment past the event horizon.
+   The caller is thus responsible for checking the validity of the
+   returned value by calling too_far() and ignore_message().
+   The test for ignore_message() here is only valid until the
+   event horizon. */
+static synode_no global_synode_allocator(site_def *site, synode_no synode) {
+  assert(!synode_eq(synode, null_synode));
+
+  while (ignore_message(synode, site, "global_synode_allocator")) {
+    synode = incr_synode(synode);
+  }
+  assert(!synode_eq(synode, null_synode));
+  return synode;
+}
+
+/* Find a free slot on remote leader */
+static node_no remote_synode_allocator(site_def *site, app_data const &a) {
+  static node_no distributor = 0;  // Distribute requests equally among leaders
+  node_no maxnodes = get_maxnodes(site);
+  distributor = distributor % maxnodes;  // Rescale in case site has changed
+  node_no i = distributor;
+  // Ensure that current_message is associated with site
+  if (synode_lt(current_message, site->start)) {
+    current_message = site->start;
+  }
+  for (;;) {
+    if (is_active_leader(i, site) &&
+        !may_be_dead(site->detected, i,
+                     task_now())) {  // Found leader, send request
+      pax_msg *p =
+          pax_msg_new(current_message, site);  // Message number does not matter
+      IFDBG(D_CONS, FN; STRLIT("sending request "); NUMEXP(i);
+            SYCEXP(current_message));
+      p->op = synode_request;
+      send_server_msg(site, i, p);
+      distributor = (i + 1) % maxnodes;
+      return i;
+    }
+    i = (i + 1) % maxnodes;
+    if (i == distributor) {
+      /* There are no leaders, see if we should become leader. Note the special
+         case for `force_config_type`. If we are in a network partition
+         situation that must be healed using `force_config_type`, the leader
+         might not be available and we might not be `iamthegreatest`. If we are
+         the one tasked with `force_config_type` the entire system is relying on
+         us to get consensus on `force_config_type` to unblock the group.
+         Therefore, we self-allocate a synod for `force_config_type` to ensure
+         the system makes progress. */
+      if (iamthegreatest(site) || a.body.c_t == force_config_type) {
+        // Grab message number and answer to self
+        synode_no synode = global_synode_allocator(site, current_message);
+        if (!too_far(synode)) {
+          // We will grab this number, advance current_message
+          set_current_message(incr_synode(synode));
+          IFDBG(D_CONS, FN; STRLIT("grab message "); SYCEXP(synode);
+                SYCEXP(current_message));
+          synode_number_pool.put(synode, synode_allocation_type::global);
+        }
+      }
+      return get_nodeno(site);
+    }
+  }
+}
+
+#ifdef DELIVERY_TIMEOUT
+static bool check_delivery_timeout(site_def *site, double start_propose,
+                                   app_data *a) {
+  bool retval =
+      (start_propose + a->expiry_time) < task_now() && !enough_live_nodes(site);
+  if (retval) {
+    DBGOUT_ASSERT(check_lsn(a), STRLIT("NULL lsn"));
+    IFDBG(D_NONE, FN; STRLIT("timeout -> delivery_failure"));
+    deliver_to_app(NULL, a, delivery_failure);
+  }
+  return retval;
+}
+#endif
+
+static int reserve_synode_number(synode_allocation_type *synode_allocation,
+                                 site_def **site, synode_no *msgno,
+                                 int *remote_retry, app_data *a,
+                                 synode_reservation_status *ret) {
+  *ret = synode_reservation_status::number_ok;  // Optimistic, will be reset if
+                                                // necessary
+  DECL_ENV
+  int dummy;
+  END_ENV;
+
+  TASK_BEGIN
+  do {
+    *synode_allocation = synode_allocation_type::todo;
+    IFDBG(D_CONS, FN; SYCEXP(current_message));
+    *site = find_site_def_rw(current_message);
+    if (is_leader(*site)) {  // Use local synode allocator
+      *msgno = local_synode_allocator(current_message);
+      IFDBG(D_CONS, FN; SYCEXP(outer_ep->msgno));
+      *synode_allocation = synode_allocation_type::local;
+    } else {  // Cannot use local, try remote
+              // Get synode number from another leader
+      *remote_retry = 0;
+      while (synode_number_pool.empty()) {
+        // get_maxnodes(get_site_def()) > 0 is a precondition for
+        // `remote_synode_allocator`.
+        if (get_maxnodes(get_site_def()) == 0) {
+          TASK_DELAY(0.1);
+          TASK_RETURN(synode_reservation_status::no_nodes);
+        }
+#if TASK_DBUG_ON
+        node_no allocator_node =
+#endif
+            remote_synode_allocator(get_site_def_rw(),
+                                    *a);  // Send request for synode, use
+                                          // latest config
+        if (*remote_retry > 10) {
+          IFDBG(D_BUG, FN; NUMEXP(outer_ep->self); NUMEXP(allocator_node);
+                SYCEXP(executed_msg); SYCEXP(current_message);
+                SYCEXP(outer_ep->msgno); SYCEXP(get_site_def_rw()->start));
+        }
+        if (synode_number_pool.empty()) {  // Only wait if still empty
+          TIMED_TASK_WAIT(&synode_number_pool.queue,
+                          0.1);  // Wait for incoming synode
+        }
+        (*remote_retry)++;
+      }
+      std::tie(*msgno, *synode_allocation) = synode_number_pool.get();
+      IFDBG(D_CONS, FN; SYCEXP(outer_ep->msgno));
+    }
+
+    // Update site to match synode
+    *site = proposer_site = find_site_def_rw(*msgno);
+
+    // Set the global current message for all number allocators
+    set_current_message(incr_synode(*msgno));
+
+    while (too_far(*msgno)) { /* Too far ahead of executor */
+      TIMED_TASK_WAIT(&exec_wait, 0.2);
+      IFDBG(D_NONE, FN; SYCEXP(ep->msgno); TIMECEXP(ep->start_propose);
+            TIMECEXP(outer_ep->client_msg->p->a->expiry_time);
+            TIMECEXP(task_now()); NDBG(enough_live_nodes(outer_ep->site), d));
+#ifdef DELIVERY_TIMEOUT
+      if (check_delivery_timeout(outer_ep->site, outer_ep->start_propose,
+                                 outer_ep->client_msg->p->a)) {
+        TASK_RETURN(delivery_timeout);
+      }
+#endif
+    }
+    // Filter out busy or ignored message numbers
+  } while (is_busy(*msgno) || ignore_message(*msgno, *site, "proposer_task"));
+  FINALLY
+  TASK_END;
+}
 
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
@@ -1971,10 +2336,15 @@ static int proposer_task(task_arg arg) {
   double start_propose;
   double start_push;
   double delay;
-  site_def const *site;
+  site_def *site;
   size_t size;
   size_t nr_batched_app_data;
+  int remote_retry;
+  synode_allocation_type synode_allocation;
   END_ENV;
+
+  synode_reservation_status reservation_status{
+      synode_reservation_status::number_ok};
 
   TASK_BEGIN
 
@@ -1989,7 +2359,9 @@ static int proposer_task(task_arg arg) {
   ep->site = 0;
   ep->size = 0;
   ep->nr_batched_app_data = 0;
-
+  ep->remote_retry = 0;
+  ep->synode_allocation = synode_allocation_type::todo;
+  add_proposer_synode(ep->self, &ep->msgno);
   IFDBG(D_NONE, FN; NDBG(ep->self, d); NDBG(task_now(), f));
 
   while (!xcom_shutdown) { /* Loop until no more work to do */
@@ -2065,37 +2437,18 @@ static int proposer_task(task_arg arg) {
     DBGOUT_ASSERT(check_lsn(ep->client_msg->p->a), STRLIT("NULL lsn"));
   retry_new:
     /* Find a free slot */
+    TASK_CALL(reserve_synode_number(&ep->synode_allocation, &ep->site,
+                                    &ep->msgno, &ep->remote_retry,
+                                    ep->client_msg->p->a, &reservation_status));
 
-    assert(!synode_eq(current_message, null_synode));
-    ep->msgno = current_message;
-    proposer_site = find_site_def_rw(ep->msgno);
-    ep->site = proposer_site;
-
-    while (is_busy(ep->msgno)) {
-      while (/* ! ep->client_msg->p->force_delivery &&  */ too_far(
-          incr_msgno(ep->msgno))) { /* Too far ahead of executor */
-        TIMED_TASK_WAIT(&exec_wait, 1.0);
-        IFDBG(D_NONE, FN; SYCEXP(ep->msgno); TIMECEXP(ep->start_propose);
-              TIMECEXP(ep->client_msg->p->a->expiry_time); TIMECEXP(task_now());
-
-              NDBG(enough_live_nodes(ep->site), d));
-#ifdef DELIVERY_TIMEOUT
-        if ((ep->start_propose + ep->client_msg->p->a->expiry_time) <
-                task_now() &&
-            !enough_live_nodes(ep->site)) {
-          /* Give up */
-          DBGOUT_ASSERT(check_lsn(ep->client_msg->p->a), STRLIT("NULL lsn"));
-          IFDBG(D_NONE, FN; STRLIT("timeout -> delivery_failure"));
-          deliver_to_app(NULL, ep->client_msg->p->a, delivery_failure);
-          GOTO(next);
-        }
-#endif
-      }
-      ep->msgno = incr_msgno(ep->msgno);
-      /* Refresh site to next msgno */
-      proposer_site = find_site_def_rw(ep->msgno);
-      ep->site = proposer_site;
+    // Check result of reservation
+    if (reservation_status == synode_reservation_status::no_nodes) {
+      GOTO(retry_new);
+    } else if (reservation_status ==
+               synode_reservation_status::delivery_timeout) {
+      GOTO(next);
     }
+    // If we get here, we have a valid synode number
     assert(!synode_eq(ep->msgno, null_synode));
 
     /* See if we can do anything with this message */
@@ -2107,9 +2460,6 @@ static int proposer_task(task_arg arg) {
       deliver_to_app(NULL, ep->client_msg->p->a, delivery_failure);
       GOTO(next);
     }
-    IFDBG(D_NONE, FN; STRLIT("changing current message to ");
-          SYCEXP(ep->msgno));
-    set_current_message(ep->msgno);
 
     brand_client_msg(ep->client_msg->p, ep->msgno);
 
@@ -2155,8 +2505,15 @@ static int proposer_task(task_arg arg) {
       /* Use 3 phase algorithm if threephase is set or we are forcing or we have
          already accepted something, which may happen if another node has timed
          out waiting for this node and proposed a no_op, which we have accepted.
+
+         We *must* use 3 phase algorithm if the synode was allocated by
+         ourselves using `global_synode_allocator`. This is last resort synode
+         allocation that does not guarantee we will be the only Proposer using
+         it. Therefore, for correctness we must use regular 3 phase Paxos,
+         because we may have dueling Proposers.
        */
-      if (threephase || ep->p->force_delivery || ep->p->acceptor.promise.cnt) {
+      if (threephase || ep->p->force_delivery || ep->p->acceptor.promise.cnt ||
+          ep->synode_allocation == synode_allocation_type::global) {
         push_msg_3p(ep->site, ep->p, ep->prepare_msg, ep->msgno, normal);
       } else {
         push_msg_2p(ep->site, ep->p);
@@ -2260,6 +2617,7 @@ static int proposer_task(task_arg arg) {
     deliver_to_app(ep->p, ep->client_msg->p->a, delivery_failure);
     msg_link_delete(&ep->client_msg);
   }
+  remove_proposer_synode(ep->self);
   TASK_END;
 }
 
@@ -2272,15 +2630,45 @@ static bool constexpr should_ignore_forced_config_or_view(
          first_protocol_that_ignores_intermediate_forced_configs_or_views;
 }
 
-static node_no leader(site_def const *s) {
-  node_no leader = 0;
-  for (leader = 0; leader < get_maxnodes(s); leader++) {
-    if (!may_be_dead(s->detected, leader, task_now())) return leader;
+static node_no get_leader(site_def const *s) {
+  if (s) {
+    node_no leader = 0;
+    for (leader = 0; leader < get_maxnodes(s); leader++) {
+      if (!may_be_dead(s->detected, leader, task_now())) return leader;
+    }
   }
   return 0;
 }
 
-int iamthegreatest(site_def const *s) { return leader(s) == s->nodeno; }
+int iamthegreatest(site_def const *s) {
+  if (!s)
+    return 0;
+  else
+    return get_leader(s) == s->nodeno;
+}
+
+// Update site based on incoming global node set
+static site_def *update_site(site_def *site, node_set const *ns,
+                             synode_no boot_key, synode_no start) {
+  // If it has not changed, no action is necessary.
+  // If it has changed, we need to create and install
+  // a new site def, since the changed node set will influence which
+  // messages will be ignored.
+  // This change needs to be effective after the current pipeline
+  // of messages has been emptied, just as if we had
+  // changed the config (site_def) itself.
+
+  if (!equal_node_set(ns, &site->global_node_set)) {
+    site_def *new_config = clone_site_def(get_site_def());
+    assert(new_config);
+    new_config->start = start;
+    new_config->boot_key = boot_key;
+    // Update node set of site
+    copy_node_set(ns, &new_config->global_node_set);
+    return new_config;
+  }
+  return NULL;
+}
 
 void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
   app_data_ptr a = p->a;
@@ -2299,7 +2687,11 @@ void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
         /* DBGOUT_ASSERT(check_lsn(a), STRLIT("NULL lsn")); */
         deliver_to_app(pma, a, delivery_ok);
         break;
-      case view_msg:
+      case view_msg: {
+        /* Deliver view like we used to when every member was always a leader.
+         * This ensures deterministic behaviour in groups with some members
+         * running previous XCom instances.
+         */
         IFDBG(D_EXEC, FN; STRLIT(" global view ");
               COPY_AND_FREE_GOUT(dbg_pax_msg(pma->learner.msg)););
         if (site && site->global_node_set.node_set_len ==
@@ -2312,15 +2704,65 @@ void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
           } else {
             assert(site->global_node_set.node_set_len ==
                    a->body.app_u_u.present.node_set_len);
-            copy_node_set(&a->body.app_u_u.present, &site->global_node_set);
-            deliver_global_view_msg(site, p->synode);
+            // Can only mutate site->global_node_set if everyone is a leader and
+            // has its own channel.
+            if (site->max_active_leaders == active_leaders_all) {
+              copy_node_set(&a->body.app_u_u.present, &site->global_node_set);
+            }
+            deliver_global_view_msg(site, a->body.app_u_u.present, p->synode);
             ADD_DBG(D_BASE,
                     add_event(EVENT_DUMP_PAD,
                               string_arg("deliver_global_view_msg p->synode"));
                     add_synode_event(p->synode););
           }
         }
-        break;
+
+        /* If this view_msg is:
+         *
+         * (1) about the latest site, and
+         * (2) only some member(s) is (are) leader(s) in the latest site,
+         *
+         * create a new site to deterministically ignore the channel of leaders
+         * that may be dead. */
+        site_def *latest_site = get_site_def_rw();
+        IFDBG(
+            D_EXEC, FN; PTREXP(latest_site); if (latest_site) {
+              NUMEXP(latest_site->nodes.node_list_len);
+              NUMEXP(latest_site->global_node_set.node_set_len);
+              NUMEXP(a->body.app_u_u.present.node_set_len);
+              SYCEXP(a->app_key);
+              SYCEXP(latest_site->start);
+            });
+        /*
+         * You'll want to install the new site if xcom is operating as
+         * single-leader and there were no changes in the configuration. The
+         * reason for this is so that you have the latest information about
+         * who is the preferred and actual leader.
+         */
+        bool const is_latest_view = synode_gt(a->app_key, latest_site->start);
+        bool const everyone_leader_in_latest_site =
+            (latest_site->max_active_leaders == active_leaders_all);
+        bool const view_node_set_matches_latest_site =
+            (latest_site->global_node_set.node_set_len ==
+             a->body.app_u_u.present.node_set_len);
+        const bool can_install_site = is_latest_view &&
+                                      !everyone_leader_in_latest_site &&
+                                      view_node_set_matches_latest_site;
+
+        if (can_install_site) {
+          a->app_key = p->synode;  // Patch app_key to avoid fixing getstart()
+          site_def *new_config = update_site(
+              latest_site, &a->body.app_u_u.present, a->app_key, getstart(a));
+          if (new_config) {
+            IFDBG(D_EXEC, FN; PTREXP(new_config);
+                  NUMEXP(new_config->nodes.node_list_len);
+                  NUMEXP(new_config->global_node_set.node_set_len);
+                  SYCEXP(a->app_key); SYCEXP(new_config->start););
+            site_install_action(new_config, a->body.c_t);
+            analyze_leaders(new_config);
+          }
+        }
+      } break;
       default:
         break;
     }
@@ -2335,9 +2777,9 @@ static void propose_missing_values(int n);
 /* With many nodes sending read_ops on instances that are not decided yet, it
  * may take a very long time until someone finally decides to start a new
  * consensus round. As the cost of a new proposal is not that great, it's
- * acceptable to go directly to proposing a no-op instead of first trying to get
- * the value with a read_op. An added benefit of this is that if more than one
- * node needs the result, they will get it all when the consensus round
+ * acceptable to go directly to proposing a no-op instead of first trying to
+ * get the value with a read_op. An added benefit of this is that if more than
+ * one node needs the result, they will get it all when the consensus round
  * finishes. */
 static void find_value(site_def const *site, unsigned int *wait, int n) {
   IFDBG(D_NONE, FN; NDBG(*wait, d));
@@ -2480,7 +2922,7 @@ synode_no set_executed_msg(synode_no msgno) {
   if (group_mismatch(msgno, current_message) ||
       synode_gt(msgno, current_message)) {
     IFDBG(D_EXEC, FN; STRLIT("changing current message"));
-    set_current_message(first_free_synode(msgno));
+    set_current_message(first_free_synode_local(msgno));
   }
 
   if (msgno.msgno > executed_msg.msgno) task_wakeup(&exec_wait);
@@ -2490,7 +2932,7 @@ synode_no set_executed_msg(synode_no msgno) {
   return executed_msg;
 }
 
-static synode_no first_free_synode(synode_no msgno) {
+static synode_no first_free_synode_local(synode_no msgno) {
   site_def const *site = find_site_def(msgno);
   synode_no retval = msgno;
   if (!site) {
@@ -2498,7 +2940,6 @@ static synode_no first_free_synode(synode_no msgno) {
     site = get_site_def();
     IFDBG(D_NONE, FN; PTREXP(site); SYCEXP(msgno));
     assert(get_group_id(site) != 0);
-    return site->start;
     /* purecov: end */
   }
   if (get_group_id(site) == 0) {
@@ -2561,17 +3002,141 @@ static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
 }
 #endif
 
-#ifdef IGNORE_LOSERS
-
-static inline int LOSER(synode_no x, site_def const *site) {
-  IFDBG(D_NONE, NEXP(x.node, u);
-        NEXP(site->global_node_set.node_set_val[(x).node], d));
-  return (!(site)->global_node_set.node_set_val[(x).node]);
+/* Does address match any current leader? */
+static inline int match_leader(char const *addr, leader_array const leaders) {
+  u_int i;
+  for (i = 0; i < leaders.leader_array_len; i++) {
+    IFDBG(D_BASE, FN; NUMEXP(i); NUMEXP(leaders.leader_array_len); STREXP(addr);
+          STREXP(leaders.leader_array_val[i].address));
+    if (strcmp(addr, leaders.leader_array_val[i].address) == 0) return 1;
+  }
+  return 0;
 }
 
-#else
-#define LOSER(x, site) 0
+static inline bool alive_node(site_def const *site, u_int i) {
+  return is_set(site->global_node_set, i);
+}
+
+// Find up to site->max_active_leaders leaders.
+// If leaders are set by the client, and none of those are alive, revert
+// to using the set of addresses in the config.
+
+void analyze_leaders(site_def *site) {
+  assert(site);
+  // No analysis if all nodes are leaders
+  if (active_leaders_all == site->max_active_leaders) return;
+
+  // Use leaders from config if forced or not set by client
+  bool use_client_leaders = leaders_set_by_client(site);
+  site->cached_leaders = true;
+  site->found_leaders = 0;  // Number of active leaders found
+  // Reset everything
+  for (u_int i = 0; i < get_maxnodes(site); i++) {
+    site->active_leader[i] = 0;
+  }
+  // If candidate leaders set by client, check those first
+  for (u_int i = 0; use_client_leaders && i < get_maxnodes(site); i++) {
+    if (site->found_leaders <
+            site->max_active_leaders &&  // Found enough?
+                                         // Must be alive according to global
+                                         // node set of site
+        alive_node(site, i) &&
+        // Must match a node in the list of leaders
+        match_leader(site->nodes.node_list_val[i].address, site->leaders)) {
+      site->active_leader[i] = 1;
+      site->found_leaders++;
+    }
+  }
+  // Check rest of nodes
+  for (u_int i = 0; i < get_maxnodes(site); i++) {
+    if (!site->active_leader[i] &&                         // Avoid duplicates
+        site->found_leaders < site->max_active_leaders &&  // Found enough?
+        // Must be alive according to global
+        // node set of site
+        alive_node(site, i)) {
+      site->active_leader[i] = 1;
+      site->found_leaders++;
+    }
+  }
+  // We need at least one channel otherwise the group grinds to a halt.
+  if (site->found_leaders == 0) {
+    site->active_leader[0] = 1;
+    site->found_leaders = 1;
+  }
+  free(site->dispatch_table);
+
+  IFDBG(D_BUG, FN; STRLIT("free "); PTREXP(site); PTREXP(site->dispatch_table));
+  // Do not work as synode allocator if not active leader. ???
+  if (get_nodeno(site) != VOID_NODE_NO &&
+      site->active_leader[get_nodeno(site)]) {
+    site->dispatch_table = primary_dispatch_table();
+  } else {
+    site->dispatch_table = secondary_dispatch_table();
+  }
+  IFDBG(D_BUG, FN; STRLIT("allocate "); PTREXP(site);
+        PTREXP(site->dispatch_table));
+
+  for (u_int i = 0; i < get_maxnodes(site); i++) {
+    IFDBG(D_BUG, FN; NUMEXP(i); PTREXP(site); NUMEXP(site->found_leaders);
+          NUMEXP(site->max_active_leaders); NUMEXP(alive_node(site, i));
+          SYCEXP(site->start); STREXP(site->nodes.node_list_val[i].address);
+          if (site->active_leader[i]) STRLIT(" says YES");
+          else STRLIT(" says NO"));
+  }
+}
+
+/* Is node number an active leader? */
+int is_active_leader(node_no x, site_def *site) {
+  /* No site, no active leaders */
+  if (!site) return 0;
+
+  /* Node number out of bound, not an active leader */
+  if (x >= get_maxnodes(site)) return 0;
+
+  /* All are leaders, no need for further tests */
+  if (active_leaders_all == site->max_active_leaders) return 1;
+  /* See if cached values are valid */
+  if (!site->cached_leaders) {
+    analyze_leaders(site);
+  }
+#if 0
+  if (site->active_leader == NULL || x > site->nodes.node_list_len - 1)
+    IFDBG(D_BUG, FN; PTREXP(site->active_leader); NUMEXP(x);
+          NUMEXP(site->nodeno); NUMEXP(site->nodes.node_list_len););
 #endif
+  return site->active_leader[x];
+}
+
+node_no found_active_leaders(site_def *site) {
+  /* No site, no active leaders */
+  if (!site) return 0;
+
+  /* All are leaders, no need for further tests */
+  if (active_leaders_all == site->max_active_leaders)
+    return site->nodes.node_list_len;
+
+  /* See if cached values are valid */
+  if (!site->cached_leaders) {
+    analyze_leaders(site);
+  }
+  return site->found_leaders;
+}
+
+/* Check if this message belongs to a channel that should be ignored */
+static inline int ignore_message(synode_no x, site_def *site,
+                                 char const *dbg MY_ATTRIBUTE((unused))) {
+  int retval = !is_active_leader(x.node, site);
+  IFDBG(D_BASE, STRLIT(dbg); STRLIT(" "); FN; SYCEXP(x); NUMEXP(retval));
+  return retval;
+}
+
+/* Check if this node is a leader */
+static inline bool is_leader(site_def *site) {
+  bool retval = site && is_active_leader(site->nodeno, site);
+  IFDBG(D_BASE, FN; PTREXP(site); if (site) NUMEXP(site->nodeno);
+        NUMEXP(retval));
+  return retval;
+}
 
 [[maybe_unused]] static void debug_loser(synode_no x);
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
@@ -2719,13 +3284,13 @@ static bool_t add_node_adding_own_address(app_data_ptr a) {
  * A node is compatible with the group's configuration if:
  *
  *    a) The node supports event horizon reconfigurations, or
- *    b) The group's event horizon is, or is scheduled to be, the default event
- *       horizon.
+ *    b) The group's event horizon is, or is scheduled to be, the default
+ * event horizon.
  */
-static bool_t unsafe_against_event_horizon(node_address const *node) {
+static bool unsafe_against_event_horizon(node_address const *node) {
   site_def const *latest_config = get_site_def();
   xcom_proto node_max_protocol_version = node->proto.max_proto;
-  bool_t const compatible =
+  bool const compatible =
       reconfigurable_event_horizon(node_max_protocol_version) ||
       backwards_compatible(latest_config->event_horizon);
 
@@ -2737,33 +3302,152 @@ static bool_t unsafe_against_event_horizon(node_address const *node) {
      * The node can not safely join the group so we deny its attempt to join.
      */
     G_INFO(
-        "%s's request to join the group was rejected because the group's event "
+        "%s's request to join the group was rejected because the group's "
+        "event "
         "horizon is, or will be %" PRIu32 " and %s only supports %" PRIu32,
-        node->address, get_site_def()->event_horizon, node->address,
+        node->address, latest_config->event_horizon, node->address,
         EVENT_HORIZON_MIN);
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
-static bool_t add_node_unsafe_against_event_horizon(app_data_ptr a) {
+typedef bool (*unsafe_node_check)(node_address const *node);
+
+static bool check_if_add_node_is_unsafe(app_data_ptr a,
+                                        unsafe_node_check unsafe) {
   assert(a->body.c_t == add_node_type);
   {
     u_int nodes_len = a->body.app_u_u.nodes.node_list_len;
     node_address *nodes_to_add = a->body.app_u_u.nodes.node_list_val;
     u_int i;
     for (i = 0; i < nodes_len; i++) {
-      if (unsafe_against_event_horizon(&nodes_to_add[i])) return TRUE;
+      if (unsafe(&nodes_to_add[i])) return true;
     }
   }
-  return FALSE;
+  return false;
+}
+
+static bool check_if_add_node_is_unsafe_against_event_horizon(app_data_ptr a) {
+  return check_if_add_node_is_unsafe(a, unsafe_against_event_horizon);
+}
+
+// Map values of old node set to new node set by matching on
+// node addresses
+void recompute_node_set(node_set const *old_set, node_list const *old_nodes,
+                        node_set *new_set, node_list const *new_nodes) {
+  // Return value of node set matching node_address na
+  auto value{[&](node_address const *na) {
+    assert(old_set->node_set_len == old_nodes->node_list_len);
+    for (u_int i = 0; i < old_nodes->node_list_len; i++) {
+      if (match_node(&old_nodes->node_list_val[i], na, true)) {
+        return old_set->node_set_val[i];
+      }
+    }
+    return 0;
+  }};
+
+  for (u_int i = 0; i < new_nodes->node_list_len; i++) {
+    new_set->node_set_val[i] = value(&new_nodes->node_list_val[i]);
+  }
+}
+
+// Remap old global and local node set of site to new
+static void recompute_node_sets(site_def const *old_site, site_def *new_site) {
+  recompute_node_set(&old_site->global_node_set, &old_site->nodes,
+                     &new_site->global_node_set, &new_site->nodes);
+  recompute_node_set(&old_site->local_node_set, &old_site->nodes,
+                     &new_site->local_node_set, &new_site->nodes);
+}
+
+static bool incompatible_proto_and_max_leaders(xcom_proto x_proto,
+                                               node_no max_leaders) {
+  return x_proto < single_writer_support && max_leaders != active_leaders_all;
+}
+
+static bool incompatible_proto_and_leaders(xcom_proto x_proto) {
+  return x_proto < single_writer_support;
+}
+
+static bool incompatible_proto_and_max_leaders(node_address const *node) {
+  site_def const *latest_config = get_site_def();
+
+  if (incompatible_proto_and_max_leaders(node->proto.max_proto,
+                                         latest_config->max_active_leaders)) {
+    /*
+     * The node that wants to join does not allow setting of max number of
+     * leaders
+     * and the max number of leaders in the group is not all.
+     * The node can not safely join the group so we deny its attempt to join.
+     */
+    G_INFO(
+        "%s's request to join the group was rejected because the group's max "
+        "number of active leaders is, or will be %" PRIu32
+        " and %s only supports "
+        "all nodes as leaders",
+        node->address, latest_config->max_active_leaders, node->address);
+    return true;
+  }
+  return false;
+}
+
+static bool incompatible_proto_and_leaders(node_address const *node) {
+  site_def const *latest_config = get_site_def();
+
+  if (incompatible_proto_and_leaders(node->proto.max_proto) &&
+      leaders_set_by_client(latest_config)) {
+    /*
+     * The node that wants to join does not allow changing the set of
+     * leaders
+     * and the set of leaders in the group is not empty.
+     * The node can not safely join the group so we deny its attempt to join.
+     */
+    G_INFO(
+        "%s's request to join the group was rejected because the group "
+        "has a non-empty set of leaders specified by the client, "
+        "and %s does not support changing the set of leaders",
+        node->address, node->address);
+    return true;
+  }
+  return false;
+}
+
+bool unsafe_leaders(app_data *a) {
+  return check_if_add_node_is_unsafe(a, incompatible_proto_and_max_leaders) ||
+         check_if_add_node_is_unsafe(a, incompatible_proto_and_leaders);
+}
+
+static void set_start_and_boot(site_def *new_config, app_data_ptr a) {
+  new_config->start = getstart(a);
+  new_config->boot_key = a->app_key;
+}
+
+// Map values of old timestamps to new timestamps by matching on
+// node addresses
+void recompute_timestamps(detector_state const old_timestamp,
+                          node_list const *old_nodes,
+                          detector_state new_timestamp,
+                          node_list const *new_nodes) {
+  // Return value of timestamp matching node_address na
+  auto value{[&](node_address const *na) {
+    for (u_int i = 0; i < old_nodes->node_list_len; i++) {
+      if (match_node(&old_nodes->node_list_val[i], na, true)) {
+        return old_timestamp[i];
+      }
+    }
+    return 0.0;
+  }};
+
+  for (u_int i = 0; i < new_nodes->node_list_len; i++) {
+    new_timestamp[i] = value(&new_nodes->node_list_val[i]);
+  }
 }
 
 /**
  * Reconfigure the group membership: add new member(s).
  *
- * It is possible that concurrent reconfigurations take effect between the time
- * this reconfiguration was proposed and now.
+ * It is possible that concurrent reconfigurations take effect between the
+ * time this reconfiguration was proposed and now.
  *
  * Particularly, it is possible that any of the concurrent reconfigurations
  * modified the event horizon and that the new member(s) do not support event
@@ -2776,7 +3460,7 @@ static bool_t add_node_unsafe_against_event_horizon(app_data_ptr a) {
  * configuration is installed.
  */
 site_def *handle_add_node(app_data_ptr a) {
-  if (add_node_unsafe_against_event_horizon(a)) {
+  if (check_if_add_node_is_unsafe_against_event_horizon(a)) {
     /*
      * Note that the result of this function is only applicable to
      * unused and not-fully-implemented code paths where add_node_type is used
@@ -2785,18 +3469,27 @@ site_def *handle_add_node(app_data_ptr a) {
      */
     return NULL;
   }
+
+  if (unsafe_leaders(a)) {
+    return NULL;
+  }
   {
-    site_def *site = clone_site_def(get_site_def());
+    site_def const *old_site = get_site_def();
+    site_def *site = clone_site_def(old_site);
     IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
     IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
     ADD_DBG(D_BASE, add_event(EVENT_DUMP_PAD, string_arg("a->app_key"));
             add_synode_event(a->app_key););
-    assert(get_site_def());
+    assert(old_site);
     assert(site);
     add_site_def(a->body.app_u_u.nodes.node_list_len,
                  a->body.app_u_u.nodes.node_list_val, site);
-    site->start = getstart(a);
-    site->boot_key = a->app_key;
+    set_start_and_boot(site, a);
+    if (site->x_proto >= single_writer_support) {
+      recompute_node_sets(old_site, site);
+      recompute_timestamps(old_site->detected, &old_site->nodes, site->detected,
+                           &site->nodes);
+    }
     site_install_action(site, a->body.c_t);
     return site;
   }
@@ -2861,7 +3554,7 @@ static allow_event_horizon_result allow_event_horizon(
   return EVENT_HORIZON_ALLOWED;
 }
 
-static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
+static bool_t is_unsafe_event_horizon_reconfiguration(app_data_ptr a) {
   assert(a->body.c_t == set_event_horizon_type);
   {
     xcom_event_horizon new_event_horizon = a->body.app_u_u.event_horizon;
@@ -2880,6 +3573,61 @@ static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
     }
     return result;
   }
+}
+
+// Predicate that checks IF the reconfiguration will be unsafe
+static bool_t is_unsafe_max_leaders_reconfiguration(app_data_ptr a) {
+  assert(a->body.c_t == set_max_leaders);
+  const site_def *latest_config = get_site_def();
+  node_no new_max_leaders = a->body.app_u_u.max_leaders;
+  if (new_max_leaders > get_maxnodes(latest_config)) {
+    G_WARNING("The max number of leaders was not reconfigured to %" PRIu32
+              " because its domain is [%" PRIu32 ", %" PRIu32 "]",
+              new_max_leaders, 0, get_maxnodes(latest_config));
+    return TRUE;
+  } else if (incompatible_proto_and_max_leaders(latest_config->x_proto,
+                                                new_max_leaders)) {
+    G_WARNING(
+        "The max number of leaders was not reconfigured "
+        " because some of the group's members do not support "
+        "reconfiguring the max number of leaders to %" PRIu32,
+        new_max_leaders);
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+static bool_t is_unsafe_set_leaders_reconfiguration(app_data_ptr a
+                                                    [[maybe_unused]]) {
+  assert(a->body.c_t == set_leaders_type);
+  const site_def *latest_config = get_site_def();
+  if (incompatible_proto_and_leaders(latest_config->x_proto)) {
+    G_WARNING(
+        "The set of leaders was not reconfigured "
+        " because some of the group's members do not support "
+        "reconfiguring leaders");
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+static bool_t is_unsafe_leaders_reconfiguration(app_data_ptr a) {
+  while (a) {
+    switch (a->body.c_t) {
+      case set_max_leaders:
+        if (is_unsafe_max_leaders_reconfiguration(a)) return TRUE;
+        break;
+      case set_leaders_type:
+        if (is_unsafe_set_leaders_reconfiguration(a)) return TRUE;
+        break;
+      default:
+        break;
+    }
+    a = a->next;
+  }
+  return FALSE;
 }
 
 static bool_t are_there_dead_nodes_in_new_config(app_data_ptr a) {
@@ -2908,7 +3656,8 @@ static bool_t are_there_dead_nodes_in_new_config(app_data_ptr a) {
       if (may_be_dead(get_site_def()->detected, node, task_now())) {
         G_ERROR(
             "%s is suspected to be failed."
-            "Only alive members in the current configuration should be present"
+            "Only alive members in the current configuration should be "
+            "present"
             " in a forced configuration list",
             nodes_to_change[i].address)
         return TRUE;
@@ -2936,7 +3685,7 @@ static bool_t are_there_dead_nodes_in_new_config(app_data_ptr a) {
  * new configuration is installed.
  */
 bool_t handle_event_horizon(app_data_ptr a) {
-  if (unsafe_event_horizon_reconfiguration(a)) return FALSE;
+  if (is_unsafe_event_horizon_reconfiguration(a)) return FALSE;
 
   {
     xcom_event_horizon new_event_horizon = a->body.app_u_u.event_horizon;
@@ -2949,12 +3698,92 @@ bool_t handle_event_horizon(app_data_ptr a) {
     assert(get_site_def());
     assert(new_config);
     new_config->event_horizon = new_event_horizon;
-    new_config->start = getstart(a);
-    new_config->boot_key = a->app_key;
+    set_start_and_boot(new_config, a);
     site_install_action(new_config, a->body.c_t);
     G_INFO("The event horizon was reconfigured to %" PRIu32, new_event_horizon);
   }
   return TRUE;
+}
+
+static bool_t handle_max_leaders(site_def *new_config, app_data_ptr a) {
+  IFDBG(D_BASE, FN; NUMEXP(a->body.app_u_u.max_leaders));
+  assert(new_config);
+  new_config->max_active_leaders = a->body.app_u_u.max_leaders;
+  set_start_and_boot(new_config, a);
+  G_INFO("Maximum number of leaders was reconfigured to %" PRIu32,
+         a->body.app_u_u.max_leaders);
+  return TRUE;
+}
+
+bool_t handle_max_leaders(app_data_ptr a) {
+  if (is_unsafe_max_leaders_reconfiguration(a)) return FALSE;
+
+  site_def *new_config = clone_site_def(get_site_def());
+  handle_max_leaders(new_config, a);
+  site_install_action(new_config, a->body.c_t);
+  return TRUE;
+}
+
+static void zero_leader_array(leader_array *l) {
+  l->leader_array_len = 0;
+  l->leader_array_val = 0;
+}
+
+static void move_leader_array(leader_array *target, leader_array *source) {
+  /* Deallocate leader_array from target */
+  xdr_free((xdrproc_t)xdr_leader_array, (char *)target);
+  *target = *source;
+  /* Zero the source */
+  zero_leader_array(source);
+}
+
+static bool_t handle_set_leaders(site_def *new_config, app_data_ptr a) {
+  IFDBG(D_BASE, FN; NUMEXP(a->body.app_u_u.leaders.leader_array_len);
+        NUMEXP(new_config->max_active_leaders));
+  assert(new_config);
+  /* Steal the leaders from a */
+  move_leader_array(&new_config->leaders, &a->body.app_u_u.leaders);
+  set_start_and_boot(new_config, a);
+  return TRUE;
+}
+
+bool_t handle_set_leaders(app_data_ptr a) {
+  if (is_unsafe_set_leaders_reconfiguration(a)) return FALSE;
+
+  site_def *new_config = clone_site_def(get_site_def());
+  handle_set_leaders(new_config, a);
+  site_install_action(new_config, a->body.c_t);
+  G_INFO("Preferred leaders were reconfigured to leaders[0]=%s",
+         new_config->leaders.leader_array_len > 0
+             ? new_config->leaders.leader_array_val[0].address
+             : "n/a");
+  return TRUE;
+}
+
+bool_t handle_leaders(app_data_ptr a) {
+  if (is_unsafe_leaders_reconfiguration(a)) return FALSE;
+  site_def *new_config = clone_site_def(get_site_def());
+  cargo_type operation{a->body.c_t};  // Deallocate on scope exit if failure
+  bool_t retval = TRUE;
+  while (a && retval) {
+    switch (a->body.c_t) {
+      case set_max_leaders:
+        if (!handle_max_leaders(new_config, a)) retval = FALSE;
+        break;
+      case set_leaders_type:
+        if (!handle_set_leaders(new_config, a)) retval = FALSE;
+        break;
+      default:
+        break;
+    }
+    a = a->next;
+  }
+  if (retval) {
+    site_install_action(new_config, operation);
+  } else {
+    free_site_def(new_config);
+  }
+  return retval;
 }
 
 void terminate_and_exit() {
@@ -2970,7 +3799,8 @@ static inline int is_empty_site(site_def const *s) {
 }
 
 site_def *handle_remove_node(app_data_ptr a) {
-  site_def *site = clone_site_def(get_site_def());
+  site_def const *old_site = get_site_def();
+  site_def *site = clone_site_def(old_site);
   IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)));
   ADD_DBG(D_BASE, add_event(EVENT_DUMP_PAD, string_arg("a->app_key"));
           add_synode_event(a->app_key);
@@ -2979,8 +3809,12 @@ site_def *handle_remove_node(app_data_ptr a) {
 
   remove_site_def(a->body.app_u_u.nodes.node_list_len,
                   a->body.app_u_u.nodes.node_list_val, site);
-  site->start = getstart(a);
-  site->boot_key = a->app_key;
+  set_start_and_boot(site, a);
+  if (site->x_proto >= single_writer_support) {
+    recompute_node_sets(old_site, site);
+    recompute_timestamps(old_site->detected, &old_site->nodes, site->detected,
+                         &site->nodes);
+  }
   site_install_action(site, a->body.c_t);
   return site;
 }
@@ -3010,6 +3844,16 @@ static void log_ignored_forced_config(app_data_ptr a,
       G_DEBUG("%s: Ignoring a forced intermediate, pending force_config",
               caller_name);
       break;
+    case set_max_leaders:
+      G_DEBUG(
+          "%s: Ignoring a forced intermediate, pending set_max_leaders for "
+          "%" PRIu32,
+          caller_name, a->body.app_u_u.max_leaders);
+      break;
+    case set_leaders_type:
+      G_DEBUG("%s: Ignoring a forced intermediate, pending set_leaders_type",
+              caller_name);
+      break;
     case abort_trans:
     case app_type:
     case begin_trans:
@@ -3027,13 +3871,15 @@ static void log_ignored_forced_config(app_data_ptr a,
     case x_terminate_and_exit:
     case xcom_boot_type:
     case xcom_set_group:
+    case get_leaders_type:
       // Meaningless for any other `cargo_type`s. Ignore.
       break;
   }
 }
 
 bool_t handle_config(app_data_ptr a, bool const forced) {
-  assert(a->body.c_t == unified_boot_type ||
+  assert(a->body.c_t == unified_boot_type || a->body.c_t == set_max_leaders ||
+         a->body.c_t == set_leaders_type ||
          a->next == NULL); /* Reconfiguration commands are not batched. */
   {
     bool_t success = FALSE;
@@ -3066,6 +3912,11 @@ bool_t handle_config(app_data_ptr a, bool const forced) {
         break;
       case force_config_type:
         success = (install_node_group(a) != NULL);
+        assert(success);
+        break;
+      case set_max_leaders:
+      case set_leaders_type:
+        success = handle_leaders(a);
         assert(success);
         break;
       default:
@@ -3232,7 +4083,8 @@ struct execute_context {
   int inform_index;
 };
 
-static void dump_exec_state(execute_context *xc, long dbg);
+static void dump_exec_state(execute_context *xc [[maybe_unused]],
+                            long dbg [[maybe_unused]]);
 static int x_check_exit(execute_context *xc);
 static int x_check_execute_inform(execute_context *xc);
 static void x_fetch(execute_context *xc);
@@ -3250,10 +4102,11 @@ struct fp_name {
   { f, #f }
 
 /* List of fp, name pairs */
-static struct fp_name oblist[] = {
+static struct fp_name MY_ATTRIBUTE((unused)) oblist[] = {
     NAME(x_fetch), NAME(x_execute), NAME(x_terminate), {0, 0}};
 #undef NAME
 
+#if TASK_DBUG_ON
 /* purecov: begin deadcode */
 char const *get_fp_name(exec_fp fp) {
   struct fp_name *list = oblist;
@@ -3264,18 +4117,19 @@ char const *get_fp_name(exec_fp fp) {
   return "no such fp";
 }
 /* purecov: end */
+#endif
 
 static void setup_exit_handling(execute_context *xc, site_def *site) {
   synode_no delay_until;
   if (is_member(site)) {
     delay_until = compute_delay(site->start, site->event_horizon);
   } else { /* Not in this site */
-    /* See if site will be empty when we leave. If the new site
-     * is empty, we should exit after having delivered the last
-     * message from the old site. */
+           /* See if site will be empty when we leave. If the new site
+            * is empty, we should exit after having delivered the last
+            * message from the old site. */
 
-    /* Note limit of delivery. We should never deliver anything after the start
-     * of the next site. */
+    /* Note limit of delivery. We should never deliver anything after the
+     * start of the next site. */
     xc->delivery_limit = site->start;
 
     /* If we are not a member of the new site, we should exit
@@ -3287,14 +4141,15 @@ static void setup_exit_handling(execute_context *xc, site_def *site) {
     if (is_empty_site(site)) {
       /* If site is empty, increase start to allow nodes to terminate before
        * start. This works as if there was a non-empty group after the
-       * exit_synode, effectively allowing the majority of the current group to
-       * agree on all messages up to exit_synode.
+       * exit_synode, effectively allowing the majority of the current group
+       * to agree on all messages up to exit_synode.
        */
       site->start = compute_delay(
           compute_delay(site->start, site->event_horizon), site->event_horizon);
     }
     if (!synode_lt(xc->exit_synode, max_synode)) {
-      /* We need messages from the next site, so set max_synode accordingly. */
+      /* We need messages from the next site, so set max_synode accordingly.
+       */
       set_max_synode(incr_synode(xc->exit_synode));
     }
     /* Note where we switch to execute and inform removed nodes */
@@ -3342,7 +4197,11 @@ static void x_fetch(execute_context *xc) {
        * effect. What follows only makes sense if the reconfiguration
        * took effect. */
       set_last_received_config(executed_msg);
-      garbage_collect_site_defs(delivered_msg);
+      synode_no min_synode = min_proposer_synode();
+      if (synode_eq(null_synode, min_synode) ||
+          synode_lt(delivered_msg, min_synode))
+        min_synode = get_last_delivered_msg();
+      garbage_collect_site_defs(min_synode);
       site = get_site_def_rw();
       if (site == 0) {
         xc->state = x_terminate;
@@ -3391,8 +4250,8 @@ static int x_check_exit(execute_context *xc) {
           !synode_lt(delivered_msg, xc->delivery_limit));
 }
 
-/* Terminate if we should exit, else increment executed_msg and see if we should
- * switch to execute */
+/* Terminate if we should exit, else increment executed_msg and see if we
+ * should switch to execute */
 static void x_check_increment_fetch(execute_context *xc) {
   if (x_check_exit(xc)) {
     xc->state = x_terminate;
@@ -3422,32 +4281,29 @@ static void x_check_increment_execute(execute_context *xc) {
 /* Deliver one message if it should be delivered. Switch state to see if
    we should exit */
 static void x_execute(execute_context *xc) {
-  site_def const *x_site = find_site_def(delivered_msg);
+  site_def *x_site = find_site_def_rw(delivered_msg);
 
   IFDBG(D_EXEC, FN; SYCEXP(delivered_msg); SYCEXP(delivered_msg);
         SYCEXP(executed_msg); SYCEXP(xc->exit_synode); NDBG(xc->exit_flag, d));
   if (!is_cached(delivered_msg)) {
-    /* purecov: begin deadcode */
+/* purecov: begin deadcode */
 #ifdef TASK_EVENT_TRACE
     dump_task_events();
 #endif
     /* purecov: end */
   }
-  assert(is_cached(delivered_msg) && "delivered_msg should have been cached");
-  xc->p = get_cache(delivered_msg);
-  if (LOSER(delivered_msg, x_site)) {
-#ifdef IGNORE_LOSERS
-    IFDBG(D_EXEC, FN; debug_loser(delivered_msg); PTREXP(x_site);
-          dbg_node_set(x_site->global_node_set));
-#endif
-  } else if (xc->p->learner.msg->msg_type != no_op) {
-    /* Avoid delivery after start if we should exit */
-    if (xc->exit_flag == 0 || synode_lt(delivered_msg, xc->delivery_limit)) {
-      /* IFDBG(D_EXEC, FN; NDBG(ep->state, d); STRLIT("executing ");
-         SYCEXP(delivered_msg); SYCEXP(executed_msg);
-              SYCEXP(xc->delivery_limit); NDBG(xc->exit_flag, d)); */
-      last_delivered_msg = delivered_msg;
-      execute_msg(find_site_def_rw(delivered_msg), xc->p, xc->p->learner.msg);
+  if (!ignore_message(delivered_msg, x_site, "x_execute")) {
+    assert(is_cached(delivered_msg) && "delivered_msg should have been cached");
+    xc->p = get_cache(delivered_msg);
+    if ((xc->p)->learner.msg->msg_type != no_op) {
+      /* Avoid delivery after start if we should exit */
+      if (xc->exit_flag == 0 || synode_lt(delivered_msg, xc->delivery_limit)) {
+        IFDBG(D_EXEC, FN; STRLIT("executing "); SYCEXP(delivered_msg);
+              SYCEXP(executed_msg); SYCEXP(xc->delivery_limit);
+              NDBG(xc->exit_flag, d));
+        last_delivered_msg = delivered_msg;
+        execute_msg(find_site_def_rw(delivered_msg), xc->p, xc->p->learner.msg);
+      }
     }
   }
   /* Garbage collect old servers */
@@ -3512,15 +4368,17 @@ static int executor_task(task_arg arg [[maybe_unused]]) {
   /* The following loop implements a state machine based on function pointers,
      effectively acting as non-local gotos.
      The functions all operate on data in the execution context xc, and
-     switch state by setting xc->state to the function corresponding to the new
-     state.
+     switch state by setting xc->state to the function corresponding to the
+     new state.
   */
   while (!xcom_shutdown && ep->xc.state != 0) {
     IFDBG(D_EXEC, FN; STRLIT(get_fp_name(ep->xc.state)););
     if (ep->xc.state == x_fetch) { /* Special case because of task macros */
-      if (LOSER(executed_msg, executor_site)) {
+      if (ignore_message(executed_msg, executor_site, "executor_task")) {
+        IFDBG(D_EXEC, FN; STRLIT("ignoring message "); SYCEXP(executed_msg));
         x_check_increment_fetch(&ep->xc); /* Just increment past losers */
       } else {
+        IFDBG(D_EXEC, FN; STRLIT("fetching message "); SYCEXP(executed_msg));
         TASK_CALL(get_xcom_message(&ep->xc.p, executed_msg, FIND_MAX));
         IFDBG(D_EXEC, FN; STRLIT("got message "); SYCEXP(ep->xc.p->synode);
               COPY_AND_FREE_GOUT(dbg_app_data(ep->xc.p->learner.msg->a)));
@@ -3534,7 +4392,7 @@ static int executor_task(task_arg arg [[maybe_unused]]) {
   /* Inform all removed nodes before we exit */
   ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
   inform_removed(ep->xc.inform_index, 1);
-  dump_exec_state(&ep->xc, D_BUG);
+  dump_exec_state(&ep->xc, D_EXEC);
 
 #ifndef NO_DELAYED_TERMINATION
   IFDBG(D_EXEC, FN; STRLIT("delayed terminate and exit"));
@@ -3547,7 +4405,7 @@ static int executor_task(task_arg arg [[maybe_unused]]) {
 #endif
 
   FINALLY
-  dump_exec_state(&ep->xc, D_BUG);
+  dump_exec_state(&ep->xc, D_EXEC);
   IFDBG(D_BUG, FN; STRLIT(" shutdown "); SYCEXP(executed_msg);
         NDBG(task_now(), f));
   TASK_END;
@@ -3560,6 +4418,44 @@ static synode_no get_sweep_start() {
     find = incr_msgno(find);
   }
   return find;
+}
+
+/* Allow takeover of channel if not all are leaders. We may need to adjust
+ * this if we allow any subset of the nodes as leaders */
+static bool allow_channel_takeover(site_def const *site) {
+  return site->max_active_leaders != active_leaders_all;
+}
+
+static void broadcast_noop(synode_no find, pax_machine *p) {
+  site_def const *site = find_site_def(find);
+
+  /*
+   If we allow channel hijacking, we cannot send skip_op, but need consensus.
+   There are two options here:
+
+   a) We unconditionally propose a `no_op` using the regular 3-phase Paxos
+      protocol, or
+   b) We propose a `no_op` using the 2-phase Paxos protocol *if* we
+      are sure that no other Proposer will try to run the 2-phase Paxos
+   protocol on `find`. If we are not sure, we propose using the 3-phase Paxos
+      protocol.
+
+   Option (a) is always safe, but we pay the cost of 3-phase Paxos.
+   Option (b) can be implemented by having the leaders keep track of the
+   synods they allocate to non-leaders. If we are the leader for `find` and we
+   allocated it to a non-leader, we must use 3-phase Paxos here to be safe
+   against the non-leader using 2-phase Paxos. If we never allocated `find` to
+   a non-leader, we can use 2-phase Paxos here if we ensure we don't allocate
+   `find` to a non-leader afterwards.
+
+   We go with option (a) because there is no evidence that the additional
+   complexity that option (b) requires is worthwhile.
+   */
+  if (allow_channel_takeover(site)) {
+    propose_noop(find, p);  // Single leader
+  } else {
+    skip_msg(pax_msg_new(find, site));  // Multiple leaders
+  }
 }
 
 static int sweeper_task(task_arg arg [[maybe_unused]]) {
@@ -3585,60 +4481,64 @@ static int sweeper_task(task_arg arg [[maybe_unused]]) {
     /*			SYCEXP(executed_msg); SYCEXP(max_synode);
      * SYCEXP(ep->find));
      */
-    {
-      while (synode_lt(ep->find, max_synode) && !too_far(ep->find)) {
-        /* pax_machine * pm = hash_get(ep->find); */
-        pax_machine *pm = 0;
-        ADD_DBG(D_NONE,
-                add_event(EVENT_DUMP_PAD, string_arg("sweeper examining"));
-                add_synode_event(ep->find););
-        if (ep->find.node == VOID_NODE_NO) {
-          if (synode_gt(executed_msg, ep->find)) {
-            ep->find = get_sweep_start();
-          }
-          if (ep->find.node == VOID_NODE_NO) goto deactivate;
+    while (synode_lt(ep->find, max_synode) && !too_far(ep->find)) {
+      /* pax_machine * pm = hash_get(ep->find); */
+      pax_machine *pm = 0;
+      ADD_DBG(D_NONE,
+              add_event(EVENT_DUMP_PAD, string_arg("sweeper examining"));
+              add_synode_event(ep->find););
+      if (ep->find.node == VOID_NODE_NO) {
+        if (synode_gt(executed_msg, ep->find)) {
+          ep->find = get_sweep_start();
         }
-        pm = get_cache(ep->find);
-        ADD_DBG(D_CONS,
-                add_event(EVENT_DUMP_PAD, string_arg("sweeper checking"));
-                add_synode_event(ep->find);
-                add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(pm->op)));
-                add_event(EVENT_DUMP_PAD, string_arg("pm"));
-                add_event(EVENT_DUMP_PAD, void_arg(pm)););
-        if (pm && !pm->force_delivery) { /* We want full 3 phase Paxos for
-                                                              forced messages */
-          ADD_DBG(
-              D_CONS, add_event(EVENT_DUMP_PAD, string_arg("sweeper checking"));
+        if (ep->find.node == VOID_NODE_NO) goto deactivate;
+      }
+      pm = get_cache(ep->find);
+      ADD_DBG(D_CONS, add_event(EVENT_DUMP_PAD, string_arg("sweeper checking"));
               add_synode_event(ep->find);
               add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(pm->op)));
-              add_event(EVENT_DUMP_PAD, string_arg("is_busy_machine"));
-              add_event(EVENT_DUMP_PAD, int_arg(is_busy_machine(pm)));
-              add_event(EVENT_DUMP_PAD, string_arg("pm->acceptor.promise.cnt"));
-              add_event(EVENT_DUMP_PAD, int_arg(pm->acceptor.promise.cnt));
-              add_event(EVENT_DUMP_PAD, string_arg("finished(pm)"));
-              add_event(EVENT_DUMP_PAD, int_arg(finished(pm)));
-              add_event(EVENT_DUMP_PAD, string_arg("pm->acceptor.msg"));
-              add_event(EVENT_DUMP_PAD, void_arg(pm->acceptor.msg)););
-          /* IFDBG(D_NONE, FN; dbg_pax_machine(pm)); */
-          if (!is_busy_machine(pm) && pm->acceptor.promise.cnt == 0 &&
-              !pm->acceptor.msg && !finished(pm)) {
-            pm->op = skip_op;
-            ADD_DBG(D_CONS,
-                    add_event(EVENT_DUMP_PAD, string_arg("sweeper skipping"));
-                    add_synode_event(ep->find); add_event(
-                        EVENT_DUMP_PAD, string_arg(pax_op_to_str(pm->op))););
-            skip_msg(pax_msg_new(ep->find, find_site_def(ep->find)));
-            IFDBG(D_NONE, FN; STRLIT("skipping "); SYCEXP(ep->find));
-            /* 						IFDBG(D_NONE, FN;
-             * dbg_pax_machine(pm));
-             */
+              add_event(EVENT_DUMP_PAD, string_arg("pm"));
+              add_event(EVENT_DUMP_PAD, void_arg(pm)););
+      if (pm && !pm->force_delivery) { /* We want full 3 phase Paxos for
+                                          forced messages */
+        ADD_DBG(
+            D_CONS, add_event(EVENT_DUMP_PAD, string_arg("sweeper checking"));
+            add_synode_event(ep->find);
+            add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(pm->op)));
+            add_event(EVENT_DUMP_PAD, string_arg("is_busy_machine"));
+            add_event(EVENT_DUMP_PAD, int_arg(is_busy_machine(pm)));
+            add_event(EVENT_DUMP_PAD, string_arg("pm->acceptor.promise.cnt"));
+            add_event(EVENT_DUMP_PAD, int_arg(pm->acceptor.promise.cnt));
+            add_event(EVENT_DUMP_PAD, string_arg("finished(pm)"));
+            add_event(EVENT_DUMP_PAD, int_arg(finished(pm)));
+            add_event(EVENT_DUMP_PAD, string_arg("pm->acceptor.msg"));
+            add_event(EVENT_DUMP_PAD, void_arg(pm->acceptor.msg)););
+        /* IFDBG(D_NONE, FN; dbg_pax_machine(pm)); */
+        if (!is_busy_machine(pm) && pm->acceptor.promise.cnt == 0 &&
+            !pm->acceptor.msg && !finished(pm)) {
+          ADD_DBG(
+              D_CONS, add_event(EVENT_DUMP_PAD, string_arg("sweeper skipping"));
+              add_synode_event(ep->find);
+              add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(pm->op))););
+          site_def *config = find_site_def_rw(ep->find);
+          // Do not send noop if single writer, since there normally will be
+          // no holes in the message sequence, and it may interfere with
+          // messages delegated to secondary nodes.
+          if (config->max_active_leaders != 1 &&
+              !ignore_message(ep->find, config, "sweeper_task")) {
+            broadcast_noop(ep->find, pm);
           }
+          IFDBG(D_NONE, FN; STRLIT("skipping "); SYCEXP(ep->find));
         }
-        ep->find = incr_msgno(ep->find);
       }
+      ep->find = incr_msgno(ep->find);
     }
   deactivate:
-    TASK_DEACTIVATE;
+    if (!synode_lt(ep->find, max_synode)) {
+      TASK_DEACTIVATE;
+    } else {
+      TASK_DELAY(0.010); /* Let poll_wait check for IO */
+    }
   }
   FINALLY
   IFDBG(D_BUG, FN; STRLIT(" shutdown sweeper "); SYCEXP(executed_msg);
@@ -3647,27 +4547,34 @@ static int sweeper_task(task_arg arg [[maybe_unused]]) {
 }
 
 static double wakeup_delay(double old) {
+  double const minimum_threshold = 0.1;
+#ifdef EXECUTOR_TASK_AGGRESSIVE_NO_OP
+  double const maximum_threshold = 1.0;
+#else
+  double const maximum_threshold = 20.0;
+#endif /* EXECUTOR_TASK_AGGRESSIVE_NO_OP */
   double retval = 0.0;
   if (0.0 == old) {
     double m = median_time();
-    if (m == 0.0 || m > 0.3) m = 0.1;
-    retval = 0.1 + 5.0 * m + m * xcom_drand48();
+    double const fuzz = 5.0;
+    IFDBG(D_BUG, FN; NDBG(m, f));
+    // Guard against unreasonable estimates of median consensus time
+    if (m <= 0.0) m = minimum_threshold;
+    if (m > maximum_threshold / fuzz) m = (maximum_threshold / fuzz) / 2.0;
+    retval = minimum_threshold + fuzz * m + m * xcom_drand48();
   } else {
     retval = old * 1.4142136; /* Exponential backoff */
   }
-  {
-#ifdef EXECUTOR_TASK_AGGRESSIVE_NO_OP
-    double const maximum_threshold = 1.0;
-#else
-    double const maximum_threshold = 3.0;
-#endif /* EXECUTOR_TASK_AGGRESSIVE_NO_OP */
-    while (retval > maximum_threshold) retval /= 1.31415926;
+  /* If we exceed maximum, choose a random value in the max/2..max interval */
+  if (retval > maximum_threshold) {
+    double const low = maximum_threshold / 2.0;
+    retval = low + xcom_drand48() * (maximum_threshold - low);
   }
-  /* IFDBG(D_NONE, FN; NDBG(retval,d)); */
+  IFDBG(D_BUG, FN; NDBG(retval, f));
   return retval;
 }
 
-static void propose_noop(synode_no find, pax_machine *p) {
+static site_def const *init_noop(synode_no find, pax_machine *p) {
   /* Prepare to send a noop */
   site_def const *site = find_site_def(find);
   IFDBG(D_NONE, FN; SYCEXP(find); SYCEXP(executed_msg));
@@ -3675,17 +4582,29 @@ static void propose_noop(synode_no find, pax_machine *p) {
   replace_pax_msg(&p->proposer.msg, pax_msg_new(find, site));
   assert(p->proposer.msg);
   create_noop(p->proposer.msg);
-  {
-    pax_msg *clone = clone_pax_msg(p->proposer.msg);
-    if (clone != NULL) {
-      push_msg_3p(site, p, clone, find, no_op);
-    } else {
-      /* purecov: begin inspected */
-      G_DEBUG("Unable to propose NoOp due to an OOM error.");
-      /* purecov: end */
-    }
+  return site;
+}
+
+static void propose_noop(synode_no find, pax_machine *p) {
+  site_def const *site = init_noop(find, p);
+  pax_msg *clone = clone_pax_msg(p->proposer.msg);
+  if (clone != NULL) {
+    IFDBG(D_CONS, FN; SYCEXP(find));
+    push_msg_3p(site, p, clone, find, no_op);
+  } else {
+    /* purecov: begin inspected */
+    G_DEBUG("Unable to propose NoOp due to an OOM error.");
+    /* purecov: end */
   }
 }
+
+#if 0
+static void propose_noop_2p(synode_no find, pax_machine *p) {
+  site_def const *site = init_noop(find, p);
+  IFDBG(D_CONS, FN; SYCEXP(find));
+  push_msg_2p(site, p);
+}
+#endif
 
 static void send_read(synode_no find) {
   /* Prepare to send a read_op */
@@ -3789,32 +4708,14 @@ static void propose_missing_values(int n) {
     }
     IFDBG(D_NONE, FN; NDBG(ok_to_propose(p), d); TIMECEXP(task_now());
           TIMECEXP(p->last_modified); SYCEXP(find));
-    if (get_nodeno(find_site_def(find)) == VOID_NODE_NO) break;
-    if (ok_to_propose(p)) {
+    site_def *site = find_site_def_rw(find);
+    if (get_nodeno(site) == VOID_NODE_NO) break;
+    if (!ignore_message(find, site, "propose_missing_values") &&
+        ok_to_propose(p)) {
       propose_noop(find, p);
     }
     find = incr_synode(find);
     i++;
-  }
-}
-
-/* Propose a noop for the range find..end */
-void request_values(synode_no find, synode_no end) {
-  IFDBG(D_NONE, FN; SYCEXP(find); SYCEXP(end););
-  while (!synode_gt(find, end) && !too_far(find)) {
-    pax_machine *p = get_cache(find);
-    site_def const *site = find_site_def(find);
-    if (get_nodeno(site) == VOID_NODE_NO) break;
-    if (!finished(p) && !is_busy_machine(p)) {
-      /* Prepare to send a noop */
-      replace_pax_msg(&p->proposer.msg, pax_msg_new(find, site));
-      assert(p->proposer.msg);
-      create_noop(p->proposer.msg);
-
-      IFDBG(D_NONE, FN; STRLIT("propose "); SYCEXP(find););
-      push_msg_3p(site, p, pax_msg_new(find, site), find, no_op);
-    }
-    find = incr_synode(find);
   }
 }
 
@@ -3824,7 +4725,7 @@ void request_values(synode_no find, synode_no end) {
 Reply to the sender of a message.
 Avoid using the outbound TCP connection to the node that sent the message, since
 it is simpler and safer to always use the same TCP connection as the one the
-message arrived on. We then know that the answever will always go to the same
+message arrived on. We then know that the answer will always go to the same
 client (and the same instance of that client) that sent the request.
 */
 #define reply_msg(m)                                              \
@@ -3964,13 +4865,17 @@ bool_t check_propose(site_def const *site, pax_machine *p) {
   }
 }
 
+static bool learn_ok(site_def const *site, pax_machine const *p) {
+  return get_nodeno(site) != VOID_NODE_NO && prop_majority(site, p);
+}
+
 static pax_msg *check_learn(site_def const *site, pax_machine *p) {
   IFDBG(D_NONE, FN; SYCEXP(p->synode);
         COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
   {
     pax_msg *learn_msg = NULL;
-    if (get_nodeno(site) != VOID_NODE_NO && prop_majority(site, p)) {
+    if (learn_ok(site, p)) {
       p->proposer.msg->synode = p->synode;
       if (p->proposer.msg->receivers) free_bit_set(p->proposer.msg->receivers);
       p->proposer.msg->receivers = clone_bit_set(p->proposer.prep_nodeset);
@@ -4105,7 +5010,12 @@ static void handle_accept(site_def const *site, pax_machine *p,
 
   {
     pax_msg *reply = handle_simple_accept(p, m, m->synode);
-    if (reply != NULL) SEND_REPLY;
+    if (reply != NULL) {
+      SEND_REPLY;
+      IFDBG(D_CONS, FN; STRLIT("activating sweeper on accept of ");
+            SYCEXP(m->synode));
+      activate_sweeper();
+    }
   }
 }
 
@@ -4160,6 +5070,7 @@ void handle_tiny_learn(site_def const *site, pax_machine *pm, pax_msg *p) {
       pm->acceptor.msg->op = learn_op;
       pm->last_modified = task_now();
       update_max_synode(p);
+      paxos_fsm(pm, site, paxos_learn, p);
       handle_learn(site, pm, pm->acceptor.msg);
     } else {
       send_read(p->synode);
@@ -4258,7 +5169,8 @@ void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
                   find_site_def(p->synode)->x_proto)) {
             log_ignored_forced_config(m->a, "handle_learn");
           } else {
-            start_force_config(clone_site_def(handle_add_node(m->a)), 0);
+            site_def *new_def = handle_add_node(m->a);
+            if (new_def) start_force_config(clone_site_def(new_def), 0);
           }
           break;
         /* purecov: end */
@@ -4363,7 +5275,8 @@ static inline void handle_boot(site_def const *site, linkage *reply_queue,
   /* This should never be TRUE, but validate it instead of asserting. */
   if (site == NULL || site->nodes.node_list_len < 1) {
     G_DEBUG(
-        "handle_boot: Received an unexpected need_boot_op when site == NULL or "
+        "handle_boot: Received an unexpected need_boot_op when site == NULL "
+        "or "
         "site->nodes.node_list_len < 1");
     return;
   }
@@ -4397,16 +5310,16 @@ bool_t should_handle_need_boot(site_def const *site, pax_msg *p) {
    If it is due to reason (b), we do not want to boot the sender because XCom
    only implements a simple fail-stop model. Allowing the sender to rejoin the
    group without going through the full remove+add node path could violate
-   safety because the sender does not remember any previous Paxos acceptances it
-   acknowledged before crashing.
-   Since the pre-crash incarnation may have accepted a value for a given synod
-   but the post-crash incarnation has forgotten that fact, the post-crash
-   incarnation will fail to propagate the previously accepted value to a higher
-   ballot. Since majorities can overlap on a single node, if the overlap node
-   is the post-crash incarnation which has forgotten about the previously
-   accepted value, a higher ballot proposer may get a different value accepted,
-   leading to conflicting values to be accepted for different proposers, which
-   is a violation of the safety properties of the Paxos protocol.
+   safety because the sender does not remember any previous Paxos acceptances
+   it acknowledged before crashing. Since the pre-crash incarnation may have
+   accepted a value for a given synod but the post-crash incarnation has
+   forgotten that fact, the post-crash incarnation will fail to propagate the
+   previously accepted value to a higher ballot. Since majorities can overlap
+   on a single node, if the overlap node is the post-crash incarnation which
+   has forgotten about the previously accepted value, a higher ballot proposer
+   may get a different value accepted, leading to conflicting values to be
+   accepted for different proposers, which is a violation of the safety
+   properties of the Paxos protocol.
 
    If the sender does not advertise its identity, we boot it unconditionally.
    This is for backwards compatibility.
@@ -4450,7 +5363,8 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
   if ((pm->from != get_nodeno(site)) && has_client_already_booted &&
       (pm->op == are_you_alive_op)) {
     G_DEBUG(
-        "Received a ping to myself. This means that something must be wrong in "
+        "Received a ping to myself. This means that something must be wrong "
+        "in "
         "a bi-directional connection")
     // Going to kill the connection for that node...
     if (site && (pm->from < site->nodes.node_list_len)) {
@@ -4581,12 +5495,18 @@ static u_int allow_add_node(app_data_ptr a) {
   u_int nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
   node_address *nodes_to_change = a->body.app_u_u.nodes.node_list_val;
 
-  if (add_node_unsafe_against_event_horizon(a)) return 0;
+  if (check_if_add_node_is_unsafe_against_event_horizon(a)) return 0;
+
+  if (unsafe_leaders(a)) {
+    return 0;
+  }
 
   if (add_node_unsafe_against_ipv4_old_nodes(a)) {
     G_MESSAGE(
-        "This server is unable to join the group as the NIC used is configured "
-        "with IPv6 only and there are members in the group that are unable to "
+        "This server is unable to join the group as the NIC used is "
+        "configured "
+        "with IPv6 only and there are members in the group that are unable "
+        "to "
         "communicate using IPv6, only IPv4.Please configure this server to "
         "join the group using an IPv4 address instead.");
     return 0;
@@ -4720,20 +5640,32 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
             "is aimed at another group");
         break;
       case remove_node_type:
-        log_cfgchange_wrong_group(
-            a,
-            "The request to remove %s from the group has been rejected because "
-            "it is aimed at another group");
+        log_cfgchange_wrong_group(a,
+                                  "The request to remove %s from the group "
+                                  "has been rejected because "
+                                  "it is aimed at another group");
         break;
       case force_config_type:
         G_WARNING(
             "The request to force the group membership has been rejected "
             "because it is aimed at another group");
         break;
+      case set_max_leaders:
+        G_WARNING(
+            "The request to change max number of leaders has been rejected "
+            "because it is aimed at another group");
+        break;
+      case set_leaders_type:
+        G_WARNING(
+            "The request to change leaders has been rejected "
+            "because it is aimed at another group");
+        break;
       default:
         assert(0 &&
                "A cargo_type different from {add_node_type, remove_node_type, "
-               "force_config_type} should not have hit this code path");
+               "force_config_type, set_max_leaders, set_leaders_type} should "
+               "not "
+               "have hit this code path");
     }
     return REQUEST_FAIL;
   }
@@ -4745,11 +5677,16 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
     return REQUEST_FAIL;
 
   if (a && a->body.c_t == set_event_horizon_type &&
-      unsafe_event_horizon_reconfiguration(a))
+      is_unsafe_event_horizon_reconfiguration(a))
     return REQUEST_FAIL;
 
   if (a && a->body.c_t == force_config_type &&
       are_there_dead_nodes_in_new_config(a))
+    return REQUEST_FAIL;
+
+  if (a &&
+      (a->body.c_t == set_max_leaders || a->body.c_t == set_leaders_type) &&
+      is_unsafe_leaders_reconfiguration(a))
     return REQUEST_FAIL;
 
   return REQUEST_OK;
@@ -4773,6 +5710,32 @@ void dispatch_get_event_horizon(site_def const *site, pax_msg *p,
         SYCEXP(p->synode););
   reply->op = xcom_client_reply;
   reply->cli_err = xcom_get_event_horizon(&reply->event_horizon);
+  SEND_REPLY;
+}
+
+static reply_data *new_leader_info(site_def *site) {
+  if (site) {
+    reply_data *data =
+        static_cast<reply_data *>(xcom_calloc((size_t)1, sizeof(reply_data)));
+    data->rt = leader_info;
+    data->reply_data_u.leaders.max_nr_leaders = site->max_active_leaders;
+    if (leaders_set_by_client(site)) {
+      data->reply_data_u.leaders.preferred_leaders =
+          clone_leader_array(site->leaders);
+    }
+    active_leaders(site, &data->reply_data_u.leaders.actual_leaders);
+    return data;
+  } else {
+    return 0;
+  }
+}
+
+void dispatch_get_leaders(site_def *site, pax_msg *p, linkage *reply_queue) {
+  CREATE_REPLY(p);
+  IFDBG(D_NONE, FN; STRLIT("Got get_leaders from client"); SYCEXP(p->synode););
+  reply->op = xcom_client_reply;
+  reply->rd = new_leader_info(site);
+  reply->cli_err = reply->rd ? REQUEST_OK : REQUEST_FAIL;
   SEND_REPLY;
 }
 
@@ -4838,15 +5801,519 @@ void dispatch_get_synode_app_data(site_def const *site, pax_msg *p,
 
 static int can_send_snapshot();
 
-pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
-  pax_machine *pm = NULL;
-  site_def *dsite = find_site_def_rw(p->synode);
-  int in_front = too_far(p->synode);
-
-  if (p->force_delivery) {
-    /* Ensure that forced message can be processed */
-    in_front = 0;
+static void process_client_msg(site_def const *site, pax_msg *p,
+                               linkage *reply_queue) {
+  clicnt++;
+  if (p->a && (p->a->body.c_t == exit_type)) {
+    /* purecov: begin deadcode */
+    IFDBG(D_NONE, FN; STRLIT("Got exit from client"); SYCEXP(p->synode););
+    bury_site(get_group_id(get_site_def()));
+    ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
+    terminate_and_exit();
+    return;
+    /* purecov: end */
   }
+
+  if (p->a && (p->a->body.c_t == reset_type)) {
+    /* purecov: begin deadcode */
+    IFDBG(D_NONE, FN; STRLIT("Got reset from client"); SYCEXP(p->synode););
+    bury_site(get_group_id(get_site_def()));
+    ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
+    XCOM_FSM(x_fsm_terminate, int_arg(0));
+    return;
+    /* purecov: end */
+  }
+  if (p->a && (p->a->body.c_t == remove_reset_type)) {
+    /* purecov: begin deadcode */
+    IFDBG(D_NONE, FN; STRLIT("Got remove_reset from client");
+          SYCEXP(p->synode););
+    ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
+    XCOM_FSM(x_fsm_terminate, int_arg(0));
+    return;
+    /* purecov: end */
+  }
+  if (p->a && (p->a->body.c_t == enable_arbitrator)) {
+    CREATE_REPLY(p);
+    IFDBG(D_NONE, FN; STRLIT("Got enable_arbitrator from client");
+          SYCEXP(p->synode););
+    ARBITRATOR_HACK = 1;
+    reply->op = xcom_client_reply;
+    reply->cli_err = REQUEST_OK;
+    SEND_REPLY;
+    return;
+  }
+  if (p->a && (p->a->body.c_t == disable_arbitrator)) {
+    CREATE_REPLY(p);
+    IFDBG(D_NONE, FN; STRLIT("Got disable_arbitrator from client");
+          SYCEXP(p->synode););
+    ARBITRATOR_HACK = 0;
+    reply->op = xcom_client_reply;
+    reply->cli_err = REQUEST_OK;
+    SEND_REPLY;
+    return;
+  }
+  if (p->a && (p->a->body.c_t == set_cache_limit)) {
+    CREATE_REPLY(p);
+    IFDBG(D_NONE, FN; STRLIT("Got set_cache_limit from client");
+          SYCEXP(p->synode););
+    if (the_app_xcom_cfg) {
+      set_max_cache_size(p->a->body.app_u_u.cache_limit);
+      reply->cli_err = REQUEST_OK;
+    } else {
+      reply->cli_err = REQUEST_FAIL;
+    }
+    reply->op = xcom_client_reply;
+    SEND_REPLY;
+    return;
+  }
+  if (p->a && (p->a->body.c_t == x_terminate_and_exit)) {
+    /* purecov: begin deadcode */
+    CREATE_REPLY(p);
+    IFDBG(D_NONE, FN; STRLIT("Got terminate_and_exit from client");
+          SYCEXP(p->synode););
+    reply->op = xcom_client_reply;
+    reply->cli_err = REQUEST_OK;
+    SEND_REPLY;
+    /*
+      The function frees sites which is used by SEND_REPLY,
+      so it should be called after SEND_REPLY.
+    */
+    IFDBG(D_NONE, FN; STRLIT("terminate_and_exit"));
+    ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
+    terminate_and_exit();
+    return;
+    /* purecov: end */
+  }
+  if (p->a && (p->a->body.c_t == get_event_horizon_type)) {
+    dispatch_get_event_horizon(get_site_def(), p, reply_queue);
+    return;
+  }
+  if (p->a && (p->a->body.c_t == get_synode_app_data_type)) {
+    dispatch_get_synode_app_data(get_site_def(), p, reply_queue);
+    return;
+  }
+  if (p->a && (p->a->body.c_t == get_leaders_type)) {
+    dispatch_get_leaders(get_site_def_rw(), p, reply_queue);
+    return;
+  }
+  if (p->a &&
+      (p->a->body.c_t == add_node_type || p->a->body.c_t == remove_node_type ||
+       p->a->body.c_t == force_config_type ||
+       p->a->body.c_t == set_event_horizon_type ||
+       p->a->body.c_t == set_max_leaders ||
+       p->a->body.c_t == set_leaders_type)) {
+    client_reply_code cli_err;
+    CREATE_REPLY(p);
+    reply->op = xcom_client_reply;
+    reply->cli_err = cli_err = can_execute_cfgchange(p);
+    SEND_REPLY;
+    if (cli_err != REQUEST_OK) {
+      return;
+    }
+  }
+  if (p->a && p->a->body.c_t == unified_boot_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got unified_boot from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    XCOM_FSM(x_fsm_net_boot, void_arg(p->a));
+  }
+  if (p->a && p->a->body.c_t == add_node_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got add_node from client"); SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+  }
+  if (p->a && p->a->body.c_t == remove_node_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got remove_node from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+  }
+  if (p->a && p->a->body.c_t == set_event_horizon_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got set_event_horizon from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; NDBG(p->a->body.app_u_u.event_horizon, u));
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+  }
+  if (p->a && p->a->body.c_t == force_config_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got new force config from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+    XCOM_FSM(x_fsm_force_config, void_arg(p->a));
+  }
+  if (p->a && p->a->body.c_t == set_max_leaders) {
+    IFDBG(D_NONE, FN; STRLIT("Got set_max_leaders from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, FN; NDBG(p->a->body.app_u_u.max_leaders, u));
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+  }
+  if (p->a && p->a->body.c_t == set_leaders_type) {
+    IFDBG(D_NONE, FN; STRLIT("Got set_leaders_type from client");
+          SYCEXP(p->synode););
+    IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
+    assert(get_site_def());
+  }
+  handle_client_msg(p);
+}
+
+static void process_prepare_op(site_def const *site, pax_msg *p,
+                               linkage *reply_queue) {
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+  if (p->force_delivery) pm->force_delivery = 1;
+  IFDBG(D_NONE, FN; dbg_pax_msg(p));
+
+  /*
+   We can only be a productive Paxos Acceptor if we have been booted, i.e.
+   added to the group and received an up-to-date snapshot from some member.
+
+   We do not allow non-booted members to participate in Paxos because they
+   might be a reincarnation of a member that crashed and was then brought up
+   without having gone through the remove+add node path.
+   Since the pre-crash incarnation may have accepted a value for a given
+   synod but the post-crash incarnation has forgotten that fact, the
+   post-crash incarnation will fail to propagate the previously accepted
+   value to a higher ballot. Since majorities can overlap on a single node,
+   if the overlap node is the post-crash incarnation which has forgotten
+   about the previously accepted value, the higher ballot proposer may get
+   a different value accepted, leading to conflicting values to be accepted
+   for different proposers, which is a violation of the safety requirements
+   of the Paxos protocol.
+  */
+  if (ALWAYS_HANDLE_CONSENSUS || client_boot_done) {
+    paxos_fsm(pm, site, paxos_prepare, p);
+    handle_prepare(site, pm, reply_queue, p);
+  }
+}
+
+static inline int abort_processing(pax_msg *p) {
+  /* Ensure that forced message can be processed */
+  return (!p->force_delivery && too_far(p->synode)) || !is_cached(p->synode);
+}
+
+static void process_ack_prepare_op(site_def const *site, pax_msg *p,
+                                   linkage *reply_queue) {
+  (void)reply_queue;
+  if (abort_processing(p))
+    return;
+  else {
+    pax_machine *pm = get_cache(p->synode);
+    if (p->force_delivery) pm->force_delivery = 1;
+    if (!pm->proposer.msg) return;
+    assert(pm && pm->proposer.msg);
+    handle_ack_prepare(site, pm, p);
+    paxos_fsm(pm, site, paxos_ack_prepare, p);
+  }
+}
+
+static void process_accept_op(site_def const *site, pax_msg *p,
+                              linkage *reply_queue) {
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+  if (p->force_delivery) pm->force_delivery = 1;
+  IFDBG(D_NONE, FN; dbg_pax_msg(p));
+
+  /*
+   We can only be a productive Paxos Acceptor if we have been booted, i.e.
+   added to the group and received an up-to-date snapshot from some member.
+
+   We do not allow non-booted members to participate in Paxos because they
+   might be a reincarnation of a member that crashed and was then brought up
+   without having gone through the remove+add node path.
+   Since the pre-crash incarnation may have accepted a value for a given
+   synod but the post-crash incarnation has forgotten that fact, the
+   post-crash incarnation will fail to propagate the previously accepted
+   value to a higher ballot. Since majorities can overlap on a single node,
+   if the overlap node is the post-crash incarnation which has forgotten
+   about the previously accepted value, the higher ballot proposer may get
+   a different value accepted, leading to conflicting values to be accepted
+   for different proposers, which is a violation of the safety requirements
+   of the Paxos protocol.
+  */
+  if (ALWAYS_HANDLE_CONSENSUS || client_boot_done) {
+    handle_alive(site, reply_queue, p);
+
+    paxos_fsm(pm, site, paxos_accept, p);
+    handle_accept(site, pm, reply_queue, p);
+  }
+}
+
+static void process_ack_accept_op(site_def const *site, pax_msg *p,
+                                  linkage *reply_queue) {
+  (void)reply_queue;
+  if (too_far(p->synode))
+    return;
+  else {
+    pax_machine *pm = get_cache(p->synode);
+    if (p->force_delivery) pm->force_delivery = 1;
+    if (!pm->proposer.msg) return;
+    assert(pm && pm->proposer.msg);
+    handle_ack_accept(site, pm, p);
+    paxos_fsm(pm, site, paxos_ack_accept, p);
+  }
+}
+
+static void process_learn_op(site_def const *site, pax_msg *p,
+                             linkage *reply_queue) {
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+  (void)reply_queue;
+  if (p->force_delivery) pm->force_delivery = 1;
+  update_max_synode(p);
+  paxos_fsm(pm, site, paxos_learn, p);
+  handle_learn(site, pm, p);
+}
+
+static void process_recover_learn_op(site_def const *site, pax_msg *p,
+                                     linkage *reply_queue) {
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+  (void)reply_queue;
+  IFDBG(D_NONE, FN; STRLIT("recover_learn_op receive "); SYCEXP(p->synode));
+  if (p->force_delivery) pm->force_delivery = 1;
+  update_max_synode(p);
+  {
+    IFDBG(D_NONE, FN; STRLIT("recover_learn_op learn "); SYCEXP(p->synode));
+    p->op = learn_op;
+    paxos_fsm(pm, site, paxos_learn, p);
+    handle_learn(site, pm, p);
+  }
+}
+
+static void process_skip_op(site_def const *site, pax_msg *p,
+                            linkage *reply_queue) {
+  (void)reply_queue;
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+  if (p->force_delivery) pm->force_delivery = 1;
+  paxos_fsm(pm, site, paxos_learn, p);
+  handle_skip(site, pm, p);
+}
+
+static void process_i_am_alive_op(site_def const *site, pax_msg *p,
+                                  linkage *reply_queue) {
+  /* Update max_synode, but use only p->max_synode, ignore p->synode */
+  if (!is_dead_site(p->group_id)) {
+    if (max_synode.group_id == p->synode.group_id &&
+        synode_gt(p->max_synode, max_synode)) {
+      set_max_synode(p->max_synode);
+    }
+  }
+  handle_alive(site, reply_queue, p);
+}
+
+static void process_are_you_alive_op(site_def const *site, pax_msg *p,
+                                     linkage *reply_queue) {
+  handle_alive(site, reply_queue, p);
+}
+
+static void process_need_boot_op(site_def const *site, pax_msg *p,
+                                 linkage *reply_queue) {
+  /* purecov: begin deadcode */
+  /* Only in run state. Test state and do it here because we need to use
+   * reply queue */
+  if (can_send_snapshot() &&
+      !synode_eq(get_site_def()->boot_key, null_synode)) {
+    handle_boot(site, reply_queue, p);
+  }
+  /* Wake senders waiting to connect, since new node has appeared */
+  wakeup_sender();
+  /* purecov: end */
+}
+
+static void process_die_op(site_def const *site, pax_msg *p,
+                           linkage *reply_queue) {
+  (void)reply_queue;
+  /* assert("die horribly" == "need coredump"); */
+  {
+    GET_GOUT;
+    FN;
+    STRLIT("die_op ");
+    SYCEXP(executed_msg);
+    SYCEXP(delivered_msg);
+    SYCEXP(p->synode);
+    SYCEXP(p->delivered_msg);
+    SYCEXP(p->max_synode);
+    PRINT_GOUT;
+    FREE_GOUT;
+  }
+  /*
+  If the message with the number in  the  incoming  die_op  message
+  already  has  been  executed  (delivered),  then it means that we
+  actually got consensus on it, since otherwise we would  not  have
+  delivered it.Such a situation could arise if one of the nodes has
+  expelled the message from its cache, but others have not. So when
+  sending  out  a  request, we might get two different answers, one
+  indicating that we are too far behind  and  should  restart,  and
+  another  with  the  actual  consensus value. If the value arrives
+  first, we will deliver it, and then the die_op may arrive  later.
+  But  it this case it does not matter, since we got what we needed
+  anyway. It is only a partial guard against exiting without really
+  needing  it  of course, since the die_op may arrive first, and we
+  do not wait for a die_op from all the other nodes.  We  could  do
+  that  with  some extra housekeeping in the pax_machine (a new bit
+  vector), but I am not convinced that it is worth the effort.
+  */
+  if (!synode_lt(p->synode, executed_msg)) {
+    ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
+    g_critical("Node %u is unable to get message {%x %" PRIu64
+               " %u}, since the group is too far "
+               "ahead. Node will now exit.",
+               get_nodeno(site), SY_MEM(p->synode));
+    terminate_and_exit();
+  }
+}
+
+static void process_read_op(site_def const *site, pax_msg *p,
+                            linkage *reply_queue) {
+  pax_machine *pm = get_cache(p->synode);
+  assert(pm);
+
+  handle_read(site, pm, reply_queue, p);
+}
+
+static void process_gcs_snapshot_op(site_def const *site, pax_msg *p,
+                                    linkage *reply_queue) {
+  (void)site;
+  (void)reply_queue;
+  /* Avoid duplicate snapshots and snapshots from zombies */
+  IFDBG(D_BASE, FN; SYCEXP(executed_msg););
+  IFDBG(D_BASE, FN; SYCEXP(start_config););
+  if (!synode_eq(start_config, get_highest_boot_key(p->gcs_snap)) &&
+      !is_dead_site(p->group_id)) {
+    update_max_synode(p);
+    /* For incoming messages, note delivery of snapshot from sender node */
+    note_snapshot(p->from);
+    XCOM_FSM(x_fsm_snapshot, void_arg(p->gcs_snap));
+  }
+}
+
+static void process_tiny_learn_op(site_def const *site, pax_msg *p,
+                                  linkage *reply_queue) {
+  if (p->msg_type == no_op) {
+    process_learn_op(site, p, reply_queue);
+  } else {
+    pax_machine *pm = get_cache(p->synode);
+    assert(pm);
+    if (p->force_delivery) pm->force_delivery = 1;
+    handle_tiny_learn(site, pm, p);
+  }
+}
+
+/* If this node is leader, grant a synode number for use by secondary.
+ Send reply as synode_allocated. */
+static void process_synode_request(site_def const *site, pax_msg *p,
+                                   linkage *reply_queue) {
+  (void)site;
+
+  /* Find a free slot */
+  assert(!synode_eq(current_message, null_synode));
+  IFDBG(D_CONS, FN; SYCEXP(executed_msg); SYCEXP(current_message));
+  site_def *tmp_site = find_site_def_rw(current_message);
+  /* See if we can do anything with this message */
+  if (tmp_site && get_nodeno(tmp_site) != VOID_NODE_NO && is_leader(tmp_site)) {
+    /* Send reply with msgno */
+    synode_no msgno = local_synode_allocator(current_message);
+    /* Ensure that reply is sane. Note that we only allocate `msgno` *if* next
+       synod is still within the event horizon. This effectively means that
+       the leader always reserves at least one synod to himself, the last
+       synod of the event horizon. The point is to ensure that the leader does
+       not allocate all the possible synods to a non-leader that then doesn't
+       act on them, e.g. by crashing. The last synod of the event horizon will
+       always be up for grabs either by the leader, or if the leader is
+       suspected, by some non-leader that will self-allocate that synod to
+       himself. */
+    if (!(too_far(incr_msgno(msgno)) ||
+          ignore_message(msgno, find_site_def_rw(msgno),
+                         "process_synode_request"))) {
+      // We will grab this number, advance current_message
+      set_current_message(incr_synode(msgno));
+      IFDBG(D_CONS, FN; STRLIT("sending reply "); SYCEXP(executed_msg);
+            SYCEXP(current_message); SYCEXP(msgno));
+      CREATE_REPLY(p);
+      reply->synode = msgno;
+      reply->op = synode_allocated;
+      IFDBG(D_CONS, FN; SYCEXP(msgno));
+      SEND_REPLY;
+    } else {
+      IFDBG(D_CONS, FN; STRLIT("not sending reply "); SYCEXP(executed_msg);
+            SYCEXP(msgno));
+    }
+  } else {
+    IFDBG(D_CONS, FN; STRLIT("not leader ");
+          if (tmp_site) SYCEXP(tmp_site->start));
+  }
+}
+
+/* If this node is secondary, add synode to set of available synodes */
+static void process_synode_allocated(site_def const *site, pax_msg *p,
+                                     linkage *reply_queue) {
+  (void)site;
+  (void)p;
+  (void)reply_queue;
+
+  IFDBG(D_BASE, FN; SYCEXP(p->synode));
+  synode_number_pool.put(p->synode, synode_allocation_type::remote);
+}
+
+static msg_handler dispatch_table[LAST_OP] = {process_client_msg,
+                                              NULL,
+                                              process_prepare_op,
+                                              process_ack_prepare_op,
+                                              process_ack_prepare_op,
+                                              process_accept_op,
+                                              process_ack_accept_op,
+                                              process_learn_op,
+                                              process_recover_learn_op,
+                                              NULL,
+                                              NULL,
+                                              NULL,
+                                              NULL,
+                                              NULL,
+                                              process_skip_op,
+                                              process_i_am_alive_op,
+                                              process_are_you_alive_op,
+                                              process_need_boot_op,
+                                              NULL,
+                                              process_die_op,
+                                              process_read_op,
+                                              process_gcs_snapshot_op,
+                                              NULL,
+                                              process_tiny_learn_op,
+                                              process_synode_request,
+                                              process_synode_allocated};
+
+static msg_handler *clone_dispatch_table(msg_handler const *proto) {
+  msg_handler *clone =
+      static_cast<msg_handler *>(xcom_calloc(1, sizeof(dispatch_table)));
+  if (clone)
+    memcpy(clone, proto, sizeof(dispatch_table));
+  else
+    oom_abort = 1;
+  return clone;
+}
+
+static msg_handler *primary_dispatch_table() {
+  msg_handler *clone = clone_dispatch_table(dispatch_table);
+  return clone;
+}
+
+static msg_handler *secondary_dispatch_table() {
+  msg_handler *clone = clone_dispatch_table(dispatch_table);
+  if (clone) {
+    clone[synode_request] = NULL;
+  }
+  return clone;
+}
+
+pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
+  site_def *dsite = find_site_def_rw(p->synode);
 
   if (dsite && p->op != client_msg && is_server_connected(dsite, p->from)) {
     /* Wake up the detector task if this node was previously marked as
@@ -4855,354 +6322,27 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
     update_delivered(dsite, p->from, p->delivered_msg);
   }
 
-  IFDBG(D_NONE, FN; STRLIT("incoming message ");
+  IFDBG(D_BASE, FN; STRLIT("incoming message ");
         COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
-  ADD_DBG(D_NONE, add_synode_event(p->synode);
+  ADD_DBG(D_DISPATCH, add_synode_event(p->synode);
           add_event(EVENT_DUMP_PAD, string_arg("p->from"));
           add_event(EVENT_DUMP_PAD, uint_arg(p->from));
-          add_event(EVENT_DUMP_PAD, string_arg("in_front"));
-          add_event(EVENT_DUMP_PAD, int_arg(in_front));
+          add_event(EVENT_DUMP_PAD, string_arg("too_far(p->synode)"));
+          add_event(EVENT_DUMP_PAD, int_arg(too_far(p->synode)));
           add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(p->op))););
 
-  switch (p->op) {
-    case client_msg:
-      clicnt++;
-      if (p->a && (p->a->body.c_t == exit_type)) {
-        /* purecov: begin deadcode */
-        IFDBG(D_NONE, FN; STRLIT("Got exit from client"); SYCEXP(p->synode););
-        bury_site(get_group_id(get_site_def()));
-        ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-        terminate_and_exit();
-        break;
-        /* purecov: end */
-      }
-      if (p->a && (p->a->body.c_t == reset_type)) {
-        /* purecov: begin deadcode */
-        IFDBG(D_NONE, FN; STRLIT("Got reset from client"); SYCEXP(p->synode););
-        bury_site(get_group_id(get_site_def()));
-        ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-        XCOM_FSM(x_fsm_terminate, int_arg(0));
-        break;
-        /* purecov: end */
-      }
-      if (p->a && (p->a->body.c_t == remove_reset_type)) {
-        /* purecov: begin deadcode */
-        IFDBG(D_NONE, FN; STRLIT("Got remove_reset from client");
-              SYCEXP(p->synode););
-        ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-        XCOM_FSM(x_fsm_terminate, int_arg(0));
-        break;
-        /* purecov: end */
-      }
-      if (p->a && (p->a->body.c_t == enable_arbitrator)) {
-        CREATE_REPLY(p);
-        IFDBG(D_NONE, FN; STRLIT("Got enable_arbitrator from client");
-              SYCEXP(p->synode););
-        ARBITRATOR_HACK = 1;
-        reply->op = xcom_client_reply;
-        reply->cli_err = REQUEST_OK;
-        SEND_REPLY;
-        break;
-      }
-      if (p->a && (p->a->body.c_t == disable_arbitrator)) {
-        CREATE_REPLY(p);
-        IFDBG(D_NONE, FN; STRLIT("Got disable_arbitrator from client");
-              SYCEXP(p->synode););
-        ARBITRATOR_HACK = 0;
-        reply->op = xcom_client_reply;
-        reply->cli_err = REQUEST_OK;
-        SEND_REPLY;
-        break;
-      }
-      if (p->a && (p->a->body.c_t == set_cache_limit)) {
-        CREATE_REPLY(p);
-        IFDBG(D_NONE, FN; STRLIT("Got set_cache_limit from client");
-              SYCEXP(p->synode););
-        if (the_app_xcom_cfg) {
-          set_max_cache_size(p->a->body.app_u_u.cache_limit);
-          reply->cli_err = REQUEST_OK;
-        } else {
-          reply->cli_err = REQUEST_FAIL;
-        }
-        reply->op = xcom_client_reply;
-        SEND_REPLY;
-        break;
-      }
-      if (p->a && (p->a->body.c_t == x_terminate_and_exit)) {
-        /* purecov: begin deadcode */
-        CREATE_REPLY(p);
-        IFDBG(D_NONE, FN; STRLIT("Got terminate_and_exit from client");
-              SYCEXP(p->synode););
-        reply->op = xcom_client_reply;
-        reply->cli_err = REQUEST_OK;
-        SEND_REPLY;
-        /*
-          The function frees sites which is used by SEND_REPLY,
-          so it should be called after SEND_REPLY.
-        */
-        IFDBG(D_NONE, FN; STRLIT("terminate_and_exit"));
-        ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-        terminate_and_exit();
-        break;
-        /* purecov: end */
-      }
-      if (p->a && (p->a->body.c_t == get_event_horizon_type)) {
-        dispatch_get_event_horizon(site, p, reply_queue);
-        break;
-      }
-      if (p->a && (p->a->body.c_t == get_synode_app_data_type)) {
-        dispatch_get_synode_app_data(site, p, reply_queue);
-        break;
-      }
-      if (p->a && (p->a->body.c_t == add_node_type ||
-                   p->a->body.c_t == remove_node_type ||
-                   p->a->body.c_t == force_config_type ||
-                   p->a->body.c_t == set_event_horizon_type)) {
-        client_reply_code cli_err;
-        CREATE_REPLY(p);
-        reply->op = xcom_client_reply;
-        reply->cli_err = cli_err = can_execute_cfgchange(p);
-
-        SEND_REPLY;
-        if (cli_err != REQUEST_OK) {
-          break;
-        }
-      }
-      if (p->a && p->a->body.c_t == unified_boot_type) {
-        IFDBG(D_NONE, FN; STRLIT("Got unified_boot from client");
-              SYCEXP(p->synode););
-        IFDBG(D_NONE, FN;
-              COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
-        IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
-        XCOM_FSM(x_fsm_net_boot, void_arg(p->a));
-      }
-      if (p->a && p->a->body.c_t == add_node_type) {
-        IFDBG(D_NONE, FN; STRLIT("Got add_node from client");
-              SYCEXP(p->synode););
-        IFDBG(D_NONE, FN;
-              COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
-        IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
-        assert(get_site_def());
-      }
-      if (p->a && p->a->body.c_t == remove_node_type) {
-        IFDBG(D_NONE, FN; STRLIT("Got remove_node from client");
-              SYCEXP(p->synode););
-        IFDBG(D_NONE, FN;
-              COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
-        IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
-        assert(get_site_def());
-      }
-      if (p->a && p->a->body.c_t == set_event_horizon_type) {
-        IFDBG(D_NONE, FN; STRLIT("Got set_event_horizon from client");
-              SYCEXP(p->synode););
-        IFDBG(D_NONE, FN; NDBG(p->a->body.app_u_u.event_horizon, u));
-        IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
-        assert(get_site_def());
-      }
-      if (p->a && p->a->body.c_t == force_config_type) {
-        IFDBG(D_NONE, FN; STRLIT("Got new force config from client");
-              SYCEXP(p->synode););
-        IFDBG(D_NONE, FN;
-              COPY_AND_FREE_GOUT(dbg_list(&p->a->body.app_u_u.nodes)););
-        IFDBG(D_NONE, STRLIT("handle_client_msg "); NDBG(p->a->group_id, x));
-        assert(get_site_def());
-        XCOM_FSM(x_fsm_force_config, void_arg(p->a));
-      }
-      handle_client_msg(p);
-      break;
-    case initial_op:
-      break;
-    case read_op:
-      pm = get_cache(p->synode);
-      assert(pm);
-
-      handle_read(site, pm, reply_queue, p);
-      break;
-    case prepare_op:
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      IFDBG(D_NONE, FN; dbg_pax_msg(p));
-
-      /*
-       We can only be a productive Paxos Acceptor if we have been booted, i.e.
-       added to the group and received an up-to-date snapshot from some member.
-
-       We do not allow non-booted members to participate in Paxos because they
-       might be a reincarnation of a member that crashed and was then brought up
-       without having gone through the remove+add node path.
-       Since the pre-crash incarnation may have accepted a value for a given
-       synod but the post-crash incarnation has forgotten that fact, the
-       post-crash incarnation will fail to propagate the previously accepted
-       value to a higher ballot. Since majorities can overlap on a single node,
-       if the overlap node is the post-crash incarnation which has forgotten
-       about the previously accepted value, the higher ballot proposer may get
-       a different value accepted, leading to conflicting values to be accepted
-       for different proposers, which is a violation of the safety requirements
-       of the Paxos protocol.
-      */
-      if (ALWAYS_HANDLE_CONSENSUS || client_boot_done) {
-        handle_prepare(site, pm, reply_queue, p);
-      }
-      break;
-    case ack_prepare_op:
-    case ack_prepare_empty_op:
-      if (in_front || !is_cached(p->synode)) break;
-      pm = get_cache(p->synode);
-      if (p->force_delivery) pm->force_delivery = 1;
-      if (!pm->proposer.msg) break;
-      assert(pm && pm->proposer.msg);
-      handle_ack_prepare(site, pm, p);
-      break;
-    case accept_op:
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      IFDBG(D_NONE, FN; dbg_pax_msg(p));
-
-      /*
-       We can only be a productive Paxos Acceptor if we have been booted, i.e.
-       added to the group and received an up-to-date snapshot from some member.
-
-       We do not allow non-booted members to participate in Paxos because they
-       might be a reincarnation of a member that crashed and was then brought up
-       without having gone through the remove+add node path.
-       Since the pre-crash incarnation may have accepted a value for a given
-       synod but the post-crash incarnation has forgotten that fact, the
-       post-crash incarnation will fail to propagate the previously accepted
-       value to a higher ballot. Since majorities can overlap on a single node,
-       if the overlap node is the post-crash incarnation which has forgotten
-       about the previously accepted value, the higher ballot proposer may get
-       a different value accepted, leading to conflicting values to be accepted
-       for different proposers, which is a violation of the safety requirements
-       of the Paxos protocol.
-      */
-      if (ALWAYS_HANDLE_CONSENSUS || client_boot_done) {
-        handle_alive(site, reply_queue, p);
-
-        handle_accept(site, pm, reply_queue, p);
-      }
-      break;
-    case ack_accept_op:
-      if (in_front || !is_cached(p->synode)) break;
-      pm = get_cache(p->synode);
-      if (p->force_delivery) pm->force_delivery = 1;
-      if (!pm->proposer.msg) break;
-      assert(pm && pm->proposer.msg);
-      handle_ack_accept(site, pm, p);
-      break;
-    case recover_learn_op:
-      IFDBG(D_NONE, FN; STRLIT("recover_learn_op receive "); SYCEXP(p->synode));
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      update_max_synode(p);
-      {
-        IFDBG(D_NONE, FN; STRLIT("recover_learn_op learn "); SYCEXP(p->synode));
-        p->op = learn_op;
-        handle_learn(site, pm, p);
-      }
-      break;
-    case learn_op:
-    learnop:
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      update_max_synode(p);
-      handle_learn(site, pm, p);
-      break;
-    case tiny_learn_op:
-      if (p->msg_type == no_op) goto learnop;
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      handle_tiny_learn(site, pm, p);
-      break;
-    case skip_op:
-      pm = get_cache(p->synode);
-      assert(pm);
-      if (p->force_delivery) pm->force_delivery = 1;
-      handle_skip(site, pm, p);
-      break;
-    case i_am_alive_op:
-      /* Update max_synode, but use only p->max_synode, ignore p->synode */
-      if (!is_dead_site(p->group_id)) {
-        if (max_synode.group_id == p->synode.group_id &&
-            synode_gt(p->max_synode, max_synode)) {
-          set_max_synode(p->max_synode);
-        }
-      }
-      handle_alive(site, reply_queue, p);
-      break;
-    case are_you_alive_op:
-      handle_alive(site, reply_queue, p);
-      break;
-    case need_boot_op:
-      /* purecov: begin deadcode */
-      /* Only in run state. Test state and do it here because we need to use
-       * reply queue */
-      if (can_send_snapshot() &&
-          !synode_eq(get_site_def()->boot_key, null_synode)) {
-        handle_boot(site, reply_queue, p);
-      }
-      /* Wake senders waiting to connect, since new node has appeared */
-      wakeup_sender();
-      break;
-    /* purecov: end */
-    case gcs_snapshot_op:
-      /* Avoid duplicate snapshots and snapshots from zombies */
-      IFDBG(D_BUG, FN; SYCEXP(executed_msg););
-      IFDBG(D_BUG, FN; SYCEXP(start_config););
-      if (!synode_eq(start_config, get_highest_boot_key(p->gcs_snap)) &&
-          !is_dead_site(p->group_id)) {
-        update_max_synode(p);
-        /* For incoming messages, note delivery of snapshot from sender node */
-        note_snapshot(p->from);
-        XCOM_FSM(x_fsm_snapshot, void_arg(p->gcs_snap));
-      }
-      break;
-    case die_op:
-      /* assert("die horribly" == "need coredump"); */
-      {
-        GET_GOUT;
-        FN;
-        STRLIT("die_op ");
-        SYCEXP(executed_msg);
-        SYCEXP(delivered_msg);
-        SYCEXP(p->synode);
-        SYCEXP(p->delivered_msg);
-        SYCEXP(p->max_synode);
-        PRINT_GOUT;
-        FREE_GOUT;
-      }
-      /*
-      If the message with the number in  the  incoming  die_op  message
-      already  has  been  executed  (delivered),  then it means that we
-      actually got consensus on it, since otherwise we would  not  have
-      delivered it.Such a situation could arise if one of the nodes has
-      expelled the message from its cache, but others have not. So when
-      sending  out  a  request, we might get two different answers, one
-      indicating that we are too far behind  and  should  restart,  and
-      another  with  the  actual  consensus value. If the value arrives
-      first, we will deliver it, and then the die_op may arrive  later.
-      But  it this case it does not matter, since we got what we needed
-      anyway. It is only a partial guard against exiting without really
-      needing  it  of course, since the die_op may arrive first, and we
-      do not wait for a die_op from all the other nodes.  We  could  do
-      that  with  some extra housekeeping in the pax_machine (a new bit
-      vector), but I am not convinced that it is worth the effort.
-      */
-      if (!synode_lt(p->synode, executed_msg)) {
-        ADD_DBG(D_FSM, add_event(EVENT_DUMP_PAD, string_arg("terminating"));)
-        g_critical("Node %u is unable to get message {%x %" PRIu64
-                   " %u}, since the group is too far "
-                   "ahead. Node will now exit.",
-                   get_nodeno(site), SY_MEM(p->synode));
-        terminate_and_exit();
-      }
-    default:
-      break;
+  if (p->op >= 0 && p->op < LAST_OP) {
+    if (site && site->dispatch_table) { /* Use site-specific dispatch if any */
+      if (site->dispatch_table[p->op])
+        site->dispatch_table[p->op](site, p, reply_queue);
+    } else {
+      if (dispatch_table[p->op]) dispatch_table[p->op](site, p, reply_queue);
+    }
+  } else {
+    G_WARNING("No possible handler for message %d %s", p->op,
+              pax_op_to_str(p->op));
   }
+
   if (oom_abort) {
     g_critical("Node %u has run out of memory and will now exit.",
                get_nodeno(site));
@@ -5300,11 +6440,12 @@ int acceptor_learner_task(task_arg arg) {
   int behind;
   END_ENV;
 
+  int64_t n{0};
+  pax_machine *pm{nullptr};
   TASK_BEGIN
 
   ep->rfd = (connection_descriptor *)get_void_arg(arg);
-
-  ep->in_buf = (srv_buf *)calloc(1, sizeof(srv_buf));
+  ep->in_buf = (srv_buf *)xcom_calloc(1, sizeof(srv_buf));
   ep->p = NULL;
   ep->buflen = 0;
   ep->buf = NULL;
@@ -5323,7 +6464,6 @@ int acceptor_learner_task(task_arg arg) {
 
 again:
   while (!xcom_shutdown) {
-    int64_t n;
     ep->site = 0;
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
@@ -5353,7 +6493,9 @@ again:
     if (n <= 0) {
       break;
     }
-    ep->site = find_site_def(ep->p->synode);
+    if (ep->p->op != client_msg) {  // Clients have no site
+      ep->site = find_site_def(ep->p->synode);
+    }
 
     /* Handle this connection on a local_server task instead of this
        acceptor_learner_task task. */
@@ -5363,8 +6505,8 @@ again:
       if (local_server_is_setup()) {
         /* Launch local_server task to handle this connection. */
         {
-          connection_descriptor *con =
-              (connection_descriptor *)malloc(sizeof(connection_descriptor));
+          connection_descriptor *con = (connection_descriptor *)xcom_malloc(
+              sizeof(connection_descriptor));
           *con = *ep->rfd;
           task_new(local_server, void_arg(con), "local_server",
                    XCOM_THREAD_DEBUG);
@@ -5454,14 +6596,15 @@ again:
         }
       }
       /* Reject any message that might compromise the integrity of a consensus
-       * instance. We do this by not processing any message which may change the
+       * instance. We do this by not processing any message which may change
+       * the
        * outcome if the consensus instance has been evicted from the cache */
       if (harmless(ep->p) ||          /* Harmless message */
           is_cached(ep->p->synode) || /* Already in cache */
-          (!ep->behind)) { /* Guard against cache pollution from other nodes */
+          (!ep->behind)) { /* Guard against cache pollution from other nodes
+                            */
 
         if (should_poll_cache(ep->p->op)) {
-          pax_machine *pm;
           TASK_CALL(wait_for_cache(&pm, ep->p->synode, 10));
           if (!pm) continue; /* Could not get a machine, discarding message. */
         }
@@ -5551,6 +6694,7 @@ int reply_handler_task(task_arg arg) {
   double dtime;
   END_ENV;
 
+  int64_t n{0};
   TASK_BEGIN
 
   ep->dtime = INITIAL_CONNECT_WAIT; /* Initial wait is short, to avoid
@@ -5573,7 +6717,6 @@ int reply_handler_task(task_arg arg) {
     }
     ep->dtime = INITIAL_CONNECT_WAIT;
     {
-      int64_t n;
       unchecked_replace_pax_msg(&ep->reply, pax_msg_new_0(null_synode));
 
       ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con.fd"));
@@ -5598,7 +6741,8 @@ int reply_handler_task(task_arg arg) {
             add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->reply->op)));
             add_event(EVENT_DUMP_PAD, string_arg("get_site_def()->boot_key"));
             add_synode_event(get_site_def()->boot_key););
-    /* Special test for need_snapshot, since node and site may not be consistent
+    /* Special test for need_snapshot, since node and site may not be
+     * consistent
      */
     if (ep->reply->op == need_boot_op &&
         !synode_eq(get_site_def()->boot_key, null_synode)) {
@@ -5615,7 +6759,8 @@ int reply_handler_task(task_arg arg) {
         ep->s->invalid = 1;
       }
     } else {
-      /* We only handle messages from this connection if the server is valid. */
+      /* We only handle messages from this connection if the server is valid.
+       */
       if (ep->s->invalid == 0)
         dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
     }
@@ -5651,6 +6796,11 @@ void xcom_sleep(unsigned int seconds) {
  * As there is no gethostid() on win, we use seconds since epoch instead,
  * so it might fail if you try simultaneous create sites at the same second.
  */
+
+#ifndef _WIN32
+#include <sys/utsname.h>
+#endif
+
 long xcom_unique_long(void) {
 #if defined(_WIN32)
   __time64_t ltime;
@@ -5658,7 +6808,10 @@ long xcom_unique_long(void) {
   _time64(&ltime);
   return (long)(ltime ^ GetCurrentProcessId());
 #else
-  return gethostid() ^ getpid();
+  struct utsname buf;
+  uname(&buf);
+  long id = (long)fnv_hash((unsigned char *)&buf, sizeof(buf), 0);
+  return id ^ getpid();
 #endif
 }
 
@@ -5680,11 +6833,19 @@ app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
   return a;
 }
 
-app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id) {
+app_data_ptr init_get_msg(app_data *a, uint32_t group_id, cargo_type const t) {
   init_app_data(a);
   a->app_key.group_id = a->group_id = group_id;
-  a->body.c_t = get_event_horizon_type;
+  a->body.c_t = t;
   return a;
+}
+
+app_data_ptr init_get_leaders_msg(app_data *a, uint32_t group_id) {
+  return init_get_msg(a, group_id, get_leaders_type);
+}
+
+app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id) {
+  return init_get_msg(a, group_id, get_event_horizon_type);
 }
 
 app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size) {
@@ -5695,17 +6856,9 @@ app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size) {
   return a;
 }
 
-app_data_ptr init_terminate_command(app_data *a) {
-  init_app_data(a);
-  a->body.c_t = x_terminate_and_exit;
-  return a;
-}
-
 static app_data_ptr init_get_synode_app_data_msg(
     app_data *a, uint32_t group_id, synode_no_array *const synodes) {
-  init_app_data(a);
-  a->app_key.group_id = a->group_id = group_id;
-  a->body.c_t = get_synode_app_data_type;
+  init_get_msg(a, group_id, get_synode_app_data_type);
   /* Move synodes (as in C++ move semantics) into a->body.app_u_u.synodes. */
   synode_array_move(&a->body.app_u_u.synodes, synodes);
   return a;
@@ -5809,8 +6962,8 @@ static gcs_snapshot *create_snapshot() {
           SYCEXP(gs->log_end));
 
     /* Set starting point of log to match the snapshot */
-    /* If we have a valid synode from application snapshot, see if it should be
-     * used */
+    /* If we have a valid synode from application snapshot, see if it should
+     * be used */
     if (!synode_eq(null_synode, app_lsn)) {
       /* If log_start is null_synode, always use valid synode from application
        * snapshot */
@@ -5881,7 +7034,7 @@ static int xcom_timer(task_arg arg) {
   XCOM_FSM(x_fsm_timeout, double_arg(ep->t));
   FINALLY
   if (stack == x_timer) set_task(&x_timer, NULL);
-  IFDBG(D_BUG, FN; STRLIT(" timeout "));
+  IFDBG(D_CONS, FN; STRLIT(" timeout "));
   TASK_END;
 }
 
@@ -5913,15 +7066,15 @@ static int x_fsm_completion_task(task_arg arg) {
   arg;
   XCOM_FSM(x_fsm_complete, null_arg);
   FINALLY
-  IFDBG(D_BUG, FN; STRLIT(" delivered "));
+  IFDBG(D_FSM, FN; STRLIT(" delivered "));
   TASK_END;
 }
 /* purecov: end */
 
 /* Send x_fsm_complete to xcom FSM in the context of the xcom thread. The
  * calling thread and the xcom thread must be in a rendezvous. Using a task to
- * deliver a message is an abstraction inversion, but it's the simplest solution
- * until we get a proper queue-based communication system going. */
+ * deliver a message is an abstraction inversion, but it's the simplest
+ * solution until we get a proper queue-based communication system going. */
 /* purecov: begin deadcode */
 void send_x_fsm_complete() {
   task_new(x_fsm_completion_task, null_arg, "x_fsm_completion_task",
@@ -5996,11 +7149,12 @@ static int better_snapshot(gcs_snapshot *gcs) {
 static void handle_x_snapshot(gcs_snapshot *gcs) {
   import_config(gcs);
   if (get_nodeno(get_site_def()) == VOID_NODE_NO) {
-    IFDBG(D_BUG, FN; STRLIT("Not member of site, not executing log"));
+    IFDBG(D_BASE, FN; STRLIT("Not member of site, not executing log"));
     gcs->log_end =
         gcs->log_start; /* Avoid executing log if not member of site */
   }
-  handle_app_snap_cb(&gcs->app_snap, gcs->log_start, gcs->log_end);
+  if (handle_app_snap_cb)
+    handle_app_snap_cb(&gcs->app_snap, gcs->log_start, gcs->log_end);
   set_max_synode(gcs->log_end);
   set_executed_msg(incr_synode(gcs->log_start));
   log_start_max = gcs->log_start;
@@ -6106,6 +7260,7 @@ static int xcom_fsm_start_enter(xcom_actions action, task_arg fsmargs,
   push_dbg(D_FSM);
   IFDBG(D_NONE, FN; STRLIT("state x_start"););
   empty_prop_input_queue();
+  empty_synode_number_pool();
   reset_snapshot_mask();
   set_last_received_config(null_synode);
 
@@ -6119,10 +7274,16 @@ static int handle_fsm_net_boot(task_arg fsmargs, xcom_fsm_state *ctxt,
   install_node_group(a);
   if (is_member(get_site_def())) {
     empty_prop_input_queue();
+    empty_synode_number_pool();
     {
       synode_no start = get_site_def()->start;
       if (start.msgno == 0) { /* May happen during initial boot */
-        start.msgno = 1;
+        start.msgno = 1;      /* Start with first xcom message */
+        /* If msgno is 0, it means that this node installed a unified_boot
+        which came from the client, thus this node is the one that will send
+        the unified_boot on xcom, so set the node number of start accordingly
+      */
+        start.node = get_nodeno(get_site_def());
       }
       set_executed_msg(start);
     }
@@ -6136,6 +7297,7 @@ static int handle_fsm_net_boot(task_arg fsmargs, xcom_fsm_state *ctxt,
 static int handle_fsm_snapshot(task_arg fsmargs, xcom_fsm_state *ctxt) {
   gcs_snapshot *gcs = (gcs_snapshot *)get_void_arg(fsmargs);
   empty_prop_input_queue();
+  empty_synode_number_pool();
   set_log_end(gcs);
   handle_x_snapshot(gcs);
 
@@ -6162,6 +7324,7 @@ static int handle_fsm_snapshot(task_arg fsmargs, xcom_fsm_state *ctxt) {
 /* purecov: begin deadcode */
 static int handle_fsm_snapshot_wait(xcom_fsm_state *ctxt) {
   empty_prop_input_queue();
+  empty_synode_number_pool();
   start_x_timer(SNAPSHOT_WAIT_TIME);
   pop_dbg();
   SET_X_FSM_STATE(xcom_fsm_snapshot_wait_enter);
@@ -6282,8 +7445,8 @@ static int handle_snapshot(task_arg fsmargs, xcom_fsm_state *ctxt) {
 static int xcom_fsm_snapshot_wait(xcom_actions action, task_arg fsmargs,
                                   xcom_fsm_state *ctxt) {
   switch (action) {
-      /* If we get x_fsm_local_snapshot, we are called from the recovery
-       * manager thread */
+    /* If we get x_fsm_local_snapshot, we are called from the recovery
+     * manager thread */
     case x_fsm_local_snapshot:
       return handle_local_snapshot(fsmargs, ctxt);
 
@@ -6451,8 +7614,8 @@ static int xcom_fsm_run(xcom_actions action, task_arg fsmargs,
   return 0;
 }
 
-/* Trampoline which loops calling thunks pointed to by ctxt.state_fp until 0 is
- * returned. Return pointer to ctxt. */
+/* Trampoline which loops calling thunks pointed to by ctxt.state_fp until 0
+ * is returned. Return pointer to ctxt. */
 xcom_fsm_state *xcom_fsm_impl(xcom_actions action, task_arg fsmargs) {
   static xcom_fsm_state ctxt = X_FSM_STATE(xcom_fsm_init);
 
@@ -6759,8 +7922,8 @@ int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
     /* This code will check if, in case of an upgrade if:
        - We are a node able to speak IPv6.
        - If we are connecting to a group that does not speak IPv6.
-       - If our address is IPv4-compatible in order for the old group to be able
-       to contact us back. */
+       - If our address is IPv4-compatible in order for the old group to be
+       able to contact us back. */
     if (is_cargo_type(a, add_node_type) && x_proto < minimum_ipv6_version() &&
         !are_we_allowed_to_upgrade_to_v6(a)) {
       retval = -1;
@@ -6799,9 +7962,11 @@ end:
 /* purecov: begin tested */
 /*
  * Tested by TEST_F(XComMultinodeSmokeTest,
- * 3_nodes_member_crashes_with_dieop_and_joins_again_immediately) GCS smoke test
+ * 3_nodes_member_crashes_with_dieop_and_joins_again_immediately) GCS smoke
+ * test
  */
 int64_t xcom_client_send_die(connection_descriptor *fd) {
+  if (!fd) return 0;
   uint32_t buflen = 0;
   char *buf = 0;
   int64_t retval = 0;
@@ -6865,9 +8030,11 @@ end:
 }
 /* purecov: end */
 
+#ifdef XCOM_STANDALONE
 /* purecov: begin deadcode */
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor *fd) {
+  if (!fd) return 0;
   app_data a;
   int64_t retval = 0;
   init_app_data(&a);
@@ -6878,7 +8045,21 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
+
+int64_t xcom_client_send_data_no_free(uint32_t size, char *data,
+                                      connection_descriptor *fd) {
+  if (!fd) return 0;
+  app_data a;
+  int64_t retval = 0;
+  init_app_data(&a);
+  a.body.c_t = app_type;
+  a.body.app_u_u.data.data_len = size;
+  a.body.app_u_u.data.data_val = data;
+  retval = xcom_send_client_app_data(fd, &a, 0);
+  return retval;
+}
 /* purecov: end */
+#endif
 
 #ifndef _WIN32
 #include <arpa/inet.h>
@@ -6962,7 +8143,7 @@ static pax_msg *socket_read_msg(connection_descriptor *rfd, pax_msg *p)
   get_header_1_0(header_buf, &msgsize, &x_type, &tag);
 
   /* Allocate buffer space for message */
-  bytes = (char *)calloc(1, msgsize);
+  bytes = (char *)xcom_calloc(1, msgsize);
 
   /* Read message */
   n = socket_read_bytes(rfd, bytes, msgsize);
@@ -6981,9 +8162,11 @@ static pax_msg *socket_read_msg(connection_descriptor *rfd, pax_msg *p)
   return (p);
 }
 
+#ifdef XCOM_STANDALONE
 /* purecov: begin deadcode */
 int xcom_client_boot(connection_descriptor *fd, node_list *nl,
                      uint32_t group_id) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
   retval = (int)xcom_send_client_app_data(
@@ -6992,6 +8175,7 @@ int xcom_client_boot(connection_descriptor *fd, node_list *nl,
   return retval;
 }
 /* purecov: end */
+#endif
 
 enum xcom_send_app_wait_result {
   SEND_REQUEST_FAILED = 0,
@@ -6999,7 +8183,8 @@ enum xcom_send_app_wait_result {
   REQUEST_BOTCHED,
   RETRIES_EXCEEDED,
   REQUEST_OK_RECEIVED,
-  REQUEST_FAIL_RECEIVED
+  REQUEST_FAIL_RECEIVED,
+  REQUEST_OK_REDIRECT
 };
 typedef enum xcom_send_app_wait_result xcom_send_app_wait_result;
 
@@ -7010,7 +8195,8 @@ typedef enum xcom_send_app_wait_result xcom_send_app_wait_result;
  * i.e. xdr_free((xdrproc_t)xdr_pax_msg, (char *)p)
  */
 static xcom_send_app_wait_result xcom_send_app_wait_and_get(
-    connection_descriptor *fd, app_data *a, int force, pax_msg *p) {
+    connection_descriptor *fd, app_data *a, int force, pax_msg *p,
+    leader_info_data *leaders) {
   int retval = 0;
   int retry_count = 10; /* Same as 'connection_attempts' */
   pax_msg *rp = 0;
@@ -7033,6 +8219,13 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
           if (retry_count > 1) xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
           xcom_sleep(1);
           break;
+        case REQUEST_REDIRECT:
+          G_DEBUG("cli_err %d", cli_err);
+          if (leaders && rp->rd && rp->rd->rt == leader_info) {
+            *leaders = steal_leader_info_data(rp->rd->reply_data_u.leaders);
+          }
+          xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
+          return REQUEST_OK_REDIRECT;
         default:
           G_WARNING("client protocol botched");
           return REQUEST_BOTCHED;
@@ -7048,16 +8241,20 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   return RETRIES_EXCEEDED;
 }
 
-int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force) {
+static int xcom_send_app_wait(connection_descriptor *fd, app_data *a, int force,
+                              leader_info_data *leaders) {
   pax_msg p;
   int result = 0;
-  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(fd, a, force, &p);
+  memset(&p, 0, sizeof(p));
+  xcom_send_app_wait_result res =
+      xcom_send_app_wait_and_get(fd, a, force, &p, leaders);
   switch (res) {
     case SEND_REQUEST_FAILED:
     case RECEIVE_REQUEST_FAILED:
     case REQUEST_BOTCHED:
     case RETRIES_EXCEEDED:
     case REQUEST_FAIL_RECEIVED:
+    case REQUEST_OK_REDIRECT:
       result = 0;
       break;
     case REQUEST_OK_RECEIVED:
@@ -7074,13 +8271,14 @@ int xcom_send_cfg_wait(connection_descriptor *fd, node_list *nl,
   int retval = 0;
   IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(nl)););
   retval = xcom_send_app_wait(fd, init_config_with_group(&a, nl, ct, group_id),
-                              force);
+                              force, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
 
 int xcom_client_add_node(connection_descriptor *fd, node_list *nl,
                          uint32_t group_id) {
+  if (!fd) return 0;
   u_int i;
   for (i = 0; i < nl->node_list_len; i++) {
     assert(nl->node_list_val[i].proto.max_proto > x_unknown_proto);
@@ -7090,31 +8288,30 @@ int xcom_client_add_node(connection_descriptor *fd, node_list *nl,
 
 int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
                             uint32_t group_id) {
+  if (!fd) return 0;
   return xcom_send_cfg_wait(fd, nl, group_id, remove_node_type, 0);
 }
 
+static int xcom_check_reply(int const res) {
+  return res == REQUEST_OK_RECEIVED;
+}
+
+#if 0
 /* purecov: begin deadcode */
 int xcom_client_get_event_horizon(connection_descriptor *fd, uint32_t group_id,
                                   xcom_event_horizon *event_horizon) {
+  if (!fd) return 0;
   pax_msg p;
   app_data a;
   int result = 0;
 
-  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(
-      fd, init_get_event_horizon_msg(&a, group_id), 0, &p);
+  memset(&p, 0, sizeof(p));
 
-  switch (res) {
-    case RECEIVE_REQUEST_FAILED:
-    case REQUEST_BOTCHED:
-    case RETRIES_EXCEEDED:
-    case SEND_REQUEST_FAILED:
-    case REQUEST_FAIL_RECEIVED:
-      result = 0;
-      break;
-    case REQUEST_OK_RECEIVED:
-      *event_horizon = p.event_horizon;
-      result = 1;
-      break;
+  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(
+      fd, init_get_event_horizon_msg(&a, group_id), 0, &p, 0);
+  result = xcom_check_reply(res);
+  if (result) {
+    *event_horizon = p.event_horizon;
   }
 
   xdr_free((xdrproc_t)xdr_pax_msg, (char *)&p);
@@ -7127,19 +8324,22 @@ int xcom_client_get_event_horizon(connection_descriptor *fd, uint32_t group_id,
 /* purecov: begin deadcode */
 int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
                                   xcom_event_horizon event_horizon) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
   retval = xcom_send_app_wait(
-      fd, init_set_event_horizon_msg(&a, group_id, event_horizon), 0);
+      fd, init_set_event_horizon_msg(&a, group_id, event_horizon), 0, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
 /* purecov: end */
+#endif
 
 int xcom_client_get_synode_app_data(connection_descriptor *const fd,
                                     uint32_t group_id,
                                     synode_no_array *const synodes,
                                     synode_app_data_array *const reply) {
+  if (!fd) return 0;
   bool_t const success = TRUE;
   bool_t const failure = FALSE;
   bool_t result = failure;
@@ -7151,13 +8351,15 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
   init_get_synode_app_data_msg(&a, group_id, synodes);
 
   {
-    xcom_send_app_wait_result res = xcom_send_app_wait_and_get(fd, &a, 0, &p);
+    xcom_send_app_wait_result res =
+        xcom_send_app_wait_and_get(fd, &a, 0, &p, 0);
     switch (res) {
       case RECEIVE_REQUEST_FAILED:
       case REQUEST_BOTCHED:
       case RETRIES_EXCEEDED:
       case SEND_REQUEST_FAILED:
-      case REQUEST_FAIL_RECEIVED: {
+      case REQUEST_FAIL_RECEIVED:
+      case REQUEST_OK_REDIRECT: {
         G_TRACE(
             "xcom_client_get_synode_app_data: XCom did not have the required "
             "%u "
@@ -7169,7 +8371,8 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
         u_int const nr_synodes_received =
             p.requested_synode_app_data.synode_app_data_array_len;
         G_TRACE(
-            "xcom_client_get_synode_app_data: Got %u synode payloads, we asked "
+            "xcom_client_get_synode_app_data: Got %u synode payloads, we "
+            "asked "
             "for %u.",
             nr_synodes_received, nr_synodes_requested);
 
@@ -7197,29 +8400,27 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
    when received as a client message in dispatch_op.
    Should have separate opcode from normal add/remove,
    like force config_type */
-int xcom_client_force_add_node(connection_descriptor *, node_list *nl,
+int xcom_client_force_add_node(connection_descriptor *fd, node_list *nl,
                                uint32_t group_id) {
+  if (!fd) return 0;
   return xcom_send_cfg_wait(fd, nl, group_id, add_node_type, 1);
 }
 
-int xcom_client_force_remove_node(connection_descriptor *, node_list *nl,
+int xcom_client_force_remove_node(connection_descriptor *fd, node_list *nl,
                                   uint32_t group_id) {
+  if (!fd) return 0;
   return xcom_send_cfg_wait(fd, nl, group_id, remove_node_type, 1);
 }
 #endif
 
-int xcom_client_force_config(connection_descriptor *fd, node_list *nl,
-                             uint32_t group_id) {
-  return xcom_send_cfg_wait(fd, nl, group_id, force_config_type, 1);
-}
-
 /* purecov: begin deadcode */
 int xcom_client_enable_arbitrator(connection_descriptor *fd) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
   init_app_data(&a);
   a.body.c_t = enable_arbitrator;
-  retval = xcom_send_app_wait(fd, &a, 0);
+  retval = xcom_send_app_wait(fd, &a, 0, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
@@ -7227,23 +8428,12 @@ int xcom_client_enable_arbitrator(connection_descriptor *fd) {
 
 /* purecov: begin deadcode */
 int xcom_client_disable_arbitrator(connection_descriptor *fd) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
   init_app_data(&a);
   a.body.c_t = disable_arbitrator;
-  retval = xcom_send_app_wait(fd, &a, 0);
-  xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
-  return retval;
-}
-/* purecov: end */
-
-/* purecov: begin deadcode */
-int xcom_client_terminate_and_exit(connection_descriptor *fd) {
-  app_data a;
-  int retval = 0;
-  init_app_data(&a);
-  a.body.c_t = x_terminate_and_exit;
-  retval = xcom_send_app_wait(fd, &a, 0);
+  retval = xcom_send_app_wait(fd, &a, 0, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
@@ -7252,21 +8442,99 @@ int xcom_client_terminate_and_exit(connection_descriptor *fd) {
 /* purecov: begin deadcode */
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
   init_app_data(&a);
   a.body.c_t = set_cache_limit;
   a.body.app_u_u.cache_limit = cache_limit;
-  retval = xcom_send_app_wait(fd, &a, 0);
+  retval = xcom_send_app_wait(fd, &a, 0, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
 /* purecov: end */
 
 int xcom_client_convert_into_local_server(connection_descriptor *const fd) {
+  if (!fd) return 0;
   app_data a;
   int retval = 0;
-  retval = xcom_send_app_wait(fd, init_convert_into_local_server_msg(&a), 0);
+  retval = xcom_send_app_wait(fd, init_convert_into_local_server_msg(&a), 0, 0);
+  xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+  return retval;
+}
+
+/* Set max number of leaders */
+void init_set_max_leaders(uint32_t group_id, app_data *a, node_no max_leaders) {
+  init_app_data(a);
+  a->app_key.group_id = a->group_id = group_id;
+  a->body.c_t = set_max_leaders;
+  a->body.app_u_u.max_leaders = max_leaders;
+}
+
+/* Set max number of leaders */
+int xcom_client_set_max_leaders(connection_descriptor *fd, node_no max_leaders,
+                                uint32_t group_id) {
+  if (!fd) return 0;
+  app_data a;
+  int retval = 0;
+  init_set_max_leaders(group_id, &a, max_leaders);
+  retval = xcom_send_app_wait(fd, &a, 0, 0);
+  xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+  return retval;
+}
+
+leader_array new_leader_array(u_int n, char const *names[]) {
+  leader_array leaders = alloc_leader_array(n);
+  for (u_int i = 0; i < n; i++) {
+    leaders.leader_array_val[i].address = strdup(names[i]);
+  }
+  return leaders;
+}
+
+/* Set new set of active leaders. Does not deallocate leaders. */
+void init_set_leaders(uint32_t group_id, app_data *a,
+                      leader_array const leaders) {
+  init_app_data(a);
+  a->app_key.group_id = a->group_id = group_id;
+  a->body.c_t = set_leaders_type;
+  // We could have avoided this copy, but having leaders as const
+  // makes it easier to reason about sharing
+  a->body.app_u_u.leaders = clone_leader_array(leaders);
+}
+
+/* Set new set of active leaders. */
+void init_set_leaders(uint32_t group_id, app_data *a, u_int n,
+                      char const *names[]) {
+  leader_array leaders = new_leader_array(n, names);
+  init_set_leaders(group_id, a, leaders);
+  // leaders have been copied, so deallocate
+  xdr_free((xdrproc_t)xdr_leader_array, (char *)(&leaders));
+}
+
+void init_set_leaders(uint32_t group_id, app_data *leader_app,
+                      leader_array const leaders, app_data *max_app,
+                      node_no max_leaders) {
+  init_set_leaders(group_id, leader_app, leaders);
+  init_set_max_leaders(group_id, max_app, max_leaders);
+  leader_app->next = max_app;
+}
+
+void init_set_leaders(uint32_t group_id, app_data *leader_app, u_int n,
+                      char const *names[], app_data *max_app,
+                      node_no max_leaders) {
+  leader_array leaders = new_leader_array(n, names);
+  init_set_leaders(group_id, leader_app, leaders, max_app, max_leaders);
+  // leaders have been copied, so deallocate
+  xdr_free((xdrproc_t)xdr_leader_array, (char *)(&leaders));
+}
+
+/* Set new set of active leaders. */
+int xcom_client_set_leaders(connection_descriptor *fd, u_int n,
+                            char const *names[], uint32_t group_id) {
+  if (!fd) return 0;
+  app_data a;
+  init_set_leaders(group_id, &a, n, names);
+  int retval = xcom_send_app_wait(fd, &a, 0, 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
 }
@@ -7279,4 +8547,480 @@ get_network_management_interface() {
 std::unique_ptr<Network_provider_operations_interface>
 get_network_operations_interface() {
   return std::make_unique<Network_Management_Interface>();
+}
+
+/* Set new set of active leaders and number of leaders. */
+int xcom_client_set_leaders(connection_descriptor *fd, u_int n,
+                            char const *names[], node_no max_leaders,
+                            uint32_t group_id) {
+  if (!fd) return 0;
+  app_data leader_app;
+  app_data max_app;
+  int retval = 0;
+  init_set_leaders(group_id, &leader_app, n, names, &max_app, max_leaders);
+  retval = xcom_send_app_wait(fd, &leader_app, 0, 0);
+  // leader_app and max_app have been linked, so unlink
+  // to avoid deallocating the stack objects.
+  leader_app.next = nullptr;
+  max_app.next = nullptr;
+  xdr_free((xdrproc_t)xdr_app_data, (char *)&leader_app);
+  xdr_free((xdrproc_t)xdr_app_data, (char *)&max_app);
+  return retval;
+}
+
+int xcom_client_get_leaders(connection_descriptor *fd, uint32_t group_id,
+                            leader_info_data *leaders) {
+  if (!fd) return 0;
+  pax_msg p;
+  app_data a;
+  int result = 0;
+
+  memset(&p, 0, sizeof(p));
+
+  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(
+      fd, init_get_msg(&a, group_id, get_leaders_type), 0, &p, 0);
+  result = xcom_check_reply(res);
+  if (result) {
+    // Steal the returned data
+    *leaders = steal_leader_info_data(p.rd->reply_data_u.leaders);
+  }
+
+  xdr_free((xdrproc_t)xdr_pax_msg, (char *)&p);
+  xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+
+  return result;
+}
+
+#if 0
+/* Called when leader changes */
+static MY_ATTRIBUTE((unused)) xcom_election_cb election_cb = NULL;
+
+void set_xcom_election_cb(xcom_election_cb x) { election_cb = x; }
+#endif
+
+// The timer code and the associated Paxos FSM stuff is only used for
+// tracking/debugging Paxos state transitions at the moment, but I believe the
+// FSM is correct, and if used for actually handling the incoming messages,
+// would make the code simpler, and easier to understand and reason about by
+// making lots of tests scattered around in the code unnecessary. I have had
+// this on the backburner for a long time, and used the single writer worklog
+// to test it, but did not dare to actually replace the existing logic in the
+// scope of this worklog.Take it as a hint for future improvement of the code
+// base...
+
+// The time queue as configured now will allow up to 10 seconds delay with
+// TICK_PERIOD (0.01) seconds granularity. All machines which map to the same
+// time slot will wake up simultaneously. The complexity when inserting or
+// removing a pax_machine is O(1), but this is somewhat offset by the need to
+// advance the current tick for every TICK_PERIOD. Not a problem in practice,
+// and the code is dead simple.
+
+/* Max number of ticks before wrapping. With 10 ms per step, this will give a
+ * max delay of 10 seconds, which is plenty for the Paxos timers */
+
+enum { paxos_timer_range = 1000 };
+/* Ten milliseconds granularity is sufficient */
+#define TICK_PERIOD 0.01
+
+/* The index into the time queue */
+static unsigned int current_tick = 0;
+
+/* The time queue is an array of timers. Each timer is the head of
+a possibly empty list of timers */
+
+static linkage time_queue[paxos_timer_range];
+
+static void init_time_queue() {
+  unsigned int i;
+  for (i = 0; i < paxos_timer_range; i++) {
+    link_init(&time_queue[i], TYPE_HASH("time_queue"));
+  }
+}
+
+/* Put pax_machine into the time queue at the correct place */
+static void paxos_twait(pax_machine *p, unsigned int t) {
+  /* Guard aginst 0 delay, which would become max delay */
+  if (0 == t) t = 1;
+  unsigned int pos = (current_tick + t) % paxos_timer_range;
+  link_into(&p->watchdog, &time_queue[pos]);
+  assert(!link_empty(&time_queue[pos]));
+}
+
+/* Remove pax_machine from timer queue */
+static void paxos_twait_cancel(pax_machine *p) { link_out(&p->watchdog); }
+
+/* Wake all pax_machines waiting at time slot t */
+static void paxos_wakeup(unsigned int t) {
+  linkage *head = &time_queue[t];
+  linkage *p;
+  if (!link_empty(head)) {
+    IFDBG(D_CONS, FN; NUMEXP(t); NUMEXP(link_empty(head)));
+  }
+  while (!link_empty(head)) {
+    p = link_first(head);
+    paxos_timeout(container_of(p, pax_machine, watchdog));
+    link_out(p);
+  }
+}
+
+/* Advance current_tick to next slot and wake all pax_machines there */
+static void paxos_timer_advance() {
+  current_tick = (current_tick + 1) % paxos_timer_range;
+  paxos_wakeup(current_tick);
+}
+
+/* Fire any expired timer for a Paxos machine */
+static int paxos_timer_task(task_arg arg MY_ATTRIBUTE((unused))) {
+  DECL_ENV
+  double start;
+  END_ENV;
+  TASK_BEGIN
+  ep->start = task_now();
+  while (!xcom_shutdown) {
+    ep->start += TICK_PERIOD;
+    TASK_DELAY_UNTIL(ep->start);
+    paxos_timer_advance();
+  }
+  FINALLY
+  IFDBG(D_CONS, FN; STRLIT(" shutdown "));
+  TASK_END;
+}
+
+/* The state functions/thunks */
+static int paxos_fsm_p1_master_enter(pax_machine *paxos, site_def const *site,
+                                     paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p1_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p2_master_enter(pax_machine *paxos, site_def const *site,
+                                     paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p2_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p2_slave_enter(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p2_slave_wait(pax_machine *paxos, site_def const *site,
+                                   paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p3_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p3_slave_enter(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_p3_slave_wait(pax_machine *paxos, site_def const *site,
+                                   paxos_event event, pax_msg *mess);
+
+static int paxos_fsm_finished(pax_machine *paxos, site_def const *site,
+                              paxos_event event, pax_msg *mess);
+
+typedef void (*paxos_state_action)(pax_machine *paxos, site_def const *site,
+                                   pax_msg *mess);
+
+static int accept_new_prepare(pax_machine *paxos, pax_msg *mess) {
+  return noop_match(paxos, mess) ||
+         gt_ballot(mess->proposal, paxos->acceptor.promise);
+}
+
+static int accept_new_accept(pax_machine *paxos, pax_msg *mess) {
+  return noop_match(paxos, mess) ||
+         !gt_ballot(paxos->acceptor.promise, mess->proposal);
+}
+
+static int own_message(pax_msg *mess, site_def const *site) {
+  return is_local_node(mess->from, site);
+}
+
+// Default paxos timeout in ticks
+// Change this if the FSM is used for anything else than debugging
+unsigned int constexpr const paxos_default_timeout = 100;
+
+/* You are in a maze of little twisting functions ... */
+
+static void action_paxos_prepare(pax_machine *paxos, site_def const *site,
+                                 pax_msg *mess) {
+  if (own_message(mess, site)) {
+    /* Wait for ack_prepare */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p1_master_wait);
+  } else {
+    /* Wait for accept */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_slave_enter);
+  }
+  paxos_twait(paxos, paxos_default_timeout);
+}
+
+static void action_paxos_accept(pax_machine *paxos, site_def const *site,
+                                pax_msg *mess) {
+  if (own_message(mess, site)) {
+    /* Wait for ack_accept */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_master_wait);
+  } else {
+    /* Wait for learn */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p3_slave_enter);
+  }
+  paxos_twait(paxos, paxos_default_timeout);
+}
+
+static void action_paxos_learn(pax_machine *paxos, site_def const *site,
+                               pax_msg *mess) {
+  (void)site;
+  (void)mess;
+  /* We are finished */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_finished);
+  paxos_twait_cancel(paxos);
+}
+
+static void action_paxos_start(pax_machine *paxos, site_def const *site,
+                               pax_msg *mess) {
+  (void)site;
+  (void)mess;
+  /* Find value of this instance */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p1_master_enter);
+  paxos_twait(paxos, paxos_default_timeout);
+}
+
+static void action_new_prepare(pax_machine *paxos, site_def const *site,
+                               pax_msg *mess) {
+  (void)site;
+  if (accept_new_prepare(paxos, mess)) {
+    /* Wait for accept */
+    if (own_message(mess, site)) {
+      /* Wait for ack_prepare */
+      SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p1_master_enter);
+    } else {
+      /* Wait for accept */
+      SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_slave_enter);
+    }
+    paxos_twait(paxos, paxos_default_timeout);
+  }
+}
+
+static void action_ack_prepare(pax_machine *paxos, site_def const *site,
+                               pax_msg *mess) {
+  (void)mess;
+  if (check_propose(site, paxos)) {
+    /* Wait for accept */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_master_enter);
+  }
+}
+
+static void action_new_accept(pax_machine *paxos, site_def const *site,
+                              pax_msg *mess) {
+  if (accept_new_accept(paxos, mess)) {
+    /* Wait for accept */
+    if (own_message(mess, site)) {
+      /* Wait for ack_accept */
+      SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_master_enter);
+    } else {
+      /* Wait for learn */
+      SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p3_slave_enter);
+    }
+    paxos_twait(paxos, paxos_default_timeout);
+  }
+}
+
+static void action_ack_accept(pax_machine *paxos, site_def const *site,
+                              pax_msg *mess) {
+  (void)mess;
+  if (learn_ok(site, paxos)) {
+    /* Wait for learn message */
+    SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p3_master_wait);
+  }
+}
+
+static void action_ignorant(pax_machine *paxos, site_def const *site,
+                            pax_msg *mess) {
+  (void)paxos;
+  (void)site;
+  (void)mess;
+}
+
+/* Dispatch tables for each state */
+paxos_state_action p1_idle_vtbl[last_p_event] = {
+    action_paxos_prepare, NULL, action_paxos_accept, NULL, action_paxos_learn,
+    action_paxos_start,   NULL};
+paxos_state_action p1_master_enter_vtbl[last_p_event] = {action_new_prepare,
+                                                         action_ack_prepare,
+                                                         action_new_accept,
+                                                         NULL,
+                                                         action_paxos_learn,
+                                                         NULL,
+                                                         NULL};
+paxos_state_action p1_master_wait_vtbl[last_p_event] = {action_new_prepare,
+                                                        action_ack_prepare,
+                                                        action_new_accept,
+                                                        NULL,
+                                                        action_paxos_learn,
+                                                        NULL,
+                                                        NULL};
+paxos_state_action p2_master_enter_vtbl[last_p_event] = {action_new_accept,
+                                                         NULL,
+                                                         action_new_accept,
+                                                         action_ack_accept,
+                                                         action_paxos_learn,
+                                                         NULL,
+                                                         NULL};
+paxos_state_action p2_master_wait_vtbl[last_p_event] = {action_new_prepare,
+                                                        NULL,
+                                                        action_new_accept,
+                                                        action_ack_accept,
+                                                        action_paxos_learn,
+                                                        NULL,
+                                                        NULL};
+paxos_state_action p2_slave_wait_vtbl[last_p_event] = {action_new_prepare,
+                                                       NULL,
+                                                       action_new_accept,
+                                                       NULL,
+                                                       action_paxos_learn,
+                                                       NULL,
+                                                       NULL};
+paxos_state_action p3_master_wait_vtbl[last_p_event] = {action_new_prepare,
+                                                        NULL,
+                                                        action_new_accept,
+                                                        NULL,
+                                                        action_paxos_learn,
+                                                        NULL,
+                                                        NULL};
+paxos_state_action p3_slave_wait_vtbl[last_p_event] = {action_new_prepare,
+                                                       NULL,
+                                                       action_new_accept,
+                                                       NULL,
+                                                       action_paxos_learn,
+                                                       NULL,
+                                                       NULL};
+paxos_state_action p_finished_vtbl[last_p_event] = {
+    action_ignorant, NULL, action_ignorant, NULL, NULL, NULL, NULL};
+
+static inline void dispatch_p_event(paxos_state_action *vtbl,
+                                    pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  if (vtbl[event]) {
+    vtbl[event](paxos, site, mess);
+  }
+}
+
+/* init state */
+int paxos_fsm_idle(pax_machine *paxos, site_def const *site, paxos_event event,
+                   pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p1_idle_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Phase 1 master enter */
+static int paxos_fsm_p1_master_enter(pax_machine *paxos, site_def const *site,
+                                     paxos_event event, pax_msg *mess) {
+  (void)site;
+  (void)event;
+  (void)mess;
+  IFDBG(D_CONS, FN;);
+  /* Send prepare and start timer */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p1_master_wait);
+  return 0;
+}
+
+/* Phase 1 master wait */
+static int paxos_fsm_p1_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p1_master_wait_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Phase 2 master enter */
+static int paxos_fsm_p2_master_enter(pax_machine *paxos, site_def const *site,
+                                     paxos_event event, pax_msg *mess) {
+  (void)site;
+  (void)event;
+  (void)mess;
+  IFDBG(D_CONS, FN;);
+  /* Send prepare and start timer */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_master_wait);
+  return 0;
+}
+
+/* Phase 2 master wait */
+static int paxos_fsm_p2_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p2_master_wait_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Phase 2 slave enter */
+static int paxos_fsm_p2_slave_enter(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  (void)site;
+  (void)event;
+  (void)mess;
+  IFDBG(D_CONS, FN;);
+  /* Start timer */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p2_slave_wait);
+  return 1;
+}
+
+/* Phase 2 slave wait */
+static int paxos_fsm_p2_slave_wait(pax_machine *paxos, site_def const *site,
+                                   paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p2_slave_wait_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Phase 3 master wait */
+static int paxos_fsm_p3_master_wait(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p3_master_wait_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Phase 3 slave enter */
+static int paxos_fsm_p3_slave_enter(pax_machine *paxos, site_def const *site,
+                                    paxos_event event, pax_msg *mess) {
+  (void)site;
+  (void)event;
+  (void)mess;
+  IFDBG(D_CONS, FN;);
+  /* Start timer */
+  SET_PAXOS_FSM_STATE(paxos, paxos_fsm_p3_slave_wait);
+  return 1;
+}
+
+/* Phase 3 slave wait */
+static int paxos_fsm_p3_slave_wait(pax_machine *paxos, site_def const *site,
+                                   paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p3_slave_wait_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+/* Finished */
+static int paxos_fsm_finished(pax_machine *paxos, site_def const *site,
+                              paxos_event event, pax_msg *mess) {
+  IFDBG(D_CONS, FN;);
+  dispatch_p_event(p_finished_vtbl, paxos, site, event, mess);
+  return 0;
+}
+
+#define X(b) #b
+const char *paxos_event_name[] = {p_events};
+#undef X
+
+/* Trampoline which loops calling thunks pointed to by paxos->state.state_fp
+ * until 0 is returned. */
+static void paxos_fsm(pax_machine *paxos, site_def const *site,
+                      paxos_event event, pax_msg *mess) {
+  /* Crank the state machine until it stops */
+  IFDBG(D_CONS, FN; PTREXP(paxos); SYCEXP(paxos->synode);
+        BALCEXP(mess->proposal); STRLIT(paxos->state.state_name); STRLIT(" : ");
+        STRLIT(paxos_event_name[event]));
+  while (paxos->state.state_fp(paxos, site, event, mess)) {
+    IFDBG(D_CONS, FN; PTREXP(paxos); SYCEXP(paxos->synode);
+          BALCEXP(mess->proposal); STRLIT(paxos->state.state_name);
+          STRLIT(" : "); STRLIT(paxos_event_name[event]));
+  }
 }

@@ -96,6 +96,7 @@ SET(XCOM_SOURCES
   src/bindings/xcom/xcom/network/xcom_network_provider.cc
   src/bindings/xcom/xcom/network/xcom_network_provider_native_lib.cc
   src/bindings/xcom/xcom/network/xcom_network_provider_ssl_native_lib.cc
+  src/bindings/xcom/xcom/leader_info_data.cc
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
 

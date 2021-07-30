@@ -317,9 +317,9 @@ error:
 }
 
 #define OPENSSL_ERROR_LENGTH 512
-static int configure_ssl_fips_mode(const uint fips_mode) {
+static int configure_ssl_fips_mode(const int fips_mode) {
   int rc = -1;
-  unsigned int fips_mode_old = -1;
+  int fips_mode_old = -1;
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   unsigned long err_library = 0;
   if (fips_mode > 2) {
