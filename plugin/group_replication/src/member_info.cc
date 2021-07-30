@@ -45,7 +45,7 @@ Group_member_info::Group_member_info(
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
     const char *recovery_endpoints_arg, const char *view_change_uuid_arg,
-    PSI_mutex_key psi_mutex_key_arg)
+    bool allow_single_leader, PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -66,6 +66,7 @@ Group_member_info::Group_member_info(
                                                 : "DEFAULT"),
       m_view_change_uuid(view_change_uuid_arg ? view_change_uuid_arg
                                               : "AUTOMATIC"),
+      m_allow_single_leader(allow_single_leader),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -106,6 +107,7 @@ Group_member_info::Group_member_info(Group_member_info &other)
       primary_election_running(other.is_primary_election_running()),
       recovery_endpoints(other.get_recovery_endpoints()),
       m_view_change_uuid(other.get_view_change_uuid()),
+      m_allow_single_leader(other.get_allow_single_leader()),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -129,6 +131,7 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       primary_election_running(false),
       recovery_endpoints("DEFAULT"),
       m_view_change_uuid("AUTOMATIC"),
+      m_allow_single_leader(false),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
       m_skip_encode_view_change_uuid(false),
@@ -154,7 +157,8 @@ void Group_member_info::update(
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
-    const char *recovery_endpoints_arg, const char *view_change_uuid_arg) {
+    const char *recovery_endpoints_arg, const char *view_change_uuid_arg,
+    bool allow_single_leader) {
   MUTEX_LOCK(lock, &update_lock);
 
   hostname.assign(hostname_arg);
@@ -191,6 +195,7 @@ void Group_member_info::update(
   recovery_endpoints.assign(recovery_endpoints_arg);
 
   m_view_change_uuid.assign(view_change_uuid_arg);
+  m_allow_single_leader = allow_single_leader;
 }
 
 void Group_member_info::update(Group_member_info &other) {
@@ -207,7 +212,7 @@ void Group_member_info::update(Group_member_info &other) {
       other.get_member_weight(), other.get_lower_case_table_names(),
       other.get_default_table_encryption(),
       other.get_recovery_endpoints().c_str(),
-      other.get_view_change_uuid().c_str());
+      other.get_view_change_uuid().c_str(), other.get_allow_single_leader());
 }
 
 /*
@@ -310,6 +315,10 @@ void Group_member_info::encode_payload(
     encode_payload_item_string(buffer, PIT_VIEW_CHANGE_UUID,
                                m_view_change_uuid.c_str(),
                                m_view_change_uuid.length());
+
+  char allow_single_leader_aux = m_allow_single_leader ? '1' : '0';
+  encode_payload_item_char(buffer, PIT_ALLOW_SINGLE_LEADER,
+                           allow_single_leader_aux);
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
@@ -455,6 +464,15 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           m_view_change_uuid.assign(reinterpret_cast<const char *>(slider),
                                     static_cast<size_t>(payload_item_length));
           slider += payload_item_length;
+        }
+        break;
+
+      case PIT_ALLOW_SINGLE_LEADER:
+        if (slider + payload_item_length <= end) {
+          unsigned char allow_single_leader_aux = *slider;
+          slider += payload_item_length;
+          m_allow_single_leader =
+              (allow_single_leader_aux == '1') ? true : false;
         }
         break;
     }
@@ -745,6 +763,11 @@ void Group_member_info::set_recovery_endpoints(const char *endpoints) {
 string Group_member_info::get_view_change_uuid() {
   MUTEX_LOCK(lock, &update_lock);
   return m_view_change_uuid;
+}
+
+bool Group_member_info::get_allow_single_leader() {
+  MUTEX_LOCK(lock, &update_lock);
+  return m_allow_single_leader;
 }
 
 void Group_member_info::set_view_change_uuid(const char *view_change_cnf) {

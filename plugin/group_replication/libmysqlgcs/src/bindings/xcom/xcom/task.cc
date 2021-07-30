@@ -42,6 +42,7 @@
 #include <stdint.h>
 #endif
 #include "xcom/x_platform.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 
 #ifndef XCOM_WITHOUT_OPENSSL
@@ -71,6 +72,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <memory>
+
 #include "xcom/node_connection.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -98,6 +101,7 @@
 #endif
 
 extern const char *pax_op_to_str(int x);
+extern uint32_t get_my_xcom_id();
 
 task_arg null_arg = {a_end, {0}};
 
@@ -601,7 +605,7 @@ static int active_tasks = 0;
 task_env *task_new(task_func func, task_arg arg, const char *name, int debug) {
   task_env *t;
   if (link_empty(&free_tasks))
-    t = (task_env *)malloc(sizeof(task_env));
+    t = (task_env *)xcom_malloc(sizeof(task_env));
   else
     t = container_of(link_extract_first(&free_tasks), task_env, l);
   IFDBG(D_NONE, FN; PTREXP(t); STREXP(name); NDBG(active_tasks, d););
@@ -1104,9 +1108,11 @@ int block_fd(int fd) {
   return x;
 }
 
+#ifndef AGGRESSIVE_SWEEP
 /* purecov: begin deadcode */
 int is_only_task() { return link_first(&tasks) == link_last(&tasks); }
 /* purecov: end */
+#endif
 
 static task_env *first_runnable() { return (task_env *)link_first(&tasks); }
 
@@ -1325,8 +1331,6 @@ static inline task_event event_extract() {
 #endif
 
 /* purecov: begin deadcode */
-extern uint32_t get_my_xcom_id();
-
 void ev_print(task_event te) {
   enum { bufsize = 10000 };
   static char buf[bufsize];

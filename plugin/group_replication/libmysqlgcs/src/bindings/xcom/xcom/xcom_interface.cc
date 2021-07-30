@@ -45,6 +45,7 @@
 #include "xcom/xcom_cache.h"
 #include "xcom/xcom_common.h"
 #include "xcom/xcom_detector.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_profile.h"
 #include "xcom/xcom_transport.h"
 #include "xcom/xcom_vp_str.h"
@@ -58,6 +59,7 @@ static xcom_data_receiver xcom_receive_data;
 static xcom_local_view_receiver xcom_receive_local_view;
 static xcom_global_view_receiver xcom_receive_global_view;
 
+#ifdef XCOM_STANDALONE
 /* purecov: begin deadcode */
 void set_xcom_full_data_receiver(xcom_full_data_receiver x) {
   xcom_full_receive_data = x;
@@ -75,6 +77,7 @@ void set_xcom_full_global_view_receiver(xcom_full_global_view_receiver x) {
   xcom_full_receive_global_view = x;
 }
 /* purecov: end */
+#endif
 
 void set_xcom_data_receiver(xcom_data_receiver x) { xcom_receive_data = x; }
 
@@ -134,6 +137,11 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
 
   while (app) {
     if (app->body.c_t == app_type) { /* Decode application data */
+      if (!(app->unique_id.node == app->app_key.node &&
+            app->unique_id.msgno == app->app_key.msgno)) {
+        IFDBG(D_BASE, FN; if (pma) SYCEXP(pma->synode); SYCEXP(app->unique_id);
+              SYCEXP(app->app_key));
+      }
       if (full_doit) {
         /* purecov: begin deadcode */
         xcom_full_receive_data(site, pma, app, app_status);
@@ -141,7 +149,7 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
       } else {
         if (doit) {
           u_int copy_len = 0;
-          char *copy = (char *)malloc(app->body.app_u_u.data.data_len);
+          char *copy = (char *)xcom_malloc(app->body.app_u_u.data.data_len);
           if (copy == NULL) {
             /* purecov: begin inspected */
             G_ERROR("Unable to allocate memory for the received message.");
@@ -152,9 +160,10 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
             copy_len = app->body.app_u_u.data.data_len;
           }
           ADD_DBG(D_EXEC, add_synode_event(pma->synode););
-
-          xcom_receive_data(pma->synode, detector_node_set(site), copy_len,
-                            cache_get_last_removed(), copy);
+          synode_no origin = pma->synode;
+          origin.node = app->unique_id.node;
+          xcom_receive_data(pma->synode, origin, site, detector_node_set(site),
+                            copy_len, cache_get_last_removed(), copy);
         } else {
           /* purecov: begin deadcode */
           G_TRACE("Data message was not delivered.");
@@ -189,29 +198,27 @@ void deliver_view_msg(site_def const *site) {
 static node_set delivered_node_set;
 static site_def const *delivered_site;
 
-static int not_duplicate_view(site_def const *site) {
+static int not_duplicate_view(site_def const *site, node_set const ns) {
   int retval;
-  retval = !(site == delivered_site &&
-             equal_node_set(delivered_node_set, site->global_node_set));
+  retval = !(site == delivered_site && equal_node_set(delivered_node_set, ns));
   delivered_site = site;
-  copy_node_set(&site->global_node_set, &delivered_node_set);
+  copy_node_set(&ns, &delivered_node_set);
   return retval;
 }
 #endif
 
-void deliver_global_view_msg(site_def const *site, synode_no message_id) {
+void deliver_global_view_msg(site_def const *site, node_set const ns,
+                             synode_no message_id) {
   if (site) {
 #ifdef SUPPRESS_DUPLICATE_VIEWS
-    if (not_duplicate_view(site)) {
+    if (not_duplicate_view(site, ns)) {
 #endif
       if (xcom_full_receive_global_view) {
         /* purecov: begin deadcode */
-        xcom_full_receive_global_view(site, message_id,
-                                      clone_node_set(site->global_node_set));
+        xcom_full_receive_global_view(site, message_id, clone_node_set(ns));
         /* purecov: end */
       } else if (xcom_receive_global_view) {
-        xcom_receive_global_view(site->start, message_id,
-                                 clone_node_set(site->global_node_set),
+        xcom_receive_global_view(site->start, message_id, clone_node_set(ns),
                                  site->event_horizon);
       }
 #ifdef SUPPRESS_DUPLICATE_VIEWS

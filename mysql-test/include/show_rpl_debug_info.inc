@@ -138,6 +138,10 @@ while ($_rpl_server)
     query_vertical
     SELECT * FROM performance_schema.replication_group_member_actions;
     --echo
+    --echo **** replication_group_communication_information on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.replication_group_communication_information;
+    --echo
     --echo **** group replication stages on $CURRENT_CONNECTION ****
     query_vertical
     SELECT * FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";

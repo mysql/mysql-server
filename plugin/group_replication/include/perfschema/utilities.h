@@ -19,6 +19,9 @@
 #include <mysql/components/services/registry.h>
 #include <mysql/service_plugin_registry.h>
 
+#include <vector>
+#include "mysql/components/services/pfs_plugin_table_service.h"
+
 namespace gr {
 namespace perfschema {
 
@@ -34,6 +37,22 @@ class Registry_guard {
   }
 
   SERVICE_TYPE(registry) * get_registry() { return m_registry; }
+};
+
+class Position {
+ private:
+  unsigned int m_index{0};
+  unsigned int m_max{0};
+
+ public:
+  void set_max(unsigned int max) { m_max = max; }
+  bool has_more() { return m_index < m_max; }
+  void next() { m_index++; }
+  void reset() { m_index = 0; }
+  unsigned int get_index() { return m_index; }
+  void set_at(unsigned int index) { m_index = index; }
+  void set_at(Position *pos) { m_index = pos->get_index(); }
+  void set_after(Position *pos) { m_index = pos->get_index() + 1; }
 };
 
 }  // namespace perfschema

@@ -39,6 +39,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
 
 class Transaction_message_interface;
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
 /**
   @class Gcs_operations
@@ -289,6 +290,52 @@ class Gcs_operations {
     @retval GCS_NOK if unsuccessful
   */
   enum enum_gcs_error set_write_concurrency(uint32_t new_write_concurrency);
+
+  /**
+   * @brief Reconfigures the group's "consensus leaders."
+   *
+   * Instructs the underlying GCS to use @c leader as the single preferred
+   * consensus leader.
+   *
+   * The method is non-blocking, meaning that it shall only send the
+   * request to an underlying GCS. The final result can be polled via @c
+   * get_leaders.
+   *
+   * @param leader The member you desire to act as a consensus leader.
+   *
+   * @retval GCS_OK if successful
+   * @retval GCS_NOK if unsuccessful
+   */
+  enum enum_gcs_error set_leader(Gcs_member_identifier const &leader);
+
+  /**
+   * @brief Reconfigures the group's "consensus leaders."
+   *
+   * Instructs the underlying GCS to use every member as a consensus leader.
+   *
+   * The method is non-blocking, meaning that it shall only send the
+   * request to an underlying GCS. The final result can be polled via @c
+   * get_leaders.
+   *
+   * @retval GCS_OK if successful
+   * @retval GCS_NOK if unsuccessful
+   */
+  enum enum_gcs_error set_everyone_leader();
+
+  /**
+   * @brief Inspect the group's "consensus leader" configuration.
+   *
+   * @param[out] preferred_leaders The members specified as preferred leaders.
+   * @param[out] actual_leaders The members actually carrying out the leader
+   * role at this moment.
+   *
+   * @retval GCS_OK if successful, @c preferred_leaders and @c actual_leaders
+   * contain the result
+   * @retval GCS_NOK if unsuccessful
+   */
+  enum enum_gcs_error get_leaders(
+      std::vector<Gcs_member_identifier> &preferred_leaders,
+      std::vector<Gcs_member_identifier> &actual_leaders);
 
   /**
     Retrieves the group's "group communication protocol" value.

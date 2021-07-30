@@ -229,7 +229,7 @@ static void check_local_node_set(site_def *site, int *notify) {
   u_int i;
   u_int nodes = get_maxnodes(site);
 
-  for (i = 0; i < nodes && i < site->global_node_set.node_set_len; i++) {
+  for (i = 0; i < nodes && i < site->local_node_set.node_set_len; i++) {
     int detect = DETECT(site, i);
     if (site->local_node_set.node_set_val[i] != detect) {
       site->local_node_set.node_set_val[i] = detect;
@@ -239,7 +239,7 @@ static void check_local_node_set(site_def *site, int *notify) {
   }
 }
 
-static node_no leader(site_def const *s) {
+static node_no get_leader(site_def const *s) {
   if (s) {
     node_no leader = 0;
     for (leader = 0; leader < get_maxnodes(s); leader++) {
@@ -255,20 +255,15 @@ int iamtheleader(site_def const *s) {
   if (!s)
     return 0;
   else
-    return leader(s) == s->nodeno;
+    return get_leader(s) == s->nodeno;
 }
 
 extern synode_no executed_msg;
 extern synode_no max_synode;
 
-static site_def *last_p_site = 0;
 static site_def *last_x_site = 0;
 
 void invalidate_detector_sites(site_def *site) {
-  if (last_p_site == site) {
-    last_p_site = NULL;
-  }
-
   if (last_x_site == site) {
     last_x_site = NULL;
   }
@@ -282,7 +277,6 @@ int detector_task(task_arg arg [[maybe_unused]]) {
   END_ENV;
 
   TASK_BEGIN
-  last_p_site = 0;
   last_x_site = 0;
   ep->notify = 1;
   ep->local_notify = 1;
@@ -290,13 +284,8 @@ int detector_task(task_arg arg [[maybe_unused]]) {
   while (!xcom_shutdown) {
     {
       site_def *x_site = get_executor_site_rw();
-#if TASK_DBUG_ON
-      site_def const *p_site = get_proposer_site();
-      if (!p_site) p_site = get_site_def();
-#endif
 
       IFDBG(D_DETECT, FN; SYCEXP(executed_msg); SYCEXP(max_synode));
-      IFDBG(D_DETECT, FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
       IFDBG(D_DETECT, FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));
 
       if (x_site && get_nodeno(x_site) != VOID_NODE_NO) {
@@ -373,6 +362,7 @@ static void send_my_view(site_def const *site) {
   IFDBG(D_DETECT, FN;);
   a->body.c_t = view_msg;
   a->body.app_u_u.present = detector_node_set(site);
+  a->app_key = site->start;
   xcom_send(a, msg);
 }
 

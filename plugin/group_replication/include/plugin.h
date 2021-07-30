@@ -55,6 +55,7 @@
 class Autorejoin_thread;
 class Transaction_consistency_manager;
 class Member_actions_handler;
+class Consensus_leaders_handler;
 
 // Definition of system var structures
 
@@ -177,6 +178,7 @@ extern Compatibility_module *compatibility_mgr;
 extern Group_partition_handling *group_partition_handler;
 extern Blocked_transaction_handler *blocked_transaction_handler;
 extern Remote_clone_handler *remote_clone_handler;
+extern Consensus_leaders_handler *consensus_leaders_handler;
 // Latch used as the control point of the event driven
 // management of the transactions.
 extern Wait_ticket<my_thread_id> *transactions_latch;
@@ -209,7 +211,7 @@ bool is_autorejoin_enabled();
 uint get_number_of_autorejoin_tries();
 ulonglong get_rejoin_timeout();
 void declare_plugin_cloning(bool is_running);
-
+bool get_allow_single_leader();
 /**
   Encapsulates the logic necessary to attempt a rejoin, i.e. gracefully leave
   the group, terminate GCS infrastructure, terminate auto-rejoin relevant plugin

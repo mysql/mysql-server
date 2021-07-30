@@ -298,7 +298,7 @@ void Gcs_xcom_communication_protocol_changer::decrement_nr_packets_in_transit(
   assert(packet.get_cargo_type() != Cargo_type::CT_INTERNAL_STATE_EXCHANGE);
 
   /* Get the packet's origin. */
-  auto node_id = packet.get_delivery_synode().get_synod().node;
+  auto node_id = packet.get_origin_synode().get_synod().node;
   auto const *node = xcom_nodes.get_node(node_id);
   Gcs_member_identifier origin(node->get_member_id());
 

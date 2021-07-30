@@ -515,7 +515,8 @@ class Gcs_xcom_nodes {
     interpreted by XCOM to boot, add or remove nodes.
   */
 
-  bool encode(unsigned int *ptr_size, char ***ptr_addrs, blob **ptr_uuids);
+  bool encode(unsigned int *ptr_size, char const ***ptr_addrs,
+              blob **ptr_uuids);
 
  private:
   /*
@@ -543,7 +544,7 @@ class Gcs_xcom_nodes {
   /*
     Memory allocated to encode addresses.
   */
-  char **m_addrs;
+  char const **m_addrs;
 
   /*
     Memory allocated to encode uuids.

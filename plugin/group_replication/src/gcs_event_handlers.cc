@@ -1759,6 +1759,15 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
                    (*all_members_it)->get_view_change_uuid().c_str());
       goto cleaning;
     }
+
+    if (local_member_info->get_allow_single_leader() !=
+        (*all_members_it)->get_allow_single_leader()) {
+      result = 1;
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP,
+                   local_member_info->get_allow_single_leader(),
+                   (*all_members_it)->get_allow_single_leader());
+      goto cleaning;
+    }
   }
 
 cleaning:

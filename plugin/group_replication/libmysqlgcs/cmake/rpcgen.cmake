@@ -86,7 +86,7 @@ FOREACH(X xcom_vp)
   SET(x_vanilla_h ${XCOM_BASEDIR}/${X}.h.gen)
   SET(x_vanilla_c ${XCOM_BASEDIR}/${X}_xdr.c.gen)
 
-  IF(WIN32)
+  IF(NOT LINUX)
     # on windows system's there is no rpcgen, thence copy
     # the files in the source directory
     ADD_CUSTOM_COMMAND(OUTPUT ${x_gen_h} ${x_gen_c}
@@ -124,7 +124,7 @@ FOREACH(X xcom_vp)
       #
       COMMAND ${CMAKE_COMMAND} -E remove -f ${x_gen_h}
       COMMAND ${CMAKE_COMMAND} -E remove -f ${x_tmp_h}
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="" -Drpcgen_output=${x_tmp_h} -Dx_gen_h=${x_gen_h} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${enumfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=109 -Dversion="" -Drpcgen_output=${x_tmp_h} -Dx_gen_h=${x_gen_h} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${enumfix}
 
       #
       # Generate xdr functions for all versions of the xdr protocol
@@ -145,14 +145,15 @@ FOREACH(X xcom_vp)
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=105 -Dversion="_1_5" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=106 -Dversion="_1_6" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=107 -Dversion="_1_7" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="_1_8" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       #
       # The latest version is generated twice, once with the version suffix, and once without the suffix
       # To add a new version, change the two next lines so they correspond
       # to the latest version, and add a line for the previous version above
       # this comment block.
       #
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="_1_8" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=109 -Dversion="_1_9" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=109 -Dversion="" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       WORKING_DIRECTORY ${gen_xdr_dir}
 
       DEPENDS

@@ -11509,6 +11509,21 @@ ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_2
 ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_3
   eng "%s: Warning Level 3 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
 
+ER_GRP_RPL_SET_SINGLE_CONSENSUS_LEADER
+  eng "The member %s:%u, with UUID: %s, was set as the single preferred consensus leader."
+
+ER_GRP_RPL_ERROR_SET_SINGLE_CONSENSUS_LEADER
+  eng "Something went wrong trying to set the member %s:%u, with UUID: %s, as the single preferred consensus leader. Please query the performance_schema.replication_group_communication_information table to see whether the operation took effect, i.e. whether the preferred consensus leader matches the current primary. If not, consider electing a different primary to try again. Please check the error log and GCS_DEBUG_TRACE for more information that may help understanding what went wrong."
+
+ER_GRP_RPL_SET_MULTI_CONSENSUS_LEADER
+  eng "All members were set as consensus leaders."
+
+ER_GRP_RPL_ERROR_SET_MULTI_CONSENSUS_LEADER
+  eng "Something went wrong trying to set all members as consensus leaders. Please query the performance_schema.replication_group_communication_information table to see whether the operation took effect, i.e. whether the consensus leaders match all members. If not, consider resetting the group communication protocol to a version < 8.0.22, or switch to single-primary mode and back again to multi-primary mode, to try again. Please check the error log and GCS_DEBUG_TRACE for more information that may help understanding what went wrong."
+
+ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP
+  eng "This member is configured with a group_replication_paxos_single_leader option value of '%d' that is different from the group's value ('%d'). This member will now exit the group."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

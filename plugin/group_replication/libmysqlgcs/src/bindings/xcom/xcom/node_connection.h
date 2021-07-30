@@ -36,6 +36,7 @@
 #endif
 
 #include "xcom/network/include/network_provider.h"
+#include "xcom/xcom_memory.h"
 #include "xcom/xcom_proto.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -57,8 +58,8 @@ typedef struct connection_descriptor connection_descriptor;
 
 #ifndef XCOM_WITHOUT_OPENSSL
 static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
-  connection_descriptor *c =
-      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
+      (size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->ssl_fd = ssl_fd;
   c->connected_ = CON_NULL;
@@ -66,8 +67,8 @@ static inline connection_descriptor *new_connection(int fd, SSL *ssl_fd) {
 }
 #else
 static inline connection_descriptor *new_connection(int fd) {
-  connection_descriptor *c =
-      (connection_descriptor *)calloc((size_t)1, sizeof(connection_descriptor));
+  connection_descriptor *c = (connection_descriptor *)xcom_calloc(
+      (size_t)1, sizeof(connection_descriptor));
   c->fd = fd;
   c->connected_ = CON_NULL;
   return c;
