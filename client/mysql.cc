@@ -5173,6 +5173,11 @@ static const char *construct_prompt() {
               part_username ? part_username
                             : (current_user ? current_user : "(unknown)"));
           break;
+        case 'T':
+          if (mysql.server_status & SERVER_STATUS_IN_TRANS) {
+            processed_prompt.append("*");
+          }
+          break;
         case PROMPT_CHAR:
           processed_prompt.append(PROMPT_CHAR);
           break;
