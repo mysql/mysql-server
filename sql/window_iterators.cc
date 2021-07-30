@@ -1325,6 +1325,12 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           }
         }
 
+        // Empty frame
+        if (rowno > upper && !found_first) {
+          w.set_first_rowno_in_range_frame(rowno);
+          w.set_last_rowno_in_range_frame(rowno - 1);
+        }
+
         if ((have_first_value || have_last_value) &&
             (rowno <= last_rowno_in_cache) && found_first) {
           /*
