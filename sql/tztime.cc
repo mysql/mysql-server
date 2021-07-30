@@ -40,11 +40,11 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "guard.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"  // strmake
 #include "map_helpers.h"
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
@@ -1795,7 +1795,7 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   if (!name || name->is_empty()) return nullptr;
 
-  Mutex_guard guard(&tz_LOCK);
+  MUTEX_LOCK(guard, &tz_LOCK);
 
   int displacement;
   if (!str_to_offset(name->ptr(), name->length(), &displacement)) {
