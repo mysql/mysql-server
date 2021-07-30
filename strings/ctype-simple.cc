@@ -47,9 +47,14 @@
 #include "stdarg.h"
 #include "template_utils.h"
 
-static inline longlong longlong_with_sign(bool negative, longlong ll) {
-  return negative ? -static_cast<longlong>(ll) : static_cast<longlong>(ll);
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
+static inline longlong ulonglong_with_sign(bool negative, ulonglong ll) {
+  return negative ? -ll : ll;
 }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /*
   Returns the number of bytes required for strnxfrm().
@@ -532,7 +537,7 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return negative ? LLONG_MIN : LLONG_MAX;
   }
 
-  return longlong_with_sign(negative, i);
+  return ulonglong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;
@@ -607,7 +612,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs, const char *nptr, size_t l,
     return (~(ulonglong)0);
   }
 
-  return longlong_with_sign(negative, i);
+  return ulonglong_with_sign(negative, i);
 
 noconv:
   err[0] = EDOM;
