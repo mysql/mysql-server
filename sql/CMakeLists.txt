@@ -1073,7 +1073,12 @@ IF(WITH_ICU STREQUAL "bundled")
 ENDIF()
 
 IF(WIN32)
-  SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
+  SET(MYSQLD_SOURCE
+    main.cc
+    enable_win_jemalloc.cc
+    nt_servc.cc
+    nt_servc.h
+    message.rc)
 ELSE()
   SET(MYSQLD_SOURCE main.cc)
 ENDIF()

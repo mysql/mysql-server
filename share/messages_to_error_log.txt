@@ -11617,6 +11617,18 @@ ER_PERSISTED_VARIABLES_DECRYPTION_FAILED
 ER_PERSISTED_VARIABLES_LACK_KEYRING_SUPPORT
   eng "Persisting SENSITIVE variables in encrypted form requires keyring component loaded through manifest file."
 
+ER_MY_MALLOC_USING_JEMALLOC
+  eng "Using jemalloc.dll for my_malloc and ut::malloc etc."
+
+ER_MY_MALLOC_USING_STD_MALLOC
+  eng "%s."
+
+ER_MY_MALLOC_LOADLIBRARY_FAILED
+  eng "%s."
+
+ER_MY_MALLOC_GETPROCADDRESS_FAILED
+  eng "%s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

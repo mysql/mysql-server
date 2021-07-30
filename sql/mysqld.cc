@@ -692,6 +692,9 @@ MySQL clients support the protocol:
 
 #include "errmsg.h"  // init_client_errs
 #include "ft_global.h"
+#ifdef _WIN32
+#include "jemalloc_win.h"
+#endif
 #include "keycache.h"  // KEY_CACHE
 #include "libbinlogevents/include/binlog_event.h"
 #include "libbinlogevents/include/control_events.h"
@@ -7086,6 +7089,16 @@ int mysqld_main(int argc, char **argv)
 
   sys_var_init();
 
+#ifdef _WIN32
+  if (mysys::is_my_malloc_using_jemalloc()) {
+    LogErr(INFORMATION_LEVEL, ER_MY_MALLOC_USING_JEMALLOC);
+  } else {
+    for (auto &msg : mysys::fetch_jemalloc_initialization_messages()) {
+      LogErr(msg.m_severity, ER_MY_MALLOC_USING_JEMALLOC + msg.m_ecode,
+             msg.m_message.c_str());
+    }
+  }
+#endif
   /*
    Initialize variables cache for persisted variables, load persisted
    config file and append parse early  read only persisted variables

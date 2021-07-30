@@ -88,10 +88,19 @@ ADD_LIBRARY(gunit_large STATIC
   test_utils.cc
   thread_utils.cc
 )
+
+SET (WIN_ENABLE_JEMALLOC)
+IF(WIN32)
+  ADD_LIBRARY(my_use_jemalloc OBJECT ../../sql/enable_win_jemalloc.cc)
+  LIST(APPEND WIN_ENABLE_JEMALLOC $<TARGET_OBJECTS:my_use_jemalloc>)
+ENDIF()
+
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
-TARGET_LINK_LIBRARIES(gunit_small mysys strings ${GTEST_LIBRARIES})
-TARGET_LINK_LIBRARIES(gunit_large mysys strings ${GTEST_LIBRARIES})
+TARGET_LINK_LIBRARIES(gunit_small
+  mysys strings ${GTEST_LIBRARIES} ${WIN_ENABLE_JEMALLOC})
+TARGET_LINK_LIBRARIES(gunit_large
+  mysys strings ${GTEST_LIBRARIES} ${WIN_ENABLE_JEMALLOC})
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to
