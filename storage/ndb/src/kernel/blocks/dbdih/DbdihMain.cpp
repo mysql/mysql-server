@@ -2500,7 +2500,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
       char buf[255];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Illegal configuration change."
-                           " Initial start needs to be performed "
+                           " Initial start needs to be performed"
                            " when removing nodes with nodegroup (node %d)", i);
       progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
