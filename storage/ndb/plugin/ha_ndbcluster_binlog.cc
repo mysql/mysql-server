@@ -983,7 +983,8 @@ bool Ndb_schema_dist_client::write_schema_op_to_NDB(
   // The expectation is that all participants will reply and those not
   // connected will be filtered away by the coordinator.
   std::vector<char> slock_data;
-  slock_data.assign(schema_dist_table.get_slock_bytes(), 0xFF);
+  slock_data.assign(schema_dist_table.get_slock_bytes(),
+                    static_cast<char>(0xFF));
 
   // Function for writing row to ndb_schema
   std::function<const NdbError *(NdbTransaction *)> write_schema_op_func =

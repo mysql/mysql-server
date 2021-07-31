@@ -676,6 +676,7 @@ TAPTEST(LogBuffer)
 
 
   va_list empty_ap;
+  va_end(empty_ap);
   // append string of max. length that the log buffer can hold
   // **********#
   OK(buf_t1->append("123456789", empty_ap, 9) == 9);

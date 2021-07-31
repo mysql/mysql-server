@@ -62,6 +62,12 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
     COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
+IF(MSVC)
+  # Suppress warnings for switch statement with no 'case' labels
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+    COMPILE_FLAGS "/wd4065")
+ENDIF()
+
 BISON_TARGET(ndb_import
   NdbImportCsvGram.ypp
   ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp

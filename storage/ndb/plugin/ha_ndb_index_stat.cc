@@ -1799,11 +1799,11 @@ static void ndb_index_stat_proc_control() {
   Ndb_index_stat_opt &opt = ndb_index_stat_opt;
 
   /* Request to zero accumulating counters */
-  if (opt.get(Ndb_index_stat_opt::Izero_total) == true) {
+  if (opt.get(Ndb_index_stat_opt::Izero_total) == 1) {
     mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.zero_total();
     glob.set_status();
-    opt.set(Ndb_index_stat_opt::Izero_total, false);
+    opt.set(Ndb_index_stat_opt::Izero_total, 0);
     mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
 }

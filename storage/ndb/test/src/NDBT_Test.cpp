@@ -37,7 +37,7 @@
 
 #include "my_alloc.h"
 
-static int opt_stop_on_error = 0;
+static bool opt_stop_on_error = false;
 
 NDBT_Context::NDBT_Context(Ndb_cluster_connection& con)
   : m_cluster_connection(con)
@@ -1489,19 +1489,19 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
   return result;
 }
 
-static int opt_print = false;
-static int opt_print_html = false;
-static int opt_print_cases = false;
+static bool opt_print = false;
+static bool opt_print_html = false;
+static bool opt_print_cases = false;
 static int opt_records;
 static int opt_loops;
-static int opt_timer;
+static bool opt_timer;
 static char * opt_testname = NULL;
-static int opt_verbose;
+static bool opt_verbose;
 unsigned opt_seed = 0;
-static int opt_nologging = 0;
-static int opt_temporary = 0;
-static int opt_noddl = 0;
-static int opt_forceShort = 0;
+static bool opt_nologging = false;
+static bool opt_temporary = false;
+static bool opt_noddl = false;
+static bool opt_forceShort = false;
 
 static const char *load_default_groups[]= {
                        "mysql_cluster",
