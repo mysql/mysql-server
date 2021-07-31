@@ -218,6 +218,9 @@ find_own_nodeid(Config* conf)
 {
   NodeId found_nodeid= 0;
   ConfigIter iter(conf, CFG_SECTION_NODE);
+  int unmatched_host_count = 0;
+  std::string unmatched_hostname;
+  const char *separator = "";
   for (iter.first(); iter.valid(); iter.next())
   {
     Uint32 type;
@@ -241,15 +244,28 @@ find_own_nodeid(Config* conf)
       // This node is setup to run on this host
       if (found_nodeid == 0)
         found_nodeid = nodeid;
-      else
-      {
-        return 0; // More than one host on this node
+      else {
+        g_eventLogger->error(
+            "More than one hostname matches a local interface, including node "
+            "ids %d and %d.",
+            found_nodeid, nodeid);
+        return 0;
       }
+    } else {
+      unmatched_host_count++;
+      // Append the hostname to the list of unmatched host
+      unmatched_hostname += separator + std::string(hostname);
+      separator = ",";
     }
+  }
+  if (found_nodeid == 0 && unmatched_host_count > 0) {
+    g_eventLogger->error(
+        "At least one hostname in the configuration does not match a local "
+        "interface. Failed to bind on %s",
+        unmatched_hostname.c_str());
   }
   return found_nodeid;
 }
-
 
 NodeId
 ConfigManager::find_nodeid_from_config(void)
@@ -313,6 +329,11 @@ ConfigManager::init_nodeid(void)
                          nodeid);
     m_node_id = nodeid;
     DBUG_RETURN(true);
+  }
+
+  if (m_config_retriever.hasError())
+  {
+    g_eventLogger->error("%s", m_config_retriever.getErrorString());
   }
 
   // We _could_ try connecting to other running mgmd(s)
