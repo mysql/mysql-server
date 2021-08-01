@@ -26,6 +26,8 @@
 
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
+#include <mysql/psi/mysql_memory.h>
+
 #include <stddef.h>
 #include <algorithm>
 #include <atomic>
@@ -77,6 +79,11 @@ using std::string;
 static MYSQL_PLUGIN plugin_info;
 #define PLUGIN_NAME "warp_rewriter"
 
+static PSI_memory_key key_memory_warp_rewrite;
+
+static PSI_memory_info all_rewrite_memory[] = {
+    {&key_memory_warp_rewrite, "rewrite_example", 0, 0, PSI_DOCUMENT_ME}};
+
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
@@ -107,9 +114,13 @@ static MYSQL_THDVAR_BOOL(parallel_query, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_BOOL(reorder_outer, PLUGIN_VAR_RQCMDARG,
                           "Reorder joins with OUTER joins",
                           nullptr, nullptr, true);
+static MYSQL_THDVAR_BOOL(extended_syntax, PLUGIN_VAR_RQCMDARG,
+                          "Materialized view DDL enhancements",
+                          nullptr, nullptr, true);
 SYS_VAR* plugin_system_variables[] = {
   MYSQL_SYSVAR(parallel_query),
   MYSQL_SYSVAR(reorder_outer),
+  MYSQL_SYSVAR(extended_syntax),
   NULL
 };
 
@@ -126,8 +137,6 @@ mysql_declare_plugin(audit_log){
     nullptr,                        /* plugin check uninstall        */
     warp_rewriter_plugin_deinit,    /* plugin deinitializer          */
     0x8021,                         /* version                       */
-    //rewriter_plugin_status_vars,  /* status variables              */
-    //rewriter_plugin_sys_vars,     /* system variables              */
     nullptr,                        /* status vars (none atm) */
     plugin_system_variables,        /* system vars (none atm) */
     nullptr,                        /* reserverd                     */
@@ -138,6 +147,12 @@ mysql_declare_plugin(audit_log){
 
 static int warp_rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
   plugin_info = plugin_ref;
+
+  const char *category = "sql";
+  int count;
+
+  count = static_cast<int>(array_elements(all_rewrite_memory));
+  mysql_memory_register(category, all_rewrite_memory, count);
 
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
@@ -516,15 +531,117 @@ static int warp_rewrite_query_notify(
       static_cast<const struct mysql_event_parse *>(event);
   
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
+    //return 0;
+  
+    //size_t query_length = event_parse->query.length;
+    const char *sql=NULL;
+    bool is_incremental = false;
+    sql=strcasestr(event_parse->query.str, "create incremental materialized view");
+    if(sql != NULL) {
+      is_incremental = true;
+    } else {  
+      sql=strcasestr(event_parse->query.str, "create materialized view");
+      if(sql == NULL) { 
+        return 0;
+      }
+    }
+    
+    std::vector<std::string> tokens;
+    std::string tmp = "";
+    for(int i=0;i<event_parse->query.length;++i) {
+      if(event_parse->query.str[i] != ' ') {
+        tmp+=event_parse->query.str[i];
+        continue;
+      }
+      tokens.push_back(tmp);
+      tmp = "";
+    }
+    if(tmp != "") {
+      tokens.push_back(tmp);
+      tmp = "";
+    }
+    std::string mvname = "";
+    std::string sqlstr = "";
+    for(int i=0;i<tokens.size();++i) {
+      if(mvname == "" && tokens[i] == "view") {
+        mvname=tokens[i+1];
+        ++i;
+        continue;
+      }
+      if(mvname != "" && tokens[i] == "as") {
+        sqlstr=" ";
+        continue;
+      }
+      if(sqlstr != "") {
+        sqlstr+= " " + tokens[i];
+      }
+    }
+    if(mvname == "") {
+      //malformed
+      return -1;
+    }
+
+    std::string prefix = "/*~cmv:";
+    if(is_incremental) {
+      prefix += "i";
+    } else {
+      prefix += "f";
+    } 
+    prefix += "|" + mvname + "*/";
+    sqlstr = prefix + sqlstr + ";";
+    std::cerr << sqlstr << "\n";
+    char *rewritten_query = static_cast<char *>(
+    my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
+    memcpy(rewritten_query, sqlstr.c_str(), sqlstr.length());
+    rewritten_query[sqlstr.length()]=0;
+    event_parse->rewritten_query->str = rewritten_query;
+    event_parse->rewritten_query->length = sqlstr.length();
+    
+    *((int *)event_parse->flags) |=
+        (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
+ 
     // this is not a post-parse call to the plugin    
     return 0;
   }
+  // POST-PARSE HANDLING HERE 
+  const bool is_mv_create = (strstr(event_parse->query.str, "/*~cmv:") != NULL);
+  // If we are building a materialized view create script, commands contains the add_table and add_expr commands
+  // They will be executed by the create_from_rewriter function
+  std::string commands;
+  bool is_incremental = false;
+  std::string mvname;
+  if(is_mv_create) {
+    const char* pos = strstr(event_parse->query.str, ":");
+    if(pos == NULL) {
+      return -1;
+    }
+    if(*(pos+1) == 'i') {
+      is_incremental = true;
+    }
+    pos = strstr(event_parse->query.str, "|");
+    if(pos == NULL) {
+      return -1;
+    }
+    ++pos;
+    while(*pos != '*') {
+      mvname += *pos;
+      ++pos;
+    }
+  }
   
-  if(THDVAR(thd,parallel_query) != true) {
-    //std::cout << "PARALLEL QUERY IS DISABLED\n";
-    return 0;
-  } 
+  //if(is_mv_create != NULL) {
+  //  commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
+  //}
+  //std::cerr << commands << "\n";
   
+  // MV creation must proceed even if parallel query is not enabled
+  if(!is_mv_create) {
+    if(THDVAR(thd,parallel_query) != true) {
+      //std::cout << "PARALLEL QUERY IS DISABLED\n";
+      return 0;
+    } 
+  }
+
   // currently only support SELECT statements
   if(mysql_parser_get_statement_type(thd) != STATEMENT_TYPE_SELECT) {
     return 0;
@@ -534,387 +651,492 @@ static int warp_rewrite_query_notify(
   if(mysql_parser_get_number_params(thd) != 0) {
     return 0;
   }
-  
-  //auto orig_query = mysql_parser_get_query(thd);
-  ////std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
-  // the query sent to the parallel workers
-  std::string ll_query;
+    //auto orig_query = mysql_parser_get_query(thd);
+    ////std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
+    // the query sent to the parallel workers
+    std::string ll_query;
 
-  // the query the coordinator node runs over the output of the ll_query
-  std::string coord_query;
+    // the query the coordinator node runs over the output of the ll_query
+    std::string coord_query;
 
-  // the GROUP BY clause for the ll_query
-  std::string ll_group;
+    // the GROUP BY clause for the ll_query
+    std::string ll_group;
 
-  // the GROUP BY clause for the coord_query
-  std::string coord_group;
+    // the GROUP BY clause for the coord_query
+    std::string coord_group;
 
-  // the HAVING clause for the coord query
-  std::string coord_having;
-  
-  auto select_lex =thd->lex->query_block[0];
-  auto field_list = select_lex.get_fields_list();
-  auto tables = select_lex.table_list;
-  //bool is_straight_join = (stristr(strtolower(orig_query.str), "straight_join") != NULL);
-  bool is_straight_join = 1;
-  // query has no tables - do nothing
-  if(tables.size() == 0) {
-    return 0;
-  }
 
-  // Process the SELECT clause
-  // number of the expression in the SELECT clause
-  uint expr_num = 0;
-
-  // String object used to hold printed field object
-  String field_str;
-  field_str.reserve(1024*1024);
-
-  // List of fields used in the SELECT clause
-  // This list is used in processing the GROUP BY clause and HAVING clause
-  std::unordered_map<std::string, uint> used_fields;
-
-  for(auto field_it = field_list->begin(); field_it != field_list->end(); ++field_it,++expr_num) {
-    auto field = *field_it;
+    std::string ll_where;
+    std::string ll_from;
+    std::string coord_having;
+    std::string coord_order;
+    std::string fact_alias;
+    std::string partition_list;
     
-    used_fields.emplace(
-      std::pair<std::string, uint>(std::string(field->full_name()), expr_num)
-    );
-    used_fields.emplace(
-      std::pair<std::string, uint>(std::string(field->item_name.ptr()), expr_num)
-    );
-    field_str.set("", 0, default_charset_info);
-    field->print(thd, &field_str, QT_ORDINARY);
-    used_fields.emplace(
-      std::pair<std::string, uint>(std::string(field_str.ptr(), field_str.length()), expr_num)
-    );
+    auto select_lex =thd->lex->query_block[0];
+    auto field_list = select_lex.get_fields_list();
+    auto tables = select_lex.table_list;
+    //bool is_straight_join = (stristr(strtolower(orig_query.str), "straight_join") != NULL);
+    bool is_straight_join = 1;
+  if(!is_mv_create || (is_mv_create && is_incremental)) {
+  
+    // query has no tables - do nothing
+    if(tables.size() == 0) {
+      return 0;
+    }
 
-    field_str.set("",0,default_charset_info);
-    field->print(thd, &field_str, QT_ORDINARY);
-    std::string raw_field = std::string(field_str.c_ptr(), field_str.length());
-    std::string orig_alias = std::string("`") + std::string(field->item_name.ptr()) + std::string("`");
-    std::string alias = std::string("`expr$") + std::to_string(expr_num) + std::string("`");
-    std::string raw_alias = std::string("expr$") + std::to_string(expr_num);
-    if(ll_query.length() > 0) {
-       ll_query += ", ";
-     }
-     if(coord_query.length() > 0) {
-       coord_query += ", ";
-     }
-     
-     switch(field->type()) {
-       // bare field is easily handled - it gets an alias of expr$NUM where NUM is the 
-       // ordinal position in the SELECT clause
-       case Item::Type::FIELD_ITEM:
-         ll_query += std::string(field_str.c_ptr(), field_str.length()) + " AS `expr$" + std::to_string(expr_num) + "`";
-         coord_query += alias + " AS " + orig_alias;
-         continue;
-       break;
+    // Process the SELECT clause
+    // number of the expression in the SELECT clause
+    uint expr_num = 0;
 
-       // item func
-       case Item::Type::FUNC_ITEM: 
-         std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
-         return 0;
-       break;
-       
-       // SUM or COUNT func
-       case Item::Type::SUM_FUNC_ITEM: {
-         Item_sum* sum_item = (Item_sum*)field->this_item(); 
-         std::string func_name = std::string(sum_item->func_name());
-    
-         if(sum_item->has_with_distinct()) {
-           ll_query += raw_field.substr(func_name.length(), raw_field.length() - func_name.length()) + " AS " + alias;
-           coord_query += func_name + "( DISTINCT " + alias + ") AS " + orig_alias;
-           if(ll_group.length() > 0) {
-             ll_group += ", ";
-           }
-           ll_group += std::to_string(expr_num);
-           continue;
-         }
-         
-         if(func_name == "sum") {
-           //ll_query += std::string(field_str.c_ptr(), field_str.length()) + " AS `expr$" + std::to_string(expr_num) + "`";
-           //coord_query += std::string("`expr$") + std::to_string(expr_num) + std::string("`");
-           ll_query += raw_field + " AS " + alias;
-           coord_query += "SUM(" + alias + ")" + " AS " + orig_alias; 
-         } else if (func_name == "count") {
-           //ll_query += "COUNT" + raw_field.substr(3,raw_field.length()-3) + " AS " + alias;
-           ll_query += raw_field + " AS " + alias;
-           coord_query += "SUM(" + alias + ") AS " + orig_alias;
-         } else if(func_name == "avg") {
-           const char* raw_field_ptr = raw_field.c_str() + 4;
-           ll_query += "COUNT( " + std::string(raw_field_ptr) + " AS `" + raw_alias + "_cnt` , SUM(" + std::string(raw_field_ptr) + " AS `" + raw_alias + "_sum`";
-           coord_query += "SUM(`" + raw_alias + "_cnt`) / SUM(`" + raw_alias + "_sum`)" + " AS " + orig_alias ; 
-         } else {  
-           std::cout << "UNSUPPORTED PARALLEL QUERY SUM_FUNC_TYPE: " << func_name << "\n";
-           return 0;  
-         }      
+    // String object used to hold printed field object
+    String field_str;
+    field_str.reserve(1024*1024);
+
+    // List of fields used in the SELECT clause
+    // This list is used in processing the GROUP BY clause and HAVING clause
+    std::unordered_map<std::string, uint> used_fields;
+
+    for(auto field_it = field_list->begin(); field_it != field_list->end(); ++field_it,++expr_num) {
+      auto field = *field_it;
       
-         continue;
-       }
-       break;
-       
-       default:
-         std::cout << "UNSUPPORTED PARALLEL QUERY ITEM TYPE: " << field->type() << "\n";
-         return 0;
-     }
-  }
-  
-  /* handle GROUP BY */
-  ORDER* group_pos = select_lex.group_list.first;
-  expr_num = select_lex.get_fields_list()->size();
-  for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
+      used_fields.emplace(
+        std::pair<std::string, uint>(std::string(field->full_name()), expr_num)
+      );
+      used_fields.emplace(
+        std::pair<std::string, uint>(std::string(field->item_name.ptr()), expr_num)
+      );
+      field_str.set("", 0, default_charset_info);
+      field->print(thd, &field_str, QT_ORDINARY);
+      used_fields.emplace(
+        std::pair<std::string, uint>(std::string(field_str.ptr(), field_str.length()), expr_num)
+      );
 
-    // is this group item one of the select items?
-    auto group_item = *(group_pos->item);
+      field_str.set("",0,default_charset_info);
+      field->print(thd, &field_str, QT_ORDINARY);
+      std::string raw_field = std::string(field_str.c_ptr(), field_str.length());
+      std::string orig_alias = std::string("`") + std::string(field->item_name.ptr()) + std::string("`");
+      std::string alias = std::string("`expr$") + std::to_string(expr_num) + std::string("`");
+      std::string raw_alias = std::string("expr$") + std::to_string(expr_num);
 
-    if(ll_group.length() > 0) {
-      ll_group += ", ";
-    }
-    
-    if(coord_group.length() > 0) {
-      coord_group += ", ";
-    }
-    
-    // extract the group by item
-    field_str.set("",0,default_charset_info);
-    group_item->print(thd, &field_str, QT_ORDINARY); 
-
-    // determine if this field is in the SELECT list
-    auto used_fields_it = used_fields.find(std::string(group_item->full_name()));
-    
-    if(used_fields_it == used_fields.end()) {
-      // if not in SELECT list, need to add it to the parallel query so that it can be grouped by in the coord query
-      auto alias = std::string("`expr$") + std::to_string(expr_num) + "`";
-      ll_query += std::string(", ") + std::string(field_str.ptr()) + " AS " + alias;
-      used_fields.emplace(std::pair<std::string, uint>(std::string(field_str.ptr()), expr_num));
-      ll_group += alias;
-      coord_group += alias;
-    } else {
-      ll_group += std::string("`expr$") + std::to_string(used_fields_it->second) + "`";
-      coord_group += std::string(field_str.ptr());
-    }
-    
-    group_pos = group_pos->next;
-  }
-    
-  // Process the FROM clause
-  std::string ll_from="";
-  auto tbl = tables.first;
-  std::string fqtn;
-  std::string fact_alias;
-  uint64_t max_rows = 0;
-  uint64_t rows = 0;
-  std::string partition_list;
-  std::map<std::string, std::string> from_clause;
-  std::string tmp_from = "";
-  std::map<std::string, uint64_t> table_row_counts;
-  bool has_outer_joins = false;
-  for(long unsigned long int i = 0; i < tables.size(); ++i) {
-    tmp_from = "";
-    if(tbl->is_table_function()) {
-      std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
-      return 0;
-    }
-    
-    if(tbl->is_derived()) {
-      std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
-      return 0;
-    }
-    
-    // figure out the the WARP table with the most rows
-    if(is_warp_table(std::string(tbl->db), std::string(tbl->table_name))) {
-      rows = get_warp_row_count(std::string(tbl->db), std::string(tbl->table_name));
-      table_row_counts.emplace(std::make_pair(std::string(tbl->alias), rows));
-      if(rows > max_rows) {
-        fact_alias = std::string(tbl->alias);
-        max_rows = rows;
-        partition_list = get_warp_partitions(std::string(tbl->db), std::string(tbl->table_name));
+      if(commands != "") {
+        commands += ";;";
       }
-    }
-    fqtn = "";
-    fqtn = std::string("`") + std::string(tbl->db, tbl->db_length) + "`." +
-           std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
-           " AS `" + std::string(tbl->alias) + "` ";
-    
-    if(!from_clause.empty()) {
-      if(tbl->is_inner_table_of_outer_join()) {
-        has_outer_joins = true;
-        tmp_from += "LEFT ";
-      } 
-      tmp_from += "JOIN " + fqtn;
-    } else {
-      tmp_from = std::string("FROM ") + fqtn;
-    }
-    
-    // handle NATURAL JOIN / USING
-    if(tbl->join_columns != nullptr) {
-      std::string join_columns;
-      for(auto join_col_it = tbl->join_columns->begin(); join_col_it != tbl->join_columns->end();++join_col_it) {
-        if(join_columns.length() >0) {
-          join_columns += ", ";
-        }
-        join_col_it->table_field->print(thd, &field_str, QT_ORDINARY);
-        join_columns += std::string(field_str.ptr(), field_str.length());
+      
+      if(ll_query.length() > 0) {
+        ll_query += ", ";
       }
-      tmp_from += std::string("/*%TOKEN%*/USING(") + join_columns + ")\n";
-    } else {
-      String join_str;
-      join_str.reserve(1024 * 1024);
-      if(tbl->join_cond() != nullptr) {
-        tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
-        tmp_from += "/*%TOKEN%*/ON " + std::string(join_str.ptr(), join_str.length());
+      if(coord_query.length() > 0) {
+        coord_query += ", ";
       }
-    }
-    ll_from += tmp_from;
-    from_clause.emplace(std::make_pair(std::string(tbl->alias), tmp_from));
-    tbl = tbl->next_local;
-  }
-  
-  /* this puts the largest table first, then the tables in ascending row count order */
-  auto sorted_from_cnts = sort_from(table_row_counts);
-  std::vector<std::string> sorted_from;
-  auto t = sorted_from_cnts.back();
-  auto find_it = from_clause.find(t.first);
-  sorted_from.push_back(find_it->second);
-  for(auto sort_it=sorted_from_cnts.begin();sort_it<sorted_from_cnts.end()-1;++sort_it) {
-    auto find_it = from_clause.find(sort_it->first);
-    sorted_from.push_back(find_it->second);
-  }
+      
+      switch(field->type()) {
+        // bare field is easily handled - it gets an alias of expr$NUM where NUM is the 
+        // ordinal position in the SELECT clause
+        case Item::Type::FIELD_ITEM:
+          ll_query += std::string(field_str.c_ptr(), field_str.length()) + " AS `expr$" + std::to_string(expr_num) + "`";
+          coord_query += alias + " AS " + orig_alias;
 
-  /* select * from dim join fact on fact.dim_id = dim.id */
-  tmp_from ="";
-  resort:
-  if(!has_outer_joins || (has_outer_joins && THDVAR(thd, reorder_outer))) {
-    for(auto it = sorted_from.begin();it != sorted_from.end();++it) {
+          if(select_lex.group_list_size() > 0) {
+            commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
+          } else {
+            commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', '";
+          }
+          commands += escape_for_call(raw_field) + "','" + escape_for_call(orig_alias) + "')";
+          continue;
+        break;
 
-      if(*it == "") continue;
-
-      if((*it).substr(0,1) == "F") {
-        tmp_from += *it;
-        *it = "";
-        goto resort;
-      } else {
-
-        if(tmp_from != "") {
-          tmp_from += " " + *it;
-          *it = "";
-          goto resort;
-        }
-
-        std::string swap_table = *it;
-        // find the first JOIN (not OUTER JOIN) table and swap the JOIN clauses
-        *it="";
-        ++it;
-
-        //it = JOIN t2 as t2 /*%TOKEN%/ON ...
-        //it2 = FROM t1 as t1
-        for(;it != sorted_from.end();++it) {
-          if((*it).substr(0,1) != "F") {
+        // item func
+        case Item::Type::FUNC_ITEM: 
+          std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
+          return 0;
+        break;
+        
+        // SUM or COUNT func
+        case Item::Type::SUM_FUNC_ITEM: {
+          Item_sum* sum_item = (Item_sum*)field->this_item(); 
+          std::string func_name = std::string(sum_item->func_name());
+          std::string inner_field = raw_field.substr(func_name.length(), raw_field.length() - func_name.length());
+          if(sum_item->has_with_distinct()) {
+            ll_query += raw_field.substr(func_name.length(), raw_field.length() - func_name.length()) + " AS " + alias;
+            coord_query += func_name + "( DISTINCT " + alias + ") AS " + orig_alias;
+            if(ll_group.length() > 0) {
+              ll_group += ", ";
+            }
+            ll_group += std::to_string(expr_num);
+            if(is_mv_create) {
+              if(func_name != "count") {
+                return -1;
+              }
+              //remove distinct from the inner expression
+              inner_field = "(" + inner_field.substr(strlen("(distinct"), inner_field.length()-strlen("(distinct ")) + ")";
+              commands += "CALL leapdb.add_expr(@mvid, 'COUNT_DISTINCT', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+            }
             continue;
           }
-          char *tmpstr = strdup(swap_table.c_str());
-          char* token_at = strstr(tmpstr, "/*%TOKEN%*/");
-          uint64_t token_pos = token_at - tmpstr-5;
-        
-          /* should never happen but just in case error out*/
-          if(token_at == NULL) {
-            free(tmpstr);
-            tmp_from = "";
-            goto after_sort;
-          }
-
-          /* get t1 as t1*/
-          std::string first_table_name_and_alias = std::string((*it).c_str() + 5);
-          /* get t2 as t2*/
-          std::string second_table_name_and_alias = " " + swap_table.substr(5, token_pos);
-
-          token_at += 11;
-          if(swap_table.substr(0,1) != "L") {
-            tmp_from = "FROM " + second_table_name_and_alias;
-            tmp_from += " JOIN " + first_table_name_and_alias + " " + std::string(token_at);
+          
+          if(func_name == "sum") {
+            //ll_query += std::string(field_str.c_ptr(), field_str.length()) + " AS `expr$" + std::to_string(expr_num) + "`";
+            //coord_query += std::string("`expr$") + std::to_string(expr_num) + std::string("`");
+            ll_query += raw_field + " AS " + alias;
+            coord_query += "SUM(" + alias + ")" + " AS " + orig_alias; 
+            commands += "CALL leapdb.add_expr(@mvid, 'SUM', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+          } else if (func_name == "count") {
+            //ll_query += "COUNT" + raw_field.substr(3,raw_field.length()-3) + " AS " + alias;
+            ll_query += raw_field + " AS " + alias;
+            coord_query += "SUM(" + alias + ") AS " + orig_alias;
+            commands += "CALL leapdb.add_expr(@mvid, 'COUNT', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+          } else if(func_name == "avg") {
+            const char* raw_field_ptr = raw_field.c_str() + 4;
+            ll_query += "COUNT( " + std::string(raw_field_ptr) + " AS `" + raw_alias + "_cnt` , SUM(" + std::string(raw_field_ptr) + " AS `" + raw_alias + "_sum`";
+            coord_query += "SUM(`" + raw_alias + "_cnt`) / SUM(`" + raw_alias + "_sum`)" + " AS " + orig_alias ; 
+            commands += "CALL leapdb.add_expr(@mvid, 'AVG', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
           } else {
-            tmp_from = "FROM " + first_table_name_and_alias;
-            tmp_from += " LEFT JOIN " + second_table_name_and_alias.substr(5) + " " + std::string(token_at);
-          }
-          *it = "";
-          free(tmpstr);
-          tmpstr=nullptr;
-          goto resort;
+            if(is_mv_create) {
+              commands += "CALL leapdb.add_expr(@mvid, '" + func_name + "', '" + escape_for_call(inner_field) + "', '" + escape_for_call(orig_alias) + "')";
+            } else { 
+              std::cout << "UNSUPPORTED PARALLEL QUERY SUM_FUNC_TYPE: " << func_name << "\n";
+              return 0;
+            }  
+          }      
+        
+          continue;
         }
-      
-        if(it == sorted_from.end()) {
-          tmp_from == "";
-          // query only contains OUTER JOIN joins so it can not be reordered
-          goto after_sort;
-        }
+        break;
+        
+        default:
+          std::cout << "UNSUPPORTED PARALLEL QUERY ITEM TYPE: " << field->type() << "\n";
+          return 0;
       }
     }
-  }
-  after_sort:
-  if(tmp_from != "") ll_from = tmp_from;
-  if(partition_list == "") {
-    return 0;
-  }
+    
+    /* handle GROUP BY */
+    ORDER* group_pos = select_lex.group_list.first;
+    expr_num = select_lex.get_fields_list()->size();
+    for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
 
-  /* Process the WHERE clause */
-  std::string ll_where;
-  if(select_lex.where_cond() != nullptr) {
-    String where_str;
-    where_str.reserve(1024 * 1024);
-    select_lex.where_cond()->print(thd, &where_str, QT_ORDINARY);
-    ll_where = std::string(where_str.ptr(), where_str.length());
-  }
+      // is this group item one of the select items?
+      auto group_item = *(group_pos->item);
 
-  /* Process the HAVING clause:
-     The HAVING clause is transformed into a WHERE clause on the coordinator 
-     table.  Any HAVING expressions that are not expressed on SELECT aliases
-     have to be pushed into the ll_select clause so that they can be 
-     filtered in the coord_where clause, but these columns are not projected
-     by the coord_query clause!
-  */
-  std::string coord_where;
-  if(select_lex.having_cond() != nullptr) {
-    process_having(thd, select_lex.having_cond(), coord_having, ll_query, coord_group, used_fields);
-  }
-
-  std::string coord_order;
-  auto orderby = select_lex.order_list;
-  String tmp_ob;
-  tmp_ob.reserve(1024*1024);  
-  if(orderby.size() > 0) {
-    auto ob = orderby.first;
-    for(uint i = 0;i<orderby.size();++i) {    
-      tmp_ob.set("", 0, &my_charset_bin);  
-      (*(ob->item))->print_for_order(thd, &tmp_ob,QT_ORDINARY,ob->used_alias);
-      if(coord_order != "") {
-        coord_order += ",";
+      if(ll_group.length() > 0) {
+        ll_group += ", ";
       }
-      coord_order += std::string(tmp_ob.c_ptr(), tmp_ob.length());
-      ob = ob->next;
-    } 
-  }
-   
-  std::string call_sql = 
-    "CALL warpsql.parallel_query(\n";
-    call_sql +=
-    '"' + escape_for_call(ll_query) + "\",\n" +
-    '"' + escape_for_call(coord_query) + "\",\n" +
-    '"' + escape_for_call(ll_group) + "\",\n" +
-    '"' + escape_for_call(coord_group) + "\",\n" +
-    '"' + escape_for_call(ll_from) + "\",\n" +
-    '"' + escape_for_call(ll_where) + "\",\n" +
-    '"' + escape_for_call(coord_having) + "\",\n" +
-    '"' + escape_for_call(coord_order) + "\",\n" +
-    (partition_list != "" ? 
-      '"' + escape_for_call(fact_alias) + ":" + partition_list + "\",\n" :
-      "'',") +
-    (is_straight_join ? "1" : "0") + ")";
+      
+      if(coord_group.length() > 0) {
+        coord_group += ", ";
+      }
+      
+      // extract the group by item
+      field_str.set("",0,default_charset_info);
+      group_item->print(thd, &field_str, QT_ORDINARY); 
+      
+      // determine if this field is in the SELECT list
+      auto used_fields_it = used_fields.find(std::string(group_item->full_name()));
+      //std::cerr << "Searching for " << std::string(group_item->full_name()) << "\n";
+      //std::cerr << "Or maybe " << std::string(field_str.ptr()) << "\n";
+      if(used_fields_it == used_fields.end()) {
+        std::string bare_field = "";
+        const char* pos;
+        std::cerr << "BARE0: " << std::string(group_item->full_name()) << "\n";
+        if( (pos = strstr(group_item->full_name(), "`.`")) != NULL) {
+          pos+=3;
+          bare_field = std::string(pos); 
+          std::cerr << "BARE: " << bare_field << "\n";
+          used_fields_it = used_fields.find(bare_field); 
+        }
 
+      }
+      if (used_fields_it == used_fields.end()) {
+        // if not in SELECT list, need to add it to the parallel query so that it can be grouped by in the coord query
+        auto alias = std::string("`expr$") + std::to_string(expr_num) + "`";
+        ll_query += std::string(", ") + std::string(field_str.ptr()) + " AS " + alias;
+        used_fields.emplace(std::pair<std::string, uint>(std::string(field_str.ptr()), expr_num));
+        ll_group += alias;
+        coord_group += alias;
+        // positional group by is discarded because the column is type 'GROUP'
+        bool is_numeric = true;
+        for(int i=0;i<field_str.length();++i) {
+          if(field_str[i] < '0' || field_str[i] > '9') {
+            is_numeric = false;
+          }
+        }
+        if(!is_numeric) {
+          commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
+          commands += escape_for_call(std::string(field_str.ptr())) + "','" + escape_for_call(std::string(field_str.ptr())) + "')";
+        }
+      } else {
+        ll_group += std::string("`expr$") + std::to_string(used_fields_it->second) + "`";
+        coord_group += std::string(field_str.ptr());
+      }
+      
+      group_pos = group_pos->next;
+    }  
+
+    // Process the FROM clause
+    auto tbl = tables.first;
+    std::string fqtn;
+    uint64_t max_rows = 0;
+    uint64_t rows = 0;
+    std::map<std::string, std::string> from_clause;
+    std::string tmp_from = "";
+    std::map<std::string, uint64_t> table_row_counts;
+    bool has_outer_joins = false;
+    bool all_warp_tables = false;
+    for(long unsigned long int i = 0; i < tables.size(); ++i) {
+      if(commands != "") {
+        commands += ";;";
+      }
+      tmp_from = "";
+      if(tbl->is_table_function()) {
+        std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
+        return 0;
+      }
+      
+      if(tbl->is_derived()) {
+        std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
+        return 0;
+      }
+      
+      // figure out the the WARP table with the most rows
+      if(is_warp_table(std::string(tbl->db), std::string(tbl->table_name))) {
+        rows = get_warp_row_count(std::string(tbl->db), std::string(tbl->table_name));
+        table_row_counts.emplace(std::make_pair(std::string(tbl->alias), rows));
+        if(rows > max_rows) {
+          fact_alias = std::string(tbl->alias);
+          max_rows = rows;
+          partition_list = get_warp_partitions(std::string(tbl->db), std::string(tbl->table_name));
+        }
+      } else {
+        all_warp_tables = false;
+      }
+      fqtn = "";
+      fqtn = std::string("`") + std::string(tbl->db, tbl->db_length) + "`." +
+            std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
+            " AS `" + std::string(tbl->alias) + "` ";
+      commands += "CALL leapdb.add_table(@mvid, '" + escape_for_call(std::string(tbl->db, tbl->db_length)) + "','";
+      commands += escape_for_call(std::string(tbl->table_name, tbl->table_name_length)) + "','";
+      commands += escape_for_call(std::string(tbl->alias)) + "',";
+      if(!from_clause.empty()) {
+        if(tbl->is_inner_table_of_outer_join()) {
+          has_outer_joins = true;
+          tmp_from += "LEFT ";
+          if(is_mv_create) {
+            return -1;
+          }
+        } 
+        tmp_from += "JOIN " + fqtn;
+      } else {
+        tmp_from = std::string("FROM ") + fqtn;
+      }
+      
+      // handle NATURAL JOIN / USING)
+      // FIXME: for some reason natural join/using are not populating
+      // the pointers like I think they should and so they are not
+      // supported right now, mv creation will raise an error
+      if(tbl->join_columns != nullptr) {
+        
+        std::string join_columns;
+        for(auto join_col_it = tbl->join_columns->begin(); join_col_it != tbl->join_columns->end();++join_col_it) {
+          if(join_columns.length() >0) {
+            join_columns += ", ";
+          }
+          join_col_it->table_field->print(thd, &field_str, QT_ORDINARY);
+          join_columns += std::string(field_str.ptr(), field_str.length());
+        }
+        tmp_from += std::string("/*%TOKEN%*/USING(") + join_columns + ")\n";
+        
+        commands += "'" + escape_for_call(join_columns) + "')";
+      } else {
+        String join_str;
+        join_str.reserve(1024 * 1024);
+        if(tbl->join_cond() != nullptr) {
+          tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
+          tmp_from += "/*%TOKEN%*/ON " + std::string(join_str.ptr(), join_str.length());
+          commands += "'" + escape_for_call(std::string(join_str.ptr(), join_str.length())) + "')";
+        } else {
+          if(is_mv_create && i>0) {
+            return -1;
+          }
+          commands += "NULL)";
+        }
+      }
+      ll_from += tmp_from;
+      from_clause.emplace(std::make_pair(std::string(tbl->alias), tmp_from));
+      tbl = tbl->next_local;
+    }
+    
+    if(all_warp_tables) {
+      /* this puts the largest table first, then the tables in ascending row count order */
+      auto sorted_from_cnts = sort_from(table_row_counts);
+      std::vector<std::string> sorted_from;
+      auto t = sorted_from_cnts.back();
+      auto find_it = from_clause.find(t.first);
+      sorted_from.push_back(find_it->second);
+      for(auto sort_it=sorted_from_cnts.begin();sort_it<sorted_from_cnts.end()-1;++sort_it) {
+        auto find_it = from_clause.find(sort_it->first);
+        sorted_from.push_back(find_it->second);
+      }
+
+      /* select * from dim join fact on fact.dim_id = dim.id */
+      tmp_from ="";
+      resort:
+      if(!has_outer_joins || (has_outer_joins && THDVAR(thd, reorder_outer))) {
+        for(auto it = sorted_from.begin();it != sorted_from.end();++it) {
+
+          if(*it == "") continue;
+
+          if((*it).substr(0,1) == "F") {
+            tmp_from += *it;
+            *it = "";
+            goto resort;
+          } else {
+
+            if(tmp_from != "") {
+              tmp_from += " " + *it;
+              *it = "";
+              goto resort;
+            }
+
+            std::string swap_table = *it;
+            // find the first JOIN (not OUTER JOIN) table and swap the JOIN clauses
+            *it="";
+            ++it;
+
+            //it = JOIN t2 as t2 /*%TOKEN%/ON ...
+            //it2 = FROM t1 as t1
+            for(;it != sorted_from.end();++it) {
+              if((*it).substr(0,1) != "F") {
+                continue;
+              }
+              char *tmpstr = strdup(swap_table.c_str());
+              char* token_at = strstr(tmpstr, "/*%TOKEN%*/");
+              uint64_t token_pos = token_at - tmpstr-5;
+            
+              /* should never happen but just in case error out*/
+              if(token_at == NULL) {
+                free(tmpstr);
+                tmp_from = "";
+                goto after_sort;
+              }
+
+              /* get t1 as t1*/
+              std::string first_table_name_and_alias = std::string((*it).c_str() + 5);
+              /* get t2 as t2*/
+              std::string second_table_name_and_alias = " " + swap_table.substr(5, token_pos);
+
+              token_at += 11;
+              if(swap_table.substr(0,1) != "L") {
+                tmp_from = "FROM " + second_table_name_and_alias;
+                tmp_from += " JOIN " + first_table_name_and_alias + " " + std::string(token_at);
+              } else {
+                tmp_from = "FROM " + first_table_name_and_alias;
+                tmp_from += " LEFT JOIN " + second_table_name_and_alias.substr(5) + " " + std::string(token_at);
+              }
+              *it = "";
+              free(tmpstr);
+              tmpstr=nullptr;
+              goto resort;
+            }
+          
+            if(it == sorted_from.end()) {
+              tmp_from == "";
+              // query only contains OUTER JOIN joins so it can not be reordered
+              goto after_sort;
+            }
+          }
+        }
+      }
+      after_sort:
+      if(tmp_from != "") ll_from = tmp_from;
+      if(partition_list == "") {
+        return 0;
+      }
+    }
+    
+    /* Process the WHERE clause */
+    if(select_lex.where_cond() != nullptr) {
+      String where_str;
+      where_str.reserve(1024 * 1024);
+      select_lex.where_cond()->print(thd, &where_str, QT_ORDINARY);
+      ll_where = std::string(where_str.ptr(), where_str.length());
+      if(commands != "") {
+        commands += ";;";
+      }
+      commands += "CALL leapdb.add_expr(@mvid,'WHERE','" + escape_for_call(ll_where) + "','WHERE_CLAUSE')";
+    }
+
+    /* Process the HAVING clause:
+      The HAVING clause is transformed into a WHERE clause on the coordinator 
+      table.  Any HAVING expressions that are not expressed on SELECT aliases
+      have to be pushed into the ll_select clause so that they can be 
+      filtered in the coord_where clause, but these columns are not projected
+      by the coord_query clause!
+    */
+    std::string coord_where;
+    if(select_lex.having_cond() != nullptr) {
+      if(is_mv_create) {
+        return -1;
+      }
+      process_having(thd, select_lex.having_cond(), coord_having, ll_query, coord_group, used_fields);
+    }
+
+    auto orderby = select_lex.order_list;
+    String tmp_ob;
+    tmp_ob.reserve(1024*1024);  
+    if(orderby.size() > 0) {
+      if(is_mv_create) {
+        return -1;
+      }
+      auto ob = orderby.first;
+      for(uint i = 0;i<orderby.size();++i) {    
+        tmp_ob.set("", 0, &my_charset_bin);  
+        (*(ob->item))->print_for_order(thd, &tmp_ob,QT_ORDINARY,ob->used_alias);
+        if(coord_order != "") {
+          coord_order += ",";
+        }
+        coord_order += std::string(tmp_ob.c_ptr(), tmp_ob.length());
+        ob = ob->next;
+      } 
+    }
+  } 
+  
+  std::string call_sql = "";
+  if(!is_mv_create) { 
+    call_sql = 
+      "CALL warpsql.parallel_query(\n";
+      call_sql +=
+      '"' + escape_for_call(ll_query) + "\",\n" +
+      '"' + escape_for_call(coord_query) + "\",\n" +
+      '"' + escape_for_call(ll_group) + "\",\n" +
+      '"' + escape_for_call(coord_group) + "\",\n" +
+      '"' + escape_for_call(ll_from) + "\",\n" +
+      '"' + escape_for_call(ll_where) + "\",\n" +
+      '"' + escape_for_call(coord_having) + "\",\n" +
+      '"' + escape_for_call(coord_order) + "\",\n" +
+      (partition_list != "" ? 
+        '"' + escape_for_call(fact_alias) + ":" + partition_list + "\",\n" :
+        "'',") +
+      (is_straight_join ? "1" : "0") + ")";
+  } else {
+    call_sql = "CALL leapdb.create_from_rewriter('";
+    if(is_incremental) {
+      call_sql += "i";
+    } else {
+      std::cerr << "HERE!!!\n";
+      call_sql += "c";
+      commands = std::string(event_parse->query.str,event_parse->query.length);
+    }
+
+    call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + commands + "\");";
+    //commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
+    //call_sql = "SELECT \"" + commands + "\";";
+    std::cerr << "HERE!!!!\n";
+    std::cerr << call_sql << "\n";
+  }
   MYSQL_LEX_STRING call_sql_str;
   call_sql_str.length = call_sql.size();
   call_sql_str.str = strdup(call_sql.c_str());
-  call_sql.assign(call_sql.c_str(), call_sql.size());
+  //call_sql.assign(call_sql.c_str(), call_sql.size());
   if(warp_parse_call(thd, call_sql_str)) {
     return 1;
   }
