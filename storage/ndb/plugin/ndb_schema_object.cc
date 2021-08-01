@@ -134,8 +134,10 @@ NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
   assert(state.m_use_count == 0);
   // Check that all participants have completed
   assert(state.m_participants.size() == count_completed_participants());
-  // Coordinator should have completed
-  assert(state.m_coordinator_completed);
+  // Check that the Co-ordinator completed all its operaion, when the schema
+  // operation is received by the Co-ordinator.
+  assert(state.m_coordinator_completed ||
+         !state.m_coordinator_received_schema_op);
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
@@ -275,6 +277,8 @@ std::string NDB_SCHEMA_OBJECT::to_string(const char *line_separator) const {
     ss << "  ]," << line_separator;
     ss << "  coordinator_completed: " << state.m_coordinator_completed << ", "
        << line_separator;
+    ss << "  m_coordinator_received_schema_op: "
+       << state.m_coordinator_received_schema_op << ", " << line_separator;
   }
   ss << "}";
   return ss.str();
@@ -460,6 +464,22 @@ bool NDB_SCHEMA_OBJECT::check_coordinator_completed() const {
 
   state.m_coordinator_completed = true;
   return true;
+}
+
+void NDB_SCHEMA_OBJECT::coordinator_received_schema_op() {
+  std::lock_guard<std::mutex> lock_state(state.m_lock);
+  state.m_coordinator_received_schema_op = true;
+}
+
+bool NDB_SCHEMA_OBJECT::has_coordinator_received_schema_op() const {
+  std::unique_lock<std::mutex> lock_state(state.m_lock);
+  if (!state.m_coordinator_received_schema_op) {
+    // There should be no participants since they're only registered by the
+    // coordinator when it receives the schema operation.
+    ndbcluster::ndbrequire(state.m_participants.size() == 0);
+    return false;  // Schema operation not received
+  }
+  return true;  // Schema operation received
 }
 
 bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {

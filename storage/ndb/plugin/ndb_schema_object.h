@@ -107,6 +107,7 @@ class NDB_SCHEMA_OBJECT {
     // Set after coordinator has received replies from all participants and
     // recieved the final ack which cleared all the slock bits
     bool m_coordinator_completed{false};
+    bool m_coordinator_received_schema_op{false};
   } state;
 
   uint increment_use_count() const;
@@ -243,6 +244,19 @@ class NDB_SCHEMA_OBJECT {
      @return true if coordinator has completed
    */
   bool check_coordinator_completed() const;
+
+  /**
+     @brief This function is used by Co-ordinator to acknowledge that it
+     received the schema operation sent by the schema distribution client
+  */
+  void coordinator_received_schema_op();
+
+  /**
+     @brief Check if the schema operation has been received by the Co-ordinator
+
+     @return true if Co-ordinator received the schema operation.
+  */
+  bool has_coordinator_received_schema_op() const;
 
   /**
      @brief Check if any client should wakeup after subscribers have changed.
