@@ -6966,11 +6966,14 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
 
   /* If this block is ignored */
   if (!cur_block->ok) {
-    /* Inner block should be ignored too */
-    cur_block++;
-    cur_block->cmd = cmd;
-    cur_block->ok = false;
-    cur_block->delim[0] = '\0';
+    if (cmd == cmd_if || cmd == cmd_while) {
+      /* Inner block which comes with the command should be ignored */
+      cur_block++;
+      cur_block->cmd = cmd;
+      cur_block->ok = false;
+      cur_block->delim[0] = '\0';
+    }
+    /* No need to evaulate the condition */
     return;
   }
 

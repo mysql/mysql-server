@@ -4949,3 +4949,115 @@ if(1)
 }
 
 --assert(4)
+
+
+--echo #
+--echo # Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
+--echo #
+
+while(0)
+{
+  --assert(0)
+}
+
+if ($myvar)
+{
+  assert(0);
+}
+
+while ($myvar)
+{
+  assert(0);
+}
+
+--let $myvar=0
+if ($myvar)
+{
+  assert(0);
+}
+
+while ($myvar)
+{
+  assert(0);
+}
+
+--let $myvar=1
+if ($myvar)
+{
+  --assert(1)
+}
+
+while ($myvar)
+{
+  --assert(1)
+  --dec $myvar
+}
+
+--error 1
+--exec echo "--assert(abcd)" | $MYSQL_TEST 2>&1
+
+--let $true_var=1
+--assert(`SELECT $true_var`)
+
+--error 1
+--exec echo "--assert(0)" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "--assert(\$undef_var)" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "let \$false_var=0; assert(\$false_var);" | $MYSQL_TEST 2>&1
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert1.test
+--let $false_var=0
+--assert(`SELECT $false_var`)
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert1.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert1.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert2.test
+--let $myvar=1
+if($myvar)
+{
+  --assert(`SELECT 0`)
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert2.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert2.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert3.test
+--let $myvar=1
+while($myvar)
+{
+  --assert($myvar)
+  --dec $myvar
+  --assert($myvar)
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/myt_assert3.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert3.test
+
+--write_file $MYSQLTEST_VARDIR/tmp/myt_assert4.test
+--let $counter= 2
+while ($counter)
+{
+  --assert($counter)
+  --dec $counter
+  if ($counter)
+  {
+    # Should not assert
+    --assert($counter)
+  }
+  if (!$counter)
+  {
+    # Asserts here
+    --assert($counter)
+  }
+}
+EOF
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/myt_assert4.test 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/myt_assert4.test
