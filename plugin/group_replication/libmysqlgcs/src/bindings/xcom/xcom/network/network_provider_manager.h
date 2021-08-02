@@ -104,14 +104,6 @@ class Network_provider_manager : public Network_provider_management_interface,
   void remove_all_network_provider() override;
 
   /**
-   * @brief Starts all network providers.
-   *
-   * @return true In case of success starting ALL network providers
-   * @return false In case of failure in starting AT LEAST ONE network provider
-   */
-  bool start_all_network_providers();
-
-  /**
    * @brief Starts an already added network provider
    *
    * @param provider_key a valid value of CommunicationStack of the provider

@@ -91,16 +91,6 @@ void Network_provider_manager::remove_all_network_provider() {
   m_network_providers.clear();
 }
 
-bool Network_provider_manager::start_all_network_providers() {
-  bool retval = false;
-
-  for (auto &&provider : m_network_providers) {
-    retval &= provider.second->start();
-  }
-
-  return retval;
-}
-
 bool Network_provider_manager::start_network_provider(
     enum_transport_protocol provider_key) {
   auto net_provider = this->get_provider(provider_key);
