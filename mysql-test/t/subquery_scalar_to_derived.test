@@ -2226,4 +2226,48 @@ field1 WITH ROLLUP;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#33104036: ASSERTION FAILURE IN FIND_SUBQUERY_IN_SELECT_LIST AT
+--echo #               ../SQL/ITEM_SUBSELECT.CC
+
+CREATE TABLE t1 (f1 INTEGER);
+# Should not crash
+SELECT (SELECT SUM(f1) AS SQ1_field1 FROM t1) as field1
+ FROM t1 GROUP BY f1 WITH ROLLUP ORDER BY f1;
+DROP TABLE t1;
+
+--echo Original repro case
+CREATE TABLE t1 (pk integer auto_increment,
+                 col_int int ,
+                 col_datetime datetime ,
+                 col_char_255 char(255) ,
+                 col_smallint smallint ,
+                 col_decimal_10_8 decimal(10,8),
+                 primary key(pk)) ;
+
+set sql_mode='';
+
+let $query =
+SELECT alias1.col_decimal_10_8 AS field1 ,
+       ( SELECT SUM(SQ1_alias1.col_smallint ) AS SQ1_field1
+         FROM ( t1 AS SQ1_alias1
+                RIGHT JOIN
+                t1 AS SQ1_alias2
+                ON 1 )
+       ) AS field2 ,
+       GROUPING( LOG(alias1.col_int) ) AS field3
+FROM ( t1 AS alias1
+       JOIN
+       t1 AS alias2 ON 1  )
+WHERE alias2.pk IN ( SELECT col_char_255 FROM t1 )
+GROUP BY field1, field2, LOG(alias1.col_int)
+WITH ROLLUP
+ORDER BY alias1.col_datetime, field1, field2, LOG(alias1.col_int) ;
+
+eval $query;
+eval EXPLAIN $query;
+set sql_mode=default;
+
+DROP TABLE t1;
+
 SET optimizer_switch='subquery_to_derived=default';

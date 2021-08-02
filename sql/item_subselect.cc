@@ -2763,6 +2763,10 @@ static Item **find_subquery_in_select_list(Query_block *select,
                                            Item_singlerow_subselect *subquery) {
   int item_idx = 0;
   for (Item *item : select->visible_fields()) {
+    // All comparisons are done after unwrapping rollup group item.
+    // base_ref_items might be without rollup wrappers while the fields
+    // might be.
+    item = unwrap_rollup_group(item);
     if (item == subquery) {
       assert(select->base_ref_items[item_idx] == item);
       return &select->base_ref_items[item_idx];
