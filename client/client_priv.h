@@ -114,6 +114,7 @@ enum options_client
   OPT_CONNECTION_SERVER_ID,
   OPT_TLS_VERSION,
   OPT_SSL_MODE,
+  OPT_SKIP_MYSQL_SCHEMA,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

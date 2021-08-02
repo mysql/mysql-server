@@ -120,7 +120,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-                opt_secure_auth= TRUE;
+                opt_skip_mysql_schema=0, opt_secure_auth= TRUE;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -524,6 +524,9 @@ static struct my_option my_long_options[] =
   {"dump-date", OPT_DUMP_DATE, "Put a dump date to the end of the output.",
    &opt_dump_date, &opt_dump_date, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"skip_mysql_schema", OPT_SKIP_MYSQL_SCHEMA, "Skip adding DROP DATABASE for mysql schema.",
+   &opt_skip_mysql_schema, &opt_skip_mysql_schema, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -584,9 +587,9 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
                         int string_value);
 static int dump_selected_tables(char *db, char **table_names, int tables);
 static int dump_all_tables_in_db(char *db);
-static int init_dumping_views(char *);
-static int init_dumping_tables(char *);
-static int init_dumping(char *, int init_func(char*));
+static int init_dumping_views(char *, my_bool);
+static int init_dumping_tables(char *, my_bool);
+static int init_dumping(char *, int init_func(char*, my_bool));
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
@@ -4735,12 +4738,14 @@ View Specific database initalization.
 SYNOPSIS
   init_dumping_views
   qdatabase      quoted name of the database
+  is_mysql_db    TRUE if the db is mysql, else FALSE
 
 RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused)))
+int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused)),
+                       my_bool is_mysql_db MY_ATTRIBUTE((unused)))
 {
     return 0;
 } /* init_dumping_views */
@@ -4752,13 +4757,14 @@ Table Specific database initalization.
 SYNOPSIS
   init_dumping_tables
   qdatabase      quoted name of the database
+  is_mysql_db    TRUE if the db is mysql, else FALSE
 
 RETURN VALUES
   0        Success.
   1        Failure.
 */
 
-int init_dumping_tables(char *qdatabase)
+int init_dumping_tables(char *qdatabase, my_bool is_mysql_db)
 {
   DBUG_ENTER("init_dumping_tables");
 
@@ -4775,7 +4781,7 @@ int init_dumping_tables(char *qdatabase)
     if (mysql_query(mysql, qbuf) || !(dbinfo = mysql_store_result(mysql)))
     {
       /* Old server version, dump generic CREATE DATABASE */
-      if (opt_drop_database)
+      if (opt_drop_database && (!opt_skip_mysql_schema || !is_mysql_db))
         fprintf(md_result_file,
                 "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                 qdatabase);
@@ -4785,7 +4791,7 @@ int init_dumping_tables(char *qdatabase)
     }
     else
     {
-      if (opt_drop_database)
+      if (opt_drop_database && (!opt_skip_mysql_schema || !is_mysql_db))
         fprintf(md_result_file,
                 "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                 qdatabase);
@@ -4801,7 +4807,7 @@ int init_dumping_tables(char *qdatabase)
 } /* init_dumping_tables */
 
 
-static int init_dumping(char *database, int init_func(char*))
+static int init_dumping(char *database, int init_func(char*, my_bool))
 {
   if (is_ndbinfo(mysql, database))
   {
@@ -4825,6 +4831,7 @@ static int init_dumping(char *database, int init_func(char*))
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
       my_bool freemem= FALSE;
       char const* text= fix_identifier_with_newline(qdatabase, &freemem);
+      my_bool is_mysql_db= !my_strcasecmp(charset_info, database, "mysql");
 
       print_comment(md_result_file, 0, "\n--\n-- Current Database: %s\n--\n",
                     text);
@@ -4832,7 +4839,7 @@ static int init_dumping(char *database, int init_func(char*))
         my_free((void*)text);
 
       /* Call the view or table specific function */
-      init_func(qdatabase);
+      init_func(qdatabase, is_mysql_db);
 
       fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
       check_io(md_result_file);
@@ -5839,24 +5846,20 @@ static int replace(DYNAMIC_STRING *ds_str,
 
   @note: md_result_file should have been opened, before
          this function is called.
-
-  @param[in]      flag          If FALSE, disable binlog.
-                                If TRUE and binlog disabled previously,
-                                restore the session binlog.
 */
 
-static void set_session_binlog(my_bool flag)
+static void set_session_binlog()
 {
   static my_bool is_binlog_disabled= FALSE;
 
-  if (!flag && !is_binlog_disabled)
+  if (!is_binlog_disabled)
   {
     fprintf(md_result_file,
             "SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;\n");
     fprintf(md_result_file, "SET @@SESSION.SQL_LOG_BIN= 0;\n");
     is_binlog_disabled= 1;
   }
-  else if (flag && is_binlog_disabled)
+  else
   {
     fprintf(md_result_file,
             "SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;\n");
@@ -5894,7 +5897,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
   {
     if (opt_comments)
       fprintf(md_result_file,
-          "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
+          "\n--\n-- GTID state at the end of the backup \n--\n\n");
 
     fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
 
@@ -5917,79 +5920,98 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
 
 /**
   This function processes the opt_set_gtid_purged option.
-  This function also calls set_session_binlog() function before
-  setting the SET @@GLOBAL.GTID_PURGED in the output.
+  This function when called with the flag as FALSE, just
+  disables the binlog by calling set_session_binlog().
+  Later when this function is called with the flag as TRUE,
+  SET @@GLOBAL.GTID_PURGED is written in the output and the
+  session binlog is restored if disabled previously.
 
   @param[in]          mysql_con     the connection to the server
+  @param[in]          flag          If FALSE, just disable binlog and not
+                                    set the gtid purged as it will be set
+                                    at a later point of time.
+                                    If TRUE, set the gtid purged and
+                                    restore the session binlog if disabled
+                                    previously.
 
   @retval             FALSE         successful according to the value
                                     of opt_set_gtid_purged.
   @retval             TRUE          fail.
 */
 
-static my_bool process_set_gtid_purged(MYSQL* mysql_con)
+static my_bool process_set_gtid_purged(MYSQL* mysql_con, my_bool flag)
 {
-  MYSQL_RES  *gtid_mode_res;
-  MYSQL_ROW  gtid_mode_row;
-  char       *gtid_mode_val= 0;
+  MYSQL_RES   *gtid_mode_res;
+  MYSQL_ROW   gtid_mode_row;
+  char *gtid_mode_val= 0;
+  static int  gtid_mode= -1;
   char buf[32], query[64];
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
   /*
-    Check if the server has the knowledge of GTIDs(pre mysql-5.6)
-    or if the gtid_mode is ON or OFF.
+     Set gtid_mode, by fetching gtid_mode from server, if its not
+     yet populated. gtid_mode is set to -1 if gtid_mode is not yet
+     fetched from the server.
   */
-  my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
-              quote_for_like("gtid_mode", buf));
+  if (gtid_mode < 0)
+  {
+    /*
+      Check if the server has the knowledge of GTIDs(pre mysql-5.6)
+      or if the gtid_mode is ON or OFF.
+    */
+    my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
+                quote_for_like("gtid_mode", buf));
 
-  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
-    return TRUE;
+    if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
+      return TRUE;
 
-  gtid_mode_row = mysql_fetch_row(gtid_mode_res);
+    gtid_mode_row = mysql_fetch_row(gtid_mode_res);
 
-  /*
-     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
-     get the gtid_mode value from the second column.
-  */
-  gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
+    /*
+       gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+       get the gtid_mode value from the second column.
+    */
+    gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
+    gtid_mode= (gtid_mode_val && strcmp(gtid_mode_val, "OFF")) ? 1 : 0;
+    mysql_free_result(gtid_mode_res);
+  }
 
-  if (gtid_mode_val && strcmp(gtid_mode_val, "OFF"))
+  if (gtid_mode)
   {
     /*
        For any gtid_mode !=OFF and irrespective of --set-gtid-purged
        being AUTO or ON,  add GTID_PURGED in the output.
     */
-    if (opt_databases || !opt_alldbs || !opt_dump_triggers
-        || !opt_routines || !opt_events)
+    if (!flag)
+      set_session_binlog();
+    else
     {
-      fprintf(stderr,"Warning: A partial dump from a server that has GTIDs will "
-                     "by default include the GTIDs of all transactions, even "
-                     "those that changed suppressed parts of the database. If "
-                     "you don't want to restore GTIDs, pass "
-                     "--set-gtid-purged=OFF. To make a complete dump, pass "
-                     "--all-databases --triggers --routines --events. \n");
-    }
+      if (flag && (opt_databases || !opt_alldbs || !opt_dump_triggers
+          || !opt_routines || !opt_events))
+      {
+        fprintf(stderr,"Warning: A partial dump from a server that has GTIDs will "
+                       "by default include the GTIDs of all transactions, even "
+                       "those that changed suppressed parts of the database. If "
+                       "you don't want to restore GTIDs, pass "
+                       "--set-gtid-purged=OFF. To make a complete dump, pass "
+                       "--all-databases --triggers --routines --events. \n");
+      }
 
-    set_session_binlog(FALSE);
-    if (add_set_gtid_purged(mysql_con))
-    {
-      mysql_free_result(gtid_mode_res);
-      return TRUE;
+      if (add_set_gtid_purged(mysql_con))
+        return TRUE;
     }
   }
   else /* gtid_mode is off */
   {
-    if (opt_set_gtid_purged_mode == SET_GTID_PURGED_ON)
+    if (flag && opt_set_gtid_purged_mode == SET_GTID_PURGED_ON)
     {
       fprintf(stderr, "Error: Server has GTIDs disabled.\n");
-      mysql_free_result(gtid_mode_res);
       return TRUE;
     }
   }
 
-  mysql_free_result(gtid_mode_res);
   return FALSE;
 }
 
@@ -6323,11 +6345,9 @@ int main(int argc, char **argv)
   if (opt_slave_apply && add_stop_slave())
     goto err;
 
-
-  /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
-  if (process_set_gtid_purged(mysql))
+  /* Process opt_set_gtid_purged and add SET disable binlog if required. */
+  if (process_set_gtid_purged(mysql, FALSE))
     goto err;
-
 
   if (opt_master_data && do_show_master_status(mysql))
     goto err;
@@ -6381,11 +6401,9 @@ int main(int argc, char **argv)
   if (opt_slave_data && do_start_slave_sql(mysql))
     goto err;
 
-  /*
-    if --set-gtid-purged, restore binlog at the end of the session
-    if required.
-  */
-  set_session_binlog(TRUE);
+  /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
+   if (process_set_gtid_purged(mysql, TRUE))
+     goto err;
 
   /* add 'START SLAVE' to end of dump */
   if (opt_slave_apply && add_slave_statements())
