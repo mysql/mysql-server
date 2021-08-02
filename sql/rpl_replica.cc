@@ -11009,7 +11009,8 @@ static void group_replication_cleanup_after_clone() {
 static void check_replica_configuration_restrictions() {
   std::string group_name = get_group_replication_group_name();
   if (global_gtid_mode.get() != Gtid_mode::ON || group_name.length() > 0) {
-    for (auto [_, mi] : channel_map) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
       if (mi != nullptr) {
         if (global_gtid_mode.get() != Gtid_mode::ON) {
           // Check if a channel has SOURCE_AUTO POSITION
