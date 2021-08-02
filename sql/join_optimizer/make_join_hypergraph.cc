@@ -87,12 +87,16 @@ inline bool IsMultipleEquals(Item *cond) {
   stages can ignore such duplicates, and also that we can push these parts
   independently of the multiple equality as a whole.
  */
-Item *ExpandSameTableFromMultipleEquals(Item_equal *equal) {
+Item *ExpandSameTableFromMultipleEquals(Item_equal *equal,
+                                        table_map tables_in_subtree) {
   List<Item> eq_items;
 
   // Look for pairs of items that touch the same table.
   for (auto it1 = equal->get_fields().begin(); it1 != equal->get_fields().end();
        ++it1) {
+    if (!Overlaps(it1->used_tables(), tables_in_subtree)) {
+      continue;
+    }
     for (auto it2 = std::next(it1); it2 != equal->get_fields().end(); ++it2) {
       if (it1->field->table == it2->field->table) {
         Item_func_eq *eq_item = new Item_func_eq(&*it1, &*it2);
@@ -144,7 +148,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
         if (equal->get_const() == nullptr &&
             my_count_bits(equal->used_tables() & tables_in_subtree) > 2) {
           // Only look at partial expansion.
-          return ExpandSameTableFromMultipleEquals(equal);
+          return ExpandSameTableFromMultipleEquals(equal, tables_in_subtree);
         }
         List<Item> eq_items;
         Item *base_item = equal->get_const();

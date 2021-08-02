@@ -2632,3 +2632,17 @@ f1	pk	blobfield	pk	blobfield
 3	4		4	NULL
 3	4		NULL	NULL
 DROP TABLE t1, t2;
+#
+# Bug #33148480: HG-OPTIMIZER: HIT ASSERT IN GETNODEMAPFROMTABLEMAP() WHILE MAKEJOINHYPERGRAPH
+#
+CREATE TABLE t ( a INTEGER, b INTEGER );
+SELECT *
+FROM
+t AS t1
+JOIN (
+t AS t2
+LEFT JOIN t AS t3 ON t2.a = t3.a AND t2.b = t3.b
+JOIN t AS t4 ON t2.b = t4.a AND t2.b = t4.b
+) ON t1.b = t2.b;
+a	b	a	b	a	b	a	b
+DROP TABLE t;
