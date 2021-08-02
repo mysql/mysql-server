@@ -1609,6 +1609,7 @@ int main(int argc, const char** argv)
   testMgmd.setCreateTable(false);
   testMgmd.setRunAllTables(true);
   testMgmd.setConnectCluster(false);
+  testMgmd.setEnsureIndexStatTables(false);
 
 #ifdef NDB_USE_GET_ENV
   char buf1[255], buf2[255];

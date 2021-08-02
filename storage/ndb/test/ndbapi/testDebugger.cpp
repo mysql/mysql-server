@@ -136,6 +136,7 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testDebugger);
   testDebugger.setCreateTable(false);
   testDebugger.setRunAllTables(true);
+  testDebugger.setEnsureIndexStatTables(false);
 
   int res = testDebugger.execute(argc, argv);
 
