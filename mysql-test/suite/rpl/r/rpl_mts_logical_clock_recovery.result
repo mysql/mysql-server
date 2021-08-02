@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.replica_parallel_workers > 2]
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

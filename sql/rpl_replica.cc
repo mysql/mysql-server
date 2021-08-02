@@ -6804,7 +6804,9 @@ extern "C" void *handle_slave_sql(void *arg) {
     else
       rli->current_mts_submode = new Mts_submode_database();
 
-    if (opt_replica_preserve_commit_order && !rli->is_parallel_exec())
+    // Only use replica preserve commit order if more than 1 worker exists
+    if (opt_replica_preserve_commit_order && !rli->is_parallel_exec() &&
+        rli->opt_replica_parallel_workers > 1)
       commit_order_mngr =
           new Commit_order_manager(rli->opt_replica_parallel_workers);
 
