@@ -1375,6 +1375,11 @@ bool Arg_comparator::inject_cast_nodes() {
         return wrap_in_cast(left, MYSQL_TYPE_DATETIME) ||
                wrap_in_cast(right, MYSQL_TYPE_DATETIME);
       }
+      if (left_is_datetime && right_is_datetime) {
+        // E.g., DATETIME = TIMESTAMP. We allow this (we could even produce it
+        // ourselves by the logic below).
+        return false;
+      }
       // one is DATETIME the other one is not
       return left_is_datetime ? wrap_in_cast(right, MYSQL_TYPE_DATETIME)
                               : wrap_in_cast(left, MYSQL_TYPE_DATETIME);
