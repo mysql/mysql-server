@@ -2196,3 +2196,14 @@ long_string
 CREATE TABLE t1 (i int primary key not null);
 INSERT INTO t1 values(3);
 DROP TABLE t1;
+#
+# Bug#33068833 MISSING END OF BLOCK ERROR WITH `--ASSERT` MYSQLTEST COMMAND
+#
+mysqltest: At line 1: Expression in assert() must begin with $, ` or a number
+mysqltest: At line 1: Assertion failed: assert(0)
+mysqltest: At line 1: Assertion failed: assert($undef_var)
+mysqltest: At line 1: Assertion failed: assert($false_var)
+mysqltest: At line 2: Assertion failed: assert(`SELECT $false_var`)
+mysqltest: At line 4: Assertion failed: assert(`SELECT 0`)
+mysqltest: At line 6: Assertion failed: assert($myvar)
+mysqltest: At line 14: Assertion failed: assert($counter)
