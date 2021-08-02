@@ -3067,6 +3067,9 @@ void ApplyHavingCondition(THD *thd, Item *having_cond, Query_block *query_block,
                               .cost_if_not_materialized;
     filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
     filter_path.cost_before_filter = filter_path.cost;
+    // TODO(sgunders): Collect and apply functional dependencies from
+    // HAVING conditions.
+    filter_path.ordering_state = root_path->ordering_state;
     receiver->ProposeAccessPath(&filter_path, &new_root_candidates,
                                 /*obsolete_orderings=*/0, "");
   }
@@ -3167,6 +3170,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
           orderings.DoesFollowOrder(root_path->ordering_state,
                                     distinct_ordering_idx)) {
         // We don't need the sort, and can do with a simpler deduplication.
+        // TODO(sgunders): In some cases, we could apply LIMIT 1,
+        // which would be slightly more efficient; see e.g. the test for
+        // bug #33148369.
         Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
         for (size_t i = 0; i < grouping.size(); ++i) {
           group_items[i] = orderings.item(grouping[i].item);
