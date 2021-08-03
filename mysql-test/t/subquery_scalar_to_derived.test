@@ -2249,11 +2249,8 @@ set sql_mode='';
 
 let $query =
 SELECT alias1.col_decimal_10_8 AS field1 ,
-       ( SELECT SUM(SQ1_alias1.col_smallint ) AS SQ1_field1
-         FROM ( t1 AS SQ1_alias1
-                RIGHT JOIN
-                t1 AS SQ1_alias2
-                ON 1 )
+       ( SELECT SUM(table1.col_smallint ) AS SQ1_field1
+         FROM ( t1 as table1 RIGHT JOIN t1 as table2 ON 1 )
        ) AS field2 ,
        GROUPING( LOG(alias1.col_int) ) AS field3
 FROM ( t1 AS alias1
