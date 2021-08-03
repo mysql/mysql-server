@@ -381,7 +381,11 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
      * JoinTestFailedToConnectToXComQueueSignallingMechanism) GCS smoke test.
      */
     MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
-                        << " engine instance.")
+                        << " engine instance at "
+                        << m_local_node_address->get_member_ip()
+                        << ":"
+                        << local_port
+                        << ".")
     goto err;
     /* purecov: end */
   }
@@ -392,16 +396,21 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
      XCom instance. If this "test" connection fails, then we fail fast by
      interrupting the join procedure.
 
-     An example of a situation where this connection may fail is when we have an
-     SSL certificate with invalid identification, and the group is using SSL
-     with identity verification enabled.
+     Two examples of a situation where this connection may fail are:
+     * when we have an SSL certificate with invalid identification, and the
+       group is using SSL with identity verification enabled.
+     * an incorrect firewall configuration blocking connections to the endpoint.
   */
   could_connect_to_local_xcom = m_xcom_proxy->test_xcom_tcp_connection(
       m_local_node_address->get_member_ip(),
       m_local_node_address->get_member_port());
   if (!could_connect_to_local_xcom) {
     MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
-                        << " engine instance.")
+                        << " engine instance at "
+                        <<  m_local_node_address->get_member_ip()
+                        << ":"
+                        << m_local_node_address->get_member_port()
+                        << ".")
     goto err;
   }
 
