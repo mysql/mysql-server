@@ -5390,3 +5390,97 @@ Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+# Bug#33142010: Failure on complex const argument to string functions
+CREATE VIEW v AS SELECT LPAD('x', 1 NOT IN (0), 1) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select lpad('x',(1 <> 0),1) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT RPAD('x', 1 NOT IN (0), 1) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select rpad('x',(1 <> 0),1) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SHA2('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select sha2('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1583	Incorrect parameters in the call to native function 'sha2'
+DROP VIEW v;
+CREATE VIEW v AS SELECT SUBSTR('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select substr('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SUBSTR('x', 1, 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select substr('x',1,(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT REPEAT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select repeat('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT SPACE(1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select space((1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+ 
+DROP VIEW v;
+CREATE VIEW v AS SELECT LEFT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select left('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE VIEW v AS SELECT RIGHT('x', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select right('x',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+x
+DROP VIEW v;
+CREATE TABLE t(s SET('0', '1'));
+CREATE VIEW v AS SELECT FIND_IN_SET(1 NOT IN (0), s) AS c FROM t;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select find_in_set((1 <> 0),`t`.`s`) AS `c` from `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+DROP VIEW v;
+DROP TABLE t;
+CREATE VIEW v AS SELECT STR_TO_DATE('2020', 1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select str_to_date('2020',(1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '2020' for function str_to_date
+DROP VIEW v;

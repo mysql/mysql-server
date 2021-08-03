@@ -3494,7 +3494,7 @@ bool Item_func_str_to_date::resolve_type(THD *thd) {
   set_data_type_datetime(DATETIME_MAX_DECIMALS);
   sql_mode = thd->variables.sql_mode &
              (MODE_NO_ZERO_DATE | MODE_NO_ZERO_IN_DATE | MODE_INVALID_DATES);
-  if (args[1]->const_item()) {
+  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
     char format_buff[64];
     String format_str(format_buff, sizeof(format_buff), &my_charset_bin);
     String *format = args[1]->val_str(&format_str);
