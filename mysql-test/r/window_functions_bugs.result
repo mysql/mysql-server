@@ -1259,3 +1259,14 @@ GROUP BY a, field1 WITH ROLLUP
 ORDER BY field1, field2, field3;
 field1	field2	field3
 DROP TABLE t1;
+#
+# Bug #33181670: Recent regression: Memory leak with window functions and user variables
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT LAST_VALUE(0) OVER (ORDER BY (@f:='x')) FROM t1;
+LAST_VALUE(0) OVER (ORDER BY (@f:='x'))
+0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t1;

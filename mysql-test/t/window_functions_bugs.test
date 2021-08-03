@@ -798,3 +798,13 @@ GROUP BY a, field1 WITH ROLLUP
 ORDER BY field1, field2, field3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33181670: Recent regression: Memory leak with window functions and user variables
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SELECT LAST_VALUE(0) OVER (ORDER BY (@f:='x')) FROM t1;
+# NOTE: To actually show the bug in MTR, a shutdown; needs to be inserted here.
+DROP TABLE t1;
