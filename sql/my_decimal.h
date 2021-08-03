@@ -226,6 +226,7 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
   assert(precision || !scale);
   uint32 retval = (uint32)(precision + (scale > 0 ? 1 : 0) +
                            (unsigned_flag || !precision ? 0 : 1));
+  if (retval == 0) return 1;
   return retval;
 }
 

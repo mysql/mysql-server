@@ -501,8 +501,8 @@ bool Item_func_aes_encrypt::resolve_type(THD *thd) {
   ulong aes_opmode = thd->variables.my_aes_mode;
   assert(aes_opmode <= MY_AES_END);
 
-  set_data_type_string((uint)my_aes_get_size(args[0]->max_length,
-                                             (enum my_aes_opmode)aes_opmode));
+  set_data_type_string(static_cast<ulonglong>(
+      my_aes_get_size(args[0]->max_length, (enum my_aes_opmode)aes_opmode)));
   return false;
 }
 
@@ -982,7 +982,7 @@ bool Item_func_concat::resolve_type(THD *thd) {
     return true;
 
   for (uint i = 0; i < arg_count; i++)
-    char_length += args[i]->max_char_length();
+    char_length += args[i]->max_char_length(collation.collation);
 
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
@@ -1036,9 +1036,10 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
     return true;
 
   assert(arg_count >= 2);
-  char_length = (ulonglong)args[0]->max_char_length() * (arg_count - 2);
+  char_length = (ulonglong)args[0]->max_char_length(collation.collation) *
+                (arg_count - 2);
   for (uint i = 1; i < arg_count; i++)
-    char_length += args[i]->max_char_length();
+    char_length += args[i]->max_char_length(collation.collation);
 
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
@@ -1155,16 +1156,17 @@ String *Item_func_replace::val_str(String *str) {
 bool Item_func_replace::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 3)) return true;
 
-  ulonglong char_length = args[0]->max_char_length();
-  int diff = (int)(args[2]->max_char_length() - args[1]->max_char_length());
-  if (diff > 0 && args[1]->max_char_length()) {  // Calculate of maxreplaces
-    ulonglong max_substrs = char_length / args[1]->max_char_length();
-    char_length += max_substrs * (uint)diff;
-  }
-
   // We let the first argument (only) determine the character set of the result.
   // REPLACE(str, from_str, to_str)
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+
+  ulonglong char_length = args[0]->max_char_length(collation.collation);
+  ulonglong replace_length = args[2]->max_char_length(collation.collation);
+
+  if (replace_length > 1ULL) {
+    char_length = char_length * (replace_length - 1ULL);
+  }
+
   set_data_type_string(char_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
@@ -1230,8 +1232,8 @@ bool Item_func_insert::resolve_type(THD *thd) {
   // Character set of result is based on first argument
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   if (simplify_string_args(thd, collation, args + 3, 1)) return true;
-  ulonglong length = ulonglong{args[0]->max_char_length()} +
-                     ulonglong{args[3]->max_char_length()};
+  ulonglong length = ulonglong{args[0]->max_char_length(collation.collation)} +
+                     ulonglong{args[3]->max_char_length(collation.collation)};
   set_data_type_string(length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
@@ -2977,7 +2979,7 @@ String *Item_func_conv_charset::val_str(String *str) {
 bool Item_func_conv_charset::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
   collation.set(conv_charset, DERIVATION_IMPLICIT);
-  set_data_type_string(args[0]->max_char_length());
+  set_data_type_string(args[0]->max_char_length(collation.collation));
   return false;
 }
 
@@ -3128,7 +3130,8 @@ bool Item_func_weight_string::resolve_type(THD *thd) {
     len = result_length;
   } else {
     len = cs->coll->strnxfrmlen(
-        cs, cs->mbmaxlen * max(args[0]->max_char_length(), num_codepoints));
+        cs, cs->mbmaxlen * max(args[0]->max_char_length(collation.collation),
+                               num_codepoints));
   }
 
   // Due to the filesort logic in val_str(), we could return an int;
@@ -3650,13 +3653,15 @@ bool Item_func_export_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 4)) return true;
   if (param_type_is_default(thd, 4, 5, MYSQL_TYPE_LONGLONG)) return true;
 
-  ulonglong length =
-      max(args[1]->max_char_length(), args[2]->max_char_length());
-  ulonglong sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
-
   if (agg_arg_charsets_for_string_result(collation, args + 1,
                                          min(4U, arg_count) - 1))
     return true;
+
+  ulonglong length = max(args[1]->max_char_length(collation.collation),
+                         args[2]->max_char_length(collation.collation));
+  ulonglong sep_length =
+      (arg_count > 3 ? args[3]->max_char_length(collation.collation) : 1);
+
   set_data_type_string(length * 64U + sep_length * 63U);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
@@ -3890,6 +3895,13 @@ longlong Item_func_crc32::val_int() {
   null_value = false;
   return my_checksum(0, pointer_cast<const unsigned char *>(res->ptr()),
                      res->length());
+}
+
+bool Item_func_compress::resolve_type(THD *thd) {
+  if (Item_str_func::resolve_type(thd)) return true;
+  set_data_type_string(
+      static_cast<ulonglong>(compressBound(args[0]->max_length)));
+  return false;
 }
 
 String *Item_func_compress::val_str(String *str) {

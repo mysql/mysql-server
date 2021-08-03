@@ -4821,7 +4821,6 @@ from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
 rand(to_days('2028-12-04 15:50:01.284969'))));
 Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'5d44f4d736397d92c8267c12''
-Warning	1264	Out of range value for column '(null)' at row 1
 do from_base64(cast(right(11,1)as binary(24)));
 do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
 Warnings:
@@ -5389,7 +5388,6 @@ Warnings:
 Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
 Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 # Bug#33142010: Failure on complex const argument to string functions
 CREATE VIEW v AS SELECT LPAD('x', 1 NOT IN (0), 1) AS c;
 SHOW CREATE TABLE v;

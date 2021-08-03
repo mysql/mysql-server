@@ -1331,9 +1331,10 @@ class Item : public Parse_tree_node {
   }
 
   inline void set_data_type_bool() {
-    set_data_type(MYSQL_TYPE_LONG);
+    set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
     max_length = 1;
+    unsigned_flag = true;
   }
 
   /**
@@ -3077,6 +3078,13 @@ class Item : public Parse_tree_node {
     if (result_type() == STRING_RESULT)
       return max_len / collation.collation->mbmaxlen;
     return max_len;
+  }
+
+  uint32 max_char_length(const CHARSET_INFO *cs) const {
+    if (cs == &my_charset_bin && result_type() == STRING_RESULT) {
+      return max_length;
+    }
+    return max_char_length();
   }
 
   inline void fix_char_length(uint32 max_char_length_arg) {

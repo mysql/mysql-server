@@ -6644,7 +6644,7 @@ longlong Item_hex_string::val_int() {
         push_warning_printf(
             thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
             ER_THD(thd, ER_TRUNCATED_WRONG_VALUE), "BINARY", errbuff);
-        return -1;
+        return 0;
       }
   }
 

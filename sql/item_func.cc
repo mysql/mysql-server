@@ -2587,7 +2587,12 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_mod::result_precision() {
   decimals = max(args[0]->decimals, args[1]->decimals);
-  max_length = max(args[0]->max_length, args[1]->max_length);
+  uint precision =
+      max(args[0]->decimal_precision(), args[1]->decimal_precision());
+
+  max_length = my_decimal_precision_to_length_no_truncation(precision, decimals,
+                                                            unsigned_flag);
+
   // Increase max_length if we have: signed % unsigned(precision == scale)
   if (!args[0]->unsigned_flag && args[1]->unsigned_flag &&
       args[0]->max_length <= args[1]->max_length &&
