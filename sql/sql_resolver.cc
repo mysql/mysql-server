@@ -302,6 +302,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (olap == ROLLUP_TYPE) {
     for (Item *item : fields) {
       mark_item_as_maybe_null_if_rollup_item(item);
+      item->update_used_tables();
     }
   }
 
