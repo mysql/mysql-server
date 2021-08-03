@@ -2881,7 +2881,7 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
     return;
   }
 
-  if (db_name_arg && db_name_arg[0] && !(query_type & QT_NO_DB) &&
+  if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0] &&
       !alias_name_used()) {
     const size_t d_name_len = strlen(d_name);
     if (!((query_type & QT_NO_DEFAULT_DB) &&
@@ -2890,7 +2890,7 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
       str->append('.');
     }
   }
-  if (table_name_arg[0] && !(query_type & QT_NO_TABLE)) {
+  if (!(query_type & QT_NO_TABLE) && table_name_arg[0]) {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
   }
