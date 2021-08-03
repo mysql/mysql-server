@@ -1329,6 +1329,8 @@ void Window::destroy()  // called only at stmt destruction
   for (Cached_item *ci : m_partition_items) {
     ::destroy(ci);
   }
+  destroy_array(&m_comparators[0][0], m_comparators[0].size());
+  destroy_array(&m_comparators[1][0], m_comparators[1].size());
 }
 
 void Window::reset_lead_lag() {
