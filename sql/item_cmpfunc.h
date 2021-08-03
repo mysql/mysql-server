@@ -286,21 +286,35 @@ class Arg_comparator {
 
 class Item_bool_func : public Item_int_func {
  protected:
-  Item_bool_func() : Item_int_func() {}
-  explicit Item_bool_func(const POS &pos) : Item_int_func(pos) {}
+  Item_bool_func() : Item_int_func() { set_data_type_bool(); }
+  explicit Item_bool_func(const POS &pos) : Item_int_func(pos) {
+    set_data_type_bool();
+  }
 
-  explicit Item_bool_func(Item *a) : Item_int_func(a) {}
-  Item_bool_func(const POS &pos, Item *a) : Item_int_func(pos, a) {}
+  explicit Item_bool_func(Item *a) : Item_int_func(a) { set_data_type_bool(); }
+  Item_bool_func(const POS &pos, Item *a) : Item_int_func(pos, a) {
+    set_data_type_bool();
+  }
 
-  Item_bool_func(Item *a, Item *b, Item *c) : Item_int_func(a, b, c) {}
-  Item_bool_func(Item *a, Item *b) : Item_int_func(a, b) {}
-  Item_bool_func(const POS &pos, Item *a, Item *b) : Item_int_func(pos, a, b) {}
+  Item_bool_func(Item *a, Item *b, Item *c) : Item_int_func(a, b, c) {
+    set_data_type_bool();
+  }
+  Item_bool_func(Item *a, Item *b) : Item_int_func(a, b) {
+    set_data_type_bool();
+  }
+  Item_bool_func(const POS &pos, Item *a, Item *b) : Item_int_func(pos, a, b) {
+    set_data_type_bool();
+  }
   Item_bool_func(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_int_func(pos, a, b, c) {}
+      : Item_int_func(pos, a, b, c) {
+    set_data_type_bool();
+  }
 
   Item_bool_func(THD *thd, Item_bool_func *item)
       : Item_int_func(thd, item),
-        m_created_by_in2exists(item->m_created_by_in2exists) {}
+        m_created_by_in2exists(item->m_created_by_in2exists) {
+    set_data_type_bool();
+  }
 
  public:
   bool is_bool_func() const override { return true; }
@@ -1301,9 +1315,12 @@ class Item_func_strcmp final : public Item_bool_func2 {
              enum_query_type query_type) const override {
     Item_func::print(thd, str, query_type);
   }
+  // We derive (indirectly) from Item_bool_func, but this is not a true boolean.
+  // Override length and unsigned_flag set by set_data_type_bool().
   bool resolve_type(THD *thd) override {
     if (Item_bool_func2::resolve_type(thd)) return true;
     fix_char_length(2);  // returns "1" or "0" or "-1"
+    unsigned_flag = false;
     return false;
   }
 };

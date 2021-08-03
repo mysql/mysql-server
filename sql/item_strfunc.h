@@ -1169,11 +1169,7 @@ class Item_func_compress final : public Item_str_func {
 
  public:
   Item_func_compress(const POS &pos, Item *a) : Item_str_func(pos, a) {}
-  bool resolve_type(THD *thd) override {
-    if (Item_str_func::resolve_type(thd)) return true;
-    set_data_type_string((args[0]->max_length * 120U) / 100U + 12U);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "compress"; }
   String *val_str(String *str) override;
 };
