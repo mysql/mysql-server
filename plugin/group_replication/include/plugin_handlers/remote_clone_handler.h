@@ -164,8 +164,10 @@ class Remote_clone_handler : public Group_event_observer {
     The thread callback passed onto mysql_thread_create.
 
     @param[in] arg a pointer to a Remote_clone_handler instance.
+
+    @return Does not return.
   */
-  [[noreturn]] static void *launch_thread(void *arg);
+  static void *launch_thread(void *arg);
 
   /**
     The clone thread process.

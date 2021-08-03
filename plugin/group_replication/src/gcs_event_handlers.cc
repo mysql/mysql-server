@@ -1256,8 +1256,8 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
       my_thread_init();
       error = member_actions_handler->replace_all_actions(
           exchanged_members_actions_serialized_configuration);
-      error |= set_replication_failover_channels_configuration(
-          exchanged_replication_failover_channels_serialized_configuration);
+      error |= static_cast<int>(set_replication_failover_channels_configuration(
+          exchanged_replication_failover_channels_serialized_configuration));
       my_thread_end();
     }
   }

@@ -26,9 +26,9 @@
 #include "plugin/group_replication/include/plugin_handlers/remote_clone_handler.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 
-[[noreturn]] void *Remote_clone_handler::launch_thread(void *arg) {
+void *Remote_clone_handler::launch_thread(void *arg) {
   Remote_clone_handler *thd = static_cast<Remote_clone_handler *>(arg);
-  thd->clone_thread_handle();
+  thd->clone_thread_handle();  // Does not return.
 }
 
 Remote_clone_handler::Remote_clone_handler(ulonglong threshold,
