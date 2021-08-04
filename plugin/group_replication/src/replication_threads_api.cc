@@ -137,8 +137,8 @@ int Replication_thread_api::start_threads(bool start_receiver,
     thread_mask |= CHANNEL_RECEIVER_THREAD;
   }
 
-  int error =
-      channel_start(interface_channel, &info, thread_mask, wait_for_connection);
+  int error = channel_start(interface_channel, &info, thread_mask,
+                            wait_for_connection, true);
 
   if (view_id) {
     delete[] cview_id;
