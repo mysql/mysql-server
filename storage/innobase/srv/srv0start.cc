@@ -1985,8 +1985,14 @@ dberr_t srv_start(bool create_new_db) {
 
   srv_boot();
 
-  ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
-                           << " CPU crc32 instructions";
+  ib::info(ER_IB_MSG_1126)
+      << "Using "
+      << (ut_crc32_cpu_enabled ? (ut_poly_mul_cpu_enabled
+                                      ? "hardware accelerated crc32 and "
+                                        "polynomial multiplication."
+                                      : "hardware accelerated crc32 and "
+                                        "software polynomial multiplication.")
+                               : "software crc32.");
 
   os_create_block_cache();
 
