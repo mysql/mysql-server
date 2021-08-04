@@ -95,6 +95,10 @@ class Bounds_checked_array {
     return Bounds_checked_array(m_array, new_size);
   }
 
+  Element_type *data() { return m_array; }
+
+  const Element_type *data() const { return m_array; }
+
   Element_type &operator[](size_t n) {
     assert(n < m_size);
     return m_array[n];
