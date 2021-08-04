@@ -92,7 +92,7 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
   Opt_trace_context *const trace = &thd->opt_trace;
   {
     Opt_trace_array trace_keyparts(trace, "key_parts_used_for_access");
-    for (uint partno = 0; partno < real_key_parts; partno++) {
+    for (uint partno = 0; partno < used_key_parts; partno++) {
       const KEY_PART_INFO *cur_key_part = key_part + partno;
       trace_keyparts.add_utf8(cur_key_part->field->field_name);
     }

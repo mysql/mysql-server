@@ -6418,7 +6418,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     "rows": 1,
                     "cost": 0.4,
                     "key_parts_used_for_access": [
-                      "a"
+                      "a",
+                      "b"
                     ] /* key_parts_used_for_access */,
                     "ranges": [
                       "1 <= a <= 1 AND b < 2"
