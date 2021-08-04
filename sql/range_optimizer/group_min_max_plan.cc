@@ -950,10 +950,10 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     if (best_quick_prefix_records != HA_POS_ERROR) {
       /* Prepare for a QUICK_RANGE_SELECT to be used for group prefix retrieval.
        */
-      unsigned used_key_parts;
+      unsigned used_key_parts_unused;
       if (get_ranges_from_tree(return_mem_root, table, used_key_part, keyno,
-                               index_tree, group_key_parts, &used_key_parts,
-                               &prefix_ranges)) {
+                               index_tree, group_key_parts,
+                               &used_key_parts_unused, &prefix_ranges)) {
         return nullptr;
       }
       // Opens the ranges if there are more conditions in
