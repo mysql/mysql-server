@@ -753,9 +753,14 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
 
   // there should be no WARNINGs nor ERRORs in the log file
   const std::string log_content = router.get_full_logfile();
-  EXPECT_EQ(log_content.find("ERROR"), log_content.npos) << log_content;
-  EXPECT_EQ(log_content.find("WARNING"), log_content.npos) << log_content;
+  EXPECT_EQ(log_content.find(" ERROR "), log_content.npos) << log_content;
+  EXPECT_EQ(log_content.find(" WARNING "), log_content.npos) << log_content;
 }
+
+INSTANTIATE_TEST_SUITE_P(GrNotificationMysqlxWaitTimeoutUnsupported,
+                         GrNotificationMysqlxWaitTimeoutUnsupportedTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 class GrNotificationNoticesUnsupportedTest
     : public GrNotificationsTest,
