@@ -1972,15 +1972,6 @@ written */
     }
   }
 
-  if (trx->rsegs.m_redo.rseg != nullptr) {
-    trx_rseg_t *rseg = trx->rsegs.m_redo.rseg;
-    ut_ad(rseg->trx_ref_count > 0);
-
-    /* Multiple transactions can simultaneously decrement
-    the atomic counter. */
-    rseg->trx_ref_count--;
-  }
-
   /* Reset flag that SE persists GTID. */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.set_persist_gtid(trx, false);
@@ -2050,6 +2041,27 @@ written */
     master thread, purge thread or page_cleaner thread might
     have some work to do. */
     srv_active_wake_master_thread();
+  }
+
+  /* Do not decrement the reference count before this point.
+  There is a potential issue where a thread attempting to drop
+  an undo tablespace may end up dropping this undo space
+  before this thread can complete the cleanup.
+  While marking a undo space as inactive, the server tries
+  to find if any transaction is actively using the undo log
+  being truncated. A non-zero reference count ensures that the
+  thread attempting to truncate/drop the undo tablespace
+  cannot be successful as the undo log cannot be dropped until
+  is it empty. */
+  if (trx->rsegs.m_redo.rseg != nullptr) {
+    trx_rseg_t *rseg = trx->rsegs.m_redo.rseg;
+    ut_ad(rseg->trx_ref_count > 0);
+
+    /* Multiple transactions can simultaneously decrement
+    the atomic counter. */
+    rseg->trx_ref_count--;
+
+    trx->rsegs.m_redo.rseg = nullptr;
   }
 
   /* Free all savepoints, starting from the first. */
