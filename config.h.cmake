@@ -197,6 +197,7 @@
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
+#cmakedefine APPLE_ARM 1
 
 /*
  * From main CMakeLists.txt
