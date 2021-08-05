@@ -116,6 +116,9 @@ enum enum_rpl_replica_debug_point {
 
   /** handle_slave_io */
   DBUG_RPL_S_RETRY_COUNT_EXCEED,
+
+  /** Pause on a replica thread stop after aweking the THD */
+  DBUG_RPL_R_WAIT_AFTER_AWAKE_ON_THREAD_STOP
 };
 
 /**
@@ -267,6 +270,11 @@ void rpl_replica_debug_point(enum_rpl_replica_debug_point point_id,
       debug_point_string.assign(
           "now SIGNAL wait_for_retry_count_exceed WAIT_FOR "
           "continue_retry_count_exceed");
+      break;
+    }
+    /* terminate_slave_thread */
+    case DBUG_RPL_R_WAIT_AFTER_AWAKE_ON_THREAD_STOP: {
+      debug_point_string.assign("now signal signal.stop_point_after_awake");
       break;
     }
   }
