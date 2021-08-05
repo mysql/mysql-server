@@ -23,7 +23,7 @@
 #include "storage/warp/warp_rewrite/warp_rewrite.h"
 
 #include "my_config.h"
-
+#include "mysql.h"
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/psi/mysql_memory.h>
@@ -143,7 +143,58 @@ mysql_declare_plugin(audit_log){
     0                               /* flags                         */
 } mysql_declare_plugin_end;
 
-///@}
+std::string strtolower(std::string in) {
+  std::string out;
+  for(int i=0;i<in.length();++i) {
+    out += tolower(in[i]);
+  }
+  return out;
+}
+
+std::vector<std::string> custom_lex(std::string sql, bool convert_case = true) {
+  //bool keep_whitespace = false;
+  //char until_char;
+  bool in_comment = false;
+  bool in_line_comment = false;
+  std::string token="";
+  std::vector<std::string> tokens;
+  for(int i=0;i<sql.length();++i) {
+    if(isspace(sql[i]) && sql.substr(i+2, 2) == "--") {
+      in_line_comment = true;
+      continue;
+    }
+
+    if((in_line_comment && sql[i] == '\r') || (sql[i] == '\n')) {
+      in_line_comment = false;
+      continue;
+    }
+    if((!in_comment) && (sql.substr(i,2) == "/*")) {
+      in_comment = true;
+      ++i;
+      continue;
+    }
+    if(in_comment && (sql.substr(i, 2) == "*/")) {
+      in_comment = false;
+      ++i;
+      continue;
+    }
+    if(in_comment) { 
+      continue;
+    }
+
+    if(sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\r' || sql[i] == '\n' || isspace(sql[i])) {
+      if(token != "") tokens.push_back(convert_case ? strtolower(token) : token);
+      token = "";
+      continue;
+    }
+    token += sql[i];
+
+  }
+  if(token != "") {
+    tokens.push_back(convert_case ? strtolower(token) : token);
+  }
+  return tokens;  
+}
 
 static int warp_rewriter_plugin_init(MYSQL_PLUGIN plugin_ref) {
   plugin_info = plugin_ref;
@@ -515,8 +566,340 @@ std::vector<std::pair<std::string, uint64_t>>sort_from(std::map<string, uint64_t
     sort(vec.begin(), vec.end(), desc); 
   
     return vec;
-} 
+}
 
+bool is_remote_query(std::vector<std::string> tokens) {
+  std::unordered_map<std::string, int> table_map;
+  
+  bool next_is_table_name = false;
+  for(int i=0; i < tokens.size(); ++i) {
+    std::string lower = strtolower(tokens[i]);
+    
+    if((lower == "from") || (lower == "join")) {
+      next_is_table_name = true;
+      continue;
+    }
+    if(next_is_table_name) {
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
+        std::string remote_host(remote);
+        auto find_it = table_map.find(remote_host);
+        if(find_it == table_map.end()) {
+          table_map.emplace(make_pair(remote_host, 1));
+        }
+      } 
+    }
+  }
+  
+  return table_map.size() >0;
+}
+bool is_valid_remote_query(std::vector<std::string> tokens) {
+  //LIXME
+  std::unordered_map<std::string, int> table_map;
+  int remote_server_count = 0;
+  int local_server_count = 0;
+  bool next_is_table_name = false;
+  for(int i=0; i < tokens.size(); ++i) {
+    std::string lower = strtolower(tokens[i]);
+    
+    if((lower == "from") || (lower == "join")) {
+      next_is_table_name = true;
+      continue;
+    }
+    if(next_is_table_name) {
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
+        std::string remote_host(remote);
+        auto find_it = table_map.find(remote_host);
+        if(find_it == table_map.end()) {
+          remote_server_count++;
+          table_map.emplace(make_pair(remote_host, 1));
+        }
+      } else {
+        local_server_count++;
+      }
+    }
+  }
+  std::cout << "remote count:" << remote_server_count << " local count:" << local_server_count << "\n";
+  if((remote_server_count == 1) && (local_server_count == 0)) {
+    return true;
+  }
+  return false;
+}
+
+std::string get_remote_server(std::vector<std::string> tokens) {
+  std::unordered_map<std::string, int> table_map;
+  
+  bool next_is_table_name = false;
+  for(int i=0; i < tokens.size(); ++i) {
+    std::string lower = strtolower(tokens[i]);
+    
+    if((lower == "from") || (lower == "join")) {
+      next_is_table_name = true;
+      continue;
+    }
+    if(next_is_table_name) {
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
+        std::string remote_host(remote);
+        auto find_it = table_map.find(remote_host);
+        if(find_it == table_map.end()) {
+          table_map.emplace(make_pair(remote_host, 1));
+          break;
+        }
+      } 
+    }
+  }
+  
+  return table_map.begin()->first;
+}
+
+std::string strip_remote_server(std::vector<std::string> tokens, bool strip_ddl = true) {
+  std::string out;
+  bool next_is_table_name = false;
+  bool found_as = false;
+  bool is_ddl = false;
+  
+  int i=0;
+  for(i=0;i<tokens.size();++i) {
+    
+    if(tokens[i] != " ") {
+      break;
+    }
+  }
+  
+  /*if(tokens[i] != "select") {
+    tokens[0] = "select";
+  }*/
+  
+  if((strtolower(tokens[0]) == "create") || (strtolower(tokens[0]) == "insert")){
+    is_ddl=true;
+  }
+  for(int i=0; i < tokens.size(); ++i) {
+    std::string lower = strtolower(tokens[i]);
+    if(is_ddl & !found_as && strip_ddl) {
+      
+      if((lower != "as") && (lower != "select")) {
+        continue;
+      }
+      
+      if(lower == "select") {
+        out += lower + " ";
+      }
+      
+      found_as = true;
+      continue;
+    }
+    if((lower == "from") || (lower == "join")) {
+      next_is_table_name = true;
+      out += lower + " ";
+      continue;
+    }
+    if(next_is_table_name) {
+      next_is_table_name = false;
+      const char* remote = strstr(tokens[i].c_str(), "@");
+      if (remote != NULL) {
+        std::string new_token = "";
+        for(int z=0;z<tokens[i].length();++z) {
+          if(tokens[i][z] == '@') {
+            out += "/*@";
+            continue;
+          }
+          out+=tokens[i][z];  
+        }    
+        out += "*/ ";
+      } else {
+        out += tokens[i] + " ";
+      }
+    } else {
+      out += tokens[i] + " ";
+    }
+  }
+  
+  return out;
+}
+
+// MODIFIES TOKENS!
+std::string extract_ddl(std::vector<std::string>* tokens) {
+  std::string out;
+  
+  for(int i=0; i < tokens->size(); ++i) {
+    std::string lower = strtolower((*tokens)[i]);
+    if(lower == "select") {
+      break;
+    }
+    out += (*tokens)[i] + " ";
+    //f((*tokens)[i] != "select") {
+      (*tokens)[i] = ' ';
+    //}
+    if(lower == "as") {
+      break;
+    }
+  }
+  return out;
+}
+
+std::string get_local_root_password() {
+  FILE* fp = NULL;
+  char password[65]="";
+  fp = fopen("/usr/local/leapdb/config/.rootpw","r");
+  if(fp == NULL) {
+    std::cerr << "file open error: " << errno << "\n";
+    return "";
+  }
+  if(fgets(password, 64, fp)!=NULL) {
+    int len = strlen(password);
+    if(password[len-1] == '\n') {
+      password[len-1] = 0;
+    }
+    return std::string(password);
+  }
+  return "";
+}
+
+std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert_select = false) {
+  std::string sqlstr = "";
+  if(is_remote_query(tokens)) {
+    if(is_valid_remote_query(tokens)) {
+      std::string remote_host;
+      std::string remote_db;
+      std::string remote_user;
+      std::string remote_pw;
+
+      //std::cerr << "VALID REMOTE QUERY DETECTED\n";
+      std::string rootpw = get_local_root_password();
+      std::string servername = get_remote_server(tokens);
+      // get rid of the leading @
+      servername = std::string(servername.c_str()+1);
+      MYSQL *local = mysql_init(NULL);
+      MYSQL *remote = mysql_init(NULL);
+      MYSQL_RES *result;
+      MYSQL_ROW row = NULL;
+      if (local == NULL || remote == NULL) {
+        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not initialize database connections'";
+        return sqlstr;
+      }
+        /* establish a connection to the local server to get the remote connection details*/
+      if (mysql_real_connect(local, NULL, "root", rootpw.c_str(), NULL, 3306, "/tmp/mysql.sock", 0) == NULL) {
+        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to local database connection'";
+        return sqlstr;
+      }
+      std::string sql = "select * from mysql.servers where server_name='" + escape_for_call(servername) + "'";
+      mysql_real_query(local, sql.c_str(), sql.length());
+      result = mysql_store_result(local);
+      
+      
+      while(row = mysql_fetch_row(result)) {
+        remote_host=std::string(row[1]);
+        remote_db=std::string(row[2] != NULL ? row[2] : "");
+        remote_user=std::string(row[3]);
+        remote_pw=std::string(row[4]);
+
+        //std::cerr << "remote deets\n host:" << remote_host << " db:" << remote_db << " user:" << remote_user << " pw:" << remote_pw << "\n";
+      }
+      mysql_free_result(result);
+      result = NULL;
+      //mysql_close(conn);
+            
+      if (mysql_real_connect(remote, remote_host.c_str(), remote_user.c_str(), remote_pw.c_str(), NULL, 3306, NULL, 0) == NULL) {
+        sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not connect to remote database connection'";
+        return sqlstr;
+      }
+
+      std::string remote_sql = strip_remote_server(tokens);
+      remote_sql = "CREATE TEMPORARY TABLE leapdb.remote_tmp AS " + remote_sql;
+      //std::cerr << "REMOTE_SQL: " << remote_sql << "\n";
+
+      mysql_real_query(remote, remote_sql.c_str(), remote_sql.length());
+      
+      int myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [while creating temporary table]: " + std::to_string(myerrno) + "';";
+        mysql_close(remote);
+        mysql_close(local);
+        return sqlstr;
+      }
+      
+      std::string get_create_table = "show create table leapdb.remote_tmp;";
+      mysql_real_query(remote, get_create_table.c_str(), get_create_table.length());
+      
+      myerrno = mysql_errno(remote);
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to get remote query metadata]: " + std::to_string(myerrno) + "';";
+        mysql_close(local);
+        mysql_close(remote);
+        return sqlstr;
+      }
+      
+      result = mysql_store_result(remote);
+      row = mysql_fetch_row(result);
+      if(row == NULL || row[0] == NULL) {
+        mysql_free_result(result);
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not fetch temporary table metadata';";
+      }
+      sql = "drop table if exists leapdb.remote_tmp;";
+      mysql_real_query(local, sql.c_str(), sql.length());
+      if(myerrno >0) {
+        sqlstr = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error [unable to drop local temporary table]: " + std::to_string(myerrno) + "';";
+        mysql_close(local);
+        mysql_close(remote);
+        return sqlstr;
+      }
+
+      std::string create_table_sql = std::string(row[1]);
+      
+      //CREATE TEMPORARY TABLE
+      create_table_sql.erase(7, 9);
+      mysql_select_db(local, "leapdb");
+      mysql_real_query(local, create_table_sql.c_str(), create_table_sql.length());
+      if(mysql_errno(local) > 0) {
+        mysql_free_result(result);
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create local temporary table for remote query contents';";
+      }
+      
+      sql = "select * from leapdb.remote_tmp;";
+      mysql_real_query(remote, sql.c_str(), sql.length());
+      if(mysql_errno(remote) > 0) {
+        mysql_close(local);
+        mysql_close(remote);
+        return "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Remote query error: could not create fetch remote temporary table contents';";
+      }
+      result = mysql_store_result(remote);
+      int col_cnt = mysql_num_fields(result);
+      while(row = mysql_fetch_row(result)) {
+        std::string insert_sql = "";  
+        for(int n=0;n<col_cnt;++n) {
+          if(insert_sql != "") {
+            insert_sql += ", ";
+          }
+          if(row[n] == NULL) {
+            insert_sql += "NULL";
+          } else {
+            insert_sql += '\'' + escape_for_call(std::string(row[n])) + '\'';
+          }
+        }
+        insert_sql = "INSERT INTO leapdb.remote_tmp VALUES(" + insert_sql + ");";
+        mysql_real_query(local, insert_sql.c_str(), insert_sql.length());
+      }
+      
+      mysql_free_result(result);   
+      mysql_close(local);
+      mysql_close(remote);
+      return "select * from leapdb.remote_tmp;";
+      return sqlstr;
+    } else {
+      sqlstr  = "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='A remote query may only access remote tables from a single remote server and no local tables'";
+    }
+  }
+  return sqlstr;
+}
 /**
   Entry point to the plugin. The server calls this function after each parsed
   query when the plugin is active. The function extracts the digest of the
@@ -529,81 +912,111 @@ static int warp_rewrite_query_notify(
   //DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
+  std::string rewrite_error = "";
+  //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
+  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), true);
   
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
+    //std::cerr << "PRE-PARSE!\n";
     //return 0;
-  
     //size_t query_length = event_parse->query.length;
-    const char *sql=NULL;
+    //const char *sql=NULL;
     bool is_incremental = false;
-    sql=strcasestr(event_parse->query.str, "create incremental materialized view");
-    if(sql != NULL) {
+    std::string mvname;
+    //sql=strcasestr(event_parse->query.str, "create incremental materialized view");
+    /*if(sql != NULL) {
       is_incremental = true;
     } else {  
       sql=strcasestr(event_parse->query.str, "create materialized view");
       if(sql == NULL) { 
         return 0;
       }
-    }
-    
-    std::vector<std::string> tokens;
-    std::string tmp = "";
-    for(int i=0;i<event_parse->query.length;++i) {
-      if(event_parse->query.str[i] != ' ') {
-        tmp+=event_parse->query.str[i];
-        continue;
-      }
-      tokens.push_back(tmp);
-      tmp = "";
-    }
-    if(tmp != "") {
-      tokens.push_back(tmp);
-      tmp = "";
-    }
-    std::string mvname = "";
+    }*/
     std::string sqlstr = "";
-    for(int i=0;i<tokens.size();++i) {
-      if(mvname == "" && tokens[i] == "view") {
-        mvname=tokens[i+1];
-        ++i;
-        continue;
+    bool capture_sql = false;
+    bool is_create_table = false;
+    // HANDLE CREATE TABLE STATEMENTS WITH REMOTE QUERIES
+    if(strstr(event_parse->query.str, "^@") != NULL || 
+      (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
+      (strtolower(tokens[0])=="insert"))  
+    { 
+      if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
+          std::string ddl = extract_ddl(&tokens);
+          std::string tmp = strip_remote_server(tokens);
+          sqlstr = ddl + " " + execute_remote_query(tokens, strtolower(tokens[0])=="insert" ? true : false);
+          is_create_table = true;
       }
-      if(mvname != "" && tokens[i] == "as") {
-        sqlstr=" ";
-        continue;
-      }
-      if(sqlstr != "") {
-        sqlstr+= " " + tokens[i];
-      }
-    }
-    if(mvname == "") {
-      //malformed
-      return -1;
-    }
-
-    std::string prefix = "/*~cmv:";
-    if(is_incremental) {
-      prefix += "i";
     } else {
-      prefix += "f";
+      // handle create [incremental] materialized view
+      if(tokens[0] == "create") {
+        if(tokens[1] == "incremental") {
+          is_incremental = true;
+          if(tokens[2] != "materialized" && tokens[3] != "view") {
+            return -1;
+          }
+          mvname = tokens[4];
+        } else {
+          
+          if(tokens[1] == "materialized" && tokens[2] == "view") {
+            mvname = tokens[3];
+          } else {
+            //not a create [incremental] materialised view statement
+            return 0;
+          }
+        }
+      }
+    }
+    if(mvname != "") {  
+      std::string prefix = "/*~cmv:";
+      if(is_incremental) {
+        prefix += "i";
+      } else {
+        prefix += "f";
+      } 
+      prefix += "|" + mvname ;
+      if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
+        prefix += "^" + get_remote_server(tokens);
+        prefix += "*/";
+        sqlstr = prefix + strip_remote_server(tokens);
+      } else {
+        for(int i=0;i<tokens.size();++i) {
+          if(tokens[i] == mvname) {
+            capture_sql = true;
+            if(i+1 < tokens.size()) {
+              if(strtolower(tokens[i+1]) == "as" || strtolower(tokens[i+1]) == "select") {
+                ++i;
+              }
+            }
+            continue;
+          }
+          if(capture_sql) sqlstr += tokens[i] + " ";
+        }
+        sqlstr = prefix + "*/" + sqlstr;
+      }
+      
+    } else if(!is_create_table) {
+      sqlstr = execute_remote_query(tokens);
+    }  
+
+    process_sql:
+    if(sqlstr != "") {
+      char *rewritten_query = static_cast<char *>(
+      my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
+      memcpy(rewritten_query, sqlstr.c_str(), sqlstr.length());
+      rewritten_query[sqlstr.length()]=0;
+      event_parse->rewritten_query->str = rewritten_query;
+      event_parse->rewritten_query->length = sqlstr.length();
+      
+      *((int *)event_parse->flags) |=
+          (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
     } 
-    prefix += "|" + mvname + "*/";
-    sqlstr = prefix + sqlstr + ";";
-    std::cerr << sqlstr << "\n";
-    char *rewritten_query = static_cast<char *>(
-    my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
-    memcpy(rewritten_query, sqlstr.c_str(), sqlstr.length());
-    rewritten_query[sqlstr.length()]=0;
-    event_parse->rewritten_query->str = rewritten_query;
-    event_parse->rewritten_query->length = sqlstr.length();
     
-    *((int *)event_parse->flags) |=
-        (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
- 
     // this is not a post-parse call to the plugin    
     return 0;
   }
+  //std::cerr << "POST-PARSE!\n";
   // POST-PARSE HANDLING HERE 
+  bool is_remote = false;
   const bool is_mv_create = (strstr(event_parse->query.str, "/*~cmv:") != NULL);
   // If we are building a materialized view create script, commands contains the add_table and add_expr commands
   // They will be executed by the create_from_rewriter function
@@ -628,7 +1041,12 @@ static int warp_rewrite_query_notify(
       ++pos;
     }
   }
-  
+  const char* remote_name=NULL;
+  if(auto pos = strstr(mvname.c_str(),"^@")) {
+    if(pos!=NULL)  {
+      remote_name = pos+1;
+    }
+  }
   //if(is_mv_create != NULL) {
   //  commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
   //}
@@ -837,11 +1255,10 @@ static int warp_rewrite_query_notify(
       if(used_fields_it == used_fields.end()) {
         std::string bare_field = "";
         const char* pos;
-        std::cerr << "BARE0: " << std::string(group_item->full_name()) << "\n";
+        
         if( (pos = strstr(group_item->full_name(), "`.`")) != NULL) {
           pos+=3;
           bare_field = std::string(pos); 
-          std::cerr << "BARE: " << bare_field << "\n";
           used_fields_it = used_fields.find(bare_field); 
         }
 
@@ -861,6 +1278,9 @@ static int warp_rewrite_query_notify(
           }
         }
         if(!is_numeric) {
+          if(commands != "") {
+            commands += ";;";
+          }
           commands += "CALL leapdb.add_expr(@mvid, 'GROUP', '";
           commands += escape_for_call(std::string(field_str.ptr())) + "','" + escape_for_call(std::string(field_str.ptr())) + "')";
         }
@@ -910,11 +1330,17 @@ static int warp_rewrite_query_notify(
         all_warp_tables = false;
       }
       fqtn = "";
+      
       fqtn = std::string("`") + std::string(tbl->db, tbl->db_length) + "`." +
-            std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
-            " AS `" + std::string(tbl->alias) + "` ";
+             std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
+             " AS `" + std::string(tbl->alias) + "` ";
+      
       commands += "CALL leapdb.add_table(@mvid, '" + escape_for_call(std::string(tbl->db, tbl->db_length)) + "','";
-      commands += escape_for_call(std::string(tbl->table_name, tbl->table_name_length)) + "','";
+      commands += escape_for_call(std::string(tbl->table_name, tbl->table_name_length));
+      if(remote_name != NULL) {
+        commands += std::string(remote_name);
+      }
+      commands += "','";
       commands += escape_for_call(std::string(tbl->alias)) + "',";
       if(!from_clause.empty()) {
         if(tbl->is_inner_table_of_outer_join()) {
@@ -1122,7 +1548,6 @@ static int warp_rewrite_query_notify(
     if(is_incremental) {
       call_sql += "i";
     } else {
-      std::cerr << "HERE!!!\n";
       call_sql += "c";
       commands = std::string(event_parse->query.str,event_parse->query.length);
     }
@@ -1130,9 +1555,10 @@ static int warp_rewrite_query_notify(
     call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + commands + "\");";
     //commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
     //call_sql = "SELECT \"" + commands + "\";";
-    std::cerr << "HERE!!!!\n";
-    std::cerr << call_sql << "\n";
+    
+    //std::cerr << call_sql << "\n";
   }
+  
   MYSQL_LEX_STRING call_sql_str;
   call_sql_str.length = call_sql.size();
   call_sql_str.str = strdup(call_sql.c_str());
