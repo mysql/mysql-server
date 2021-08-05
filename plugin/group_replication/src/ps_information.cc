@@ -178,6 +178,13 @@ bool get_group_member_stats(
   std::string uuid(member_info->get_uuid());
   callbacks.set_member_id(callbacks.context, *uuid.c_str(), uuid.length());
 
+  if (nullptr == local_member_info ||
+      local_member_info->get_recovery_status() ==
+          Group_member_info::MEMBER_OFFLINE) {
+    delete member_info;
+    return false;
+  }
+
   // Retrieve view information
   Gcs_view *view = gcs_module->get_current_view();
   if (view != nullptr) {
