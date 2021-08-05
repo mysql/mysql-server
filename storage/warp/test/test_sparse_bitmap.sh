@@ -1,1 +1,1 @@
-g++ -O3 sparse.cpp -o sparse_test && ./sparse_test
+g++  sparse.cpp -o sparse_test -g && ./sparse_test
