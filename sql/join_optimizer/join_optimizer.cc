@@ -353,8 +353,9 @@ class CostingReceiver {
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
   bool AlreadyAppliedThroughSargable(
-      Item_func_eq *cond, OverflowBitset applied_sargable_join_predicates,
-      NodeMap left, NodeMap right);
+      Item_func_eq *cond, OverflowBitset left_applied_sargable_join_predicates,
+      OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+      NodeMap right);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
@@ -1854,13 +1855,13 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   delayed_predicates.ClearBits(join_predicate_first, join_predicate_last);
 
   // Predicates that were delayed, but that we need to check now.
-  MutableOverflowBitset ready_predicates =
-      OverflowBitset::And(m_thd->mem_root, left_path->delayed_predicates,
-                          right_path->delayed_predicates);
-  ready_predicates.ClearBits(join_predicate_first, join_predicate_last);
-
+  // (We don't need to allocate a MutableOverflowBitset for this.)
   const NodeMap ready_tables = left | right;
-  for (int pred_idx : BitsSetIn(std::move(ready_predicates))) {
+  for (int pred_idx : BitsSetIn(left_path->delayed_predicates)) {
+    if (!IsBitSet(pred_idx, right_path->delayed_predicates) ||
+        (pred_idx >= join_predicate_first && pred_idx < join_predicate_last)) {
+      continue;
+    }
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (IsSubset(pred.total_eligibility_set, ready_tables)) {
       if (pred.source_multiple_equality_idx == -1 ||
@@ -1902,8 +1903,31 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   }
 }
 
-static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
-                        const char *description_for_trace);
+string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
+                 const char *description_for_trace);
+
+bool AlreadyAppliedThroughSargable(Item_func_eq *join_cond,
+                                   const Predicate &pred, NodeMap left,
+                                   NodeMap right) {
+  // Don't deduplicate against ourselves (in case we're sargable).
+  if (pred.condition == join_cond) {
+    return false;
+  }
+
+  // Must be an equijoin condition that comes from the same multiple equality
+  // as the one we're trying to join in.
+  if (pred.condition->type() != Item::FUNC_ITEM ||
+      down_cast<Item_func *>(pred.condition)->functype() !=
+          Item_func::EQ_FUNC ||
+      down_cast<Item_func_eq *>(pred.condition)->source_multiple_equality !=
+          join_cond->source_multiple_equality) {
+    return false;
+  }
+
+  // The sargable condition must work as a join condition for this join
+  // (not between tables we've already joined in).
+  return Overlaps(pred.used_nodes, left) && Overlaps(pred.used_nodes, right);
+}
 
 /**
   Check if we're about to apply a join condition that would be redundant
@@ -1926,32 +1950,24 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   (e.g., in the given example, we'd see the t2=t3 join).
  */
 bool CostingReceiver::AlreadyAppliedThroughSargable(
-    Item_func_eq *join_cond, OverflowBitset applied_sargable_join_predicates,
-    NodeMap left, NodeMap right) {
+    Item_func_eq *join_cond,
+    OverflowBitset left_applied_sargable_join_predicates,
+    OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
+    NodeMap right) {
   if (join_cond->source_multiple_equality == nullptr) {
     return false;
   }
-  for (size_t predicate_idx : BitsSetIn(applied_sargable_join_predicates)) {
-    const Predicate &pred = m_graph.predicates[predicate_idx];
-
-    // Don't deduplicate against ourselves (in case we're sargable).
-    if (pred.condition == join_cond) {
-      continue;
+  for (size_t predicate_idx :
+       BitsSetIn(left_applied_sargable_join_predicates)) {
+    if (::AlreadyAppliedThroughSargable(
+            join_cond, m_graph.predicates[predicate_idx], left, right)) {
+      return true;
     }
-
-    // Must be an equijoin condition that comes from the same multiple equality
-    // as the one we're trying to join in.
-    if (pred.condition->type() != Item::FUNC_ITEM ||
-        down_cast<Item_func *>(pred.condition)->functype() !=
-            Item_func::EQ_FUNC ||
-        down_cast<Item_func_eq *>(pred.condition)->source_multiple_equality !=
-            join_cond->source_multiple_equality) {
-      continue;
-    }
-
-    // The sargable condition must work as a join condition for this join
-    // (not between tables we've already joined in).
-    if (Overlaps(pred.used_nodes, left) && Overlaps(pred.used_nodes, right)) {
+  }
+  for (size_t predicate_idx :
+       BitsSetIn(right_applied_sargable_join_predicates)) {
+    if (::AlreadyAppliedThroughSargable(
+            join_cond, m_graph.predicates[predicate_idx], left, right)) {
       return true;
     }
   }
@@ -2016,13 +2032,6 @@ void CostingReceiver::ProposeNestedLoopJoin(
   }
   join_path.nested_loop_join().join_predicate = edge;
 
-  const OverflowBitset applied_sargable_join_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
-      right_path->applied_sargable_join_predicates());
-  const OverflowBitset subsumed_sargable_join_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->subsumed_sargable_join_predicates(),
-      right_path->subsumed_sargable_join_predicates());
-
   const AccessPath *inner = join_path.nested_loop_join().inner;
   double inner_rescan_cost = inner->cost - inner->init_once_cost;
 
@@ -2052,16 +2061,23 @@ void CostingReceiver::ProposeNestedLoopJoin(
       const auto it = m_graph.sargable_join_predicates.find(condition);
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
-          IsBitSet(it->second, applied_sargable_join_predicates)) {
+          (IsBitSet(it->second,
+                    left_path->applied_sargable_join_predicates()) ||
+           IsBitSet(it->second,
+                    right_path->applied_sargable_join_predicates()))) {
         // This predicate was already applied as a ref access earlier.
         // Make sure not to double-count its selectivity, and also
         // that we don't reapply it if it was subsumed by the ref access.
         already_applied_selectivity *=
             m_graph.predicates[it->second].selectivity;
-        subsumed = IsBitSet(it->second, subsumed_sargable_join_predicates);
-      } else if (AlreadyAppliedThroughSargable(condition,
-                                               applied_sargable_join_predicates,
-                                               left, right)) {
+        subsumed = IsBitSet(it->second,
+                            left_path->subsumed_sargable_join_predicates()) ||
+                   IsBitSet(it->second,
+                            right_path->subsumed_sargable_join_predicates());
+      } else if (AlreadyAppliedThroughSargable(
+                     condition, left_path->applied_sargable_join_predicates(),
+                     right_path->applied_sargable_join_predicates(), left,
+                     right)) {
         if (m_trace != nullptr) {
           *m_trace +=
               " - " + PrintCost(*right_path, m_graph, "") +
@@ -2247,8 +2263,8 @@ static inline PathComparisonResult CompareAccessPaths(
   }
 }
 
-static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
-                        const char *description_for_trace) {
+string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
+                 const char *description_for_trace) {
   string str =
       StringPrintf("{cost=%.1f, init_cost=%.1f", path.cost, path.init_cost);
   if (path.init_once_cost != 0.0) {
