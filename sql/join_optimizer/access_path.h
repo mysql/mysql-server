@@ -311,10 +311,13 @@ struct AccessPath {
   /// created, we will add FILTER access paths to represent these instead,
   /// removing the dependency on the array. Said FILTER paths are by
   /// convention created with materialize_subqueries = false, since the by far
-  /// most common case is that there are no subqueries in the predicate. In
-  /// other words, if you wish to represent a filter with
-  /// materialize_subqueries = true, you will nede to make an explicit FILTER
+  /// most common case is that there are no subqueries in the predicate.
+  /// In other words, if you wish to represent a filter with
+  /// materialize_subqueries = true, you will need to make an explicit FILTER
   /// node.
+  ///
+  /// See also nested_loop_join().equijoin_predicates, which is for filters
+  /// being applied _before_ nested-loop joins, but is otherwise the same idea.
   OverflowBitset filter_predicates{0};
 
   /// Bitmap of sargable join predicates that have already been applied
@@ -800,9 +803,22 @@ struct AccessPath {
     } bka_join;
     struct {
       AccessPath *outer, *inner;
-      JoinType join_type;
+      JoinType join_type;  // Somewhat redundant wrt. join_predicate.
       bool pfs_batch_mode;
-    } nested_loop_join;
+      const JoinPredicate *join_predicate;
+
+      // Equijoin filters to apply before the join, if any.
+      // Indexes into join_predicate->expr->equijoin_conditions.
+      // Non-equijoin conditions are always applied.
+      OverflowBitset equijoin_predicates;
+
+      // NOTE: Due to the nontrivial constructor on equijoin_predicates,
+      // this struct needs an initializer, or the union would not be
+      // default-constructible. If we need more than one union member
+      // with such an initializer, we would probably need to change
+      // equijoin_predicates into a uint64_t type-punned to an OverflowBitset.
+    } nested_loop_join = {nullptr, nullptr, JoinType::INNER,
+                          false,   nullptr, {}};
     struct {
       AccessPath *outer, *inner;
       const TABLE *table;
@@ -1482,7 +1498,7 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
 
 /// Like ExpandFilterAccessPaths(), but expands only the single access path
 /// at “path”.
-void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
+void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates);
 

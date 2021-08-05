@@ -1446,7 +1446,8 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
-    ExpandSingleFilterAccessPath(m_thd, path, m_graph.predicates,
+    ExpandSingleFilterAccessPath(m_thd, path, m_query_block->join,
+                                 m_graph.predicates,
                                  m_graph.num_where_predicates);
     assert(path->type == AccessPath::FILTER);
     path->filter().materialize_subqueries = true;
@@ -1889,7 +1890,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   join_path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
-    ExpandSingleFilterAccessPath(m_thd, join_path, m_graph.predicates,
+    ExpandSingleFilterAccessPath(m_thd, join_path, m_query_block->join,
+                                 m_graph.predicates,
                                  m_graph.num_where_predicates);
     assert(join_path->type == AccessPath::FILTER);
     join_path->filter().materialize_subqueries = true;
@@ -2012,6 +2014,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
     join_path.nested_loop_join().join_type =
         static_cast<JoinType>(edge->expr->type);
   }
+  join_path.nested_loop_join().join_predicate = edge;
 
   const OverflowBitset applied_sargable_join_predicates = OverflowBitset::Or(
       m_thd->mem_root, left_path->applied_sargable_join_predicates(),
@@ -2020,32 +2023,31 @@ void CostingReceiver::ProposeNestedLoopJoin(
       m_thd->mem_root, left_path->subsumed_sargable_join_predicates(),
       right_path->subsumed_sargable_join_predicates());
 
+  const AccessPath *inner = join_path.nested_loop_join().inner;
+  double inner_rescan_cost = inner->cost - inner->init_once_cost;
+
   double already_applied_selectivity = 1.0;
+  join_path.nested_loop_join().equijoin_predicates = OverflowBitset{};
   if (edge->expr->join_conditions_reject_all_rows) {
     // We've already taken out all rows from the right-hand side
     // (by means of a ZeroRowsIterator), so no need to add filters;
     // they'd only clutter the EXPLAIN.
+    assert(right_path->type == AccessPath::ZERO_ROWS);
   } else if (!edge->expr->equijoin_conditions.empty() ||
              !edge->expr->join_conditions.empty()) {
     // Apply join filters. Don't update num_output_rows, as the join's
     // selectivity will already be applied in FindOutputRowsForJoin().
     // NOTE(sgunders): We don't model the effect of short-circuiting filters on
     // the cost here.
-    AccessPath filter_path;
-    filter_path.type = AccessPath::FILTER;
-    filter_path.filter().child = right_path;
-
-    // We don't bother trying to materialize subqueries in join conditions,
-    // since they should be very rare.
-    filter_path.filter().materialize_subqueries = false;
-
-    CopyBasicProperties(*right_path, &filter_path);
+    double rows_after_filtering = inner->num_output_rows;
 
     // num_output_rows is only for cost calculation and display purposes;
     // we hard-code the use of edge->selectivity below, so that we're
     // seeing the same number of rows as for hash join. This might throw
     // the filtering cost off slightly.
-    List<Item> items;
+    MutableOverflowBitset equijoin_predicates{
+        m_thd->mem_root, edge->expr->equijoin_conditions.size()};
+    int filter_idx = 0;
     for (Item_func_eq *condition : edge->expr->equijoin_conditions) {
       const auto it = m_graph.sargable_join_predicates.find(condition);
       bool subsumed = false;
@@ -2069,48 +2071,28 @@ void CostingReceiver::ProposeNestedLoopJoin(
         }
       }
       if (!subsumed) {
-        items.push_back(condition);
-        filter_path.cost +=
-            EstimateFilterCost(m_thd, filter_path.num_output_rows, condition,
-                               m_query_block)
-                .cost_if_not_materialized;
-        filter_path.num_output_rows *=
-            EstimateSelectivity(m_thd, condition, m_trace);
+        equijoin_predicates.SetBit(filter_idx);
+        inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
+                                                condition, m_query_block)
+                                 .cost_if_not_materialized;
+        rows_after_filtering *= EstimateSelectivity(m_thd, condition, m_trace);
       }
+      ++filter_idx;
     }
     for (Item *condition : edge->expr->join_conditions) {
-      items.push_back(condition);
-      filter_path.cost += EstimateFilterCost(m_thd, filter_path.num_output_rows,
-                                             condition, m_query_block)
-                              .cost_if_not_materialized;
-      filter_path.num_output_rows *=
-          EstimateSelectivity(m_thd, condition, m_trace);
+      inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
+                                              condition, m_query_block)
+                               .cost_if_not_materialized;
+      rows_after_filtering *= EstimateSelectivity(m_thd, condition, m_trace);
     }
-    if (items.is_empty()) {
-      // Everything was subsumed, so no filter needed after all.
-    } else {
-      Item *condition;
-      if (items.size() == 1) {
-        condition = items.head();
-      } else {
-        condition = new Item_cond_and(items);
-        condition->quick_fix_field();
-        condition->update_used_tables();
-        condition->apply_is_true();
-      }
-      filter_path.filter().condition = condition;
-
-      join_path.nested_loop_join().inner =
-          new (m_thd->mem_root) AccessPath(filter_path);
-    }
+    join_path.nested_loop_join().equijoin_predicates =
+        std::move(equijoin_predicates);
   }
 
   // Ignores the row count from filter_path; see above.
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
                             already_applied_selectivity);
-  const AccessPath *inner = join_path.nested_loop_join().inner;
-  double inner_rescan_cost = inner->cost - inner->init_once_cost;
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +

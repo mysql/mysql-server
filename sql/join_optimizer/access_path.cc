@@ -29,6 +29,8 @@
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/cost_model.h"
+#include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/ref_row_iterators.h"
@@ -857,9 +859,62 @@ static Item *ConditionFromFilterPredicates(
   return CreateConjunction(&items);
 }
 
-void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
+void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates) {
+  // Expand join filters for nested loop joins.
+  if (path->type == AccessPath::NESTED_LOOP_JOIN &&
+      !(path->nested_loop_join().equijoin_predicates.empty() &&
+        path->nested_loop_join()
+            .join_predicate->expr->join_conditions.empty()) &&
+      path->nested_loop_join().inner->type != AccessPath::ZERO_ROWS) {
+    AccessPath *right_path = path->nested_loop_join().inner;
+    const RelationalExpression *expr =
+        path->nested_loop_join().join_predicate->expr;
+
+    // While we're collecting the join conditions, calculate cost and output
+    // rows (purely for display purposes). Note that this mirrors the
+    // calculation we are doing in CostingReceiver::ProposeNestedLoopJoin();
+    // we don't have space in the AccessPath to store it there.
+    double filter_cost = right_path->cost;
+    double filter_rows = right_path->num_output_rows;
+
+    List<Item> items;
+    for (size_t filter_idx :
+         BitsSetIn(path->nested_loop_join().equijoin_predicates)) {
+      Item *condition = expr->equijoin_conditions[filter_idx];
+      items.push_back(condition);
+      filter_cost +=
+          EstimateFilterCost(thd, filter_rows, condition, join->query_block)
+              .cost_if_not_materialized;
+      filter_rows *= EstimateSelectivity(thd, condition, /*trace=*/nullptr);
+    }
+    for (Item *condition : expr->join_conditions) {
+      items.push_back(condition);
+      filter_cost +=
+          EstimateFilterCost(thd, filter_rows, condition, join->query_block)
+              .cost_if_not_materialized;
+      filter_rows *= EstimateSelectivity(thd, condition, /*trace=*/nullptr);
+    }
+    assert(!items.is_empty());
+
+    AccessPath *filter_path = new (thd->mem_root) AccessPath;
+    filter_path->type = AccessPath::FILTER;
+    filter_path->filter().child = right_path;
+
+    // We don't bother trying to materialize subqueries in join conditions,
+    // since they should be very rare.
+    filter_path->filter().materialize_subqueries = false;
+
+    CopyBasicProperties(*right_path, filter_path);
+    filter_path->filter().condition = CreateConjunction(&items);
+    filter_path->cost = filter_cost;
+    filter_path->num_output_rows = filter_rows;
+
+    path->nested_loop_join().inner = filter_path;
+  }
+
+  // Expand filters _after_ the access path (these are much more common).
   Item *condition = ConditionFromFilterPredicates(
       predicates, path->filter_predicates, num_where_predicates);
   if (condition == nullptr) {
@@ -897,11 +952,11 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
                              const Mem_root_array<Predicate> &predicates,
                              unsigned num_where_predicates) {
-  WalkAccessPaths(
-      path_arg, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, &predicates, num_where_predicates](AccessPath *path, const JOIN *) {
-        ExpandSingleFilterAccessPath(thd, path, predicates,
-                                     num_where_predicates);
-        return false;
-      });
+  WalkAccessPaths(path_arg, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+                  [thd, &predicates, num_where_predicates](
+                      AccessPath *path, const JOIN *sub_join) {
+                    ExpandSingleFilterAccessPath(
+                        thd, path, sub_join, predicates, num_where_predicates);
+                    return false;
+                  });
 }
