@@ -1847,6 +1847,10 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
       thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
+    DBUG_EXECUTE_IF("block_on_thread_stop_after_awake", {
+      rpl_replica_debug_point(DBUG_RPL_R_WAIT_AFTER_AWAKE_ON_THREAD_STOP);
+    });
+
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts

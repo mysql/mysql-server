@@ -44,10 +44,14 @@ INSERT INTO t1 VALUES(1);
 --echo # 2. Add a debug point so the replica stops at the first sent rotate
 --echo #    Stop the replica IO thread so the auto positioning protocol runs
 
+--source include/stop_slave_io.inc
+
 --let $debug_point=block_on_master_pos_4_rotate
 --source include/add_debug_point.inc
 
---source include/stop_slave_io.inc
+--let $debug_point=block_on_thread_stop_after_awake
+--source include/add_debug_point.inc
+
 --source include/start_slave_io.inc
 
 --echo
@@ -62,6 +66,13 @@ SET DEBUG_SYNC= "now WAIT_FOR signal.reach_pos_4_rotate_event";
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
+# Wait on for the point where we already signaled the SQL thread to stop
+# This wait also prevents concurrency scenarios between the debug point setting
+# a thread stage, the SQL thread setting another stage while waiting for
+# workers to finish and the stop process issuing a awake request in the middle
+SET DEBUG_SYNC= "now WAIT_FOR signal.stop_point_after_awake";
+
+# Let the thread stop
 SET DEBUG_SYNC= "now SIGNAL signal.rotate_event_continue";
 
 --source include/rpl_connection_slave.inc
@@ -72,7 +83,13 @@ SET DEBUG_SYNC= "now SIGNAL signal.rotate_event_continue";
 --echo ############################################################
 --echo # 4. Start the replica again and check all is good
 
+--let $debug_point=block_on_master_pos_4_rotate
 --source include/remove_debug_point.inc
+
+--let $debug_point=block_on_thread_stop_after_awake
+--source include/remove_debug_point.inc
+
+SET DEBUG_SYNC= "RESET";
 
 --source include/start_slave.inc
 
