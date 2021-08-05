@@ -29,12 +29,12 @@
 // 64 bits
 #define BLOCK_SIZE 8
 #define MAX_BITS 64
-bool bitmap_debug = false;
+bool bitmap_debug = true;
 
 //#ifdef WARP_BITMAP_DEBUG
-//#define bitmap_dbug(x) if(bitmap_debug) std::cerr << __LINE__ << ": " << x << "\n"; 
+#define bitmap_dbug(x) if(bitmap_debug) std::cerr << __LINE__ << ": " << x << "\n"; 
 //#else
-#define bitmap_dbug(x) /* would write (x) to debug log*/
+//#define bitmap_dbug(x) /* would write (x) to debug log*/
 //#endif
 
 class sparsebitmap
@@ -249,6 +249,7 @@ public:
     if(lock_mode == LOCK_EX) {
       log = fopen(lname.c_str(),"wb");
       if(!log) {
+	      std::cerr << " FUCK\n";
         return -4;
       }
     }
@@ -435,16 +436,21 @@ public:
   /* -1 = logging failure (no change to index) */
   /* -2 = index read/write failure  */
   inline int set_bit(unsigned long long bitnum, int mode = MODE_SET) {
-    ////bitmap_dbug("set_bit");
+    bitmap_dbug("set_bit");
     assert(bitnum > 0);
    
     if (fp) clearerr(fp);
     //set_bit_mtx.lock();
- 
-    if(!fp) {
+
+    if(!log) {
+      close();
       open(fname, LOCK_EX);
-    } else if(have_lock != LOCK_EX) {
-      lock(LOCK_EX);  
+    } else {
+      if(!fp) {
+        open(fname, LOCK_EX);
+      } else if(have_lock != LOCK_EX) {
+        lock(LOCK_EX);  
+      }
     }
     dirty = 1;
     // write-ahead-log (only write when not in recovery mode) 
@@ -452,9 +458,13 @@ public:
     size_t sz=0;
     if(!recovering) {
       uint64_t log_bitnum = bitnum;
+      bitmap_dbug("writing to log\n");
+      if(log == NULL) {
+	      std::cerr << "LOG IS NULL\n";
+	      exit(100);
+      }
       sz = fwrite(&log_bitnum, BLOCK_SIZE, 1, log);
       if(sz != 1) {
-        //set_bit_mtx.unlock();
         return -1;
       }
     }
@@ -463,7 +473,7 @@ public:
     int bit_offset;
 
     /* where to read at in file */
-    //bitmap_dbug("bitnum: " << bitnum);
+    bitmap_dbug("bitnum: " << bitnum);
     unsigned long long at_byte = (bitnum / MAX_BITS);
     bit_offset = (bitnum % MAX_BITS);
     at_byte = at_byte * sizeof(bits);
@@ -499,7 +509,7 @@ public:
       fseek(fp, at_byte, SEEK_SET);
       fpos = at_byte;
     }
-    //bitmap_dbug("writing bits");
+    bitmap_dbug("writing bits");
     sz = fwrite(&bits, BLOCK_SIZE, 1, fp);
     /* position back so that we don't read the block in again*/
     fseek(fp, at_byte, SEEK_SET); 
