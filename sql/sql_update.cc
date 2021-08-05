@@ -108,6 +108,7 @@
 #include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
+#include "sql/trigger_chain.h"
 #include "sql/trigger_def.h"
 #include "template_utils.h"
 #include "thr_lock.h"
@@ -2644,9 +2645,16 @@ bool Query_result_update::do_updates(THD *thd) {
                                                     TRG_ACTION_BEFORE, true);
 
         // Trigger might have changed dependencies of generated columns
-        if (!rc && table->vfield &&
-            update_generated_write_fields(table->write_set, table))
-          goto err;
+        Trigger_chain *tc =
+            table->triggers->get_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE);
+        bool has_trigger_updated_fields =
+            (tc && tc->has_updated_trigger_fields(table->write_set));
+        if (!rc && table->vfield && has_trigger_updated_fields) {
+          // Dont save old value while re-calculating generated fields.
+          // Before image will already be saved in the first calculation.
+          table->blobs_need_not_keep_old_value();
+          if (update_generated_write_fields(table->write_set, table)) goto err;
+        }
 
         table->triggers->disable_fields_temporary_nullability();
 
