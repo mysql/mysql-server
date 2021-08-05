@@ -24,6 +24,7 @@
 
 #include "base64.h" /* base64_encode */
 
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_auth.h"
 #include "sql/auth/sql_mfa.h"
 #include "sql/derror.h" /* ER_THD */
@@ -671,7 +672,7 @@ bool Multi_factor_auth_info::validate_row() {
                                              MYSQL_AUTHENTICATION_PLUGIN);
   /* check if plugin is loaded */
   if (!plugin) {
-    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), get_plugin_str());
+    LogErr(WARNING_LEVEL, ER_MFA_PLUGIN_NOT_LOADED, get_plugin_str());
     return (true);
   }
   st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
@@ -681,13 +682,13 @@ bool Multi_factor_auth_info::validate_row() {
       char msg[64];
       sprintf(msg, "Please check requires_registration flag for %d factor",
               get_nth_factor());
-      my_error(ER_USER_ATTRIBUTES_FOR_MFA_CORRUPT, MYF(0), msg);
+      LogErr(WARNING_LEVEL, ER_MFA_USER_ATTRIBUTES_CORRUPT, msg);
     } else {
       /* 2nd and 3rd factor auth plugin should not store passwords internally */
       char msg[256];
       sprintf(msg, "Please check authentication plugin for %s factor",
               get_plugin_str());
-      my_error(ER_USER_ATTRIBUTES_FOR_MFA_CORRUPT, MYF(0), msg);
+      LogErr(WARNING_LEVEL, ER_MFA_USER_ATTRIBUTES_CORRUPT, msg);
     }
     plugin_unlock(nullptr, plugin);
     return (true);

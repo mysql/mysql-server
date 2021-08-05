@@ -11524,6 +11524,12 @@ ER_GRP_RPL_ERROR_SET_MULTI_CONSENSUS_LEADER
 ER_GRP_RPL_PAXOS_SINGLE_LEADER_DIFF_FROM_GRP
   eng "This member is configured with a group_replication_paxos_single_leader option value of '%d' that is different from the group's value ('%d'). This member will now exit the group."
 
+ER_MFA_USER_ATTRIBUTES_CORRUPT
+  eng "Invalid and/or corrupted multi factor authentication methods in User_attributes column in mysql.user table. \"%s\"."
+
+ER_MFA_PLUGIN_NOT_LOADED
+  eng "Plugin \'%-.192s\' is not loaded; Ignoring user"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
