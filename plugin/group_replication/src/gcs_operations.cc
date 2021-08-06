@@ -548,7 +548,8 @@ int Gcs_operations::force_members(const char *members) {
       /* purecov: end */
     }
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
-    if (view_change_notifier.wait_for_view_modification()) {
+    if (view_change_notifier.wait_for_view_modification(
+            FORCE_MEMBERS_VIEW_MODIFICATION_TIMEOUT)) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
                    members);
