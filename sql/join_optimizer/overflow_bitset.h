@@ -65,9 +65,9 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "my_alloc.h"
 #include "sql/join_optimizer/bit_utils.h"
 
-struct MEM_ROOT;
 class MutableOverflowBitset;
 
 class OverflowBitset {
@@ -107,6 +107,10 @@ class OverflowBitset {
   }
 
   inline MutableOverflowBitset Clone(MEM_ROOT *mem_root) const;
+
+  bool IsContainedIn(const MEM_ROOT *mem_root) const {
+    return !is_inline() && mem_root->Contains(m_ext);
+  }
 
   // NOTE: These could also be made to take in MutableOverflowBitset(),
   // simply by templating them (due to the private inheritance).

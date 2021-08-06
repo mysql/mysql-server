@@ -62,6 +62,7 @@
 #include "sql/join_optimizer/build_interesting_orders.h"
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
+#include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
@@ -193,10 +194,9 @@ class CostingReceiver {
 
   size_t num_access_paths() const { return m_access_paths.size(); }
 
-  void ProposeAccessPath(AccessPath *path,
-                         Prealloced_array<AccessPath *, 4> *existing_paths,
-                         OrderingSet obsolete_orderings,
-                         const char *description_for_trace) const;
+  AccessPath *ProposeAccessPath(
+      AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
+      OrderingSet obsolete_orderings, const char *description_for_trace) const;
 
   bool HasSecondaryEngineCostHook() const {
     return m_secondary_engine_cost_hook != nullptr;
@@ -313,6 +313,27 @@ class CostingReceiver {
   /// there must be zero or one bit here; the common case is zero.
   NodeMap forced_leftmost_table = 0;
 
+  /// A special MEM_ROOT for allocating OverflowBitsets that we might end up
+  /// discarding, ie. for AccessPaths that do not yet live in m_access_paths.
+  /// For any AccessPath that is to have a permanent life (ie., not be
+  /// immediately discarded as inferior), the OverflowBitset _must_ be taken
+  /// out of this MEM_ROOT and onto the regular one, as it is cleared often.
+  /// (This significantly reduces the amount of memory used in situations
+  /// where lots of AccessPaths are produced and discarded. Of course,
+  /// it only matters for queries with >= 64 predicates.)
+  ///
+  /// The copying is using CommitBitsetsToHeap(). ProposeAccessPath() will
+  /// automatically call CommitBitsetsToHeap() for accepted access paths,
+  /// but it will not call it on any of their children. Thus, if you've
+  /// added more than one AccessPath in the chain (e.g. if you add a join,
+  /// then a sort of that join, and then propose the sort), you will need
+  /// to make sure there are no stray bitsets left on this MEM_ROOT.
+  ///
+  /// Because this can be a source of subtle bugs, you should be conservative
+  /// about what bitsets you put here; really, only the ones you could be
+  /// allocating many of (like joins) should be candidates.
+  MEM_ROOT m_overflow_bitset_mem_root;
+
   /// For trace use only.
   std::string PrintSet(NodeMap x) {
     std::string ret = "{";
@@ -381,6 +402,9 @@ class CostingReceiver {
       const AccessPath *right_path, int join_predicate_first,
       int join_predicate_last, bool materialize_subqueries,
       AccessPath *join_path, FunctionalDependencySet *new_fd_set);
+
+  void CommitBitsetsToHeap(AccessPath *path) const;
+  bool BitsetsAreCommitted(AccessPath *path) const;
 };
 
 /// Lists the current secondary engine flags in use. If there is no secondary
@@ -1447,6 +1471,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
   path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
+    CommitBitsetsToHeap(path);
     ExpandSingleFilterAccessPath(m_thd, path, m_query_block->join,
                                  m_graph.predicates,
                                  m_graph.num_where_predicates);
@@ -1544,6 +1569,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
   bool wrote_trace = false;
 
   for (AccessPath *right_path : right_it->second.paths) {
+    assert(BitsetsAreCommitted(right_path));
     if (edge->expr->join_conditions_reject_all_rows &&
         edge->expr->type != RelationalExpression::FULL_OUTER_JOIN) {
       // If the join condition can never be true, we also don't need to read the
@@ -1557,15 +1583,18 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       AccessPath *zero_path = NewZeroRowsAccessPath(
           m_thd, right_path, "Join condition rejects all rows");
       MutableOverflowBitset applied_sargable_join_predicates =
-          right_path->applied_sargable_join_predicates().Clone(m_thd->mem_root);
+          right_path->applied_sargable_join_predicates().Clone(
+              &m_overflow_bitset_mem_root);
       applied_sargable_join_predicates.ClearBits(0,
                                                  m_graph.num_where_predicates);
       zero_path->filter_predicates =
           std::move(applied_sargable_join_predicates);
       zero_path->delayed_predicates = right_path->delayed_predicates;
       right_path = zero_path;
+      CommitBitsetsToHeap(right_path);
     }
     for (AccessPath *left_path : left_it->second.paths) {
+      assert(BitsetsAreCommitted(left_path));
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
@@ -1603,6 +1632,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
             new_obsolete_orderings);
       }
+      m_overflow_bitset_mem_root.ClearForReuse();
     }
   }
   return false;
@@ -1663,6 +1693,9 @@ void CostingReceiver::ProposeHashJoin(
     return;
   }
 
+  assert(BitsetsAreCommitted(left_path));
+  assert(BitsetsAreCommitted(right_path));
+
   AccessPath join_path;
   join_path.type = AccessPath::HASH_JOIN;
   join_path.parameter_tables =
@@ -1688,6 +1721,7 @@ void CostingReceiver::ProposeHashJoin(
 
     // NOTE: We purposefully don't overwrite left_path here, so that we
     // don't have to worry about copying ordering_state etc.
+    CommitBitsetsToHeap(left_path);
     join_path.hash_join().outer = DeduplicateForSemijoin(
         m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
   }
@@ -1843,15 +1877,16 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   // filter_predicates holds both filter_predicates and
   // applied_sargable_join_predicates. Keep the information about the latter,
   // but reset the one pertaining to the former.
-  MutableOverflowBitset filter_predicates = OverflowBitset::Or(
-      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
-      right_path->applied_sargable_join_predicates());
+  MutableOverflowBitset filter_predicates =
+      OverflowBitset::Or(&m_overflow_bitset_mem_root,
+                         left_path->applied_sargable_join_predicates(),
+                         right_path->applied_sargable_join_predicates());
   filter_predicates.ClearBits(0, m_graph.num_where_predicates);
 
   // Predicates we are still delaying.
-  MutableOverflowBitset delayed_predicates =
-      OverflowBitset::Xor(m_thd->mem_root, left_path->delayed_predicates,
-                          right_path->delayed_predicates);
+  MutableOverflowBitset delayed_predicates = OverflowBitset::Xor(
+      &m_overflow_bitset_mem_root, left_path->delayed_predicates,
+      right_path->delayed_predicates);
   delayed_predicates.ClearBits(join_predicate_first, join_predicate_last);
 
   // Predicates that were delayed, but that we need to check now.
@@ -1891,6 +1926,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   join_path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
+    CommitBitsetsToHeap(join_path);
     ExpandSingleFilterAccessPath(m_thd, join_path, m_query_block->join,
                                  m_graph.predicates,
                                  m_graph.num_where_predicates);
@@ -1986,6 +2022,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
     // only the other way around.
     return;
   }
+
+  assert(BitsetsAreCommitted(left_path));
+  assert(BitsetsAreCommitted(right_path));
 
   AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
@@ -2307,6 +2346,36 @@ string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   }
 }
 
+/// Commit OverflowBitsets in path (but not its children) to
+/// stable storage (see m_overflow_bitset_mem_root).
+void CostingReceiver::CommitBitsetsToHeap(AccessPath *path) const {
+  if (path->filter_predicates.IsContainedIn(&m_overflow_bitset_mem_root)) {
+    path->filter_predicates = path->filter_predicates.Clone(m_thd->mem_root);
+  }
+  if (path->delayed_predicates.IsContainedIn(&m_overflow_bitset_mem_root)) {
+    path->delayed_predicates = path->delayed_predicates.Clone(m_thd->mem_root);
+  }
+}
+
+/// Check if all bitsets under “path” are committed to stable storage
+/// (see m_overflow_bitset_mem_root). Only relevant in debug mode,
+/// as it is expensive.
+[[maybe_unused]] bool CostingReceiver::BitsetsAreCommitted(
+    AccessPath *path) const {
+  // Verify that there are no uncommitted bitsets forgotten in children.
+  bool all_ok = true;
+  WalkAccessPaths(path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [this, &all_ok](const AccessPath *subpath, const JOIN *) {
+                    all_ok &= !subpath->filter_predicates.IsContainedIn(
+                        &m_overflow_bitset_mem_root);
+                    all_ok &= !subpath->delayed_predicates.IsContainedIn(
+                        &m_overflow_bitset_mem_root);
+                    return false;
+                  });
+  return all_ok;
+}
+
 /**
   Propose the given access path as an alternative to the existing access paths
   for the same task (assuming any exist at all), and hold a “tournament” to find
@@ -2330,20 +2399,25 @@ string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   to distinguish it in optimizer trace, if active. For instance, one might
   write “hash join” when proposing a hash join access path. It may be
   the empty string.
+
+  If the access path is discarded, returns nullptr. Otherwise returns
+  a pointer to where it was inserted. (This is useful if you need to
+  call CommitBitsetsToHeap() on any of its children, or otherwise do
+  work only for access paths that were kept.)
  */
-void CostingReceiver::ProposeAccessPath(
+AccessPath *CostingReceiver::ProposeAccessPath(
     AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
     OrderingSet obsolete_orderings, const char *description_for_trace) const {
   if (m_secondary_engine_cost_hook != nullptr) {
     // If an error was raised by a previous invocation of the hook, reject all
     // paths.
     if (m_thd->is_error()) {
-      return;
+      return nullptr;
     }
 
     if (m_secondary_engine_cost_hook(m_thd, m_graph, path)) {
       // Rejected by the secondary engine.
-      return;
+      return nullptr;
     }
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
@@ -2361,7 +2435,8 @@ void CostingReceiver::ProposeAccessPath(
     }
     AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->push_back(insert_position);
-    return;
+    CommitBitsetsToHeap(insert_position);
+    return insert_position;
   }
 
   AccessPath *insert_position = nullptr;
@@ -2381,7 +2456,7 @@ void CostingReceiver::ProposeAccessPath(
                     PrintCost(*(*existing_paths)[i], m_graph, "") +
                     ", discarding\n";
       }
-      return;
+      return nullptr;
     }
     if (result == PathComparisonResult::FIRST_DOMINATES) {
       ++num_dominated;
@@ -2418,7 +2493,8 @@ void CostingReceiver::ProposeAccessPath(
     }
     insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->emplace_back(insert_position);
-    return;
+    CommitBitsetsToHeap(insert_position);
+    return insert_position;
   }
 
   if (m_trace != nullptr) {
@@ -2454,7 +2530,8 @@ void CostingReceiver::ProposeAccessPath(
     }
   }
   *insert_position = *path;
-  return;
+  CommitBitsetsToHeap(insert_position);
+  return insert_position;
 }
 
 AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
@@ -2551,11 +2628,6 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
       continue;
     }
 
-    if (!path_is_on_heap) {
-      path = new (m_thd->mem_root) AccessPath(*path);
-      path_is_on_heap = true;
-    }
-
     AccessPath sort_path =
         MakeSortPathWithoutFilesort(m_thd, path, sort_ahead_ordering.order,
                                     new_state, m_graph.num_where_predicates);
@@ -2570,8 +2642,16 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
                  sort_ahead_ordering.ordering_idx);
       }
     }
-    ProposeAccessPath(&sort_path, &it_and_inserted.first->second.paths,
-                      obsolete_orderings, buf);
+    AccessPath *insert_position =
+        ProposeAccessPath(&sort_path, &it_and_inserted.first->second.paths,
+                          obsolete_orderings, buf);
+    if (insert_position != nullptr && !path_is_on_heap) {
+      path = new (m_thd->mem_root) AccessPath(*path);
+      CommitBitsetsToHeap(path);
+      insert_position->sort().child = path;
+      assert(BitsetsAreCommitted(insert_position));
+      path_is_on_heap = true;
+    }
   }
 }
 
