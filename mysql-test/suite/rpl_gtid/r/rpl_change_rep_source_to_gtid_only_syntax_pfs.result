@@ -76,7 +76,7 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0;
 ERROR HY000: When disabling GTID_ONLY and SOURCE_AUTO_POSITION FOR CHANNEL '' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid.
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
 Warnings:
-Warning	4073	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
 include/assert_grep.inc [A warning is logged as some invalid positions were persisted]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 ERROR HY000: When disabling SOURCE_AUTO_POSITION FOR CHANNEL '' you must provide SOURCE_LOG_FILE and SOURCE_LOG_POS as source positions are invalid.
@@ -90,7 +90,7 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 1, SOURCE_AUTO_POSITION=1;
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_slave_start]
 CHANGE REPLICATION SOURCE TO GTID_ONLY=0, SOURCE_AUTO_POSITION=0, SOURCE_LOG_FILE="", SOURCE_LOG_POS=4,RELAY_LOG_FILE='slave-relay-bin.000001', RELAY_LOG_POS=4;
 Warnings:
-Warning	4073	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
 include/assert_grep.inc [A warning is logged as some invalid positions were persisted]
 #
 # 9. The RESET REPLICA command does not affect the option
@@ -117,7 +117,7 @@ ERROR HY000: Replication cannot start for channel '' with GTID_ONLY = 1 as this 
 SET @@GLOBAL.GTID_MODE = ON;
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT = 0;
 Warnings:
-Warning	4073	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
+Warning	4072	The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1. The out-of-date positions can still be used in some cases so, in order to update them, we suggest that you start the replication to receive and apply at least one transaction, which will set the positions to valid values.
 include/start_slave.inc [FOR CHANNEL '']
 call mtr.add_suppression("Replication channel '' is configured with GTID_ONLY=1, which is invalid when GTID_MODE <> ON. *");
 call mtr.add_suppression("The replication positions relative to the source may be out-of-date on channel '', due to the use of GTID_ONLY=1.*");
