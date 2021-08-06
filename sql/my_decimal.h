@@ -177,7 +177,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #endif
 
 bool str_set_decimal(uint mask, const my_decimal *val, String *str,
-                     const CHARSET_INFO *cs);
+                     const CHARSET_INFO *cs, uint decimals);
 
 extern my_decimal decimal_zero;
 

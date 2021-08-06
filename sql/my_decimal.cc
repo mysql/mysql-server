@@ -149,6 +149,7 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
   @param[in]   val         the decimal to print
   @param[out]  str         where to store the resulting string
   @param[in]   cs          character set
+  @param[in]   decimals    round to desired number of decimals
 
   @return error code
     @retval E_DEC_OK
@@ -161,9 +162,14 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
   my_decimal.h from sql_string.h and sql_string.cc, which is not desirable.
 */
 bool str_set_decimal(uint mask, const my_decimal *val, String *str,
-                     const CHARSET_INFO *cs) {
+                     const CHARSET_INFO *cs, uint decimals) {
+  my_decimal dec_buf;
   if (!(cs->state & MY_CS_NONASCII)) {
     /* For ASCII-compatible character sets we can use my_decimal2string */
+    if (static_cast<int>(decimals) < val->frac) {
+      my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, &dec_buf);
+      val = &dec_buf;
+    }
     my_decimal2string(mask, val, str);
     str->set_charset(cs);
     return false;
@@ -175,6 +181,10 @@ bool str_set_decimal(uint mask, const my_decimal *val, String *str,
       with help of str->copy().
     */
     StringBuffer<DECIMAL_MAX_STR_LENGTH + 1> tmp(&my_charset_latin1);
+    if (static_cast<int>(decimals) < val->frac) {
+      my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, &dec_buf);
+      val = &dec_buf;
+    }
     my_decimal2string(mask, val, &tmp);
     uint errors;
     return str->copy(tmp.ptr(), tmp.length(), &my_charset_latin1, cs, &errors);
