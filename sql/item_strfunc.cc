@@ -188,8 +188,8 @@ String *Item_func_md5::val_str_ascii(String *str) {
     int retval = compute_md5_hash((char *)digest, sptr->ptr(), sptr->length());
     if (retval == 1) {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_SSL_FIPS_MODE_ERROR,
-                          ER_THD(current_thd, ER_SSL_FIPS_MODE_ERROR),
+                          ER_DA_SSL_FIPS_MODE_ERROR,
+                          ER_THD(current_thd, ER_DA_SSL_FIPS_MODE_ERROR),
                           "FIPS mode ON/STRICT: MD5 digest is not supported.");
     }
     if (str->alloc(32))  // Ensure that memory is free

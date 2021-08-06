@@ -18,7 +18,6 @@ audit_log.audit_log_prune_seconds_var_cnf @windows : BUG#32245509 Test lets mysq
 audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 
 # auth_sec
-auth_sec.openssl_without_fips : BUG#28812609 Test fails all over
 
 # binlog suite tests
 binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debug client binary and fails consistently.
