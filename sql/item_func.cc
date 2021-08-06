@@ -6278,7 +6278,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
       break;
     case DECIMAL_RESULT:
       str_set_decimal(E_DEC_FATAL_ERROR, pointer_cast<my_decimal *>(m_ptr), str,
-                      collation.collation);
+                      collation.collation, decimals);
       break;
     case STRING_RESULT:
       if (str->copy(m_ptr, m_length, collation.collation))
