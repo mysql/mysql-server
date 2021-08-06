@@ -29,3 +29,47 @@ SELECT @@global.internal_tmp_mem_storage_engine;
 
 SET @@global.internal_tmp_mem_storage_engine = default;
 SET @@session.internal_tmp_mem_storage_engine = default;
+
+
+--echo #
+--echo # WL#14728: internal_tmp_mem_storage_engine should
+--echo #   require SESSION_VARIABLES_ADMIN
+--echo #
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+CREATE USER foo@localhost, bar@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO foo@localhost;
+
+connect(foo_con,localhost,foo,,);
+#success criteria: global should fail, session should pass
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.internal_tmp_mem_storage_engine = 123;
+SET @@session.internal_tmp_mem_storage_engine = 'memory';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.internal_tmp_mem_storage_engine = default;
+SET @@session.internal_tmp_mem_storage_engine = default;
+
+connect(bar_con,localhost,bar,,);
+#success criteria: all of the 4 statements below should fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.internal_tmp_mem_storage_engine = 123;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.internal_tmp_mem_storage_engine = 'memory';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.internal_tmp_mem_storage_engine = default;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.internal_tmp_mem_storage_engine = default;
+
+connection default;
+disconnect foo_con;
+disconnect bar_con;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM foo@localhost;
+DROP USER foo@localhost, bar@localhost;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+
+--echo # End of 8.0 tests
+
