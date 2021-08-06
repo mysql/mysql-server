@@ -3539,7 +3539,7 @@ static void print_as_hex(FILE *output_file, const char *str, ulong len,
   const char *ptr = str, *end = ptr + len;
   ulong i;
 
-  if (len > 0) {
+  if (str != nullptr) {
     fprintf(output_file, "0x");
     for (; ptr < end; ptr++)
       fprintf(output_file, "%02X",
