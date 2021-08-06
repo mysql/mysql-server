@@ -924,23 +924,103 @@ class Item_func_like_range_max final : public Item_func_like_range {
 };
 #endif
 
-class Item_typecast_char final : public Item_str_func {
-  longlong cast_length;
-  const CHARSET_INFO *cast_cs, *from_cs;
-  bool charset_conversion;
-  String tmp_value;
+/**
+  The following types of conversions are considered safe:
+
+  Conversion to and from "binary".
+  Conversion to Unicode.
+  Other kind of conversions are potentially lossy.
+*/
+class Item_charset_conversion : public Item_str_func {
+ protected:
+  /// If true, conversion is needed so do it, else allow string copy.
+  bool m_charset_conversion{false};
+  /// The character set we are converting to
+  const CHARSET_INFO *m_cast_cs;
+  /// The character set we are converting from
+  const CHARSET_INFO *m_from_cs{nullptr};
+  String m_tmp_value;
+  /// Marks whether the underlying Item is constant and may be cached.
+  bool m_use_cached_value{false};
+  /// Length argument value, if any given.
+  longlong m_cast_length{-1};  // a priori not used
+ public:
+  bool m_safe;
+
+ protected:
+  /**
+    Helper for CAST and CONVERT type resolution: common logic to compute the
+    maximum numbers of characters of the type of the conversion.
+
+    @returns the maximum numbers of characters possible after the conversion
+  */
+  uint32 compute_max_char_length() {
+    uint32 new_max_chars;
+    Item *from = args[0];
+    if (m_cast_cs == &my_charset_bin) {
+      // We are converting from CHAR/BINARY to BINARY, in which case we
+      // just reinterpret all the bytes of the (CHAR) source to be bytes,
+      // or no change, i.e. BINARY to BINARY
+      new_max_chars = from->max_length;
+    } else if (from->collation.collation == &my_charset_bin) {
+      // We reinterpret the bytes available, i.e. from BINARY to CHAR,
+      // so a by conservative guess it can contain one character per
+      // byte in the BINARY if the minimum character length of the
+      // target is one.  If it is larger, e.g. for UTF-16 (min 2 bytes
+      // per character), we can halve the estimate safely.
+      assert(from->max_length == from->max_char_length());
+      new_max_chars = ((from->max_length + (m_cast_cs->mbminlen - 1)) /
+                       m_cast_cs->mbminlen);
+    } else {
+      // We convert from CHAR -> CHAR, so length is the same
+      new_max_chars = from->max_char_length();
+    }
+    return new_max_chars;
+  }
+
+  bool resolve_type(THD *thd) override;
 
  public:
-  Item_typecast_char(Item *a, longlong length_arg, const CHARSET_INFO *cs_arg)
-      : Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  Item_charset_conversion(THD *thd, Item *a, const CHARSET_INFO *cs_arg,
+                          bool cache_if_const)
+      : Item_str_func(a), m_cast_cs(cs_arg) {
+    if (cache_if_const && args[0]->may_evaluate_const(thd)) {
+      uint errors = 0;
+      String tmp, *str = args[0]->val_str(&tmp);
+      if (!str || str_value.copy(str->ptr(), str->length(), str->charset(),
+                                 m_cast_cs, &errors))
+        null_value = true;
+      m_use_cached_value = true;
+      str_value.mark_as_const();
+      m_safe = (errors == 0);
+    } else {
+      m_use_cached_value = false;
+      // Marks whether the conversion is safe
+      m_safe = (args[0]->collation.collation == &my_charset_bin ||
+                cs_arg == &my_charset_bin || (cs_arg->state & MY_CS_UNICODE));
+    }
+  }
+  Item_charset_conversion(const POS &pos, Item *a, const CHARSET_INFO *cs_arg)
+      : Item_str_func(pos, a), m_cast_cs(cs_arg) {}
+
+  String *val_str(String *) override;
+};
+
+class Item_typecast_char final : public Item_charset_conversion {
+ public:
+  Item_typecast_char(THD *thd, Item *a, longlong length_arg,
+                     const CHARSET_INFO *cs_arg)
+      : Item_charset_conversion(thd, a, cs_arg, false) {
+    m_cast_length = length_arg;
+  }
   Item_typecast_char(const POS &pos, Item *a, longlong length_arg,
                      const CHARSET_INFO *cs_arg)
-      : Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg) {}
+      : Item_charset_conversion(pos, a, cs_arg) {
+    m_cast_length = length_arg;
+  }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const override;
   const char *func_name() const override { return "cast_as_char"; }
-  String *val_str(String *a) override;
-  bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 };
@@ -999,52 +1079,18 @@ class Item_func_quote : public Item_str_func {
   bool resolve_type(THD *thd) override;
 };
 
-class Item_func_conv_charset final : public Item_str_func {
-  /// Marks weather the underlying Item is constant and may be cached.
-  bool use_cached_value;
-  String tmp_value;
-
+class Item_func_conv_charset final : public Item_charset_conversion {
  public:
-  /**
-    The following types of conversions are considered safe:
-
-    Conversion to and from "binary".
-    Conversion to Unicode.
-    Other kind of conversions are potentially lossy.
-  */
-  bool safe;
-  const CHARSET_INFO *conv_charset;  // keep it public
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
-      : Item_str_func(pos, a) {
-    conv_charset = cs;
-    use_cached_value = false;
-    safe = false;
+      : Item_charset_conversion(pos, a, cs) {
+    m_safe = false;
   }
 
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const)
-      : Item_str_func(a) {
+      : Item_charset_conversion(thd, a, cs, cache_if_const) {
     assert(args[0]->fixed);
-
-    conv_charset = cs;
-    if (cache_if_const && args[0]->may_evaluate_const(thd)) {
-      uint errors = 0;
-      String tmp, *str = args[0]->val_str(&tmp);
-      if (!str || str_value.copy(str->ptr(), str->length(), str->charset(),
-                                 conv_charset, &errors))
-        null_value = true;
-      use_cached_value = true;
-      str_value.mark_as_const();
-      safe = (errors == 0);
-    } else {
-      use_cached_value = false;
-      // Marks weather the conversion is safe
-      safe = (args[0]->collation.collation == &my_charset_bin ||
-              cs == &my_charset_bin || (cs->state & MY_CS_UNICODE));
-    }
   }
-  String *val_str(String *) override;
-  bool resolve_type(THD *) override;
   const char *func_name() const override { return "convert"; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;

@@ -1200,7 +1200,7 @@ bool Item::eq(const Item *item, bool) const {
 Item *Item::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
   Item_func_conv_charset *conv =
       new Item_func_conv_charset(thd, this, tocs, true);
-  return conv && conv->safe ? conv : nullptr;
+  return conv && conv->m_safe ? conv : nullptr;
 }
 
 /**

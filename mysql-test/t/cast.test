@@ -1077,3 +1077,55 @@ SELECT CAST(x <= 0x4891f642 AS UNSIGNED) FROM t;
 --error ER_CANNOT_CONVERT_STRING
 SELECT CAST(STRCMP(x, 0x4891f642) AS UNSIGNED) FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#33199145: CONVERT(.. USING charset) gets wrong max_length
+--echo #
+CREATE TABLE tmp(beer CHAR(1));
+INSERT INTO tmp VALUES (CONVERT(X'F09F8DBA' USING utf8mb4));
+SELECT HEX(beer), beer FROM tmp;
+--echo # Used this round-about way originally to get a utfmb4 character to
+--echo # convert in next DML/DDL query to avoid change encoding of this file
+--echo # and to avoid bug in max_length of CONVERT(X'F09F8DBA' USING UTF8MB4)
+--echo # which (used to) set to 4 instead of one (beer), fixed now, though,
+--echo # see round-trip test below.
+CREATE TABLE t AS
+    SELECT CONVERT((SELECT beer FROM tmp) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t, tmp;
+
+CREATE TABLE t AS
+    SELECT CONVERT(X'F09F8DBA' USING utf8mb4) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA' USING utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+--echo # Check round trip.
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(X'F09F8DBA', CHAR(1) CHARACTER SET utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer) FROM t;
+DROP TABLE t;
+
+
+--echo # Check round trip: should stay VARCHAR(1).
+CREATE TABLE t AS
+    SELECT CONVERT(CONVERT(_utf8mb3'a' USING utf8mb4) USING utf8mb3) AS a;
+SHOW CREATE TABLE t;
+SELECT a FROM t;
+DROP TABLE t;
+
+--echo # Character set with different min char size (utf-16: 2):
+CREATE TABLE t AS
+    SELECT CONVERT(X'D83CDF7A' USING utf16) as beer;
+SHOW CREATE TABLE t;
+SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
+DROP TABLE t;

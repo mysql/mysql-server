@@ -2190,3 +2190,89 @@ ERROR HY000: Cannot convert string 'H\x91\xF6B' from binary to utf8mb4
 SELECT CAST(STRCMP(x, 0x4891f642) AS UNSIGNED) FROM t;
 ERROR HY000: Cannot convert string 'H\x91\xF6B' from binary to utf8mb4
 DROP TABLE t;
+#
+# Bug#33199145: CONVERT(.. USING charset) gets wrong max_length
+#
+CREATE TABLE tmp(beer CHAR(1));
+INSERT INTO tmp VALUES (CONVERT(X'F09F8DBA' USING utf8mb4));
+SELECT HEX(beer), beer FROM tmp;
+HEX(beer)	beer
+F09F8DBA	?
+# Used this round-about way originally to get a utfmb4 character to
+# convert in next DML/DDL query to avoid change encoding of this file
+# and to avoid bug in max_length of CONVERT(X'F09F8DBA' USING UTF8MB4)
+# which (used to) set to 4 instead of one (beer), fixed now, though,
+# see round-trip test below.
+CREATE TABLE t AS
+SELECT CONVERT((SELECT beer FROM tmp) USING binary) AS beer;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `beer` varbinary(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(beer) FROM t;
+HEX(beer)
+F09F8DBA
+DROP TABLE t, tmp;
+CREATE TABLE t AS
+SELECT CONVERT(X'F09F8DBA' USING utf8mb4) AS beer;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `beer` varchar(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(beer) FROM t;
+HEX(beer)
+F09F8DBA
+DROP TABLE t;
+# Check round trip.
+CREATE TABLE t AS
+SELECT CONVERT(CONVERT(X'F09F8DBA' USING utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `beer` varbinary(16) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(beer) FROM t;
+HEX(beer)
+F09F8DBA
+DROP TABLE t;
+# Check round trip.
+CREATE TABLE t AS
+SELECT CONVERT(CONVERT(X'F09F8DBA', CHAR(1) CHARACTER SET utf8mb4) USING binary) AS beer;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `beer` varbinary(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(beer) FROM t;
+HEX(beer)
+F09F8DBA
+DROP TABLE t;
+# Check round trip: should stay VARCHAR(1).
+CREATE TABLE t AS
+SELECT CONVERT(CONVERT(_utf8mb3'a' USING utf8mb4) USING utf8mb3) AS a;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(1) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT a FROM t;
+a
+a
+DROP TABLE t;
+# Character set with different min char size (utf-16: 2):
+CREATE TABLE t AS
+SELECT CONVERT(X'D83CDF7A' USING utf16) as beer;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `beer` varchar(2) CHARACTER SET utf16 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT HEX(beer), CHAR_LENGTH(beer) FROM t;
+HEX(beer)	CHAR_LENGTH(beer)
+D83CDF7A	1
+DROP TABLE t;
