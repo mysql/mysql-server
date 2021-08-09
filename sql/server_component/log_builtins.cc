@@ -1271,8 +1271,8 @@ int log_line_submit(log_line *ll) {
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
   Accepts the log_timestamps global variable in its third parameter.
 
-  @param buf       A buffer of at least 26 bytes to store the timestamp in
-                   (19 + tzinfo tail + \0)
+  @param buf       A buffer of at least iso8601_size bytes to store
+                   the timestamp in. The timestamp will be \0 terminated.
   @param utime     Microseconds since the epoch
   @param mode      if 0, use UTC; if 1, use local time
 
@@ -1328,6 +1328,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime,
     assert(false);
   }
 
+  // length depends on whether timezone is "Z" or "+12:34" style
   len = snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
                  my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday,
                  my_tm.tm_hour, my_tm.tm_min, my_tm.tm_sec,

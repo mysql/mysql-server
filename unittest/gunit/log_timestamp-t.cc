@@ -60,7 +60,7 @@ TEST_F(LogTimestampTest, iso8601) {
   int time_buff_len;
 
   EXPECT_EQ(((iso8601_size)-1), LEN_MS_CET);
-  EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);
+  EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);  // timezone "Z" instead of "+12:34"
 
   // set up timezone (central european time)
   putenv(tz);
