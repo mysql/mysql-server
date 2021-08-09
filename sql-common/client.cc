@@ -3014,6 +3014,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
   */
 
   while (*(cp = net->read_pos) == 0 || is_data_packet) {
+    ulong packet_left = pkt_len;
     result->rows++;
     if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
         !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
@@ -3027,9 +3028,17 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
     to = (char *)(cur->data + fields + 1);
     end_to = to + pkt_len - 1;
     for (field = 0; field < fields; field++) {
+      uint length_len = 0;
+      if (packet_left < 1 ||
+          packet_left < (length_len = net_field_length_size(cp))) {
+        free_rows(result);
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        return nullptr;
+      }
       if ((len = (ulong)net_field_length(&cp)) ==
           NULL_LENGTH) { /* null field */
         cur->data[field] = nullptr;
+        packet_left -= length_len;
       } else {
         cur->data[field] = to;
         DBUG_EXECUTE_IF("simulate_invalid_packet_data", {
@@ -3045,6 +3054,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         to[len] = 0;
         to += len + 1;
         cp += len;
+        packet_left -= len + length_len;
         if (mysql_fields) {
           if (mysql_fields[field].max_length < len)
             mysql_fields[field].max_length = len;
