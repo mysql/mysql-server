@@ -192,6 +192,20 @@ bool AggregateIterator::Init() {
     return true;
   }
 
+  // If we have a HAVING after us, it needs to be evaluated within the context
+  // of the slice we're in (unless we're in the hypergraph optimizer, which
+  // doesn't use slices). However, we might have a sort before us, and
+  // SortingIterator doesn't set the slice except on Init(); it just keeps
+  // whatever was already set. When there is a temporary table after the HAVING,
+  // the slice coming from there might be wrongly set on Read(), and thus,
+  // we need to properly restore it before returning any rows.
+  //
+  // This is a hack. It would be good to get rid of the slice system altogether
+  // (the hypergraph join optimizer does not use it).
+  if (!m_join->implicit_grouping && !thd()->lex->using_hypergraph_optimizer) {
+    m_output_slice = m_join->get_ref_item_slice();
+  }
+
   m_seen_eof = false;
   m_save_nullinfo = 0;
 
@@ -246,6 +260,9 @@ int AggregateIterator::Read() {
           }
           for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
             (*item)->clear();
+          }
+          if (m_output_slice != -1) {
+            m_join->set_ref_item_slice(m_output_slice);
           }
           return 0;
         }
@@ -308,6 +325,9 @@ int AggregateIterator::Read() {
             SetRollupLevel(m_join->send_group_parts);
             m_state = DONE_OUTPUTTING_ROWS;
           }
+          if (m_output_slice != -1) {
+            m_join->set_ref_item_slice(m_output_slice);
+          }
           return 0;
         }
 
@@ -349,6 +369,9 @@ int AggregateIterator::Read() {
             m_last_unchanged_group_item_idx = 0;
             m_state = LAST_ROW_STARTED_NEW_GROUP;
           }
+          if (m_output_slice != -1) {
+            m_join->set_ref_item_slice(m_output_slice);
+          }
           return 0;
         }
 
@@ -382,6 +405,9 @@ int AggregateIterator::Read() {
         }
       }
 
+      if (m_output_slice != -1) {
+        m_join->set_ref_item_slice(m_output_slice);
+      }
       return 0;
 
     case DONE_OUTPUTTING_ROWS:
