@@ -295,6 +295,12 @@ class AggregateIterator final : public RowIterator {
    */
   String m_first_row_next_group;
 
+  /**
+    The slice we're setting when returning rows. See the comment in the
+    constructor.
+   */
+  int m_output_slice = -1;
+
   void SetRollupLevel(int level);
 };
 

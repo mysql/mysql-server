@@ -948,3 +948,19 @@ SELECT 1 WHERE TRUE HAVING COUNT(*) = 1;
 SELECT 1 WHERE FALSE HAVING COUNT(*) = 0;
 SELECT 1 HAVING json_objectagg(utc_date(), 1416) <> 0;
 
+--echo #
+--echo # Bug #33152269: No result set returned when using HAVING COUNT(DISTINCT ...)
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT DISTINCT
+  COUNT(DISTINCT t1.a) AS da
+FROM
+  t1
+  JOIN t1 AS t2 ON t1.a = t2.a
+GROUP BY t1.a
+HAVING COUNT(DISTINCT t1.a) = 1;
+
+DROP TABLE t1;
