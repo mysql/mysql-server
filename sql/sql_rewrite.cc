@@ -694,7 +694,11 @@ void Rewriter_user::append_mfa_plugin_name(const LEX_MFA *user,
 */
 void Rewriter_user::append_mfa_auth_str(const LEX_MFA *user,
                                         String *str) const {
-  if (user->auth.length > 0) {
+  if (user->uses_identified_by_clause &&
+      m_consumer_type == Consumer_type::TEXTLOG) {
+    str->append(STRING_WITH_LEN(" BY "));
+    append_literal_secret(str);
+  } else if (user->auth.length > 0) {
     str->append(STRING_WITH_LEN(" AS "));
     String auth_str(user->auth.str, user->auth.length, system_charset_info);
     append_query_string(m_thd, system_charset_info, &auth_str, str);
