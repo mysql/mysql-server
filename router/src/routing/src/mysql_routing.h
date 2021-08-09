@@ -66,6 +66,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
+#include "mysql_routing_base.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
@@ -85,7 +86,7 @@ using std::string;
 
 struct Nothing {};
 
-/** @class MySQLRouter
+/** @class MySQLRouting
  *  @brief Manage Connections from clients to MySQL servers
  *
  *  The class MySQLRouter is used to start a service listening on a particular
@@ -116,7 +117,7 @@ struct Nothing {};
  *  use 10.0.11.6 to setup the connection routing.
  *
  */
-class MySQLRouting {
+class MySQLRouting : public MySQLRoutingBase {
  public:
   /** @brief Default constructor
    *
@@ -222,7 +223,7 @@ class MySQLRouting {
    *
    * @return Maximum as int
    */
-  int get_max_connections() const noexcept { return max_connections_; }
+  int get_max_connections() const noexcept override { return max_connections_; }
 
   /**
    * create new connection to MySQL Server than can handle client's
@@ -242,13 +243,13 @@ class MySQLRouting {
       typename ServerProtocol::socket server_socket,
       const typename ServerProtocol::endpoint &server_endpoint);
 
-  routing::RoutingStrategy get_routing_strategy() const;
+  routing::RoutingStrategy get_routing_strategy() const override;
 
-  routing::AccessMode get_mode() const;
+  routing::AccessMode get_mode() const override;
 
-  std::vector<mysql_harness::TCPAddress> get_destinations() const;
+  std::vector<mysql_harness::TCPAddress> get_destinations() const override;
 
-  std::vector<MySQLRoutingAPI::ConnData> get_connections();
+  std::vector<MySQLRoutingAPI::ConnData> get_connections() override;
 
   RouteDestination *destinations() { return destination_.get(); }
 
@@ -266,7 +267,7 @@ class MySQLRouting {
    *
    * @retval true if we are accepting connections, false otherwise
    */
-  bool is_accepting_connections() const;
+  bool is_accepting_connections() const override;
 
  private:
   /**
@@ -310,7 +311,7 @@ class MySQLRouting {
       mysql_harness::PluginFuncEnv *env);
 
  public:
-  MySQLRoutingContext &get_context() { return context_; }
+  MySQLRoutingContext &get_context() override { return context_; }
 
  private:
   /** Monitor for notifying socket acceptor */
