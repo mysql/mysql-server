@@ -2573,3 +2573,69 @@ table2.col_int_key = table5.col_int_key AND
 table1.col_int_unique = table3.col_int_unique;
 pk	pk	pk	pk	pk
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+##################
+#
+# Bug #33181964 Incorrect result for pushed join
+#               w/ outer join inside an exists-subqry
+#
+##################
+create table t (
+pk int NOT NULL,
+col_int int NOT NULL,
+primary key(col_int,pk)
+) engine=ndbcluster;
+insert into t values
+(1, 0), (3, 0), (2, 0), (4, 0), (5, 0), (7, 0);
+create table x (
+col_int int
+) engine=ndbcluster ;
+insert into x select pk from t;
+insert into x select pk from t;
+######################################
+# Expect 'firstMatch' algorithm to be
+# used for pushed join over [t1..t3]
+######################################
+explain format=traditional select * from x
+where exists (
+select *
+from t as t1
+left join (
+t as t2 join t as t3 on
+t2.pk = 999   # 999 -> no t2 matches
+)
+on t1.col_int = t3.col_int and
+t1.col_int = t2.col_int
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	6	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	p0,p1	eq_ref	PRIMARY	PRIMARY	8	test.t1.col_int,const	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	p0,p1	ref	PRIMARY	PRIMARY	4	test.t1.col_int	1	100.00	Child of 't1' in pushed join@1; FirstMatch
+1	SIMPLE	x	p0,p1	ALL	NULL	NULL	NULL	NULL	12	100.00	Using join buffer (hash join)
+Warnings:
+Note	1003	Can't push table 'x' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`x`.`col_int` AS `col_int` from `test`.`x` semi join (`test`.`t` `t1` left join (`test`.`t` `t2` join `test`.`t` `t3`) on(((`test`.`t1`.`col_int` = `test`.`t3`.`col_int`) and (`test`.`t1`.`col_int` = `test`.`t2`.`col_int`) and (`test`.`t2`.`pk` = 999)))) where true
+select * from x
+where exists (
+select *
+from t as t1
+left join (
+t as t2 join t as t3 on
+t2.pk = 999   # 999 -> no t2 matches
+)
+on t1.col_int = t3.col_int and
+t1.col_int = t2.col_int
+);
+col_int
+1
+1
+2
+2
+3
+3
+4
+4
+5
+5
+7
+7
+drop table t,x;

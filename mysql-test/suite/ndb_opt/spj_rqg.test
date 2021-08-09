@@ -2341,3 +2341,61 @@ eval $query;
 
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
+
+
+#####################################################
+# Some test cases not using the tables a..z (anymore).
+# These were originally found using the RQG test suite
+# and the above tables, but were simplified into smaller
+# test cases during bug fixing.
+# They also need the 'BatchSize=1' config to reproduce
+# the failure.
+
+--echo ##################
+--echo #
+--echo # Bug #33181964 Incorrect result for pushed join
+--echo #               w/ outer join inside an exists-subqry
+--echo #
+--echo ##################
+
+create table t (
+  pk int NOT NULL,
+  col_int int NOT NULL,
+  primary key(col_int,pk)
+) engine=ndbcluster;
+
+insert into t values
+ (1, 0), (3, 0), (2, 0), (4, 0), (5, 0), (7, 0);
+
+
+create table x (
+  col_int int
+) engine=ndbcluster ;
+
+# Make table 'x' larger than 't'
+insert into x select pk from t;
+insert into x select pk from t;
+
+let $query=
+select * from x
+where exists (
+  select *
+  from t as t1
+    left join (
+      t as t2 join t as t3 on
+        t2.pk = 999   # 999 -> no t2 matches
+    )
+    on t1.col_int = t3.col_int and
+       t1.col_int = t2.col_int
+  );
+
+--echo ######################################
+--echo # Expect 'firstMatch' algorithm to be
+--echo # used for pushed join over [t1..t3]
+--echo ######################################
+eval explain format=traditional $query;
+
+--sorted_result
+eval $query;
+
+drop table t,x;

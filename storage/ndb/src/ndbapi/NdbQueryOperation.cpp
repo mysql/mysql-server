@@ -1308,20 +1308,29 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         {
           if (childMatched == true)
           {
-            // Found a match for this outer joined child,
-            // remember that to avoid later NULL extensions
-            m_tupleSet[tupleNo].m_matchingChild.set(childId);
-            if (unlikely(traceSignals)) {
-              ndbout << "prepareResultSet, isOuterJoin"
-                     << ", matched 'innerNest'"
-                     << ", opNo: " << thisOpId
-                     << ", row: " << tupleNo
-                     << ", child: " << childId
-                     << endl;
-            }
-            if (childStream.isAntiJoin()) {
-              hasMatchingChild.clear(thisOpId);  // Skip this tupleNo
-              break;
+            /**
+             * Found a match for this outer joined child.
+             * If child is the firstInner in this outer-joined_nest, the entire
+             * nest matched the 'outer' join condition. Thus, no later
+             * NULL-extended rows should be created for this nest.
+             * -> Remember that to avoid later NULL extensions
+             * (Also see comments for 'm_matchingChild' member variable)
+             */
+            if (childStream.isFirstInner())
+            {
+              m_tupleSet[tupleNo].m_matchingChild.set(childId);
+              if (unlikely(traceSignals)) {
+                ndbout << "prepareResultSet, isOuterJoin"
+                       << ", matched 'innerNest'"
+                       << ", opNo: " << thisOpId
+                       << ", row: " << tupleNo
+                       << ", child: " << childId
+                       << endl;
+              }
+              if (childStream.isAntiJoin()) {
+                hasMatchingChild.clear(thisOpId);  // Skip this tupleNo/nest
+                break;
+              }
             }
           }
           /**
