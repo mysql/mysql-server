@@ -5119,7 +5119,8 @@ static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
     "The default storage engine for in-memory internal temporary tables.",
     HINT_UPDATEABLE SESSION_VAR(internal_tmp_mem_storage_engine),
     CMD_LINE(REQUIRED_ARG), internal_tmp_mem_storage_engine_names,
-    DEFAULT(TMP_TABLE_TEMPTABLE));
+    DEFAULT(TMP_TABLE_TEMPTABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_session_admin_no_super));
 
 static Sys_var_ulonglong Sys_temptable_max_ram(
     "temptable_max_ram",
