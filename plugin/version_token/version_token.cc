@@ -553,7 +553,7 @@ static int version_tokens_init(void *arg [[maybe_unused]]) {
     // Lock for version number.
     cleanup_lock.activate();
   }
-  bool ret = false;
+  mysql_service_status_t ret = 0;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(

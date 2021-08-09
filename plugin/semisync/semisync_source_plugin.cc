@@ -366,7 +366,7 @@ static void fix_rpl_semi_sync_source_trace_level(MYSQL_THD, SYS_VAR *,
 
 static void fix_rpl_semi_sync_source_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
                                              const void *val) {
-  *static_cast<char *>(ptr) = *static_cast<const char *>(val);
+  *static_cast<bool *>(ptr) = *static_cast<const bool *>(val);
   if (rpl_semi_sync_source_enabled) {
     if (repl_semisync->enableMaster() != 0)
       rpl_semi_sync_source_enabled = false;
@@ -393,8 +393,8 @@ static void fix_rpl_semi_sync_source_wait_for_replica_count(MYSQL_THD,
 static void fix_rpl_semi_sync_source_wait_no_replica(MYSQL_THD, SYS_VAR *,
                                                      void *ptr,
                                                      const void *val) {
-  if (rpl_semi_sync_source_wait_no_replica != *static_cast<const char *>(val)) {
-    *static_cast<char *>(ptr) = *static_cast<const char *>(val);
+  if (rpl_semi_sync_source_wait_no_replica != *static_cast<const bool *>(val)) {
+    *static_cast<bool *>(ptr) = *static_cast<const bool *>(val);
     repl_semisync->set_wait_no_replica(val);
   }
 }

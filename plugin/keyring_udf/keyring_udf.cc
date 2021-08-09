@@ -338,7 +338,7 @@ long long keyring_key_store(UDF_INIT *, UDF_ARGS *args, unsigned char *,
 
   if (keyring_writer_service->store(key_id, current_user.c_str(),
                                     reinterpret_cast<unsigned char *>(key),
-                                    strlen(key), key_type) == true) {
+                                    strlen(key), key_type) != 0) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_store");
     *error = 1;
     return 0;
@@ -574,7 +574,7 @@ long long keyring_key_remove(UDF_INIT *, UDF_ARGS *args, unsigned char *,
     return 0;
   }
   char *key_id = args->args[0];
-  if (keyring_writer_service->remove(key_id, current_user.c_str()) == true) {
+  if (keyring_writer_service->remove(key_id, current_user.c_str()) != 0) {
     //  if (my_key_remove(args->args[0], current_user.c_str())) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
              "keyring_key_remove");
@@ -613,7 +613,7 @@ long long keyring_key_generate(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   long long key_length = *reinterpret_cast<long long *>(args->args[2]);
 
   if (keyring_generator_service->generate(key_id, current_user.c_str(),
-                                          key_type, key_length) == true) {
+                                          key_type, key_length) != 0) {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0),
              "keyring_key_generate");
     *error = 1;

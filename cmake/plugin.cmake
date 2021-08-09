@@ -278,6 +278,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       DEPENDS ${target})
   ENDIF()
 
+  IF(BUILD_PLUGIN)
+    ADD_DEPENDENCIES(plugin_all ${target})
+  ENDIF()
+
 ENDMACRO(MYSQL_ADD_PLUGIN)
 
 

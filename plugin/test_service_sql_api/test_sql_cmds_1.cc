@@ -369,7 +369,7 @@ static void test_com_query(void *p [[maybe_unused]]) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col++) {
         WRITE_VAL("%s\n", sql_str_value[col][row]);
@@ -410,10 +410,10 @@ static void test_com_query(void *p [[maybe_unused]]) {
     /* get values */
     WRITE_STR(
         "-----------------------------------------------------------------\n");
-    WRITE_VAL("%s\t\%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
+    WRITE_VAL("%s\t%s\n", sql_field[0][0].col_name, sql_field[0][1].col_name);
     for (uint row = 0; row < sql_num_rows; row++) {
       for (uint col = 0; col < sql_num_cols; col += 2) {
-        WRITE_VAL("%s\t\%s\n", sql_str_value[col][row],
+        WRITE_VAL("%s\t%s\n", sql_str_value[col][row],
                   sql_str_value[col + 1][row]);
       }
     }
