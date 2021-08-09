@@ -151,9 +151,12 @@ std::string strtolower(std::string in) {
   return out;
 }
 
-std::vector<std::string> custom_lex(std::string sql, bool convert_case = true) {
+std::vector<std::string> custom_lex(std::string sql, bool convert_case = false) {
   //bool keep_whitespace = false;
   //char until_char;
+  bool in_single = false;
+  bool in_double = false;
+  bool in_backtick = false;
   bool in_comment = false;
   bool in_line_comment = false;
   std::string token="";
@@ -164,7 +167,7 @@ std::vector<std::string> custom_lex(std::string sql, bool convert_case = true) {
       continue;
     }
 
-    if((in_line_comment && sql[i] == '\r') || (sql[i] == '\n')) {
+    if((in_line_comment && ((sql[i] == '\r') || (sql[i] == '\n')))) {
       in_line_comment = false;
       continue;
     }
@@ -180,6 +183,63 @@ std::vector<std::string> custom_lex(std::string sql, bool convert_case = true) {
     }
     if(in_comment) { 
       continue;
+    }
+
+    if(in_backtick && sql[i] == '`') {
+      token += sql[i];
+      tokens.push_back(tokens[i]);
+      token = "";
+      continue;
+    }
+    if(!in_backtick && sql[i] == '`') {
+      if(token != "") {
+        tokens.push_back(token);
+      }
+      token = sql[i];
+      continue;
+    } else {
+      if(in_backtick) {
+        token += sql[i];
+        continue;
+      }
+    }
+
+    if(in_double && sql[i] == '"') {
+      token += sql[i];
+      tokens.push_back(tokens[i]);
+      token = "";
+      continue;
+    }
+    if(!in_double && sql[i] == '"') {
+      if(token != "") {
+        tokens.push_back(token);
+      }
+      token = sql[i];
+      continue;
+    } else {
+      if(in_double) {
+        token += sql[i];
+        continue;
+      }
+    }
+
+    if(in_single && sql[i] == '\'') {
+      token += sql[i];
+      tokens.push_back(tokens[i]);
+      token = "";
+      continue;
+    }
+    if(!in_single && sql[i] == '\'') {
+      if(token != "") {
+        tokens.push_back(token);
+      }
+      token = sql[i];
+      continue;
+    } else {
+      if(in_single) {
+        token += sql[i];
+        continue;
+      }
     }
 
     if(sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\r' || sql[i] == '\n' || isspace(sql[i])) {
@@ -792,7 +852,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       result = mysql_store_result(local);
       
       
-      while(row = mysql_fetch_row(result)) {
+      while((row = mysql_fetch_row(result))) {
         remote_host=std::string(row[1]);
         remote_db=std::string(row[2] != NULL ? row[2] : "");
         remote_user=std::string(row[3]);
@@ -873,7 +933,7 @@ std::string execute_remote_query(std::vector<std::string> tokens, bool is_insert
       }
       result = mysql_store_result(remote);
       int col_cnt = mysql_num_fields(result);
-      while(row = mysql_fetch_row(result)) {
+      while((row = mysql_fetch_row(result))) {
         std::string insert_sql = "";  
         for(int n=0;n<col_cnt;++n) {
           if(insert_sql != "") {
@@ -916,25 +976,24 @@ static int warp_rewrite_query_notify(
   //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
   std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), true);
   
+  if(strtolower(tokens[0]) == "drop") {
+    return 0;
+  }
+  
+
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
-    //std::cerr << "PRE-PARSE!\n";
-    //return 0;
-    //size_t query_length = event_parse->query.length;
-    //const char *sql=NULL;
+
     bool is_incremental = false;
     std::string mvname;
-    //sql=strcasestr(event_parse->query.str, "create incremental materialized view");
-    /*if(sql != NULL) {
-      is_incremental = true;
-    } else {  
-      sql=strcasestr(event_parse->query.str, "create materialized view");
-      if(sql == NULL) { 
-        return 0;
-      }
-    }*/
+
     std::string sqlstr = "";
     bool capture_sql = false;
     bool is_create_table = false;
+
+    if(strtolower(tokens[0]) == "prepare") {
+      return 0;
+    }
+
     // HANDLE CREATE TABLE STATEMENTS WITH REMOTE QUERIES
     if(strstr(event_parse->query.str, "^@") != NULL || 
       (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
@@ -966,6 +1025,7 @@ static int warp_rewrite_query_notify(
         }
       }
     }
+    
     if(mvname != "") {  
       std::string prefix = "/*~cmv:";
       if(is_incremental) {
@@ -998,7 +1058,7 @@ static int warp_rewrite_query_notify(
       sqlstr = execute_remote_query(tokens);
     }  
 
-    process_sql:
+    //process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
       my_malloc(key_memory_warp_rewrite, sqlstr.length() + 1, MYF(0)));
@@ -1016,11 +1076,12 @@ static int warp_rewrite_query_notify(
   }
   //std::cerr << "POST-PARSE!\n";
   // POST-PARSE HANDLING HERE 
-  bool is_remote = false;
+  //bool is_remote = false;
   const bool is_mv_create = (strstr(event_parse->query.str, "/*~cmv:") != NULL);
   // If we are building a materialized view create script, commands contains the add_table and add_expr commands
   // They will be executed by the create_from_rewriter function
   std::string commands;
+
   bool is_incremental = false;
   std::string mvname;
   if(is_mv_create) {
@@ -1114,7 +1175,7 @@ static int warp_rewrite_query_notify(
     // List of fields used in the SELECT clause
     // This list is used in processing the GROUP BY clause and HAVING clause
     std::unordered_map<std::string, uint> used_fields;
-
+    int star_count = 0;
     for(auto field_it = field_list->begin(); field_it != field_list->end(); ++field_it,++expr_num) {
       auto field = *field_it;
       
@@ -1160,7 +1221,16 @@ static int warp_rewrite_query_notify(
           } else {
             commands += "CALL leapdb.add_expr(@mvid, 'COLUMN', '";
           }
-          commands += escape_for_call(raw_field) + "','" + escape_for_call(orig_alias) + "')";
+          if(orig_alias == "`*`") {
+            std::string new_alias = orig_alias;
+            if(star_count > 0) {
+              new_alias += std::to_string(star_count);
+            }
+            ++star_count;
+            commands += escape_for_call(raw_field) + "','" + escape_for_call(new_alias) + "')";
+          } else {
+            commands += escape_for_call(raw_field) + "','" + escape_for_call(orig_alias) + "')";
+          }
           continue;
         break;
 
@@ -1378,7 +1448,7 @@ static int warp_rewrite_query_notify(
         if(tbl->join_cond() != nullptr) {
           tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
           tmp_from += "/*%TOKEN%*/ON " + std::string(join_str.ptr(), join_str.length());
-          commands += "'" + escape_for_call(std::string(join_str.ptr(), join_str.length())) + "')";
+          commands += "' ON (" + escape_for_call(std::string(join_str.ptr(), join_str.length())) + ")')";
         } else {
           if(is_mv_create && i>0) {
             return -1;

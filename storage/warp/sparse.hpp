@@ -29,7 +29,7 @@
 // 64 bits
 #define BLOCK_SIZE 8
 #define MAX_BITS 64
-bool bitmap_debug = true;
+bool bitmap_debug = false;
 
 //#ifdef WARP_BITMAP_DEBUG
 #define bitmap_dbug(x) if(bitmap_debug) std::cerr << __LINE__ << ": " << x << "\n"; 
@@ -249,7 +249,6 @@ public:
     if(lock_mode == LOCK_EX) {
       log = fopen(lname.c_str(),"wb");
       if(!log) {
-	      std::cerr << " FUCK\n";
         return -4;
       }
     }
