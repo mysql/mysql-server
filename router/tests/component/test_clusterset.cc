@@ -348,8 +348,8 @@ class ClusterChangeTargetClusterInTheMetadataTest
           TargetClusterChangeInMetataTestParams> {};
 
 /**
- * @test Checks that the target cluster from the metadata overrides the one in
- * the static configuration file in the runtime.
+ * @test Checks that the target cluster changes in the metadata are correctly
+ * followed by the Router.
  * [@FR3.7]
  * [@FR3.7.1]
  */
@@ -366,7 +366,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
                     /*router_options*/ R"({"target_cluster" : ")" +
                         initial_target_cluster + "\" }");
-  /*auto &router =*/launch_router();
+  auto &router = launch_router();
 
   SCOPED_TRACE(
       "// Make the connections to both RW and RO ports and check if they are "
@@ -408,7 +408,16 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                         changed_target_cluster + "\" }");
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
-      clusterset_data_.clusters[0].nodes[0].http_port, 2));
+      clusterset_data_.clusters[0].nodes[0].http_port, 3));
+
+  SCOPED_TRACE("// Check if the change of a target cluster has been logged");
+  const auto changed_target_cluster_name =
+      clusterset_data_.clusters[changed_target_cluster_id].name;
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern =
+      "INFO .* New target cluster read from the metadata: '" +
+      changed_target_cluster_name + "'";
+  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
   if (GetParam().initial_connections_should_drop) {
     SCOPED_TRACE(

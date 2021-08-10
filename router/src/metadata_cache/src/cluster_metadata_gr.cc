@@ -1341,11 +1341,18 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   }
 
   // check if our target_cluster assignment did not change in the metadata
+  mysqlrouter::TargetCluster new_target_cluster;
   if (!update_target_cluster_from_metadata(*connection, router_id,
-                                           target_cluster)) {
+                                           new_target_cluster)) {
     return stdx::make_unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
+
+  const bool target_cluster_changed =
+      target_cluster.target_type() != new_target_cluster.target_type() ||
+      target_cluster.to_string() != new_target_cluster.to_string();
+
+  target_cluster = new_target_cluster;
 
   // get target_cluster info
   const auto target_cluster_id = get_target_cluster_info_from_metadata_server(
@@ -1356,6 +1363,11 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
               target_cluster.c_str());
     return stdx::make_unexpected(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
+  } else {
+    if (target_cluster_changed) {
+      log_info("New target cluster read from the metadata: '%s'",
+               target_cluster.c_str());
+    }
   }
 
   // if our target cluster is invalidated in the metadata our behavior is
