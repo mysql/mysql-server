@@ -23,10 +23,11 @@
 */
 
 #include "mysqlrouter/routing_component.h"
+#include "mysql/harness/config_option.h"
 
 #include <cstring>
 
-#include "mysql_routing.h"
+#include "mysql_routing_base.h"
 #include "mysqlrouter/routing.h"
 
 #include <algorithm>
@@ -119,7 +120,7 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
 }
 
 void MySQLRoutingComponent::init(const std::string &name,
-                                 std::shared_ptr<MySQLRouting> srv) {
+                                 std::shared_ptr<MySQLRoutingBase> srv) {
   std::lock_guard<std::mutex> lock(routes_mu_);
 
   routes_.emplace(name, std::move(srv));

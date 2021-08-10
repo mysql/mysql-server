@@ -266,6 +266,14 @@ class METADATA_API LookupResult {
   const cluster_nodes_list_t instance_vector;
 };
 
+struct RouterAttributes {
+  std::string metadata_user_name;
+  std::string rw_classic_port;
+  std::string ro_classic_port;
+  std::string rw_x_port;
+  std::string ro_x_port;
+};
+
 /**
  * @brief Abstract class that provides interface for listener on
  *        cluster status changes.
@@ -368,6 +376,40 @@ class METADATA_API ClusterStateNotifierInterface {
   virtual ~ClusterStateNotifierInterface();
 };
 
+/**
+ * @brief Metadata TTL configuration
+ */
+struct METADATA_API MetadataCacheTTLConfig {
+  // The time to live for the cached data
+  std::chrono::milliseconds ttl;
+
+  // auth_cache_ttl TTL of the rest user authentication data
+  std::chrono::milliseconds auth_cache_ttl;
+
+  // auth_cache_refresh_interval Refresh rate of the rest user authentication
+  // data
+  std::chrono::milliseconds auth_cache_refresh_interval;
+};
+
+/**
+ * @brief Metadata MySQL session configuration
+ */
+struct METADATA_API MetadataCacheMySQLSessionConfig {
+  // User credentials used for the connecting to the metadata server.
+  mysqlrouter::UserCredentials user_credentials;
+
+  // The time in seconds after which trying to connect to metadata server should
+  // time out.
+  int connect_timeout;
+
+  // The time in seconds after which read from metadata server should time out.
+  int read_timeout;
+
+  // Numbers of retries used before giving up the attempt to connect to the
+  // metadata server (not used atm).
+  int connection_attempts;
+};
+
 class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
  public:
   /** @brief Initialize a MetadataCache object and start caching
@@ -396,18 +438,12 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The list of cluster metadata servers
-   * @param user_credentials MySQL Metadata username and password
-   * @param ttl The time to live for the cached data
-   * @param auth_cache_ttl TTL of the rest user authentication data
-   * @param auth_cache_refresh_interval Refresh rate of the rest user
-   *                                    authentication data
+   * @param ttl_config metadata TTL configuration
    * @param ssl_options SSL relatd options for connection
    * @param target_cluster object identifying the Cluster this operation refers
    * to
-   * @param connect_timeout The time in seconds after which trying to connect
-   *                        to metadata server should time out.
-   * @param read_timeout The time in seconds after which read from metadata
-   *                     server should time out.
+   * @param session_config Metadata MySQL session configuration
+   * @param router_attributes Router attributes to be registered in the metadata
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    * @param use_cluster_notifications Flag indicating if the metadata cache
    *                                  should use cluster notifications as an
@@ -422,13 +458,11 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
       const std::string &cluster_type_specific_id,
       const std::string &clusterset_id,
       const metadata_servers_list_t &metadata_servers,
-      const mysqlrouter::UserCredentials &user_credentials,
-      const std::chrono::milliseconds ttl,
-      const std::chrono::milliseconds auth_cache_ttl,
-      const std::chrono::milliseconds auth_cache_refresh_interval,
+      const MetadataCacheTTLConfig &ttl_config,
       const mysqlrouter::SSLOptions &ssl_options,
-      const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
-      int read_timeout,
+      const mysqlrouter::TargetCluster &target_cluster,
+      const MetadataCacheMySQLSessionConfig &session_config,
+      const RouterAttributes &router_attributes,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_cluster_notifications = false, const uint64_t view_id = 0) = 0;
 
@@ -593,13 +627,11 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
                   const std::string &cluster_type_specific_id,
                   const std::string &clusterset_id,
                   const metadata_servers_list_t &metadata_servers,
-                  const mysqlrouter::UserCredentials &user_credentials,
-                  const std::chrono::milliseconds ttl,
-                  const std::chrono::milliseconds auth_cache_ttl,
-                  const std::chrono::milliseconds auth_cache_refresh_interval,
+                  const MetadataCacheTTLConfig &ttl_config,
                   const mysqlrouter::SSLOptions &ssl_options,
                   const mysqlrouter::TargetCluster &target_cluster,
-                  int connect_timeout, int read_timeout,
+                  const MetadataCacheMySQLSessionConfig &session_config,
+                  const RouterAttributes &router_attributes,
                   size_t thread_stack_size, bool use_cluster_notifications,
                   const uint64_t view_id) override;
 

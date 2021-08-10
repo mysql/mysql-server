@@ -38,6 +38,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 #include "mysqlrouter/uri.h"
@@ -51,10 +52,48 @@ static const mysql_harness::AppInfo *g_app_info;
 static const std::string kSectionName = "metadata_cache";
 static const char *kKeyringAttributePassword = "password";
 
+metadata_cache::RouterAttributes g_router_attributes;
+
+static metadata_cache::RouterAttributes get_router_attributes(
+    const mysql_harness::Config *cfg) {
+  metadata_cache::RouterAttributes result;
+
+  if (!cfg->has_any("routing")) return result;
+  for (const auto *routing_section : cfg->get("routing")) {
+    if (routing_section->has("bind_port") &&
+        routing_section->has("destinations") &&
+        routing_section->has("protocol")) {
+      const auto port = routing_section->get("bind_port");
+      const auto protocol = routing_section->get("protocol");
+      const auto destinations = routing_section->get("destinations");
+
+      const bool is_rw =
+          mysql_harness::utility::ends_with(destinations, "PRIMARY");
+      const bool is_ro =
+          mysql_harness::utility::ends_with(destinations, "SECONDARY");
+
+      if (protocol == "classic") {
+        if (is_rw)
+          result.rw_classic_port = port;
+        else if (is_ro)
+          result.ro_classic_port = port;
+      } else if (protocol == "x") {
+        if (is_rw)
+          result.rw_x_port = port;
+        else if (is_ro)
+          result.ro_x_port = port;
+      }
+    }
+  }
+
+  return result;
+}
+
 static void init(mysql_harness::PluginFuncEnv *env) {
   g_app_info = get_app_info(env);
   // If a valid configuration object was found.
   if (g_app_info && g_app_info->config) {
+    g_router_attributes = get_router_attributes(g_app_info->config);
     // if a valid metadata_cache section was found in the router
     // configuration.
     if (g_app_info->config->get(kSectionName).empty()) {
@@ -164,10 +203,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                  "is empty, too."));
     }
 
-    std::chrono::milliseconds ttl{config.ttl};
-    std::chrono::milliseconds auth_cache_ttl{config.auth_cache_ttl};
-    std::chrono::milliseconds auth_cache_refresh_interval{
-        config.auth_cache_refresh_interval};
+    const metadata_cache::MetadataCacheTTLConfig ttl_config{
+        config.ttl, config.auth_cache_ttl, config.auth_cache_refresh_interval};
 
     std::string password;
     try {
@@ -193,15 +230,24 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     const std::string clusterset_id = config.get_clusterset_id();
 
+    const metadata_cache::MetadataCacheMySQLSessionConfig session_config{
+        {config.user, password},
+        (int)config.connect_timeout,
+        (int)config.read_timeout,
+        1};
+
+    // we currently support only single metadata-cache instance so there is no
+    // need for locking here
+    g_router_attributes.metadata_user_name = config.user;
+
     md_cache->cache_init(
         config.cluster_type, config.router_id, cluster_type_specific_id,
-        clusterset_id, config.metadata_servers_addresses,
-        {config.user, password}, ttl, auth_cache_ttl,
-        auth_cache_refresh_interval, make_ssl_options(section),
+        clusterset_id, config.metadata_servers_addresses, ttl_config,
+        make_ssl_options(section),
         mysqlrouter::TargetCluster{
             mysqlrouter::TargetCluster::TargetType::ByName,
             config.cluster_name},
-        config.connect_timeout, config.read_timeout, config.thread_stack_size,
+        session_config, g_router_attributes, config.thread_stack_size,
         config.use_gr_notifications, config.get_view_id());
 
     // register callback

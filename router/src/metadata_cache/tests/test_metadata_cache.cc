@@ -40,6 +40,7 @@
 
 using metadata_cache::ManagedInstance;
 using mysql_harness::TCPAddress;
+using namespace std::chrono_literals;
 
 constexpr unsigned kRouterId = 2;
 
@@ -49,13 +50,17 @@ class MetadataCacheTest : public ::testing::Test {
   GRMetadataCache cache;
 
   MetadataCacheTest()
-      : mf("admin", "admin", 1, 1, 1),
+      : mf(metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1}),
         cache(kRouterId, "0000-0001", "", {TCPAddress("localhost", 32275)},
-              get_instance(mysqlrouter::ClusterType::GR_V1, "admin", "admin", 1,
-                           1, 1, mysqlrouter::SSLOptions(), false, 0),
-              std::chrono::seconds(10), std::chrono::seconds(-1),
-              std::chrono::seconds(20), mysqlrouter::SSLOptions(),
-              {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"}) {
+              get_instance(mysqlrouter::ClusterType::GR_V1,
+                           metadata_cache::MetadataCacheMySQLSessionConfig{
+                               {"admin", "admin"}, 1, 1, 1},
+                           mysqlrouter::SSLOptions(), false, 0),
+              metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+              mysqlrouter::SSLOptions(),
+              {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+              metadata_cache::RouterAttributes{}) {
     cache.refresh(true);
   }
 };
@@ -88,8 +93,10 @@ class MetadataCacheTest2 : public ::testing::Test {
         [this]() { return session.get(); },  // provide pointer to session
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
-    cmeta.reset(new GRClusterMetadata("admin", "admin", 1, 1, 1,
-                                      mysqlrouter::SSLOptions()));
+    cmeta.reset(new GRClusterMetadata(
+        metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1},
+        mysqlrouter::SSLOptions()));
   }
 
   // make queries on metadata schema return a 3 members replicaset
@@ -205,10 +212,11 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_members();
 
   GRMetadataCache mc(
-      kRouterId, gr_id, "", metadata_servers, cmeta, std::chrono::seconds(10),
-      std::chrono::seconds(-1), std::chrono::seconds(20),
+      kRouterId, gr_id, "", metadata_servers, cmeta,
+      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
       mysqlrouter::SSLOptions(),
-      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+      metadata_cache::RouterAttributes{});
   mc.refresh(true);
 
   // verify that cluster can be seen
@@ -238,10 +246,11 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   expect_sql_metadata();
   expect_sql_members();
   GRMetadataCache mc(
-      kRouterId, gr_id, "", metadata_servers, cmeta, std::chrono::seconds(10),
-      std::chrono::seconds(-1), std::chrono::seconds(20),
+      kRouterId, gr_id, "", metadata_servers, cmeta,
+      metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
       mysqlrouter::SSLOptions(),
-      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+      metadata_cache::RouterAttributes{});
   mc.refresh(true);
   expect_cluster_routable(mc);
 

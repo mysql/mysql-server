@@ -65,13 +65,11 @@ class METADATA_API MetadataCache
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
-   * @param ttl The TTL of the cached data
-   * @param auth_cache_ttl TTL of the rest users authentication data
-   * @param auth_cache_refresh_interval Refresh rate of the rest users
-   *        authentiction data
+   * @param ttl_config metadata TTL configuration
    * @param ssl_options SSL related options for connection
    * @param target_cluster object identifying the Cluster this operation refers
    * to
+   * @param router_attributes Router attributes to be registered in the metadata
    * @param thread_stack_size The maximum memory allocated for thread's stack
    * @param use_cluster_notifications Flag indicating if the metadata cache
    * should use GR notifications as an additional trigger for metadata refresh
@@ -80,11 +78,11 @@ class METADATA_API MetadataCache
       const unsigned router_id, const std::string &cluster_type_specific_id,
       const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-      std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
-      const std::chrono::milliseconds auth_cache_ttl,
-      const std::chrono::milliseconds auth_cache_refresh_interval,
+      std::shared_ptr<MetaData> cluster_metadata,
+      const metadata_cache::MetadataCacheTTLConfig &ttl_config,
       const mysqlrouter::SSLOptions &ssl_options,
       const mysqlrouter::TargetCluster &target_cluster,
+      const metadata_cache::RouterAttributes &router_attributes,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_cluster_notifications = false);
 
@@ -211,7 +209,7 @@ class METADATA_API MetadataCache
   std::string cluster_type_specific_id() const {
     return cluster_type_specific_id_;
   }
-  std::chrono::milliseconds ttl() const { return ttl_; }
+  std::chrono::milliseconds ttl() const { return ttl_config_.ttl; }
   mysqlrouter::TargetCluster target_cluster() const { return target_cluster_; }
 
   virtual mysqlrouter::ClusterType cluster_type() const noexcept = 0;
@@ -268,8 +266,8 @@ class METADATA_API MetadataCache
   // Update rest users authentication data
   bool update_auth_cache();
 
-  // Update current Router version in the metadata
-  void update_router_version();
+  // Update current Router attributes in the metadata
+  void update_router_attributes();
 
   // Update Router last_check_in timestamp in the metadata
   void update_router_last_check_in();
@@ -291,14 +289,8 @@ class METADATA_API MetadataCache
   // topology.
   metadata_cache::metadata_servers_list_t metadata_servers_;
 
-  // The time to live of the metadata cache.
-  std::chrono::milliseconds ttl_;
-
-  // Time to live of the auth credentials cache.
-  std::chrono::milliseconds auth_cache_ttl_;
-
-  // Auth credentials cache refresh interval
-  std::chrono::milliseconds auth_cache_refresh_interval_;
+  // Metadata TTL configuration.
+  metadata_cache::MetadataCacheTTLConfig ttl_config_;
 
   // SSL options for MySQL connections
   mysqlrouter::SSLOptions ssl_options_;
@@ -384,6 +376,8 @@ class METADATA_API MetadataCache
    * metadata refresh even if instance information has not changed.
    */
   std::atomic<bool> trigger_acceptor_update_on_next_refresh_{false};
+
+  metadata_cache::RouterAttributes router_attributes_;
 };
 
 bool operator==(const metadata_cache::ManagedCluster &cluster_a,

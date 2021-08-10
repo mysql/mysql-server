@@ -401,8 +401,8 @@ class MetadataTest : public ::testing::Test {
   MockMySQLSessionFactory &session_factory =
       *up_session_factory_;  // hack: we can do this because unique_ptr will
                              // outlive our tests
-  GRClusterMetadata metadata{"user", "pass", 0,
-                             0,      0,      mysqlrouter::SSLOptions()};
+  GRClusterMetadata metadata{{{"user", "pass"}, 0, 0, 0},
+                             mysqlrouter::SSLOptions()};
 
   // set instances that would be returned by successful
   // metadata.fetch_instances_from_metadata_server() for a healthy 3-node setup.

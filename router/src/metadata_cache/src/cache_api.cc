@@ -86,16 +86,11 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param metadata_servers The list of cluster metadata servers
  * @param user_credentials The user name and password used to connect to the
  * metadata servers.
- * @param ttl The ttl for the contents of the cache
- * @param auth_cache_ttl TTL of the rest user authentication data
- * @param auth_cache_refresh_interval Refresh rate of the rest user
- *                                    authentication data
+ * @param ttl_config metadata TTL configuration
  * @param ssl_options SSL related options for connections
  * @param target_cluster object identifying the Cluster this operation refers to
- * @param connect_timeout The time in seconds after which trying to connect
- *                        to metadata server timeouts
- * @param read_timeout The time in seconds after which read from metadata
- *                     server should timeout.
+ * @param session_config Metadata MySQL session configuration
+ * @param router_attributes Router attributes to be registered in the metadata
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
  * @param use_cluster_notifications Flag indicating if the metadata cache should
  *                             use cluster notifications as an additional
@@ -109,13 +104,12 @@ void MetadataCacheAPI::cache_init(
     const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const metadata_servers_list_t &metadata_servers,
-    const mysqlrouter::UserCredentials &user_credentials,
-    const std::chrono::milliseconds ttl,
-    const std::chrono::milliseconds auth_cache_ttl,
-    const std::chrono::milliseconds auth_cache_refresh_interval,
+    const MetadataCacheTTLConfig &ttl_config,
     const mysqlrouter::SSLOptions &ssl_options,
-    const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
-    int read_timeout, size_t thread_stack_size, bool use_cluster_notifications,
+    const mysqlrouter::TargetCluster &target_cluster,
+    const MetadataCacheMySQLSessionConfig &session_config,
+    const metadata_cache::RouterAttributes &router_attributes,
+    size_t thread_stack_size, bool use_cluster_notifications,
     const uint64_t view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
@@ -123,20 +117,18 @@ void MetadataCacheAPI::cache_init(
     case mysqlrouter::ClusterType::RS_V2:
       g_metadata_cache.reset(new ARMetadataCache(
           router_id, cluster_type_specific_id, metadata_servers,
-          get_instance(cluster_type, user_credentials.username,
-                       user_credentials.password, connect_timeout, read_timeout,
-                       1, ssl_options, use_cluster_notifications, view_id),
-          ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-          target_cluster, thread_stack_size));
+          get_instance(cluster_type, session_config, ssl_options,
+                       use_cluster_notifications, view_id),
+          ttl_config, ssl_options, target_cluster, router_attributes,
+          thread_stack_size));
       break;
     default:
       g_metadata_cache.reset(new GRMetadataCache(
           router_id, cluster_type_specific_id, clusterset_id, metadata_servers,
-          get_instance(cluster_type, user_credentials.username,
-                       user_credentials.password, connect_timeout, read_timeout,
-                       1, ssl_options, use_cluster_notifications, view_id),
-          ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-          target_cluster, thread_stack_size, use_cluster_notifications));
+          get_instance(cluster_type, session_config, ssl_options,
+                       use_cluster_notifications, view_id),
+          ttl_config, ssl_options, target_cluster, router_attributes,
+          thread_stack_size, use_cluster_notifications));
   }
 
   is_initialized_ = true;

@@ -72,8 +72,10 @@ class FailoverTest : public ::testing::Test {
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
 
-    cmeta = std::make_shared<GRClusterMetadata>("admin", "admin", 1, 1, 1,
-                                                mysqlrouter::SSLOptions());
+    cmeta = std::make_shared<GRClusterMetadata>(
+        metadata_cache::MetadataCacheMySQLSessionConfig{
+            {"admin", "admin"}, 1, 1, 1},
+        mysqlrouter::SSLOptions());
   }
 
   void init_cache() {
@@ -82,9 +84,11 @@ class FailoverTest : public ::testing::Test {
         std::vector<mysql_harness::TCPAddress>{
             {"localhost", 32275},
         },
-        cmeta, 10s, -1s, 20s, mysqlrouter::SSLOptions(),
+        cmeta, metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
+        mysqlrouter::SSLOptions(),
         mysqlrouter::TargetCluster{
             mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
+        metadata_cache::RouterAttributes{},
         mysql_harness::kDefaultStackSizeInKiloBytes, false);
   }
 

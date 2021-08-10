@@ -276,17 +276,14 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   ClusterSetTopology clusterset_topology_;
 };
 
-GRClusterMetadata::GRClusterMetadata(const std::string &user,
-                                     const std::string &password,
-                                     int connect_timeout, int read_timeout,
-                                     int connection_attempts,
-                                     const mysqlrouter::SSLOptions &ssl_options,
-                                     const bool use_cluster_notifications)
-    : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                      connection_attempts, ssl_options) {
+GRClusterMetadata::GRClusterMetadata(
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_cluster_notifications)
+    : ClusterMetadata(session_config, ssl_options) {
   if (use_cluster_notifications) {
     gr_notifications_listener_.reset(
-        new GRNotificationListener(user, password));
+        new GRNotificationListener(session_config.user_credentials));
   }
 }
 
@@ -1329,6 +1326,11 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
             view_id, this->view_id_, metadata_read_ ? "yes" : "no");
 
   if (view_id < this->view_id_) {
+    log_info("Metadata server %s:%d has outdated metadata view_id = %" PRIu64
+             ", current view_id = %" PRIu64 ", ignoring",
+             metadata_server.address().c_str(), metadata_server.port(), view_id,
+             this->view_id_);
+
     return stdx::make_unexpected(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
@@ -1339,11 +1341,18 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
   }
 
   // check if our target_cluster assignment did not change in the metadata
+  mysqlrouter::TargetCluster new_target_cluster;
   if (!update_target_cluster_from_metadata(*connection, router_id,
-                                           target_cluster)) {
+                                           new_target_cluster)) {
     return stdx::make_unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
+
+  const bool target_cluster_changed =
+      target_cluster.target_type() != new_target_cluster.target_type() ||
+      target_cluster.to_string() != new_target_cluster.to_string();
+
+  target_cluster = new_target_cluster;
 
   // get target_cluster info
   const auto target_cluster_id = get_target_cluster_info_from_metadata_server(
@@ -1354,6 +1363,11 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
               target_cluster.c_str());
     return stdx::make_unexpected(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
+  } else {
+    if (target_cluster_changed) {
+      log_info("New target cluster read from the metadata: '%s'",
+               target_cluster.c_str());
+    }
   }
 
   // if our target cluster is invalidated in the metadata our behavior is

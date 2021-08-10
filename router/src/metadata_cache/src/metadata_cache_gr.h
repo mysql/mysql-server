@@ -39,13 +39,11 @@ class METADATA_API GRMetadataCache : public MetadataCache {
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
-   * @param ttl The TTL of the cached data
-   * @param auth_credentials_ttl TTL of the rest user authentication data
-   * @param auth_credentials_refresh_rate Refresh_rate of the rest user
-   *                                      authentication data
+   * @param ttl_config metadata TTL configuration
    * @param ssl_options SSL related options for connection
    * @param target_cluster object identifying the Cluster this operation refers
    * to
+   * @param router_attributes Router attributes to be registered in the metadata
    * @param thread_stack_size The maximum memory allocated for thread's stack
    * @param use_gr_notifications Flag indicating if the metadata cache should
    *                             use GR notifications as an additional trigger
@@ -56,18 +54,16 @@ class METADATA_API GRMetadataCache : public MetadataCache {
       const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
-      const std::chrono::milliseconds ttl,
-      const std::chrono::milliseconds auth_credentials_ttl,
-      const std::chrono::milliseconds auth_credentials_refresh_rate,
+      const metadata_cache::MetadataCacheTTLConfig &ttl_config,
       const mysqlrouter::SSLOptions &ssl_options,
       const mysqlrouter::TargetCluster &target_cluster,
+      const metadata_cache::RouterAttributes &router_attributes,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false)
       : MetadataCache(router_id, group_replication_id, clusterset_id,
-                      metadata_servers, cluster_metadata, ttl,
-                      auth_credentials_ttl, auth_credentials_refresh_rate,
-                      ssl_options, target_cluster, thread_stack_size,
-                      use_gr_notifications) {}
+                      metadata_servers, cluster_metadata, ttl_config,
+                      ssl_options, target_cluster, router_attributes,
+                      thread_stack_size, use_gr_notifications) {}
 
   bool refresh(bool needs_writable_node) override;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,26 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_METADATA_FACTORY_INCLUDED
-#define METADATA_CACHE_METADATA_FACTORY_INCLUDED
+#ifndef ROUTING_MYSQL_ROUTING_BASE_INCLUDED
+#define ROUTING_MYSQL_ROUTING_BASE_INCLUDED
 
-#include <memory>
+#include "context.h"
 
-#include "metadata.h"
-#include "tcp_address.h"
+/** @class MySQLRoutingBase
+ *  @brief Facade to avoid a tight coupling between Routing component and
+ * actuall routing endpoint implementation. Allows replacing the routing
+ * endpoint with an alternative implementation.
+ */
+class MySQLRoutingBase {
+ public:
+  virtual MySQLRoutingContext &get_context() = 0;
+  virtual int get_max_connections() const noexcept = 0;
+  virtual std::vector<mysql_harness::TCPAddress> get_destinations() const = 0;
+  virtual std::vector<MySQLRoutingAPI::ConnData> get_connections() = 0;
+  virtual bool is_accepting_connections() const = 0;
+  virtual routing::RoutingStrategy get_routing_strategy() const = 0;
+  virtual routing::AccessMode get_mode() const = 0;
+  virtual ~MySQLRoutingBase() {}
+};
 
-// This provides a factory method that returns a pluggable instance
-// to the underlying transport layer implementation. The transport
-// layer provides the means from which the metadata is
-// fetched.
-
-std::shared_ptr<MetaData> get_instance(
-    const mysqlrouter::ClusterType cluster_type,
-    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
-    const mysqlrouter::SSLOptions &ssl_options, const bool use_gr_notifications,
-    const unsigned view_id);
-
-#endif  // METADATA_CACHE_METADATA_FACTORY_INCLUDED
+#endif  // ROUTING_MYSQL_ROUTING_BASE_INCLUDED

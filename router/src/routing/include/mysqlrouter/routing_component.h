@@ -37,14 +37,14 @@
 #include "mysql/harness/config_parser.h"
 #include "tcp_address.h"
 
-class MySQLRouting;
+class MySQLRoutingBase;
 class BaseProtocol;
 
 class ROUTING_EXPORT MySQLRoutingAPI {
  public:
   MySQLRoutingAPI() = default;
 
-  MySQLRoutingAPI(std::shared_ptr<MySQLRouting> r) : r_{std::move(r)} {}
+  MySQLRoutingAPI(std::shared_ptr<MySQLRoutingBase> r) : r_{std::move(r)} {}
 
   // config
   std::string get_bind_address() const;
@@ -94,7 +94,7 @@ class ROUTING_EXPORT MySQLRoutingAPI {
   bool is_accepting_connections() const;
 
  private:
-  std::shared_ptr<MySQLRouting> r_;
+  std::shared_ptr<MySQLRoutingBase> r_;
 };
 
 class ROUTING_EXPORT MySQLRoutingComponent {
@@ -103,7 +103,7 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   void init(const mysql_harness::Config &config);
 
-  void init(const std::string &name, std::shared_ptr<MySQLRouting> srv);
+  void init(const std::string &name, std::shared_ptr<MySQLRoutingBase> srv);
 
   MySQLRoutingAPI api(const std::string &name);
 
@@ -120,7 +120,7 @@ class ROUTING_EXPORT MySQLRoutingComponent {
   void operator=(MySQLRoutingComponent const &) = delete;
 
   std::mutex routes_mu_;
-  std::map<std::string, std::weak_ptr<MySQLRouting>> routes_;
+  std::map<std::string, std::weak_ptr<MySQLRoutingBase>> routes_;
 
   uint64_t max_total_connections_{0};
 

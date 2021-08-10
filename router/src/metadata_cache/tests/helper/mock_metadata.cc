@@ -32,12 +32,11 @@
 
 using namespace std;
 
-MockNG::MockNG(const std::string &user, const std::string &password,
-               int connect_timeout, int read_timeout, int connection_attempts,
-               const mysqlrouter::SSLOptions &ssl_options,
-               const bool use_cluster_notifications)
-    : GRClusterMetadata(user, password, connect_timeout, read_timeout,
-                        connection_attempts, ssl_options,
+MockNG::MockNG(
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_cluster_notifications)
+    : GRClusterMetadata(session_config, ssl_options,
                         use_cluster_notifications) {
   ms1.mysql_server_uuid = "instance-1";
   ms1.host = "host-1";

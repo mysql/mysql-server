@@ -218,8 +218,8 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     }
   }
 
-  int get_update_version_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_version_count");
+  int get_update_attributes_count(const std::string &json_string) {
+    return get_int_field_value(json_string, "update_attributes_count");
   }
 
   int get_update_last_check_in_count(const std::string &json_string) {
@@ -348,8 +348,8 @@ class ClusterChangeTargetClusterInTheMetadataTest
           TargetClusterChangeInMetataTestParams> {};
 
 /**
- * @test Checks that the target cluster from the metadata overrides the one in
- * the static configuration file in the runtime.
+ * @test Checks that the target cluster changes in the metadata are correctly
+ * followed by the Router.
  * [@FR3.7]
  * [@FR3.7.1]
  */
@@ -366,7 +366,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
                     /*router_options*/ R"({"target_cluster" : ")" +
                         initial_target_cluster + "\" }");
-  /*auto &router =*/launch_router();
+  auto &router = launch_router();
 
   SCOPED_TRACE(
       "// Make the connections to both RW and RO ports and check if they are "
@@ -408,7 +408,16 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                         changed_target_cluster + "\" }");
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
-      clusterset_data_.clusters[0].nodes[0].http_port, 2));
+      clusterset_data_.clusters[0].nodes[0].http_port, 3));
+
+  SCOPED_TRACE("// Check if the change of a target cluster has been logged");
+  const auto changed_target_cluster_name =
+      clusterset_data_.clusters[changed_target_cluster_id].name;
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern =
+      "INFO .* New target cluster read from the metadata: '" +
+      changed_target_cluster_name + "'";
+  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
   if (GetParam().initial_connections_should_drop) {
     SCOPED_TRACE(
@@ -1123,7 +1132,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   create_clusterset(view_id, target_cluster_id,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
                     router_options);
-  /*auto &router =*/launch_router();
+  auto &router = launch_router();
   EXPECT_EQ(9u, clusterset_data_.get_all_nodes_classic_ports().size());
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1155,6 +1164,15 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   check_state_file(router_state_file, mysqlrouter::ClusterType::GR_CS,
                    clusterset_data_.uuid,
                    clusterset_data_.get_all_nodes_classic_ports(), view_id + 1);
+
+  SCOPED_TRACE("// Check that information about outdated view id is logged");
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern =
+      "INFO .* Metadata server 127.0.0.1:" +
+      std::to_string(clusterset_data_.clusters[0].nodes[0].classic_port) +
+      " has outdated metadata view_id = " + std::to_string(view_id) +
+      ", current view_id = " + std::to_string(view_id + 1) + ", ignoring";
+  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
   SCOPED_TRACE(
       "// Let's make another change in the metadata (remove second node in "

@@ -67,18 +67,19 @@ class MetadataCachePluginTest : public ::testing::Test {
   MockNG mf;
 
   MetadataCachePluginTest()
-      : mf(kDefaultMetadataUser, kDefaultMetadataPassword, 1, 1, 1) {}
+      : mf({{kDefaultMetadataUser, kDefaultMetadataPassword}, 1, 1, 1}) {}
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
         mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id, "",
         metadata_server_vector,
-        {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
-        kDefaultAuthCacheTTL, kDefaultAuthCacheRefreshInterval,
+        {kDefaultMetadataTTL, kDefaultAuthCacheTTL,
+         kDefaultAuthCacheRefreshInterval},
         mysqlrouter::SSLOptions(),
         {mysqlrouter::TargetCluster::TargetType::ByName, kDefaultClusterName},
-        1, 1);
+        {{kDefaultMetadataUser, kDefaultMetadataPassword}, 1, 1, 1},
+        metadata_cache::RouterAttributes{});
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;
     /**

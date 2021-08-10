@@ -143,7 +143,8 @@ class TargetCluster {
   enum class TargetType { ByUUID, ByName, ByPrimaryRole };
   enum class InvalidatedClusterRoutingPolicy { DropAll, AcceptRO };
 
-  TargetCluster(const TargetType type, const std::string &value = "")
+  TargetCluster(const TargetType type = TargetType::ByPrimaryRole,
+                const std::string &value = "")
       : target_type_(type), target_value_(value) {
     if (target_type_ == TargetType::ByPrimaryRole) target_value_ = "PRIMARY";
   }

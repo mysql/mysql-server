@@ -74,22 +74,13 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
   metadata_cache::metadata_servers_list_t metadata_servers;
 
   /** @brief Constructor
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout.
-   * @param read_timeout The time after which read from the metadata server
-   *                     should timeout.
-   * @param connection_attempts The number of times a connection to the metadata
-   *                            server must be attempted, when a connection
-   *                            attempt fails.
+   * @param session_config Metadata MySQL session configuration
    * @param use_cluster_notifications Flag indicating if the metadata cache
    *                                  should use cluster notifications as an
    *                                  additional trigger for metadata refresh
    *                                  (only available for GR cluster type)
    */
-  MockNG(const std::string &user, const std::string &password,
-         int connect_timeout, int read_timeout, int connection_attempts,
+  MockNG(const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
          const bool use_cluster_notifications = false);
 

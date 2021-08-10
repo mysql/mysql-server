@@ -68,15 +68,10 @@ std::string get_string(const char *input_str) {
   return std::string(input_str);
 }
 
-ClusterMetadata::ClusterMetadata(const std::string &user,
-                                 const std::string &password,
-                                 int connect_timeout, int read_timeout,
-                                 int /*connection_attempts*/,
-                                 const mysqlrouter::SSLOptions &ssl_options)
-    : user_(user),
-      password_(password),
-      connect_timeout_(connect_timeout),
-      read_timeout_(read_timeout) {
+ClusterMetadata::ClusterMetadata(
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options)
+    : session_config_(session_config) {
   if (ssl_options.mode.empty()) {
     ssl_mode_ = SSL_MODE_PREFERRED;  // default mode
   } else {
@@ -108,9 +103,11 @@ bool ClusterMetadata::do_connect(MySQLSession &connection,
                                ssl_options_.capath, ssl_options_.crl,
                                ssl_options_.crlpath);
     connection.connect(mi.address(), static_cast<unsigned int>(mi.port()),
-                       user_, password_, "" /* unix-socket */,
-                       "" /* default-schema */, connect_timeout_,
-                       read_timeout_);
+                       session_config_.user_credentials.username,
+                       session_config_.user_credentials.password,
+                       "" /* unix-socket */, "" /* default-schema */,
+                       session_config_.connect_timeout,
+                       session_config_.read_timeout);
     return true;
   } catch (const MySQLSession::Error & /*e*/) {
     return false;  // error is logged in calling function
@@ -221,14 +218,15 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
   return true;
 }
 
-bool ClusterMetadata::update_router_version(
+bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
-    const unsigned router_id) {
+    const unsigned router_id,
+    const metadata_cache::RouterAttributes &router_attributes) {
   auto connection = mysql_harness::DIM::instance().new_MySQLSession();
   if (!do_connect(*connection, rw_server)) {
     log_warning(
-        "Updating the router version in metadata failed: Could not connect to "
-        "the writable cluster member");
+        "Updating the router attributes in metadata failed: Could not connect "
+        "to the writable cluster member");
 
     return false;
   }
@@ -236,8 +234,8 @@ bool ClusterMetadata::update_router_version(
   const auto result = mysqlrouter::setup_metadata_session(*connection);
   if (!result) {
     log_warning(
-        "Updating the router version in metadata failed: could not set up the "
-        "metadata session (%s)",
+        "Updating the router attributes in metadata failed: could not set up "
+        "the metadata session (%s)",
         result.error().c_str());
 
     return false;
@@ -251,29 +249,50 @@ bool ClusterMetadata::update_router_version(
   sqlstring query;
   if (get_cluster_type() == ClusterType::GR_V1) {
     query =
-        "UPDATE mysql_innodb_cluster_metadata.routers"
-        " SET attributes = JSON_SET(IF(attributes IS NULL, '{}', attributes), "
-        "'$.version', ?) WHERE router_id = ?";
+        "UPDATE mysql_innodb_cluster_metadata.routers "
+        "SET attributes = "
+        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+        "IF(attributes IS NULL, '{}', attributes), "
+        "'$.version', ?), "
+        "'$.RWEndpoint', ?), "
+        "'$.ROEndpoint', ?), "
+        "'$.RWXEndpoint', ?), "
+        "'$.ROXEndpoint', ?), "
+        "'$.MetadataUser', ?) "
+        "WHERE router_id = ?";
   } else {
     query =
-        "UPDATE mysql_innodb_cluster_metadata.v2_routers set version = ? "
-        "where router_id = ?";
+        "UPDATE mysql_innodb_cluster_metadata.v2_routers "
+        "SET version = ?, attributes = "
+        "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
+        "IF(attributes IS NULL, '{}', attributes), "
+        "'$.RWEndpoint', ?), "
+        "'$.ROEndpoint', ?), "
+        "'$.RWXEndpoint', ?), "
+        "'$.ROXEndpoint', ?), "
+        "'$.MetadataUser', ?) "
+        "WHERE router_id = ?";
   }
 
-  query << MYSQL_ROUTER_VERSION << router_id << sqlstring::end;
+  const auto &ra{router_attributes};
+  query << MYSQL_ROUTER_VERSION << ra.rw_classic_port << ra.ro_classic_port
+        << ra.rw_x_port << ra.ro_x_port << ra.metadata_user_name << router_id
+        << sqlstring::end;
+
   try {
     connection->execute(query);
   } catch (const MySQLSession::Error &e) {
     if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
       log_warning(
-          "Updating the router version in metadata failed: %s (%u)\n"
+          "Updating the router attributes in metadata failed: %s (%u)\n"
           "Make sure to follow the correct steps to upgrade your metadata.\n"
           "Run the dba.upgradeMetadata() then launch the new Router version "
           "when prompted",
           e.message().c_str(), e.code());
     }
   } catch (const std::exception &e) {
-    log_warning("Updating the router version in metadata failed: %s", e.what());
+    log_warning("Updating the router attributes in metadata failed: %s",
+                e.what());
   }
 
   transaction.commit();
