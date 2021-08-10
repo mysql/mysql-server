@@ -484,6 +484,17 @@ void btr_discard_page(btr_cur_t *cursor, /*!< in: cursor on the page to discard:
     mtr_t *mtr);         /*!< in/out: mini-transaction where index
                         is s-latched */
 
+#ifdef UNIV_DEBUG
+#define btr_page_alloc(index, hint_page_no, file_direction, level, mtr, \
+                       init_mtr)                                        \
+  btr_page_alloc_priv(index, hint_page_no, file_direction, level, mtr,  \
+                      init_mtr, UT_LOCATION_HERE)
+#else /* UNIV_DEBUG */
+#define btr_page_alloc(index, hint_page_no, file_direction, level, mtr, \
+                       init_mtr)                                        \
+  btr_page_alloc_priv(index, hint_page_no, file_direction, level, mtr, init_mtr)
+#endif /* UNIV_DEBUG */
+
 /** Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents!
 @param[in] index Index tree
@@ -493,14 +504,20 @@ that the caller has made the reservation for free extents!
 @param[in,out] mtr Mini-transaction for the allocation
 @param[in,out] init_mtr Mini-transaction for x-latching and initializing the
 page
+@param[in]   loc   debug only parameter providing caller source location.
 @retval NULL if no page could be allocated
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr),
 returned block is not allocated nor initialized otherwise */
-[[nodiscard]] buf_block_t *btr_page_alloc(dict_index_t *index,
-                                          page_no_t hint_page_no,
-                                          byte file_direction, ulint level,
-                                          mtr_t *mtr, mtr_t *init_mtr);
+[[nodiscard]] buf_block_t *btr_page_alloc_priv(dict_index_t *index,
+                                               page_no_t hint_page_no,
+                                               byte file_direction, ulint level,
+                                               mtr_t *mtr, mtr_t *init_mtr
+#ifdef UNIV_DEBUG
+                                               ,
+                                               const ut::Location &loc
+#endif /* UNIV_DEBUG */
+);
 
 /** Frees a file page used in an index tree. NOTE: cannot free field external
  storage pages because the page must contain info on its level. */
@@ -515,13 +532,31 @@ void btr_page_create(
     dict_index_t *index,      /*!< in: index */
     ulint level,              /*!< in: the B-tree level of the page */
     mtr_t *mtr);              /*!< in: mtr */
+
+#ifdef UNIV_DEBUG
+#define btr_page_free_low(index, block, level, mtr) \
+  btr_page_free_lower(index, block, level, mtr, UT_LOCATION_HERE)
+#else /* UNIV_DEBUG */
+#define btr_page_free_low(index, block, level, mtr) \
+  btr_page_free_lower(index, block, level, mtr)
+#endif /* UNIV_DEBUG */
+
 /** Frees a file page used in an index tree. Can be used also to BLOB
- external storage pages. */
-void btr_page_free_low(
-    dict_index_t *index, /*!< in: index tree */
-    buf_block_t *block,  /*!< in: block to be freed, x-latched */
-    ulint level,         /*!< in: page level (ULINT_UNDEFINED=BLOB) */
-    mtr_t *mtr);         /*!< in: mtr */
+ external storage pages.
+@param[in]   index   the index to which the page belongs
+@param[in]   block   block to be freed, x-latched
+@param[in]   level   page level (ULINT_UNDEFINED=BLOB)
+@param[in]   mtr     mini transaction context.
+@param[in]   file    caller source code file location
+@param[in]   line    caller source code line location */
+void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
+                         mtr_t *mtr
+#ifdef UNIV_DEBUG
+                         ,
+                         const ut::Location &loc
+#endif /* UNIV_DEBUG */
+);
+
 /** Gets the root node of a tree and x- or s-latches it.
  @return root page, x- or s-latched */
 buf_block_t *btr_root_block_get(

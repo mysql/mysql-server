@@ -354,8 +354,10 @@ size_t z_first_page_t::free_all_frag_node_pages() {
     frag_node_page.dealloc();
     n_pages_freed++;
 
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 
   return (n_pages_freed);
@@ -374,14 +376,21 @@ size_t z_first_page_t::free_all_index_pages() {
     if (page_no == FIL_NULL) {
       break;
     }
-    z_index_page_t index_page(m_mtr, m_index);
+    z_index_page_t index_page(&local_mtr, m_index);
     index_page.load_x(page_no);
     page_no_t next_page = index_page.get_next_page_no();
+
+    /* The z_first_page_t::set_index_page_no() modifies the first page of
+    zlob. Since the m_mtr also modifies first page of zlob, we cannot use
+    local_mtr here.  Use m_mtr here. */
     set_index_page_no(next_page);
+
     index_page.dealloc();
     n_pages_freed++;
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
   return (n_pages_freed);
 }
@@ -498,6 +507,7 @@ size_t z_first_page_t::free_all_data_pages() {
       n_pages_freed += vers_entry.free_data_pages(&local_mtr);
       ver_loc = vers_entry.get_next();
 
+      ut_ad(!local_mtr.conflicts_with(m_mtr));
       restart_mtr(&local_mtr);
       node = addr2ptr_x(node_loc, &local_mtr);
       cur_entry.reset(node);
@@ -505,8 +515,10 @@ size_t z_first_page_t::free_all_data_pages() {
 
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
 
   return (n_pages_freed);
@@ -613,10 +625,12 @@ size_t z_first_page_t::free_all_frag_pages_old() {
       /* Free the fragment page. */
       entry.free_frag_page(&local_mtr, m_index);
       n_pages_freed++;
+      ut_ad(!local_mtr.conflicts_with(m_mtr));
       restart_mtr(&local_mtr);
     }
   }
 
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
   return (n_pages_freed);
 }
@@ -649,8 +663,10 @@ size_t z_first_page_t::free_all_frag_pages_new() {
     set_frag_page_no(&local_mtr, next_page);
     frag_page.dealloc();
     n_pages_freed++;
+    ut_ad(!local_mtr.conflicts_with(m_mtr));
     restart_mtr(&local_mtr);
   }
+  ut_ad(!local_mtr.conflicts_with(m_mtr));
   mtr_commit(&local_mtr);
   return (n_pages_freed);
 }

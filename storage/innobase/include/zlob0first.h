@@ -274,6 +274,15 @@ struct z_first_page_t {
   }
 
   /** All the index pages are singled linked with each other, and
+  the first page contains the link to one index page.
+  @param[in]  page_no  the page number of an index page.
+  @param[in]  mtr      use this mini transaction context for redo logs. */
+  void set_index_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(m_mtr != nullptr);
+    mlog_write_ulint(frame() + OFFSET_INDEX_PAGE_NO, page_no, MLOG_4BYTES, mtr);
+  }
+
+  /** All the index pages are singled linked with each other, and
   the first page contains the link to one index page. Get that index
   page number.
   @return the index page number. */

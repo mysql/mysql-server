@@ -155,8 +155,16 @@ namespace ut {
 struct Location {
   const char *filename;
   size_t line;
+  std::ostream &print(std::ostream &out) const {
+    out << "[Location: file=" << filename << ", line=" << line << "]";
+    return out;
+  }
 };
 }  // namespace ut
+
+inline std::ostream &operator<<(std::ostream &out, const ut::Location &obj) {
+  return obj.print(out);
+}
 
 #define UT_LOCATION_HERE (ut::Location{__FILE__, __LINE__})
 

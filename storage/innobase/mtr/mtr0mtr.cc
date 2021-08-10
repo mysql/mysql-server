@@ -171,6 +171,27 @@ struct Find_page {
   mtr_memo_slot_t *m_slot;
 };
 
+struct Mtr_memo_print {
+  Mtr_memo_print(std::ostream &out) : m_out(out) {}
+
+  bool operator()(mtr_memo_slot_t *slot) {
+    slot->print(m_out);
+    return true;
+  }
+
+ private:
+  std::ostream &m_out;
+};
+
+std::ostream &mtr_t::print_memos(std::ostream &out) const {
+  Mtr_memo_print printer(out);
+  Iterate<Mtr_memo_print> iterator(printer);
+  out << "[mtr_t: this=" << (void *)this << ", ";
+  m_impl.m_memo.for_each_block_in_reverse(iterator);
+  out << "]" << std::endl;
+  return out;
+}
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 struct Mtr_memo_contains {
@@ -199,7 +220,14 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   Mtr_memo_contains check(mtr2, MTR_MEMO_MODIFY);
   Iterate<Mtr_memo_contains> iterator(check);
 
-  return !m_impl.m_memo.for_each_block_in_reverse(iterator);
+  bool conflict = !m_impl.m_memo.for_each_block_in_reverse(iterator);
+  if (conflict) {
+    print_memos(std::cout);
+    print_trace(std::cout);
+    mtr2->print_memos(std::cout);
+    mtr2->print_trace(std::cout);
+  }
+  return conflict;
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
@@ -667,6 +695,9 @@ void mtr_t::commit() {
 #endif /* !UNIV_HOTBACKUP */
 
   ut_d(remove_from_debug_list());
+#ifdef UNIV_DEBUG
+  m_trace.clear();
+#endif /* UNIV_DEBUG */
 }
 
 #ifdef UNIV_DEBUG
@@ -867,6 +898,19 @@ void mtr_t::Command::execute() {
 
   release_all();
   release_resources();
+}
+
+std::ostream &mtr_memo_slot_t::print(std::ostream &out) const {
+  buf_block_t *block = nullptr;
+  if (!is_lock()) {
+    block = reinterpret_cast<buf_block_t *>(object);
+  }
+  out << "[mtr_memo_slot_t: object=" << object << ", type=" << type << " ("
+      << mtr_memo_type(type) << "), page_id="
+      << ((block == nullptr) ? page_id_t(FIL_NULL, FIL_NULL)
+                             : block->get_page_id())
+      << "]" << std::endl;
+  return out;
 }
 
 #ifndef UNIV_HOTBACKUP
