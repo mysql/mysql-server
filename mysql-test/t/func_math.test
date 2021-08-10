@@ -1262,3 +1262,10 @@ DROP TABLE t1;
 --echo #               scale <= precision' failed
 
 SELECT * FROM (SELECT -TRUE AS a, --TRUE AS b) AS dt;
+
+--echo # Bug#33142010: Failure on complex const argument to string functions
+
+CREATE VIEW v AS SELECT -(1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+SELECT * FROM v;
+DROP VIEW v;

@@ -119,7 +119,7 @@ class Item_str_func : public Item_func {
     return get_time_from_string(ltime);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  void left_right_max_length();
+  void left_right_max_length(THD *thd);
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;

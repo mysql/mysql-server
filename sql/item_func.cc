@@ -2648,7 +2648,8 @@ bool Item_func_neg::resolve_type(THD *thd) {
     Use val() to get value as arg_type doesn't mean that item is
     Item_int or Item_real due to existence of Item_param.
   */
-  if (hybrid_type == INT_RESULT && args[0]->const_item()) {
+  if (hybrid_type == INT_RESULT && args[0]->const_item() &&
+      !thd->lex->is_view_context_analysis()) {
     longlong val = args[0]->val_int();
     if ((ulonglong)val >= (ulonglong)LLONG_MIN &&
         ((ulonglong)val != (ulonglong)LLONG_MIN ||
@@ -3342,7 +3343,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         Also make sure that precision is greater than zero.
       */
       longlong val1;
-      if (args[1]->const_item()) {
+      if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
         val1 = args[1]->val_int();
         if ((null_value = args[1]->is_null())) {
           val1 = 0;
@@ -4184,15 +4185,17 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
   max_length = 3;  // 1-999
 
-  if (args[0]->const_item() && args[1]->type() == FIELD_ITEM) {
-    Field *field = ((Item_field *)args[1])->field;
+  if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
+      !thd->lex->is_view_context_analysis()) {
+    Field *field = down_cast<Item_field *>(args[1])->field;
     if (field->real_type() == MYSQL_TYPE_SET) {
       String *find = args[0]->val_str(&value);
-      if (find) {
+      if (thd->is_error()) return true;
+      if (find != nullptr) {
         // find is not NULL pointer so args[0] is not a null-value
         assert(!args[0]->null_value);
-        enum_value = find_type(((Field_enum *)field)->typelib, find->ptr(),
-                               find->length(), false);
+        enum_value = find_type(down_cast<Field_enum *>(field)->typelib,
+                               find->ptr(), find->length(), false);
         enum_bit = 0;
         if (enum_value) enum_bit = 1LL << (enum_value - 1);
       }

@@ -653,7 +653,7 @@ bool Item_bool_func2::resolve_type(THD *thd) {
     return true;
 
   // Make a special case of compare with fields to get nicer DATE comparisons
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+  if (!(thd->lex->is_view_context_analysis())) {
     bool cvt1, cvt2;
     if (convert_constant_arg(thd, args[0], &args[1], &cvt1) ||
         convert_constant_arg(thd, args[1], &args[0], &cvt2))

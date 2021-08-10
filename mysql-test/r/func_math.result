@@ -2102,3 +2102,12 @@ DROP TABLE t1;
 SELECT * FROM (SELECT -TRUE AS a, --TRUE AS b) AS dt;
 a	b
 -1	1
+# Bug#33142010: Failure on complex const argument to string functions
+CREATE VIEW v AS SELECT -(1 NOT IN (0)) AS c;
+SHOW CREATE TABLE v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select -((1 <> 0)) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+-1
+DROP VIEW v;
