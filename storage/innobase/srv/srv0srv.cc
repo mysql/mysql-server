@@ -2804,11 +2804,7 @@ void srv_worker_thread() {
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
-#else
   THD *thd = create_thd(false, true, true, 0);
-#endif
 
   rw_lock_x_lock(&purge_sys->latch);
 
@@ -3052,11 +3048,7 @@ static void srv_purge_coordinator_suspend(
 void srv_purge_coordinator_thread() {
   srv_slot_t *slot;
 
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_purge_thread_key.m_value);
-#else
   THD *thd = create_thd(false, true, true, 0);
-#endif
 
   rw_lock_x_lock(&purge_sys->latch);
 
