@@ -213,7 +213,7 @@ class CostingReceiver {
     AccessPathSet contains information that is common between all access
     paths for that set. One would believe num_output_rows would be such
     a member (a set of tables should produce the same number of ouptut
-    rows no matter the join order), but due to parametrized paths,
+    rows no matter the join order), but due to parameterized paths,
     different access paths could have different outputs. delayed_predicates
     is another, but currently, it's already efficiently hidden space-wise
     due to the use of a union.
@@ -544,15 +544,15 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         // other tables (e.g. t1.x = t2.x). Such access paths can only be used
         // on the inner side of a nested loop join, where all the other
         // referenced tables are among the outer tables of the join. Such path
-        // is called a parametrized path.
+        // is called a parameterized path.
         //
         // Since indexes can have multiple parts, the access path can also end
-        // up being parametrized on multiple outer tables. However, since
-        // parametrized paths are less flexible in joining than non-parametrized
-        // ones, it can be advantageous to not use all parts of the index; it's
-        // impossible to say locally. Thus, we enumerate all possible subsets of
-        // table parameters that may be useful, to make sure we don't miss any
-        // such paths.
+        // up being parameterized on multiple outer tables. However, since
+        // parameterized paths are less flexible in joining than
+        // non-parameterized ones, it can be advantageous to not use all parts
+        // of the index; it's impossible to say locally. Thus, we enumerate all
+        // possible subsets of table parameters that may be useful, to make sure
+        // we don't miss any such paths.
         table_map want_parameter_tables = 0;
         for (unsigned pred_idx = 0;
              pred_idx < m_graph.nodes[node_idx].sargable_predicates.size();
@@ -1671,7 +1671,7 @@ void CostingReceiver::ProposeHashJoin(
 
   if (Overlaps(left_path->parameter_tables, right) ||
       right_path->parameter_tables != 0) {
-    // Parametrized paths must be solved by nested loop.
+    // Parameterized paths must be solved by nested loop.
     // We can still have parameters from outside the join,
     // but only on the outer side.
     return;
@@ -2249,7 +2249,7 @@ static inline PathComparisonResult CompareAccessPaths(
     }
   }
 
-  // If we have a parametrized path, this means that at some point, it _must_
+  // If we have a parameterized path, this means that at some point, it _must_
   // be on the right side of a nested-loop join. This destroys ordering
   // information (at least in our implementation -- see comment in
   // NestedLoopJoin()), so in this situation, consider all orderings as equal.
@@ -2267,10 +2267,10 @@ static inline PathComparisonResult CompareAccessPaths(
   }
 
   // Normally, two access paths for the same subplan should have the same
-  // number of output rows. However, for parametrized paths, this need not
+  // number of output rows. However, for parameterized paths, this need not
   // be the case; due to pushdown of sargable conditions into indexes;
   // some filters may be applied earlier, causing fewer rows to be
-  // carried around temporarily (until the parametrization is resolved).
+  // carried around temporarily (until the parameterization is resolved).
   // This can have an advantage in causing less work later even if it's
   // non-optimal now, e.g. by saving on filtering work, or having less work
   // done in other joins. Thus, we need to keep it around as an extra
@@ -2598,7 +2598,7 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     return;
   }
 
-  // Don't try to sort-ahead parametrized paths; see the comment in
+  // Don't try to sort-ahead parameterized paths; see the comment in
   // CompareAccessPaths for why.
   if (path->parameter_tables != 0) {
     return;

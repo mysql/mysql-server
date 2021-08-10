@@ -88,8 +88,8 @@ static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
 }
 
 // Base class for the hypergraph unit tests. Its parent class is a type
-// parameter, so that it can be used as a base class for both non-parametrized
-// tests (::testing::Test) and parametrized tests (::testing::TestWithParam).
+// parameter, so that it can be used as a base class for both non-parameterized
+// tests (::testing::Test) and parameterized tests (::testing::TestWithParam).
 template <typename Parent>
 class HypergraphTestBase : public Parent {
  public:
