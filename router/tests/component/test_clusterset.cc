@@ -1123,7 +1123,7 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   create_clusterset(view_id, target_cluster_id,
                     /*primary_cluster_id*/ 0, "metadata_clusterset.js",
                     router_options);
-  /*auto &router =*/launch_router();
+  auto &router = launch_router();
   EXPECT_EQ(9u, clusterset_data_.get_all_nodes_classic_ports().size());
 
   EXPECT_TRUE(wait_for_transaction_count_increase(
@@ -1155,6 +1155,15 @@ TEST_P(ViewIdChangesTest, ViewIdChanges) {
   check_state_file(router_state_file, mysqlrouter::ClusterType::GR_CS,
                    clusterset_data_.uuid,
                    clusterset_data_.get_all_nodes_classic_ports(), view_id + 1);
+
+  SCOPED_TRACE("// Check that information about outdated view id is logged");
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern =
+      "INFO .* Metadata server 127.0.0.1:" +
+      std::to_string(clusterset_data_.clusters[0].nodes[0].classic_port) +
+      " has outdated metadata view_id = " + std::to_string(view_id) +
+      ", current view_id = " + std::to_string(view_id + 1) + ", ignoring";
+  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
   SCOPED_TRACE(
       "// Let's make another change in the metadata (remove second node in "

@@ -1329,6 +1329,11 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
             view_id, this->view_id_, metadata_read_ ? "yes" : "no");
 
   if (view_id < this->view_id_) {
+    log_info("Metadata server %s:%d has outdated metadata view_id = %" PRIu64
+             ", current view_id = %" PRIu64 ", ignoring",
+             metadata_server.address().c_str(), metadata_server.port(), view_id,
+             this->view_id_);
+
     return stdx::make_unexpected(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
