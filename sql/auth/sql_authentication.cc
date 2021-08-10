@@ -3323,11 +3323,9 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
   /* user is not configured with Multi factor authentication */
   if (!mpvio->acl_user->m_mfa) return res;
   /*
-    If an old client connects to server with user account created with Multi
-    factor authentication methods, then return error.
+    Disable MFA temporarily.
   */
-  if (!mpvio->protocol->has_client_capability(CLIENT_MANDATORY_SESSION_TRACK))
-    return CR_AUTH_USER_CREDENTIALS;
+  return CR_AUTH_USER_CREDENTIALS;
 
   Multi_factor_auth_list *auth_factor =
       mpvio->acl_user->m_mfa->get_multi_factor_auth_list();

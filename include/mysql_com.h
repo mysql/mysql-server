@@ -728,24 +728,6 @@
 */
 #define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
 
-/* clang-format off */
-/**
-  Enable mandatory session trackers.
-
-  Server
-  ------
-  Can mark session trackers as mandatory or optional.
-
-  Client
-  ------
-  Will report error if it cannot recognize a tracker which is marked mandatory
-  OR ignore tracker information if marked optional.
-  Can initiate 2nd or 3rd factor authentication.
-
-  See @ref sect_protocol_basic_ok_packet_sessinfo_SESSION_CLIENT_PLUGIN_INFO_TRACKER
-*/
-/* clang-format on */
-#define CLIENT_MANDATORY_SESSION_TRACK (1UL << 28)
 /**
   This flag will be reserved to extend the 32bit capabilities structure to
   64bits.
@@ -789,8 +771,7 @@
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
-   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES |               \
-   CLIENT_MANDATORY_SESSION_TRACK)
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and

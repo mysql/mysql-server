@@ -854,9 +854,6 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
       <td>name of client authentication plugin</td></tr>
   </table>
 
-  Note: mandatory flag indicates client has CLIENT_MANDATORY_SESSION_TRACK capability.
-  This capability also help clients to handle multi factor authentication.
-
   See also net_send_ok()
 */
 /* clang-format on */
