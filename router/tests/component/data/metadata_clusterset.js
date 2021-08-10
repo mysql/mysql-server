@@ -4,8 +4,8 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
-if (mysqld.global.update_version_count === undefined) {
-  mysqld.global.update_version_count = 0;
+if (mysqld.global.update_attributes_count === undefined) {
+  mysqld.global.update_attributes_count = 0;
 }
 
 if (mysqld.global.update_last_check_in_count === undefined) {
@@ -67,8 +67,8 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 
-var router_update_version =
-    common_stmts.get("router_update_version_v2", options);
+var router_update_attributes =
+    common_stmts.get("router_update_attributes_v2", options);
 
 var router_update_last_check_in =
     common_stmts.get("router_update_last_check_in_v2", options);
@@ -89,9 +89,9 @@ var router_update_last_check_in =
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {
       return res;
-    } else if (stmt.match(router_update_version.stmt_regex)) {
-      mysqld.global.update_version_count++;
-      return router_update_version;
+    } else if (stmt.match(router_update_attributes.stmt_regex)) {
+      mysqld.global.update_attributes_count++;
+      return router_update_attributes;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

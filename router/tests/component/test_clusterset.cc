@@ -218,8 +218,8 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
     }
   }
 
-  int get_update_version_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "update_version_count");
+  int get_update_attributes_count(const std::string &json_string) {
+    return get_int_field_value(json_string, "update_attributes_count");
   }
 
   int get_update_last_check_in_count(const std::string &json_string) {

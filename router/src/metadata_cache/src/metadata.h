@@ -59,9 +59,10 @@ class METADATA_API MetaData {
       bool needs_writable_node, const std::string &cluster_type_specific_id,
       const std::string &clusterset_id, std::size_t &instance_id) = 0;
 
-  virtual bool update_router_version(
+  virtual bool update_router_attributes(
       const metadata_cache::metadata_server_t &rw_server,
-      const unsigned router_id) = 0;
+      const unsigned router_id,
+      const metadata_cache::RouterAttributes &router_attributes) = 0;
 
   virtual bool update_router_last_check_in(
       const metadata_cache::metadata_server_t &rw_server,

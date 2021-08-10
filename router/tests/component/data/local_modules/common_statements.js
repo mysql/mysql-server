@@ -81,10 +81,14 @@ var defaults = {
   // mean failures each time the version is bumped up (which we don't even
   // control)
   router_version: "",
+  router_rw_classic_port: "",
+  router_ro_classic_port: "",
+  router_rw_x_port: "",
+  router_ro_x_port: "",
+  router_metadata_user: "",
   rest_user_credentials: [],
   version: "8.0.24",  // SELECT @@version;
   router_expected_target_cluster: ".*",
-  rest_user_credentials: [],
   router_options: "",
 };
 
@@ -761,19 +765,28 @@ function get_response(stmt_key, options) {
           "rows": [[options.cluster_id]]
         }
       };
-    case "router_update_version_v1":
+    case "router_update_attributes_v1":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\.routers" +
-            " SET attributes = JSON_SET\(IF\(attributes IS NULL, '\{\}', attributes\), " +
-            "'\$\.version', .*\) WHERE router_id = " + options.router_id,
+            " SET attributes = JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(" +
+            " IF\(attributes IS NULL, '\{\}', attributes\), '\$\.version', '.*'\)," +
+            " '\$\.RWEndpoint', '.*'\), '\$\.ROEndpoint', '.*'\), '\$\.RWXEndpoint', '.*'\)," +
+            " '\$\.ROXEndpoint', '.*'\), '\$\.MetadataUser', '.*'\) WHERE router_id = " +
+            options.router_id,
         "ok": {}
       };
-    case "router_update_version_strict_v1":
+    case "router_update_attributes_strict_v1":
       // the exact match, not regex
       return {
         "stmt": "UPDATE mysql_innodb_cluster_metadata.routers" +
-            " SET attributes = JSON_SET(IF(attributes IS NULL, '{}', attributes), " +
-            "'$.version', '" + options.router_version +
+            " SET attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
+            " IF(attributes IS NULL, '{}', attributes)," +
+            " '$.version', '" + options.router_version +
+            "'), '$.RWEndpoint', '" + options.router_rw_classic_port +
+            "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
+            "'), '$.RWXEndpoint', '" + options.router_rw_x_port +
+            "'), '$.ROXEndpoint', '" + options.router_ro_x_port +
+            "'), '$.MetadataUser', '" + options.router_metadata_user +
             "') WHERE router_id = " + options.router_id,
         "ok": {}
       };
@@ -797,18 +810,27 @@ function get_response(stmt_key, options) {
           rows: options.create_user_show_warnings_results
         }
       };
-    case "router_update_version_v2":
+    case "router_update_attributes_v2":
       return {
-        "stmt_regex":
-            "UPDATE mysql_innodb_cluster_metadata\.v2_routers set version = .*" +
-            " where router_id = .+",
+        "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\.v2_routers" +
+            " SET version = .*, attributes = JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(JSON_SET\(" +
+            " IF\(attributes IS NULL, '\{\}', attributes\)," +
+            " '\$\.RWEndpoint', '.*'\), '\$\.ROEndpoint', '.*'\), '\$\.RWXEndpoint', '.*'\)," +
+            " '\$\.ROXEndpoint', '.*'\), '\$\.MetadataUser', '.*'\) WHERE router_id = .*",
         "ok": {}
       };
-    case "router_update_version_strict_v2":
+    case "router_update_attributes_strict_v2":
       return {
-        "stmt":
-            "UPDATE mysql_innodb_cluster_metadata.v2_routers set version = '" +
-            options.router_version + "' where router_id = " + options.router_id,
+        "stmt": "UPDATE mysql_innodb_cluster_metadata.v2_routers" +
+            " SET version = '" + options.router_version +
+            "', attributes = JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(" +
+            " IF(attributes IS NULL, '{}', attributes)," +
+            " '$.RWEndpoint', '" + options.router_rw_classic_port +
+            "'), '$.ROEndpoint', '" + options.router_ro_classic_port +
+            "'), '$.RWXEndpoint', '" + options.router_rw_x_port +
+            "'), '$.ROXEndpoint', '" + options.router_ro_x_port +
+            "'), '$.MetadataUser', '" + options.router_metadata_user +
+            "') WHERE router_id = " + options.router_id,
         "ok": {}
       };
     case "router_update_last_check_in_v2":
@@ -1373,4 +1395,10 @@ exports.handle_regex_stmt = function(regex_stmt, common_responses_regex) {
   }
 
   return undefined;
+};
+
+exports.empty_if_undef = function(variable) {
+  if (variable === undefined) {
+    variable = "";
+  }
 };

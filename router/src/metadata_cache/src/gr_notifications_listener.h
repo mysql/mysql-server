@@ -33,8 +33,7 @@
 
 class GRNotificationListener {
  public:
-  GRNotificationListener(const std::string &user_name,
-                         const std::string &password);
+  GRNotificationListener(const mysqlrouter::UserCredentials &user_credentials);
 
   ~GRNotificationListener();
   GRNotificationListener(GRNotificationListener &) = delete;

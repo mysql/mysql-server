@@ -61,21 +61,12 @@ class METADATA_API ClusterMetadata : public MetaData {
  public:
   /** @brief Constructor
    *
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout (in seconds).
-   * @param read_timeout The time after which read from metadata server should
-   *                     timeout (in seconds).
-   * @param connection_attempts The number of times a connection to metadata
-   *                            must be attempted, when a connection attempt
-   *                            fails.  NOTE: not used so far
+   * @param session_config Metadata MySQL session configuration
    * @param ssl_options SSL related options to use for MySQL connections)
    */
-  ClusterMetadata(const std::string &user, const std::string &password,
-                  int connect_timeout, int read_timeout,
-                  int connection_attempts,
-                  const mysqlrouter::SSLOptions &ssl_options);
+  ClusterMetadata(
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options);
 
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
@@ -114,8 +105,10 @@ class METADATA_API ClusterMetadata : public MetaData {
     return metadata_connection_;
   }
 
-  bool update_router_version(const metadata_cache::metadata_server_t &rw_server,
-                             const unsigned router_id) override;
+  bool update_router_attributes(
+      const metadata_cache::metadata_server_t &rw_server,
+      const unsigned router_id,
+      const metadata_cache::RouterAttributes &router_attributes) override;
 
   bool update_router_last_check_in(
       const metadata_cache::metadata_server_t &rw_server,
@@ -139,19 +132,11 @@ class METADATA_API ClusterMetadata : public MetaData {
   mysqlrouter::MetadataSchemaVersion get_and_check_metadata_schema_version(
       mysqlrouter::MySQLSession &session);
 
-  // Metadata node connection information
-  std::string user_;
-  std::string password_;
-
   // Metadata node generic information
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
 
-  // The time after which trying to connect to the metadata server should
-  // timeout.
-  int connect_timeout_;
-  // The time after which read from metadata server should timeout.
-  int read_timeout_;
+  metadata_cache::MetadataCacheMySQLSessionConfig session_config_;
 
 #if 0  // not used so far
   // The number of times we should try connecting to the metadata server if a

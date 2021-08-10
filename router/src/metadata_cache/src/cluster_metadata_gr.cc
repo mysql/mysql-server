@@ -276,17 +276,14 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
   ClusterSetTopology clusterset_topology_;
 };
 
-GRClusterMetadata::GRClusterMetadata(const std::string &user,
-                                     const std::string &password,
-                                     int connect_timeout, int read_timeout,
-                                     int connection_attempts,
-                                     const mysqlrouter::SSLOptions &ssl_options,
-                                     const bool use_cluster_notifications)
-    : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                      connection_attempts, ssl_options) {
+GRClusterMetadata::GRClusterMetadata(
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_cluster_notifications)
+    : ClusterMetadata(session_config, ssl_options) {
   if (use_cluster_notifications) {
     gr_notifications_listener_.reset(
-        new GRNotificationListener(user, password));
+        new GRNotificationListener(session_config.user_credentials));
   }
 }
 

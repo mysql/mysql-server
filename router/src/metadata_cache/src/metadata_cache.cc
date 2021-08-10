@@ -44,23 +44,22 @@ MetadataCache::MetadataCache(
     const unsigned router_id, const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-    std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
-    const std::chrono::milliseconds auth_cache_ttl,
-    const std::chrono::milliseconds auth_cache_refresh_interval,
+    std::shared_ptr<MetaData> cluster_metadata,
+    const metadata_cache::MetadataCacheTTLConfig &ttl_config,
     const mysqlrouter::SSLOptions &ssl_options,
-    const mysqlrouter::TargetCluster &target_cluster, size_t thread_stack_size,
-    bool use_cluster_notifications)
+    const mysqlrouter::TargetCluster &target_cluster,
+    const metadata_cache::RouterAttributes &router_attributes,
+    size_t thread_stack_size, bool use_cluster_notifications)
     : target_cluster_(target_cluster),
       cluster_type_specific_id_(cluster_type_specific_id),
       clusterset_id_(clusterset_id),
-      ttl_(ttl),
-      auth_cache_ttl_(auth_cache_ttl),
-      auth_cache_refresh_interval_(auth_cache_refresh_interval),
+      ttl_config_(ttl_config),
       ssl_options_(ssl_options),
       router_id_(router_id),
       meta_data_(std::move(cluster_metadata)),
       refresh_thread_(thread_stack_size),
-      use_cluster_notifications_(use_cluster_notifications) {
+      use_cluster_notifications_(use_cluster_notifications),
+      router_attributes_(router_attributes) {
   for (const auto &s : metadata_servers) {
     metadata_servers_.emplace_back(s);
   }
@@ -88,7 +87,7 @@ void MetadataCache::refresh_thread() {
   const std::chrono::milliseconds kTerminateOrForcedRefreshCheckInterval =
       std::chrono::seconds(1);
 
-  auto auth_cache_ttl_left = auth_cache_refresh_interval_;
+  auto auth_cache_ttl_left = ttl_config_.auth_cache_refresh_interval;
   bool auth_cache_force_update = true;
   while (!terminated_) {
     bool refresh_ok{false};
@@ -118,9 +117,9 @@ void MetadataCache::refresh_thread() {
             "metadata_cache:" +
             metadata_cache::MetadataCacheAPI::instance()->instance_name());
       }
-      // we want to update the router version in the routers table once
-      // when we start
-      update_router_version();
+      // we want to update router attributes in the routers table once when we
+      // start
+      update_router_attributes();
 
       if (auth_cache_force_update) {
         update_auth_cache();
@@ -131,7 +130,7 @@ void MetadataCache::refresh_thread() {
       update_router_last_check_in();
     }
 
-    auto ttl_left = ttl_;
+    auto ttl_left = ttl_config_.ttl;
     // wait for up to TTL until next refresh, unless cluster loses an
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
@@ -155,7 +154,7 @@ void MetadataCache::refresh_thread() {
           ttl_left -= auth_cache_ttl_left;
           auto start_timestamp = std::chrono::steady_clock::now();
           if (refresh_ok && update_auth_cache())
-            auth_cache_ttl_left = auth_cache_refresh_interval_;
+            auth_cache_ttl_left = ttl_config_.auth_cache_refresh_interval;
           auto end_timestamp = std::chrono::steady_clock::now();
           auto time_spent =
               std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -511,36 +510,44 @@ void MetadataCache::remove_acceptor_handler_listener(
 }
 
 void MetadataCache::check_auth_metadata_timers() const {
-  if (auth_cache_ttl_ > 0ms && auth_cache_ttl_ < ttl_) {
+  if (ttl_config_.auth_cache_ttl > 0ms &&
+      ttl_config_.auth_cache_ttl < ttl_config_.ttl) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
-        std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +
+        std::to_string(static_cast<float>(ttl_config_.auth_cache_ttl.count()) /
+                       1000) +
         "' cannot be less than the 'ttl' value which is '" +
-        std::to_string(static_cast<float>(ttl_.count()) / 1000) + "'");
+        std::to_string(static_cast<float>(ttl_config_.ttl.count()) / 1000) +
+        "'");
   }
-  if (auth_cache_refresh_interval_ < ttl_) {
+  if (ttl_config_.auth_cache_refresh_interval < ttl_config_.ttl) {
     throw std::invalid_argument(
         "'auth_cache_refresh_interval' option value '" +
-        std::to_string(
-            static_cast<float>(auth_cache_refresh_interval_.count()) / 1000) +
+        std::to_string(static_cast<float>(
+                           ttl_config_.auth_cache_refresh_interval.count()) /
+                       1000) +
         "' cannot be less than the 'ttl' value which is '" +
-        std::to_string(static_cast<float>(ttl_.count()) / 1000) + "'");
+        std::to_string(static_cast<float>(ttl_config_.ttl.count()) / 1000) +
+        "'");
   }
-  if (auth_cache_ttl_ > 0ms && auth_cache_refresh_interval_ > auth_cache_ttl_) {
+  if (ttl_config_.auth_cache_ttl > 0ms &&
+      ttl_config_.auth_cache_refresh_interval > ttl_config_.auth_cache_ttl) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
-        std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +
+        std::to_string(static_cast<float>(ttl_config_.auth_cache_ttl.count()) /
+                       1000) +
         "' cannot be less than the 'auth_cache_refresh_interval' value which "
         "is '" +
-        std::to_string(
-            static_cast<float>(auth_cache_refresh_interval_.count()) / 1000) +
+        std::to_string(static_cast<float>(
+                           ttl_config_.auth_cache_refresh_interval.count()) /
+                       1000) +
         "'");
   }
 }
 
 std::pair<bool, MetaData::auth_credentials_t::mapped_type>
 MetadataCache::get_rest_user_auth_data(const std::string &user) {
-  auto auth_cache_ttl = auth_cache_ttl_;
+  auto auth_cache_ttl = ttl_config_.auth_cache_ttl;
 
   return rest_auth_([&user, auth_cache_ttl](auto &rest_auth)
                         -> std::pair<
@@ -581,12 +588,13 @@ bool MetadataCache::update_auth_cache() {
   return false;
 }
 
-void MetadataCache::update_router_version() {
+void MetadataCache::update_router_attributes() {
   if (!version_updated_) {
     if (cluster_data_.writable_server) {
       const auto &rw_server = cluster_data_.writable_server.value();
       try {
-        meta_data_->update_router_version(rw_server, router_id_);
+        meta_data_->update_router_attributes(rw_server, router_id_,
+                                             router_attributes_);
         version_updated_ = true;
       } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       } catch (...) {

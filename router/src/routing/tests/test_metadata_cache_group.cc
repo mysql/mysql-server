@@ -114,13 +114,12 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       const std::string & /*group_replication_id*/,
       const std::string & /*clusterset_id*/,
       const std::vector<mysql_harness::TCPAddress> & /*metadata_servers*/,
-      const mysqlrouter::UserCredentials & /*user_credentials*/,
-      std::chrono::milliseconds /*ttl*/,
-      std::chrono::milliseconds /*auth_cache_ttl*/,
-      std::chrono::milliseconds /*auth_cache_refresh_interval*/,
+      const metadata_cache::MetadataCacheTTLConfig & /*ttl_config*/,
       const mysqlrouter::SSLOptions & /*ssl_options*/,
       const mysqlrouter::TargetCluster & /*target_cluster*/,
-      int /*connect_timeout*/, int /*read_timeout*/,
+      const metadata_cache::MetadataCacheMySQLSessionConfig
+          & /*session_config*/,
+      const metadata_cache::RouterAttributes &,
       size_t /*thread_stack_size*/ =
           mysql_harness::kDefaultStackSizeInKiloBytes,
       bool /*use_gr_notifications*/ = false,

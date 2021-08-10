@@ -85,8 +85,7 @@ using NodeSession = std::shared_ptr<xcl::XSession>;
 using namespace std::chrono_literals;
 
 struct GRNotificationListener::Impl {
-  std::string user_name;
-  std::string password;
+  mysqlrouter::UserCredentials user_credentials;
 
   std::map<NodeId, NodeSession> sessions_;
   bool sessions_changed_{false};
@@ -100,8 +99,8 @@ struct GRNotificationListener::Impl {
   std::chrono::steady_clock::time_point last_ping_timepoint =
       std::chrono::steady_clock::now();
 
-  Impl(const std::string &auth_user_name, const std::string &auth_password)
-      : user_name(auth_user_name), password(auth_password) {}
+  Impl(const mysqlrouter::UserCredentials &auth_user_credentials)
+      : user_credentials(auth_user_credentials) {}
 
   ~Impl();
 
@@ -180,8 +179,9 @@ xcl::XError GRNotificationListener::Impl::connect(NodeSession &session,
 
   log_debug("Connecting GR Notices listener on %s:%d", node_id.host.c_str(),
             node_id.port);
-  err = session->connect(node_id.host.c_str(), node_id.port, user_name.c_str(),
-                         password.c_str(), "");
+  err = session->connect(node_id.host.c_str(), node_id.port,
+                         user_credentials.username.c_str(),
+                         user_credentials.password.c_str(), "");
   if (err) {
     log_warning(
         "Failed connecting GR Notices listener on %s:%d; (err_code=%d; "
@@ -519,9 +519,9 @@ void GRNotificationListener::Impl::reconfigure(
         new std::thread([this]() { listener_thread_func(); }));
 }
 
-GRNotificationListener::GRNotificationListener(const std::string &user_name,
-                                               const std::string &password)
-    : impl_(new Impl(user_name, password)) {}
+GRNotificationListener::GRNotificationListener(
+    const mysqlrouter::UserCredentials &user_credentials)
+    : impl_(new Impl(user_credentials)) {}
 
 GRNotificationListener::~GRNotificationListener() = default;
 

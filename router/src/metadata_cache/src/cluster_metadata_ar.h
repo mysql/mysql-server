@@ -38,26 +38,14 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout (in seconds).
-   * @param read_timeout The time after which read from metadata server should
-   *                     timeout (in seconds).
-   * @param connection_attempts The number of times a connection to metadata
-   *                            must be attempted, when a connection attempt
-   *                            fails.  NOTE: not used so far
+   * @param session_config Metadata MySQL session configuration
    * @param ssl_options SSL related options to use for MySQL connections
    * @param view_id last known view_id of the cluster metadata
    */
-  ARClusterMetadata(const std::string &user, const std::string &password,
-                    int connect_timeout, int read_timeout,
-                    int connection_attempts,
-                    const mysqlrouter::SSLOptions &ssl_options,
-                    uint64_t view_id)
-      : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                        connection_attempts, ssl_options),
-        view_id_(view_id) {}
+  ARClusterMetadata(
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options, uint64_t view_id)
+      : ClusterMetadata(session_config, ssl_options), view_id_(view_id) {}
 
   explicit ARClusterMetadata(const ARClusterMetadata &) = delete;
   ARClusterMetadata &operator=(const ARClusterMetadata &) = delete;

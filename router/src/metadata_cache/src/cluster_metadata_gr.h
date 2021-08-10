@@ -35,25 +35,16 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *
-   * @param user The user name used to authenticate to the metadata server.
-   * @param password The password used to authenticate to the metadata server.
-   * @param connect_timeout The time after which trying to connect to the
-   *                        metadata server should timeout (in seconds).
-   * @param read_timeout The time after which read from metadata server should
-   *                     timeout (in seconds).
-   * @param connection_attempts The number of times a connection to metadata
-   *                            must be attempted, when a connection attempt
-   *                            fails.  NOTE: not used so far
+   * @param session_config Metadata MySQL session configuration
    * @param ssl_options SSL related options to use for MySQL connections
    * @param use_cluster_notifications Flag indicating if the metadata cache
    * should use cluster notifications as an additional trigger for metadata
    * refresh
    */
-  GRClusterMetadata(const std::string &user, const std::string &password,
-                    int connect_timeout, int read_timeout,
-                    int connection_attempts,
-                    const mysqlrouter::SSLOptions &ssl_options,
-                    const bool use_cluster_notifications = false);
+  GRClusterMetadata(
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options,
+      const bool use_cluster_notifications = false);
 
   explicit GRClusterMetadata(const GRClusterMetadata &) = delete;
   GRClusterMetadata &operator=(const GRClusterMetadata &) = delete;
