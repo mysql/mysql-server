@@ -596,6 +596,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /* prepare select to resolve all fields */
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
   if (!unit->is_prepared()) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
       @todo - the following code is duplicated in mysql_test_create_view.
               ensure that we have a single preparation function for create view.
