@@ -160,6 +160,12 @@ trx_rseg_get_n_undo_tablespaces(
 /*============================*/
 	ulint*		space_ids);	/*!< out: array of space ids of
 					UNDO tablespaces */
+
+/** Reset no-redo rseg slots on disk used by pre-5.7.2 rsegs. All data for
+these rsegs are already purged. This is a deferred action to be done post
+redo log recovery. */
+void trx_rseg_reset_pending();
+
 /* Number of undo log slots in a rollback segment file copy */
 #define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
 
