@@ -63,20 +63,14 @@
 static void store_lenenc_string(String &to, const char *from, size_t length);
 
 /**
-  Helper method to get length of mandatory flag based on client
-  capalibity flag CLIENT_MANDATORY_SESSION_TRACK
+  Helper method to get length of mandatory flag
 
   @param thd           The thd handle.
 
   @return
-    0 if CLIENT_MANDATORY_SESSION_TRACK is not set for clients else 1
+    0
 */
-static size_t get_mandatory_flag_length(THD *thd) {
-  if (thd->get_protocol()->has_client_capability(
-          CLIENT_MANDATORY_SESSION_TRACK))
-    return 1;
-  return 0;
-}
+static size_t get_mandatory_flag_length(THD *thd [[maybe_unused]]) { return 0; }
 
 /**
   Session_sysvars_tracker

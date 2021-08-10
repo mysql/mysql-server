@@ -843,11 +843,6 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               mysql, &pos, length, &is_error);
           if (is_error) return;
           bool mandatory_tracker_flag = false;
-          /* check if any tracker is set to mandatory */
-          if (mysql->server_capabilities & CLIENT_MANDATORY_SESSION_TRACK) {
-            mandatory_tracker_flag =
-                net_field_length_ll_safe(mysql, &pos, length, &is_error);
-          }
           switch (type) {
             case SESSION_TRACK_SYSTEM_VARIABLES:
               /* Move past the total length of the changed entity. */

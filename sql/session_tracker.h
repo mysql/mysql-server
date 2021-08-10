@@ -51,8 +51,7 @@ enum enum_session_tracker {
   */
   TRACK_TRANSACTION_STATE,
   /*
-    A mandatory tracker sent when both server and client have
-    CLIENT_MANDATORY_SESSION_TRACK capability bit enabled.
+    Authentication plugin information tracker.
   */
   SESSION_CLIENT_PLUGIN_INFO_TRACKER
 };
