@@ -3063,6 +3063,42 @@ BackupRestore::fk(Uint32 type, const void * ptr)
       }
       m_fks.push_back(fk_ptr);
       info << "Save FK " << fk_ptr->getName() << endl;
+
+      if (m_disable_indexes)
+      {
+        // Extract foreign key name from format
+        // like 10/14/fk1 where 10,14 are old table ids
+        const char *fkname = 0;
+        Vector<BaseString> splitname;
+        BaseString tmpname(fk_ptr->getName());
+        int n = tmpname.split(splitname, "/");
+        if (n == 3)
+        {
+          fkname = splitname[2].c_str();
+        }
+        else
+        {
+          err << "Invalid foreign key name " << tmpname.c_str() << endl;
+          return false;
+        }
+        NdbDictionary::ForeignKey fk;
+        char fullname[MAX_TAB_NAME_SIZE];
+        sprintf(fullname, "%d/%d/%s", parent->getObjectId(),
+                child->getObjectId(), fkname);
+
+        // Drop foreign keys if they exist
+        if (dict->getForeignKey(fk, fullname) == 0)
+        {
+          info << "Dropping Foreign key " << fkname;
+          if (dict->dropForeignKey(fk) != 0)
+          {
+            err << "Failed to drop fk '" << fk_ptr->getName()
+                << "' : " << dict->getNdbError().code << " "
+                << dict->getNdbError().message << endl;
+            return false;
+          }
+        }
+      }
     }
     return true;
     break;
@@ -3158,11 +3194,21 @@ BackupRestore::endOfTables(){
     }
     else if (m_disable_indexes)
     {
-      int res = dict->dropIndex(idx->getName(), prim->getName());
-      if (res == 0)
+      // Drop indexes if they exist
+      if(dict->getIndex(idx->getName(), prim->getName()))
       {
-        info << "Dropped index `" << split_idx[3].c_str()
+        if (dict->dropIndex(idx->getName(), prim->getName()) == 0)
+        {
+          info << "Dropped index `" << split_idx[3].c_str()
             << "` on `" << table_name << "`" << endl;
+        }
+        else
+        {
+          err << "Failed to drop index `" << split_idx[3].c_str() << "` on `"
+              << table_name.c_str() << "`: " << dict->getNdbError().code << " "
+              << dict->getNdbError().message << endl;
+          return false;
+        }
       }
     }
     Uint32 id = prim->getObjectId();
