@@ -4227,7 +4227,7 @@ static int cli_establish_ssl(MYSQL *mysql) {
               options->extension ? options->extension->ssl_crl : nullptr,
               options->extension ? options->extension->ssl_crlpath : nullptr,
               options->extension ? options->extension->ssl_ctx_flags : 0,
-              verify_identity ? mysql->host : nullptr))) {
+              mysql->host, verify_identity))) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR),
                                sslGetErrString(ssl_init_error));
@@ -4385,7 +4385,7 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
                 options->extension ? options->extension->ssl_crl : nullptr,
                 options->extension ? options->extension->ssl_crlpath : nullptr,
                 options->extension ? options->extension->ssl_ctx_flags : 0,
-                verify_identity ? mysql->host : nullptr))) {
+                mysql->host, verify_identity))) {
         set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
                                  unknown_sqlstate,
                                  ER_CLIENT(CR_SSL_CONNECTION_ERROR),

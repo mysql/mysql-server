@@ -253,6 +253,7 @@ const char *sslGetErrString(enum enum_ssl_init_error err);
 
 struct st_VioSSLFd {
   SSL_CTX *ssl_context;
+  const char *hostname;
 };
 
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
@@ -264,7 +265,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host);
+    const long ssl_ctx_flags, const char *server_host, bool verify_identity);
 
 long process_tls_version(const char *tls_version);
 

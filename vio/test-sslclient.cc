@@ -63,7 +63,9 @@ int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
   if (ca_path != 0) printf("CApath          : %s\n", ca_path);
 
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
-                                        ca_path, cipher, &ssl_init_error);
+                                        ca_path, cipher, NULL, &ssl_init_error,
+                                        0, 0, 0, 0, false);
+
   if (!ssl_connector) {
     fatal_error("client:new_VioSSLConnectorFd failed");
   }

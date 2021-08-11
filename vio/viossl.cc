@@ -630,6 +630,11 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     DBUG_PRINT("info", ("ssl: %p timeout: %ld", ssl, timeout));
     SSL_clear(ssl);
     SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    if (ptr->hostname) {
+        SSL_set_tlsext_host_name(ssl, const_cast<char *>(ptr->hostname));
+    }
+#endif
     SSL_set_fd(ssl, sd);
 #if defined(SSL_OP_NO_COMPRESSION)
     SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */

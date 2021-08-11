@@ -580,7 +580,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const char *ca_path, const char *cipher,
     const char *ciphersuites MY_ATTRIBUTE((unused)), bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host MY_ATTRIBUTE((unused))) {
+    const long ssl_ctx_flags, const char *server_host,
+    bool verify_identity MY_ATTRIBUTE((unused))) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
@@ -631,6 +632,10 @@ static struct st_VioSSLFd *new_VioSSLFd(
     report_errors();
     my_free(ssl_fd);
     return nullptr;
+  }
+
+  if (server_host) {
+    ssl_fd->hostname = my_strdup(PSI_NOT_INSTRUMENTED, server_host, MYF(0));
   }
 
 #ifdef HAVE_TLSv13
@@ -758,7 +763,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     If server_host parameter is set it contains either IP address or
     server's hostname. Pass it to the lib to perform automatic checks.
   */
-  if (server_host) {
+  if (verify_identity && server_host) {
     X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_fd->ssl_context);
     assert(is_client);
     /*
@@ -784,6 +789,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
 error:
   DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
   report_errors();
+  my_free(const_cast<char *>(ssl_fd->hostname));
   SSL_CTX_free(ssl_fd->ssl_context);
   my_free(ssl_fd);
   return nullptr;
@@ -795,7 +801,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host) {
+    const long ssl_ctx_flags, const char *server_host, bool verify_identity) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER;
 
@@ -807,7 +813,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
-                              ssl_ctx_flags, server_host))) {
+                              ssl_ctx_flags, server_host, verify_identity))) {
     return nullptr;
   }
 
@@ -828,7 +834,7 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
   int verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
-                              ssl_ctx_flags, nullptr))) {
+                              ssl_ctx_flags, nullptr, false))) {
     return nullptr;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
@@ -849,6 +855,7 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
 }
 
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd) {
+  my_free(const_cast<char *>(fd->hostname));
   SSL_CTX_free(fd->ssl_context);
   my_free(fd);
 }
