@@ -2032,6 +2032,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
       (left_path->parameter_tables | right_path->parameter_tables) &
       ~(left | right);
   join_path.nested_loop_join().pfs_batch_mode = false;
+  join_path.nested_loop_join().already_expanded_predicates = false;
   join_path.nested_loop_join().outer = left_path;
   join_path.nested_loop_join().inner = right_path;
   if (rewrite_semi_to_inner) {

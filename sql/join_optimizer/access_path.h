@@ -805,11 +805,13 @@ struct AccessPath {
       AccessPath *outer, *inner;
       JoinType join_type;  // Somewhat redundant wrt. join_predicate.
       bool pfs_batch_mode;
+      bool already_expanded_predicates;
       const JoinPredicate *join_predicate;
 
       // Equijoin filters to apply before the join, if any.
       // Indexes into join_predicate->expr->equijoin_conditions.
       // Non-equijoin conditions are always applied.
+      // If already_expanded_predicates is true, do not re-expand.
       OverflowBitset equijoin_predicates;
 
       // NOTE: Due to the nontrivial constructor on equijoin_predicates,
@@ -817,8 +819,8 @@ struct AccessPath {
       // default-constructible. If we need more than one union member
       // with such an initializer, we would probably need to change
       // equijoin_predicates into a uint64_t type-punned to an OverflowBitset.
-    } nested_loop_join = {nullptr, nullptr, JoinType::INNER,
-                          false,   nullptr, {}};
+    } nested_loop_join = {nullptr, nullptr, JoinType::INNER, false, false,
+                          nullptr, {}};
     struct {
       AccessPath *outer, *inner;
       const TABLE *table;

@@ -864,6 +864,7 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   unsigned num_where_predicates) {
   // Expand join filters for nested loop joins.
   if (path->type == AccessPath::NESTED_LOOP_JOIN &&
+      !path->nested_loop_join().already_expanded_predicates &&
       !(path->nested_loop_join().equijoin_predicates.empty() &&
         path->nested_loop_join()
             .join_predicate->expr->join_conditions.empty()) &&
@@ -912,6 +913,12 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
     filter_path->num_output_rows = filter_rows;
 
     path->nested_loop_join().inner = filter_path;
+
+    // Since multiple root paths may have their filters expanded,
+    // and the same nested loop may be a subpath in several
+    // of them, we need to make sure we don't add the join predicates
+    // more than once, so mark them as done here.
+    path->nested_loop_join().already_expanded_predicates = true;
   }
 
   // Expand filters _after_ the access path (these are much more common).

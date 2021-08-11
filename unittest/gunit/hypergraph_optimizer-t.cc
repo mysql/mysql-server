@@ -1713,6 +1713,59 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   EXPECT_EQ("t2.x", ItemToString(inner_inner->ref().ref->items[0]));
 }
 
+TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM "
+      "  t1 "
+      "  JOIN t2 ON t1.x = t2.x "
+      "  JOIN t3 ON t1.x = t3.x "
+      "  JOIN t4 ON t2.y = t4.x",
+      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 1;
+  m_fake_tables["t2"]->file->stats.records = 1;
+  m_fake_tables["t3"]->file->stats.records = 10;
+  m_fake_tables["t4"]->file->stats.records = 10;
+
+  // To provoke the bug, we need a plan where there is only one hash join,
+  // and that is with t4 on the outer side (at the very top).
+  // It's not clear exactly why this is, but presumably, this constellation
+  // causes us to keep (and thus expand) at least two root paths containing
+  // the same nested loop, which is required to do expansion twice and thus
+  // trigger the issue.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                               SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        if (path->type == AccessPath::NESTED_LOOP_JOIN &&
+            Overlaps(GetUsedTableMap(path->nested_loop_join().inner, false),
+                     0b1000)) {
+          return true;
+        }
+        if (path->type == AccessPath::HASH_JOIN &&
+            GetUsedTableMap(path->hash_join().outer, false) != 0b1000) {
+          return true;
+        }
+        return false;
+      };
+
+  AccessPath *root =
+      FindBestQueryPlanAndFinalize(m_thd, query_block, /*trace=*/nullptr);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Check that we don't have a filter on top of a filter.
+  WalkAccessPaths(root, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&](const AccessPath *path, const JOIN *) {
+                    if (path->type == AccessPath::FILTER) {
+                      EXPECT_NE(AccessPath::FILTER, path->filter().child->type);
+                    }
+                    return false;
+                  });
+}
+
 static string PrintSargablePredicate(const SargablePredicate &sp,
                                      const JoinHypergraph &graph) {
   return StringPrintf(
