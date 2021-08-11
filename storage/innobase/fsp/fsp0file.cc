@@ -662,9 +662,11 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       m_encryption_iv = nullptr;
       return (DB_INVALID_ENCRYPTION_META);
     } else {
+#ifdef UNIV_DEBUG
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
                               << " successfully, encryption"
                               << " of this tablespace enabled.";
+#endif
       m_encryption_master_key_id = e_key.m_master_key_id;
     }
 
