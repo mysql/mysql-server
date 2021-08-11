@@ -375,7 +375,8 @@ class CostingReceiver {
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
   bool AlreadyAppliedThroughSargable(
-      Item_func_eq *cond, OverflowBitset left_applied_sargable_join_predicates,
+      OverflowBitset redundant_against_sargable_predicates,
+      OverflowBitset left_applied_sargable_join_predicates,
       OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
       NodeMap right);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
@@ -1943,29 +1944,6 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
 string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
                  const char *description_for_trace);
 
-bool AlreadyAppliedThroughSargable(Item_func_eq *join_cond,
-                                   const Predicate &pred, NodeMap left,
-                                   NodeMap right) {
-  // Don't deduplicate against ourselves (in case we're sargable).
-  if (pred.condition == join_cond) {
-    return false;
-  }
-
-  // Must be an equijoin condition that comes from the same multiple equality
-  // as the one we're trying to join in.
-  if (pred.condition->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(pred.condition)->functype() !=
-          Item_func::EQ_FUNC ||
-      down_cast<Item_func_eq *>(pred.condition)->source_multiple_equality !=
-          join_cond->source_multiple_equality) {
-    return false;
-  }
-
-  // The sargable condition must work as a join condition for this join
-  // (not between tables we've already joined in).
-  return Overlaps(pred.used_nodes, left) && Overlaps(pred.used_nodes, right);
-}
-
 /**
   Check if we're about to apply a join condition that would be redundant
   with regards to an already-applied sargable predicate, ie., whether our
@@ -1987,24 +1965,26 @@ bool AlreadyAppliedThroughSargable(Item_func_eq *join_cond,
   (e.g., in the given example, we'd see the t2=t3 join).
  */
 bool CostingReceiver::AlreadyAppliedThroughSargable(
-    Item_func_eq *join_cond,
+    OverflowBitset redundant_against_sargable_predicates,
     OverflowBitset left_applied_sargable_join_predicates,
     OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
     NodeMap right) {
-  if (join_cond->source_multiple_equality == nullptr) {
-    return false;
-  }
+  const auto redundant_and_applied = [](uint64_t redundant_sargable,
+                                        uint64_t left_applied,
+                                        uint64_t right_applied) {
+    return redundant_sargable & (left_applied | right_applied);
+  };
   for (size_t predicate_idx :
-       BitsSetIn(left_applied_sargable_join_predicates)) {
-    if (::AlreadyAppliedThroughSargable(
-            join_cond, m_graph.predicates[predicate_idx], left, right)) {
-      return true;
-    }
-  }
-  for (size_t predicate_idx :
-       BitsSetIn(right_applied_sargable_join_predicates)) {
-    if (::AlreadyAppliedThroughSargable(
-            join_cond, m_graph.predicates[predicate_idx], left, right)) {
+       OverflowBitsetBitsIn<3, decltype(redundant_and_applied)>(
+           {redundant_against_sargable_predicates,
+            left_applied_sargable_join_predicates,
+            right_applied_sargable_join_predicates},
+           redundant_and_applied)) {
+    // The sargable condition must work as a join condition for this join
+    // (not between tables we've already joined in).
+    const Predicate &sargable_predicate = m_graph.predicates[predicate_idx];
+    if (Overlaps(sargable_predicate.used_nodes, left) &&
+        Overlaps(sargable_predicate.used_nodes, right)) {
       return true;
     }
   }
@@ -2103,6 +2083,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
          ++join_cond_idx) {
       Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
       const auto it = m_graph.sargable_join_predicates.find(condition);
+      const CachedPropertiesForPredicate &properties =
+          edge->expr->properties_for_equijoin_conditions[join_cond_idx];
+
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
           (IsBitSet(it->second,
@@ -2119,7 +2102,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
                    IsBitSet(it->second,
                             right_path->subsumed_sargable_join_predicates());
       } else if (AlreadyAppliedThroughSargable(
-                     condition, left_path->applied_sargable_join_predicates(),
+                     properties.redundant_against_sargable_predicates,
+                     left_path->applied_sargable_join_predicates(),
                      right_path->applied_sargable_join_predicates(), left,
                      right)) {
         if (m_trace != nullptr) {
@@ -2131,8 +2115,6 @@ void CostingReceiver::ProposeNestedLoopJoin(
         return;
       }
       if (!subsumed) {
-        const CachedPropertiesForPredicate &properties =
-            edge->expr->properties_for_equijoin_conditions[join_cond_idx];
         equijoin_predicates.SetBit(filter_idx);
         inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
                                                 properties.contained_subqueries)
@@ -3845,6 +3827,13 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
   }
 }
 
+static bool ComesFromSameMultiEquality(Item *cond1, Item_func_eq *cond2) {
+  return cond1->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(cond1)->functype() == Item_func::EQ_FUNC &&
+         down_cast<Item_func_eq *>(cond1)->source_multiple_equality ==
+             cond2->source_multiple_equality;
+}
+
 /**
   For each edge, cache some information for each of its join conditions.
   This reduces work when repeatedly applying these join conditions later on.
@@ -3868,6 +3857,21 @@ static void CacheCostInfoForJoinConditions(THD *thd,
           [&properties](const ContainedSubquery &subquery) {
             properties.contained_subqueries.push_back(subquery);
           });
+
+      // Cache information about what sargable conditions this join condition
+      // would be redundant against, for AlreadyAppliedThroughSargable().
+      // But doon't deduplicate against ourselves (in case we're sargable).
+      MutableOverflowBitset redundant(thd->mem_root, graph->predicates.size());
+      for (unsigned sargable_pred_idx = graph->num_where_predicates;
+           sargable_pred_idx < graph->predicates.size(); ++sargable_pred_idx) {
+        Item *sargable_condition =
+            graph->predicates[sargable_pred_idx].condition;
+        if (sargable_condition != cond &&
+            ComesFromSameMultiEquality(sargable_condition, cond)) {
+          redundant.SetBit(sargable_pred_idx);
+        }
+      }
+      properties.redundant_against_sargable_predicates = std::move(redundant);
       edge.expr->properties_for_equijoin_conditions.push_back(
           std::move(properties));
     }

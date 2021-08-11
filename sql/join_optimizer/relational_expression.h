@@ -47,6 +47,14 @@ struct ContainedSubquery {
 struct CachedPropertiesForPredicate {
   Mem_root_array<ContainedSubquery> contained_subqueries;
   double selectivity;
+
+  // For equijoins only: A bitmap of which sargable predicates
+  // are part of the same multi-equality as this one (except the
+  // condition itself, which is excluded), and thus are redundant
+  // against it. This is used in AlreadyAppliedThroughSargable()
+  // to quickly find out if we already have applied any of them
+  // as a join condition.
+  OverflowBitset redundant_against_sargable_predicates;
 };
 
 // Describes a rule disallowing specific joins; if any tables from
