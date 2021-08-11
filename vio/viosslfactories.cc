@@ -245,6 +245,24 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
   DBUG_PRINT("enter", ("ctx: %p  cert_file: %s  key_file: %s", ctx, cert_file,
                        key_file));
 
+  if (!cert_file && !key_file) {
+    /*
+      Setup the system roots by default if no certs are given.
+      This ensures validation against default system certificates
+      works if the server provides a certificate signed by such
+      a provider.
+     */
+
+    if (SSL_CTX_set_default_verify_paths(ctx) <= 0) {
+      *error = SSL_INITERR_CERT;
+      DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+      my_message_local(ERROR_LEVEL, EE_SSL_ERROR, sslGetErrString(*error));
+      return 1;
+    }
+    return 0;
+  }
+
   if (!cert_file && key_file) cert_file = key_file;
 
   if (!key_file && cert_file) key_file = cert_file;
