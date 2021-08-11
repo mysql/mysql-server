@@ -3578,6 +3578,7 @@ BackupRestore::endOfTables(){
                                  split_idx[3].c_str(), table_name.c_str(),
                                  dict->getNdbError().code,
                                  dict->getNdbError().message);
+          return false;
         }
       }
     }
