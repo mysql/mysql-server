@@ -34,6 +34,7 @@
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
 #include "sql/join_optimizer/overflow_bitset.h"
+#include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
@@ -144,6 +145,11 @@ struct Predicate {
   // See the equivalent fields in JoinPredicate.
   FunctionalDependencySet functional_dependencies;
   Mem_root_array<int> functional_dependencies_idx;
+
+  // The list of all subqueries referred to in this predicate, if any.
+  // The optimizer uses this to add their materialized/non-materialized
+  // costs when evaluating filters.
+  Mem_root_array<ContainedSubquery> contained_subqueries;
 };
 
 struct AppendPathParameters {

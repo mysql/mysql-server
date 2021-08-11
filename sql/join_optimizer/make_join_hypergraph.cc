@@ -46,7 +46,9 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/common_subexpression_elimination.h"
+#include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
+#include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -2544,8 +2546,8 @@ Hyperedge FindHyperedgeAndJoinConflicts(THD *thd, NodeMap used_nodes,
   return {left, right};
 }
 
-size_t EstimateRowWidth(const JoinHypergraph &graph,
-                        const RelationalExpression *expr) {
+size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
+                               const RelationalExpression *expr) {
   size_t ret = 0;
 
   // Estimate size of the join keys.
@@ -2616,6 +2618,16 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   pred.was_join_condition = was_join_condition;
   pred.source_multiple_equality_idx = source_multiple_equality_idx;
   pred.functional_dependencies_idx.init(thd->mem_root);
+
+  // Cache information about which subqueries are contained in this
+  // predicate, if any.
+  pred.contained_subqueries.init(thd->mem_root);
+  FindContainedSubqueries(
+      thd, condition, graph->query_block(),
+      [&pred](ContainedSubquery subquery) {
+        pred.contained_subqueries.push_back(std::move(subquery));
+      });
+
   graph->predicates.push_back(std::move(pred));
 
   if (trace != nullptr) {
@@ -2742,7 +2754,8 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     expr->nodes_in_subtree = GetNodeMapFromTableMap(
         cond->used_tables() & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
     double selectivity = EstimateSelectivity(thd, cond, trace);
-    const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
+    const size_t estimated_bytes_per_row =
+        EstimateRowWidthForJoin(*graph, expr);
     graph->edges.push_back(JoinPredicate{
         expr, selectivity, estimated_bytes_per_row,
         /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
@@ -2869,7 +2882,7 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
     *trace += StringPrintf("  - total: %.3f\n", selectivity);
   }
 
-  const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
+  const size_t estimated_bytes_per_row = EstimateRowWidthForJoin(*graph, expr);
   graph->edges.push_back(JoinPredicate{
       expr, selectivity, estimated_bytes_per_row,
       /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
@@ -2931,7 +2944,8 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
         TableBitmap(left_table_idx) | TableBitmap(right_table_idx);
     expr->nodes_in_subtree =
         TableBitmap(left_node_idx) | TableBitmap(right_node_idx);
-    const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
+    const size_t estimated_bytes_per_row =
+        EstimateRowWidthForJoin(*graph, expr);
     graph->edges.push_back(JoinPredicate{expr, selectivity,
                                          estimated_bytes_per_row,
                                          /*functional_dependencies=*/0,

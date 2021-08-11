@@ -63,6 +63,7 @@
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/explain_access_path.h"
+#include "sql/join_optimizer/find_contained_subqueries.h"
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
@@ -1449,7 +1450,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       filter_predicates.SetBit(i);
       FilterCost cost =
           EstimateFilterCost(m_thd, path->num_output_rows,
-                             m_graph.predicates[i].condition, m_query_block);
+                             m_graph.predicates[i].contained_subqueries);
       if (materialize_subqueries) {
         path->cost += cost.cost_if_materialized;
         materialize_cost += cost.cost_to_materialize;
@@ -1904,7 +1905,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
                     multiple_equality_bitmap)) {
         filter_predicates.SetBit(pred_idx);
         FilterCost cost = EstimateFilterCost(m_thd, join_path->num_output_rows,
-                                             pred.condition, m_query_block);
+                                             pred.contained_subqueries);
         if (materialize_subqueries) {
           join_path->cost += cost.cost_if_materialized;
           materialize_cost += cost.cost_to_materialize;
@@ -2097,7 +2098,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
     MutableOverflowBitset equijoin_predicates{
         m_thd->mem_root, edge->expr->equijoin_conditions.size()};
     int filter_idx = 0;
-    for (Item_func_eq *condition : edge->expr->equijoin_conditions) {
+    for (size_t join_cond_idx = 0;
+         join_cond_idx < edge->expr->equijoin_conditions.size();
+         ++join_cond_idx) {
+      Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
       const auto it = m_graph.sargable_join_predicates.find(condition);
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
@@ -2128,17 +2132,25 @@ void CostingReceiver::ProposeNestedLoopJoin(
       }
       if (!subsumed) {
         equijoin_predicates.SetBit(filter_idx);
-        inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                                condition, m_query_block)
-                                 .cost_if_not_materialized;
+        inner_rescan_cost +=
+            EstimateFilterCost(
+                m_thd, rows_after_filtering,
+                edge->expr->properties_for_equijoin_conditions[join_cond_idx]
+                    .contained_subqueries)
+                .cost_if_not_materialized;
         rows_after_filtering *= EstimateSelectivity(m_thd, condition, m_trace);
       }
       ++filter_idx;
     }
-    for (Item *condition : edge->expr->join_conditions) {
-      inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                              condition, m_query_block)
-                               .cost_if_not_materialized;
+    for (size_t join_cond_idx = 0;
+         join_cond_idx < edge->expr->join_conditions.size(); ++join_cond_idx) {
+      Item *condition = edge->expr->join_conditions[join_cond_idx];
+      inner_rescan_cost +=
+          EstimateFilterCost(
+              m_thd, rows_after_filtering,
+              edge->expr->properties_for_join_conditions[join_cond_idx]
+                  .contained_subqueries)
+              .cost_if_not_materialized;
       rows_after_filtering *= EstimateSelectivity(m_thd, condition, m_trace);
     }
     join_path.nested_loop_join().equijoin_predicates =
@@ -3798,6 +3810,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       p.total_eligibility_set =
           ~0;  // Should never be applied as a WHERE predicate.
       p.functional_dependencies_idx.init(thd->mem_root);
+      p.contained_subqueries.init(thd->mem_root);  // Empty.
       graph->predicates.push_back(std::move(p));
       predicate_index = graph->predicates.size() - 1;
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
@@ -3833,6 +3846,44 @@ void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
           (it == graph->sargable_join_predicates.end()) ? -1 : it->second;
       PossiblyAddSargableCondition(thd, cond, node.table, predicate_index,
                                    /*is_join_condition=*/true, graph, trace);
+    }
+  }
+}
+
+/**
+  For each edge, cache some information for each of its join conditions.
+  This reduces work when repeatedly applying these join conditions later on.
+  In particular, FindContainedSubqueries() contains a large amount of
+  virtual function calls that we would like to avoid doing every time
+  we consider a given join.
+ */
+static void CacheCostInfoForJoinConditions(THD *thd,
+                                           const Query_block *query_block,
+                                           JoinHypergraph *graph) {
+  for (JoinPredicate &edge : graph->edges) {
+    edge.expr->properties_for_equijoin_conditions.init(thd->mem_root);
+    edge.expr->properties_for_join_conditions.init(thd->mem_root);
+    for (Item_func_eq *cond : edge.expr->equijoin_conditions) {
+      CachedPropertiesForPredicate properties;
+      properties.contained_subqueries.init(thd->mem_root);
+      FindContainedSubqueries(
+          thd, cond, query_block,
+          [&properties](const ContainedSubquery &subquery) {
+            properties.contained_subqueries.push_back(subquery);
+          });
+      edge.expr->properties_for_equijoin_conditions.push_back(
+          std::move(properties));
+    }
+    for (Item *cond : edge.expr->join_conditions) {
+      CachedPropertiesForPredicate properties;
+      properties.contained_subqueries.init(thd->mem_root);
+      FindContainedSubqueries(
+          thd, cond, query_block,
+          [&properties](const ContainedSubquery &subquery) {
+            properties.contained_subqueries.push_back(subquery);
+          });
+      edge.expr->properties_for_join_conditions.push_back(
+          std::move(properties));
     }
   }
 }
@@ -3900,6 +3951,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     return nullptr;
   }
   FindSargablePredicates(thd, trace, &graph);
+
+  // Now that we have all join conditions, cache some properties
+  // that we'd like to use many times.
+  CacheCostInfoForJoinConditions(thd, query_block, &graph);
 
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
@@ -4045,7 +4100,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             filter_predicates.SetBit(i);
             FilterCost cost =
                 EstimateFilterCost(thd, root_path->num_output_rows,
-                                   graph.predicates[i].condition, query_block);
+                                   graph.predicates[i].contained_subqueries);
             if (materialize_subqueries) {
               path.cost += cost.cost_if_materialized;
               init_once_cost += cost.cost_to_materialize;
