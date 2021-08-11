@@ -3432,6 +3432,43 @@ BackupRestore::fk(Uint32 type, const void * ptr)
       }
       m_fks.push_back(fk_ptr);
       restoreLogger.log_info("Save FK %s", fk_ptr->getName());
+
+      if (m_disable_indexes)
+      {
+        // Extract foreign key name from format
+        // like 10/14/fk1 where 10,14 are old table ids
+        const char *fkname = 0;
+        Vector<BaseString> splitname;
+        BaseString tmpname(fk_ptr->getName());
+        int n = tmpname.split(splitname, "/");
+        if (n == 3)
+        {
+          fkname = splitname[2].c_str();
+        }
+        else
+        {
+          restoreLogger.log_error("Invalid foreign key name %s",
+                                  tmpname.c_str());
+          return false;
+        }
+        NdbDictionary::ForeignKey fk;
+        char fullname[MAX_TAB_NAME_SIZE];
+        sprintf(fullname, "%d/%d/%s", parent->getObjectId(),
+                child->getObjectId(), fkname);
+
+        // Drop foreign keys if they exist
+        if (dict->getForeignKey(fk, fullname) == 0)
+        {
+          restoreLogger.log_info("Dropping Foreign key %s", fkname);
+          if (dict->dropForeignKey(fk) != 0)
+          {
+            restoreLogger.log_error("Failed to drop fk '%s' : %u %s",
+                                    fk_ptr->getName(), dict->getNdbError().code,
+                                    dict->getNdbError().message);
+            return false;
+          }
+        }
+      }
     }
     return true;
     break;
@@ -3527,11 +3564,21 @@ BackupRestore::endOfTables(){
     }
     else if (m_disable_indexes)
     {
-      int res = dict->dropIndex(idx->getName(), prim->getName());
-      if (res == 0)
+      // Drop indexes if they exist
+      if(dict->getIndex(idx->getName(), prim->getName()))
       {
-      restoreLogger.log_info("Dropped index `%s` on `%s`",
+        if (dict->dropIndex(idx->getName(), prim->getName()) == 0)
+        {
+          restoreLogger.log_info("Dropped index `%s` on `%s`",
             split_idx[3].c_str(), table_name.c_str());
+        }
+        else
+        {
+          restoreLogger.log_info("Failed to drop index `%s` on `%s`: %u %s",
+                                 split_idx[3].c_str(), table_name.c_str(),
+                                 dict->getNdbError().code,
+                                 dict->getNdbError().message);
+        }
       }
     }
     Uint32 id = prim->getObjectId();
