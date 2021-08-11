@@ -4553,6 +4553,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           is preferable at a common with other event pre-execution point
   */
   clear_all_errors(thd, const_cast<Relay_log_info *>(rli));
+  thd->get_stmt_da()->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_statement_cond_count();
+
   if (strcmp("COMMIT", query) == 0 && rli->tables_to_lock != nullptr) {
     /*
       Cleaning-up the last statement context:
