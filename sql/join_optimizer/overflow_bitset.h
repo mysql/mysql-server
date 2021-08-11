@@ -182,11 +182,14 @@ class MutableOverflowBitset : private OverflowBitset {
   }
 
   void SetBit(int bit_num) {
+    assert(bit_num >= 0);
+    assert(static_cast<size_t>(bit_num) < capacity());
+    const unsigned bn = bit_num;  // To avoid sign extension taking time.
     if (is_inline()) {
       assert(bit_num < 63);
-      m_bits |= uint64_t{1} << (bit_num + 1);
+      m_bits |= uint64_t{1} << (bn + 1);
     } else {
-      SetBitOverflow(bit_num);
+      m_ext->m_bits[bn / 64] |= uint64_t{1} << (bn % 64);
     }
   }
 
@@ -376,15 +379,14 @@ inline bool Overlaps(OverflowBitset a, OverflowBitset b) {
   }
 }
 
-bool IsBitSetOverflow(int bit_num, OverflowBitset x);
-
 inline bool IsBitSet(int bit_num, OverflowBitset x) {
   assert(bit_num >= 0);
   assert(static_cast<size_t>(bit_num) < x.capacity());
+  const unsigned bn = bit_num;  // To avoid sign extension taking time.
   if (x.is_inline()) {
-    return Overlaps(x.m_bits, uint64_t{1} << (bit_num + 1));
+    return Overlaps(x.m_bits, uint64_t{1} << (bn + 1));
   } else {
-    return IsBitSetOverflow(bit_num, x);
+    return Overlaps(x.m_ext->m_bits[bn / 64], uint64_t{1} << (bn % 64));
   }
 }
 

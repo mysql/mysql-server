@@ -76,13 +76,6 @@ MutableOverflowBitset OverflowBitset::XorOverflow(MEM_ROOT *mem_root,
   return ret;
 }
 
-void MutableOverflowBitset::SetBitOverflow(int bit_num) {
-  assert(!is_inline());
-  assert(bit_num >= 0);
-  assert(static_cast<size_t>(bit_num) < capacity());
-  m_ext->m_bits[bit_num / 64] |= uint64_t{1} << (bit_num % 64);
-}
-
 void MutableOverflowBitset::ClearBitsOverflow(int begin_bit_num,
                                               int end_bit_num) {
   assert(!is_inline());
@@ -127,11 +120,4 @@ bool OverlapsOverflow(OverflowBitset a, OverflowBitset b) {
     }
   }
   return false;
-}
-
-bool IsBitSetOverflow(int bit_num, OverflowBitset x) {
-  assert(!x.is_inline());
-  assert(bit_num >= 0);
-  assert(static_cast<size_t>(bit_num) < x.capacity());
-  return Overlaps(x.m_ext->m_bits[bit_num / 64], uint64_t{1} << (bit_num % 64));
 }
