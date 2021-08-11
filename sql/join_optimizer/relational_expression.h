@@ -46,6 +46,7 @@ struct ContainedSubquery {
 // predicate.
 struct CachedPropertiesForPredicate {
   Mem_root_array<ContainedSubquery> contained_subqueries;
+  double selectivity;
 };
 
 // Describes a rule disallowing specific joins; if any tables from
