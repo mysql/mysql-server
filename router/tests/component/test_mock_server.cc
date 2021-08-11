@@ -96,8 +96,7 @@ TEST_P(MockServerCLITest, check) {
                              GetParam().expected_exit_code, true);
 
   SCOPED_TRACE("// wait for exit");
-  check_exit_code(cmd, GetParam().expected_exit_code,
-                  1000ms);  // should be quick, and return 0
+  check_exit_code(cmd, GetParam().expected_exit_code, 5s);
   SCOPED_TRACE("// checking stdout");
 
   GetParam().checker(cmd.get_full_output());
@@ -408,8 +407,7 @@ TEST_P(MockServerConnectOkTest, classic_protocol) {
   cmdline_args.push_back(std::to_string(bind_port));
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   classic_protocol_connect_ok(config.at("hostname"), bind_port);
@@ -441,8 +439,7 @@ TEST_P(MockServerConnectOkTest, x_protocol) {
   cmdline_args.push_back(std::to_string(bind_port));
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   x_protocol_connect_ok(config.at("hostname"), bind_port);
@@ -602,8 +599,7 @@ TEST_P(MockServerConnectTest, check) {
   }
 
   SCOPED_TRACE("// start binary");
-  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true,
-                 1000ms);
+  launch_command(mysql_server_mock_path, cmdline_args, EXIT_SUCCESS, true, 1s);
 
   SCOPED_TRACE("// checking "s + GetParam().test_name);
   GetParam().checker(config);

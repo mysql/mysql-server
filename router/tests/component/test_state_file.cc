@@ -1125,7 +1125,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 20s));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
