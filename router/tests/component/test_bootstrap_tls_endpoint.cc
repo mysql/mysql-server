@@ -351,7 +351,7 @@ TEST_P(BootstrapTlsEndpointWithoutCertGeneration, succeeds) {
                  get_data_dir().join("bootstrap_gr.js").str()},
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_SUCCESS,
-      {"# MySQL Router configured"}, 1000ms, {2, 0, 3}, cmdline_args));
+      {"# MySQL Router configured"}, 5s, {2, 0, 3}, cmdline_args));
 
   ASSERT_NE(config_file.size(), 0);
 
@@ -1165,8 +1165,7 @@ TEST_P(BootstrapTlsEndpointFailMock, fails) {
                  get_data_dir().join("bootstrap_gr.js").str()},
       },
       mysqlrouter::ClusterType::GR_V2, {}, EXIT_FAILURE,
-      GetParam().expected_output_lines, 1000ms, {2, 0, 3},
-      GetParam().cmdline_args);
+      GetParam().expected_output_lines, 1s, {2, 0, 3}, GetParam().cmdline_args);
 }
 
 const BootstrapTlsEndpointFailMockParams
