@@ -179,7 +179,6 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 30;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
 my $valgrind_reports   = 0;
@@ -223,6 +222,7 @@ our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
+our $ports_per_thread   = 30;
 
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
@@ -702,6 +702,8 @@ sub main {
 
   if ($secondary_engine_support) {
     secondary_engine_offload_count_report_init();
+    # Create virtual environment
+    create_virtual_env($bindir);
   }
 
   if ($opt_summary_report) {
@@ -888,6 +890,11 @@ sub main {
   # Cleanup the build thread id files
   remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
+
+  # Cleanup the secondary engine environment
+  if ($secondary_engine_support) {
+    clean_virtual_env();
+  }
 
   print_total_times($opt_parallel) if $opt_report_times;
 
@@ -5207,6 +5214,10 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
       return 1;
     }
+
+    my $driver_ret = check_secondary_driver_crash($tinfo, $proc, $test)
+      if $tinfo->{'secondary-engine'};
+    return 1 if $driver_ret;
 
     # Check if it was a server that died
     if (grep($proc eq $_, started(all_servers()))) {
