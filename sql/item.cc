@@ -6262,6 +6262,7 @@ type_conversion_status Item::save_in_field_inner(Field *field,
     char buff[MAX_FIELD_WIDTH];  // Alloc buffer for small columns
     str_value.set_quick(buff, sizeof(buff), cs);
     result = val_str(&str_value);
+    if (current_thd->is_error()) return TYPE_ERR_BAD_VALUE;
     if (null_value) {
       str_value.set_quick(nullptr, 0, cs);
       return set_field_to_null_with_conversions(field, no_conversions);
