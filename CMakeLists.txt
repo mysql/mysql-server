@@ -23,8 +23,8 @@
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 IF(WIN32)
-  # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
-  CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+  # Load policies. This is needed in order to parse the wmic version check.
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
   EXECUTE_PROCESS(COMMAND wmic os get version
     OUTPUT_VARIABLE NT_RELEASE_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
