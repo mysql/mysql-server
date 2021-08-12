@@ -196,7 +196,7 @@ mysql_service_status_t test_string_service_init() {
         uint count = 0;
         WRITE_LOG("%s\n", "Create iterator passed.");
         while (mysql_service_mysql_string_iterator->iterator_get_next(
-                   out_iterator, &out_iter_char) != true) {
+                   out_iterator, &out_iter_char) == 0) {
           count++;
         }
         if (count < MAX_BUFFER_LENGTH) {

@@ -481,7 +481,7 @@ static int validate_password_policy_strength(void *thd, my_h_string password,
     return (0);
   }
   while (mysql_service_mysql_string_iterator->iterator_get_next(
-             iter, &out_iter_char) != true) {
+             iter, &out_iter_char) == 0) {
     n_chars++;
     if (policy > PASSWORD_POLICY_LOW) {
       if (!mysql_service_mysql_string_ctype->is_lower(iter, &out) && out)
@@ -551,7 +551,7 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
     return true;
   }
   while (mysql_service_mysql_string_iterator->iterator_get_next(
-             iter, &out_iter_char) != true)
+             iter, &out_iter_char) == 0)
     n_chars++;
 
   mysql_service_mysql_string_iterator->iterator_destroy(iter);

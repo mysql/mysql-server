@@ -133,7 +133,10 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
         COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ENDIF()
-ENDMACRO()
+
+  ADD_DEPENDENCIES(component_all ${target})
+
+ENDMACRO(MYSQL_ADD_COMPONENT)
 
 
 # Add all CMake projects under components
