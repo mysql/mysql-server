@@ -152,6 +152,33 @@ TEST(OverflowBitsetTest, BitsSetInOverflow) {
   EXPECT_THAT(ret, testing::ElementsAre(100, 180, 181, 199));
 }
 
+TEST(OverflowBitsetTest, BitsSetInBothInline) {
+  OverflowBitset s{0x1005}, t{0x1204};
+  vector<int> ret;
+  for (int bit_num : BitsSetInBoth(s, t)) {
+    ret.push_back(bit_num);
+  }
+  EXPECT_THAT(ret, testing::ElementsAre(2, 12));
+}
+
+TEST(OverflowBitsetTest, BitsSetInBothOverflow) {
+  MEM_ROOT mem_root;
+  MutableOverflowBitset s{&mem_root, 200};
+  s.SetBit(100);
+  s.SetBit(180);
+  s.SetBit(181);
+  s.SetBit(199);
+  MutableOverflowBitset t{&mem_root, 200};
+  t.SetBit(100);
+  t.SetBit(181);
+
+  vector<int> ret;
+  for (int bit_num : BitsSetInBoth(move(s), move(t))) {
+    ret.push_back(bit_num);
+  }
+  EXPECT_THAT(ret, testing::ElementsAre(100, 181));
+}
+
 TEST(OverflowBitsetTest, OverlapsInline) {
   OverflowBitset s1{0x1005};
   OverflowBitset s2{0x0150};

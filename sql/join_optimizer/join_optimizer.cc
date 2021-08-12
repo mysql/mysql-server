@@ -1893,9 +1893,9 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   // Predicates that were delayed, but that we need to check now.
   // (We don't need to allocate a MutableOverflowBitset for this.)
   const NodeMap ready_tables = left | right;
-  for (int pred_idx : BitsSetIn(left_path->delayed_predicates)) {
-    if (!IsBitSet(pred_idx, right_path->delayed_predicates) ||
-        (pred_idx >= join_predicate_first && pred_idx < join_predicate_last)) {
+  for (int pred_idx : BitsSetInBoth(left_path->delayed_predicates,
+                                    right_path->delayed_predicates)) {
+    if (pred_idx >= join_predicate_first && pred_idx < join_predicate_last) {
       continue;
     }
     const Predicate &pred = m_graph.predicates[pred_idx];
