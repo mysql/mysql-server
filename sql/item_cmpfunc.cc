@@ -2996,7 +2996,9 @@ bool Item_func_between::resolve_type(THD *thd) {
       }
 
       if (args[0]->is_temporal() && args[1]->is_temporal() &&
-          args[2]->is_temporal()) {
+          args[2]->is_temporal() && args[0]->data_type() != MYSQL_TYPE_YEAR &&
+          args[1]->data_type() != MYSQL_TYPE_YEAR &&
+          args[2]->data_type() != MYSQL_TYPE_YEAR) {
         /*
           An expression:
             time_or_datetime_field
