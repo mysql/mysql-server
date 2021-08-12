@@ -1,7 +1,5 @@
 --source include/have_ndb.inc
 
-# The testMgmd binary is not built on Windows
---source include/not_windows.inc
 
 # This test does not start ndb_mgmd as its not required. So, mysqld started by mtr.pl fails
 # to connect to NDB and gives below warnings.

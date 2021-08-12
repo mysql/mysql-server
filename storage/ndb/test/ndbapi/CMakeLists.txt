@@ -113,7 +113,7 @@ TARGET_LINK_LIBRARIES(testBackup ndbbank ndbNDBT ndbclient_so)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank ndbNDBT ndbclient_so)
 
 IF(WIN32)
-  # Don't build testMgmd on Windows
+  NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ELSE()
   NDB_ADD_EXECUTABLE(testMgmd testMgmd.cpp NDBTEST NDBCLIENT)
 ENDIF()
