@@ -4514,4 +4514,22 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`alias1`.`col_decimal_10_8` AS `field1`,`derived_1_2`.`SQ1_field1` AS `field2`,grouping(rollup_group_item(`rollup_group_item(log(alias1.col_int),2)`,2)) AS `field3` from `test`.`t1` `alias1` join `test`.`t1` `alias2` left join (/* select#2 */ select sum(`test`.`table1`.`col_smallint`) AS `SQ1_field1` from `test`.`t1` `table2` left join `test`.`t1` `table1` on(true) where true) `derived_1_2` on(true) semi join (`test`.`t1`) where (cast(`test`.`alias2`.`pk` as double) = cast(`test`.`t1`.`col_char_255` as double)) group by `field1`,`field2`,log(`test`.`alias1`.`col_int`) with rollup order by `test`.`alias1`.`col_datetime`,`field1`,`field2`,log(`test`.`alias1`.`col_int`)
 set sql_mode=default;
 DROP TABLE t1;
+#
+# Bug#33079592: ASSERTION `SELECT->BASE_REF_ITEMS[ITEM_IDX] == ITEM' FAILED
+#
+CREATE TABLE t1 (f1 INTEGER);
+SET optimizer_switch='subquery_to_derived=default';
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of PARTITION BY or ORDER BY clause of window '<unnamed window>' contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+SUM(f1)	ROW_NUMBER() OVER ()	(SELECT MIN(f1) FROM t1)
+NULL	1	NULL
+SET optimizer_switch='subquery_to_derived=on';
+SELECT SUM(f1), ROW_NUMBER() OVER (PARTITION BY f1), (SELECT MIN(f1) FROM t1) FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+SELECT SUM(f1), ROW_NUMBER() OVER (), (SELECT MIN(f1) FROM t1) FROM t1 ORDER BY f1;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+SELECT SUM(f1), SUM(f1) OVER (), f1, (SELECT MIN(f1) FROM t1) sq FROM t1 ORDER BY f1;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;
 SET optimizer_switch='subquery_to_derived=default';

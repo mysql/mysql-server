@@ -8250,11 +8250,11 @@ bool Item_view_ref::collect_item_field_or_view_ref_processor(uchar *arg) {
   auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
   if (info->is_stopped(this)) return false;
   // We collect this view ref
-  // If it's qualifying table is in the transformed query block - (1)
-  // If it's underlying field's qualifying table is in the transformed
-  // query block - (2)
-  // If this view ref is an outer reference dependent on the
-  // transformed query block - (3)
+  // (1) If its qualifying table is in the transformed query block
+  // (2) If its underlying field's qualifying table is in the transformed
+  // query block
+  // (3) If this view ref is an outer reference dependent on the
+  // transformed query block
   Item *item = nullptr;
   item = (context->query_block == info->m_transformed_block)  // 1
              ? this
