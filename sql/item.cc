@@ -204,6 +204,10 @@ Item::Item(const POS &)
       derived_used(false),
       m_accum_properties(0) {}
 
+bool Item::may_eval_const_item(const THD *thd) const {
+  return !thd->lex->is_view_context_analysis() || basic_const_item();
+}
+
 /**
   @todo
     Make this functions class dependent

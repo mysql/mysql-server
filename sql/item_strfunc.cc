@@ -342,7 +342,7 @@ bool Item_func_sha2::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   set_nullable(true);
   longlong sha_variant;
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     sha_variant = args[1]->val_int();
     // Give error message in switch below.
     if (args[1]->null_value) sha_variant = -1;
@@ -1314,7 +1314,7 @@ String *Item_func_left::val_str(String *str) {
 
 void Item_str_func::left_right_max_length(THD *thd) {
   uint32 char_length = args[0]->max_char_length();
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     longlong length = args[1]->val_int();
     if (args[1]->null_value) goto end;
 
@@ -1433,7 +1433,7 @@ bool Item_func_substr::resolve_type(THD *thd) {
 
   set_data_type_string(0U);
   assert(collation.collation != nullptr);
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     longlong start = args[1]->val_int();
     if (args[1]->null_value) goto end;
     Integer_value start_val(start, args[1]->unsigned_flag);
@@ -1448,7 +1448,7 @@ bool Item_func_substr::resolve_type(THD *thd) {
     }
   }
   if (arg_count == 3 && args[2]->const_item() &&
-      !thd->lex->is_view_context_analysis()) {
+      args[2]->may_eval_const_item(thd)) {
     longlong length = args[2]->val_int();
     if (args[2]->null_value) goto end;
     Integer_value length_val(length, args[2]->unsigned_flag);
@@ -2399,7 +2399,7 @@ bool Item_func_repeat::resolve_type(THD *thd) {
 
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   assert(collation.collation != nullptr);
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     /* must be longlong to avoid truncation */
     longlong count = args[1]->val_int();
     if (args[1]->null_value) goto end;
@@ -2481,7 +2481,7 @@ bool Item_func_space::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
 
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-  if (args[0]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[0]->const_item() && args[0]->may_eval_const_item(thd)) {
     /* must be longlong to avoid truncation */
     longlong count = args[0]->val_int();
     if (args[0]->null_value) goto end;
@@ -2538,7 +2538,7 @@ bool Item_func_rpad::resolve_type(THD *thd) {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     ulonglong char_length = args[1]->val_uint();
     if (args[1]->null_value) goto end;
     assert(collation.collation->mbmaxlen > 0);
@@ -2665,7 +2665,7 @@ bool Item_func_lpad::resolve_type(THD *thd) {
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
 
-  if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+  if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
     ulonglong char_length = args[1]->val_uint();
     if (args[1]->null_value) goto end;
     assert(collation.collation->mbmaxlen > 0);
