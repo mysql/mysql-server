@@ -85,9 +85,4 @@ a reasonable value to try).
 
 ===
 
-Note: For building with unit tests, you need to tell cmake where to find
-the sources, see ../cmake/googletest.cmake
-You should *not* 'make install' googletest/googlemock on your system,
-the libraries must be built from source, with the unit tests.
-
 Note: You need to tell cmake where to find boost, see ../cmake/boost.cmake
