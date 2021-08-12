@@ -2124,6 +2124,13 @@ class Item : public Parse_tree_node {
   */
   virtual bool basic_const_item() const { return false; }
   /**
+    @returns true when a const item may be evaluated during resolving.
+             Only const items that are basic const items are evaluated when
+             resolving CREATE VIEW statements. For other statements, all
+             const items may be evaluated during resolving.
+  */
+  bool may_eval_const_item(const THD *thd) const;
+  /**
     @return cloned item if it is constant
       @retval nullptr  if this is not const
   */

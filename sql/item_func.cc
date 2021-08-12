@@ -2649,7 +2649,7 @@ bool Item_func_neg::resolve_type(THD *thd) {
     Item_int or Item_real due to existence of Item_param.
   */
   if (hybrid_type == INT_RESULT && args[0]->const_item() &&
-      !thd->lex->is_view_context_analysis()) {
+      args[0]->may_eval_const_item(thd)) {
     longlong val = args[0]->val_int();
     if ((ulonglong)val >= (ulonglong)LLONG_MIN &&
         ((ulonglong)val != (ulonglong)LLONG_MIN ||
@@ -3343,7 +3343,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         Also make sure that precision is greater than zero.
       */
       longlong val1;
-      if (args[1]->const_item() && !thd->lex->is_view_context_analysis()) {
+      if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
         val1 = args[1]->val_int();
         if ((null_value = args[1]->is_null())) {
           val1 = 0;
@@ -4186,7 +4186,7 @@ bool Item_func_find_in_set::resolve_type(THD *thd) {
   max_length = 3;  // 1-999
 
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM &&
-      !thd->lex->is_view_context_analysis()) {
+      args[0]->may_eval_const_item(thd)) {
     Field *field = down_cast<Item_field *>(args[1])->field;
     if (field->real_type() == MYSQL_TYPE_SET) {
       String *find = args[0]->val_str(&value);
