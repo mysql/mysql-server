@@ -2123,8 +2123,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
               " - " + PrintCost(*right_path, m_graph, "") +
               " has a sargable predicate that is redundant with our join "
               "predicate, skipping\n";
-          return;
         }
+        return;
       }
       if (!subsumed) {
         equijoin_predicates.SetBit(filter_idx);
