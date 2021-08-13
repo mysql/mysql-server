@@ -64,7 +64,7 @@ int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
 
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
                                         ca_path, cipher, NULL, &ssl_init_error,
-                                        0, 0, 0, 0, false);
+                                        NULL, NULL, 0, NULL, SSL_VERIFY_NONE, false);
 
   if (!ssl_connector) {
     fatal_error("client:new_VioSSLConnectorFd failed");

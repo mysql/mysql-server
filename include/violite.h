@@ -265,7 +265,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host, bool verify_identity);
+    const long ssl_ctx_flags, const char *server_host, int verify, bool verify_identity);
 
 long process_tls_version(const char *tls_version);
 

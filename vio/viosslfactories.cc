@@ -801,15 +801,8 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host, bool verify_identity) {
+    const long ssl_ctx_flags, const char *server_host, int verify, bool verify_identity) {
   struct st_VioSSLFd *ssl_fd;
-  int verify = SSL_VERIFY_PEER;
-
-  /*
-    Turn off verification of servers certificate if both
-    ca_file and ca_path is set to NULL
-  */
-  if (ca_file == nullptr && ca_path == nullptr) verify = SSL_VERIFY_NONE;
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,

@@ -90,7 +90,8 @@ int main(int argc, char **argv) {
   ssl_acceptor =
       new_VioSSLAcceptorFd(server_key, server_cert, ca_file, ca_path);
   ssl_connector = new_VioSSLConnectorFd(client_key, client_cert, ca_file,
-                                        ca_path, &ssl_init_error);
+                                        ca_path, NULL, &ssl_init_error, NULL,
+                                        NULL, 0, SSL_VERIFY_NONE, false);
 
   client_vio = (Vio *)my_malloc(sizeof(Vio), MYF(0));
   client_vio->sd = sv[0];

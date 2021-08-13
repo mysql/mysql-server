@@ -675,8 +675,10 @@ XError Connection_impl::activate_tls() {
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 
+  const int verify = m_context->m_ssl_config.m_mode >= Ssl_config::Mode::Ssl_verify_ca ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
   const bool verify_identity =
       Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode;
+
   m_vioSslFd = new_VioSSLConnectorFd(
       details::null_when_empty(m_context->m_ssl_config.m_key),
       details::null_when_empty(m_context->m_ssl_config.m_cert),
@@ -686,7 +688,7 @@ XError Connection_impl::activate_tls() {
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
-      ssl_ctx_flags, m_hostname.c_str(), verify_identity);
+      ssl_ctx_flags, m_hostname.c_str(), verify, verify_identity);
 
   if (nullptr == m_vioSslFd) return get_ssl_init_error(m_ssl_init_error);
 
