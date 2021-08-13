@@ -4138,6 +4138,11 @@ static void cli_calculate_client_flag(MYSQL *mysql, const char *db,
     mysql->client_flag &= ~CLIENT_SSL;
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
   }
+
+  if (mysql->options.extension &&
+    mysql->options.extension->disable_query_attributes) {
+    mysql->client_flag &= ~CLIENT_QUERY_ATTRIBUTES;
+  }
 }
 
 /**
@@ -7288,7 +7293,7 @@ static int mysql_prepare_com_query_parameters(MYSQL *mysql,
   MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
   assert(ext);
   bool send_named_params =
-      (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
+      (mysql->client_flag & mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
   *pret_data = nullptr;
   *pret_data_length = 0;
   if (send_named_params) {
@@ -8004,6 +8009,10 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       break;
     case MYSQL_REPORT_DATA_TRUNCATION:
       mysql->options.report_data_truncation = *static_cast<const bool *>(arg);
+      break;
+    case MYSQL_OPT_QUERY_ATTRIBUTES:
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->disable_query_attributes = true;
       break;
     case MYSQL_OPT_RECONNECT:
       mysql->reconnect = *static_cast<const bool *>(arg);

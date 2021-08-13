@@ -144,6 +144,7 @@ struct st_mysql_options_extention {
   char *tls_version;          /* TLS version option */
   long ssl_ctx_flags;         /* SSL ctx options flag */
   unsigned int ssl_mode;
+  bool disable_query_attributes;
   unsigned int retry_count;
   unsigned int ssl_fips_mode; /* SSL fips mode for enforced encryption.*/
   char *tls_ciphersuites;

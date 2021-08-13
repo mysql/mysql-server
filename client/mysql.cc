@@ -164,6 +164,7 @@ static bool ignore_errors = false, wait_flag = false, quick = false,
             show_warnings = false, executing_query = false,
             interrupted_query = false, ignore_spaces = false,
             sigint_received = false, opt_syslog = false, opt_binhex = false;
+static bool opt_query_attributes = true;
 static bool opt_binary_as_hex_set_explicitly = false;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
@@ -1911,6 +1912,11 @@ static struct my_option my_long_options[] = {
      "when processing output from mysqlbinlog that may contain blobs.",
      &opt_binary_mode, &opt_binary_mode, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+     {"query-attributes", 0,
+      "Enable/Disable query attributes in server/client protocol. "
+     "Query attributes is enabled by default. Disable with --disable-query-attributes.",
+      &opt_query_attributes, &opt_query_attributes, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
+      nullptr, 0, nullptr},
     {"connect-expired-password", 0,
      "Notify the server that this client is prepared to handle expired "
      "password sandbox mode.",
@@ -4633,6 +4639,7 @@ static bool init_connection_options(MYSQL *mysql) {
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
 
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+  if (!opt_query_attributes) mysql_options(mysql, MYSQL_OPT_QUERY_ATTRIBUTES, NullS);
   if (opt_compress_algorithm)
     mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
                   opt_compress_algorithm);
