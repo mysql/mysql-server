@@ -345,3 +345,11 @@ HANDLER t1 OPEN;
 ALTER SCHEMA s1 READ ONLY DEFAULT;
 DROP table t1;
 DROP SCHEMA s1;
+#
+# Bug #33183590: COLLATE maybe overwritten by charset if both specified in create database stmt
+#
+CREATE DATABASE test1 COLLATE utf8mb4_bin CHARACTER SET utf8mb4;
+SHOW CREATE DATABASE test1;
+Database	Create Database
+test1	CREATE DATABASE `test1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
+DROP DATABASE test1;

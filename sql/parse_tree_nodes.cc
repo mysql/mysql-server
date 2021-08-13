@@ -1708,7 +1708,8 @@ bool set_default_charset(HA_CREATE_INFO *create_info,
              value->csname);
     return true;
   }
-  create_info->default_table_charset = value;
+  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) == 0)
+    create_info->default_table_charset = value;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
   return false;
 }
