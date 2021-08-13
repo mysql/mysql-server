@@ -8235,7 +8235,8 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
     case MYSQL_OPT_SSL_FIPS_MODE: {
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
-      mysql->options.extension->ssl_fips_mode = *static_cast<const uint *>(arg);
+      mysql->options.extension->ssl_fips_mode =
+          *static_cast<const ulong *>(arg);
       if (set_fips_mode(mysql->options.extension->ssl_fips_mode,
                         ssl_err_string) != 1) {
         DBUG_PRINT("error", ("fips mode set error %s:", ssl_err_string));
