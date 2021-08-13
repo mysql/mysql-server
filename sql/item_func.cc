@@ -6726,13 +6726,21 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   *out_entry = var_entry;
 
   /*
+    In cases when this function is called for a sub-statement, we can't
+    rely on OPTION_BIN_LOG flag in THD::variables.option_bits bitmap
+    to determine whether binary logging is turned on, as this bit can be
+    cleared before executing sub-statement. So instead we have to look
+    at THD::variables::sql_log_bin member.
+  */
+  bool log_on = mysql_bin_log.is_open() && thd->variables.sql_log_bin;
+
+  /*
     Any reference to user-defined variable which is done from stored
     function or trigger affects their execution and the execution of the
     calling statement. We must log all such variables even if they are
     not involved in table-updating statements.
   */
-  if (!(opt_bin_log && (is_update_query(sql_command) || thd->in_sub_stmt)))
-    return 0;
+  if (!(log_on && (is_update_query(sql_command) || thd->in_sub_stmt))) return 0;
 
   if (var_entry == nullptr) {
     /*

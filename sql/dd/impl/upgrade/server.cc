@@ -446,7 +446,6 @@ bool fix_sys_schema(THD *thd) {
 
   const char **query_ptr;
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_SYS_SCHEMA);
-  thd->user_var_events_alloc = thd->mem_root;
   for (query_ptr = &mysql_sys_schema[0]; *query_ptr != nullptr; query_ptr++)
     if (ignore_error_and_execute(thd, *query_ptr)) return true;
   thd->mem_root->Clear();
@@ -808,7 +807,8 @@ bool upgrade_system_schemas(THD *thd) {
   Server_option_guard<bool> acl_guard(&opt_noacl, true);
   Server_option_guard<bool> general_log_guard(&opt_general_log, false);
   Server_option_guard<bool> slow_log_guard(&opt_slow_log, false);
-  Server_option_guard<bool> bin_log_guard(&thd->variables.sql_log_bin, false);
+  Disable_binlog_guard disable_binlog(thd);
+  Disable_sql_log_bin_guard disable_sql_log_bin(thd);
 
   uint server_version = MYSQL_VERSION_ID;
   bool exists_version = false;
