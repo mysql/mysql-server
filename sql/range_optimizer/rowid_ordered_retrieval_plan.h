@@ -83,7 +83,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
                     Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans_arg,
                     Cost_estimate index_scan_cost_arg, bool is_covering_arg,
                     ROR_SCAN_INFO *cpk_scan_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg),
         intersect_scans(intersect_scans_arg),
         cpk_scan(cpk_scan_arg),
@@ -120,7 +120,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/-1,
+      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg) {}
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
