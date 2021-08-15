@@ -65,6 +65,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
@@ -1566,19 +1567,18 @@ bool Explain_join::explain_extra() {
     }
 
     if (tab->lateral_derived_tables_depend_on_me) {
-      auto deps = tab->lateral_derived_tables_depend_on_me;
       StringBuffer<64> buff(cs);
       bool first = true;
-      for (QEP_TAB **tab2 = join->map2qep_tab; deps; tab2++, deps >>= 1) {
-        if (deps & 1) {
-          if (!first) buff.append(",");
-          first = false;
-          if (store_table_name((*tab2)->table_ref, fmt,
-                               [&](const char *name, size_t len) {
-                                 return buff.append(name, len);
-                               }))
-            return true;
-        }
+      for (int table_idx :
+           BitsSetIn(tab->lateral_derived_tables_depend_on_me)) {
+        QEP_TAB *tab2 = &join->qep_tab[table_idx];
+        if (!first) buff.append(",");
+        first = false;
+        if (store_table_name(tab2->table_ref, fmt,
+                             [&](const char *name, size_t len) {
+                               return buff.append(name, len);
+                             }))
+          return true;
       }
       if (push_extra(ET_REMATERIALIZE, buff)) return true;
     }
