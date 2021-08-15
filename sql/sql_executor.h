@@ -461,7 +461,7 @@ class QEP_TAB : public QEP_shared_owner {
      LDT, for efficiency (less useless calls to QEP_TAB::refresh_lateral())
      and clarity in EXPLAIN.
   */
-  table_map lateral_derived_tables_depend_on_me;
+  qep_tab_map lateral_derived_tables_depend_on_me;
 
   Mem_root_array<const AccessPath *> *invalidators = nullptr;
 

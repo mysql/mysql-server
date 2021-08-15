@@ -842,7 +842,7 @@ static AccessPath *NewInvalidatorAccessPathForTable(
   invalidator->num_output_rows = path->num_output_rows;
   invalidator->cost = path->cost;
 
-  QEP_TAB *tab2 = qep_tab->join()->map2qep_tab[table_index_to_invalidate];
+  QEP_TAB *tab2 = &qep_tab->join()->qep_tab[table_index_to_invalidate];
   if (tab2->invalidators == nullptr) {
     tab2->invalidators =
         new (thd->mem_root) Mem_root_array<const AccessPath *>(thd->mem_root);

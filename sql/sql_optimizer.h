@@ -156,8 +156,6 @@ class JOIN {
   JOIN_TAB **best_ref{nullptr};
   /// mapping between table indexes and JOIN_TABs
   JOIN_TAB **map2table{nullptr};
-  ///< mapping between table indexes and QEB_TABs
-  QEP_TAB **map2qep_tab{nullptr};
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by

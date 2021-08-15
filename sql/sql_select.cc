@@ -76,6 +76,7 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/replace_item.h"
 #include "sql/json_dom.h"
@@ -3244,7 +3245,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
       */
       if (last != NO_PLAN_IDX) {
         QEP_TAB &t = join->qep_tab[last];
-        t.lateral_derived_tables_depend_on_me |= table_ref->map();
+        t.lateral_derived_tables_depend_on_me |= TableBitmap(i);
         trace_refine_table.add_utf8("rematerialized_for_each_row_of",
                                     t.table()->alias);
       }
@@ -4765,19 +4766,6 @@ void JOIN::refresh_base_slice() {
 
 void JOIN::unplug_join_tabs() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-
-  /*
-    During execution we will need to access QEP_TABs by map.
-    map2table points to JOIN_TABs which are to be trashed a few lines down; so
-    we won't use map2table, but build a similar map2qep_tab; no need to
-    allocate new space for this array, we can reuse that of map2table.
-  */
-  static_assert(sizeof(QEP_TAB *) == sizeof(JOIN_TAB *), "");
-  void *storage = reinterpret_cast<void *>(map2table);
-  map2qep_tab = reinterpret_cast<QEP_TAB **>(storage);
-  for (uint i = 0; i < tables; ++i)
-    if (best_ref[i]->table_ref)
-      map2qep_tab[best_ref[i]->table_ref->tableno()] = &qep_tab[i];
 
   map2table = nullptr;
 
