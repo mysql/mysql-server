@@ -2418,6 +2418,11 @@ void free_tmp_table(TABLE *table) {
          share->ref_count() > 0 && share->tmp_open_count == 0 &&
          share->tmp_handler_count < share->ref_count());
 
+  if (table->pos_in_table_list != nullptr &&
+      table->pos_in_table_list->common_table_expr() != nullptr) {
+    table->pos_in_table_list->common_table_expr()->remove_table(
+        table->pos_in_table_list);
+  }
   /*
     In create_tmp_table(), the share's memroot is allocated inside own_root
     and is then made a copy of own_root, so it is inside its memory blocks,

@@ -4240,6 +4240,8 @@ class Common_table_expr {
       : references(mem_root), recursive(false), tmp_tables(mem_root) {}
   TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
   bool substitute_recursive_reference(THD *thd, Query_block *sl);
+  /// Remove one table reference.
+  void remove_table(TABLE_LIST *tr);
   /// Empties the materialized CTE and informs all of its clones.
   bool clear_all_references();
   /**
