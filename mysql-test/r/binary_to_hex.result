@@ -126,8 +126,7 @@ c9: 0x000000000101000000000000000000F03F000000000000F03F
 # "SELECT _binary''" XML
 <?xml version="1.0"?>
 
-<resultset statement="SELECT _binary''
-" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<resultset statement="SELECT _binary''" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <row>
 	<field name="">0x</field>
   </row>

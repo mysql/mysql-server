@@ -77,17 +77,17 @@ DROP TABLE t1, t2;
 
 --echo
 --echo # "SELECT _binary''"
---exec $MYSQL test --binary-as-hex -e "SELECT _binary''";
+--exec $MYSQL test --binary-as-hex -e "SELECT _binary'';"
 --echo 
 --echo # "SELECT _binary''" XML
---exec $MYSQL test --binary-as-hex --xml -e "SELECT _binary''";
+--exec $MYSQL test --binary-as-hex --xml -e "SELECT _binary'';"
 --echo
 --echo # "SELECT _binary''" HTML
---exec $MYSQL test --binary-as-hex --html -e "SELECT _binary''";
+--exec $MYSQL test --binary-as-hex --html -e "SELECT _binary'';"
 --echo
 --echo
 --echo # "SELECT _binary''" VERTICAL
---exec $MYSQL test --binary-as-hex --vertical -e "SELECT _binary''";
+--exec $MYSQL test --binary-as-hex --vertical -e "SELECT _binary'';"
 
 # Wait till all disconnects are completed
  --source include/wait_until_count_sessions.inc
