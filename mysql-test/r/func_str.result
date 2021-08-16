@@ -5482,3 +5482,33 @@ NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '2020' for function str_to_date
 DROP VIEW v;
+#
+# Bug #33180446 SPACE(): Item_str_func::push_packet_overflow_warning:
+#               Assertion `is_nullable()' failed.
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT space(9223372036854775808);
+space(9223372036854775808)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+SELECT length(space(9223372036854775809));
+length(space(9223372036854775809))
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+CREATE TABLE t(i BIGINT UNSIGNED);
+INSERT INTO t values(9223372036854775808);
+SELECT space(i) FROM t;
+space(i)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+DROP TABLE t;
+SET @@collation_connection = 'utf32_bin';
+SELECT space(1073741824);
+space(1073741824)
+NULL
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+SET @@collation_connection = default;

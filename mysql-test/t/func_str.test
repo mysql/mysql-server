@@ -2331,3 +2331,28 @@ CREATE VIEW v AS SELECT STR_TO_DATE('2020', 1 NOT IN (0)) AS c;
 SHOW CREATE TABLE v;
 SELECT * FROM v;
 DROP VIEW v;
+
+--echo #
+--echo # Bug #33180446 SPACE(): Item_str_func::push_packet_overflow_warning:
+--echo #               Assertion `is_nullable()' failed.
+
+# set_nullable(is_nullable() || thd->is_strict_mode());
+--source include/turn_off_strict_mode.inc
+
+SELECT space(9223372036854775808);
+SELECT length(space(9223372036854775809));
+
+CREATE TABLE t(i BIGINT UNSIGNED);
+INSERT INTO t values(9223372036854775808);
+
+SELECT space(i) FROM t;
+
+DROP TABLE t;
+
+SET @@collation_connection = 'utf32_bin';
+
+SELECT space(1073741824);
+
+SET @@collation_connection = default;
+
+--source include/restore_strict_mode.inc

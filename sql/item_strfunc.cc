@@ -2486,42 +2486,47 @@ bool Item_func_space::resolve_type(THD *thd) {
   if (args[0]->const_item() && args[0]->may_eval_const_item(thd)) {
     /* must be longlong to avoid truncation */
     longlong count = args[0]->val_int();
-    if (args[0]->null_value) goto end;
+    if (thd->is_error()) return true;
+
+    if (args[0]->null_value) count = 0;
     /*
      Assumes that the maximum length of a String is < INT_MAX32.
      Set here so that rest of code sees out-of-bound value as such.
     */
-    if (count > INT_MAX32) count = INT_MAX32;
+    Integer_value count_val(count, args[0]->unsigned_flag);
+    if (count_val.is_negative())
+      count = 0;
+    else if (Integer_value(INT_MAX32, false) < count_val)
+      count = INT_MAX32;
+
     set_data_type_string(ulonglong(count));
     set_nullable(is_nullable() ||
                  max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
-end:
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
   set_nullable(true);
   return false;
 }
 
 String *Item_func_space::val_str(String *str) {
-  uint tot_length;
   longlong count = args[0]->val_int();
   const CHARSET_INFO *cs = collation.collation;
 
-  if (args[0]->null_value) return error_str();  // string and/or delim are null
+  if (args[0]->null_value) return null_return_str();
   null_value = false;
 
-  if (count <= 0 && (count == 0 || !args[0]->unsigned_flag))
+  if (count == 0 || Integer_value(count, args[0]->unsigned_flag).is_negative())
     return make_empty_result();
   /*
    Assumes that the maximum length of a String is < INT_MAX32.
    Bounds check on count:  If this is triggered, we will error.
   */
-  if ((ulonglong)count > INT_MAX32) count = INT_MAX32;
+  if (static_cast<ulonglong>(count) > INT_MAX32) count = INT_MAX32;
 
   // Safe length check
-  tot_length = (uint)count * cs->mbminlen;
+  ulonglong tot_length = count * cs->mbminlen;
   if (tot_length > current_thd->variables.max_allowed_packet) {
     return push_packet_overflow_warning(current_thd, func_name());
   }
