@@ -805,6 +805,9 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+    foreach (@tests_list) {
+      $_->{key} = "$_" unless defined $_->{key};
+    }
     my %is_completed_map = map { $_->{key} => 1 } @$completed;
     my @not_completed;
     foreach (@tests_list) {
@@ -812,7 +815,11 @@ sub main {
         push (@not_completed, $_->{name});
       }
     }
-    mtr_error("Not all tests completed:", join(", ", @not_completed));
+    if (int(@not_completed) <= 100) {
+      mtr_error("Not all tests completed:", join(" ", @not_completed));
+    } else {
+      mtr_error("Not all tests completed:", join(" ", @not_completed[0...49]), "... and", int(@not_completed)-50, "more");
+    }
   }
 
   mark_time_used('init');
