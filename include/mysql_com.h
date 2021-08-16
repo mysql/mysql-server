@@ -1053,16 +1053,14 @@ enum enum_session_state_type {
   SESSION_TRACK_STATE_CHANGE,     /**< track session state changes */
   SESSION_TRACK_GTIDS,            /**< See also: session_track_gtids */
   SESSION_TRACK_TRANSACTION_CHARACTERISTICS, /**< Transaction chistics */
-  SESSION_TRACK_TRANSACTION_STATE,           /**< Transaction state */
-  /** Track client plugin info during authentication */
-  SESSION_TRACK_CLIENT_PLUGIN_INFO
+  SESSION_TRACK_TRANSACTION_STATE            /**< Transaction state */
 };
 
 /** start of ::enum_session_state_type */
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
 /** End of ::enum_session_state_type */
-#define SESSION_TRACK_END SESSION_TRACK_CLIENT_PLUGIN_INFO
+#define SESSION_TRACK_END SESSION_TRACK_TRANSACTION_STATE
 
 /** is T a valid session state type */
 #define IS_SESSION_STATE_TYPE(T) \
