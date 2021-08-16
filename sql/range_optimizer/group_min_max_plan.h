@@ -48,6 +48,8 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
  private:
   bool have_min;  ///< true if there is a MIN function
   bool have_max;  ///< true if there is a MAX function
+  List<Item_sum> min_functions;
+  List<Item_sum> max_functions;
   /**
     true if there is an aggregate distinct function, e.g.
     "COUNT(DISTINCT x)"
@@ -91,28 +93,7 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
       ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
       KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
       uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
-      Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg)
-      : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
-                        /*forced_by_hint_arg=*/false),
-        have_min(have_min_arg),
-        have_max(have_max_arg),
-        have_agg_distinct(have_agg_distinct_arg),
-        min_max_arg_part(min_max_arg_part_arg),
-        group_prefix_len(group_prefix_len_arg),
-        group_key_parts(group_key_parts_arg),
-        index_info(index_info_arg),
-        key_infix_len(key_infix_len_arg),
-        index_tree_tracing_only(index_tree_arg),
-        is_index_scan(false),
-        join(join_arg),
-        used_key_part(used_key_part_arg),
-        keyno(keyno_arg),
-        real_key_parts(real_key_parts_arg),
-        max_used_key_length(max_used_key_length_arg),
-        key_infix_ranges(std::move(key_infix_ranges_arg)),
-        min_max_ranges(std::move(min_max_ranges_arg)),
-        prefix_ranges(std::move(prefix_ranges_arg)),
-        quick_prefix_records(quick_prefix_records_arg) {}
+      Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg);
 
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *mem_root) override;

@@ -82,6 +82,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
 
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     TABLE *table, JOIN *join_arg, bool have_min_arg, bool have_max_arg,
+    List<Item_sum> min_functions_arg, List<Item_sum> max_functions_arg,
     bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
     uint group_prefix_len_arg, uint group_key_parts_arg,
     uint used_key_parts_arg, uint real_key_parts_arg,
@@ -102,6 +103,8 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       key_infix_len(key_infix_len_arg),
       min_max_ranges(std::move(min_max_ranges_arg)),
       key_infix_ranges(std::move(key_infix_ranges_arg)),
+      min_functions(min_functions_arg),
+      max_functions(max_functions_arg),
       is_index_scan(is_index_scan_arg),
       mem_root(return_mem_root),
       quick_prefix_query_block(quick_prefix_query_block_arg) {
@@ -152,17 +155,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
   if (!(group_prefix =
             (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
     return 1;
-
-  if (min_max_arg_part) {
-    Item_sum *min_max_item;
-    Item_sum **func_ptr = join->sum_funcs;
-    while ((min_max_item = *(func_ptr++))) {
-      if (have_min && (min_max_item->sum_func() == Item_sum::MIN_FUNC))
-        min_functions.push_back(min_max_item);
-      else if (have_max && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
-        max_functions.push_back(min_max_item);
-    }
-  }
 
   return 0;
 }

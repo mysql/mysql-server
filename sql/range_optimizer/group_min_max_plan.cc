@@ -73,6 +73,51 @@ using std::min;
 static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
                       uint key_length, Quick_ranges *range_array);
 
+TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(
+    bool have_min_arg, bool have_max_arg, bool have_agg_distinct_arg,
+    KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
+    uint used_key_parts_arg, uint group_key_parts_arg, KEY *index_info_arg,
+    uint index_arg, uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
+    ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
+    KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
+    uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
+    Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg)
+    : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
+                      /*forced_by_hint_arg=*/false),
+      have_min(have_min_arg),
+      have_max(have_max_arg),
+      have_agg_distinct(have_agg_distinct_arg),
+      min_max_arg_part(min_max_arg_part_arg),
+      group_prefix_len(group_prefix_len_arg),
+      group_key_parts(group_key_parts_arg),
+      index_info(index_info_arg),
+      key_infix_len(key_infix_len_arg),
+      index_tree_tracing_only(index_tree_arg),
+      is_index_scan(false),
+      join(join_arg),
+      used_key_part(used_key_part_arg),
+      keyno(keyno_arg),
+      real_key_parts(real_key_parts_arg),
+      max_used_key_length(max_used_key_length_arg),
+      key_infix_ranges(std::move(key_infix_ranges_arg)),
+      min_max_ranges(std::move(min_max_ranges_arg)),
+      prefix_ranges(std::move(prefix_ranges_arg)),
+      quick_prefix_records(quick_prefix_records_arg) {
+  // Extract the list of MIN and MAX functions; join->sum_funcs will change
+  // after temporary table setup, so it needs to be done before the iterator
+  // is created.
+  if (min_max_arg_part) {
+    Item_sum *min_max_item;
+    Item_sum **func_ptr = join->sum_funcs;
+    while ((min_max_item = *(func_ptr++))) {
+      if (have_min_arg && (min_max_item->sum_func() == Item_sum::MIN_FUNC))
+        min_functions.push_back(min_max_item);
+      else if (have_max_arg && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
+        max_functions.push_back(min_max_item);
+    }
+  }
+}
+
 void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_group")
@@ -1684,11 +1729,11 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
   // here, so that make_quick() can be made const.
   unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
       new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-          table, join, have_min, have_max, have_agg_distinct, min_max_arg_part,
-          group_prefix_len, group_key_parts, used_key_parts, real_key_parts,
-          max_used_key_length, index_info, index, &cost_est, records,
-          key_infix_len, return_mem_root, is_index_scan,
-          quick_prefix_query_block, std::move(key_infix_ranges),
+          table, join, have_min, have_max, min_functions, max_functions,
+          have_agg_distinct, min_max_arg_part, group_prefix_len,
+          group_key_parts, used_key_parts, real_key_parts, max_used_key_length,
+          index_info, index, &cost_est, records, key_infix_len, return_mem_root,
+          is_index_scan, quick_prefix_query_block, std::move(key_infix_ranges),
           std::move(min_max_ranges)));
   if (!quick) return nullptr;
   assert(quick->index == index);
