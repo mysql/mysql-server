@@ -1111,7 +1111,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
-       is_destination_standalone)) {
+       is_destination_standalone_)) {
     // For standalone destination with first-available strategy we always try
     // to open a listening socket, even if there are no destinations.
     auto res = start_accepting_connections(env);
@@ -1120,7 +1120,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     // allow for it to happen, in that case we pass that information to the
     // destination, socket acceptor state should be handled basend on the
     // destination type.
-    if (!is_destination_standalone) destination_->handle_sockets_acceptors();
+    if (!is_destination_standalone_) destination_->handle_sockets_acceptors();
     // If we failed to start accepting connections on startup then router
     // should fail.
     if (!res) return res.get_unexpected();
@@ -1532,7 +1532,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
     routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
 
-  is_destination_standalone = true;
+  is_destination_standalone_ = true;
   destination_ = create_standalone_destination(
       io_ctx_, routing_strategy_, context_.get_protocol(),
       context_.get_thread_stack_size());

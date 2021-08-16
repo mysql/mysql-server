@@ -325,7 +325,7 @@ class MySQLRouting : public MySQLRoutingBase {
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
 
-  bool is_destination_standalone{false};
+  bool is_destination_standalone_{false};
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;
