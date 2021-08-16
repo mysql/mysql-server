@@ -2892,7 +2892,8 @@ type_conversion_status Field_new_decimal::store(
         thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
         errmsg.ptr(), field_name, da->current_row_for_condition());
-    return decimal_err_to_type_conv_status(err);
+    return err != E_DEC_BAD_NUM ? decimal_err_to_type_conv_status(err)
+                                : store_value(&decimal_value);
   }
 
   if (err != 0) {
@@ -2906,7 +2907,9 @@ type_conversion_status Field_new_decimal::store(
 #endif
 
   type_conversion_status store_stat = store_value(&decimal_value);
-  return err != 0 ? decimal_err_to_type_conv_status(err) : store_stat;
+  return (err != 0 && err != E_DEC_BAD_NUM)
+             ? decimal_err_to_type_conv_status(err)
+             : store_stat;
 }
 
 type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
