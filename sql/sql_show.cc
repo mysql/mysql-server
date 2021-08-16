@@ -3512,7 +3512,10 @@ extern ST_SCHEMA_TABLE schema_tables[];
 bool schema_table_store_record(THD *thd, TABLE *table) {
   int error;
   if ((error = table->file->ha_write_row(table->record[0]))) {
-    if (create_ondisk_from_heap(thd, table, error, false, nullptr)) return true;
+    if (create_ondisk_from_heap(thd, table, error, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/false,
+                                /*is_duplicate=*/nullptr))
+      return true;
   }
   return false;
 }
@@ -3546,7 +3549,9 @@ int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk) {
   @return false on success, true on error.
 */
 bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
-  return (create_ondisk_from_heap(thd, table, error, false, nullptr));
+  return (create_ondisk_from_heap(
+      thd, table, error, /*insert_last_record=*/true,
+      /*ignore_last_dup=*/false, /*is_duplicate=*/nullptr));
 }
 
 /**

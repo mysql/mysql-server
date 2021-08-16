@@ -69,3 +69,26 @@ SET DEBUG='+d,create_duplicate_weedout_tmp_table_error';
 SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';
 DROP TABLE t;
 SET optimizer_switch = DEFAULT;
+
+--echo #
+--echo # Bug#31117893 - GROUP BY WILL THROW TABLE IS
+--echo #   FULL WHEN TEMPTABLE MEMORY ALLOCATION EXCEED LIMIT
+--echo #
+
+CREATE TABLE t1(
+  id INT,
+  pad VARCHAR(60),
+  pad1 VARCHAR(513)
+);
+
+INSERT INTO t1 VALUES (1, REPEAT('a',59), REPEAT('a',512));
+INSERT INTO t1 VALUES (2, REPEAT('a',59), REPEAT('a',512));
+
+SET SESSION debug = '+d, simulate_temp_storage_engine_full';
+SELECT COUNT(*), pad FROM t1 GROUP BY pad;
+# Group-by a bigger column forces the temp-table to use a
+# hash based unique constraint.
+SELECT COUNT(*), pad1 FROM t1 GROUP BY pad1;
+SET SESSION debug = '-d, simulate_temp_storage_engine_full';
+
+DROP TABLE t1;

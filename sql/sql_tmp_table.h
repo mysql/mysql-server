@@ -62,7 +62,8 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                                     ulonglong select_options = 0,
                                     const char *alias = nullptr);
 bool create_ondisk_from_heap(THD *thd, TABLE *table, int error,
-                             bool ignore_last_dup, bool *is_duplicate);
+                             bool insert_last_record, bool ignore_last_dup,
+                             bool *is_duplicate);
 void close_tmp_table(TABLE *table);
 void free_tmp_table(TABLE *table);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,

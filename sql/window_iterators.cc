@@ -156,7 +156,8 @@ bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate))
+    if (create_ondisk_from_heap(thd, t, error, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/true, &is_duplicate))
       return true;
 
     assert(t->s->db_type() == innodb_hton);
