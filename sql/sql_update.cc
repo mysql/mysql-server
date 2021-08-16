@@ -2424,9 +2424,10 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       /* Write row, ignoring duplicated updates to a row */
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE) {
-        if (error &&
-            (create_ondisk_from_heap(thd, tmp_table, error, true, nullptr) ||
-             tmp_table->file->ha_index_init(0, false /*sorted*/))) {
+        if (error && (create_ondisk_from_heap(
+                          thd, tmp_table, error, /*insert_last_record=*/true,
+                          /*ignore_last_dup=*/true, /*is_duplicate=*/nullptr) ||
+                      tmp_table->file->ha_index_init(0, false /*sorted*/))) {
           update_completed = true;
           return true;  // Not a table_is_full error
         }

@@ -875,7 +875,9 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
     // create_ondisk_from_heap will generate error if needed.
     if (!table()->file->is_ignorable_error(error)) {
       bool is_duplicate;
-      if (create_ondisk_from_heap(thd(), table(), error, true, &is_duplicate))
+      if (create_ondisk_from_heap(thd(), table(), error,
+                                  /*insert_last_record=*/true,
+                                  /*ignore_last_dup=*/true, &is_duplicate))
         return true; /* purecov: inspected */
       // Table's engine changed; index is not initialized anymore.
       if (table()->hash_field) table()->file->ha_index_init(0, false);
@@ -1018,6 +1020,31 @@ int StreamingIterator::Read() {
   return 0;
 }
 
+/**
+  Move the in-memory temporary table to disk.
+
+  @param[in] error_code The error code because of which the table
+                        is being moved to disk.
+  @param[in] was_insert True, if the table is moved to disk during
+                        an insert operation.
+
+  @returns true if error.
+*/
+bool TemptableAggregateIterator::move_table_to_disk(int error_code,
+                                                    bool was_insert) {
+  if (create_ondisk_from_heap(thd(), table(), error_code, was_insert,
+                              /*ignore_last_dup=*/false,
+                              /*is_duplicate=*/nullptr)) {
+    return true;
+  }
+  int error = table()->file->ha_index_init(0, false);
+  if (error != 0) {
+    PrintError(error);
+    return true;
+  }
+  return false;
+}
+
 TemptableAggregateIterator::TemptableAggregateIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
@@ -1117,11 +1144,47 @@ bool TemptableAggregateIterator::Init() {
       if (thd()->is_error()) {
         return true;
       }
+      DBUG_EXECUTE_IF("simulate_temp_storage_engine_full",
+                      DBUG_SET("+d,temptable_allocator_record_file_full"););
       int error =
           table()->file->ha_update_row(table()->record[1], table()->record[0]);
+
+      DBUG_EXECUTE_IF("simulate_temp_storage_engine_full",
+                      DBUG_SET("-d,temptable_allocator_record_file_full"););
+      /*
+        The agrregation can result in a row update with the same values,
+        ignore the error. In case the temporary table has exhausted the memory
+        (error HA_ERR_RECORD_FILE_FULL checked in create_ondisk_from_heap()),
+        move the table to disk and retry the update operation.
+      */
       if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
-        PrintError(error);
-        return true;
+        if (move_table_to_disk(error, /*insert_operation=*/false)) {
+          end_unique_index.commit();
+          return true;
+        }
+        /*
+          The key of the temporary table can be a hash of the group-by columns
+          or the group-by columns themselves. Find the row to be updated in the
+          newly created table.
+        */
+        const uchar *key;
+        if (using_hash_key()) {
+          key = table()->hash_field->field_ptr();
+        } else {
+          key = m_temp_table_param->group_buff;
+        }
+        // Read the record to be updated.
+        if (table()->file->ha_index_read_map(table()->record[1], key,
+                                             HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
+          return true;
+        }
+        // Retry the update on the newly created on-disk table.
+        error = table()->file->ha_update_row(table()->record[1],
+                                             table()->record[0]);
+        if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
+          PrintError(error);
+          return true;
+        }
       }
       continue;
     }
@@ -1185,15 +1248,9 @@ bool TemptableAggregateIterator::Init() {
           }
         }
       }
-      if (create_ondisk_from_heap(thd(), table(), error, false, nullptr)) {
+
+      if (move_table_to_disk(error, /*insert_operation=*/true)) {
         end_unique_index.commit();
-        return true;  // Not a table_is_full error.
-      }
-      // Table's engine changed, index is not initialized anymore
-      error = table()->file->ha_index_init(0, false);
-      if (error != 0) {
-        end_unique_index.commit();
-        PrintError(error);
         return true;
       }
     }

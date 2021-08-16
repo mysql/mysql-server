@@ -2436,14 +2436,20 @@ void free_tmp_table(TABLE *table) {
   If a MEMORY table gets full, create a disk-based table and copy all rows
   to this.
 
-  @param thd             THD reference
-  @param wtable          Table reference being written to
-  @param error           Reason why inserting into MEMORY table failed.
-  @param ignore_last_dup If true, ignore duplicate key error for last
-                         inserted key (see detailed description below).
-  @param [out] is_duplicate if non-NULL and ignore_last_dup is true,
-                         return true if last key was a duplicate,
-                         and false otherwise.
+  @param[in] thd                THD reference
+  @param[in] wtable             Table reference being written to
+  @param[in] error              Reason why inserting into MEMORY table failed.
+  @param[in] insert_last_record If true, the last record(table->record[0])
+                                is inserted into the newly created table after
+                                copying all the records from the temp table.
+                                If false, the last record is not inserted
+                                and the paramters ignore_last_dup, is_duplicate
+                                are ignored.
+  @param[in] ignore_last_dup    If true, ignore duplicate key error for last
+                                inserted key (see detailed description below).
+  @param [out] is_duplicate     If non-NULL and ignore_last_dup is true,
+                                return true if last key was a duplicate,
+                                and false otherwise.
 
   @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
@@ -2453,13 +2459,18 @@ void free_tmp_table(TABLE *table) {
     switches to use the new table within the table handle.
     The function uses table->record[1] as a temporary buffer while copying.
 
-    The function assumes that table->record[0] contains the row that caused
-    the error when inserting into the MEMORY table (the "last row").
-    After all existing rows have been copied to the new table, the last row
-    is attempted to be inserted as well. If ignore_last_dup is true,
-    this row can be a duplicate of an existing row without throwing an error.
-    If is_duplicate is non-NULL, an indication of whether the last row was
-    a duplicate is returned.
+    If the parameter insert_last_record is true, this function assumes that
+    table->record[0] contains the row that caused the error when inserting
+    into the MEMORY table (the "last row"). After all existing rows have been
+    copied to the new table,the last row is attempted to be inserted as well.
+    If ignore_last_dup is true, this row can be a duplicate of an existing row
+    without throwing an error. If is_duplicate is non-NULL, an indication of
+    whether the last row was a duplicate is returned.
+
+    If the parameter insert_last_record is false, this function makes no
+    assumptions on the operation and will not try an insert of the last
+    record(table->record[0]). The caller is expected to handle the operation
+    after moving to disk.
 
   @note that any index/scan access initialized on the MEMORY 'wtable' is not
   replicated to the on-disk table - it's the caller's responsibility.
@@ -2490,7 +2501,8 @@ void free_tmp_table(TABLE *table) {
 */
 
 bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
-                             bool ignore_last_dup, bool *is_duplicate) {
+                             bool insert_last_record, bool ignore_last_dup,
+                             bool *is_duplicate) {
   int write_err = 0;
   bool table_on_disk = false;
   DBUG_TRACE;
@@ -2659,16 +2671,17 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
           DBUG_EXECUTE_IF("raise_error", write_err = HA_ERR_FOUND_DUPP_KEY;);
           if (write_err) goto err_after_open;
         }
-        /* copy row that filled HEAP table */
-        if ((write_err = new_table.file->ha_write_row(table->record[0]))) {
-          if (!new_table.file->is_ignorable_error(write_err) ||
-              !ignore_last_dup)
-            goto err_after_open;
-          if (is_duplicate) *is_duplicate = true;
-        } else {
-          if (is_duplicate) *is_duplicate = false;
+        if (insert_last_record) {
+          /* copy row that filled in-memory table */
+          if ((write_err = new_table.file->ha_write_row(table->record[0]))) {
+            if (!new_table.file->is_ignorable_error(write_err) ||
+                !ignore_last_dup)
+              goto err_after_open;
+            if (is_duplicate) *is_duplicate = true;
+          } else {
+            if (is_duplicate) *is_duplicate = false;
+          }
         }
-
         (void)table->file->ha_rnd_end();
 #ifndef NDEBUG
         rows_on_disk = true;

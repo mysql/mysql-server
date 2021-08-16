@@ -978,7 +978,9 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;
-    if (create_ondisk_from_heap(thd, m_table, res, false, &dup) || dup)
+    if (create_ondisk_from_heap(thd, m_table, res, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/false, &dup) ||
+        dup)
       return true;
   }
   return false;

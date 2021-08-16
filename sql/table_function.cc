@@ -71,7 +71,9 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(current_thd, table, error, true, nullptr))
+        create_ondisk_from_heap(
+            current_thd, table, error, /*insert_last_record=*/true,
+            /*ignore_last_dup=*/true, /*is_duplicate=*/nullptr))
       return true;  // Not a table_is_full error
   }
   return false;

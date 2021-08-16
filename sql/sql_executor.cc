@@ -3308,8 +3308,9 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
       Other error than duplicate error: Attempt to create a temporary table.
     */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, sjtbl->tmp_table, error, true,
-                                &is_duplicate))
+    if (create_ondisk_from_heap(thd, sjtbl->tmp_table, error,
+                                /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/true, &is_duplicate))
       return -1;
     return is_duplicate ? 1 : 0;
   }

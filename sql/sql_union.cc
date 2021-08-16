@@ -124,7 +124,8 @@ bool Query_result_union::send_data(THD *thd,
   // create_ondisk_from_heap will generate error if needed
   if (!table->file->is_ignorable_error(error)) {
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, table, error, true, &is_duplicate))
+    if (create_ondisk_from_heap(thd, table, error, /*insert_last_record=*/true,
+                                /*ignore_last_dup=*/true, &is_duplicate))
       return true; /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field) table->file->ha_index_init(0, false);

@@ -731,6 +731,8 @@ class TemptableAggregateIterator final : public TableRowIterator {
 
   // See MaterializeIterator::doing_hash_deduplication().
   bool using_hash_key() const { return table()->hash_field; }
+
+  bool move_table_to_disk(int error, bool was_insert);
 };
 
 /**
