@@ -3876,6 +3876,18 @@ enum enum_gtid_statement_status {
 };
 
 #ifdef MYSQL_SERVER
+
+/**
+  Check if current transaction should be skipped, that is, if GTID_NEXT
+  was already logged.
+
+  @param  thd    The calling thread.
+
+  @retval true   Transaction was already logged.
+  @retval false  Transaction must be executed.
+*/
+bool is_already_logged_transaction(const THD *thd);
+
 /**
   Perform GTID-related checks before executing a statement:
 

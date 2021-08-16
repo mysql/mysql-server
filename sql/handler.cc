@@ -1617,7 +1617,12 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     enclosing 'all' transaction is rolled back.
   */
   bool is_real_trans = all || !trn_ctx->is_active(Transaction_ctx::SESSION);
-
+#ifndef NDEBUG
+  bool transaction_to_skip = false;
+  DBUG_EXECUTE_IF("replica_crash_after_commit", {
+    transaction_to_skip = is_already_logged_transaction(thd);
+  });
+#endif  // NDEBUG
   Ha_trx_info *ha_info = trn_ctx->ha_trx_info(trx_scope);
   XID_STATE *xid_state = trn_ctx->xid_state();
 
@@ -1828,7 +1833,7 @@ end:
           thd->rli_slave->current_event->get_type_code() ==
               binary_log::XID_EVENT &&
           !thd->is_operating_substatement_implicitly &&
-          !thd->is_operating_gtid_table_implicitly)
+          !thd->is_operating_gtid_table_implicitly && !transaction_to_skip)
         DBUG_SUICIDE();
     });
   }
