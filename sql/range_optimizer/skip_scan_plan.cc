@@ -124,9 +124,9 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   QUICK_SKIP_SCAN_SELECT *quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
       table, index_info, index, range_key_part, index_range_tree, eq_prefix_len,
-      eq_prefix_key_parts, used_key_parts, &cost_est, records, return_mem_root,
-      has_aggregate_function, min_range_key, max_range_key, min_search_key,
-      max_search_key, range_cond_flag, range_key_len);
+      eq_prefix_key_parts, eq_prefixes, used_key_parts, &cost_est, records,
+      return_mem_root, has_aggregate_function, min_range_key, max_range_key,
+      min_search_key, max_search_key, range_cond_flag, range_key_len);
 
   if (!quick) return nullptr;
 
@@ -234,9 +234,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   uint index = 0;
   KEY_PART_INFO *range_key_part = nullptr;
   SEL_ROOT *index_range_tree = nullptr;
-  SEL_ARG *cur_range = nullptr;
   SEL_ARG *range_sel_arg = nullptr;
-  uint field_length;
   uint eq_prefix_len = 0;
   uint eq_prefix_key_parts = 0;
   uint used_key_parts = 0;
@@ -330,10 +328,10 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
         continue;
       }
 
-      cur_range = cur_range_root->root;
+      SEL_ARG *cur_range = cur_range_root->root;
       // There exists a range predicate on the current key part.
       if (keypart_stage == EQUALITY_KEYPART) {
-        field_length = cur_part->store_length;
+        int field_length = cur_part->store_length;
         for (cur_range = cur_range->first(); cur_range;
              cur_range = cur_range->next) {
           // NEAR_MIN/NEAR_MAX means a strict inequality.
@@ -483,11 +481,59 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   }
 
   /* The query passes all tests, so construct a new TRP object. */
+  EQPrefix *eq_prefixes = nullptr;
+  if (eq_prefix_key_parts > 0) {
+    eq_prefixes = mem_root->ArrayAlloc<EQPrefix>(eq_prefix_key_parts);
+    if (eq_prefixes == nullptr) {
+      return nullptr;
+    }
+
+    const SEL_ARG *cur_range = index_range_tree->root->first();
+    const SEL_ARG *first_range = nullptr;
+    const SEL_ROOT *cur_root = index_range_tree;
+    for (uint i = 0; i < eq_prefix_key_parts;
+         i++, cur_range = cur_range->next_key_part->root) {
+      eq_prefixes[i].cur_eq_prefix = 0;
+      unsigned num_elements = cur_root->elements;
+      cur_root = cur_range->next_key_part;
+      assert(num_elements > 0);
+      eq_prefixes[i].eq_key_prefixes =
+          Bounds_checked_array<uchar *>::Alloc(mem_root, num_elements);
+
+      uint j = 0;
+      first_range = cur_range->first();
+      for (cur_range = first_range; cur_range;
+           j++, cur_range = cur_range->next) {
+        KEY_PART_INFO *keypart = index_info->key_part + i;
+        size_t field_length = keypart->store_length;
+        //  Store ranges in the reverse order if key part is descending.
+        uint pos = cur_range->is_ascending ? j : num_elements - j - 1;
+
+        if (!(eq_prefixes[i].eq_key_prefixes[pos] =
+                  mem_root->ArrayAlloc<uchar>(field_length)))
+          return nullptr;
+
+        if (cur_range->maybe_null() && cur_range->min_value[0] &&
+            cur_range->max_value[0]) {
+          assert(field_length > 0);
+          eq_prefixes[i].eq_key_prefixes[pos][0] = 0x1;
+        } else {
+          assert(memcmp(cur_range->min_value, cur_range->max_value,
+                        field_length) == 0);
+          memcpy(eq_prefixes[i].eq_key_prefixes[pos], cur_range->min_value,
+                 field_length);
+        }
+      }
+      cur_range = first_range;
+      assert(j == num_elements);
+    }
+  }
+
   TRP_SKIP_SCAN *read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
       table, index_info, index, index_range_tree, eq_prefix_len,
-      eq_prefix_key_parts, range_key_part, used_key_parts, force_skip_scan,
-      best_records, has_aggregate_function, min_range_key, max_range_key,
-      min_search_key, max_search_key, range_cond_flag,
+      eq_prefix_key_parts, eq_prefixes, range_key_part, used_key_parts,
+      force_skip_scan, best_records, has_aggregate_function, min_range_key,
+      max_range_key, min_search_key, max_search_key, range_cond_flag,
       /*range_part_tracing_only=*/range_sel_arg->first(), range_key_len);
   if (read_plan) {
     read_plan->cost_est = best_read_cost;

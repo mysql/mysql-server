@@ -61,6 +61,7 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
     index_range_tree   The complete range key
     eq_prefix_len      Length of the equality prefix key
     eq_prefix_key_parts  Number of keyparts in the equality prefix
+    eq_prefixes        Array of equality constants (IN list)
     used_key_parts_arg Total number of keyparts A_1,...,C
     read_cost_arg      Cost of this access method
     read_records       Number of records returned
@@ -73,15 +74,17 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     TABLE *table, KEY *index_info, uint use_index, KEY_PART_INFO *range_part,
     SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_key_parts,
-    uint used_key_parts_arg, const Cost_estimate *read_cost_arg,
-    ha_rows read_records, MEM_ROOT *return_mem_root,
-    bool has_aggregate_function, uchar *min_range_key_arg,
-    uchar *max_range_key_arg, uchar *min_search_key_arg,
-    uchar *max_search_key_arg, uint range_cond_flag_arg, uint range_key_len_arg)
+    EQPrefix *eq_prefixes, uint used_key_parts_arg,
+    const Cost_estimate *read_cost_arg, ha_rows read_records,
+    MEM_ROOT *return_mem_root, bool has_aggregate_function,
+    uchar *min_range_key_arg, uchar *max_range_key_arg,
+    uchar *min_search_key_arg, uchar *max_search_key_arg,
+    uint range_cond_flag_arg, uint range_key_len_arg)
     : index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
       eq_prefix_key_parts(eq_prefix_key_parts),
+      eq_prefixes(eq_prefixes),
       distinct_prefix(nullptr),
       range_key_part(range_part),
       mem_root(return_mem_root),
@@ -156,53 +159,6 @@ int QUICK_SKIP_SCAN_SELECT::init() {
     if (!eq_prefix) return 1;
   } else {
     eq_prefix = nullptr;
-  }
-
-  if (eq_prefix_key_parts > 0) {
-    eq_prefixes = mem_root->ArrayAlloc<EQPrefix>(eq_prefix_key_parts);
-    if (eq_prefixes == nullptr) {
-      return 1;
-    }
-
-    const SEL_ARG *cur_range = index_range_tree->root->first();
-    const SEL_ARG *first_range = nullptr;
-    const SEL_ROOT *cur_root = index_range_tree;
-    for (uint i = 0; i < eq_prefix_key_parts;
-         i++, cur_range = cur_range->next_key_part->root) {
-      eq_prefixes[i].cur_eq_prefix = 0;
-      unsigned num_elements = cur_root->elements;
-      cur_root = cur_range->next_key_part;
-      assert(num_elements > 0);
-      eq_prefixes[i].eq_key_prefixes =
-          Bounds_checked_array<uchar *>::Alloc(mem_root, num_elements);
-
-      uint j = 0;
-      first_range = cur_range->first();
-      for (cur_range = first_range; cur_range;
-           j++, cur_range = cur_range->next) {
-        KEY_PART_INFO *keypart = index_info->key_part + i;
-        size_t field_length = keypart->store_length;
-        //  Store ranges in the reverse order if key part is descending.
-        uint pos = cur_range->is_ascending ? j : num_elements - j - 1;
-
-        if (!(eq_prefixes[i].eq_key_prefixes[pos] =
-                  mem_root->ArrayAlloc<uchar>(field_length)))
-          return 1;
-
-        if (cur_range->maybe_null() && cur_range->min_value[0] &&
-            cur_range->max_value[0]) {
-          assert(field_length > 0);
-          eq_prefixes[i].eq_key_prefixes[pos][0] = 0x1;
-        } else {
-          assert(memcmp(cur_range->min_value, cur_range->max_value,
-                        field_length) == 0);
-          memcpy(eq_prefixes[i].eq_key_prefixes[pos], cur_range->min_value,
-                 field_length);
-        }
-      }
-      cur_range = first_range;
-      assert(j == num_elements);
-    }
   }
 
   return 0;

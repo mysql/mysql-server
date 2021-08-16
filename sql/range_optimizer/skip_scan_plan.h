@@ -39,14 +39,43 @@ class SEL_TREE;
 struct MEM_ROOT;
 
 /*
+  This is an array of array of equality constants with length
+  eq_prefix_key_parts.
+
+  For example, an equality predicate like "a IN (1, 2) AND b IN (2, 3, 4)",
+  eq_prefixes will contain:
+
+  [
+    { eq_key_prefixes = array[1, 2], cur_eq_prefix = ... },
+    { eq_key_prefixes = array[2, 3, 4], cur_eq_prefix = ... }
+  ]
+ */
+struct EQPrefix {
+  Bounds_checked_array<uchar *> eq_key_prefixes;
+
+  /*
+     During skip scan, we will have to iterate through all possible
+     equality prefixes. This is the product of all the elements in
+     eq_prefix_elements. In the above example, there are 2 x 3 = 6 possible
+     equality prefixes.
+
+     To track which prefix we are on, we use cur_eq_prefix. For example,
+     if both EQPrefixes have the value 1 here, it indicates that the current
+     equality prefix is (2, 3).
+   */
+  unsigned cur_eq_prefix;
+};
+
+/*
   Plan for a QUICK_SKIP_SCAN_SELECT scan.
 */
 
 class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
  private:
-  KEY *index_info;                ///< The index chosen for data access
-  uint eq_prefix_len;             ///< Length of the equality prefix
-  uint eq_prefix_key_parts;       ///< Number of parts in the equality prefix
+  KEY *index_info;           ///< The index chosen for data access
+  uint eq_prefix_len;        ///< Length of the equality prefix
+  uint eq_prefix_key_parts;  ///< Number of key parts in the equality prefix
+  EQPrefix *eq_prefixes;     ///< Array of equality constants (IN list)
   KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
                                   ///< condition
   uchar *const min_range_key;
@@ -71,12 +100,12 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
   TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
-                uint eq_prefix_key_parts, KEY_PART_INFO *range_key_part,
-                uint used_key_parts_arg, bool forced_by_hint_arg,
-                ha_rows read_records, bool has_aggregate_function,
-                uchar *min_range_key_arg, uchar *max_range_key_arg,
-                uchar *min_search_key_arg, uchar *max_search_key_arg,
-                uint range_cond_flag_arg,
+                uint eq_prefix_key_parts, EQPrefix *eq_prefixes_arg,
+                KEY_PART_INFO *range_key_part, uint used_key_parts_arg,
+                bool forced_by_hint_arg, ha_rows read_records,
+                bool has_aggregate_function, uchar *min_range_key_arg,
+                uchar *max_range_key_arg, uchar *min_search_key_arg,
+                uchar *max_search_key_arg, uint range_cond_flag_arg,
                 const SEL_ARG *range_part_tracing_only_arg,
                 uint range_key_len_arg)
       : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
@@ -84,6 +113,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
         index_info(index_info),
         eq_prefix_len(eq_prefix_len),
         eq_prefix_key_parts(eq_prefix_key_parts),
+        eq_prefixes(eq_prefixes_arg),
         range_key_part(range_key_part),
         min_range_key(min_range_key_arg),
         max_range_key(max_range_key_arg),

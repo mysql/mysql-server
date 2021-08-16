@@ -33,6 +33,7 @@
 #include "sql/key.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/skip_scan_plan.h"
 
 class Cost_estimate;
 class JOIN;
@@ -67,37 +68,10 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   SEL_ROOT *index_range_tree; /* Range tree for skip scan */
   MY_BITMAP column_bitmap;    /* Map of key parts to be read */
 
-  /*
-    This is an array of array of equality constants with length
-    eq_prefix_key_parts.
-
-    For example, an equality predicate like "a IN (1, 2) AND b IN (2, 3, 4)",
-    eq_prefixes will contain:
-
-    [
-      { eq_key_prefixes = array[1, 2], cur_eq_prefix = ... },
-      { eq_key_prefixes = array[2, 3, 4], cur_eq_prefix = ... }
-    ]
-   */
-  struct EQPrefix {
-    Bounds_checked_array<uchar *> eq_key_prefixes;
-
-    /*
-       During skip scan, we will have to iterate through all possible
-       equality prefixes. This is the product of all the elements in
-       eq_prefix_elements. In the above example, there are 2 x 3 = 6 possible
-       equality prefixes.
-
-       To track which prefix we are on, we use cur_eq_prefix. For example,
-       if both EQPrefixes have the value 1 here, it indicates that the current
-       equality prefix is (2, 3).
-     */
-    uint cur_eq_prefix;
-  };
-  EQPrefix *eq_prefixes;
   const uint eq_prefix_len; /* Total length of the equality prefix. */
   uint eq_prefix_key_parts; /* A number of keyparts in skip scan prefix */
-  uchar *eq_prefix;         /* Storage for current equality prefix. */
+  EQPrefix *eq_prefixes;
+  uchar *eq_prefix; /* Storage for current equality prefix. */
 
   uchar *distinct_prefix; /* Storage for prefix A_1, ... B_m. */
   uint distinct_prefix_len;
@@ -130,7 +104,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   QUICK_SKIP_SCAN_SELECT(TABLE *table, KEY *index_info, uint index,
                          KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
                          uint eq_prefix_len, uint eq_prefix_key_parts,
-                         uint used_key_parts,
+                         EQPrefix *eq_prefixes, uint used_key_parts,
                          const Cost_estimate *read_cost_arg, ha_rows records,
                          MEM_ROOT *temp_mem_root, bool has_aggregate_function,
                          uchar *min_range_key, uchar *max_range_key,
