@@ -1897,6 +1897,9 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
           So here we recalculate data for generated columns.
         */
         if (table->vfield) {
+          // Dont save old value while re-calculating generated fields.
+          // Before image will already be saved in the first calculation.
+          table->blobs_need_not_keep_old_value();
           update_generated_write_fields(table->write_set, table);
         }
 

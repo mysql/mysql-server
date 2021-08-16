@@ -145,6 +145,7 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql/transaction_info.h"
+#include "sql/trigger_chain.h"  // Trigger_chain
 #include "sql/xa.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -9794,7 +9795,8 @@ bool fill_record_n_invoke_before_triggers(
 
     table->triggers->enable_fields_temporary_nullability(thd);
 
-    if (table->triggers->has_triggers(event, TRG_ACTION_BEFORE) &&
+    Trigger_chain *tc = table->triggers->get_triggers(event, TRG_ACTION_BEFORE);
+    if (tc != nullptr &&
         command_can_invoke_insert_triggers(event, thd->lex->sql_command)) {
       assert(num_fields);
 
@@ -9835,8 +9837,13 @@ bool fill_record_n_invoke_before_triggers(
       updated by the triggers.
     */
     assert(table->pos_in_table_list && !table->pos_in_table_list->is_view());
-    if (!rc && table->has_gcol())
+    if (!rc && table->has_gcol() &&
+        tc->has_updated_trigger_fields(table->write_set)) {
+      // Dont save old value while re-calculating generated fields.
+      // Before image will already be saved in the first calculation.
+      table->blobs_need_not_keep_old_value();
       rc = update_generated_write_fields(table->write_set, table);
+    }
 
     table->triggers->disable_fields_temporary_nullability();
 
@@ -9994,8 +10001,12 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                           enum enum_trigger_event_type event,
                                           int num_fields) {
   bool rc;
+  Trigger_chain *tc =
+      table->triggers != nullptr
+          ? table->triggers->get_triggers(event, TRG_ACTION_BEFORE)
+          : nullptr;
 
-  if (table->triggers) {
+  if (tc != nullptr) {
     assert(command_can_invoke_insert_triggers(event, thd->lex->sql_command));
     assert(num_fields);
 
@@ -10016,8 +10027,13 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     */
     if (!rc && *ptr) {
       TABLE *table_p = (*ptr)->table;
-      if (table_p->has_gcol())
+      if (table_p->has_gcol() &&
+          tc->has_updated_trigger_fields(table_p->write_set)) {
+        // Dont save old value while re-calculating generated fields.
+        // Before image will already be saved in the first calculation.
+        table_p->blobs_need_not_keep_old_value();
         rc = update_generated_write_fields(table_p->write_set, table_p);
+      }
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
