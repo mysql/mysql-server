@@ -3265,17 +3265,11 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   3. The client responds with
      @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. X authentication method packets are exchanged
-  5. The server responds with an @ref page_protocol_basic_ok_packet with
-     SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing client side plugin name of
-     plugin Y.
-  6. Client reads plugin name from SESSION_TRACK_CLIENT_PLUGIN_INFO tracker and
-     loads corresponding client side plugin.
+  5. The server responds with an @ref page_protocol_basic_ok_packet
+  6. Client reads plugin name from OK packet and loads corresponding client side plugin.
   7. Y authentication method packets are exchanged
-  8. The server responds with an @ref page_protocol_basic_ok_packet with
-     SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing client side plugin name of
-     plugin Z.
-  9. Client reads plugin name from SESSION_TRACK_CLIENT_PLUGIN_INFO tracker and
-     loads corresponding client side plugin.
+  8. The server responds with an @ref page_protocol_basic_ok_packet
+  9. Client reads plugin name from OK packet and loads corresponding client side plugin.
   10.Z authentication method packets are exchanged
   11.The server responds with an @ref page_protocol_basic_ok_packet
 
@@ -3287,11 +3281,11 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   == X authentication method packets are exchanged ==
 
-  Server -> Client: OK packet with SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing plugin name Y
+  Server -> Client: OK packet containing plugin name Y
 
   == Y authentication method packets are exchanged ==
 
-  Server -> Client: OK packet with SESSION_TRACK_CLIENT_PLUGIN_INFO tracker containing plugin name Z
+  Server -> Client: OK packet containing plugin name Z
 
   == Z authentication method packets are exchanged ==
 
@@ -3351,21 +3345,8 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
           mpvio->auth_info
               .multi_factor_auth_info[mpvio->auth_info.current_auth_factor]
               .auth_string_length;
-      /* get client plugin name */
-      const char *client_plugin =
-          ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
-              ->client_auth_plugin;
-      Auth_plugin_info *pi = new Auth_plugin_info;
-      pi->set_client_plugin(client_plugin, strlen(client_plugin));
-
-      auto t = down_cast<Session_client_auth_plugin_info_tracker *>(
-          thd->session_tracker.get_tracker(SESSION_CLIENT_PLUGIN_INFO_TRACKER));
-      t->mark_as_changed(thd, nullptr);
-      t->set_auth_plugin_info(pi);
       thd->get_protocol()->send_ok(thd->server_status, 0, 0, 0, nullptr);
       thd->get_protocol()->flush();
-      /* once OK packet is sent free auth plugin info */
-      delete pi;
       st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
       res = auth->authenticate_user(mpvio, &mpvio->auth_info);
       if (res == CR_OK_AUTH_IN_SANDBOX_MODE) {

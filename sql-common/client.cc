@@ -842,7 +842,6 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
           type = (enum enum_session_state_type)net_field_length_ll_safe(
               mysql, &pos, length, &is_error);
           if (is_error) return;
-          bool mandatory_tracker_flag = false;
           switch (type) {
             case SESSION_TRACK_SYSTEM_VARIABLES:
               /* Move past the total length of the changed entity. */
@@ -1025,49 +1024,8 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
               break;
-            case SESSION_TRACK_CLIENT_PLUGIN_INFO:
-
-              /* total payload length */
-              len = net_field_length_ll_safe(mysql, &pos, length, &is_error);
-              if (is_error) return;
-
-              /* Get length of client plugin name */
-              len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
-                                                     &is_error);
-              if (is_error) return;
-
-              if (!buffer_check_remaining(mysql, pos, length, len)) return;
-
-              if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
-                                   &element, sizeof(LIST), &data,
-                                   sizeof(LEX_STRING), &data_str, len + 1,
-                                   NullS)) {
-                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-                return;
-              }
-              data->str = data_str;
-              memcpy(data->str, (char *)pos, len);
-              data->length = len;
-              pos += len;
-
-              element->data = data;
-              ADD_INFO(info, element, SESSION_TRACK_CLIENT_PLUGIN_INFO);
-
-              break;
             default:
               assert(type <= SESSION_TRACK_END);
-              /*
-                we reach here only if client cannot recognize a tracker. If
-                mandatory tracker flag is set for such a tracker then report
-                error.
-              */
-              if (mandatory_tracker_flag) {
-                set_mysql_extended_error(
-                    mysql, CR_MANDATORY_TRACKER_NOT_FOUND, unknown_sqlstate,
-                    ER_CLIENT(CR_MANDATORY_TRACKER_NOT_FOUND),
-                    static_cast<unsigned int>(type));
-                return;
-              }
               /*
                Unknown/unsupported type received, get the total length and
                move past it.
@@ -5724,36 +5682,9 @@ static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx) {
   */
   ctx->res = (mysql->net.read_pos[0] != 0);
 
-  /*
-    If first factor authentication is a success, read OK packet and extract
-    client plugin name from mandatory tracker, if present initiate 2nd factor
-    authentication.
-  */
-  if (!ctx->res) {
-    const char *data = nullptr;
-    size_t data_length = 0;
-    if (!mysql_session_track_get_first(
-            mysql, (enum_session_state_type)SESSION_TRACK_CLIENT_PLUGIN_INFO,
-            &data, &data_length)) {
-      /* get client plugin name */
-      if (data && data_length) {
-        /* update current factor index to point to nth factor */
-        ctx->current_factor_index++;
-        if (mysql->options.extension) {
-          mysql->options.extension->client_auth_info[ctx->current_factor_index]
-              .plugin_name = static_cast<char *>(
-              my_malloc(PSI_NOT_INSTRUMENTED, data_length + 1,
-                        MYF(MY_WME | MY_ZEROFILL)));
-          memcpy(mysql->options.extension
-                     ->client_auth_info[ctx->current_factor_index]
-                     .plugin_name,
-                 data, data_length);
-        }
-        ctx->state_function = authsm_init_multi_auth;
-        return STATE_MACHINE_CONTINUE;
-      }
-    }
-  }
+  /* keep compiler silent */
+  if (0) ctx->state_function = authsm_init_multi_auth;
+
   MYSQL_TRACE(AUTHENTICATED, mysql, ());
   return ctx->res ? STATE_MACHINE_FAILED : STATE_MACHINE_DONE;
 }

@@ -842,18 +842,6 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   ~~~~~~~~~~~~~~~~~~~~~
   </td></tr></table>
 
-  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_CLIENT_PLUGIN_INFO_TRACKER SESSION_CLIENT_PLUGIN_INFO_TRACKER
-
-  <table>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-    <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>mandatory flag</td>
-      <td>Defines if this tracker should be mandatory or not</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
-      <td>name</td>
-      <td>name of client authentication plugin</td></tr>
-  </table>
-
   See also net_send_ok()
 */
 /* clang-format on */
