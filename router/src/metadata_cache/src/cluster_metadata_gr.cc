@@ -159,6 +159,8 @@ class GRClusterSetMetadataBackend : public GRMetadataBackendV2 {
    * operation refers to
    * @param router_id id of the router in the cluster metadata
    * @param metadata_server info about the metadata server we are querying
+   * @param needs_writable_node flag indicating if the caller needs us to query
+   * for writable node
    * @param group_name Cluster Replication Group name (if bootstrapped as a
    * single Cluster)
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if

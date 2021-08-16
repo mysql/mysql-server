@@ -83,9 +83,9 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param router_id id of the router in the cluster metadata
  * @param cluster_type_specific_id (id of the replication group for GR,
  * cluster_id for ReplicaSet)
+ * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
+ * bootstrapped as a ClusterSet, empty otherwise)
  * @param metadata_servers The list of cluster metadata servers
- * @param user_credentials The user name and password used to connect to the
- * metadata servers.
  * @param ttl_config metadata TTL configuration
  * @param ssl_options SSL related options for connections
  * @param target_cluster object identifying the Cluster this operation refers to
