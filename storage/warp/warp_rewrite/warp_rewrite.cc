@@ -975,7 +975,11 @@ static int warp_rewrite_query_notify(
   std::string rewrite_error = "";
   //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
   std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), true);
-  
+ 
+  if(tokens.size() == 0) {
+	 return 0;
+  }
+
   if(strtolower(tokens[0]) == "drop") {
     return 0;
   }
