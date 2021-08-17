@@ -8915,116 +8915,6 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff) {
 }
 #endif
 
-/**
-  After Multisource replication, this function only shows the value
-  of default channel.
-
-  To know the status of other channels, performance schema replication
-  tables comes to the rescue.
-
-  @todo  Any warning needed if multiple channels exist to request
-         the users to start using replication performance schema
-         tables.
-*/
-static int show_slave_running(THD *, SHOW_VAR *var, char *buff) {
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_default_channel_mi();
-
-  if (mi) {
-    var->type = SHOW_MY_BOOL;
-    var->value = buff;
-    *((bool *)buff) =
-        (bool)(mi && mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
-               mi->rli->slave_running);
-  } else
-    var->type = SHOW_UNDEF;
-
-  channel_map.unlock();
-  return 0;
-}
-
-/**
-  This status variable is also exclusively (look comments on
-  show_slave_running()) for default channel.
-*/
-static int show_slave_retried_trans(THD *, SHOW_VAR *var, char *buff) {
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_default_channel_mi();
-
-  if (mi) {
-    var->type = SHOW_LONG;
-    var->value = buff;
-    *((long *)buff) = (long)mi->rli->retried_trans;
-  } else
-    var->type = SHOW_UNDEF;
-
-  channel_map.unlock();
-  return 0;
-}
-
-/**
-  Only for default channel. Refer to comments on show_slave_running()
-*/
-static int show_slave_received_heartbeats(THD *, SHOW_VAR *var, char *buff) {
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_default_channel_mi();
-
-  if (mi) {
-    var->type = SHOW_LONGLONG;
-    var->value = buff;
-    *((longlong *)buff) = mi->received_heartbeats;
-  } else
-    var->type = SHOW_UNDEF;
-
-  channel_map.unlock();
-  return 0;
-}
-
-/**
-  Only for default channel. Refer to comments on show_slave_running()
-*/
-static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff) {
-  MYSQL_TIME received_heartbeat_time;
-
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_default_channel_mi();
-
-  if (mi) {
-    var->type = SHOW_CHAR;
-    var->value = buff;
-    if (mi->last_heartbeat == 0)
-      buff[0] = '\0';
-    else {
-      thd->variables.time_zone->gmt_sec_to_TIME(
-          &received_heartbeat_time,
-          static_cast<my_time_t>(mi->last_heartbeat / 1000000));
-      my_datetime_to_str(received_heartbeat_time, buff, 0);
-    }
-  } else
-    var->type = SHOW_UNDEF;
-
-  channel_map.unlock();
-  return 0;
-}
-
-/**
-  Only for default channel. For details, refer to show_slave_running()
-*/
-static int show_heartbeat_period(THD *, SHOW_VAR *var, char *buff) {
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_default_channel_mi();
-
-  if (mi) {
-    var->type = SHOW_CHAR;
-    var->value = buff;
-    sprintf(buff, "%.3f", mi->heartbeat_period);
-  } else
-    var->type = SHOW_UNDEF;
-
-  channel_map.unlock();
-  return 0;
-}
-
 #ifndef NDEBUG
 static int show_replica_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
                                                         char *buff) {
@@ -9401,21 +9291,11 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Slave_open_temp_tables", (char *)&show_replica_open_temp_tables,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Slave_retried_transactions", (char *)&show_slave_retried_trans, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
-    {"Slave_heartbeat_period", (char *)&show_heartbeat_period, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
-    {"Slave_received_heartbeats", (char *)&show_slave_received_heartbeats,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Slave_last_heartbeat", (char *)&show_slave_last_heartbeat, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
 #ifndef NDEBUG
     {"Slave_rows_last_search_algorithm_used",
      (char *)&show_replica_rows_last_search_algorithm_used, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #endif
-    {"Slave_running", (char *)&show_slave_running, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
     {"Slow_launch_threads",
      (char *)&Per_thread_connection_handler::slow_launch_threads, SHOW_LONG,
      SHOW_SCOPE_ALL},
