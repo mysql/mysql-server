@@ -259,6 +259,8 @@ class Item_func : public Item_result_field {
     NULLIF_FUNC,
     CASE_FUNC,
     YEAR_FUNC,
+    YEARWEEK_FUNC,
+    MAKEDATE_FUNC,
     MONTH_FUNC,
     MONTHNAME_FUNC,
     DAY_FUNC,
