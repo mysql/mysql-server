@@ -60,7 +60,7 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
     range_part         The keypart belonging to the range condition C
     index_range_tree   The complete range key
     eq_prefix_len      Length of the equality prefix key
-    eq_prefix_parts    Number of keyparts in the equality prefix
+    eq_prefix_key_parts  Number of keyparts in the equality prefix
     used_key_parts_arg Total number of keyparts A_1,...,C
     read_cost_arg      Cost of this access method
     read_records       Number of records returned
@@ -72,7 +72,7 @@ void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
 
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     TABLE *table, KEY *index_info, uint use_index, KEY_PART_INFO *range_part,
-    SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_parts,
+    SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_key_parts,
     uint used_key_parts_arg, const Cost_estimate *read_cost_arg,
     ha_rows read_records, MEM_ROOT *return_mem_root,
     bool has_aggregate_function, uchar *min_range_key_arg,
@@ -81,7 +81,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     : index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
-      eq_prefix_key_parts(eq_prefix_parts),
+      eq_prefix_key_parts(eq_prefix_key_parts),
       distinct_prefix(nullptr),
       range_key_part(range_part),
       mem_root(return_mem_root),

@@ -80,7 +80,7 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
     }
   }
 
-  if (index_range_tree && eq_prefix_parts > 0) {
+  if (index_range_tree && eq_prefix_key_parts > 0) {
     Opt_trace_array trace_range(trace, "prefix ranges");
     String range_info;
     range_info.set_charset(system_charset_info);
@@ -124,7 +124,7 @@ QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   QUICK_SKIP_SCAN_SELECT *quick = new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
       table, index_info, index, range_key_part, index_range_tree, eq_prefix_len,
-      eq_prefix_parts, used_key_parts, &cost_est, records, return_mem_root,
+      eq_prefix_key_parts, used_key_parts, &cost_est, records, return_mem_root,
       has_aggregate_function, min_range_key, max_range_key, min_search_key,
       max_search_key, range_cond_flag, range_key_len);
 
@@ -238,7 +238,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   SEL_ARG *range_sel_arg = nullptr;
   uint field_length;
   uint eq_prefix_len = 0;
-  uint eq_prefix_parts = 0;
+  uint eq_prefix_key_parts = 0;
   uint used_key_parts = 0;
   Cost_estimate min_diff_cost;
   Opt_trace_array trace_indices(trace, "potential_skip_scan_indexes");
@@ -275,7 +275,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
     SEL_ARG *cur_range_sel_arg = nullptr;
     SEL_ROOT *cur_index_range_tree = nullptr;
     uint cur_eq_prefix_len = 0;
-    uint cur_eq_prefix_parts = 0;
+    uint cur_eq_prefix_key_parts = 0;
     KEY_PART_INFO *cur_range_key_part = nullptr;
     enum {
       EQUALITY_KEYPART = 0,
@@ -355,7 +355,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
           }
         }
         cur_eq_prefix_len += field_length;
-        cur_eq_prefix_parts++;
+        cur_eq_prefix_key_parts++;
       } else if (keypart_stage == SKIPPED_KEYPART) {
         if (cur_range_root->elements > 1) {
           cause = "range_predicate_too_complex";
@@ -405,7 +405,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
       best_records = cur_records;
 
       eq_prefix_len = cur_eq_prefix_len;
-      eq_prefix_parts = cur_eq_prefix_parts;
+      eq_prefix_key_parts = cur_eq_prefix_key_parts;
       index_range_tree = cur_index_range_tree;
 
       range_sel_arg = cur_range_sel_arg;
@@ -485,7 +485,7 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
   /* The query passes all tests, so construct a new TRP object. */
   TRP_SKIP_SCAN *read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
       table, index_info, index, index_range_tree, eq_prefix_len,
-      eq_prefix_parts, range_key_part, used_key_parts, force_skip_scan,
+      eq_prefix_key_parts, range_key_part, used_key_parts, force_skip_scan,
       best_records, has_aggregate_function, min_range_key, max_range_key,
       min_search_key, max_search_key, range_cond_flag,
       /*range_part_tracing_only=*/range_sel_arg->first(), range_key_len);

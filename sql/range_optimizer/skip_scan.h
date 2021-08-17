@@ -129,7 +129,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_SKIP_SCAN_SELECT(TABLE *table, KEY *index_info, uint index,
                          KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
-                         uint eq_prefix_len, uint eq_prefix_parts,
+                         uint eq_prefix_len, uint eq_prefix_key_parts,
                          uint used_key_parts,
                          const Cost_estimate *read_cost_arg, ha_rows records,
                          MEM_ROOT *temp_mem_root, bool has_aggregate_function,
