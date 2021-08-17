@@ -9790,14 +9790,16 @@ bool fill_record_n_invoke_before_triggers(
     the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
   */
 
-  if (table->triggers) {
+  Trigger_chain *tc =
+      table->triggers != nullptr
+          ? table->triggers->get_triggers(event, TRG_ACTION_BEFORE)
+          : nullptr;
+
+  if (tc != nullptr) {
     bool rc;
 
     table->triggers->enable_fields_temporary_nullability(thd);
-
-    Trigger_chain *tc = table->triggers->get_triggers(event, TRG_ACTION_BEFORE);
-    if (tc != nullptr &&
-        command_can_invoke_insert_triggers(event, thd->lex->sql_command)) {
+    if (command_can_invoke_insert_triggers(event, thd->lex->sql_command)) {
       assert(num_fields);
 
       MY_BITMAP insert_into_fields_bitmap;
