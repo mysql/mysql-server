@@ -3983,6 +3983,7 @@ bool DynamicRangeIterator::Init() {
 
   QUICK_SELECT_I *old_qck = m_qep_tab->quick();
   destroy(old_qck);
+  m_qep_tab->set_quick(nullptr);
   m_mem_root.ClearForReuse();
 
   const int rc = test_quick_select(
