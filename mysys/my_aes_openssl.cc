@@ -210,8 +210,9 @@ longlong my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
 
   block_size = EVP_CIPHER_block_size(cipher);
 
-  return block_size > 1 ? block_size * (source_length / block_size) + block_size
-                        : source_length;
+  if (block_size <= 1) return source_length;
+  return block_size * (static_cast<ulonglong>(source_length) / block_size) +
+         block_size;
 }
 
 bool my_aes_needs_iv(my_aes_opmode opmode) {
