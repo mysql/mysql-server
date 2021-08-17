@@ -12,3 +12,7 @@ ALTER TABLE performance_schema.performance_timers ADD INDEX test_index(TIMER_NAM
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.performance_timers(TIMER_NAME);
 
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.performance_timers;
+
+DROP TABLE test.create_select;

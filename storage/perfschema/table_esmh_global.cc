@@ -54,7 +54,7 @@ Plugin_table table_esmh_global::m_table_def(
     "  BUCKET_TIMER_HIGH BIGINT unsigned not null,\n"
     "  COUNT_BUCKET BIGINT unsigned not null,\n"
     "  COUNT_BUCKET_AND_LOWER BIGINT unsigned not null,\n"
-    "  BUCKET_QUANTILE DOUBLE(7,6) not null,\n"
+    "  BUCKET_QUANTILE DOUBLE not null,\n"
     "  PRIMARY KEY (BUCKET_NUMBER) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",

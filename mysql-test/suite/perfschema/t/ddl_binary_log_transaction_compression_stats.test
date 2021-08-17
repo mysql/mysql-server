@@ -23,3 +23,6 @@
 --error ER_DBACCESS_DENIED_ERROR
 --eval DROP INDEX `PRIMARY` ON $table
 
+--eval CREATE TABLE test.create_select AS SELECT * from $table;
+
+DROP TABLE test.create_select;

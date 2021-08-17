@@ -58,7 +58,7 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
     "  FILTER_RULE LONGTEXT not null,\n"
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS',\n"
     "                     'CHANGE_REPLICATION_FILTER') not null,\n"
-    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0\n",
+    "  ACTIVE_SINCE TIMESTAMP(6) not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */

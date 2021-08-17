@@ -9,3 +9,6 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 CREATE UNIQUE INDEX test_index
 ON performance_schema.variables_info(VARIABLE_NAME);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.variables_info;
+DROP TABLE test.create_select;

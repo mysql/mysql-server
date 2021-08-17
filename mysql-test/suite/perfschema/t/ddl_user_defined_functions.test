@@ -18,3 +18,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.user_defined_functions;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.user_defined_functions;
+
+DROP TABLE test.create_select;

@@ -182,6 +182,9 @@
     PS.REPLICATION_ASYNCHRONOUS_CONNECTION_FAILOVER' DIDN'T RETURN A RE
   - WL#7491 added the column to replication_connection_configuration
     the column GTID_ONLY
+  - BUG#104643 Defaults in performance schema tables incompatible with sql_mode
+    fixed TIMESTAMP columns (removed default 0)
+    fixed DOUBLE columns (removed precision and sign)
 */
 
 static const uint PFS_DD_VERSION = 80027;

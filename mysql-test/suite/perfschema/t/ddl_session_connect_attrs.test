@@ -10,6 +10,12 @@ ALTER TABLE performance_schema.session_connect_attrs ADD INDEX test_index(ATTR_N
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.session_connect_attrs(ATTR_NAME);
+
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.session_connect_attrs;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.session_connect_attrs;
+
+DROP TABLE test.create_select;

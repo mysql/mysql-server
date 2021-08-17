@@ -12,3 +12,7 @@ ALTER TABLE performance_schema.data_lock_waits ADD INDEX test_index(BLOCKING_THR
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.data_lock_waits(BLOCKING_THREAD_ID);
 
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.data_lock_waits;
+
+DROP TABLE test.create_select;

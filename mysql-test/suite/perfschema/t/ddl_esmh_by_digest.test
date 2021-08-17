@@ -16,3 +16,8 @@ CREATE UNIQUE INDEX test_index
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `SCHEMA_NAME`
   ON performance_schema.events_statements_histogram_by_digest;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_statements_histogram_by_digest;
+
+DROP TABLE test.create_select;

@@ -68,7 +68,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  SSL_CRL_PATH VARCHAR(255) not null,\n"
     "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
     "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
-    "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
+    "  HEARTBEAT_INTERVAL DOUBLE not null\n"
     "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
     "  TLS_VERSION VARCHAR(255) not null,\n"
     "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
