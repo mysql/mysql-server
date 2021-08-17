@@ -1531,7 +1531,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
   }
 
   thd->clear_error();
-  send_histogram_results(thd, results, table);
+  res = send_histogram_results(thd, results, table);
   thd->get_stmt_da()->reset_condition_info(thd);
   my_eof(thd);
   return res;
