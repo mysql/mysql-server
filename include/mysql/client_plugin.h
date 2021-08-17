@@ -62,7 +62,13 @@
 #endif
 #endif /*MYSQL_DYNAMIC_PLUGIN */
 #else  /*_MSC_VER */
+
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#define MYSQL_PLUGIN_EXPORT MY_ATTRIBUTE((visibility("default")))
+#else
 #define MYSQL_PLUGIN_EXPORT
+#endif
+
 #endif
 
 #ifdef __cplusplus
