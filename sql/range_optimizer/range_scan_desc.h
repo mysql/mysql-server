@@ -50,7 +50,6 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
-  uint m_used_key_parts;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_

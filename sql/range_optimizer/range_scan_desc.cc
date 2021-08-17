@@ -42,9 +42,9 @@
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q,
                                      uint used_key_parts_arg)
-    : QUICK_RANGE_SELECT(std::move(q)),
-      rev_it(rev_ranges),
-      m_used_key_parts(used_key_parts_arg) {
+    : QUICK_RANGE_SELECT(std::move(q)), rev_it(rev_ranges) {
+  used_key_parts = used_key_parts_arg;
+
   QUICK_RANGE *r;
   /*
     Use default MRR implementation for reverse scans. No table engine
@@ -92,7 +92,7 @@ int QUICK_SELECT_DESC::get_next() {
     if (last_range) {  // Already read through key
       result =
           ((last_range->flag & EQ_RANGE &&
-            m_used_key_parts <= m_table->key_info[index].user_defined_key_parts)
+            used_key_parts <= m_table->key_info[index].user_defined_key_parts)
                ? file->ha_index_next_same(record, last_range->min_key,
                                           last_range->min_length)
                : file->ha_index_prev(record));
@@ -107,7 +107,7 @@ int QUICK_SELECT_DESC::get_next() {
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts =
         (last_range->flag & EQ_RANGE) &&
-        (m_used_key_parts <= m_table->key_info[index].user_defined_key_parts);
+        (used_key_parts <= m_table->key_info[index].user_defined_key_parts);
 
     /*
       If we have pushed an index condition (ICP) and this quick select
@@ -160,11 +160,11 @@ int QUICK_SELECT_DESC::get_next() {
                                        last_range->max_keypart_map,
                                        HA_READ_KEY_EXACT);
     } else {
-      assert(last_range->flag & NEAR_MAX ||
-             (last_range->flag & EQ_RANGE &&
-              m_used_key_parts >
-                  m_table->key_info[index].user_defined_key_parts) ||
-             range_reads_after_key(last_range));
+      assert(
+          last_range->flag & NEAR_MAX ||
+          (last_range->flag & EQ_RANGE &&
+           used_key_parts > m_table->key_info[index].user_defined_key_parts) ||
+          range_reads_after_key(last_range));
       result = file->ha_index_read_map(
           record, last_range->max_key, last_range->max_keypart_map,
           ((last_range->flag & NEAR_MAX) ? HA_READ_BEFORE_KEY
