@@ -121,7 +121,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
   int init_ror_merged_scan(bool reuse_handler) override;
-  void save_last_pos() override { file->position(record); }
+  void save_last_pos() override { file->position(m_table->record[0]); }
 
   uint get_mrr_flags() const { return mrr_flags; }
 };

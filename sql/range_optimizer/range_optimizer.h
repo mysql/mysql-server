@@ -297,11 +297,6 @@ class QUICK_SELECT_I {
   */
   uchar *last_rowid;
 
-  /*
-    Table record buffer used by this quick select.
-  */
-  uchar *record;
-
   void trace_quick_description(Opt_trace_context *trace);
 };
 

@@ -82,11 +82,10 @@ class List_iterator;
 
 class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
  private:
-  JOIN *join;          /* Descriptor of the current query */
-  uint index;          /* Index this quick select uses */
-  KEY *index_info;     /* The index chosen for data access */
-  uchar *tmp_record;   /* Temporary storage for next_min(), next_max(). */
-  uchar *group_prefix; /* Key prefix consisting of the GROUP fields. */
+  JOIN *join;                  /* Descriptor of the current query */
+  uint index;                  /* Index this quick select uses */
+  KEY *index_info;             /* The index chosen for data access */
+  uchar *group_prefix;         /* Key prefix consisting of the GROUP fields. */
   const uint group_prefix_len; /* Length of the group prefix. */
   uint group_key_parts;        /* A number of keyparts in the group prefix */
   uchar *last_prefix;          /* Prefix of the last group for detecting EOF. */

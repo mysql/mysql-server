@@ -71,7 +71,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
   key_part_info = m_table->key_info[index].key_part;
 
   file = m_table->file;
-  record = m_table->record[0];
 }
 
 int QUICK_RANGE_SELECT::init() {
@@ -346,8 +345,8 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     if (last_range) {
       /* Read the next record in the same range with prefix after cur_prefix. */
       assert(cur_prefix != nullptr);
-      result = file->ha_index_read_map(record, cur_prefix, keypart_map,
-                                       HA_READ_AFTER_KEY);
+      result = file->ha_index_read_map(m_table->record[0], cur_prefix,
+                                       keypart_map, HA_READ_AFTER_KEY);
       if (result || last_range->max_keypart_map == 0) return result;
 
       key_range previous_endpoint;

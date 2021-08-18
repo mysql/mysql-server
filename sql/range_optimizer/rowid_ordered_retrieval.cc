@@ -51,7 +51,6 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
       need_to_fetch_row(retrieve_full_rows),
       scans_inited(false) {
   m_table = table;
-  record = m_table->record[0];
   last_rowid = (uchar *)mem_root->Alloc(m_table->file->ref_length);
 }
 
@@ -217,7 +216,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
     assert(quick->m_table->read_set == save_read_set);
     assert(quick->m_table->write_set == save_write_set);
     /* All merged scans share the same record buffer in intersection. */
-    quick->record = m_table->record[0];
+    assert(quick->m_table == m_table);
+    assert(quick->m_table->record[0] == m_table->record[0]);
   }
 
   /* Prepare for ha_rnd_pos calls if needed. */
@@ -282,7 +282,6 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
       scans_inited(false) {
   m_table = table;
   rowid_length = table->file->ref_length;
-  record = m_table->record[0];
 }
 
 /*
@@ -421,7 +420,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
     }
     if (error) return error;
 
-    quick->file->position(quick->record);
+    quick->file->position(quick->m_table->record[0]);
     memcpy(last_rowid, quick->file->ref, m_table->file->ref_length);
     last_rowid_count = 1;
     quick_with_last_rowid = quick;
@@ -441,10 +440,11 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
             quick_with_last_rowid->file->unlock_row();
           return error;
         }
-        quick->file->position(quick->record);
+        quick->file->position(quick->m_table->record[0]);
         cmp = m_table->file->cmp_ref(quick->file->ref, last_rowid);
         if (cmp < 0) {
-          /* This row is being skipped.  Release lock on it. */
+          /* This row is being skipped.  Release lock on
+           * it. */
           quick->file->unlock_row();
         }
       } while (cmp < 0);
@@ -462,7 +462,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
               return error;
             }
           }
-          quick->file->position(quick->record);
+          quick->file->position(quick->m_table->record[0]);
         }
         memcpy(last_rowid, quick->file->ref, m_table->file->ref_length);
         quick_with_last_rowid->file->unlock_row();
@@ -531,7 +531,7 @@ int QUICK_ROR_UNION_SELECT::get_next() {
     cur_rowid = prev_rowid;
     prev_rowid = tmp;
 
-    error = m_table->file->ha_rnd_pos(quick->record, prev_rowid);
+    error = m_table->file->ha_rnd_pos(quick->m_table->record[0], prev_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
   return error;
 }

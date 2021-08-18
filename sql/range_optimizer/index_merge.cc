@@ -200,7 +200,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
 
-    cur_quick->file->position(cur_quick->record);
+    cur_quick->file->position(cur_quick->m_table->record[0]);
     result = unique->unique_add((char *)cur_quick->file->ref);
     if (result) return 1;
   }

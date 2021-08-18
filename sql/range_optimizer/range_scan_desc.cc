@@ -93,9 +93,10 @@ int QUICK_SELECT_DESC::get_next() {
       result =
           ((last_range->flag & EQ_RANGE &&
             used_key_parts <= m_table->key_info[index].user_defined_key_parts)
-               ? file->ha_index_next_same(record, last_range->min_key,
+               ? file->ha_index_next_same(m_table->record[0],
+                                          last_range->min_key,
                                           last_range->min_length)
-               : file->ha_index_prev(record));
+               : file->ha_index_prev(m_table->record[0]));
       if (!result) {
         if (cmp_prev(*rev_it.ref()) == 0) return 0;
       } else if (result != HA_ERR_END_OF_FILE)
@@ -135,7 +136,7 @@ int QUICK_SELECT_DESC::get_next() {
     if (last_range->flag & NO_MAX_RANGE)  // Read last record
     {
       int local_error;
-      if ((local_error = file->ha_index_last(record))) {
+      if ((local_error = file->ha_index_last(m_table->record[0]))) {
         /*
           HA_ERR_END_OF_FILE is returned both when the table is empty and when
           there are no qualifying records in the range (when using ICP).
@@ -156,7 +157,7 @@ int QUICK_SELECT_DESC::get_next() {
     if (eqrange_all_keyparts)
 
     {
-      result = file->ha_index_read_map(record, last_range->max_key,
+      result = file->ha_index_read_map(m_table->record[0], last_range->max_key,
                                        last_range->max_keypart_map,
                                        HA_READ_KEY_EXACT);
     } else {
@@ -166,7 +167,7 @@ int QUICK_SELECT_DESC::get_next() {
            used_key_parts > m_table->key_info[index].user_defined_key_parts) ||
           range_reads_after_key(last_range));
       result = file->ha_index_read_map(
-          record, last_range->max_key, last_range->max_keypart_map,
+          m_table->record[0], last_range->max_key, last_range->max_keypart_map,
           ((last_range->flag & NEAR_MAX) ? HA_READ_BEFORE_KEY
                                          : HA_READ_PREFIX_LAST_OR_PREV));
     }

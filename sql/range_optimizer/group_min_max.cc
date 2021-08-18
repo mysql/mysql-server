@@ -101,8 +101,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       quick_prefix_query_block(quick_prefix_query_block_arg) {
   m_table = table;
   index = use_index;
-  record = m_table->record[0];
-  tmp_record = m_table->record[1];
   real_key_parts = real_key_parts_arg;
   max_used_key_length = max_used_key_length_arg;
   real_prefix_len = group_prefix_len + key_infix_len;
@@ -192,7 +190,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
   }
   if (quick_prefix_query_block && quick_prefix_query_block->reset()) return 1;
 
-  result = m_table->file->ha_index_last(record);
+  result = m_table->file->ha_index_last(m_table->record[0]);
   if (result != 0) {
     if (result == HA_ERR_END_OF_FILE)
       return 0;
@@ -201,7 +199,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
   }
 
   /* Save the prefix of the last group. */
-  key_copy(last_prefix, record, index_info, group_prefix_len);
+  key_copy(last_prefix, m_table->record[0], index_info, group_prefix_len);
 
   return 0;
 }
@@ -317,8 +315,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
           the one distinct record is enough.
         */
         if (!(result = m_table->file->ha_index_read_map(
-                  record, group_prefix, make_prev_keypart_map(real_key_parts),
-                  HA_READ_KEY_EXACT)) ||
+                  m_table->record[0], group_prefix,
+                  make_prev_keypart_map(real_key_parts), HA_READ_KEY_EXACT)) ||
             is_index_access_error(result))
           return result;
       }
@@ -361,9 +359,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
   /* Find the MIN key using the eventually extended group prefix. */
   if (min_max_ranges.size() > 0) {
     uchar key_buf[MAX_KEY_LENGTH];
-    key_copy(key_buf, record, index_info, max_used_key_length);
+    key_copy(key_buf, m_table->record[0], index_info, max_used_key_length);
     result = next_min_in_range();
-    if (result) key_restore(record, key_buf, index_info, max_used_key_length);
+    if (result)
+      key_restore(m_table->record[0], key_buf, index_info, max_used_key_length);
   } else {
     /*
       Apply the constant equality conditions to the non-group select fields.
@@ -373,7 +372,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
     */
     if (key_infix_len > 0 || !min_max_keypart_asc) {
       if ((result = m_table->file->ha_index_read_map(
-               record, group_prefix, make_prev_keypart_map(real_key_parts),
+               m_table->record[0], group_prefix,
+               make_prev_keypart_map(real_key_parts),
                min_max_keypart_asc ? HA_READ_KEY_EXACT : HA_READ_PREFIX_LAST)))
         return result;
     }
@@ -383,15 +383,16 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
       group with NULL in it. Notice that:
       - if the first row in a group doesn't have a NULL in the field, no row
       in the same group has (because NULL < any other value),
-      - min_max_arg_part->field->ptr points to some place in 'record'.
+      - min_max_arg_part->field->ptr points to some place in
+      'm_table->record[0]'.
     */
     if (min_max_arg_part && min_max_arg_part->field->is_null()) {
       uchar key_buf[MAX_KEY_LENGTH];
 
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(key_buf, record, index_info, max_used_key_length);
+      key_copy(key_buf, m_table->record[0], index_info, max_used_key_length);
       result = m_table->file->ha_index_read_map(
-          record, key_buf, make_keypart_map(real_key_parts),
+          m_table->record[0], key_buf, make_keypart_map(real_key_parts),
           min_max_keypart_asc ? HA_READ_AFTER_KEY : HA_READ_BEFORE_KEY);
       /*
         Check if the new record belongs to the current group by comparing its
@@ -405,7 +406,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
       */
       if (!result) {
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-          key_restore(record, key_buf, index_info, 0);
+          key_restore(m_table->record[0], key_buf, index_info, 0);
       } else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result = 0; /* There is a result in any case. */
     }
@@ -442,9 +443,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
   /* Get the last key in the (possibly extended) group. */
   if (min_max_ranges.size() > 0) {
     uchar key_buf[MAX_KEY_LENGTH];
-    key_copy(key_buf, record, index_info, max_used_key_length);
+    key_copy(key_buf, m_table->record[0], index_info, max_used_key_length);
     result = next_max_in_range();
-    if (result) key_restore(record, key_buf, index_info, max_used_key_length);
+    if (result)
+      key_restore(m_table->record[0], key_buf, index_info, max_used_key_length);
   } else {
     /*
       There is no reason to call handler method if MIN/MAX key part is
@@ -453,7 +455,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
     */
     if (key_infix_len > 0 || min_max_keypart_asc)
       result = m_table->file->ha_index_read_map(
-          record, group_prefix, make_prev_keypart_map(real_key_parts),
+          m_table->record[0], group_prefix,
+          make_prev_keypart_map(real_key_parts),
           min_max_keypart_asc ? HA_READ_PREFIX_LAST : HA_READ_KEY_EXACT);
   }
   return result;
@@ -490,20 +493,20 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
     seen_first_key = true;
   } else {
     if (!seen_first_key) {
-      result = m_table->file->ha_index_first(record);
+      result = m_table->file->ha_index_first(m_table->record[0]);
       if (result) return result;
       seen_first_key = true;
     } else {
       /* Load the first key in this group into record. */
-      result = index_next_different(is_index_scan, m_table->file,
-                                    index_info->key_part, record, group_prefix,
-                                    group_prefix_len, group_key_parts);
+      result = index_next_different(
+          is_index_scan, m_table->file, index_info->key_part,
+          m_table->record[0], group_prefix, group_prefix_len, group_key_parts);
       if (result) return result;
     }
   }
 
   /* Save the prefix of this group for subsequent calls. */
-  key_copy(group_prefix, record, index_info, group_prefix_len);
+  key_copy(group_prefix, m_table->record[0], index_info, group_prefix_len);
   return 0;
 }
 
@@ -739,8 +742,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
       search_mode = get_search_mode(cur_range, min_max_keypart_asc, true);
     }
 
-    result = m_table->file->ha_index_read_map(record, group_prefix, keypart_map,
-                                              search_mode);
+    result = m_table->file->ha_index_read_map(m_table->record[0], group_prefix,
+                                              keypart_map, search_mode);
     if (result) {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
           (cur_range->flag & (EQ_RANGE | NULL_RANGE)))
@@ -763,7 +766,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
         Remember this key, and continue looking for a non-NULL key that
         satisfies some other condition.
       */
-      memcpy(tmp_record, record, m_table->s->rec_buff_length);
+      memcpy(m_table->record[1], m_table->record[0],
+             m_table->s->rec_buff_length);
       found_null = true;
       continue;
     }
@@ -806,7 +810,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
     then use the key with the NULL.
   */
   if (found_null && result) {
-    memcpy(record, tmp_record, m_table->s->rec_buff_length);
+    memcpy(m_table->record[0], m_table->record[1], m_table->s->rec_buff_length);
     result = 0;
   }
   return result;
@@ -865,8 +869,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
       search_mode = get_search_mode(cur_range, min_max_keypart_asc, false);
     }
 
-    result = m_table->file->ha_index_read_map(record, group_prefix, keypart_map,
-                                              search_mode);
+    result = m_table->file->ha_index_read_map(m_table->record[0], group_prefix,
+                                              keypart_map, search_mode);
 
     if (result) {
       if ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&

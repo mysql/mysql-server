@@ -38,7 +38,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next() {
     int result;
     if (last_range) {
       // Already read through key
-      result = file->ha_index_next_same(record, last_range->min_key,
+      result = file->ha_index_next_same(m_table->record[0], last_range->min_key,
                                         last_range->min_length);
       if (result != HA_ERR_END_OF_FILE) return result;
     }
@@ -51,7 +51,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next() {
     }
     last_range = *(cur_range++);
 
-    result = file->ha_index_read_map(record, last_range->min_key,
+    result = file->ha_index_read_map(m_table->record[0], last_range->min_key,
                                      last_range->min_keypart_map,
                                      last_range->rkey_func_flag);
     if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)

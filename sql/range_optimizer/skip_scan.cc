@@ -90,7 +90,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       has_aggregate_function(has_aggregate_function) {
   m_table = table;
   index = use_index;
-  record = m_table->record[0];
 
   used_key_parts = used_key_parts_arg;
   max_used_key_length = 0;
@@ -303,16 +302,16 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
     if (!is_prefix_valid) {
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
-          result = m_table->file->ha_index_first(record);
+          result = m_table->file->ha_index_first(m_table->record[0]);
         } else {
           result = m_table->file->ha_index_read_map(
-              record, eq_prefix, make_prev_keypart_map(eq_prefix_key_parts),
-              HA_READ_KEY_OR_NEXT);
+              m_table->record[0], eq_prefix,
+              make_prev_keypart_map(eq_prefix_key_parts), HA_READ_KEY_OR_NEXT);
         }
         seen_first_key = true;
       } else {
         result = index_next_different(false /* is_index_scan */, m_table->file,
-                                      index_info->key_part, record,
+                                      index_info->key_part, m_table->record[0],
                                       distinct_prefix, distinct_prefix_len,
                                       distinct_prefix_key_parts);
       }
@@ -320,7 +319,8 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       if (result) goto exit;
 
       // Save the prefix of this group for subsequent calls.
-      key_copy(distinct_prefix, record, index_info, distinct_prefix_len);
+      key_copy(distinct_prefix, m_table->record[0], index_info,
+               distinct_prefix_len);
 
       if (eq_prefix) {
         past_eq_prefix =
