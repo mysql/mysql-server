@@ -3065,7 +3065,13 @@ void Item_ident::fix_after_pullout(Query_block *parent_query_block,
   assert(context->query_block != removed_query_block);
 
   if (context->query_block == parent_query_block) {
-    if (parent_query_block == depended_from) depended_from = nullptr;
+    if (parent_query_block == depended_from) {
+      depended_from = nullptr;
+      // Update the context of this field to that of the parent query
+      // block since the resolver place is now lifted from the abandoned
+      // query block to this one.
+      context = &parent_query_block->context;
+    }
   } else {
     /*
       The definition scope of this field item reference is inner to the removed
