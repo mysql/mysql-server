@@ -149,7 +149,7 @@ void notify() {
   }
   if (status == -1) {
     char errbuf[512];
-    LogErr(WARNING_LEVEL, ER_SYSTEMD_NOTIFY_WRITE_FAILED,
+    LogErr(WARNING_LEVEL, ER_SYSTEMD_NOTIFY_WRITE_FAILED, note.c_str(),
            my_strerror(errbuf, sizeof(errbuf) - 1, errno));
   }
 }
