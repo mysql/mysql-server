@@ -443,10 +443,13 @@ int page_track_callback(MYSQL_THD opaque_thd [[maybe_unused]],
   // Append to the disk file in binary mode
   FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {
+    std::string msg{std::string("[page-track] Cannot open '") +
+                    Backup_page_tracker::m_changed_pages_file +
+                    "': " + strerror(errno) + "\n"};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG, "[page-track] File open failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (1);
   }
 
@@ -456,10 +459,13 @@ int page_track_callback(MYSQL_THD opaque_thd [[maybe_unused]],
 
   // write failed
   if (write_count != data_size) {
+    std::string msg{std::string("[page-track] Cannot write '") +
+                    Backup_page_tracker::m_changed_pages_file +
+                    "': " + strerror(errno) + "\n"};
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .lookup(ER_MYSQLBACKUP_MSG, "[page-track] Writing to file failed.");
+        .lookup(ER_MYSQLBACKUP_MSG, msg.c_str());
     return (1);
   }
 
