@@ -28,7 +28,6 @@ ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 
 SET(MYSYS_SOURCES
   array.cc
-  base64.cc
   charset.cc
   charset-def.cc
   dbug.cc
@@ -223,11 +222,3 @@ MYSQL_ADD_EXECUTABLE(mf_iocache_test
   SKIP_INSTALL
   )
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
-
-MYSQL_ADD_EXECUTABLE(base64_test
-  base64.cc
-  DEPENDENCIES GenError
-  LINK_LIBRARIES mysys
-  SKIP_INSTALL
-  )
-SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
