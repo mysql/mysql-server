@@ -184,7 +184,7 @@
     the column GTID_ONLY
   - BUG#104643 Defaults in performance schema tables incompatible with sql_mode
     fixed TIMESTAMP columns (removed default 0)
-    fixed DOUBLE columns (removed precision and sign)
+    fixed DOUBLE columns (removed sign)
 */
 
 static const uint PFS_DD_VERSION = 80027;
