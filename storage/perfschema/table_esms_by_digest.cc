@@ -79,14 +79,14 @@ Plugin_table table_esms_by_digest::m_table_def(
     "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
     "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
     "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
-    "  FIRST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
-    "  LAST_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
+    "  FIRST_SEEN TIMESTAMP(6) not null,\n"
+    "  LAST_SEEN TIMESTAMP(6) not null,\n"
     "  QUANTILE_95 BIGINT unsigned not null,\n"
     "  QUANTILE_99 BIGINT unsigned not null,\n"
     "  QUANTILE_999 BIGINT unsigned not null,\n"
     "  QUERY_SAMPLE_TEXT LONGTEXT,\n"
-    "  QUERY_SAMPLE_SEEN TIMESTAMP(6) NOT NULL default 0,\n"
-    "  QUERY_SAMPLE_TIMER_WAIT BIGINT unsigned NOT NULL,\n"
+    "  QUERY_SAMPLE_SEEN TIMESTAMP(6) not null,\n"
+    "  QUERY_SAMPLE_TIMER_WAIT BIGINT unsigned not null,\n"
     "  UNIQUE KEY (SCHEMA_NAME, DIGEST) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",

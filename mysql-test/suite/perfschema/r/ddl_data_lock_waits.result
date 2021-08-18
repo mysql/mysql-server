@@ -6,3 +6,6 @@ ALTER TABLE performance_schema.data_lock_waits ADD INDEX test_index(BLOCKING_THR
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 CREATE UNIQUE INDEX test_index ON performance_schema.data_lock_waits(BLOCKING_THREAD_ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.data_lock_waits;
+DROP TABLE test.create_select;

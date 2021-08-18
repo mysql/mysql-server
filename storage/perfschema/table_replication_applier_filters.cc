@@ -60,8 +60,8 @@ Plugin_table table_replication_applier_filters::m_table_def(
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER',\n"
     "                     'STARTUP_OPTIONS_FOR_CHANNEL',\n"
     "                     'CHANGE_REPLICATION_FILTER_FOR_CHANNEL') not null,\n"
-    "  ACTIVE_SINCE TIMESTAMP(6) NOT NULL default 0,\n"
-    "  COUNTER bigint(20) unsigned NOT NULL default 0\n",
+    "  ACTIVE_SINCE TIMESTAMP(6) not null,\n"
+    "  COUNTER bigint(20) unsigned not null default 0\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */

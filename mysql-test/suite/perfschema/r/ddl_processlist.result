@@ -14,4 +14,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 drop index `PRIMARY`
   on performance_schema.processlist;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.processlist;
+DROP TABLE test.create_select;
 set @@global.performance_schema_show_processlist = @save_processlist;

@@ -23,4 +23,9 @@ ALTER TABLE performance_schema.replication_applier_global_filters
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON
-  performance_schema.replication_global_applier_filters(filter_name);
+  performance_schema.replication_applier_global_filters(filter_name);
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.replication_applier_global_filters;
+
+DROP TABLE test.create_select;

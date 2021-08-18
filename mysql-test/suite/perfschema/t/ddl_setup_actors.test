@@ -30,3 +30,8 @@ ALTER TABLE performance_schema.setup_actors ADD KEY ENA(ENABLED);
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.setup_actors;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.setup_actors;
+
+DROP TABLE test.create_select;

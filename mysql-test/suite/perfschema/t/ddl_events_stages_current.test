@@ -20,3 +20,8 @@ and table_schema='performance_schema';
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.events_stages_current;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.events_stages_current;
+
+DROP TABLE test.create_select;

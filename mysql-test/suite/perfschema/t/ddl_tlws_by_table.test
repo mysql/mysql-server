@@ -15,3 +15,8 @@ CREATE UNIQUE INDEX test_index ON performance_schema.table_lock_waits_summary_by
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `OBJECT`
   ON performance_schema.table_lock_waits_summary_by_table;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.table_lock_waits_summary_by_table;
+
+DROP TABLE test.create_select;

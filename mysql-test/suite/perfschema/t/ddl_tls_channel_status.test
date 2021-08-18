@@ -10,6 +10,12 @@ ALTER TABLE performance_schema.tls_channel_status ADD INDEX test_index(KEY_ID);
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.tls_channel_status(KEY_ID);
+
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.tls_channel_status;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.tls_channel_status;
+
+DROP TABLE test.create_select;

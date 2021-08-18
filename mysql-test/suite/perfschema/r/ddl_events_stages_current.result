@@ -11,3 +11,6 @@ def	performance_schema	events_stages_current	WORK_ESTIMATED	10	NULL	YES	bigint	N
 DROP INDEX `PRIMARY`
   ON performance_schema.events_stages_current;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.events_stages_current;
+DROP TABLE test.create_select;

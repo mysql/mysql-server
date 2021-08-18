@@ -15,3 +15,8 @@ CREATE UNIQUE INDEX test_index ON performance_schema.threads(PROCESSLIST_ID);
 -- error ER_DBACCESS_DENIED_ERROR
 DROP INDEX `PRIMARY`
   ON performance_schema.threads;
+
+CREATE TABLE test.create_select
+  AS SELECT * from performance_schema.threads;
+
+DROP TABLE test.create_select;
