@@ -44,7 +44,7 @@ SET(TESTS
 )
 
 # Treat warnings as errors on MSVC for InnoDB's unittests
-IF(MSVC)
+IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/WX")
 ENDIF()
 

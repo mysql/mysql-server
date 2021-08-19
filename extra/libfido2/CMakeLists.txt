@@ -49,6 +49,7 @@ if(APPLE)
 endif()
 
 if(MSVC)
+  IF(NOT WIN32_CLANG)
 	set(MSVC_DISABLED_WARNINGS_LIST
 		"C4200" # nonstandard extension used: zero-sized array in
 			# struct/union;
@@ -66,6 +67,7 @@ if(MSVC)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -MP -W4 -WX ${MSVC_DISABLED_WARNINGS_STR}")
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
+  ENDIF()
 else()
 	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       FIND_LIBRARY(UDEV_SYSTEM_LIBRARY NAMES udev)

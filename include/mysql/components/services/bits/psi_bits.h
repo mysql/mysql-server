@@ -43,7 +43,15 @@ static constexpr unsigned PSI_INSTRUMENT_ME = 0;
 
 #define PSI_DOCUMENT_ME ""
 
+// Remove 'constexpr' in order to pick the right overload for
+//    Prealloced_array CTOR.
+// See https://bugs.llvm.org/show_bug.cgi?id=51582
+// and TEST_F(PreallocedArrayTest, CorrectOverloadIsChosen)
+#if defined(__clang__) && defined(_WIN32)
+static unsigned PSI_NOT_INSTRUMENTED = 0;
+#else
 static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+#endif
 
 /**
   Singleton flag.
