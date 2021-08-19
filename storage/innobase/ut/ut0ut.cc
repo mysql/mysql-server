@@ -563,7 +563,8 @@ But, the whole point of using ib::fatal temporary object is to cause an abort.
 
 fatal::~fatal() {
   log_event("[FATAL] " + m_oss.str());
-  ut_error;
+  ut_dbg_assertion_failed("ib::fatal triggered", m_location.filename,
+                          m_location.line);
 }
 // Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
 #ifdef _WIN32
@@ -573,7 +574,8 @@ fatal::~fatal() {
 fatal_or_error::~fatal_or_error() {
   if (m_fatal) {
     log_event("[FATAL] " + m_oss.str());
-    ut_error;
+    ut_dbg_assertion_failed("ib::fatal_or_error triggered", m_location.filename,
+                            m_location.line);
   }
 }
 

@@ -499,7 +499,7 @@ void page_copy_rec_list_end_no_locks(
     offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED, &heap);
     ins_rec = page_cur_insert_rec_low(cur2, index, cur1_rec, offsets, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
-      ib::fatal(ER_IB_MSG_862)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_862)
           << "Rec offset " << page_offset(rec) << ", cur1 offset "
           << page_offset(page_cur_get_rec(&cur1)) << ", cur2 offset "
           << page_offset(cur2);
@@ -1737,13 +1737,15 @@ void page_check_dir(const page_t *page) /*!< in: index page */
   supremum_offs = mach_read_from_2(page_dir_get_nth_slot(page, n_slots - 1));
 
   if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
-    ib::fatal(ER_IB_MSG_867) << "Page directory corruption: infimum not"
-                                " pointed to";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_867)
+        << "Page directory corruption: infimum not"
+           " pointed to";
   }
 
   if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
-    ib::fatal(ER_IB_MSG_868) << "Page directory corruption: supremum not"
-                                " pointed to";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_868)
+        << "Page directory corruption: supremum not"
+           " pointed to";
   }
 }
 #endif /* UNIV_DEBUG */

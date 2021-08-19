@@ -776,7 +776,7 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
 
     if (err_msg) {
       if (err_msg != dict_load_virtual_del) {
-        ib::fatal(ER_IB_MSG_187) << err_msg;
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_187) << err_msg;
       } else {
         skipped++;
       }
@@ -1659,7 +1659,7 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
       n_skipped++;
       goto next_rec;
     } else if (err_msg) {
-      ib::fatal(ER_IB_MSG_195) << err_msg;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_195) << err_msg;
     }
 
     /* Note: Currently we have one DOC_ID column that is
@@ -2664,7 +2664,7 @@ static void dict_load_foreign_cols(
       ref_col_name = rec_get_nth_field_old(
           rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME, &ref_col_name_len);
 
-      ib::fatal sout;
+      ib::fatal sout(UT_LOCATION_HERE);
 
       sout << "Unable to load column names for foreign"
               " key '"

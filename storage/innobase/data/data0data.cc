@@ -146,7 +146,7 @@ static bool dtuple_check_typed_no_assert(const dtuple_t *tuple) {
 bool dfield_check_typed(const dfield_t *field) {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::fatal(ER_IB_MSG_158)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_158)
         << "Data field type " << dfield_get_type(field)->mtype << ", len "
         << dfield_get_len(field);
   }

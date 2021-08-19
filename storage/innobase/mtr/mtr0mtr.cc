@@ -270,7 +270,7 @@ struct Debug_check {
 
 #ifdef UNIV_DEBUG
 /** Assure that there are no slots that are latching any resources. Only buffer
- * fixing a page is allowed. */
+fixing a page is allowed. */
 struct Debug_check_no_latching {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
@@ -278,7 +278,7 @@ struct Debug_check_no_latching {
       case MTR_MEMO_BUF_FIX:
         break;
       default:
-        ib::fatal(ER_MTR_MSG_1, (int)slot->type);
+        ib::fatal(UT_LOCATION_HERE, ER_MTR_MSG_1, (int)slot->type);
     }
     return true;
   }

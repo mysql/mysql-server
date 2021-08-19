@@ -415,7 +415,7 @@ static bool recv_sys_resize_buf() {
 #else  /* !UNIV_HOTBACKUP */
   if ((recv_sys->buf_len >= srv_log_buffer_size) ||
       (recv_sys->len >= srv_log_buffer_size)) {
-    ib::fatal(ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW)
         << "Log parsing buffer overflow. Log parse failed. "
         << "Please increase --limit-memory above "
         << srv_log_buffer_size / 1024 / 1024 << " (MB)";
@@ -661,7 +661,7 @@ static void recv_sys_empty_hash() {
   ut_ad(mutex_own(&recv_sys->mutex));
 
   if (recv_sys->n_addrs != 0) {
-    ib::fatal(ER_IB_MSG_699, ulonglong{recv_sys->n_addrs});
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_699, ulonglong{recv_sys->n_addrs});
   }
 
   for (auto &space : *recv_sys->spaces) {
@@ -1486,8 +1486,9 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
   success = fil_space_extend(space, recv_addr->page_no + 1);
 
   if (!success) {
-    ib::fatal(ER_IB_MSG_711) << "Cannot extend tablespace " << recv_addr->space
-                             << " to hold " << recv_addr->page_no << " pages";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_711)
+        << "Cannot extend tablespace " << recv_addr->space << " to hold "
+        << recv_addr->page_no << " pages";
   }
 
   mutex_exit(&recv_sys->mutex);
@@ -1509,7 +1510,7 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
   }
 
   if (err != DB_SUCCESS) {
-    ib::fatal(ER_IB_MSG_712)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_712)
         << "Cannot read from tablespace " << recv_addr->space << " page number "
         << recv_addr->page_no;
   }
@@ -1542,7 +1543,7 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
   }
 
   if (err != DB_SUCCESS) {
-    ib::fatal(ER_IB_MSG_713)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_713)
         << "Cannot write to tablespace " << recv_addr->space << " page number "
         << recv_addr->page_no;
   }
@@ -3523,7 +3524,8 @@ bool meb_scan_log_recs(
             return (true);
           }
 #else  /* !UNIV_HOTBACKUP */
-          ib::fatal(ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER)
+          ib::fatal(UT_LOCATION_HERE,
+                    ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER)
               << "Insufficient memory for InnoDB parse buffer; want "
               << recv_sys->buf_len;
 #endif /* !UNIV_HOTBACKUP */

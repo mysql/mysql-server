@@ -2619,16 +2619,17 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   }
 
   if (space_id != space->id) {
-    ib::fatal(ER_IB_MSG_270) << "Tablespace id is " << space->id
-                             << " in the data dictionary but in file "
-                             << file->name << " it is " << space_id << "!";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_270)
+        << "Tablespace id is " << space->id
+        << " in the data dictionary but in file " << file->name << " it is "
+        << space_id << "!";
   }
 
   /* We need to adjust for compressed pages. */
   const page_size_t space_page_size(space->flags);
 
   if (!page_size.equals_to(space_page_size)) {
-    ib::fatal(ER_IB_MSG_271)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_271)
         << "Tablespace file " << file->name << " has page size " << page_size
         << " (flags=" << ib::hex(flags) << ") but the data dictionary expects"
         << " page size " << space_page_size
@@ -3982,7 +3983,7 @@ previous value.
 @param[in]	max_id		Maximum known tablespace ID */
 void fil_set_max_space_id_if_bigger(space_id_t max_id) {
   if (dict_sys_t::is_reserved(max_id)) {
-    ib::fatal(ER_IB_MSG_285, ulong{max_id});
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_285, ulong{max_id});
   }
 
   fil_system->update_maximum_space_id(max_id);
@@ -7216,8 +7217,8 @@ static void meb_make_abs_file_path(const std::string &name, uint32_t flags,
       }
 
       if (pos == std::string::npos) {
-        ib::fatal(ER_IB_MSG_325)
-            << "Could not extract the tabelspace"
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_325)
+            << "Could not extract the tablespace"
             << " file name from the in the path : " << name;
       }
 
@@ -7300,7 +7301,7 @@ static void meb_tablespace_redo_create(const page_id_t &page_id, uint32_t flags,
                                    FIL_IBD_FILE_INITIAL_SIZE);
 
       if (ret != DB_SUCCESS) {
-        ib::fatal(ER_IB_MSG_326)
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_326)
             << "Could not create the tablespace : " << abs_file_path
             << " with space Id : " << page_id.space();
       }

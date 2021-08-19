@@ -647,7 +647,7 @@ static ulint *rtr_page_get_father_node_ptr(
   if (child_page != page_no) {
     const rec_t *print_rec;
 
-    ib::fatal error;
+    ib::fatal error(UT_LOCATION_HERE);
 
     error << "Corruption of index " << index->name << " of table "
           << index->table->name << " parent page " << page_no << " child page "

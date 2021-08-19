@@ -344,7 +344,7 @@ void trx_purge_add_update_undo_to_history(
     /* The undo log segment will not be reused */
 
     if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-      ib::fatal(ER_IB_MSG_1165) << "undo->id is " << undo->id;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1165) << "undo->id is " << undo->id;
     }
 
     trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
@@ -2162,7 +2162,7 @@ void Purge_groups_t::distribute() {
         if (target_grpid == n_purge_threads) {
           target_grpid = 0;
           /* Undo records are moved to the first group. So a second pass is
-           * needed. */
+          needed. */
           need_second_pass = true;
         }
         auto to_list = m_groups[target_grpid];
@@ -2172,7 +2172,7 @@ void Purge_groups_t::distribute() {
                         from_list->end());
       } else if (i == 1) {
         /* In the second pass, stop as soon as we encounter a group with <=
-         * max_n records. */
+        max_n records. */
         break;
       }
     }
@@ -2480,13 +2480,13 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 #endif /* UNIV_DEBUG */
 
   /* The first page of LOBs are freed at the end of a purge batch because
-   * multiple purge threads will access the same LOB as part of the purge
-   * process.  Some purge threads will free only portion of the LOB related to
-   * the partial update of the LOB.  But 1 of the purge thread will free the LOB
-   * completely if it is not needed anymore (either because of full update or
-   * because of deletion).  If the LOB is freed, and a purge thread attempts to
-   * access the LOB, then it is a bug.  To avoid this, we delay the freeing of
-   * the first page of LOB till the end of a purge batch.  */
+  multiple purge threads will access the same LOB as part of the purge
+  process.  Some purge threads will free only portion of the LOB related to
+  the partial update of the LOB.  But 1 of the purge thread will free the LOB
+  completely if it is not needed anymore (either because of full update or
+  because of deletion).  If the LOB is freed, and a purge thread attempts to
+  access the LOB, then it is a bug.  To avoid this, we delay the freeing of
+  the first page of LOB till the end of a purge batch.  */
   for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs); thr != nullptr;
        thr = UT_LIST_GET_NEXT(thrs, thr)) {
     purge_node_t *node = static_cast<purge_node_t *>(thr->child);

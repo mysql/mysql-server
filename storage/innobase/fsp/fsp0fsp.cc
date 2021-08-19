@@ -3435,7 +3435,7 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
                                 " corrupt. You may need to dump your tables and"
                                 " recreate the whole database!";
   crash:
-    ib::fatal(ER_IB_MSG_422) << FORCE_RECOVERY_MSG;
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_422) << FORCE_RECOVERY_MSG;
   }
 
   xdes_state_t state = xdes_get_state(descr, mtr);

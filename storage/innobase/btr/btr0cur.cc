@@ -2869,7 +2869,7 @@ dberr_t btr_cur_optimistic_insert(
     *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap, mtr);
 
     if (UNIV_UNLIKELY(!*rec)) {
-      ib::fatal(ER_IB_MSG_44)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_44)
           << "Cannot insert tuple " << *entry << "into index " << index->name
           << " of table " << index->table->name << ". Max size: " << max_size;
     }

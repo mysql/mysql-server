@@ -571,7 +571,8 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 #ifndef UNIV_HOTBACKUP
       my_error(ER_TABLE_CORRUPT, MYF(0), "", table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal(ER_IB_MSG_168) << "table is corrupt: " << table->name.m_name;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_168)
+          << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     } else {
 #ifndef UNIV_HOTBACKUP
@@ -581,7 +582,8 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 
       my_error(ER_TABLE_CORRUPT, MYF(0), db_str.c_str(), tbl_str.c_str());
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal(ER_IB_MSG_169) << "table is corrupt: " << table->name.m_name;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_169)
+          << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     }
     table = nullptr;
@@ -593,7 +595,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 #ifndef UNIV_HOTBACKUP
     my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-    ib::fatal(ER_IB_MSG_170)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_170)
         << "table space is missing: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     table = nullptr;

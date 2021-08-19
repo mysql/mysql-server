@@ -304,9 +304,9 @@ mem_block_t *mem_heap_create_block_func(
 
   if (block == nullptr) {
 #ifdef UNIV_NO_ERR_MSGS
-    ib::fatal()
+    ib::fatal(UT_LOCATION_HERE)
 #else
-    ib::fatal(ER_IB_MSG_1274)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1274)
 #endif /* !UNIV_NO_ERR_MSGS */
         << "Unable to allocate memory of size " << len << ".";
   }

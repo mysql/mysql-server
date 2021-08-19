@@ -367,11 +367,12 @@ que_thr_t *row_undo_step(que_thr_t *thr) /*!< in: query thread */
     /* SQL error detected */
 
     if (err == DB_OUT_OF_FILE_SPACE) {
-      ib::fatal(ER_IB_MSG_1041) << "Out of tablespace during rollback."
-                                   " Consider increasing your tablespace.";
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1041)
+          << "Out of tablespace during rollback."
+             " Consider increasing your tablespace.";
     }
 
-    ib::fatal(ER_IB_MSG_1042)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1042)
         << "Error (" << ut_strerr(err) << ") in rollback.";
   }
 

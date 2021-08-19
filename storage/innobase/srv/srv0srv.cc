@@ -1834,7 +1834,8 @@ loop:
       waiter == old_waiter) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
-      ib::fatal(ER_IB_MSG_1047, ulonglong{srv_fatal_semaphore_wait_threshold});
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1047,
+                ulonglong{srv_fatal_semaphore_wait_threshold});
     }
   } else {
     fatal_cnt = 0;

@@ -463,7 +463,8 @@ class AIO {
   /** Non const version */
   [[nodiscard]] Slot *at(ulint i) {
     if (i >= m_slots.size()) {
-      ib::fatal(ER_IB_MSG_1357) << "i: " << i << " slots: " << m_slots.size();
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1357)
+          << "i: " << i << " slots: " << m_slots.size();
     }
 
     return (&m_slots[i]);
@@ -1834,7 +1835,7 @@ void test_os_file_get_parent_dir(const char *child_dir,
   bool unexpected =
       (expected == NULL ? (parent != NULL) : (0 != strcmp(parent, expected)));
   if (unexpected) {
-    ib::fatal(ER_IB_MSG_752)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_752)
         << "os_file_get_parent_dir('" << child << "') returned '" << parent
         << "', instead of '" << expected << "'.";
   }
@@ -2428,7 +2429,7 @@ void LinuxAIOHandler::collect() {
     }
 
     /* All other errors should cause a trap for now. */
-    ib::fatal(ER_IB_MSG_755)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_755)
         << "Unexpected ret_code[" << ret << "] from io_getevents()!";
 
     break;
@@ -2496,11 +2497,12 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
 
   if (err == DB_IO_PARTIAL_FAILED) {
     /* Aborting in case of submit failure */
-    ib::fatal(ER_IB_MSG_756) << "Native Linux AIO interface. "
-                                "io_submit() call failed when "
-                                "resubmitting a partial I/O "
-                                "request on the file "
-                             << slot->name << ".";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_756)
+        << "Native Linux AIO interface. "
+           "io_submit() call failed when "
+           "resubmitting a partial I/O "
+           "request on the file "
+        << slot->name << ".";
   }
 
   *m1 = slot->m1;
@@ -2884,7 +2886,8 @@ static int os_file_fsync_posix(os_file_t file) {
 
       case EIO:
 
-        ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1358)
+            << "fsync() returned EIO, aborting.";
         break;
 
       case EINTR:
@@ -5316,8 +5319,8 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
     }
   }
 
-  ib::fatal(ER_IB_MSG_818) << "Cannot read from file. OS error number " << errno
-                           << ".";
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_818)
+      << "Cannot read from file. OS error number " << errno << ".";
 
   return (err);
 }
@@ -5418,8 +5421,9 @@ and the error type, if should_exit is true then on_error_silent is ignored.
 #ifndef UNIV_HOTBACKUP
         srv_fatal_error();
 #else  /* !UNIV_HOTBACKUP */
-        ib::fatal(ER_IB_MSG_822) << "Internal error,"
-                                 << " cannot continue operation.";
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_822)
+            << "Internal error,"
+            << " cannot continue operation.";
 #endif /* !UNIV_HOTBACKUP */
       }
   }
@@ -8121,7 +8125,7 @@ dberr_t os_file_write_retry(IORequest &type, const char *name,
       std::this_thread::sleep_for(ten);
       continue;
     } else {
-      ib::fatal(ER_INNODB_IO_WRITE_FAILED, name);
+      ib::fatal(UT_LOCATION_HERE, ER_INNODB_IO_WRITE_FAILED, name);
     }
   }
   return err;

@@ -225,7 +225,7 @@ static inline void ibuf_count_check(const page_id_t &page_id) {
     return;
   }
 
-  ib::fatal(ER_IB_MSG_605)
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_605)
       << "UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
          " and breaks crash recovery. space_id="
       << page_id.space() << ", should be 0<=space_id<" << IBUF_COUNT_N_SPACES
@@ -3898,7 +3898,8 @@ static ibool ibuf_restore_pos(
 
     rec_print_old(stderr, page_rec_get_next(btr_pcur_get_rec(pcur)));
 
-    ib::fatal(ER_IB_MSG_622) << "Failed to restore ibuf position.";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_622)
+        << "Failed to restore ibuf position.";
   }
 
   return (FALSE);
