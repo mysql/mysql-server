@@ -875,14 +875,14 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                                 bool update_tbl_stats,
                                 enum_order order_direction,
                                 bool skip_records_in_range,
-                                const Cost_estimate *cost_est,
+                                const Cost_estimate &cost_est,
                                 Key_map *needed_reg) {
   uint idx, best_idx = 0;
   SEL_ROOT *key, *key_to_read = nullptr;
   ha_rows best_records = 0; /* protected by key_to_read */
   uint best_mrr_flags = 0, best_buf_size = 0;
   TRP_RANGE *read_plan = nullptr;
-  Cost_estimate read_cost = *cost_est;
+  Cost_estimate read_cost = cost_est;
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;
   /*

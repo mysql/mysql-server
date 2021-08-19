@@ -180,20 +180,20 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
 }
 
 QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
-  QUICK_ROR_UNION_SELECT *quick_roru;
-  TABLE_READ_PLAN **scan;
-  QUICK_SELECT_I *quick;
   DBUG_TRACE;
   /*
     It is impossible to construct a ROR-union that will not retrieve full
-    rows, ignore retrieve_full_rows parameter.
-  */
-  if ((quick_roru = new (return_mem_root)
-           QUICK_ROR_UNION_SELECT(return_mem_root, table))) {
-    for (scan = first_ror; scan != last_ror; scan++) {
-      if (!(quick = (*scan)->make_quick(false, return_mem_root)) ||
-          quick_roru->push_quick_back(quick))
-        return nullptr;
+    rows, so ignore the retrieve_full_rows parameter.
+   */
+  QUICK_ROR_UNION_SELECT *quick_roru =
+      new (return_mem_root) QUICK_ROR_UNION_SELECT(return_mem_root, table);
+  if (quick_roru == nullptr) {
+    return nullptr;
+  }
+  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
+    QUICK_SELECT_I *quick = (*scan)->make_quick(false, return_mem_root);
+    if (quick == nullptr || quick_roru->push_quick_back(quick)) {
+      return nullptr;
     }
   }
   return quick_roru;

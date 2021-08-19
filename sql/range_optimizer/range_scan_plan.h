@@ -212,7 +212,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
                                 bool update_tbl_stats,
                                 enum_order interesting_order,
                                 bool skip_records_in_range,
-                                const Cost_estimate *cost_est,
+                                const Cost_estimate &cost_est,
                                 Key_map *needed_reg);
 
 /*
