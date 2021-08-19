@@ -3964,7 +3964,7 @@ static void innobase_post_recover() {
 
     /* Abort post recovery startup if this is not successful. */
     if (err != DB_SUCCESS) {
-      ib::fatal(ER_IB_MSG_POST_RECOVER_DDL_LOG_RECOVER);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_POST_RECOVER_DDL_LOG_RECOVER);
     }
   }
 
@@ -4923,7 +4923,7 @@ static void innobase_post_ddl(THD *thd) {
 
     /* If this fails, do not continue startup. */
     if (err != DB_SUCCESS) {
-      ib::fatal(ER_IB_MSG_DDL_LOG_FAIL_POST_DDL);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DDL_LOG_FAIL_POST_DDL);
     }
   }
 }

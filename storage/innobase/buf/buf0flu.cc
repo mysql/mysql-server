@@ -689,7 +689,7 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage) {
   ut_ad(bpage->in_LRU_list);
 
   if (!buf_page_in_file(bpage)) {
-    ib::fatal(ER_IB_MSG_123)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_123)
         << "Buffer block " << bpage << " state "
         << static_cast<unsigned>(bpage->state) << " in the LRU list!";
   }

@@ -284,7 +284,8 @@ static inline CHARSET_INFO *fts_get_charset(ulint prtype) {
     return (cs);
   }
 
-  ib::fatal(ER_IB_MSG_461) << "Unable to find charset-collation " << cs_num;
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_461)
+      << "Unable to find charset-collation " << cs_num;
   return (nullptr);
 }
 

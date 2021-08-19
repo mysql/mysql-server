@@ -156,9 +156,9 @@ static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
   }
 
 #ifdef UNIV_NO_ERR_MSGS
-  ib::fatal()
+  ib::fatal(UT_LOCATION_HERE)
 #else
-  ib::fatal(ER_IB_MSG_627)
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_627)
 #endif /* !UNIV_NO_ERR_MSGS */
       << "Unable to find charset-collation " << cs_num;
 

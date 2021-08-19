@@ -711,19 +711,32 @@ immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
-  /** Default constructor uses ER_IB_MSG_0 */
-  fatal() : logger(ERROR_LEVEL) {}
+  /** Default constructor uses ER_IB_MSG_0
+  @param[in]	location		Location that creates the fatal message.
+*/
+  fatal(ut::Location location) : logger(ERROR_LEVEL), m_location(location) {}
 
   /** Constructor.
+  @param[in]	location		Location that creates the fatal message.
   @param[in]	err		Error code from errmsg-*.txt.
   @param[in]	args		Variable length argument list */
   template <class... Args>
-  explicit fatal(int err, Args &&... args)
-      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
-
+  explicit fatal(ut::Location location, int err, Args &&... args)
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...),
+        m_location(location) {}
+#else
+  /** Constructor
+  @param[in]	location		Location that creates the fatal message.
+  */
+  fatal(ut::Location location) : m_location(location) {}
 #endif /* !UNIV_NO_ERR_MSGS */
+
   /** Destructor. */
   ~fatal() override;
+
+ private:
+  /** Location of the original caller to report to assertion failure */
+  ut::Location m_location;
 };
 
 /** Emit an error message if the given predicate is true, otherwise emit a
@@ -754,26 +767,40 @@ class fatal_or_error : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0
-  @param[in]	fatal		true if it's a fatal message */
-  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {}
+  @param[in]	fatal		true if it's a fatal message
+  @param[in] location Location that creates the fatal */
+  fatal_or_error(bool fatal, ut::Location location)
+      : logger(ERROR_LEVEL), m_fatal(fatal), m_location(location) {}
 
   /** Constructor.
   @param[in]	fatal		true if it's a fatal message
+  @param[in] location Location that creates the fatal
   @param[in]	err		Error code from errmsg-*.txt.
   @param[in]	args		Variable length argument list */
   template <class... Args>
-  explicit fatal_or_error(bool fatal, int err, Args &&... args)
-      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...), m_fatal(fatal) {}
+  explicit fatal_or_error(bool fatal, ut::Location location, int err,
+                          Args &&... args)
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...),
+        m_fatal(fatal),
+        m_location(location) {}
 
   /** Destructor */
   ~fatal_or_error() override;
 #else
-  /** Constructor */
-  fatal_or_error(bool fatal) : m_fatal(fatal) {}
+  /** Constructor
+  @param[in] location Location that creates the fatal */
+  fatal_or_error(bool fatal, ut::Location location)
+      : m_fatal(fatal), m_location(location) {}
+
+  /** Destructor */
+  ~fatal_or_error() override;
+
 #endif /* !UNIV_NO_ERR_MSGS */
  private:
   /** If true then assert after printing an error message. */
   const bool m_fatal;
+  /** Location of the original caller to report to assertion failure */
+  ut::Location m_location;
 };
 
 #ifdef UNIV_HOTBACKUP

@@ -1486,8 +1486,9 @@ dberr_t dict_table_rename_in_cache(
   if (strlen(table->name.m_name) + 1 <= sizeof(old_name)) {
     strcpy(old_name, table->name.m_name);
   } else {
-    ib::fatal(ER_IB_MSG_177) << "Too long table name: " << table->name
-                             << ", max length is " << MAX_FULL_NAME_LEN;
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_177)
+        << "Too long table name: " << table->name << ", max length is "
+        << MAX_FULL_NAME_LEN;
   }
 
   fold = ut_fold_string(new_name);

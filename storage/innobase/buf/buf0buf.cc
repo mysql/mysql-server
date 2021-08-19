@@ -3914,7 +3914,7 @@ void Buf_fetch<T>::read_page() {
     DBUG_EXECUTE_IF("innodb_page_corruption_retries",
                     m_retries = BUF_PAGE_READ_MAX_RETRIES;);
   } else {
-    ib::fatal(ER_IB_MSG_74)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_74)
         << "Unable to read page " << m_page_id << " into the buffer pool after "
         << BUF_PAGE_READ_MAX_RETRIES
         << " attempts. The most probable cause of this error may"
@@ -4250,7 +4250,7 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
     case Page_fetch::POSSIBLY_FREED:
       break;
     default:
-      ib::fatal(ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE)
           << "Unknown fetch mode: " << (int)mode;
       ut_error;
   }
@@ -5769,7 +5769,7 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     if (block) {
-      ib::fatal(ER_IB_MSG_83)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_83)
           << "Page " << block->page.id << " still fixed or dirty";
     }
   }
@@ -6004,7 +6004,7 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   if (buf_pool->curr_size == buf_pool->old_size &&
       n_lru + n_free > buf_pool->curr_size + n_zip) {
-    ib::fatal(ER_IB_MSG_84)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_84)
         << "n_LRU " << n_lru << ", n_free " << n_free << ", pool "
         << buf_pool->curr_size << " zip " << n_zip << ". Aborting...";
   }
@@ -6016,7 +6016,7 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   if (buf_pool->curr_size == buf_pool->old_size &&
       UT_LIST_GET_LEN(buf_pool->free) > n_free) {
-    ib::fatal(ER_IB_MSG_85)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_85)
         << "Free list len " << UT_LIST_GET_LEN(buf_pool->free)
         << ", free blocks " << n_free << ". Aborting...";
   }

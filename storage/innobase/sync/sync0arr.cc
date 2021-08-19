@@ -312,9 +312,9 @@ void sync_array_wait_event(
 
   if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
 #ifdef UNIV_NO_ERR_MSGS
-    ib::fatal()
+    ib::fatal(UT_LOCATION_HERE)
 #else
-    ib::fatal(ER_IB_MSG_1157)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1157)
 #endif /* UNIV_NO_ERR_MSGS */
         << "########################################"
            " Deadlock Detected!";

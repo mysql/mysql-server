@@ -117,8 +117,9 @@ void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
     entering into reserved range of table_ids for SDI
     tables */
     if (id >= dict_sdi_get_table_id(0)) {
-      ib::fatal(ER_IB_MSG_160) << "InnoDB is running out of table_ids"
-                               << " Please dump and reload the database";
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_160)
+          << "InnoDB is running out of table_ids"
+          << " Please dump and reload the database";
     }
 
     mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);

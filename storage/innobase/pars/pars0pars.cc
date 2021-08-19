@@ -1700,7 +1700,8 @@ void yyerror(const char *s [[maybe_unused]])
 {
   ut_ad(s);
 
-  ib::fatal(ER_IB_MSG_917) << "PARSER: Syntax error in SQL string";
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_917)
+      << "PARSER: Syntax error in SQL string";
 }
 
 /** Parses an SQL string returning the query graph.

@@ -869,7 +869,7 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
 
   } else {
     if (state != BUF_BLOCK_FILE_PAGE) {
-      ib::fatal(ER_IB_MSG_DBLWR_1297)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1297)
           << "Invalid page state: state: " << static_cast<unsigned>(state)
           << " block state: "
           << static_cast<unsigned>(buf_page_get_state(bpage));
@@ -1012,7 +1012,7 @@ void Double_write::check_page_lsn(const page_t *page) noexcept {
 void Double_write::croak(const buf_block_t *block) noexcept {
   buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-  ib::fatal(ER_IB_MSG_112)
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_112)
       << "Apparent corruption of an index page " << block->page.id
       << " to be written to data file. We intentionally crash"
          " the server to prevent corrupt data from ending up in"
@@ -1204,7 +1204,7 @@ void Double_write::reset_file(dblwr::File &file, bool truncate) noexcept {
     auto success = os_file_truncate(file.m_name.c_str(), pfs_file, new_size);
 
     if (!success) {
-      ib::fatal(ER_IB_MSG_DBLWR_1320, file.m_name.c_str());
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1320, file.m_name.c_str());
     }
 
   } else if (new_size > cur_size) {
@@ -1213,7 +1213,7 @@ void Double_write::reset_file(dblwr::File &file, bool truncate) noexcept {
                                    new_size - cur_size, srv_read_only_mode);
 
     if (err != DB_SUCCESS) {
-      ib::fatal(ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
     }
 
     ib::info(ER_IB_MSG_DBLWR_1307)
@@ -2223,7 +2223,7 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
 
       buf_page_print(page, page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-      ib::fatal(ER_IB_MSG_DBLWR_1306);
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1306);
     }
 
   } else {

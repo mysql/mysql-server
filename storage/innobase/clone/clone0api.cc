@@ -80,7 +80,7 @@ static void rename_file(std::string &from_file, std::string &to_file) {
   auto ret = std::rename(from_file.c_str(), to_file.c_str());
 
   if (ret != 0) {
-    ib::fatal(ER_IB_CLONE_STATUS_FILE)
+    ib::fatal(UT_LOCATION_HERE, ER_IB_CLONE_STATUS_FILE)
         << "Error renaming file from: " << from_file.c_str()
         << " to: " << to_file.c_str();
   }
@@ -1087,7 +1087,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
       break;
 
     default:
-      ib::fatal(ER_IB_CLONE_STATUS_FILE)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_CLONE_STATUS_FILE)
           << "Clone File Roll Forward: Invalid File State: " << cur_state;
   }
   return (cur_state);
@@ -1137,7 +1137,7 @@ static void file_rollback(std::string &data_file) {
       break;
 
     default:
-      ib::fatal(ER_IB_CLONE_STATUS_FILE)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_CLONE_STATUS_FILE)
           << "Clone File Roll Back: Invalid File State: " << cur_state;
   }
 }
@@ -1209,7 +1209,7 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
       break;
 
     default:
-      ib::fatal(ER_IB_CLONE_STATUS_FILE)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_CLONE_STATUS_FILE)
           << "Clone Old File Roll Forward: Invalid File State: " << cur_state;
   }
 }
@@ -1247,7 +1247,7 @@ static void old_file_rollback(std::string &data_file) {
       break;
 
     default:
-      ib::fatal(ER_IB_CLONE_STATUS_FILE)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_CLONE_STATUS_FILE)
           << "Clone Old File Roll Back: Invalid File State: " << cur_state;
   }
 }

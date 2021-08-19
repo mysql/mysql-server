@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** A BLOB field reference has all the bits set to zero, except the "being
- * modified" bit. */
+modified" bit. */
 const byte field_ref_almost_zero[FIELD_REF_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
 };
@@ -734,7 +734,7 @@ static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
       }
 #endif /* !UNIV_DEBUG */
 
-      ib::fatal(ER_IB_MSG_631)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_631)
           << "FIL_PAGE_TYPE=" << type << " on BLOB "
           << (read ? "read" : "purge") << " space " << space_id << " page "
           << page_no << " flags " << flags;

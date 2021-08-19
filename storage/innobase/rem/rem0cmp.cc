@@ -109,7 +109,8 @@ static inline int innobase_mysql_cmp(ulint prtype, const byte *a,
     return (cs->coll->strnncollsp(cs, a, a_length, b, b_length));
   }
 
-  ib::fatal(ER_IB_MSG_919) << "Unable to find charset-collation " << cs_num;
+  ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_919)
+      << "Unable to find charset-collation " << cs_num;
   return (0);
 }
 
@@ -372,7 +373,8 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
     case DATA_GEOMETRY:
       return (cmp_geometry_field(mtype, prtype, a, a_length, b, b_length));
     default:
-      ib::fatal(ER_IB_MSG_921) << "Unknown data type number " << mtype;
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_921)
+          << "Unknown data type number " << mtype;
       cmp = 0;
   }
   if (!is_asc) {

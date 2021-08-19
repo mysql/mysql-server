@@ -16,7 +16,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Database page corruption on disk or a failed");
 # ib::fatal() calls ut_error
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Assertion failure: ut0ut\.cc:");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Assertion failure: buf0buf\.cc:[0-9]+:ib::fatal triggered");
 SET GLOBAL innodb_file_per_table=on;
 
 --echo [1]: Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool

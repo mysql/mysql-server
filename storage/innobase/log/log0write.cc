@@ -1965,9 +1965,11 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
 
     if (!log.m_allow_checkpoints.load()) {
       if (srv_force_recovery < 4) {
-        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
+        ib::fatal(UT_LOCATION_HERE,
+                  ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
       } else {
-        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
+        ib::fatal(UT_LOCATION_HERE,
+                  ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
       }
     }
 

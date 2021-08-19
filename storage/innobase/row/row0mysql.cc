@@ -725,7 +725,7 @@ handle_new_error:
       break;
 
     case DB_MUST_GET_MORE_FILE_SPACE:
-      ib::fatal(ER_IB_MSG_972)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_972)
           << "The database cannot continue operation because"
              " of lack of space. You must add a new data file"
              " to my.cnf and restart the database.";
@@ -750,7 +750,7 @@ handle_new_error:
              " foreign constraints and try again";
       break;
     default:
-      ib::fatal(ER_IB_MSG_975)
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_975)
           << "Unknown error code " << err << ": " << ut_strerr(err);
   }
 

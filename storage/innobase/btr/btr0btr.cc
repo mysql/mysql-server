@@ -713,10 +713,11 @@ static ulint *btr_page_get_father_node_ptr_func(
     offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
     page_rec_print(node_ptr, offsets);
 
-    ib::fatal(ER_IB_MSG_29) << "You should dump + drop + reimport the table to"
-                            << " fix the corruption. If the crash happens at"
-                            << " database startup. " << FORCE_RECOVERY_MSG
-                            << " Then dump + drop + reimport.";
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_29)
+        << "You should dump + drop + reimport the table to"
+        << " fix the corruption. If the crash happens at"
+        << " database startup. " << FORCE_RECOVERY_MSG
+        << " Then dump + drop + reimport.";
   }
 
   return (offsets);
@@ -3217,8 +3218,9 @@ retry:
       page_no_t page_no = btr_node_ptr_get_child_page_no(my_rec, offsets);
 
       if (page_no != block->page.id.page_no()) {
-        ib::fatal(ER_IB_MSG_33) << "father positioned on " << page_no
-                                << " instead of " << block->page.id.page_no();
+        ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_33)
+            << "father positioned on " << page_no << " instead of "
+            << block->page.id.page_no();
 
         ut_ad(0);
       }
