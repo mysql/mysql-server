@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,8 +52,7 @@ ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
                            > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
                    COMMAND echo See output in ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
                            > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.passed
-                   MAIN_DEPENDENCY atrt
-                   DEPENDS ${testcase_files}
+                   DEPENDS atrt ${testcase_files}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 ADD_CUSTOM_TARGET(check_testcase_files ALL
