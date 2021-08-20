@@ -60,8 +60,7 @@ ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
                            > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
                    COMMAND echo See output in ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
                            > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.passed
-                   MAIN_DEPENDENCY atrt
-                   DEPENDS ${testcase_files}
+                   DEPENDS atrt ${testcase_files}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 ADD_CUSTOM_TARGET(check_testcase_files ALL
