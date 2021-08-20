@@ -51,7 +51,6 @@ class dyn_buf_t {
   class block_t;
 
   typedef UT_LIST_NODE_T(block_t) block_node_t;
-  typedef UT_LIST_BASE_NODE_T(block_t, m_node) block_list_t;
 
   class block_t {
    public:
@@ -149,6 +148,7 @@ class dyn_buf_t {
 
     friend class dyn_buf_t;
   };
+  typedef UT_LIST_BASE_NODE_T(block_t, m_node) block_list_t;
 
   static constexpr auto MAX_DATA_SIZE = block_t::MAX_DATA_SIZE;
 
