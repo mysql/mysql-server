@@ -116,9 +116,9 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
-  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+  for (TABLE_READ_PLAN *current : ror_scans) {
     Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(thd, param, &trp_info);
+    current->trace_basic_info(thd, param, &trp_info);
   }
 }
 
@@ -190,8 +190,8 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
   if (quick_roru == nullptr) {
     return nullptr;
   }
-  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
-    QUICK_SELECT_I *quick = (*scan)->make_quick(false, return_mem_root);
+  for (TABLE_READ_PLAN *scan : ror_scans) {
+    QUICK_SELECT_I *quick = scan->make_quick(false, return_mem_root);
     if (quick == nullptr || quick_roru->push_quick_back(quick)) {
       return nullptr;
     }
@@ -1066,8 +1066,8 @@ bool TRP_ROR_INTERSECT::is_keys_used(const MY_BITMAP *fields) {
 }
 
 bool TRP_ROR_UNION::is_keys_used(const MY_BITMAP *fields) {
-  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
-    if (is_key_used(table, (*scan)->index, fields)) return true;
+  for (TABLE_READ_PLAN *scan : ror_scans) {
+    if (is_key_used(table, scan->index, fields)) return true;
   }
   return false;
 }
@@ -1086,8 +1086,8 @@ void TRP_ROR_INTERSECT::get_fields_used(MY_BITMAP *used_fields) const {
 }
 
 void TRP_ROR_UNION::get_fields_used(MY_BITMAP *used_fields) const {
-  for (TABLE_READ_PLAN **scan = first_ror; scan != last_ror; scan++) {
-    (*scan)->get_fields_used(used_fields);
+  for (TABLE_READ_PLAN *scan : ror_scans) {
+    scan->get_fields_used(used_fields);
   }
 }
 
@@ -1113,12 +1113,12 @@ void TRP_ROR_INTERSECT::add_info_string(String *str) const {
 void TRP_ROR_UNION::add_info_string(String *str) const {
   bool first = true;
   str->append(STRING_WITH_LEN("union("));
-  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+  for (TABLE_READ_PLAN *current : ror_scans) {
     if (!first)
       str->append(',');
     else
       first = false;
-    (*current)->add_info_string(str);
+    current->add_info_string(str);
   }
   str->append(')');
 }
@@ -1171,14 +1171,14 @@ unsigned TRP_ROR_INTERSECT::get_max_used_key_length() const {
 void TRP_ROR_UNION::add_keys_and_lengths(String *key_names,
                                          String *used_lengths) const {
   bool first = true;
-  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
+  for (TABLE_READ_PLAN *current : ror_scans) {
     if (first) {
       first = false;
     } else {
       used_lengths->append(',');
       key_names->append(',');
     }
-    (*current)->add_keys_and_lengths(key_names, used_lengths);
+    current->add_keys_and_lengths(key_names, used_lengths);
   }
 }
 
@@ -1201,8 +1201,8 @@ void TRP_ROR_INTERSECT::dbug_dump(int indent, bool verbose) {
 void TRP_ROR_UNION::dbug_dump(int indent, bool verbose) {
   fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  for (TABLE_READ_PLAN **current = first_ror; current != last_ror; current++) {
-    (*current)->dbug_dump(indent + 2, verbose);
+  for (TABLE_READ_PLAN *current : ror_scans) {
+    current->dbug_dump(indent + 2, verbose);
   }
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }

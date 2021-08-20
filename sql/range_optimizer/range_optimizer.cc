@@ -955,17 +955,10 @@ static TABLE_READ_PLAN *get_ror_union_trp(
   trace_best_disjunct->add("index_roworder_union_cost", roru_total_cost)
       .add("members", n_child_scans);
   if (roru_total_cost < read_cost || force_index_merge) {
-    TRP_ROR_UNION *roru =
-        new (param->return_mem_root) TRP_ROR_UNION(table, force_index_merge);
-    if (roru == nullptr) {
-      return nullptr;
-    }
     trace_best_disjunct->add("chosen", true);
-    roru->first_ror = roru_read_plans;
-    roru->last_ror = roru_read_plans + n_child_scans;
-    roru->cost_est = roru_total_cost;
-    roru->records = roru_total_records;
-    return roru;
+    return new (param->return_mem_root) TRP_ROR_UNION(
+        table, force_index_merge, {roru_read_plans, n_child_scans},
+        roru_total_cost, roru_total_records);
   }
   return nullptr;
 }

@@ -131,13 +131,17 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
-  TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg)
+  TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg,
+                Bounds_checked_array<TABLE_READ_PLAN *> ror_scans_arg,
+                const Cost_estimate &cost_est_arg, ha_rows records_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
-                        forced_by_hint_arg) {}
+                        forced_by_hint_arg),
+        ror_scans(ror_scans_arg) {
+    cost_est = cost_est_arg;
+    records = records_arg;
+  }
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;
-  TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
-  TABLE_READ_PLAN **last_ror;  /* end of the above array */
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
@@ -153,6 +157,10 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 #ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
+
+ private:
+  // The subplans for merged scans. Can be TRP_RANGE or TRP_ROR_INTERSECT.
+  Bounds_checked_array<TABLE_READ_PLAN *> ror_scans;
 };
 
 TRP_ROR_INTERSECT *get_best_ror_intersect(
