@@ -240,6 +240,10 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   return false;
 }
 
+void Common_table_expr::remove_table(TABLE_LIST *tr) {
+  (void)tmp_tables.erase_value(tr);
+}
+
 /**
   Resolve a derived table or view reference, including recursively resolving
   contained subqueries.
