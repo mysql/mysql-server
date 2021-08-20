@@ -184,16 +184,12 @@ enum RangeScanType {
   1. Create quick select
     quick = new (mem_root) QUICK_XXX_SELECT(...);
 
-  2. Perform lightweight initialization. This can be done in 2 ways:
-  2.a: Regular initialization
+  2. Perform lightweight initialization.
     if (quick->init())
     {
       //the only valid action after failed init() call is destroy
       destroy(quick);
     }
-  2.b: Special initialization for quick selects merged by QUICK_ROR_*_SELECT
-    if (quick->init_ror_merged_scan())
-      destroy(quick);
 
   3. Perform zero, one, or more scans.
     while (...)
@@ -268,24 +264,6 @@ class QUICK_SELECT_I {
   virtual void range_end() {}
 
   /*
-    Initialize this quick select as a merged scan inside a ROR-union or a ROR-
-    intersection scan. The caller must not additionally call init() if this
-    function is called.
-    SYNOPSIS
-      init_ror_merged_scan()
-        reuse_handler  If true, the quick select may use table->handler,
-                       otherwise it must create and use a separate handler
-                       object.
-    RETURN
-      0     Ok
-      other Error
-  */
-  virtual int init_ror_merged_scan(bool reuse_handler [[maybe_unused]]) {
-    assert(0);
-    return 1;
-  }
-
-  /*
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
   */
   virtual void save_last_pos() {}
@@ -294,7 +272,7 @@ class QUICK_SELECT_I {
     rowid of last row retrieved by this quick select. This is used only when
     doing ROR-index_merge selects
   */
-  uchar *last_rowid;
+  uchar *last_rowid = nullptr;
 
   void trace_quick_description(Opt_trace_context *trace);
 };

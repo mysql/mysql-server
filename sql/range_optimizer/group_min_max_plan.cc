@@ -1714,12 +1714,15 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
 QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
   DBUG_TRACE;
 
+  assert(!need_rows_in_rowid_order);
+
   QUICK_RANGE_SELECT *quick_prefix_query_block = nullptr;
   if (!prefix_ranges.empty()) {
-    quick_prefix_query_block = new (return_mem_root)
-        QUICK_RANGE_SELECT(table, keyno, return_mem_root, HA_MRR_SORTED,
-                           /*mrr_buf_size=*/0, used_key_part,
-                           {&prefix_ranges[0], prefix_ranges.size()});
+    quick_prefix_query_block = new (return_mem_root) QUICK_RANGE_SELECT(
+        table, keyno, /*need_rows_in_rowid_order=*/false,
+        /*reuse_handler=*/false, return_mem_root, HA_MRR_SORTED,
+        /*mrr_buf_size=*/0, used_key_part,
+        {&prefix_ranges[0], prefix_ranges.size()});
     if (!quick_prefix_query_block) {
       return nullptr;
     }

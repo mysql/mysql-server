@@ -62,13 +62,13 @@ struct MY_BITMAP;
 class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
  public:
   QUICK_ROR_INTERSECT_SELECT(TABLE *table, bool retrieve_full_rows,
+                             bool need_rows_in_rowid_order,
                              MEM_ROOT *return_mem_root);
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   int init() override;
   int reset(void) override;
   int get_next() override;
-  int init_ror_merged_scan(bool reuse_handler) override;
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
   /*
@@ -84,9 +84,14 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   */
   QUICK_RANGE_SELECT *cpk_quick;
 
-  bool need_to_fetch_row; /* if true, do retrieve full table records. */
+  bool retrieve_full_rows; /* if true, do retrieve full table records. */
   /* in top-level quick select, true if merged scans where initialized */
   bool scans_inited;
+
+ private:
+  const bool need_rows_in_rowid_order;
+
+  int init_ror_merged_scan();
 };
 
 /*

@@ -34,10 +34,13 @@ struct TABLE;
 class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
  public:
   QUICK_RANGE_SELECT_GEOM(TABLE *table, uint index_arg,
-                          MEM_ROOT *return_mem_root, uint mrr_flags_arg,
-                          uint mrr_buf_size_arg, const KEY_PART *key,
+                          bool need_rows_in_rowid_order_arg,
+                          bool reuse_handler_arg, MEM_ROOT *return_mem_root,
+                          uint mrr_flags_arg, uint mrr_buf_size_arg,
+                          const KEY_PART *key,
                           Bounds_checked_array<QUICK_RANGE *> ranges_arg)
-      : QUICK_RANGE_SELECT(table, index_arg, return_mem_root, mrr_flags_arg,
+      : QUICK_RANGE_SELECT(table, index_arg, need_rows_in_rowid_order_arg,
+                           reuse_handler_arg, return_mem_root, mrr_flags_arg,
                            mrr_buf_size_arg, key, ranges_arg) {}
   int get_next() override;
 };

@@ -50,7 +50,8 @@
 #include "template_utils.h"
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
-    TABLE *table, uint key_nr, MEM_ROOT *return_mem_root, uint mrr_flags,
+    TABLE *table, uint key_nr, bool need_rows_in_rowid_order,
+    bool reuse_handler, MEM_ROOT *return_mem_root, uint mrr_flags,
     uint mrr_buf_size, const KEY_PART *key,
     Bounds_checked_array<QUICK_RANGE *> ranges_arg)
     : ranges(ranges_arg),
@@ -62,6 +63,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
       mrr_buf_desc(nullptr),
       key_parts(key),
       dont_free(false),
+      need_rows_in_rowid_order(need_rows_in_rowid_order),
+      reuse_handler(reuse_handler),
       mem_root(return_mem_root) {
   DBUG_TRACE;
 
@@ -74,8 +77,14 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
 }
 
 int QUICK_RANGE_SELECT::init() {
-  DBUG_TRACE;
+  if (need_rows_in_rowid_order) {
+    return init_ror_merged_scan();
+  } else {
+    return shared_init();
+  }
+}
 
+int QUICK_RANGE_SELECT::shared_init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
     my_bitmap_map *bitmap =

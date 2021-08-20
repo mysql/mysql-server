@@ -81,13 +81,15 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
     QUICK_RANGE_SELECT *quick;
     if (table->key_info[index].flags & HA_SPATIAL) {
-      quick = new (return_mem_root)
-          QUICK_RANGE_SELECT_GEOM(table, index, return_mem_root, mrr_flags,
-                                  mrr_buf_size, used_key_part, ranges);
+      quick = new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
+          table, index, need_rows_in_rowid_order,
+          /*reuse_handler=*/false, return_mem_root, mrr_flags, mrr_buf_size,
+          used_key_part, ranges);
     } else {
       quick = new (return_mem_root)
-          QUICK_RANGE_SELECT(table, index, return_mem_root, mrr_flags,
-                             mrr_buf_size, used_key_part, ranges);
+          QUICK_RANGE_SELECT(table, index, need_rows_in_rowid_order,
+                             /*reuse_handler=*/false, return_mem_root,
+                             mrr_flags, mrr_buf_size, used_key_part, ranges);
       if (reverse) {
         // TODO: Unify the two classes, or at least make some way
         // of costructing a QUICK_SELECT_DESC without creating

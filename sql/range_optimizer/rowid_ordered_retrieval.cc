@@ -45,11 +45,13 @@
 #include "sql_string.h"
 
 QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
-    TABLE *table, bool retrieve_full_rows, MEM_ROOT *return_mem_root)
+    TABLE *table, bool retrieve_full_rows, bool need_rows_in_rowid_order,
+    MEM_ROOT *return_mem_root)
     : mem_root(return_mem_root),
       cpk_quick(nullptr),
-      need_to_fetch_row(retrieve_full_rows),
-      scans_inited(false) {
+      retrieve_full_rows(retrieve_full_rows),
+      scans_inited(false),
+      need_rows_in_rowid_order(need_rows_in_rowid_order) {
   m_table = table;
   last_rowid = (uchar *)mem_root->Alloc(m_table->file->ref_length);
 }
@@ -66,6 +68,10 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
 
 int QUICK_ROR_INTERSECT_SELECT::init() {
   DBUG_TRACE;
+  if (need_rows_in_rowid_order) {
+    return init_ror_merged_scan();
+  }
+
   /* Check if last_rowid was successfully allocated in ctor */
   return !last_rowid;
 }
@@ -75,8 +81,6 @@ int QUICK_ROR_INTERSECT_SELECT::init() {
 
   SYNOPSIS
     QUICK_RANGE_SELECT::init_ror_merged_scan()
-      reuse_handler If true, use m_table->file, otherwise create a separate
-                    handler object
 
   NOTES
     This function creates and prepares for subsequent use a separate handler
@@ -92,7 +96,7 @@ int QUICK_ROR_INTERSECT_SELECT::init() {
     1  error
 */
 
-int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
+int QUICK_RANGE_SELECT::init_ror_merged_scan() {
   handler *save_file = file, *org_file;
   MY_BITMAP *const save_read_set = m_table->read_set;
   MY_BITMAP *const save_write_set = m_table->write_set;
@@ -104,7 +108,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
   mrr_flags |= HA_MRR_SORTED;
   if (reuse_handler) {
     DBUG_PRINT("info", ("Reusing handler %p", file));
-    if (init() || reset()) {
+    if (shared_init() || reset()) {
       return 1;
     }
     m_table->column_bitmaps_set(&column_bitmap, &column_bitmap);
@@ -136,7 +140,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
 
   if (file->ha_external_lock(thd, m_table->file->get_lock_type())) goto failure;
 
-  if (init() || reset()) {
+  if (shared_init() || reset()) {
     file->ha_external_lock(thd, F_UNLCK);
     file->ha_close();
     goto failure;
@@ -181,48 +185,33 @@ failure:
   Initialize this quick select to be a part of a ROR-merged scan.
   SYNOPSIS
     QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan()
-      reuse_handler If true, use m_table->file, otherwise create separate
-                    handler object.
   RETURN
     0     OK
     other error code
 */
-int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
-  List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
+int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
   DBUG_TRACE;
 
   /* Initialize all merged "children" quick selects */
-  assert(!need_to_fetch_row || reuse_handler);
-  if (!need_to_fetch_row && reuse_handler) {
-    quick = quick_it++;
-    /*
-      There is no use of this->file. Use it for the first of merged range
-      selects.
-    */
-    int error = quick->init_ror_merged_scan(true);
-    if (error) return error;
-    quick->file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
-  }
-  while ((quick = quick_it++)) {
+  for (QUICK_RANGE_SELECT &quick : quick_selects) {
 #ifndef NDEBUG
-    const MY_BITMAP *const save_read_set = quick->m_table->read_set;
-    const MY_BITMAP *const save_write_set = quick->m_table->write_set;
+    const MY_BITMAP *const save_read_set = quick.m_table->read_set;
+    const MY_BITMAP *const save_write_set = quick.m_table->write_set;
 #endif
     int error;
-    if ((error = quick->init_ror_merged_scan(false))) return error;
-    quick->file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+    if ((error = quick.init())) return error;
+    quick.file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
-    assert(quick->m_table->read_set == save_read_set);
-    assert(quick->m_table->write_set == save_write_set);
+    assert(quick.m_table->read_set == save_read_set);
+    assert(quick.m_table->write_set == save_write_set);
     /* All merged scans share the same record buffer in intersection. */
-    assert(quick->m_table == m_table);
-    assert(quick->m_table->record[0] == m_table->record[0]);
+    assert(quick.m_table == m_table);
+    assert(quick.m_table->record[0] == m_table->record[0]);
   }
 
   /* Prepare for ha_rnd_pos calls if needed. */
   int error;
-  if (need_to_fetch_row && (error = m_table->file->ha_rnd_init(false))) {
+  if (retrieve_full_rows && (error = m_table->file->ha_rnd_init(false))) {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     return error;
   }
@@ -240,7 +229,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
 
 int QUICK_ROR_INTERSECT_SELECT::reset() {
   DBUG_TRACE;
-  if (!scans_inited && init_ror_merged_scan(true)) return 1;
+  if (!scans_inited && init_ror_merged_scan()) return 1;
   scans_inited = true;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   QUICK_RANGE_SELECT *quick;
@@ -271,7 +260,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
   DBUG_TRACE;
   quick_selects.destroy_elements();
   destroy(cpk_quick);
-  if (need_to_fetch_row && m_table->file->inited) m_table->file->ha_rnd_end();
+  if (retrieve_full_rows && m_table->file->inited) m_table->file->ha_rnd_end();
 }
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
@@ -324,7 +313,7 @@ int QUICK_ROR_UNION_SELECT::reset() {
   if (!scans_inited) {
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick = it++)) {
-      error = quick->init_ror_merged_scan(false);
+      error = quick->init();
       if (error) return 1;
     }
     scans_inited = true;
@@ -475,7 +464,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
     }
 
     /* We get here if we got the same row ref in all scans. */
-    if (need_to_fetch_row)
+    if (retrieve_full_rows)
       error = m_table->file->ha_rnd_pos(m_table->record[0], last_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
   return error;

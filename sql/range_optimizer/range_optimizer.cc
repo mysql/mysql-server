@@ -786,6 +786,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
               thd, &param, table, index_merge_intersect_allowed,
               interesting_order, tree, &needed_fields, &best_cost, true);
           if (rori_trp) {
+            rori_trp->reuse_handler = true;
             best_trp = rori_trp;
             best_cost = best_trp->cost_est;
           }

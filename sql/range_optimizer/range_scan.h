@@ -95,6 +95,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   KEY_PART_INFO *key_part_info;
 
   bool dont_free; /* Used by QUICK_SELECT_DESC */
+  const bool need_rows_in_rowid_order;
+  const bool reuse_handler;
 
  private:
   MEM_ROOT *mem_root;
@@ -102,10 +104,14 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
+  int shared_init();
+  int init_ror_merged_scan();
 
  public:
-  QUICK_RANGE_SELECT(TABLE *table, uint index_arg, MEM_ROOT *return_mem_root,
-                     uint mrr_flags, uint mrr_buf_size, const KEY_PART *key,
+  QUICK_RANGE_SELECT(TABLE *table, uint index_arg,
+                     bool need_rows_in_rowid_order, bool reuse_handler,
+                     MEM_ROOT *return_mem_root, uint mrr_flags,
+                     uint mrr_buf_size, const KEY_PART *key,
                      Bounds_checked_array<QUICK_RANGE *> ranges);
   ~QUICK_RANGE_SELECT() override;
 
@@ -120,7 +126,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   void range_end() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
-  int init_ror_merged_scan(bool reuse_handler) override;
   void save_last_pos() override { file->position(m_table->record[0]); }
 
   uint get_mrr_flags() const { return mrr_flags; }

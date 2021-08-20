@@ -125,17 +125,19 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
 // Create a QUICK_RANGE_SELECT from given key and the ranges from that key.
 // Does not support reverse range scans, unlike TRP_RANGE::make_quick().
 static QUICK_RANGE_SELECT *get_quick_select_local(
-    MEM_ROOT *return_mem_root, TABLE *table, KEY_PART *key, uint keyno,
-    uint mrr_flags, uint mrr_buf_size,
+    MEM_ROOT *return_mem_root, TABLE *table, bool reuse_handler, KEY_PART *key,
+    uint keyno, uint mrr_flags, uint mrr_buf_size,
     Bounds_checked_array<QUICK_RANGE *> ranges) {
   DBUG_TRACE;
 
   if (table->key_info[keyno].flags & HA_SPATIAL) {
     return new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
+        table, keyno, /*need_rows_in_rowid_order=*/true, reuse_handler,
+        return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
   } else {
     return new (return_mem_root) QUICK_RANGE_SELECT(
-        table, keyno, return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
+        table, keyno, /*need_rows_in_rowid_order=*/true, reuse_handler,
+        return_mem_root, mrr_flags, mrr_buf_size, key, ranges);
   }
 }
 
@@ -144,30 +146,39 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
 
-  QUICK_ROR_INTERSECT_SELECT *quick_intrsect = new (return_mem_root)
-      QUICK_ROR_INTERSECT_SELECT(table,
-                                 (retrieve_full_rows ? (!is_covering) : false),
-                                 return_mem_root);
+  if (is_covering) {
+    retrieve_full_rows = false;
+  }
+
+  QUICK_ROR_INTERSECT_SELECT *quick_intrsect =
+      new (return_mem_root) QUICK_ROR_INTERSECT_SELECT(
+          table, retrieve_full_rows, need_rows_in_rowid_order, return_mem_root);
   if (quick_intrsect) {
     DBUG_EXECUTE("info",
                  print_ror_scans_arr(
                      table, "creating ROR-intersect", &intersect_scans[0],
                      &intersect_scans[0] + intersect_scans.size()););
+    bool first = true;
     for (ROR_SCAN_INFO *current : intersect_scans) {
       uint idx = current->idx;
-      if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
-                                           real_keynr[idx], HA_MRR_SORTED, 0,
-                                           current->ranges)) ||
+      if (!(quick = get_quick_select_local(
+                return_mem_root, table,
+                /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
+                key[idx], real_keynr[idx], HA_MRR_SORTED, 0,
+                current->ranges)) ||
           quick_intrsect->push_quick_back(quick)) {
         destroy(quick_intrsect);
         return nullptr;
       }
+      first = false;
     }
     if (cpk_scan) {
       uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select_local(return_mem_root, table, key[idx],
-                                           real_keynr[idx], HA_MRR_SORTED, 0,
-                                           cpk_scan->ranges))) {
+      if (!(quick = get_quick_select_local(
+                return_mem_root, table,
+                /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
+                key[idx], real_keynr[idx], HA_MRR_SORTED, 0,
+                cpk_scan->ranges))) {
         destroy(quick_intrsect);
         return nullptr;
       }
@@ -179,6 +190,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(bool retrieve_full_rows,
 }
 
 QUICK_SELECT_I *TRP_ROR_UNION::make_quick(bool, MEM_ROOT *return_mem_root) {
+  assert(!need_rows_in_rowid_order);
+
   DBUG_TRACE;
   /*
     It is impossible to construct a ROR-union that will not retrieve full

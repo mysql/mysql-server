@@ -112,6 +112,19 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   void dbug_dump(int indent, bool verbose) override;
 #endif
 
+  // If true, the first child scan should reuse table->file instead of
+  // creating its own. This is true if the intersection is the topmost
+  // range scan, but _not_ if it's below a union. (The reasons for this
+  // are unknown.) It can also be negated by logic involving
+  // retrieve_full_rows and is_covering, again for unknown reasons.
+  //
+  // This is not only for performance; multi-table delete has a hidden
+  // dependency on this behavior when running against certain types of
+  // tables (e.g. MyISAM), as it assumes table->file is correctly positioned
+  // when deleting (and not all table types can transfer the position of one
+  // handler to another by using position()).
+  bool reuse_handler = false;
+
  private:
   /* ROR range scans used in this intersection */
   Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans;
@@ -139,6 +152,10 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
         ror_scans(ror_scans_arg) {
     cost_est = cost_est_arg;
     records = records_arg;
+
+    for (TABLE_READ_PLAN *child : ror_scans_arg) {
+      child->need_rows_in_rowid_order = true;
+    }
   }
   QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
                              MEM_ROOT *return_mem_root) override;

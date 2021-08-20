@@ -60,6 +60,13 @@ class TABLE_READ_PLAN {
    */
   uint used_key_parts;
 
+  /*
+    Whether we are expected to output rows ordered by row ID, ie.,
+    we are the child of a ROR scan. This is only applicable for TRP_RANGE
+    and QUICK_ROR_INTERSECT_SELECT.
+   */
+  bool need_rows_in_rowid_order = false;
+
   const bool forced_by_hint;
 
   /*
