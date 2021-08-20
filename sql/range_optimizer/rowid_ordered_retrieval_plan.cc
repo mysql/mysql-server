@@ -122,9 +122,8 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-// A replacement for get_quick_select() for when you already have
-// the ranges available, instead of a SEL_TREE that you need to extract
-// ranges from. Does not support reverse range scans.
+// Create a QUICK_RANGE_SELECT from given key and the ranges from that key.
+// Does not support reverse range scans, unlike TRP_RANGE::make_quick().
 static QUICK_RANGE_SELECT *get_quick_select_local(
     MEM_ROOT *return_mem_root, TABLE *table, KEY_PART *key, uint keyno,
     uint mrr_flags, uint mrr_buf_size,

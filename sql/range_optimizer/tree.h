@@ -375,9 +375,7 @@ inline uint invert_max_flag(uint max_flag) {
    - check_quick_select() - Walk the SEL_ARG graph and find an estimate of
                             how many table records are contained within all
                             intervals.
-   - get_quick_select()   - Walk the SEL_ARG, materialize the key intervals,
-                            and create QUICK_RANGE_SELECT object that will
-                            read records within these intervals.
+   - get_ranges_from_tree() - Walk the SEL_ARG, materialize the key intervals.
 
   4. SPACE COMPLEXITY NOTES
 

@@ -46,13 +46,6 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                           uint num_key_parts, unsigned *used_key_parts,
                           Quick_ranges *ranges);
 
-QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
-                                     KEY_PART *key, uint keyno,
-                                     SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size, uint num_key_parts,
-                                     bool reverse,
-                                     uint used_key_parts_for_reverse);
-
 /*
   Plan for a QUICK_RANGE_SELECT scan.
   TRP_RANGE::make_quick ignores retrieve_full_rows parameter because

@@ -782,70 +782,6 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                         key_tree->root, min_key, min_key, 0, max_key, max_key,
                         0, nullptr, num_key_parts, used_key_parts, ranges);
 }
-/*
-  Create a QUICK_RANGE_SELECT from given key and SEL_ARG tree for that key.
-
-  SYNOPSIS
-    get_quick_select()
-      reurn_mem_root MEM_ROOT to allocate the object and associated data on.
-      table          Table to scan.
-      key
-      keyno          Index of used key in table.
-      key_tree       SEL_ARG tree for the used key
-      mrr_flags      MRR parameter for quick select
-      mrr_buf_size   MRR parameter for quick select
-      num_key_parts  Number of key parts used for creating QUICK_RANGE_SELECT.
-                     Note: QUICK_GROUP_MIN_MAX creates ranges only for key parts
-                     on grouped columns. Rest of the scans create ranges using
-                     all usable keyparts. Hence the default is MAX_REF_PARTS.
-
-  NOTES
-    The caller must call QUICK_SELECT::init for returned quick select.
-
-  RETURN
-    NULL on error
-    otherwise created quick select
-*/
-
-QUICK_RANGE_SELECT *get_quick_select(MEM_ROOT *return_mem_root, TABLE *table,
-                                     KEY_PART *key, uint keyno,
-                                     SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size, uint num_key_parts,
-                                     bool reverse,
-                                     uint used_key_parts_for_reverse) {
-  DBUG_TRACE;
-
-  assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
-         key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
-
-  Quick_ranges ranges(return_mem_root);
-  unsigned used_key_parts;
-  if (get_ranges_from_tree(return_mem_root, table, key, keyno, key_tree,
-                           num_key_parts, &used_key_parts, &ranges)) {
-    return nullptr;
-  }
-
-  if (table->key_info[keyno].flags & HA_SPATIAL) {
-    return new (return_mem_root)
-        QUICK_RANGE_SELECT_GEOM(table, keyno, return_mem_root, mrr_flags,
-                                mrr_buf_size, key, {&ranges[0], ranges.size()});
-  } else {
-    QUICK_RANGE_SELECT *quick = new (return_mem_root)
-        QUICK_RANGE_SELECT(table, keyno, return_mem_root, mrr_flags,
-                           mrr_buf_size, key, {&ranges[0], ranges.size()});
-    if (reverse) {
-      // TODO: Unify the two classes, or at least make some way
-      // of constructing a QUICK_SELECT_DESC without creating
-      // the forward class first.
-      QUICK_RANGE_SELECT *reverse_quick = new (return_mem_root)
-          QUICK_SELECT_DESC(std::move(*quick), used_key_parts_for_reverse);
-      destroy(quick);
-      return reverse_quick;
-    } else {
-      return quick;
-    }
-  }
-}
 
 void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                                  Opt_trace_object *trace_object) const {
@@ -1073,7 +1009,7 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   @param max_key_flag   Max key's flags
   @param desc_flag      Desc flag of the first keypart
   @param num_key_parts  Number of key parts that should be used for
-                        creating ranges (see get_quick_select() for details)
+                        creating ranges
   @param ranges         The ranges to scan
 
   @note Fix this to get all possible sub_ranges
@@ -1110,7 +1046,7 @@ static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
   if (!asc) flag |= DESC_FLAG;
 
   // Stop processing key values if this is the last key part that needs to be
-  // looked into. See get_quick_select() for details.
+  // looked into.
   if ((num_key_parts > 1) && key_tree->next_key_part &&
       key_tree->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
       key_tree->next_key_part->root->part ==
