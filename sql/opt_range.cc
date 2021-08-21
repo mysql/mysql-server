@@ -5798,6 +5798,36 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
       tree = get_func_mm_tree_from_json_overlaps_contains(param, predicand,
                                                           cond_func);
     } break;
+
+    case Item_func::MEMBER_OF_FUNC:
+      if (predicand->type() == Item::FIELD_ITEM && predicand->returns_array()) {
+        Field_typed_array *field = down_cast<Field_typed_array *>(
+            static_cast<Item_field *>(predicand)->field);
+        Item* arg = cond_func->arguments()[0];
+        Json_wrapper wr;
+
+        if (arg->val_json(&wr)) {
+          break;
+        }
+
+        assert(!arg->null_value && wr.type() != enum_json_type::J_ERROR);
+
+        if (wr.type() == enum_json_type::J_NULL) {
+          break;
+        }
+
+        const bool save_const = field->table->const_table;
+        field->table->const_table = true;
+        field->set_notnull();
+        field->coerce_json_value(&wr, true, nullptr);
+
+        tree = get_mm_parts(param, cond_func, field, Item_func::EQ_FUNC,
+                            predicand);
+
+        field->table->const_table = save_const;
+      }
+      break;
+
     default:
       if (predicand->type() == Item::FIELD_ITEM) {
         Field *field = static_cast<Item_field *>(predicand)->field;
@@ -6104,6 +6134,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
 
     case Item_func::JSON_CONTAINS:
     case Item_func::JSON_OVERLAPS:
+    case Item_func::MEMBER_OF_FUNC:
     case Item_func::IN_FUNC: {
       Item *predicand = cond_func->key_item();
       if (!predicand) return nullptr;
