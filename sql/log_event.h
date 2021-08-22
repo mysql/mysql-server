@@ -2968,6 +2968,16 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
             columns, false otherwise.
    */
   bool is_auto_inc_in_extra_columns();
+
+  /**
+    Helper function to check whether the storage engine error
+    allows for the transaction to be retried or not.
+
+    @param error Storage engine error
+    @retval true if the error is retryable.
+    @retval false if the error is non-retryable.
+   */
+  static bool is_trx_retryable_upon_engine_error(int error);
 #endif
 
   bool is_rbr_logging_format() const override { return true; }

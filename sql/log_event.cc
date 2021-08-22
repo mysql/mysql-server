@@ -8489,6 +8489,10 @@ bool Rows_log_event::is_auto_inc_in_extra_columns() {
               m_table->next_number_field->field_index()) >= m_width);
 }
 
+bool Rows_log_event::is_trx_retryable_upon_engine_error(int error) {
+  return (error == HA_ERR_LOCK_DEADLOCK || error == HA_ERR_LOCK_WAIT_TIMEOUT);
+}
+
 /*
   Compares table->record[0] and table->record[1]
 
@@ -8793,8 +8797,10 @@ int Rows_log_event::next_record_scan(bool first_read) {
             m_key = *m_itr;
             m_itr++;
             first_read = true;
-          } else
-            error = HA_ERR_KEY_NOT_FOUND;
+          } else {
+            if (!is_trx_retryable_upon_engine_error(error))
+              error = HA_ERR_KEY_NOT_FOUND;
+          }
         }
       }
     }
@@ -8803,7 +8809,8 @@ int Rows_log_event::next_record_scan(bool first_read) {
       if ((error = table->file->ha_index_read_map(
                table->record[0], m_key, HA_WHOLE_KEY, HA_READ_KEY_EXACT))) {
         DBUG_PRINT("info", ("no record matching the key found in the table"));
-        error = HA_ERR_KEY_NOT_FOUND;
+        if (!is_trx_retryable_upon_engine_error(error))
+          error = HA_ERR_KEY_NOT_FOUND;
       }
   }
 
