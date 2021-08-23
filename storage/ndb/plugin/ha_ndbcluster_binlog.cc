@@ -1258,7 +1258,6 @@ static void ndbcluster_binlog_event_operation_teardown(THD *thd, Ndb *is_ndb,
  */
 class Ndb_schema_dist_data {
   uint m_own_nodeid;
-  uint m_max_subscribers{0};
   // List of active schema operations in this coordinator. Having an
   // active schema operation means it need to be checked
   // for timeout or request to be killed regularly
@@ -1349,7 +1348,7 @@ class Ndb_schema_dist_data {
   }
 
   void init(Ndb_cluster_connection *cluster_connection) {
-    Uint32 max_subscribers = cluster_connection->max_api_nodeid() + 1;
+    const Uint32 max_subscribers = cluster_connection->max_api_nodeid() + 1;
     m_own_nodeid = cluster_connection->node_id();
     NDB_SCHEMA_OBJECT::init(m_own_nodeid);
 
@@ -1360,8 +1359,6 @@ class Ndb_schema_dist_data {
       m_subscriber_bitmaps.emplace(node_id,
                                    new Node_subscribers(max_subscribers));
     }
-    // Remember max number of subscribers
-    m_max_subscribers = max_subscribers;
   }
 
   void release(void) {
@@ -1371,7 +1368,6 @@ class Ndb_schema_dist_data {
       delete subscriber_bitmap;
     }
     m_subscriber_bitmaps.clear();
-    m_max_subscribers = 0;
 
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
