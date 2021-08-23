@@ -985,27 +985,34 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             ((error = table->file->exec_bulk_update(&dup_key_found)) ||
              dup_key_found)) {
           if (error) {
-            /* purecov: begin inspected */
-            assert(false);
             /*
-              The handler should not report error of duplicate keys if they
-              are ignored. This is a requirement on batching handlers.
+              ndbcluster is the only handler that returns an error at this
+              juncture
             */
+            assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER);
             if (table->file->is_fatal_error(error))
               error_flags |= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
             error = 1;
             break;
-            /* purecov: end */
           }
+          /* purecov: begin inspected */
           /*
-            Either an error was found and we are ignoring errors or there
-            were duplicate keys found. In both cases we need to correct
-            the counters and continue the loop.
+            Either an error was found and we are ignoring errors or there were
+            duplicate keys found with HA_IGNORE_DUP_KEY enabled. In both cases
+            we need to correct the counters and continue the loop.
           */
+
+          /*
+            Note that NDB disables batching when duplicate keys are to be
+            ignored. Any duplicate key found will result in an error returned
+            above.
+          */
+          assert(false);
           limit = dup_key_found;  // limit is 0 when we get here so need to +
           updated_rows -= dup_key_found;
+          /* purecov: end */
         } else {
           error = -1;  // Simulate end of file
           break;
