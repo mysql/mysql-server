@@ -43,8 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <windows.h>
 #endif /* _WIN32 */
 
-#include <list>
-
 /** The number of microseconds in a second. */
 static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
 
@@ -58,9 +56,6 @@ typedef CONDITION_VARIABLE os_cond_t;
 /** Native condition variable */
 typedef pthread_cond_t os_cond_t;
 #endif /* _WIN32 */
-
-typedef std::list<os_event_t, ut::allocator<os_event_t>> os_event_list_t;
-typedef os_event_list_t::iterator event_iter_t;
 
 /** InnoDB condition variable. */
 struct os_event {
@@ -274,9 +269,6 @@ struct os_event {
   static std::atomic_size_t n_objects_alive;
 #endif /* UNIV_DEBUG */
 
- public:
-  event_iter_t event_iter; /*!< For O(1) removal from
-                           list */
  protected:
   // Disable copying
   os_event(const os_event &);
