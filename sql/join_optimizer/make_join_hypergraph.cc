@@ -82,6 +82,16 @@ inline bool IsMultipleEquals(Item *cond) {
          down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC;
 }
 
+Item_func_eq *MakeEqItem(Item *a, Item *b,
+                         Item_equal *source_multiple_equality) {
+  Item_func_eq *eq_item = new Item_func_eq(a, b);
+  eq_item->set_cmp_func();
+  eq_item->update_used_tables();
+  eq_item->quick_fix_field();
+  eq_item->source_multiple_equality = source_multiple_equality;
+  return eq_item;
+}
+
 /**
   For a multiple equality, split out any conditions that refer to the
   same table, without touching the multi-equality; e.g. for equal(t1.a, t2.a,
@@ -89,10 +99,9 @@ inline bool IsMultipleEquals(Item *cond) {
   stages can ignore such duplicates, and also that we can push these parts
   independently of the multiple equality as a whole.
  */
-Item *ExpandSameTableFromMultipleEquals(Item_equal *equal,
-                                        table_map tables_in_subtree) {
-  List<Item> eq_items;
-
+void ExpandSameTableFromMultipleEquals(Item_equal *equal,
+                                       table_map tables_in_subtree,
+                                       List<Item> *eq_items) {
   // Look for pairs of items that touch the same table.
   for (auto it1 = equal->get_fields().begin(); it1 != equal->get_fields().end();
        ++it1) {
@@ -101,12 +110,7 @@ Item *ExpandSameTableFromMultipleEquals(Item_equal *equal,
     }
     for (auto it2 = std::next(it1); it2 != equal->get_fields().end(); ++it2) {
       if (it1->field->table == it2->field->table) {
-        Item_func_eq *eq_item = new Item_func_eq(&*it1, &*it2);
-        eq_item->set_cmp_func();
-        eq_item->update_used_tables();
-        eq_item->quick_fix_field();
-        eq_item->source_multiple_equality = equal;
-        eq_items.push_back(eq_item);
+        eq_items->push_back(MakeEqItem(&*it1, &*it2, equal));
 
         // If there are more, i.e., *it2 = *it3, they will be dealt with
         // in a future iteration of the outer loop; so stop now to avoid
@@ -115,20 +119,11 @@ Item *ExpandSameTableFromMultipleEquals(Item_equal *equal,
       }
     }
   }
-  if (eq_items.is_empty()) {
-    return equal;
-  } else {
-    eq_items.push_back(equal);
-    Item_cond_and *item_and = new Item_cond_and(eq_items);
-    item_and->update_used_tables();
-    item_and->quick_fix_field();
-    return item_and;
-  }
 }
 
 /**
   Expand multiple equalities that can (and should) be expanded before join
-  pushdown. These are the ones that only touch less than three tables, or that
+  pushdown. These are the ones that touch at most two tables, or that
   are against a constant. They can be expanded unambiguously; no matter the join
   order, they will be the same. Fields on tables not in “tables_in_subtree” are
   assumed to be irrelevant to the equality and ignored (see the comment on
@@ -147,42 +142,65 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
           return item;
         }
         Item_equal *equal = down_cast<Item_equal *>(item);
-        if (equal->get_const() == nullptr &&
-            my_count_bits(equal->used_tables() & tables_in_subtree) > 2) {
-          // Only look at partial expansion.
-          return ExpandSameTableFromMultipleEquals(equal, tables_in_subtree);
-        }
-        List<Item> eq_items;
-        Item *base_item = equal->get_const();
-        for (Item_field &field : equal->get_fields()) {
-          if (!IsSubset(field.used_tables(), tables_in_subtree)) {
-            continue;
-          }
-          if (base_item == nullptr) {
-            base_item = &field;
-            continue;
-          }
 
-          // Aesthetically, we want <field> = <const>, but keep
-          // <field1> = <field2> the way the user wrote it.
-          Item_func_eq *eq_item = equal->get_const() != nullptr
-                                      ? new Item_func_eq(&field, base_item)
-                                      : new Item_func_eq(base_item, &field);
-          eq_item->set_cmp_func();
-          eq_item->update_used_tables();
-          eq_item->quick_fix_field();
-          eq_item->source_multiple_equality = equal;
-          eq_items.push_back(eq_item);
+        List<Item> eq_items;
+
+        if (equal->get_const() != nullptr) {
+          // If there is a constant element, do a simple expansion.
+          for (Item_field &field : equal->get_fields()) {
+            if (IsSubset(field.used_tables(), tables_in_subtree)) {
+              eq_items.push_back(MakeEqItem(&field, equal->get_const(), equal));
+            }
+          }
+        } else if (my_count_bits(equal->used_tables() & tables_in_subtree) >
+                   2) {
+          // Only look at partial expansion.
+          ExpandSameTableFromMultipleEquals(equal, tables_in_subtree,
+                                            &eq_items);
+          eq_items.push_back(equal);
+        } else {
+          // Prioritize expanding equalities from the same table if possible;
+          // e.g., if we have t1.a = t2.a = t2.b, we want to have t2.a = t2.b
+          // included (ie., not t1.a = t2.a AND t1.a = t2.b). The primary reason
+          // for this is that such single-table equalities will be pushable
+          // as table filters, and not left on the joins. This means we avoid an
+          // issue where we have a hypergraph cycle where the edge we do not
+          // follow (and thus ignore) has more join conditions than we skip,
+          // causing us to wrongly “forget” constraining one degree of freedom.
+          //
+          // Thus, we first pick out every equality that touches only one table,
+          // and then link one equality from each table into an arbitrary one.
+          //
+          // It's not given that this will always give us the fastest possible
+          // plan; e.g. if there's a composite index on (t1.a, t1.b), it could
+          // be faster to use it for lookups against (t2.a, t2.b) instead of
+          // pushing t1.a = t1.b. But it doesn't seem worth it to try to keep
+          // multiple such variations around.
+          ExpandSameTableFromMultipleEquals(equal, tables_in_subtree,
+                                            &eq_items);
+
+          table_map included_tables = 0;
+          Item *base_item = nullptr;
+          for (Item_field &field : equal->get_fields()) {
+            assert(IsSingleBitSet(field.used_tables()));
+            if (!IsSubset(field.used_tables(), tables_in_subtree) ||
+                Overlaps(field.used_tables(), included_tables)) {
+              continue;
+            }
+            included_tables |= field.used_tables();
+            if (base_item == nullptr) {
+              base_item = &field;
+              continue;
+            }
+
+            eq_items.push_back(MakeEqItem(base_item, &field, equal));
+
+            // Since we have at most two tables, we can have only one link.
+            break;
+          }
         }
         assert(!eq_items.is_empty());
-        if (eq_items.size() == 1) {
-          return eq_items.head();
-        } else {
-          Item_cond_and *item_and = new Item_cond_and(eq_items);
-          item_and->update_used_tables();
-          item_and->quick_fix_field();
-          return item_and;
-        }
+        return CreateConjunction(&eq_items);
       });
 }
 
