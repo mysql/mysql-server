@@ -36,6 +36,9 @@ partition by key (a) partitions 1;
 insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
 Waiting for the index stats to be updated
 Index stats updated
+Check if events were detected in the other MySQL Server as well
+events_detected
+YES
 select count(*) from t1 where b = 1;
 count(*)
 2
