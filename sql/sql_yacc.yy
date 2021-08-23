@@ -6694,6 +6694,15 @@ create_table_option:
           }
         | AVG_ROW_LENGTH opt_equal ulong_num
           {
+            // The frm-format only allocated 4 bytes for avg_row_length, and
+            // there is code which assumes it can be represented as an uint,
+            // so we constrain it here.
+            if ($3 > std::numeric_limits<std::uint32_t>::max()) {
+              YYTHD->syntax_error_at(@3,
+              "The valid range for avg_row_length is [0,4294967295]. Error"
+              );
+              MYSQL_YYABORT;
+            }
             $$= NEW_PTN PT_create_avg_row_length_option($3);
           }
         | PASSWORD opt_equal TEXT_STRING_sys
@@ -6740,7 +6749,8 @@ create_table_option:
             we can store the higher bits from stats_sample_pages in .frm too. */
             if ($3 == 0 || $3 > 0xffff)
             {
-              YYTHD->syntax_error();
+              YYTHD->syntax_error_at(@3,
+              "The valid range for stats_sample_pages is [1, 65535]. Error");
               MYSQL_YYABORT;
             }
             $$= NEW_PTN PT_create_stats_stable_pages($3);
@@ -6805,8 +6815,17 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_connection_option($3);
           }
-        | KEY_BLOCK_SIZE opt_equal signed_num
+        | KEY_BLOCK_SIZE opt_equal ulong_num
           {
+            // The frm-format only allocated 2 bytes for key_block_size,
+            // even if it is represented as std::uint32_t in HA_CREATE_INFO and
+            // elsewhere.
+            if ($3 > std::numeric_limits<std::uint16_t>::max()) {
+              YYTHD->syntax_error_at(@3,
+              "The valid range for key_block_size is [0,65535]. Error");
+              MYSQL_YYABORT;
+            }
+
             $$= NEW_PTN
             PT_create_key_block_size_option(static_cast<std::uint32_t>($3));
           }

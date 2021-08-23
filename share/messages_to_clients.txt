@@ -9652,6 +9652,9 @@ ER_DA_SSL_FIPS_MODE_ERROR
 ER_FULLTEXT_WITH_ROLLUP
   eng "MATCH does not support ROLLUP columns."
 
+ER_VALUE_OUT_OF_RANGE
+  eng "%s=%llu is outside the valid range [%llu,%llu]. %llu will be used."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
