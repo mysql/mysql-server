@@ -1181,9 +1181,14 @@ struct Ndb_index_stat_proc {
   uint cache_clean_bytes;
 #endif
   Ndb_index_stat_proc()
-      : is_util(0), ndb(0), now(0), lt(0), busy(false), end(false) {}
+      : is_util(nullptr),
+        ndb(nullptr),
+        now(0),
+        lt(0),
+        busy(false),
+        end(false) {}
 
-  ~Ndb_index_stat_proc() { assert(ndb == NULL); }
+  ~Ndb_index_stat_proc() { assert(ndb == nullptr); }
 };
 
 static void ndb_index_stat_proc_new(Ndb_index_stat_proc &pr,
@@ -1966,7 +1971,8 @@ void ndb_index_stat_end() {
 
 /* Index stats thread */
 
-int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
+int Ndb_index_stat_thread::check_or_create_systables(
+    const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -1995,7 +2001,8 @@ int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
   return -1;
 }
 
-int Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr) {
+int Ndb_index_stat_thread::check_or_create_sysevents(
+    const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -2024,55 +2031,53 @@ int Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr) {
   return -1;
 }
 
-int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
-                                      Ndb_cluster_connection *connection) {
+int Ndb_index_stat_thread::create_ndb(
+    Ndb_index_stat_proc *const pr,
+    Ndb_cluster_connection *const connection) const {
   DBUG_TRACE;
-  assert(pr.ndb == NULL);
-  assert(connection != NULL);
+  assert(pr->ndb == nullptr);
+  assert(connection != nullptr);
 
-  Ndb *ndb = NULL;
-  do {
-    ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
-    if (ndb == nullptr) {
-      log_error("failed to create Ndb object");
-      break;
-    }
+  pr->ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
+  if (pr->ndb == nullptr) {
+    log_error("Failed to create Ndb object");
+    return -1;
+  }
 
-    if (ndb->setNdbObjectName("Ndb Index Stat")) {
-      log_error("failed to set Ndb object name, error: %d",
-                ndb->getNdbError().code);
-      break;
-    }
+  if (pr->ndb->setNdbObjectName("Ndb Index Stat")) {
+    log_error("Failed to set Ndb object name. Error = %d: %s",
+              pr->ndb->getNdbError().code, pr->ndb->getNdbError().message);
+    delete pr->ndb;
+    pr->ndb = nullptr;
+    return -1;
+  }
 
-    if (ndb->init() != 0) {
-      log_error("failed to init Ndb, error: %d", ndb->getNdbError().code);
-      break;
-    }
+  if (pr->ndb->init() != 0) {
+    log_error("Failed to init Ndb. Error = %d:%s", pr->ndb->getNdbError().code,
+              pr->ndb->getNdbError().message);
+    delete pr->ndb;
+    pr->ndb = nullptr;
+    return -1;
+  }
 
-    log_info("created Ndb object '%s', ref: 0x%x", ndb->getNdbObjectName(),
-             ndb->getReference());
-
-    pr.ndb = ndb;
-    return 0;
-  } while (0);
-
-  if (ndb != NULL) delete ndb;
-  return -1;
+  log_info("Created Ndb object '%s', ref: 0x%x", pr->ndb->getNdbObjectName(),
+           pr->ndb->getReference());
+  return 0;
 }
 
-void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc &pr) {
+void Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc *const pr) const {
   DBUG_TRACE;
 
-  if (pr.is_util->has_listener()) {
-    stop_listener(pr);
+  if (pr->is_util->has_listener()) {
+    stop_listener(*pr);
   }
-  if (pr.ndb != NULL) {
-    delete pr.ndb;
-    pr.ndb = NULL;
+  if (pr->ndb != nullptr) {
+    delete pr->ndb;
+    pr->ndb = nullptr;
   }
 }
 
-int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
+int Ndb_index_stat_thread::start_listener(const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
 
   NdbIndexStat *is = pr.is_util;
@@ -2095,13 +2100,9 @@ int Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr) {
   return 0;
 }
 
-void Ndb_index_stat_thread::stop_listener(Ndb_index_stat_proc &pr) {
+void Ndb_index_stat_thread::stop_listener(const Ndb_index_stat_proc &pr) const {
   DBUG_TRACE;
-
-  NdbIndexStat *is = pr.is_util;
-  Ndb *ndb = pr.ndb;
-
-  (void)is->drop_listener(ndb);
+  (void)pr.is_util->drop_listener(pr.ndb);
 }
 
 /* Restart things after system restart */
@@ -2115,7 +2116,7 @@ void ndb_index_stat_restart() {
 }
 
 bool Ndb_index_stat_thread::is_setup_complete() {
-  if (ndb_index_stat_get_enable(NULL)) {
+  if (ndb_index_stat_get_enable(nullptr)) {
     return ndb_index_stat_get_allow();
   }
   return true;
@@ -2169,7 +2170,7 @@ void Ndb_index_stat_thread::do_run() {
   // Set up Ndb object, stats tables and events, and the listener. This is done
   // as an initial step. They could be re-created later after an initial start.
   // See the check_sys flag used below
-  if (create_ndb(pr, g_ndb_cluster_connection) == -1) {
+  if (create_ndb(&pr, g_ndb_cluster_connection) == -1) {
     log_error("Could not create Ndb object");
     mysql_mutex_lock(&LOCK_client_waiting);
     goto ndb_index_stat_thread_end;
@@ -2227,17 +2228,17 @@ void Ndb_index_stat_thread::do_run() {
     do {
       // initial restart was done while this mysqld was left running
       if (ndb_index_stat_restart_flag) {
+        log_info("Restart flag is true inside do_run()");
         ndb_index_stat_restart_flag = false;
         ndb_index_stat_set_allow(false);
-        drop_ndb(pr);
+        drop_ndb(&pr);
         check_sys = true;  // sys objects are gone
         log_info("Initial restart detected");
       }
 
       // check enable flag
       {
-        /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
-        const bool enable_ok_new = ndb_index_stat_get_enable(NULL);
+        const bool enable_ok_new = ndb_index_stat_get_enable(nullptr);
 
         if (enable_ok != enable_ok_new) {
           DBUG_PRINT("index_stat",
@@ -2250,13 +2251,13 @@ void Ndb_index_stat_thread::do_run() {
       if (!enable_ok) {
         DBUG_PRINT("index_stat", ("Index stats is not enabled"));
         ndb_index_stat_set_allow(false);
-        drop_ndb(pr);
+        drop_ndb(&pr);
         break;
       }
 
       // the Ndb object is needed first
-      if (pr.ndb == NULL) {
-        if (create_ndb(pr, g_ndb_cluster_connection) == -1) break;
+      if (pr.ndb == nullptr) {
+        if (create_ndb(&pr, g_ndb_cluster_connection) == -1) break;
       }
 
       // sys objects
@@ -2309,7 +2310,7 @@ ndb_index_stat_thread_end:
   ndb_index_stat_set_allow(false);
 
   if (pr.is_util) {
-    drop_ndb(pr);
+    drop_ndb(&pr);
     delete pr.is_util;
     pr.is_util = 0;
   }
