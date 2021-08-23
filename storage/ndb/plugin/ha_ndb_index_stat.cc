@@ -2222,17 +2222,19 @@ void Ndb_index_stat_thread::do_run() {
      * created.  If not, drop out and try again next time.
      *
      * It is allowed to do initial restart of cluster while we are
-     * running.  In such case the Ndb object must be recycled to avoid
-     * some event-related asserts (bug#20888668),
+     * running. In such cases, the listener must be restarted for the event
+     * functionality to work correctly
      */
     do {
-      // initial restart was done while this mysqld was left running
+      // An initial restart may have occurred while this mysqld was left running
       if (ndb_index_stat_restart_flag) {
         log_info("Restart flag is true inside do_run()");
         ndb_index_stat_restart_flag = false;
         ndb_index_stat_set_allow(false);
-        drop_ndb(&pr);
-        check_sys = true;  // sys objects are gone
+        // Stop the listener thus enforcing that it's started again further
+        // down in the loop
+        if (pr.is_util->has_listener()) stop_listener(pr);
+        check_sys = true;  // check if sys objects are gone
         log_info("Initial restart detected");
       }
 
