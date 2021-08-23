@@ -1,5 +1,7 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (i int) engine=myisam max_rows=100000000000;
+Warnings:
+Warning	4074	max_rows=100000000000 is outside the valid range [0,4294967295]. 4294967295 will be used.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -12,6 +14,8 @@ t1	CREATE TABLE `t1` (
   `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=100
 alter table t1 max_rows=100000000000;
+Warnings:
+Warning	4074	max_rows=100000000000 is outside the valid range [0,4294967295]. 4294967295 will be used.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

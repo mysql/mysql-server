@@ -7850,8 +7850,23 @@ bool mysql_prepare_create_table(
   */
 
   /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
-  if (create_info->max_rows > UINT_MAX32) create_info->max_rows = UINT_MAX32;
-  if (create_info->min_rows > UINT_MAX32) create_info->min_rows = UINT_MAX32;
+  constexpr ulonglong u32max = UINT_MAX32;
+  if (create_info->max_rows > UINT_MAX32) {
+    // Values larger than uint32_max are capped to uint32_max.
+    // Emit a warning about this.
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VALUE_OUT_OF_RANGE,
+                        ER_THD(thd, ER_VALUE_OUT_OF_RANGE), "max_rows",
+                        create_info->max_rows, 0ULL, u32max, u32max);
+    create_info->max_rows = UINT_MAX32;
+  }
+  if (create_info->min_rows > UINT_MAX32) {
+    // Values larger than uint32_max are capped to uint32_max.
+    // Emit a warning about this.
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VALUE_OUT_OF_RANGE,
+                        ER_THD(thd, ER_VALUE_OUT_OF_RANGE), "min_rows",
+                        create_info->min_rows, 0ULL, u32max, u32max);
+    create_info->min_rows = UINT_MAX32;
+  }
 
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     create_info->table_options |= HA_OPTION_PACK_RECORD;
