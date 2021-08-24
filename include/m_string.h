@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,9 @@
 #endif
 
 #define bfill please_use_memset_rather_than_bfill()
+#ifdef bzero
+#undef bzero
+#endif
 #define bzero please_use_memset_rather_than_bzero()
 
 #if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
