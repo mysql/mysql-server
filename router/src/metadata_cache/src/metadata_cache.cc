@@ -370,7 +370,7 @@ void MetadataCache::on_instances_changed(
 
   if (use_cluster_notifications_) {
     meta_data_->setup_notifications_listener(
-        cluster_nodes, [this]() { on_refresh_requested(); });
+        cluster_nodes, target_cluster_, [this]() { on_refresh_requested(); });
   }
 }
 

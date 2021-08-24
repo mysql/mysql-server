@@ -398,8 +398,20 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file);
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
+
+  SCOPED_TRACE("// Wait for the expected log about enabling the GR notices");
+  for (unsigned i = 0; i < kClusterNodesCount; ++i) {
+    const bool found =
+        wait_log_contains(router,
+                          "INFO .* Enabling GR notices for cluster 'test' "
+                          "changes on node 127.0.0.1:" +
+                              std::to_string(cluster_nodes_xports[i]),
+                          2s);
+
+    EXPECT_TRUE(found);
+  }
 
   RouterComponentTest::sleep_for(test_params.router_uptime);
 
@@ -819,7 +831,7 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
 
   const bool found = wait_log_contains(
       router,
-      "WARNING.* Failed enabling notices on the node.* This "
+      "WARNING.* Failed enabling GR notices on the node.* This "
       "MySQL server version does not support GR notifications.*",
       2s);
 

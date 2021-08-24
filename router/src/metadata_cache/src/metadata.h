@@ -75,6 +75,7 @@ class METADATA_API MetaData {
 
   virtual void setup_notifications_listener(
       const std::vector<metadata_cache::ManagedInstance> &instances,
+      const mysqlrouter::TargetCluster &target_cluster,
       const std::function<void()> &callback) = 0;
 
   virtual void shutdown_notifications_listener() = 0;
