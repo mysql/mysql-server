@@ -172,8 +172,6 @@ mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
     return mysqlrouter::ClusterType::RS_V2;
   } else if (value == "gr") {
     return mysqlrouter::ClusterType::GR_V2;
-  } else if (value == "clusterset") {
-    return mysqlrouter::ClusterType::GR_CS;
   }
 
   throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +

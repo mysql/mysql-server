@@ -72,6 +72,7 @@ class METADATA_API GRMetadataCache : public MetadataCache {
   }
 
  private:
+  void log_cluster_details() const;
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);
   FRIEND_TEST(FailoverTest, primary_failover);

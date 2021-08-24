@@ -512,6 +512,7 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
         "Potential changes detected in cluster '%s' after metadata refresh",
         target_cluster_.c_str());
     // dump some informational/debugging information about the cluster
+    log_cluster_details();
     if (cluster_data_.empty())
       log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
@@ -554,4 +555,34 @@ bool GRMetadataCache::refresh(bool needs_writable_node) {
 
   on_refresh_succeeded(metadata_servers_[metadata_server_id]);
   return true;
+}
+
+void GRMetadataCache::log_cluster_details() const {
+  const auto cluster_type = meta_data_->get_cluster_type();
+
+  if (cluster_type == mysqlrouter::ClusterType::GR_CS) {
+    const std::string cluster_role =
+        target_cluster_.is_primary() ? "primary" : "replica";
+    const std::string cluster_invalidated =
+        target_cluster_.is_invalidated()
+            ? "cluster is marked as invalid in the metadata; "
+            : "";
+
+    bool has_rw_nodes{false};
+    for (const auto &mi : cluster_data_.members) {
+      if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
+        has_rw_nodes = true;
+      }
+    }
+
+    const std::string accepting_rw = has_rw_nodes
+                                         ? "accepting RW connections"
+                                         : "not accepting RW connections";
+
+    log_info(
+        "Target cluster '%s' is part of a ClusterSet; role of a cluster within "
+        "a ClusterSet is '%s'; %s%s",
+        target_cluster_.c_str(), cluster_role.c_str(),
+        cluster_invalidated.c_str(), accepting_rw.c_str());
+  }
 }
