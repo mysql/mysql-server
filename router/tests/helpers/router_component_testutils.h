@@ -64,4 +64,6 @@ bool wait_connection_dropped(
     mysqlrouter::MySQLSession &session,
     std::chrono::milliseconds timeout = std::chrono::seconds(5));
 
+size_t count_str_occurences(const std::string &s, const std::string &needle);
+
 #endif  // _ROUTER_COMPONENT_TESTUTILS_H_
