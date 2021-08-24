@@ -45,6 +45,7 @@
 #include "process_wrapper.h"
 #include "random_generator.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "router_test_helpers.h"  // get_file_output
 #include "tcp_port_pool.h"
 
@@ -1977,7 +1978,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
             {"user", "mysql_router1_user"},
             {"metadata_cluster", "test"},
             {"connect_timeout", "1"},
-            {"ttl", "0.1"},
+            {"ttl", std::to_string(static_cast<double>(ttl_.count()) / 1000)},
         });
   }
 
@@ -2022,15 +2023,16 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
         log_to_console ? "" : get_logging_dir().str();
     const std::string sinks =
         (log_to_console ? "consolelog,"s : "") + "filelog";
-    return create_config_file(
-        conf_dir,
-        mysql_harness::ConfigBuilder::build_section("logger",
-                                                    {
-                                                        {"level", "DEBUG"},
-                                                        {"sinks", sinks},
-                                                    }) +
-            "\n" + config,
-        &default_section);
+    return create_config_file(conf_dir,
+                              mysql_harness::ConfigBuilder::build_section(
+                                  "logger",
+                                  {
+                                      {"level", "DEBUG"},
+                                      {"timestamp_precision", "millisecond"},
+                                      {"sinks", sinks},
+                                  }) +
+                                  "\n" + config,
+                              &default_section);
   }
 
   TempDirectory temp_test_dir;
@@ -2039,6 +2041,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   uint16_t router_port_;
   std::string metadata_cache_section;
   std::string routing_section;
+  const std::chrono::milliseconds ttl_{200};
 };
 
 template <class F>
@@ -2079,19 +2082,55 @@ TEST_F(MetadataCacheLoggingTest,
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
   // with any of the 3 metadata servers
-  EXPECT_TRUE(retry_for(
-      [&]() {
-        auto file_content = router.get_full_logfile();
-        auto lines = mysql_harness::split_string(file_content, '\n');
+  const auto fail_msg =
+      "Failed fetching metadata from any of the 3 metadata servers.";
 
-        return ::testing::Value(
-            lines,
-            ::testing::Contains(::testing::AllOf(
-                ::testing::HasSubstr("metadata_cache ERROR"),
-                ::testing::HasSubstr("Failed fetching metadata from any of "
-                                     "the 3 metadata servers"))));
-      },
-      5s));
+  // Log as error only once
+  const auto error_timestamp = get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 1, 20 * ttl_);
+  EXPECT_TRUE(error_timestamp);
+  EXPECT_FALSE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 20 * ttl_));
+  // After logging an error next logs should be debug (unless the server state
+  // changes)
+  const auto debug_timestamp = get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache DEBUG.*"} + fail_msg, 1, 20 * ttl_);
+  EXPECT_TRUE(debug_timestamp);
+  EXPECT_GT(debug_timestamp.value(), error_timestamp.value());
+
+  // Launch metadata server
+  const auto http_port = cluster_nodes_http_ports[0];
+  auto &server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(),
+      cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[0]));
+  EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
+  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  wait_for_transaction_count_increase(http_port);
+
+  // We report to log info that we have connected only if there was an error,
+  // otherwise those reports should be treated as debug
+  const auto connect_msg = "Connected with metadata server";
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache INFO.*"} + connect_msg, 1, 20 * ttl_));
+  EXPECT_FALSE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache INFO.*"} + connect_msg, 3, 5 * ttl_));
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache DEBUG.*"} + connect_msg, 1, 20 * ttl_));
+
+  server.send_clean_shutdown_event();
+  server.wait_for_exit();
+  std::this_thread::sleep_for(ttl_);
+  // Log error after server was shut down
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 20 * ttl_));
 }
 
 /**
@@ -2121,28 +2160,51 @@ TEST_F(MetadataCacheLoggingTest,
   // - ... metadata_cache WARNING ... Failed connecting with Metadata Server
   //   localhost:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
   // - ... metadata_cache WARNING ... While updating metadata, could ...
+  const auto connection_failed_msg =
+      "Failed connecting with Metadata Server localhost:" +
+      std::to_string(cluster_nodes_ports[0]);
+  const auto update_failed_msg =
+      "While updating metadata, could not establish a connection to cluster "
+      "'test' through .*" +
+      std::to_string(cluster_nodes_ports[0]);
 
-  EXPECT_TRUE(retry_for(
-      [&]() {
-        using namespace ::testing;
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache WARNING.*"} + update_failed_msg, 1,
+      20 * ttl_));
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache WARNING.*"} + connection_failed_msg, 1,
+      20 * ttl_));
+  EXPECT_FALSE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache WARNING.*"} + connection_failed_msg, 2,
+      5 * ttl_));
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache DEBUG.*"} + connection_failed_msg, 1,
+      20 * ttl_));
 
-        auto file_content = router.get_full_logfile();
-        auto lines = mysql_harness::split_string(file_content, '\n');
+  server.send_clean_shutdown_event();
+  server.wait_for_exit();
 
-        return Value(
-            lines,
-            IsSupersetOf({
-                AllOf(HasSubstr("metadata_cache WARNING "),
-                      HasSubstr("While updating metadata, could "
-                                "not establish a connection to "
-                                "cluster")),
-                AllOf(HasSubstr("metadata_cache WARNING "),
-                      HasSubstr(
-                          "Failed connecting with Metadata Server localhost:" +
-                          std::to_string(cluster_nodes_ports[0]))),
-            }));
-      },
-      10s));
+  auto &new_server = launch_mysql_server_mock(
+      get_data_dir().join("metadata_dynamic_nodes.js").str(),
+      cluster_nodes_ports[0], EXIT_SUCCESS, false, cluster_nodes_http_ports[0]);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(new_server, cluster_nodes_ports[0]));
+  EXPECT_TRUE(MockServerRestClient(cluster_nodes_http_ports[0])
+                  .wait_for_rest_endpoint_ready());
+  set_mock_metadata(cluster_nodes_http_ports[0], "", cluster_nodes_ports);
+  wait_for_transaction_count_increase(cluster_nodes_http_ports[0]);
+
+  const auto connect_msg = "Connected with metadata server running on .*" +
+                           std::to_string(cluster_nodes_ports[0]);
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache INFO.*"} + connect_msg, 1, 20 * ttl_));
+  EXPECT_TRUE(get_log_timestamp(
+      router.get_logfile_path(),
+      std::string{".*metadata_cache DEBUG.*"} + connect_msg, 1, 20 * ttl_));
 }
 
 #ifndef _WIN32

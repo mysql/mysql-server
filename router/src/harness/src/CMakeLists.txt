@@ -68,6 +68,7 @@ SET(harness_source
   config_parser.cc
   designator.cc
   dynamic_state.cc
+  event_state_tracker.cc
   loader_config.cc
   common.cc
   filesystem.cc

@@ -66,7 +66,7 @@ class ClusterSetTest : public RouterComponentClusterSetTest {
 
   std::string get_metadata_cache_section(
       const std::chrono::milliseconds ttl = kTTL,
-      const std::string &cluster_type_str = "clusterset") {
+      const std::string &cluster_type_str = "gr") {
     auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
 
     return "[metadata_cache:test]\n"
@@ -368,6 +368,24 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
                         initial_target_cluster + "\" }");
   auto &router = launch_router();
 
+  {
+    const auto target_cluster_name =
+        clusterset_data_.clusters[initial_target_cluster_id].name;
+    const std::string cluster_role =
+        initial_target_cluster_id == 0 ? "primary" : "replica";
+    const std::string accepting_rw = initial_target_cluster_id == 0
+                                         ? "accepting RW connections"
+                                         : "not accepting RW connections";
+    const auto log_content = router.get_full_logfile();
+    const std::string pattern =
+        "INFO .* Target cluster '" + target_cluster_name +
+        "' is part of a ClusterSet; role of a cluster within a ClusterSet "
+        "is '" +
+        cluster_role + "'; " + accepting_rw;
+
+    EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  }
+
   SCOPED_TRACE(
       "// Make the connections to both RW and RO ports and check if they are "
       "directed to expected Cluster from the ClusterSet");
@@ -411,13 +429,29 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
       clusterset_data_.clusters[0].nodes[0].http_port, 3));
 
   SCOPED_TRACE("// Check if the change of a target cluster has been logged");
-  const auto changed_target_cluster_name =
-      clusterset_data_.clusters[changed_target_cluster_id].name;
-  const auto log_content = router.get_full_logfile();
-  const std::string pattern =
-      "INFO .* New target cluster read from the metadata: '" +
-      changed_target_cluster_name + "'";
-  EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
+  {
+    const auto changed_target_cluster_name =
+        clusterset_data_.clusters[changed_target_cluster_id].name;
+    const std::string cluster_role =
+        changed_target_cluster_id == 0 ? "primary" : "replica";
+    const std::string accepting_rw = changed_target_cluster_id == 0
+                                         ? "accepting RW connections"
+                                         : "not accepting RW connections";
+
+    const auto log_content = router.get_full_logfile();
+    const std::string pattern =
+        "INFO .* New target cluster read from the metadata: '" +
+        changed_target_cluster_name + "'";
+    EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
+
+    const std::string pattern2 =
+        "INFO .* Target cluster '" + changed_target_cluster_name +
+        "' is part of a ClusterSet; role of a cluster within a ClusterSet "
+        "is '" +
+        cluster_role + "'; " + accepting_rw;
+
+    EXPECT_TRUE(pattern_found(log_content, pattern2)) << log_content;
+  }
 
   if (GetParam().initial_connections_should_drop) {
     SCOPED_TRACE(

@@ -28,10 +28,13 @@
 
 #include "dim.h"
 #include "group_replication_metadata.h"
+#include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 
+using mysql_harness::EventStateTracker;
+using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::strtoi_checked;
@@ -323,8 +326,16 @@ void GRClusterMetadata::update_cluster_status(
         throw metadata_cache::metadata_error(e.what());
       }
 
-      if (!do_connect(*gr_member_connection, mi)) {
-        log_warning(
+      const bool connect_res = do_connect(*gr_member_connection, mi);
+      const bool connect_res_changed =
+          EventStateTracker::instance().state_changed(
+              connect_res, EventStateTracker::EventId::GRMemberConnectedOk,
+              mi_addr);
+      if (!connect_res) {
+        const auto log_level =
+            connect_res_changed ? LogLevel::kWarning : LogLevel::kDebug;
+        log_custom(
+            log_level,
             "While updating metadata, could not establish a connection to "
             "cluster '%s' through %s",
             target_cluster.c_str(), mi_addr.c_str());
@@ -449,13 +460,20 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
                                 return status_node.first ==
                                        metadata_node.mysql_server_uuid;
                               });
-    if (found == instances.end()) {
+    const bool node_in_metadata = found != instances.end();
+    const bool node_in_metadata_changed =
+        EventStateTracker::instance().state_changed(
+            node_in_metadata, EventStateTracker::EventId::GRNodeInMetadata,
+            status_node.first);
+    if (!node_in_metadata) {
       if (status_node.second.state == GR_State::Recovering) {
-        log_info(
-            "GR member %s:%d (%s) Recovering, missing in the metadata, "
-            "ignoring",
-            status_node.second.host.c_str(), status_node.second.port,
-            status_node.first.c_str());
+        const auto log_level =
+            node_in_metadata_changed ? LogLevel::kInfo : LogLevel::kDebug;
+        log_custom(log_level,
+                   "GR member %s:%d (%s) Recovering, missing in the metadata, "
+                   "ignoring",
+                   status_node.second.host.c_str(), status_node.second.port,
+                   status_node.first.c_str());
         // if the node is Recovering and it is missing in the metadata it can't
         // increase the pool used for quorum calculations. This is for example
         // important when we have single node cluster and we add another node
@@ -463,10 +481,12 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
         // tables but missing in the metadata.
         --number_of_all_members;
       } else {
-        log_warning("GR member %s:%d (%s) %s, missing in the metadata",
-                    status_node.second.host.c_str(), status_node.second.port,
-                    status_node.first.c_str(),
-                    to_string(status_node.second.state));
+        const auto log_level =
+            node_in_metadata_changed ? LogLevel::kWarning : LogLevel::kDebug;
+        log_custom(
+            log_level, "GR member %s:%d (%s) %s, missing in the metadata",
+            status_node.second.host.c_str(), status_node.second.port,
+            status_node.first.c_str(), to_string(status_node.second.state));
       }
 
       // we want to set this in both cases as it increases the metadata refresh
@@ -484,7 +504,12 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
   bool have_secondary_instance = false;
   for (auto &member : instances) {
     auto status = member_status.find(member.mysql_server_uuid);
-    if (status != member_status.end()) {
+    const bool node_in_gr = status != member_status.end();
+    const bool node_in_gr_changed = EventStateTracker::instance().state_changed(
+        node_in_gr, EventStateTracker::EventId::MetadataNodeInGR,
+        member.mysql_server_uuid);
+
+    if (node_in_gr) {
       switch (status->second.state) {
         case GR_State::Online:
           switch (status->second.role) {
@@ -515,10 +540,13 @@ metadata_cache::ClusterStatus GRClusterMetadata::check_cluster_status(
     } else {
       member.mode = ServerMode::Unavailable;
       metadata_gr_discrepancy = true;
-      log_warning(
-          "Member %s:%d (%s) defined in metadata not found in actual "
-          "Group Replication",
-          member.host.c_str(), member.port, member.mysql_server_uuid.c_str());
+      const auto log_level =
+          node_in_gr_changed ? LogLevel::kWarning : LogLevel::kDebug;
+      log_custom(log_level,
+                 "Member %s:%d (%s) defined in metadata not found in actual "
+                 "Group Replication",
+                 member.host.c_str(), member.port,
+                 member.mysql_server_uuid.c_str());
     }
   }
 
@@ -718,14 +746,8 @@ GRClusterMetadata::fetch_cluster_topology(
 
       try {
         if (!connect_and_setup_session(metadata_server)) {
-          log_warning("Could not connect to the metadata server on %s:%d",
-                      metadata_server.address().c_str(),
-                      metadata_server.port());
           continue;
         }
-
-        log_debug("Connected to the metadata server on %s:%d",
-                  metadata_server.address().c_str(), metadata_server.port());
 
         MySQLSession::Transaction transaction(metadata_connection_.get());
 
