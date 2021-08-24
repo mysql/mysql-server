@@ -540,3 +540,28 @@ SELECT func2();
 
 DROP FUNCTION func1;
 DROP FUNCTION func2;
+
+
+--echo #
+--echo # Bug#33079184 - sp_lex_instr::reset_lex_and_exec_core: assertion
+--echo #                `error || m_lex->is_exec_started()' failed.
+--echo # Assertion to make sure sp instruction execution is started unless
+--echo # there is an error, failed.
+--echo #
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+
+  SET @x = 0;
+  WHILE @x < 2 DO
+    CASE((SELECT q > 1)) WHEN 1 THEN SELECT 1; END CASE;
+    SET @x = @x + 1;
+  END WHILE;
+END$
+DELIMITER ;$
+
+--echo # Without fix, assertion fails for following statement in debug build.
+--echo # In non-debug build, statement executes successfully.
+CALL p();
+DROP PROCEDURE p;
