@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,18 +30,18 @@
 #include "mysys_priv.h"
 #include <m_string.h>
 
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
+
 void my_sleep(ulong m_seconds)
 {
 #if defined(__WIN__)
   Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
-#elif defined(HAVE_SELECT)
+#else
   struct timeval t;
   t.tv_sec=  m_seconds / 1000000L;
   t.tv_usec= m_seconds % 1000000L;
   select(0,0,0,0,&t); /* sleep */
-#else
-  uint sec=    (uint) (m_seconds / 1000000L);
-  ulong start= (ulong) time((time_t*) 0);
-  while ((ulong) time((time_t*) 0) < start+sec);
 #endif
 }

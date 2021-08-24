@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -246,7 +246,6 @@
 #cmakedefine HAVE_RINT 1
 #cmakedefine HAVE_RWLOCK_INIT 1
 #cmakedefine HAVE_SCHED_YIELD 1
-#cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SETLOCALE 1

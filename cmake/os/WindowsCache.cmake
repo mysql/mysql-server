@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -178,7 +178,6 @@ SET(HAVE_RINT CACHE  INTERNAL "")
 SET(HAVE_RWLOCK_INIT CACHE  INTERNAL "")
 SET(HAVE_SCHED_H CACHE  INTERNAL "")
 SET(HAVE_SCHED_YIELD CACHE  INTERNAL "")
-SET(HAVE_SELECT 1 CACHE  INTERNAL "")
 SET(HAVE_SELECT_H CACHE  INTERNAL "")
 SET(HAVE_SEMAPHORE_H CACHE  INTERNAL "")
 SET(HAVE_SETENV CACHE  INTERNAL "")
