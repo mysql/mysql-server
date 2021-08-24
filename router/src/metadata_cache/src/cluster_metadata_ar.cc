@@ -56,8 +56,6 @@ ARClusterMetadata::fetch_cluster_topology(
     const auto &metadata_server = metadata_servers[i];
     try {
       if (!connect_and_setup_session(metadata_server)) {
-        log_warning("Could not connect to the metadata server on %s:%d",
-                    metadata_server.address().c_str(), metadata_server.port());
         continue;
       }
 

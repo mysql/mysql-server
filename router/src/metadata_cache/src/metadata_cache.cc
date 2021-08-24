@@ -31,12 +31,15 @@
 #include <vector>
 
 #include "common.h"
+#include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
+using mysql_harness::EventStateTracker;
+using mysql_harness::logging::LogLevel;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -304,10 +307,18 @@ void MetadataCache::on_refresh_failed(bool terminated,
     stats.last_refresh_failed = std::chrono::system_clock::now();
   });
 
+  const bool refresh_state_changed =
+      EventStateTracker::instance().state_changed(
+          false, EventStateTracker::EventId::MetadataRefreshOk);
+
   // we failed to fetch metadata from any of the metadata servers
-  if (!terminated)
-    log_error("Failed fetching metadata from any of the %u metadata servers.",
-              static_cast<unsigned>(metadata_servers_.size()));
+  if (!terminated) {
+    const auto log_level =
+        refresh_state_changed ? LogLevel::kError : LogLevel::kDebug;
+    log_custom(log_level,
+               "Failed fetching metadata from any of the %u metadata servers.",
+               static_cast<unsigned>(metadata_servers_.size()));
+  }
 
   // clearing metadata
   {
@@ -318,7 +329,10 @@ void MetadataCache::on_refresh_failed(bool terminated,
       if (clearing) cluster_data_.clear();
     }
     if (clearing) {
-      log_info("... cleared current routing table as a precaution");
+      const auto log_level =
+          refresh_state_changed ? LogLevel::kInfo : LogLevel::kDebug;
+      log_custom(log_level,
+                 "... cleared current routing table as a precaution");
       on_instances_changed(md_servers_reachable, {}, {});
     }
   }
@@ -326,6 +340,8 @@ void MetadataCache::on_refresh_failed(bool terminated,
 
 void MetadataCache::on_refresh_succeeded(
     const metadata_cache::metadata_server_t &metadata_server) {
+  EventStateTracker::instance().state_changed(
+      true, EventStateTracker::EventId::MetadataRefreshOk);
   stats_([&metadata_server](auto &stats) {
     stats.last_refresh_succeeded = std::chrono::system_clock::now();
     stats.last_metadata_server_host = metadata_server.address();

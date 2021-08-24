@@ -280,4 +280,25 @@ bool add_line_to_config_file(const std::string &config_path,
                              const std::string &section_name,
                              const std::string &key, const std::string &value);
 
+/**
+ * Wait for the nth occurence of the log_regex in the log_file with timeout
+ * If it's found returns the timepoint from the matched line prefix
+ * If timed out or failed to convert the timestamp returns unexpected
+ *
+ * @param log_file path to file containing router log
+ * @param log_regex value that is going to be searched for in the log
+ * @param n_occurence number denoting which occurence of a log_regex is expected
+ * @param timeout number of milliseconds we are going to wait for the log_regex
+ * to occur at expected position
+ *
+ * @retval if log_regex is found at expected position return the timestamp of
+ * this log
+ * @retval unexpected otherwise
+ */
+stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+get_log_timestamp(
+    const std::string &log_file, const std::string &log_regex,
+    const unsigned occurence = 1,
+    const std::chrono::milliseconds timeout = std::chrono::seconds(1));
+
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

@@ -74,6 +74,7 @@ SET(TESTS
   test_process_launcher.cc
   test_tcp_address.cc
   test_config_builder.cc
+  test_event_state_tracker.cc
 )
 
 FOREACH(TEST ${TESTS})

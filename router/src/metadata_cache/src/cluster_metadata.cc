@@ -38,6 +38,7 @@
 
 #include "dim.h"
 #include "group_replication_metadata.h"
+#include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
@@ -45,6 +46,8 @@
 #include "mysqlrouter/utils_sqlstring.h"
 #include "tcp_address.h"
 
+using mysql_harness::EventStateTracker;
+using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
@@ -126,24 +129,37 @@ bool ClusterMetadata::connect_and_setup_session(
     return false;
   }
 
-  if (do_connect(*metadata_connection_, metadata_server)) {
+  const bool connect_res = do_connect(*metadata_connection_, metadata_server);
+  const auto connect_state =
+      connect_res ? 0 : metadata_connection_->last_errno();
+  const bool connect_res_changed = EventStateTracker::instance().state_changed(
+      connect_state, EventStateTracker::EventId::MetadataServerConnectedOk,
+      metadata_server.str());
+  if (connect_res) {
     const auto result =
         mysqlrouter::setup_metadata_session(*metadata_connection_);
     if (result) {
-      log_debug("Connected with metadata server running on %s:%i",
-                metadata_server.address().c_str(), metadata_server.port());
+      const auto log_level =
+          connect_res_changed ? LogLevel::kInfo : LogLevel::kDebug;
+
+      log_custom(log_level, "Connected with metadata server running on %s:%i",
+                 metadata_server.address().c_str(), metadata_server.port());
       return true;
     } else {
       log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
                   metadata_server.address().c_str(), metadata_server.port(),
                   result.error().c_str());
     }
+
   } else {
     // connection attempt failed
-    log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
-                metadata_server.address().c_str(), metadata_server.port(),
-                metadata_connection_->last_error(),
-                metadata_connection_->last_errno());
+    const auto log_level =
+        connect_res_changed ? LogLevel::kWarning : LogLevel::kDebug;
+
+    log_custom(
+        log_level, "Failed connecting with Metadata Server %s:%d: %s (%i)",
+        metadata_server.address().c_str(), metadata_server.port(),
+        metadata_connection_->last_error(), metadata_connection_->last_errno());
   }
 
   metadata_connection_.reset();
