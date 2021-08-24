@@ -8402,7 +8402,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
 }
 
 void Item_default_value::bind_fields() {
-  if (arg == nullptr) return;
+  if (!fixed || arg == nullptr) return;
 
   field->move_field_offset(
       (ptrdiff_t)(field->table->s->default_values - m_rowbuffer_saved));
