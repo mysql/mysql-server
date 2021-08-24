@@ -962,6 +962,38 @@ private:
 #ifdef VM_TRACE
     char* c_debugBuffer;
 #endif
+    // function for clearing context
+    void reset()
+    {
+      // jamBuffer left
+      scanPtr.i = RNIL;
+      scanPtr.p = nullptr;
+      fragPtr.i = RNIL;
+      fragPtr.p = nullptr;
+      indexPtr.i = RNIL;
+      indexPtr.p = nullptr;
+      tupIndexFragPtr = nullptr;
+      tupIndexTablePtr = nullptr;
+      tupRealFragPtr = nullptr;
+      tupRealTablePtr = nullptr;
+      attrDataOffset = 0;
+      tuxFixHeaderSize = 0;
+      // searchScanDataArray left
+      // searchScanBoundArray left
+      keyAttrs = nullptr;
+      // searchKeyDataArray left
+      // searchKeyBoundArray left
+      scanBoundCnt = 0;
+      descending = 0;
+      m_current_ent.m_tupLoc = NullTupLoc;
+      m_current_ent.m_tupVersion = 0;
+      // c_searchKey left
+      // c_nextKey left
+      // c_entryKey left
+      // c_dataBuffer left
+      // c_boundBuffer left
+      // c_debugBuffer left
+    }
   };
 
   struct TuxCtx c_ctx; // Global Tux context, for everything build MT-index build
@@ -1742,12 +1774,10 @@ inline
 void
 Dbtux::relinkScan(Uint32 line)
 {
-  if (c_ctx.scanPtr.p != nullptr)
-  {
-    ScanOp& scan = *c_ctx.scanPtr.p;
-    Frag& frag = *c_ctx.fragPtr.p;
-    relinkScan(scan, frag, true, line);
-  }
+  ndbrequire(c_ctx.scanPtr.p != nullptr);
+  ScanOp& scan = *c_ctx.scanPtr.p;
+  Frag& frag = *c_ctx.fragPtr.p;
+  relinkScan(scan, frag, true, line);
 }
 #undef JAM_FILE_ID
 
