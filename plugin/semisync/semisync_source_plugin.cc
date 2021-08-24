@@ -654,6 +654,15 @@ static int semi_sync_master_plugin_init(void *p) {
   return 0;
 }
 
+static int semi_sync_source_plugin_check_uninstall(void *) {
+  int ret = rpl_semi_sync_source_clients ? 1 : 0;
+  if (ret) {
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), SEMI_SYNC_PLUGIN_NAME,
+             "Stop any active semisynchronous slaves of this master first.");
+  }
+  return ret;
+}
+
 static int semi_sync_master_plugin_deinit(void *p) {
   // the plugin was not initialized, there is nothing to do here
   if (ack_receiver == nullptr || repl_semisync == nullptr) return 0;
@@ -699,9 +708,9 @@ mysql_declare_plugin(semi_sync_master){
     PLUGIN_AUTHOR_ORACLE,
     "Source-side semi-synchronous replication.",
     PLUGIN_LICENSE_GPL,
-    semi_sync_master_plugin_init,   /* Plugin Init */
-    nullptr,                        /* Plugin Check uninstall */
-    semi_sync_master_plugin_deinit, /* Plugin Deinit */
+    semi_sync_master_plugin_init,            /* Plugin Init */
+    semi_sync_source_plugin_check_uninstall, /* Plugin Check uninstall */
+    semi_sync_master_plugin_deinit,          /* Plugin Deinit */
     0x0100 /* 1.0 */,
     semi_sync_master_status_vars, /* status variables */
     semi_sync_master_system_vars, /* system variables */
