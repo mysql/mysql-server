@@ -3111,7 +3111,7 @@ DROP TABLE t1;
 # max_rows is capped and a warning produced
 CREATE TABLE t1(a INT) max_rows=18446744073709551615;
 Warnings:
-Warning	4075	max_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+Warning	4074	max_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	max_rows=4294967295	
@@ -3122,7 +3122,7 @@ DROP TABLE t1;
 # min_rows is capped and a warning produced
 CREATE TABLE t1(a INT) min_rows=18446744073709551615;
 Warnings:
-Warning	4075	min_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+Warning	4074	min_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
 SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	min_rows=4294967295	
