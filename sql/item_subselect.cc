@@ -1118,6 +1118,21 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
 
   Item *single_field = select->single_visible_field();
 
+  if (single_field != nullptr &&
+      single_field->type() == Item::VALUES_COLUMN_ITEM) {
+    /*
+      A subquery that is a VALUES clause can be used as a scalar subquery.
+      But VALUES clauses with a single row are transformed to their simple
+      components and will not be shown as VALUES_COLUMN_ITEM here.
+    */
+    assert(select->row_value_list->size() > 1);
+    /*
+      Since scalar subqueries can have at most one row, reject VALUES
+      clauses (with more than one row) immediately:
+    */
+    my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+    return RES_ERROR;
+  }
   if (!unit->is_union() && !select->table_list.elements &&
       single_field != nullptr && !single_field->has_aggregation() &&
       !single_field->has_wf() && !select->where_cond() &&
