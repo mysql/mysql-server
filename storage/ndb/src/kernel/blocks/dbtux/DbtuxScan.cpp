@@ -114,6 +114,13 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   FragPtr fragPtr;
   ScanOpPtr scanPtr;
   IndexPtr indexPtr;
+  if (unlikely(scanPtrI == RNIL))
+  {
+    jam();
+    /* Make sure context is cleared */
+    c_ctx.reset();
+    return;
+  }
   scanPtr.i = scanPtrI;
   ndbrequire(c_scanOpPool.getUncheckedPtrRW(scanPtr));
   prefetch_scan_record_3((Uint32*)scanPtr.p);
