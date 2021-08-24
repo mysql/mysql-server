@@ -973,6 +973,11 @@ if (CMAKE_USE_PTHREADS_INIT)
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
 
+MY_CHECK_C_COMPILER_FLAG("-Warray-parameter" HAVE_ARRAY_PARAMETER)
+IF(HAVE_ARRAY_PARAMETER)
+  TARGET_COMPILE_OPTIONS(event_core PRIVATE "-Wno-array-parameter")
+ENDIF()
+
 # Do not generate legacy event library, and do not install or test anything.
 RETURN()
 
