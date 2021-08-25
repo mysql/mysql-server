@@ -126,7 +126,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   void range_end() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
-  void save_last_pos() override { file->position(m_table->record[0]); }
 
   uint get_mrr_flags() const { return mrr_flags; }
 };

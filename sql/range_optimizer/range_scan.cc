@@ -313,6 +313,9 @@ int QUICK_RANGE_SELECT::get_next() {
   if (in_ror_merged_scan) {
     /* Restore bitmaps set on entry */
     m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+    if (result == 0) {
+      file->position(m_table->record[0]);
+    }
   }
   return result;
 }

@@ -330,7 +330,6 @@ int QUICK_ROR_UNION_SELECT::reset() {
       if (error == HA_ERR_END_OF_FILE) continue;
       return error;
     }
-    quick->save_last_pos();
     queue.push(quick);
   }
 
@@ -409,7 +408,6 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
     }
     if (error) return error;
 
-    quick->file->position(quick->m_table->record[0]);
     memcpy(last_rowid, quick->file->ref, m_table->file->ref_length);
     last_rowid_count = 1;
     quick_with_last_rowid = quick;
@@ -429,7 +427,6 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
             quick_with_last_rowid->file->unlock_row();
           return error;
         }
-        quick->file->position(quick->m_table->record[0]);
         cmp = m_table->file->cmp_ref(quick->file->ref, last_rowid);
         if (cmp < 0) {
           /* This row is being skipped.  Release lock on
@@ -451,7 +448,6 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
               return error;
             }
           }
-          quick->file->position(quick->m_table->record[0]);
         }
         memcpy(last_rowid, quick->file->ref, m_table->file->ref_length);
         quick_with_last_rowid->file->unlock_row();
@@ -504,7 +500,6 @@ int QUICK_ROR_UNION_SELECT::get_next() {
         if (error != HA_ERR_END_OF_FILE) return error;
         queue.pop();
       } else {
-        quick->save_last_pos();
         queue.update_top();
       }
 

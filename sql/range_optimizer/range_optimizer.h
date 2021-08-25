@@ -258,19 +258,15 @@ class QUICK_SELECT_I {
   */
   virtual int reset(void) = 0;
 
-  virtual int get_next() = 0; /* get next record to retrieve */
+  /* get next record to retrieve */
+  virtual int get_next() = 0;
 
   /* Range end should be called when we have looped over the whole index */
   virtual void range_end() {}
 
   /*
-    Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
-  */
-  virtual void save_last_pos() {}
-
-  /*
-    rowid of last row retrieved by this quick select. This is used only when
-    doing ROR-index_merge selects
+    Row ID of last row retrieved by this quick select. This is used only when
+    doing ROR-index_merge selects. Updated on successful get_next().
   */
   uchar *last_rowid = nullptr;
 };
