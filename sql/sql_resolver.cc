@@ -3207,10 +3207,30 @@ bool Query_block::convert_subquery_to_semijoin(
     // Expressions from the SELECT list will not be used; unlike in the case of
     // IN, they are not part of sj_inner_exprs.
     // @todo in WL#6570, move this to resolve_subquery().
-    Item::Cleanup_after_removal_context ctx(this);
+    bool view_ref_with_subquery = false;
+    // Do not remove an item of type Item_view_ref. Refer to
+    // the comments in Item_cond::fix_fields on the removal of
+    // Item_view_ref type.
     for (Item *item : subq_query_block->visible_fields()) {
-      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                 pointer_cast<uchar *>(&ctx));
+      if (item->has_subquery()) {
+        WalkItem(item, enum_walk::PREFIX,
+                 [&view_ref_with_subquery](Item *inner_item) {
+                   if (inner_item->type() == Item::REF_ITEM &&
+                       down_cast<Item_ref *>(inner_item)->ref_type() ==
+                           Item_ref::VIEW_REF) {
+                     view_ref_with_subquery = true;
+                     return true;
+                   }
+                   return false;
+                 });
+      }
+    }
+    if (!view_ref_with_subquery) {
+      Item::Cleanup_after_removal_context ctx(this);
+      for (Item *item : subq_query_block->visible_fields()) {
+        item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+                   pointer_cast<uchar *>(&ctx));
+      }
     }
   }
 
