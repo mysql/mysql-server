@@ -1222,8 +1222,15 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       assert(field->table == table);
       cur_group->field_in_tmp_table = field;
 
-      if ((*cur_group->item)->max_char_length() > CONVERT_IF_BIGGER_TO_BLOB)
+      /*
+        Use hash key as the unique constraint if the group-by key is
+        big or if it is non-deterministic. Group-by items get evaluated
+        twice and a non-deterministic function would cause a discrepancy.
+      */
+      if ((*cur_group->item)->max_char_length() > CONVERT_IF_BIGGER_TO_BLOB ||
+          (*cur_group->item)->is_non_deterministic()) {
         unique_constraint_via_hash_field = true;
+      }
     }
     if (param->group_parts > max_key_parts ||
         param->group_length > max_key_length ||
