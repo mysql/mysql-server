@@ -273,8 +273,6 @@ class QUICK_SELECT_I {
     doing ROR-index_merge selects
   */
   uchar *last_rowid = nullptr;
-
-  void trace_quick_description(Opt_trace_context *trace);
 };
 
 using Quick_ranges = Mem_root_array<QUICK_RANGE *>;
