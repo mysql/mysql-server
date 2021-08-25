@@ -22239,6 +22239,21 @@ static void test_bug32892045() {
   myquery(mysql_query(mysql, "DROP TABLE t1"));
 }
 
+static void test_bug33164347() {
+  int rc = 0;
+  bool opt = true;
+  struct st_mysql_client_plugin *plugin;
+
+  DBUG_TRACE;
+  myheader("test_bug33164347");
+
+  plugin = mysql_load_plugin(mysql, "qa_auth_client", -1, 0);
+  DIE_UNLESS(plugin == nullptr);
+
+  rc = mysql_plugin_get_option(plugin, "plugin_option", &opt);
+  DIE_UNLESS(rc != 0);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22544,6 +22559,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32558782", test_bug32558782},
     {"test_bug32847269", test_bug32847269},
     {"test_bug32892045", test_bug32892045},
+    {"test_bug33164347", test_bug33164347},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

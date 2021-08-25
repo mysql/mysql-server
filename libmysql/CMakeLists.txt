@@ -141,6 +141,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_warning_count
   mysql_real_connect_dns_srv
   mysql_bind_param
+  mysql_plugin_get_option
   CACHE INTERNAL "Functions exported by client API"
 )
 
