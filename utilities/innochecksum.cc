@@ -178,10 +178,19 @@ error::~error() {
   std::cerr << "[ERROR] innochecksum: " << m_oss.str() << std::endl;
 }
 
+/*
+MSVS complains: Warning C4722: destructor never returns, potential memory leak.
+But, the whole point of using ib::fatal temporary object is to cause an abort.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4722)
+
 fatal::~fatal() {
   std::cerr << "[FATAL] innochecksum: " << m_oss.str() << std::endl;
   ut_error;
 }
+// Restore the MSVS checks for Warning C4722, silenced for ib::fatal::~fatal().
+MY_COMPILER_DIAGNOSTIC_POP()
 }  // namespace ib
 
 /** A dummy implementation.  Actual implementation available in fil0fil.cc */
