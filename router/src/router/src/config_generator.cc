@@ -1671,17 +1671,10 @@ static std::string get_target_cluster_value(
   }
 
   if (option_lowercase.empty()) {
-    // If the user did not provide --conf-target-cluster parameter then:
-    // - if the Cluster containing the node used for the bootstrap is Primary,
-    // use "primary" as the target_cluster
-    // - if the Cluster containing the node used for the bootstrap is NOT
-    // Primary, use this cluster's UUID as the target_cluster
-    return cluster_info.is_primary
-               ? "primary"
-               : cluster_info.get_cluster_type_specific_id();
+    // neither --conf-target-cluster nor --conf-target-cluster-by-name was used
+    return "";
   }
 
-  // otherwise we assume the user provided cluster UUID for the target_cluster
   harness_assert(option_lowercase == "primary");
   return "primary";
 }
@@ -1743,7 +1736,7 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
           ? get_target_cluster_value(options.target_cluster,
                                      options.target_cluster_by_name,
                                      cluster_info)
-          : "primary";
+          : "";
   const std::string cluster_id =
       mysqlrouter::ClusterType::GR_CS == metadata_->get_type()
           ? cluster_specific_id_

@@ -166,85 +166,76 @@ INSTANTIATE_TEST_SUITE_P(
         // cluster which is the PRIMARY cluster; both "--conf-target-cluster"
         // and "--conf-target-cluster-by-name" parameters are empty (not used)
         // so per requirement we are expected to configure
-        // target_cluster=primary
-        // [@FR1.1] [@TS_R1_1]
+        // empty target cluster
+        // [@FR1]
         TargetClusterTestParams{/*bootstrap_cluster_id*/ 0,
                                 /*bootstrap_node_id*/ 0,
                                 /*--conf-target-cluster*/ "",
                                 /*--conf-target-cluster-by-name*/ "",
                                 /*target_cluster_id*/ 0,
-                                /*expected_target_cluster*/ "primary",
+                                /*expected_target_cluster*/ "",
                                 /*expected_output_strings*/ {}},
         TargetClusterTestParams{/*bootstrap_cluster_id*/ 0,
                                 /*bootstrap_node_id*/ 1,
                                 /*--conf-target-cluster*/ "",
                                 /*--conf-target-cluster-by-name*/ "",
                                 /*target_cluster_id*/ 0,
-                                /*expected_target_cluster*/ "primary",
+                                /*expected_target_cluster*/ "",
                                 /*expected_output_strings*/ {}},
         TargetClusterTestParams{/*bootstrap_cluster_id*/ 0,
                                 /*bootstrap_node_id*/ 2,
                                 /*--conf-target-cluster*/ "",
                                 /*--conf-target-cluster-by-name*/ "",
                                 /*target_cluster_id*/ 0,
-                                /*expected_target_cluster*/ "primary",
+                                /*expected_target_cluster*/ "",
                                 /*expected_output_strings*/ {}},
         // we bootstrap against the nodes of the other clusters which is
         // are REPLICA clusters; both "--conf-target-cluster" and
         // "--conf-target-cluster-by-name" parameters are empty (not used) so
-        // per requirement we are expected to configure
-        // target_cluster=UUID-OF-REPLICA-CLUSTER
-        // [@FR1.2] [@TS_R1_2]
-        // first Replica Cluster, nodes 0-2
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 1,
-            /*bootstrap_node_id*/ 0,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 1,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g2",
-            /*expected_output_strings*/ {}},
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 1,
-            /*bootstrap_node_id*/ 1,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 1,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g2",
-            /*expected_output_strings*/ {}},
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 1,
-            /*bootstrap_node_id*/ 2,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 1,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g2",
-            /*expected_output_strings*/ {}},
+        // per requirement we are expected to configure empty target cluster
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 1,
+                                /*bootstrap_node_id*/ 0,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 1,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 1,
+                                /*bootstrap_node_id*/ 1,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 1,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 1,
+                                /*bootstrap_node_id*/ 2,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 1,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
         // second Replica Cluster, nodes 0-2
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 2,
-            /*bootstrap_node_id*/ 0,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 2,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g3",
-            /*expected_output_strings*/ {}},
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 2,
-            /*bootstrap_node_id*/ 1,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 2,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g3",
-            /*expected_output_strings*/ {}},
-        TargetClusterTestParams{
-            /*bootstrap_cluster_id*/ 2,
-            /*bootstrap_node_id*/ 2,
-            /*--conf-target-cluster*/ "",
-            /*--conf-target-cluster-by-name*/ "",
-            /*target_cluster_id*/ 2,
-            /*expected_target_cluster*/ "00000000-0000-0000-0000-0000000000g3",
-            /*expected_output_strings*/ {}},
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 2,
+                                /*bootstrap_node_id*/ 0,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 2,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 2,
+                                /*bootstrap_node_id*/ 1,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 2,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
+        TargetClusterTestParams{/*bootstrap_cluster_id*/ 2,
+                                /*bootstrap_node_id*/ 2,
+                                /*--conf-target-cluster*/ "",
+                                /*--conf-target-cluster-by-name*/ "",
+                                /*target_cluster_id*/ 2,
+                                /*expected_target_cluster*/ "",
+                                /*expected_output_strings*/ {}},
         // we bootstrap against the nodes of the first Cluster which is the
         // PRIMARY Cluster; the "--conf-target-cluster=current" so
         // per requirement we are expected to configure

@@ -214,20 +214,27 @@ void update_router_info_v2(
       "    '$.ROXEndpoint', ?),"
       "    '$.MetadataUser', ?),"
       "    '$.bootstrapTargetType', ?),"
-      " options = "
-      "   JSON_SET(IF(options IS NULL, "
-      "'{}', options),"
-      "    '$.target_cluster', ?),"
       " version = ?, ! = ?"
       " WHERE router_id = ?",
       {mysqlrouter::QuoteOnlyIfNeeded});
 
-  query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
-  query << username << to_string_md(cluster_type) << target_cluster;
-  query << MYSQL_ROUTER_VERSION << cluster_id_field << cluster_id << router_id
-        << sqlstring::end;
+  query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint
+        << username << to_string_md(cluster_type) << MYSQL_ROUTER_VERSION
+        << cluster_id_field << cluster_id << router_id << sqlstring::end;
 
   mysql->execute(query);
+
+  if (!target_cluster.empty()) {
+    sqlstring query_options(
+        "UPDATE mysql_innodb_cluster_metadata.v2_routers"
+        " SET options = JSON_SET(IF(options IS NULL, '{}', options),"
+        " '$.target_cluster', ?),"
+        " WHERE router_id = ?");
+
+    query_options << target_cluster << router_id << sqlstring::end;
+
+    mysql->execute(query_options);
+  }
 }
 
 }  // namespace

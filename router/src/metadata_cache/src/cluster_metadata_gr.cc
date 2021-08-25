@@ -1076,10 +1076,8 @@ static bool update_router_options_from_metadata(
     mysqlrouter::TargetCluster &target_cluster) {
   // check if we have a target cluster assigned in the metadata
   const std::string query =
-      "SELECT IF(r.options IS NULL, cs.router_options, r.options) as options "
-      "FROM mysql_innodb_cluster_metadata.v2_routers r JOIN "
-      "mysql_innodb_cluster_metadata.clustersets cs ON cs.clusterset_id = "
-      "r.clusterset_id where r.router_id = " +
+      "SELECT router_options FROM "
+      "mysql_innodb_cluster_metadata.v2_cs_router_options where router_id = " +
       std::to_string(router_id);
 
   std::unique_ptr<MySQLSession::ResultRow> row(session.query_one(query));
