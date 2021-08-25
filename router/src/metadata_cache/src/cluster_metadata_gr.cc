@@ -1071,7 +1071,7 @@ static std::string get_router_option_str(const std::string &options,
   return json_doc[name.c_str()].GetString();
 }
 
-static bool update_target_cluster_from_metadata(
+static bool update_router_options_from_metadata(
     mysqlrouter::MySQLSession &session, const unsigned router_id,
     mysqlrouter::TargetCluster &target_cluster) {
   // check if we have a target cluster assigned in the metadata
@@ -1092,6 +1092,8 @@ static bool update_target_cluster_from_metadata(
   }
 
   const std::string options_str = get_string((*row)[0]);
+  target_cluster.options_string(options_str);
+
   std::string out_error;
   std::string target_cluster_str =
       get_router_option_str(options_str, "target_cluster", "", out_error);
@@ -1115,8 +1117,18 @@ static bool update_target_cluster_from_metadata(
         mysqlrouter::TargetCluster::InvalidatedClusterRoutingPolicy::DropAll);
   }
 
-  if (target_cluster_str.empty()) {
-    log_debug(
+  const bool target_cluster_in_options = !target_cluster_str.empty();
+  const bool target_cluster_in_options_changed =
+      EventStateTracker::instance().state_changed(
+          target_cluster_in_options,
+          EventStateTracker::EventId::TargetClusterPresentInOptions);
+
+  if (!target_cluster_in_options) {
+    const auto log_level = target_cluster_in_options_changed
+                               ? LogLevel::kWarning
+                               : LogLevel::kDebug;
+    log_custom(
+        log_level,
         "Target cluster for router_id=%d not set, using 'primary' as a target "
         "cluster",
         router_id);
@@ -1364,12 +1376,18 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         make_error_code(metadata_cache::metadata_errc::outdated_view_id));
   }
 
-  // check if our target_cluster assignment did not change in the metadata
+  // check if router options did not change in the metadata
   mysqlrouter::TargetCluster new_target_cluster;
-  if (!update_target_cluster_from_metadata(*connection, router_id,
+  if (!update_router_options_from_metadata(*connection, router_id,
                                            new_target_cluster)) {
     return stdx::make_unexpected(make_error_code(
         metadata_cache::metadata_errc::no_metadata_read_successful));
+  }
+
+  if (new_target_cluster.options_string() != target_cluster.options_string()) {
+    log_info("New router options read from the metadata '%s', was '%s'",
+             new_target_cluster.options_string().c_str(),
+             target_cluster.options_string().c_str());
   }
 
   // get target_cluster info
@@ -1389,7 +1407,7 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         make_error_code(metadata_cache::metadata_errc::cluster_not_found));
   } else {
     if (target_cluster_changed) {
-      log_info("New target cluster read from the metadata: '%s'",
+      log_info("New target cluster assigned in the metadata: '%s'",
                target_cluster.c_str());
     }
   }
