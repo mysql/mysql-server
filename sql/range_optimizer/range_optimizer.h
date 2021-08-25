@@ -261,9 +261,6 @@ class QUICK_SELECT_I {
   /* get next record to retrieve */
   virtual int get_next() = 0;
 
-  /* Range end should be called when we have looped over the whole index */
-  virtual void range_end() {}
-
   /*
     Row ID of last row retrieved by this quick select. This is used only when
     doing ROR-index_merge selects. Updated on successful get_next().

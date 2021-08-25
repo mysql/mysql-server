@@ -179,17 +179,15 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   if (!unique) return 1;
   for (;;) {
     while ((result = cur_quick->get_next()) == HA_ERR_END_OF_FILE) {
-      cur_quick->range_end();
       cur_quick = cur_quick_it++;
       if (!cur_quick) break;
 
-      if (cur_quick->file->inited) cur_quick->file->ha_index_end();
+      if (cur_quick->file->inited) cur_quick->file->ha_index_or_rnd_end();
       if (cur_quick->init() || cur_quick->reset()) return 1;
     }
 
     if (result) {
       if (result != HA_ERR_END_OF_FILE) {
-        cur_quick->range_end();
         return result;
       }
       break;

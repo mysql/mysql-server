@@ -123,7 +123,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   int init() override;
   int reset(void) override;
   int get_next() override;
-  void range_end() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
 

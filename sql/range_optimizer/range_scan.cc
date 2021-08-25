@@ -101,10 +101,6 @@ int QUICK_RANGE_SELECT::shared_init() {
   return false;
 }
 
-void QUICK_RANGE_SELECT::range_end() {
-  if (file->inited) file->ha_index_or_rnd_end();
-}
-
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   DBUG_TRACE;
   if (m_table->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
@@ -113,7 +109,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   if (!dont_free) {
     /* file is NULL for CPK scan on covering ROR-intersection */
     if (file) {
-      range_end();
+      if (file->inited) file->ha_index_or_rnd_end();
       if (free_file) {
         DBUG_PRINT("info",
                    ("Freeing separate handler %p (free: %d)", file, free_file));
