@@ -265,7 +265,7 @@ class ClusterSetTargetClusterTest
       public ::testing::WithParamInterface<TargetClusterTestParams> {};
 
 /**
- * @test Checks that the target cluster from the configuration file is respected
+ * @test Checks that the target cluster from the metadata is respected
  * and the Router is using expected cluster for client RW and RO connections.
  * [@FR3.6]
  */
@@ -298,7 +298,7 @@ TEST_P(ClusterSetTargetClusterTest, ClusterSetTargetCluster) {
     verify_new_connection_fails(router_port_rw);
   }
 
-  //   in case of replica cluster first RO node is primary node of the Cluster
+  // in case of replica cluster first RO node is primary node of the Cluster
   const auto first_ro_node = (target_cluster_id == 0) ? kRONodeId : kRWNodeId;
 
   make_new_connection_ok(
@@ -341,6 +341,34 @@ struct TargetClusterChangeInMetataTestParams {
   // the change) are expected to be dropped or expected to stay
   bool initial_connections_should_drop;
 };
+
+/**
+ * @test Checks that if the target cluster does not change in the metadata,
+ * Router does not keep reporting it has changed (bug#33261274)
+ */
+TEST_F(ClusterSetTest, TargetClusterNoChange) {
+  const std::string target_cluster = "primary";
+  const auto target_cluster_id = 0;
+
+  create_clusterset(
+      view_id, target_cluster_id, /*primary_cluster_id*/ 0,
+      "metadata_clusterset.js",
+      /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
+
+  SCOPED_TRACE("// Launch the Router");
+  auto &router = launch_router();
+
+  // keep the Router running for several md refresh rounds
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[0].nodes[0].http_port, 3));
+
+  // check the new target_cluster was repoted only once
+  const std::string needle = "New target cluster read from the metadata";
+  const std::string log_content = router.get_full_logfile();
+
+  // 1 is expected, that comes from the inital reading of the metadata
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+}
 
 class ClusterChangeTargetClusterInTheMetadataTest
     : public ClusterSetTest,

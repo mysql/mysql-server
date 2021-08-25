@@ -281,3 +281,13 @@ bool wait_connection_dropped(mysqlrouter::MySQLSession &session,
 
   return false;
 }
+
+size_t count_str_occurences(const std::string &s, const std::string &needle) {
+  if (needle.length() == 0) return 0;
+  size_t result = 0;
+  for (size_t pos = s.find(needle); pos != std::string::npos;
+       pos = s.find(needle, pos + needle.length())) {
+    ++result;
+  }
+  return result;
+}

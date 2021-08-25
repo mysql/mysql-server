@@ -359,17 +359,6 @@ INSTANTIATE_TEST_SUITE_P(
                               ClusterType::GR_V2, "1,1")),
     get_test_description);
 
-static size_t count_str_occurences(const std::string &s,
-                                   const std::string &needle) {
-  if (needle.length() == 0) return 0;
-  size_t result = 0;
-  for (size_t pos = s.find(needle); pos != std::string::npos;) {
-    ++result;
-    pos = s.find(needle, pos + needle.length());
-  }
-  return result;
-}
-
 class MetadataChacheTTLTestInstanceListUnordered
     : public MetadataChacheTTLTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};

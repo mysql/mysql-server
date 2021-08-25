@@ -1372,15 +1372,15 @@ GRClusterSetMetadataBackend::fetch_cluster_topology(
         metadata_cache::metadata_errc::no_metadata_read_successful));
   }
 
+  // get target_cluster info
+  const auto target_cluster_id = get_target_cluster_info_from_metadata_server(
+      *connection, new_target_cluster, cs_id);
+
   const bool target_cluster_changed =
       target_cluster.target_type() != new_target_cluster.target_type() ||
       target_cluster.to_string() != new_target_cluster.to_string();
 
   target_cluster = new_target_cluster;
-
-  // get target_cluster info
-  const auto target_cluster_id = get_target_cluster_info_from_metadata_server(
-      *connection, target_cluster, cs_id);
 
   if (target_cluster_id.empty()) {
     log_error("Could not find target_cluster '%s' in the metadata",
