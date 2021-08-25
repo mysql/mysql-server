@@ -6692,7 +6692,7 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_min_rows_option($3);
           }
-        | AVG_ROW_LENGTH opt_equal ulong_num
+        | AVG_ROW_LENGTH opt_equal ulonglong_num
           {
             // The frm-format only allocated 4 bytes for avg_row_length, and
             // there is code which assumes it can be represented as an uint,
@@ -6815,7 +6815,7 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_connection_option($3);
           }
-        | KEY_BLOCK_SIZE opt_equal ulong_num
+        | KEY_BLOCK_SIZE opt_equal ulonglong_num
           {
             // The frm-format only allocated 2 bytes for key_block_size,
             // even if it is represented as std::uint32_t in HA_CREATE_INFO and
