@@ -1430,3 +1430,38 @@ EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > '123456';
 EXECUTE evc USING @vc;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32552332 - CAN'T WRITE; DUPLICATE KEY IN TABLE '/TMP/#SQL...'
+--echo #
+
+CREATE TABLE tr (c1 INT);
+INSERT INTO tr VALUES (1);
+
+# Generates a integer sequence from 1 to 2 and repeats
+DELIMITER |;
+CREATE FUNCTION seq_1_to_2() RETURNS INT
+BEGIN
+  DECLARE limit_value, return_value INT;
+  SET limit_value = 2;
+  SELECT c1 INTO return_value FROM tr;
+  IF (return_value < limit_value) THEN
+     UPDATE tr SET c1 = c1 + 1;
+  ELSE
+     UPDATE tr SET c1 = 1;
+  END IF;
+  RETURN (return_value);
+END|
+DELIMITER ;|
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (11);
+
+SELECT seq_1_to_2() as seq, COUNT(*) FROM t1 GROUP BY seq;
+SELECT FLOOR(seq_1_to_2() * 2) AS val, COUNT(*) FROM t1 GROUP BY val;
+SELECT val, COUNT(*) FROM (SELECT FLOOR(seq_1_to_2())+1 val FROM t1) x
+  GROUP BY x.val;
+
+DROP TABLE t1, tr;
+DROP FUNCTION seq_1_to_2;
