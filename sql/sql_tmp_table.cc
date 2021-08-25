@@ -745,8 +745,15 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       (*tmp->item)->marker= 4;
       const uint char_len=
         (*tmp->item)->max_length / (*tmp->item)->collation.collation->mbmaxlen;
-      if (char_len > CONVERT_IF_BIGGER_TO_BLOB)
+      /*
+        Use hash key as the unique constraint if the group-by key is
+        big or if it is non-deterministic. Group-by items get evaluated
+        twice and a non-deterministic function would cause a discrepancy.
+      */
+      if (char_len > CONVERT_IF_BIGGER_TO_BLOB ||
+          (*tmp->item)->is_non_deterministic()) {
         using_unique_constraint= true;
+      }
     }
     if (group)
     {
