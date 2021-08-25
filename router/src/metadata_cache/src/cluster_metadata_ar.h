@@ -91,6 +91,7 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
 
   void setup_notifications_listener(
       const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
+      const mysqlrouter::TargetCluster & /*target_cluster*/,
       const GRNotificationListener::NotificationClb & /*callback*/) override {}
 
   /** @brief Deinitializes the notifications listener thread

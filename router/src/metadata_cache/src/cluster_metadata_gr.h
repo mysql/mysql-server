@@ -88,14 +88,17 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    * type supports it)
    *
    * @param instances vector of the current cluster nodes
+   * @param target_cluster object identifying the Cluster this operation refers
+   * to
    * @param callback  callback function to get called when the GR notification
    *                  was received
    */
   void setup_notifications_listener(
       const std::vector<metadata_cache::ManagedInstance> &instances,
+      const mysqlrouter::TargetCluster &target_cluster,
       const GRNotificationListener::NotificationClb &callback) override {
     if (gr_notifications_listener_)
-      gr_notifications_listener_->setup(instances, callback);
+      gr_notifications_listener_->setup(instances, target_cluster, callback);
   }
 
   /** @brief Deinitializes the notifications listener thread

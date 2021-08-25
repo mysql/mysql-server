@@ -2865,7 +2865,7 @@ might have already existed before bootstrapping):
                     << Vt100::foreground(Vt100::Color::Red) << "ERROR: "
                     << Vt100::render(Vt100::Render::ForegroundDefault) <<
             R"(As part of cleanup after bootstrap failure, we tried to erase account(s)
-that we created.  Unfortuantely the cleanup failed with error:
+that we created.  Unfortunately the cleanup failed with error:
 
   )"s << e.what() << R"(
 You may want to clean up the accounts yourself, here is the full list of

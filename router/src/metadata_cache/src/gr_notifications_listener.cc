@@ -108,8 +108,9 @@ struct GRNotificationListener::Impl {
   void listener_thread_func();
   bool read_from_session(const NodeId &node_id, NodeSession &session);
 
-  xcl::XError enable_notices(xcl::XSession &session,
-                             const NodeId &node_id) noexcept;
+  xcl::XError enable_notices(
+      xcl::XSession &session, const NodeId &node_id,
+      const mysqlrouter::TargetCluster &target_cluster) noexcept;
   void set_mysqlx_wait_timeout(xcl::XSession &session,
                                const NodeId &node_id) noexcept;
   void check_mysqlx_wait_timeout();
@@ -118,6 +119,7 @@ struct GRNotificationListener::Impl {
 
   void reconfigure(
       const std::vector<metadata_cache::ManagedInstance> &instances,
+      const mysqlrouter::TargetCluster &target_cluster,
       const NotificationClb &notification_clb);
 
   // handles the notice from the session
@@ -391,8 +393,10 @@ GRNotificationListener::Impl::~Impl() {
  * - state_changed
  */
 xcl::XError GRNotificationListener::Impl::enable_notices(
-    xcl::XSession &session, const NodeId &node_id) noexcept {
-  log_info("Enabling notices for cluster changes");
+    xcl::XSession &session, const NodeId &node_id,
+    const mysqlrouter::TargetCluster &target_cluster) noexcept {
+  log_info("Enabling GR notices for cluster '%s' changes on node %s:%u",
+           target_cluster.c_str(), node_id.host.c_str(), node_id.port);
   xcl::XError err;
 
   xcl::Argument_value::Object arg_obj;
@@ -413,16 +417,17 @@ xcl::XError GRNotificationListener::Impl::enable_notices(
                                           {xcl::Argument_value(arg_obj)}, &err);
 
   if (!err) {
-    log_debug("Enabled notices for cluster changes on connection to node %s:%d",
-              node_id.host.c_str(), node_id.port);
+    log_debug(
+        "Enabled GR notices for cluster changes on connection to node %s:%d",
+        node_id.host.c_str(), node_id.port);
   } else if (err.error() == ER_X_BAD_NOTICE) {
     log_warning(
-        "Failed enabling notices on the node %s:%d. This MySQL server "
+        "Failed enabling GR notices on the node %s:%d. This MySQL server "
         "version does not support GR notifications (err_code=%d; err_msg='%s')",
         node_id.host.c_str(), node_id.port, err.error(), err.what());
   } else {
     log_warning(
-        "Failed enabling notices on the node %s:%d; (err_code=%d; "
+        "Failed enabling GR notices on the node %s:%d; (err_code=%d; "
         "err_msg='%s')",
         node_id.host.c_str(), node_id.port, err.error(), err.what());
   }
@@ -463,6 +468,7 @@ xcl::XError GRNotificationListener::Impl::ping(
 
 void GRNotificationListener::Impl::reconfigure(
     const std::vector<metadata_cache::ManagedInstance> &instances,
+    const mysqlrouter::TargetCluster &target_cluster,
     const NotificationClb &notification_clb) {
   std::lock_guard<std::mutex> lock(configuration_data_mtx_);
 
@@ -500,7 +506,7 @@ void GRNotificationListener::Impl::reconfigure(
 
       set_mysqlx_wait_timeout(*session, node_id);
 
-      if (enable_notices(*session, node_id)) continue;
+      if (enable_notices(*session, node_id, target_cluster)) continue;
 
       session->get_protocol().add_notice_handler(
           [this](const xcl::XProtocol *protocol, const bool is_global,
@@ -527,6 +533,7 @@ GRNotificationListener::~GRNotificationListener() = default;
 
 void GRNotificationListener::setup(
     const std::vector<metadata_cache::ManagedInstance> &instances,
+    const mysqlrouter::TargetCluster &target_cluster,
     const NotificationClb &notification_clb) {
-  impl_->reconfigure(instances, notification_clb);
+  impl_->reconfigure(instances, target_cluster, notification_clb);
 }

@@ -836,7 +836,7 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         "FATAL ERROR ENCOUNTERED, attempting to undo new accounts that were created",
 
         "ERROR: As part of cleanup after bootstrap failure, we tried to erase account(s)",
-        "that we created.  Unfortuantely the cleanup failed with error:",
+        "that we created.  Unfortunately the cleanup failed with error:",
         "  Error executing MySQL query \"DROP USER IF EXISTS " + new_account_list + "\": " + du_err_msg + " (" + std::to_string(du_err_code) + ")",
         "You may want to clean up the accounts yourself, here is the full list of",
         "accounts that were created:",
