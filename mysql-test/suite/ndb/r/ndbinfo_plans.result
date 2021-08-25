@@ -1,0 +1,87 @@
+result_format: 2
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+## ndb$tables
+select count(*) from ndb$tables;
+count(*)	49
+explain select count(*) from ndb$tables;
+id	1
+select_type	SIMPLE
+table	NULL
+partitions	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+filtered	NULL
+Extra	Select tables optimized away
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`ndb$tables`
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+count(*)	20
+Select tables optimized away
+
+## error_messages
+Select tables optimized away
+
+## config_params
+Select tables optimized away
+
+## blocks
+Select tables optimized away
+
+## backup_id
+Select tables optimized away
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+NULL
+
+## The plan for counters
+explain format=tree select * from counters;
+EXPLAIN	-> Left hash join (b.block_number = c.block_number)  (cost=3.90 rows=0)
+    -> Table scan on c  (cost=2.00 rows=0)
+    -> Hash
+        -> Table scan on b  (cost=3.40 rows=29)
+
+
+## The plan for memory_per_fragment
+explain format=tree select * from memory_per_fragment;
+EXPLAIN	-> Inner hash join (`types`.type_id = `name`.`type`)  (cost=4.50 rows=0)
+    -> Table scan on types  (cost=0.70 rows=20)
+    -> Hash
+        -> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=4.00 rows=0)
+            -> Inner hash join (`name`.id = space.table_id)  (cost=4.00 rows=0)
+                -> Filter: (`name`.`type` <= 6)  (cost=2.00 rows=0)
+                    -> Table scan on name  (cost=2.00 rows=0)
+                -> Hash
+                    -> Table scan on space  (cost=2.00 rows=0)
+            -> Hash
+                -> Table scan on parent_name  (cost=2.00 rows=0)
+
+
+## Create an all-MyISAM version of memory_per_fragment for comparison
+## and explain the same query
+explain format=tree select * from memory_per_fragment;
+EXPLAIN	-> Inner hash join (space.table_id = `name`.id)  (cost=2316.19 rows=2300)
+    -> Table scan on space  (cost=0.04 rows=176)
+    -> Hash
+        -> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=13.84 rows=131)
+            -> Inner hash join (`types`.type_id = `name`.`type`)  (cost=11.81 rows=9)
+                -> Table scan on types  (cost=0.16 rows=20)
+                -> Hash
+                    -> Filter: (`name`.`type` <= 6)  (cost=1.94 rows=5)
+                        -> Table scan on name  (cost=1.94 rows=14)
+            -> Hash
+                -> Table scan on parent_name  (cost=0.21 rows=14)
+
+
+
+## CLEANUP

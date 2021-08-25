@@ -129,7 +129,6 @@ public:
   virtual ~VirtualTable() = 0;
 };
 
-
 VirtualTable::~VirtualTable() {}
 
 
@@ -390,6 +389,7 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
   delete[] m_buffer;
 }
 
+// Tables begin here
 
 #include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
@@ -416,6 +416,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
+                                             NO_OF_BLOCK_NAMES,
                                              this);
     if (!tab)
       return NULL;
@@ -432,18 +433,14 @@ public:
 #include "kernel/signaldata/DictTabInfo.hpp"
 class DictObjTypesTable : public VirtualTable
 {
-public:
-  bool start_scan(VirtualScanContext*) const override { return true; }
-
-  int read_row(VirtualScanContext*, VirtualTable::Row& w,
-                Uint32 row_number) const override
-  {
-    struct Entry {
+private:
+  // The compiler will catch if the array size is too small
+  static constexpr int OBJ_TYPES_TABLE_SIZE = 20;
+  struct Entry {
      const DictTabInfo::TableType type;
      const char* name;
     };
-
-    static const Entry entries[] =
+    struct Entry entries[OBJ_TYPES_TABLE_SIZE] =
      {
        {DictTabInfo::SystemTable, "System table"},
        {DictTabInfo::UserTable, "User table"},
@@ -467,7 +464,15 @@ public:
        {DictTabInfo::SchemaTransaction, "Schema transaction"}
      };
 
-    if (row_number >= sizeof(entries) / sizeof(entries[0]))
+public:
+  DictObjTypesTable() { }
+
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+                Uint32 row_number) const override
+  {
+    if (row_number >= OBJ_TYPES_TABLE_SIZE)
     {
       // No more rows
       return 0;
@@ -483,6 +488,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
+                                             OBJ_TYPES_TABLE_SIZE,
                                              this);
     if (!tab)
       return NULL;
@@ -616,6 +622,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_error_messages.size(),
                                              this);
     if (!tab)
       return NULL;
@@ -792,6 +799,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_config_params.size(),
                                              this);
     if (!tab)
       return NULL;
@@ -865,6 +873,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,
+                                             m_array_count,
                                              this);
     if (!tab)
       return NULL;
@@ -966,6 +975,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
                                              NdbInfo::Table::InvalidTableId,
+                                             1,
                                              this);
     if (!tab)
       return NULL;

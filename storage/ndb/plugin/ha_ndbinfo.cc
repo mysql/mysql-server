@@ -407,12 +407,15 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     switch (col->m_type) {
       case NdbInfo::Column::Number:
         if (field->type() == MYSQL_TYPE_LONG) compatible = true;
+        stats.mean_rec_length += 4;
         break;
       case NdbInfo::Column::Number64:
         if (field->type() == MYSQL_TYPE_LONGLONG) compatible = true;
+        stats.mean_rec_length += 8;
         break;
       case NdbInfo::Column::String:
         if (field->type() == MYSQL_TYPE_VARCHAR) compatible = true;
+        stats.mean_rec_length += 16;
         break;
       default:
         assert(false);
@@ -653,8 +656,13 @@ void ha_ndbinfo::position(const uchar *record) {
   memcpy(ref, record, ref_length);
 }
 
-int ha_ndbinfo::info(uint) {
+int ha_ndbinfo::info(uint flag) {
   DBUG_TRACE;
+  if (m_impl.m_table != nullptr) {
+    stats.table_in_mem_estimate = m_impl.m_table->getVirtualTable() ? 1.0 : 0.0;
+    if (flag & HA_STATUS_VARIABLE)
+      stats.records = m_impl.m_table->getRowsEstimate();
+  }
   return 0;
 }
 
@@ -703,6 +711,16 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
       field->set_null();
     }
   }
+}
+
+ulonglong ha_ndbinfo::table_flags() const {
+  ulonglong flags = HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
+
+  // m_table could be null; sometimes table_flags() is called prior to open()
+  if (m_impl.m_table != nullptr && m_impl.m_table->rowCountIsExact())
+    flags |= HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT;
+
+  return flags;
 }
 
 static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,

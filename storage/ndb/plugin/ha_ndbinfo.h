@@ -31,9 +31,7 @@ class ha_ndbinfo : public handler {
   ~ha_ndbinfo() override;
 
   const char *table_type() const override { return "NDBINFO"; }
-  ulonglong table_flags() const override {
-    return HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
-  }
+  ulonglong table_flags() const override;
   ulong index_flags(uint, uint, bool) const override { return 0; }
 
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
@@ -65,14 +63,6 @@ class ha_ndbinfo : public handler {
   }
 
   bool get_error_message(int error, String *buf) override;
-
-  ha_rows estimate_rows_upper_bound() override {
-    // Estimate "many" rows to be returned so that filesort
-    // allocates buffers properly.
-    // Default impl. for this function is otherwise 10 rows
-    // in case handler hasn't filled in stats.records
-    return HA_POS_ERROR;
-  }
 
  private:
   void unpack_record(uchar *dst_row);

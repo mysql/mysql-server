@@ -154,6 +154,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     int err;
     while ((err = scanOp->nextResult()) == 1)
     {
+      m_tables_table->m_rows_estimate++;
       Uint32 tableId = tableIdRes->u_32_value();
       const char * tableName = tableNameRes->c_str();
       DBUG_PRINT("info", ("table: '%s', id: %u",
@@ -180,7 +181,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
     releaseScanOperation(scanOp);
 
-   if (err != 0)
+    if (err != 0)
       DBUG_RETURN(false);
   }
 
@@ -214,6 +215,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     int err;
     while ((err = scanOp->nextResult()) == 1)
     {
+      m_columns_table->m_rows_estimate++;
       Uint32 tableId = tableIdRes->u_32_value();
       Uint32 columnId = columnIdRes->u_32_value();
       const char * columnName = columnNameRes->c_str();
@@ -501,53 +503,34 @@ NdbInfo::Column::Column(const char* name, Uint32 col_id,
 {
 }
 
-NdbInfo::Column::Column(const NdbInfo::Column & col)
+NdbInfo::Column::Column(const NdbInfo::Column & col) :
+  m_type(col.m_type),
+  m_column_id(col.m_column_id),
+  m_name(col.m_name)
 {
-  m_column_id = col.m_column_id;
-  m_name.assign(col.m_name);
-  m_type = col.m_type;
 }
-
-NdbInfo::Column &
-NdbInfo::Column::operator=(const NdbInfo::Column & col)
-{
-  m_column_id = col.m_column_id;
-  m_name.assign(col.m_name);
-  m_type = col.m_type;
-  return *this;
-}
-
 
 // Table
 
-NdbInfo::Table::Table(const char *name, Uint32 id, const VirtualTable* virt) :
+NdbInfo::Table::Table(const char *name, Uint32 id, Uint32 est_rows,
+                      const VirtualTable* virt) :
   m_name(name),
   m_table_id(id),
+  m_rows_estimate(est_rows),
   m_virt(virt)
 {
 }
 
 NdbInfo::Table::Table(const NdbInfo::Table& tab) :
+  m_name(tab.m_name),
+  m_table_id(tab.m_table_id),
+  m_rows_estimate(tab.m_rows_estimate),
   m_virt(tab.m_virt)
 {
   DBUG_ENTER("Table(const Table&");
-  m_table_id = tab.m_table_id;
-  m_name.assign(tab.m_name);
   for (unsigned i = 0; i < tab.m_columns.size(); i++)
     addColumn(*tab.m_columns[i]);
   DBUG_VOID_RETURN;
-}
-
-const NdbInfo::Table &
-NdbInfo::Table::operator=(const NdbInfo::Table& tab)
-{
-  DBUG_ENTER("Table::operator=");
-  m_table_id = tab.m_table_id;
-  m_name.assign(tab.m_name);
-  for (unsigned i = 0; i < tab.m_columns.size(); i++)
-    addColumn(*tab.m_columns[i]);
-  m_virt = tab.m_virt;
-  DBUG_RETURN(*this);
 }
 
 NdbInfo::Table::~Table()
@@ -618,6 +601,16 @@ const VirtualTable* NdbInfo::Table::getVirtualTable() const
   return m_virt;
 }
 
+bool NdbInfo::Table::rowCountIsExact() const
+{
+  // Hard-coded tables have exact row counts
+  if(m_table_id < NUM_HARDCODED_TABLES) return true;
+
+  // Virtual tables have exact row counts
+  if(m_virt) return true;
+
+  return false;
+}
 
 bool NdbInfo::load_virtual_tables(void)
 {
