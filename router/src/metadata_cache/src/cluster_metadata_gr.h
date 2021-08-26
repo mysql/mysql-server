@@ -160,7 +160,8 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
   std::unique_ptr<GRMetadataBackend> metadata_backend_;
 
  private:
-  void update_backend(const mysqlrouter::MetadataSchemaVersion &version);
+  void update_backend(const mysqlrouter::MetadataSchemaVersion &version,
+                      unsigned int router_id);
 
   std::unique_ptr<GRNotificationListener> gr_notifications_listener_;
 

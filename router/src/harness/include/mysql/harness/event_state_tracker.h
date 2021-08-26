@@ -51,7 +51,8 @@ class HARNESS_EXPORT EventStateTracker {
     GRMemberConnectedOk,
     MetadataNodeInGR,
     GRNodeInMetadata,
-    TargetClusterPresentInOptions
+    TargetClusterPresentInOptions,
+    ClusterWasBootstrappedAgainstClusterset
   };
 
   /**

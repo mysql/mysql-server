@@ -32,6 +32,7 @@ var defaults = {
   create_user_warning_count: 0,
   create_user_show_warnings_results: [],
 
+  bootstrap_target_type: "cluster",
   clusterset_present: 0,
   clusterset_target_cluster_id: 0,
   // JSON object describing the clusterset
@@ -526,9 +527,9 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', 'mysql_router.*'\\) " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', 'mysql_router.*'\\),    '\\$.bootstrapTargetType', '.*'\\) " +
             "WHERE router_id = .*",
         "ok": {}
       };
@@ -536,9 +537,9 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
             "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.target_cluster', '" +
             options.router_expected_target_cluster + "'\\), " +
             "version = '.*', cluster_id = '.*' " +
@@ -549,9 +550,9 @@ function get_response(stmt_key, options) {
       return {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    " +
-            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
+            "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    " +
             "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    " +
-            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), " +
+            "'\\$\\.ROXEndpoint', '.*'\\),    '\\$\\.MetadataUser', '.*'\\),    '\\$\\.bootstrapTargetType', '.*'\\), " +
             "options =    JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\),    '\\$\\.target_cluster', '" +
             options.router_expected_target_cluster + "'\\), " +
             "version = '.*', clusterset_id = '.*' " +
@@ -1134,6 +1135,19 @@ function get_response(stmt_key, options) {
             {"type": "LONGLONG", "name": "count(clusterset_id)"},
           ],
           rows: [[options.clusterset_present]]
+        }
+      };
+    case "router_bootstrap_target_type":
+      return {
+        stmt:
+            "SELECT JSON_UNQUOTE(JSON_EXTRACT(r.attributes, '$.bootstrapTargetType')) " +
+            "FROM mysql_innodb_cluster_metadata.v2_routers r where r.router_id = " +
+            options.router_id,
+        result: {
+          columns: [
+            {"type": "VAR_STRING", "name": "bootstrapTargetType"},
+          ],
+          rows: [[options.bootstrap_target_type]]
         }
       };
     case "router_router_options":

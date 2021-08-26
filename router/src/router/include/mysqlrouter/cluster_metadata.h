@@ -130,7 +130,7 @@ enum class ClusterType {
 };
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql);
+                             MySQLSession *mysql, unsigned int router_id = 0);
 
 std::string to_string(const ClusterType cluster_type);
 

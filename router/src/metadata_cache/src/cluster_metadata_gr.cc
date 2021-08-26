@@ -636,9 +636,9 @@ bool backends_compatible(const ClusterType a, const ClusterType b) {
 }  // namespace
 
 void GRClusterMetadata::update_backend(
-    const mysqlrouter::MetadataSchemaVersion &version) {
-  const auto cluster_type =
-      mysqlrouter::get_cluster_type(version, metadata_connection_.get());
+    const mysqlrouter::MetadataSchemaVersion &version, unsigned int router_id) {
+  const auto cluster_type = mysqlrouter::get_cluster_type(
+      version, metadata_connection_.get(), router_id);
 
   // if the current backend does not fit the metadata version that we just
   // discovered, we need to recreate it
@@ -756,7 +756,7 @@ GRClusterMetadata::fetch_cluster_topology(
         const auto version =
             get_and_check_metadata_schema_version(*metadata_connection_);
 
-        update_backend(version);
+        update_backend(version, router_id);
 
         if (!backend_reset) {
           metadata_backend_->reset();

@@ -26,6 +26,7 @@
 
 #include "common.h"
 #include "harness_assert.h"
+#include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/utils.h"
@@ -40,7 +41,11 @@ IMPORT_LOG_FUNCTIONS()
 #endif
 
 using namespace std::string_literals;
+using mysql_harness::EventStateTracker;
 using mysql_harness::get_from_map;
+using mysql_harness::logging::LogLevel;
+
+static constexpr const std::string_view kClusterSet{"clusterset"};
 
 namespace mysqlrouter {
 
@@ -146,34 +151,49 @@ void ClusterMetadataAR::verify_router_id_is_ours(
                               socket_operations_);
 }
 
-static void update_router_info_v1(const uint32_t router_id,
-                                  const std::string &rw_endpoint,
-                                  const std::string &ro_endpoint,
-                                  const std::string &rw_x_endpoint,
-                                  const std::string &ro_x_endpoint,
-                                  const std::string &username,
-                                  MySQLSession *mysql) {
+namespace {
+
+std::string to_string_md(const ClusterType cluster_type) {
+  switch (cluster_type) {
+    case ClusterType::GR_V1:
+    case ClusterType::GR_V2:
+      return "cluster";
+    case ClusterType::RS_V2:
+      return "replicaset";
+    case ClusterType::GR_CS:
+      return "clusterset";
+  }
+
+  return "unknown";
+}
+
+void update_router_info_v1(const uint32_t router_id,
+                           const std::string &rw_endpoint,
+                           const std::string &ro_endpoint,
+                           const std::string &rw_x_endpoint,
+                           const std::string &ro_x_endpoint,
+                           const std::string &username, MySQLSession *mysql) {
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.routers"
       " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, "
-      "'{}', "
-      "attributes),"
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes "
+      "IS NULL, '{}', attributes),"
       "    '$.RWEndpoint', ?),"
       "    '$.ROEndpoint', ?),"
       "    '$.RWXEndpoint', ?),"
       "    '$.ROXEndpoint', ?),"
-      "    '$.MetadataUser', ?)"
+      "    '$.MetadataUser', ?),"
+      "    '$.bootstrapTargetType', ?)"
       " WHERE router_id = ?");
 
   query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
-  query << username;
+  query << username << to_string_md(ClusterType::GR_V1);
   query << router_id << sqlstring::end;
 
   mysql->execute(query);
 }
 
-static void update_router_info_v2(
+void update_router_info_v2(
     const mysqlrouter::ClusterType cluster_type, const uint32_t router_id,
     const std::string &cluster_id, const std::string &target_cluster,
     const std::string &rw_endpoint, const std::string &ro_endpoint,
@@ -185,13 +205,15 @@ static void update_router_info_v2(
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.v2_routers"
       " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, "
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes "
+      "IS NULL, "
       "'{}', attributes),"
       "    '$.RWEndpoint', ?),"
       "    '$.ROEndpoint', ?),"
       "    '$.RWXEndpoint', ?),"
       "    '$.ROXEndpoint', ?),"
       "    '$.MetadataUser', ?),"
+      "    '$.bootstrapTargetType', ?),"
       " options = "
       "   JSON_SET(IF(options IS NULL, "
       "'{}', options),"
@@ -201,12 +223,14 @@ static void update_router_info_v2(
       {mysqlrouter::QuoteOnlyIfNeeded});
 
   query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
-  query << username << target_cluster;
+  query << username << to_string_md(cluster_type) << target_cluster;
   query << MYSQL_ROUTER_VERSION << cluster_id_field << cluster_id << router_id
         << sqlstring::end;
 
   mysql->execute(query);
 }
+
+}  // namespace
 
 void ClusterMetadataGRV1::update_router_info(
     const uint32_t router_id, const std::string & /*cluster_id*/,
@@ -247,7 +271,9 @@ void ClusterMetadataGRInClusterSet::update_router_info(
                         ro_x_endpoint, username, mysql_);
 }
 
-static uint32_t register_router_v1(
+namespace {
+
+uint32_t register_router_v1(
     const std::string &router_name, const bool overwrite,
     const std::string &hostname_override, MySQLSession *mysql,
     mysql_harness::SocketOperationsBase *socket_operations) {
@@ -326,7 +352,7 @@ static uint32_t register_router_v1(
   return static_cast<uint32_t>(mysql->last_insert_id());
 }
 
-static uint32_t register_router_v2(
+uint32_t register_router_v2(
     const std::string &router_name, const bool overwrite,
     const std::string &hostname_override, MySQLSession *mysql,
     mysql_harness::SocketOperationsBase *socket_operations) {
@@ -363,6 +389,8 @@ static uint32_t register_router_v2(
     throw;
   }
 }
+
+}  // namespace
 
 uint32_t ClusterMetadataGRV1::register_router(
     const std::string &router_name, const bool overwrite,
@@ -1059,8 +1087,26 @@ static bool is_part_of_cluster_set(MySQLSession *mysql) {
       "No result returned for is_part_of_cluster_set metadata query");
 }
 
+static bool was_bootstrapped_as_clusterset(MySQLSession *mysql,
+                                           const unsigned router_id) {
+  // check if we have a target cluster assigned in the metadata
+  const std::string query =
+      "SELECT JSON_UNQUOTE(JSON_EXTRACT(r.attributes, "
+      "'$.bootstrapTargetType')) FROM mysql_innodb_cluster_metadata.v2_routers "
+      "r where r.router_id = " +
+      std::to_string(router_id);
+
+  std::unique_ptr<MySQLSession::ResultRow> row(mysql->query_one(query));
+  if (!row) {
+    return false;
+  }
+
+  return get_string((*row)[0]) == kClusterSet;
+}
+
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql) {
+                             MySQLSession *mysql,
+                             unsigned int router_id /*= 0*/) {
   if (schema_version < kNewMetadataVersion) {
     return ClusterType::GR_V1;
   } else {
@@ -1068,8 +1114,35 @@ ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
 
     if (schema_version >= kClusterSetsMetadataVersion &&
         type == ClusterType::GR_V2) {
-      return (is_part_of_cluster_set(mysql)) ? ClusterType::GR_CS
-                                             : ClusterType::GR_V2;
+      bool is_part_of_cs = is_part_of_cluster_set(mysql);
+      if (is_part_of_cs) {
+        // The type of the cluster that we discovered in the metadata is
+        // ClusterSet. Check if the Router was actually bootstrapped for a
+        // ClusterSet. If not treat it as a standalone cluster and log a
+        // warning.
+        const bool was_bs_for_cs =
+            (router_id == 0) ||
+            was_bootstrapped_as_clusterset(mysql, router_id);
+
+        const bool was_bs_for_cs_changed =
+            EventStateTracker::instance().state_changed(
+                was_bs_for_cs, EventStateTracker::EventId::
+                                   ClusterWasBootstrappedAgainstClusterset);
+
+        if (!was_bs_for_cs) {
+          const auto log_level =
+              was_bs_for_cs_changed ? LogLevel::kWarning : LogLevel::kDebug;
+          log_custom(
+              log_level,
+              "The target Cluster is part of a ClusterSet, but this Router was "
+              "not bootstrapped to use the ClusterSet. Treating the Cluster as "
+              "a standalone Cluster. Please bootstrap the Router again if you "
+              "want to use ClusterSet capabilities.");
+          is_part_of_cs = false;
+        }
+      }
+
+      return is_part_of_cs ? ClusterType::GR_CS : ClusterType::GR_V2;
     }
 
     return type;
