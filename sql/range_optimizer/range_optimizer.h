@@ -184,26 +184,7 @@ class QUICK_SELECT_I : public TableRowIterator {
   QUICK_SELECT_I(THD *thd, TABLE *table, ha_rows *examined_rows)
       : TableRowIterator(thd, table), m_examined_rows(examined_rows) {}
 
-  bool Init() override;
   int Read() override;
-
-  /*
-    Initialize quick select for row retrieval.
-    SYNOPSIS
-      reset()
-
-    reset() should be called when it is certain that row retrieval will be
-    necessary. This call may do heavyweight initialization like buffering first
-    N records etc. If reset() call fails get_next() must not be called.
-    Note that reset() may be called several times if
-     * the quick select is executed in a subselect
-     * a JOIN buffer is used
-
-    RETURN
-      0      OK
-      other  Error code
-  */
-  virtual int reset(void) = 0;
 
   /* get next record to retrieve */
   virtual int get_next() = 0;

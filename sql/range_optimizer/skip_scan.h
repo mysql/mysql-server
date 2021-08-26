@@ -119,7 +119,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
                          uchar *max_search_key, uint range_cond_flag,
                          uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
-  int reset() override;
+  bool Init() override;
   int get_next() override;
 };
 

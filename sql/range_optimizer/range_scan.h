@@ -106,9 +106,9 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
-  int shared_init();
-  int shared_reset();
-  int init_ror_merged_scan();
+  bool shared_init();
+  bool shared_reset();
+  bool init_ror_merged_scan();
 
  public:
   QUICK_RANGE_SELECT(THD *thd, TABLE *table, ha_rows *examined_rows,
@@ -125,7 +125,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
 
   bool Init() override;
-  int reset(void) override;
   int get_next() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);

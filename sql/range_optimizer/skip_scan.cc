@@ -125,32 +125,22 @@ QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   if (table()->file->inited) table()->file->ha_index_or_rnd_end();
 }
 
-/**
-  Initialize a quick skip scan index select for key retrieval.
-
-  SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::reset()
-
-  DESCRIPTION
-    Initialize the index chosen for access and initialize what the first
-    equality key prefix should be.
-
-  RETURN
-    0      OK
-    other  Error code
-*/
-
-int QUICK_SKIP_SCAN_SELECT::reset(void) {
+bool QUICK_SKIP_SCAN_SELECT::Init(void) {
   DBUG_TRACE;
 
   if (distinct_prefix == nullptr) {
     assert(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
-    if (!(distinct_prefix = (uchar *)mem_root->Alloc(distinct_prefix_len)))
-      return 1;
+    if (!(distinct_prefix = mem_root->ArrayAlloc<uchar>(distinct_prefix_len))) {
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
+    }
 
     if (eq_prefix_len > 0) {
-      eq_prefix = (uchar *)mem_root->Alloc(eq_prefix_len);
-      if (!eq_prefix) return 1;
+      eq_prefix = mem_root->ArrayAlloc<uchar>(eq_prefix_len);
+      if (!eq_prefix) {
+        table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+        return true;
+      }
     } else {
       eq_prefix = nullptr;
     }
@@ -164,7 +154,7 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
   table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
   if ((result = table()->file->ha_index_init(index, true))) {
     table()->file->print_error(result, MYF(0));
-    return result;
+    return true;
   }
 
   // Set the first equality prefix.
@@ -179,7 +169,7 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
   }
 
   table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
-  return 0;
+  return false;
 }
 
 /**

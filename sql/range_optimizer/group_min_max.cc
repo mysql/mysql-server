@@ -142,25 +142,29 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     of the last group. The method is expensive since it performs disk access.
 
   RETURN
-    0      OK
-    other  Error code
+    true if error
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::reset() {
+bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
+  empty_record(table());
+  m_seen_eof = false;
+
   if (group_prefix == nullptr) {
     // First-time initialization.
-    if (!(last_prefix = (uchar *)mem_root->Alloc(group_prefix_len))) return 1;
+    if (!(last_prefix = mem_root->ArrayAlloc<uchar>(group_prefix_len))) {
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
+    }
     /*
       We may use group_prefix to store keys with all select fields, so allocate
       enough space for it.
     */
     if (!(group_prefix =
-              (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
-      return 1;
+              mem_root->ArrayAlloc<uchar>(real_prefix_len + min_max_arg_len))) {
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
+    }
   }
-
-  int result;
-  DBUG_TRACE;
 
   seen_first_key = false;
   table()->set_keyread(true); /* We need only the key attributes */
@@ -169,24 +173,29 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset() {
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
   if (table()->file->inited) table()->file->ha_index_or_rnd_end();
-  if ((result = table()->file->ha_index_init(index, true))) {
+  if (int result = table()->file->ha_index_init(index, true); result != 0) {
     table()->file->print_error(result, MYF(0));
-    return result;
+    return true;
   }
-  if (quick_prefix_query_block && quick_prefix_query_block->reset()) return 1;
+  if (quick_prefix_query_block && quick_prefix_query_block->Init()) {
+    return true;
+  }
 
-  result = table()->file->ha_index_last(table()->record[0]);
-  if (result != 0) {
-    if (result == HA_ERR_END_OF_FILE)
-      return 0;
-    else
-      return result;
+  if (int result = table()->file->ha_index_last(table()->record[0]);
+      result != 0) {
+    if (result == HA_ERR_END_OF_FILE) {
+      m_seen_eof = true;
+      return false;
+    } else {
+      table()->file->print_error(result, MYF(0));
+      return true;
+    }
   }
 
   /* Save the prefix of the last group. */
   key_copy(last_prefix, table()->record[0], index_info, group_prefix_len);
 
-  return 0;
+  return false;
 }
 
 /*

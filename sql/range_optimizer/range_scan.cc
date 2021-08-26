@@ -81,7 +81,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
   file = table()->file;
 }
 
-int QUICK_RANGE_SELECT::shared_init() {
+bool QUICK_RANGE_SELECT::shared_init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
     my_bitmap_map *bitmap =
@@ -212,8 +212,15 @@ bool QUICK_RANGE_SELECT::Init() {
   */
   const bool first_init = !table()->file->inited;
 
-  int error = reset();
-  if (error) {
+  if (!inited) {
+    if (need_rows_in_rowid_order ? init_ror_merged_scan() : shared_init()) {
+      return true;
+    }
+    inited = true;
+  } else {
+    if (file->inited) file->ha_index_or_rnd_end();
+  }
+  if (int error = shared_reset(); error != 0) {
     // Ensures error status is propagated back to client.
     (void)report_handler_error(table(), error);
     return true;
@@ -246,23 +253,9 @@ bool QUICK_RANGE_SELECT::Init() {
   return false;
 }
 
-int QUICK_RANGE_SELECT::reset() {
-  if (!inited) {
-    int err = need_rows_in_rowid_order ? init_ror_merged_scan() : shared_init();
-    if (err != 0) {
-      return err;
-    }
-    inited = true;
-  } else {
-    if (file->inited) file->ha_index_or_rnd_end();
-  }
-  return shared_reset();
-}
-
-int QUICK_RANGE_SELECT::shared_reset() {
+bool QUICK_RANGE_SELECT::shared_reset() {
   uint buf_size;
   uchar *mrange_buff = nullptr;
-  int error;
   HANDLER_BUFFER empty_buf;
   DBUG_TRACE;
   last_range = nullptr;
@@ -293,9 +286,9 @@ int QUICK_RANGE_SELECT::shared_reset() {
       */
       table()->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     }
-    if ((error = file->ha_index_init(index, sorted))) {
-      file->print_error(error, MYF(0));
-      return error;
+    if (int error = file->ha_index_init(index, sorted); error != 0) {
+      (void)report_handler_error(table(), error);
+      return true;
     }
     if (in_ror_merged_scan) {
       file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
@@ -322,8 +315,10 @@ int QUICK_RANGE_SELECT::shared_reset() {
       /* Try to shrink the buffers until both are 0. */
       buf_size /= 2;
     }
-    if (!mrr_buf_desc) return HA_ERR_OUT_OF_MEM;
-
+    if (!mrr_buf_desc) {
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
+    }
     /* Initialize the handler buffer. */
     mrr_buf_desc->buffer = mrange_buff;
     mrr_buf_desc->buffer_end = mrange_buff + buf_size;
@@ -336,10 +331,14 @@ int QUICK_RANGE_SELECT::shared_reset() {
 
   RANGE_SEQ_IF seq_funcs = {quick_range_seq_init, quick_range_seq_next,
                             nullptr};
-  error =
-      file->multi_range_read_init(&seq_funcs, this, ranges.size(), mrr_flags,
-                                  mrr_buf_desc ? mrr_buf_desc : &empty_buf);
-  return error;
+  if (int error = file->multi_range_read_init(
+          &seq_funcs, this, ranges.size(), mrr_flags,
+          mrr_buf_desc ? mrr_buf_desc : &empty_buf);
+      error != 0) {
+    (void)report_handler_error(table(), error);
+    return true;
+  }
+  return false;
 }
 
 /*

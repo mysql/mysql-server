@@ -1786,20 +1786,6 @@ static void print_quick(TABLE_READ_PLAN *trp, const Key_map *needed_reg) {
 
 #endif /* !NDEBUG */
 
-bool QUICK_SELECT_I::Init() {
-  empty_record(table());
-
-  int error = reset();
-  if (error) {
-    // Ensures error status is propagated back to client.
-    (void)report_handler_error(table(), error);
-    return true;
-  }
-
-  m_seen_eof = false;
-  return false;
-}
-
 int QUICK_SELECT_I::Read() {
   if (m_seen_eof) {
     return -1;

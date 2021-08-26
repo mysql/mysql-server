@@ -103,7 +103,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
                            ha_rows *examined_rows);
   ~QUICK_INDEX_MERGE_SELECT() override;
 
-  int reset(void) override;
+  bool Init() override;
   int get_next() override;
 
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);

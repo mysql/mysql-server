@@ -114,11 +114,13 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   primary key scan is not performed here, it is performed later separately.
 
   RETURN
-    0     OK
-    other error
+    true if error
 */
 
-int QUICK_INDEX_MERGE_SELECT::reset() {
+bool QUICK_INDEX_MERGE_SELECT::Init() {
+  empty_record(table());
+  m_seen_eof = false;
+
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT *cur_quick;
   int result;
@@ -135,9 +137,9 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
 
   DBUG_EXECUTE_IF("simulate_bug13919180", {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
-    return 1;
+    return true;
   });
-  if (cur_quick->reset()) return 1;
+  if (cur_quick->Init()) return true;
 
   size_t sort_buffer_size = current_thd->variables.sortbuff_size;
 #ifndef NDEBUG
@@ -173,12 +175,13 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
       if (!cur_quick) break;
 
       if (cur_quick->file->inited) cur_quick->file->ha_index_or_rnd_end();
-      if (cur_quick->reset()) return 1;
+      if (cur_quick->Init()) return true;
     }
 
     if (result) {
       if (result != HA_ERR_END_OF_FILE) {
-        return result;
+        table()->file->print_error(result, MYF(0));
+        return true;
       }
       break;
     }
@@ -190,7 +193,7 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
 
     cur_quick->file->position(cur_quick->table()->record[0]);
     result = unique->unique_add((char *)cur_quick->file->ref);
-    if (result) return 1;
+    if (result) return true;
   }
 
   /*
@@ -236,9 +239,8 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select) {
       doing_pk_scan = true;
-      result = pk_quick_select->reset();
-      if (result != 0) {
-        return result;
+      if (pk_quick_select->Init()) {
+        return 1;
       }
       return pk_quick_select->get_next();
     }

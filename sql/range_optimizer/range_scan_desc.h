@@ -36,9 +36,9 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
 
  private:
   bool range_reads_after_key(QUICK_RANGE *range);
-  int reset(void) override {
+  bool Init() override {
     rev_it.rewind();
-    return QUICK_RANGE_SELECT::reset();
+    return QUICK_RANGE_SELECT::Init();
   }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;

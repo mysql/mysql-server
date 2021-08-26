@@ -72,11 +72,9 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
     merged quick selects read only keys.
 
   RETURN
-    0  ROR child scan initialized, ok to use.
-    1  error
-*/
-
-int QUICK_RANGE_SELECT::init_ror_merged_scan() {
+    true if error
+ */
+bool QUICK_RANGE_SELECT::init_ror_merged_scan() {
   handler *save_file = file, *org_file;
   MY_BITMAP *const save_read_set = table()->read_set;
   MY_BITMAP *const save_write_set = table()->write_set;
@@ -88,8 +86,11 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan() {
   mrr_flags |= HA_MRR_SORTED;
   if (reuse_handler) {
     DBUG_PRINT("info", ("Reusing handler %p", file));
-    if (shared_init() || shared_reset()) {
-      return 1;
+    if (shared_init()) {
+      return true;
+    }
+    if (shared_reset()) {
+      return true;
     }
     table()->column_bitmaps_set(&column_bitmap, &column_bitmap);
     file->ha_extra(HA_EXTRA_SECONDARY_SORT_ROWID);
@@ -99,7 +100,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan() {
   /* Create a separate handler object for this quick select */
   if (free_file) {
     /* already have own 'handler' object. */
-    return 0;
+    return false;
   }
 
   if (!(file =
@@ -152,24 +153,20 @@ end:
   table()->column_bitmaps_set(save_read_set, save_write_set);
   bitmap_clear_all(&table()->tmp_set);
 
-  return 0;
+  return false;
 
 failure:
   table()->column_bitmaps_set(save_read_set, save_write_set);
   destroy(file);
   file = save_file;
-  return 1;
+  return true;
 }
 
 /*
   Initialize this quick select to be a part of a ROR-merged scan.
-  SYNOPSIS
-    QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan()
-  RETURN
-    0     OK
-    other error code
-*/
-int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
+  Returns true if error.
+ */
+bool QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
   DBUG_TRACE;
 
 #ifndef NDEBUG
@@ -190,9 +187,10 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
   int error;
   if (retrieve_full_rows && (error = table()->file->ha_rnd_init(false))) {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    return error;
+    table()->file->print_error(error, MYF(0));
+    return true;
   }
-  return 0;
+  return false;
 }
 
 /*
@@ -204,28 +202,30 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
     other  Error code
 */
 
-int QUICK_ROR_INTERSECT_SELECT::reset() {
+bool QUICK_ROR_INTERSECT_SELECT::Init() {
   DBUG_TRACE;
   if (!inited) {
     /* Check if last_rowid was successfully allocated in ctor */
     if (last_rowid == nullptr) {
-      return 1;
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
     }
 
     if (need_rows_in_rowid_order) {
-      int error = init_ror_merged_scan();
-      if (error != 0) {
-        return error;
+      if (init_ror_merged_scan()) {
+        return true;
       }
     }
     inited = true;
   }
 
-  if (!scans_inited && init_ror_merged_scan()) return 1;
+  if (!scans_inited && init_ror_merged_scan()) return true;
   scans_inited = true;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
-  while ((quick = it++)) quick->reset();
+  for (QUICK_RANGE_SELECT &quick : quick_selects) {
+    if (quick.Init()) {
+      return true;
+    }
+  }
   return 0;
 }
 
@@ -276,20 +276,21 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
     other  Error code
 */
 
-int QUICK_ROR_UNION_SELECT::reset() {
+bool QUICK_ROR_UNION_SELECT::Init() {
   if (!inited) {
     if (queue.reserve(quick_selects.elements)) {
-      return 1;
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
+      return true;
     }
 
     if (!(cur_rowid =
-              mem_root->ArrayAlloc<uchar>(2 * table()->file->ref_length)))
-      return 1;
+              mem_root->ArrayAlloc<uchar>(2 * table()->file->ref_length))) {
+      return true;
+    }
     prev_rowid = cur_rowid + table()->file->ref_length;
     inited = true;
   }
 
-  QUICK_SELECT_I *quick;
   int error;
   DBUG_TRACE;
   have_prev_rowid = false;
@@ -301,27 +302,29 @@ int QUICK_ROR_UNION_SELECT::reset() {
     Initialize scans for merged quick selects and put all merged quick
     selects into the queue.
   */
-  List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
-  while ((quick = it++)) {
-    if ((error = quick->reset())) return error;
-    if ((error = quick->get_next())) {
+  for (QUICK_SELECT_I &quick : quick_selects) {
+    if (quick.Init()) return true;
+    if ((error = quick.get_next())) {
       if (error == HA_ERR_END_OF_FILE) continue;
-      return error;
+      table()->file->print_error(error, MYF(0));
+      return true;
     }
-    queue.push(quick);
+    queue.push(&quick);
   }
 
   /* Prepare for ha_rnd_pos calls. */
   if (table()->file->inited && (error = table()->file->ha_rnd_end())) {
     DBUG_PRINT("error", ("ROR index_merge rnd_end call failed"));
-    return error;
+    table()->file->print_error(error, MYF(0));
+    return true;
   }
   if ((error = table()->file->ha_rnd_init(false))) {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    return error;
+    table()->file->print_error(error, MYF(0));
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 bool QUICK_ROR_UNION_SELECT::push_quick_back(QUICK_SELECT_I *quick_sel_range) {
