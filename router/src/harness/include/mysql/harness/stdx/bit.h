@@ -142,10 +142,6 @@ std::enable_if_t<std::is_integral<IntegerType>::value,
   return impl::bswap(static_cast<std::make_unsigned_t<IntegerType>>(t));
 }
 
-#if 0
-// Note: in case the other bitops are also needs, an implementation is provided.
-//
-
 // [bitops.ret]
 template <class T>
 constexpr std::enable_if_t<std::is_unsigned<T>::value, T> rotl(T x,
@@ -341,6 +337,9 @@ countr_zero_builtin(T x) noexcept {
   return impl::countr_zero_logarithmic(x);
 }
 
+#if 0
+// only for reference.
+
 /**
  * popcount.
  *
@@ -371,6 +370,7 @@ constexpr std::enable_if_t<std::is_unsigned<T>::value, int> popcount_linear_kr(
   }
   return cnt;
 }
+#endif
 
 /**
  * popcount.
@@ -491,7 +491,6 @@ constexpr std::enable_if_t<std::is_unsigned<T>::value, int> countl_one(
   // countl_zero(0b1111'1100) == 6
   return countl_zero(static_cast<T>(~x));
 }
-#endif
 
 }  // namespace stdx
 #endif
