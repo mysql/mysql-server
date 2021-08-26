@@ -4859,15 +4859,6 @@ int init_common_variables() {
   if (!is_help_or_validate_option()) {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
-  if (opt_authentication_policy &&
-      validate_authentication_policy(opt_authentication_policy)) {
-    /* --authentication_policy is set to invalid value */
-    LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
-    return 1;
-  } else {
-    /* update the value */
-    update_authentication_policy();
-  }
   if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
@@ -7654,7 +7645,15 @@ int mysqld_main(int argc, char **argv)
   //  Start signal handler thread.
   start_signal_handler();
 #endif
-
+  if (opt_authentication_policy &&
+      validate_authentication_policy(opt_authentication_policy)) {
+    /* --authentication_policy is set to invalid value */
+    LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
+    return 1;
+  } else {
+    /* update the value */
+    update_authentication_policy();
+  }
   /* set all persistent options */
   if (persisted_variables_cache.set_persist_options(false, true)) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
