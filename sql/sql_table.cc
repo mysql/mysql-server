@@ -13805,7 +13805,8 @@ static bool transfer_preexisting_foreign_keys(
         Create_field *find;
         while ((find = find_it++)) {
           if (my_strcasecmp(system_charset_info, sql_fk->key_part[j].str,
-                            find->field_name) == 0) {
+                            find->field_name) == 0 &&
+              find->field != nullptr) {
             break;
           }
         }
@@ -13822,9 +13823,11 @@ static bool transfer_preexisting_foreign_keys(
         assert(!find->is_virtual_gcol());
         if (is_self_referencing) {
           find_it.rewind();
+
           while ((find = find_it++)) {
             if (my_strcasecmp(system_charset_info, sql_fk->fk_key_part[j].str,
-                              find->field_name) == 0) {
+                              find->field_name) == 0 &&
+                find->field != nullptr) {
               break;
             }
           }
