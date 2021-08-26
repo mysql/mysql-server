@@ -3904,14 +3904,14 @@ longlong Item_func_crc32::val_int() {
 
 bool Item_func_compress::resolve_type(THD *thd) {
   if (Item_str_func::resolve_type(thd)) return true;
+  // Adding 5 for length and one possible extra byte. See val_str().
   set_data_type_string(
-      static_cast<ulonglong>(compressBound(args[0]->max_length)));
+      5ULL + static_cast<ulonglong>(compressBound(args[0]->max_length)));
   return false;
 }
 
 String *Item_func_compress::val_str(String *str) {
   int err = Z_OK, code;
-  ulong new_size;
   String *res;
   Byte *body;
   char *last_char;
@@ -3924,16 +3924,7 @@ String *Item_func_compress::val_str(String *str) {
   null_value = false;
   if (res->is_empty()) return res;
 
-  /*
-    Citation from zlib.h (comment for compress function):
-
-    Compresses the source buffer into the destination buffer.  sourceLen is
-    the byte length of the source buffer. Upon entry, destLen is the total
-    size of the destination buffer, which must be at least 0.1% larger than
-    sourceLen plus 12 bytes.
-    We assume here that the buffer can't grow more than .25 %.
-  */
-  new_size = res->length() + res->length() / 5 + 12;
+  ulong new_size = compressBound(res->length());
 
   // Check new_size overflow: new_size <= res->length()
   if (((new_size + 5) <= res->length()) ||
