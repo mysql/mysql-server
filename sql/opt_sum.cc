@@ -877,11 +877,22 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       /*
         A perfect save is necessary. Truncated / incorrect value can result
         in an incorrect index lookup. Truncation of trailing space is ignored
-        since that is expected for strings even in other cases.
+        for strings with a PAD SPACE collation. (When trailing space has been
+        removed, TYPE_NOTE_TRUNCATED is returned. Not to be confused with
+        TYPE_WARN_TRUNCATED, which is returned when non-space has been removed.)
+
+        TODO(khatlen): It might be better if string literals that need
+        truncation are handled during constant folding, so that we only need to
+        check for TYPE_OK here. analyze_field_constant() does not yet handle
+        string constants.
       */
       type_conversion_status retval =
           value->save_in_field_no_warnings(part->field, true);
-      if (!(retval == TYPE_OK || retval == TYPE_NOTE_TRUNCATED)) return false;
+      if (!(retval == TYPE_OK ||
+            (retval == TYPE_NOTE_TRUNCATED && part->field->is_text_key_type() &&
+             part->field->charset()->pad_attribute == PAD_SPACE))) {
+        return false;
+      }
 
       if (part->null_bit) *key_ptr++ = (uchar)(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);

@@ -2566,11 +2566,15 @@ DROP TABLE t1, t2, t3;
 --echo # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
 --echo #
 
+# Use a PAD SPACE collation (utf8mb4_bin) to preserve test coverage
+# for the original bug. The test case for Bug#33282123 provides
+# coverage for NO PAD collations.
+
 CREATE TABLE t1 (
-  col1 VARCHAR(5),
+  col1 VARCHAR(5) CHARSET utf8mb4 COLLATE utf8mb4_bin,
   col2 INT NOT NULL,
   PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB, CHARSET utf8mb4;
+);
 
 INSERT INTO t1 VALUES ('abcde', 10);
 
@@ -2585,7 +2589,9 @@ let $query2= SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 eval EXPLAIN $query1;
 eval EXPLAIN $query2;
 
+# No row with col1='abcdeaa'. Expect NULL.
 eval $query1;
+# col1='abcde  ' matches 'abcde' because of PAD SPACE. Expect non-NULL.
 eval $query2;
 
 DROP TABLE t1;
@@ -3156,3 +3162,14 @@ EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 DROP TABLE t1;
 
 --echo # End of test for Bug#17769777 and Bug#17413040
+
+--echo #
+--echo # Bug#33282123: Const table optimization for aggregates goes wrong with
+--echo #               NO PAD collations
+--echo #
+
+CREATE TABLE t1 (col1 VARCHAR(5), col2 INTEGER, PRIMARY KEY (col1, col2));
+INSERT INTO t1 VALUES ('abcde', 10);
+--echo # Used to return 10. The expected result is NULL.
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+DROP TABLE t1;

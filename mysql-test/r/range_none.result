@@ -3563,10 +3563,10 @@ DROP TABLE t1, t2, t3;
 # Bug #21318711: WRONG RESULTS FOR TRUNCATED COLUMN AND AGGREGATION
 #
 CREATE TABLE t1 (
-col1 VARCHAR(5),
+col1 VARCHAR(5) CHARSET utf8mb4 COLLATE utf8mb4_bin,
 col2 INT NOT NULL,
 PRIMARY KEY (col1, col2)
-) ENGINE=InnoDB, CHARSET utf8mb4;
+);
 INSERT INTO t1 VALUES ('abcde', 10);
 EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3996,4 +3996,15 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((0,0),(1,1)))
 DROP TABLE t1;
 # End of test for Bug#17769777 and Bug#17413040
+#
+# Bug#33282123: Const table optimization for aggregates goes wrong with
+#               NO PAD collations
+#
+CREATE TABLE t1 (col1 VARCHAR(5), col2 INTEGER, PRIMARY KEY (col1, col2));
+INSERT INTO t1 VALUES ('abcde', 10);
+# Used to return 10. The expected result is NULL.
+SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
+MAX(col2)
+NULL
+DROP TABLE t1;
 set optimizer_switch=default;
