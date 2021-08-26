@@ -5036,7 +5036,7 @@ static bool fulltext_uses_rollup_column(const Query_block *query_block) {
   for (ORDER *group = query_block->group_list.first; group != nullptr;
        group = group->next) {
     if (WalkItem(*group->item, enum_walk::PREFIX, [query_block](Item *item) {
-          if (IsFuncType(item, Item_func::FT_FUNC)) {
+          if (is_function_of_type(item, Item_func::FT_FUNC)) {
             Item_func_match *match = down_cast<Item_func_match *>(item);
             for (unsigned i = 0; i < match->arg_count; ++i) {
               if (query_block->find_in_group_list(match->get_arg(i),

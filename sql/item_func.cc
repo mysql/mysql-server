@@ -996,7 +996,7 @@ bool Item_func::check_column_in_group_by(uchar *arg) {
   return select->is_grouped();
 }
 
-static bool is_function_of_type(const Item *item, Item_func::Functype type) {
+bool is_function_of_type(const Item *item, Item_func::Functype type) {
   return item->type() == Item::FUNC_ITEM &&
          down_cast<const Item_func *>(item)->functype() == type;
 }
@@ -10009,9 +10009,4 @@ bool Item_func::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
     }
   }
   return false;
-}
-
-bool IsFuncType(const Item *item, Item_func::Functype type) {
-  return item->type() == Item::FUNC_ITEM &&
-         down_cast<const Item_func *>(item)->functype() == type;
 }
