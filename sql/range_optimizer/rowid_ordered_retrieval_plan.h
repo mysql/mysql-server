@@ -92,8 +92,9 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
         key(key_arg),
         real_keynr(real_keynr_arg) {}
 
-  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
-                             MEM_ROOT *return_mem_root) override;
+  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
+                             bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                             ha_rows *examined_rows) override;
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
 
@@ -157,8 +158,9 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
       child->need_rows_in_rowid_order = true;
     }
   }
-  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
-                             MEM_ROOT *return_mem_root) override;
+  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
+                             bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                             ha_rows *examined_rows) override;
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;

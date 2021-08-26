@@ -76,18 +76,22 @@ class TRP_RANGE : public TABLE_READ_PLAN {
         is_imerge(is_imerge_arg),
         ranges(ranges_arg) {}
 
-  QUICK_SELECT_I *make_quick(bool, MEM_ROOT *return_mem_root) override {
+  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows, bool,
+                             MEM_ROOT *return_mem_root,
+                             ha_rows *examined_rows) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;
     if (table->key_info[index].flags & HA_SPATIAL) {
       quick = new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-          table, index, need_rows_in_rowid_order,
+          thd, table, examined_rows, expected_rows, index,
+          need_rows_in_rowid_order,
           /*reuse_handler=*/false, return_mem_root, mrr_flags, mrr_buf_size,
           used_key_part, ranges);
     } else {
       quick = new (return_mem_root)
-          QUICK_RANGE_SELECT(table, index, need_rows_in_rowid_order,
+          QUICK_RANGE_SELECT(thd, table, examined_rows, expected_rows, index,
+                             need_rows_in_rowid_order,
                              /*reuse_handler=*/false, return_mem_root,
                              mrr_flags, mrr_buf_size, used_key_part, ranges);
       if (reverse) {

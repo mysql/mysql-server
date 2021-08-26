@@ -53,10 +53,13 @@
 struct MY_BITMAP;
 
 QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
-                                                   TABLE *table)
-    : unique(nullptr), pk_quick_select(nullptr), mem_root(return_mem_root) {
+                                                   THD *thd, TABLE *table,
+                                                   ha_rows *examined_rows)
+    : QUICK_SELECT_I(thd, table, examined_rows),
+      unique(nullptr),
+      pk_quick_select(nullptr),
+      mem_root(return_mem_root) {
   DBUG_TRACE;
-  m_table = table;
 }
 
 bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
@@ -65,8 +68,8 @@ bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
     Save quick_select that does scan on clustered primary key as it will be
     processed separately.
   */
-  if (m_table->file->primary_key_is_clustered() &&
-      quick_sel_range->index == m_table->s->primary_key)
+  if (table()->file->primary_key_is_clustered() &&
+      quick_sel_range->index == table()->s->primary_key)
     pk_quick_select = quick_sel_range;
   else
     return quick_selects.push_back(quick_sel_range);
@@ -84,16 +87,16 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
     // Normally it's disabled by dtor of QUICK_RANGE_SELECT, but it can't be
     // done without table's handler
     disable_unique_filter |=
-        (0 != (m_table->key_info[quick->index].flags & HA_MULTI_VALUED_KEY));
+        (0 != (table()->key_info[quick->index].flags & HA_MULTI_VALUED_KEY));
     quick->file = nullptr;
   }
   quick_selects.destroy_elements();
   if (disable_unique_filter)
-    m_table->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
+    table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
   destroy(pk_quick_select);
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
-  free_io_cache(m_table);
+  free_io_cache(table());
 }
 
 /*
@@ -119,12 +122,12 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT *cur_quick;
   int result;
-  handler *file = m_table->file;
+  handler *file = table()->file;
   DBUG_TRACE;
 
   /* We're going to just read rowids. */
-  m_table->set_keyread(true);
-  m_table->prepare_for_position();
+  table()->set_keyread(true);
+  table()->prepare_for_position();
 
   cur_quick_it.rewind();
   cur_quick = cur_quick_it++;
@@ -149,14 +152,14 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
                                    file->ref_length, sort_buffer_size);
   } else {
     unique->reset();
-    m_table->unique_result.sorted_result.reset();
-    assert(!m_table->unique_result.sorted_result_in_fsbuf);
-    m_table->unique_result.sorted_result_in_fsbuf = false;
+    table()->unique_result.sorted_result.reset();
+    assert(!table()->unique_result.sorted_result_in_fsbuf);
+    table()->unique_result.sorted_result_in_fsbuf = false;
 
-    if (m_table->unique_result.io_cache) {
-      close_cached_file(m_table->unique_result.io_cache);
-      my_free(m_table->unique_result.io_cache);
-      m_table->unique_result.io_cache = nullptr;
+    if (table()->unique_result.io_cache) {
+      close_cached_file(table()->unique_result.io_cache);
+      my_free(table()->unique_result.io_cache);
+      table()->unique_result.io_cache = nullptr;
     }
   }
 
@@ -185,22 +188,22 @@ int QUICK_INDEX_MERGE_SELECT::reset() {
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
 
-    cur_quick->file->position(cur_quick->m_table->record[0]);
+    cur_quick->file->position(cur_quick->table()->record[0]);
     result = unique->unique_add((char *)cur_quick->file->ref);
     if (result) return 1;
   }
 
   /*
     Ok all rowids are in the Unique now. The next call will initialize
-    m_table->sort structure so it can be used to iterate through the rowids
+    table()->sort structure so it can be used to iterate through the rowids
     sequence.
   */
-  result = unique->get(m_table);
+  result = unique->get(table());
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
-  m_table->set_keyread(false);
+  table()->set_keyread(false);
   read_record.reset();  // Clear out any previous iterator.
-  read_record = init_table_iterator(current_thd, m_table,
+  read_record = init_table_iterator(current_thd, table(),
                                     /*ignore_not_found_rows=*/false,
                                     /*count_examined_rows=*/false);
   if (read_record == nullptr) return 1;
@@ -226,7 +229,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
     result = HA_ERR_END_OF_FILE;
 
     // NOTE: destroying the RowIterator also clears
-    // m_table->unique_result.io_cache if it is initialized, since it
+    // table()->unique_result.io_cache if it is initialized, since it
     // owns the io_cache it is reading from.
     read_record.reset();
 

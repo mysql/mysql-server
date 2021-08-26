@@ -38,6 +38,7 @@
 #include "sql/item_func.h"
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
+#include "sql/row_iterator.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"
@@ -176,43 +177,15 @@ enum RangeScanType {
   QS_TYPE_SKIP_SCAN
 };
 
-/*
-  Quick select interface.
-  This class is a parent for all QUICK_*_SELECT classes.
+// This is a transitional class, that will soon go away entirely.
 
-  The usage scenario is as follows:
-  1. Create quick select
-    quick = new (mem_root) QUICK_XXX_SELECT(...);
-
-  2. Perform zero, one, or more scans.
-    while (...)
-    {
-      // initialize quick select for scan. This may allocate
-      // buffers and/or prefetch rows.
-      if (quick->reset())
-      {
-        //the only valid action after failed reset() call is destroy
-        destroy(quick);
-        //abort query
-      }
-
-      // perform the scan
-      do
-      {
-        res= quick->get_next();
-      } while (res && ...)
-    }
-
-  3. Destroy the select:
-    destroy(quick);
-*/
-
-class QUICK_SELECT_I {
+class QUICK_SELECT_I : public TableRowIterator {
  public:
-  TABLE *m_table;
+  QUICK_SELECT_I(THD *thd, TABLE *table, ha_rows *examined_rows)
+      : TableRowIterator(thd, table), m_examined_rows(examined_rows) {}
 
-  QUICK_SELECT_I() = default;
-  virtual ~QUICK_SELECT_I() = default;
+  bool Init() override;
+  int Read() override;
 
   /*
     Initialize quick select for row retrieval.
@@ -240,6 +213,15 @@ class QUICK_SELECT_I {
     doing ROR-index_merge selects. Updated on successful get_next().
   */
   uchar *last_rowid = nullptr;
+
+ private:
+  ha_rows *const m_examined_rows;
+
+ protected:
+  // After m_quick has returned EOF, some of its members are destroyed, making
+  // subsequent requests for new rows undefined. We flag EOF so that the
+  // iterator does not request a new row.
+  bool m_seen_eof{false};
 };
 
 using Quick_ranges = Mem_root_array<QUICK_RANGE *>;

@@ -61,7 +61,8 @@ struct MY_BITMAP;
 
 class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
  public:
-  QUICK_ROR_INTERSECT_SELECT(TABLE *table, bool retrieve_full_rows,
+  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table_arg, ha_rows *examined_rows,
+                             bool retrieve_full_rows,
                              bool need_rows_in_rowid_order,
                              MEM_ROOT *return_mem_root);
   ~QUICK_ROR_INTERSECT_SELECT() override;
@@ -99,11 +100,11 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   queue.
 */
 struct Quick_ror_union_less {
-  explicit Quick_ror_union_less(const QUICK_SELECT_I *me) : m_me(me) {}
+  explicit Quick_ror_union_less(const handler *file) : m_file(file) {}
   bool operator()(QUICK_SELECT_I *a, QUICK_SELECT_I *b) {
-    return m_me->m_table->file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
+    return m_file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
   }
-  const QUICK_SELECT_I *m_me;
+  const handler *m_file;
 };
 
 /*
@@ -121,7 +122,8 @@ struct Quick_ror_union_less {
 
 class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
  public:
-  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, TABLE *table);
+  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, THD *thd, TABLE *table,
+                         ha_rows *examined_rows);
   ~QUICK_ROR_UNION_SELECT() override;
 
   int reset(void) override;

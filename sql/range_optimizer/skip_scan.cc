@@ -66,13 +66,15 @@
 */
 
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
-    TABLE *table, KEY *index_info, uint use_index, KEY_PART_INFO *range_part,
-    SEL_ROOT *index_range_tree, uint eq_prefix_len, uint eq_prefix_key_parts,
-    EQPrefix *eq_prefixes, uint used_key_parts_arg, MEM_ROOT *return_mem_root,
+    THD *thd, TABLE *table_arg, ha_rows *examined_rows, KEY *index_info,
+    uint use_index, KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
+    uint eq_prefix_len, uint eq_prefix_key_parts, EQPrefix *eq_prefixes,
+    uint used_key_parts_arg, MEM_ROOT *return_mem_root,
     bool has_aggregate_function, uchar *min_range_key_arg,
     uchar *max_range_key_arg, uchar *min_search_key_arg,
     uchar *max_search_key_arg, uint range_cond_flag_arg, uint range_key_len_arg)
-    : index_info(index_info),
+    : QUICK_SELECT_I(thd, table_arg, examined_rows),
+      index_info(index_info),
       index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
       eq_prefix_key_parts(eq_prefix_key_parts),
@@ -88,7 +90,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
       max_search_key(max_search_key_arg),
       range_cond_flag(range_cond_flag_arg),
       has_aggregate_function(has_aggregate_function) {
-  m_table = table;
   index = use_index;
 
   used_key_parts = used_key_parts_arg;
@@ -98,11 +99,11 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
 
   my_bitmap_map *bitmap;
   if (!(bitmap = (my_bitmap_map *)return_mem_root->Alloc(
-            m_table->s->column_bitmap_size))) {
+            table()->s->column_bitmap_size))) {
     column_bitmap.bitmap = nullptr;
   } else
-    bitmap_init(&column_bitmap, bitmap, m_table->s->fields);
-  bitmap_copy(&column_bitmap, m_table->read_set);
+    bitmap_init(&column_bitmap, bitmap, table()->s->fields);
+  bitmap_copy(&column_bitmap, table()->read_set);
 
   for (uint i = 0; i < used_key_parts; i++, p++) {
     max_used_key_length += p->store_length;
@@ -121,7 +122,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
 
 QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   DBUG_TRACE;
-  if (m_table->file->inited) m_table->file->ha_index_or_rnd_end();
+  if (table()->file->inited) table()->file->ha_index_or_rnd_end();
 }
 
 /**
@@ -157,12 +158,12 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
 
   int result;
   seen_first_key = false;
-  m_table->set_keyread(true);  // This access path demands index-only reads.
-  MY_BITMAP *const save_read_set = m_table->read_set;
+  table()->set_keyread(true);  // This access path demands index-only reads.
+  MY_BITMAP *const save_read_set = table()->read_set;
 
-  m_table->column_bitmaps_set_no_signal(&column_bitmap, m_table->write_set);
-  if ((result = m_table->file->ha_index_init(index, true))) {
-    m_table->file->print_error(result, MYF(0));
+  table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
+  if ((result = table()->file->ha_index_init(index, true))) {
+    table()->file->print_error(result, MYF(0));
     return result;
   }
 
@@ -177,7 +178,7 @@ int QUICK_SKIP_SCAN_SELECT::reset(void) {
     assert(offset <= eq_prefix_len);
   }
 
-  m_table->column_bitmaps_set_no_signal(save_read_set, m_table->write_set);
+  table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
   return 0;
 }
 
@@ -275,22 +276,22 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
 
   assert(distinct_prefix_len + range_key_len == max_used_key_length);
 
-  MY_BITMAP *const save_read_set = m_table->read_set;
-  m_table->column_bitmaps_set_no_signal(&column_bitmap, m_table->write_set);
+  MY_BITMAP *const save_read_set = table()->read_set;
+  table()->column_bitmaps_set_no_signal(&column_bitmap, table()->write_set);
   do {
     if (!is_prefix_valid) {
       if (!seen_first_key) {
         if (eq_prefix_key_parts == 0) {
-          result = m_table->file->ha_index_first(m_table->record[0]);
+          result = table()->file->ha_index_first(table()->record[0]);
         } else {
-          result = m_table->file->ha_index_read_map(
-              m_table->record[0], eq_prefix,
+          result = table()->file->ha_index_read_map(
+              table()->record[0], eq_prefix,
               make_prev_keypart_map(eq_prefix_key_parts), HA_READ_KEY_OR_NEXT);
         }
         seen_first_key = true;
       } else {
-        result = index_next_different(false /* is_index_scan */, m_table->file,
-                                      index_info->key_part, m_table->record[0],
+        result = index_next_different(false /* is_index_scan */, table()->file,
+                                      index_info->key_part, table()->record[0],
                                       distinct_prefix, distinct_prefix_len,
                                       distinct_prefix_key_parts);
       }
@@ -298,7 +299,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       if (result) goto exit;
 
       // Save the prefix of this group for subsequent calls.
-      key_copy(distinct_prefix, m_table->record[0], index_info,
+      key_copy(distinct_prefix, table()->record[0], index_info,
                distinct_prefix_len);
 
       if (eq_prefix) {
@@ -374,7 +375,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       }
       is_prefix_valid = true;
 
-      result = m_table->file->ha_read_range_first(
+      result = table()->file->ha_read_range_first(
           &start_key, &end_key, range_cond_flag & EQ_RANGE, true /* sorted */);
       if (result) {
         if (result == HA_ERR_END_OF_FILE) {
@@ -384,7 +385,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
         goto exit;
       }
     } else {
-      result = m_table->file->ha_read_range_next();
+      result = table()->file->ha_read_range_next();
       if (result) {
         if (result == HA_ERR_END_OF_FILE) {
           is_prefix_valid = false;
@@ -396,7 +397,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
 
 exit:
-  m_table->column_bitmaps_set_no_signal(save_read_set, m_table->write_set);
+  table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
 
   if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
 

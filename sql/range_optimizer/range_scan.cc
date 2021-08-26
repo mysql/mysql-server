@@ -26,6 +26,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include <algorithm>
+
 #include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -36,12 +38,14 @@
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/current_thd.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/range_optimizer/range_scan_desc.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/sql_select.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -50,11 +54,12 @@
 #include "template_utils.h"
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
-    TABLE *table, uint key_nr, bool need_rows_in_rowid_order,
-    bool reuse_handler, MEM_ROOT *return_mem_root, uint mrr_flags,
-    uint mrr_buf_size, const KEY_PART *key,
-    Bounds_checked_array<QUICK_RANGE *> ranges_arg)
-    : ranges(ranges_arg),
+    THD *thd, TABLE *table_arg, ha_rows *examined_rows, double expected_rows,
+    uint key_nr, bool need_rows_in_rowid_order, bool reuse_handler,
+    MEM_ROOT *return_mem_root, uint mrr_flags, uint mrr_buf_size,
+    const KEY_PART *key, Bounds_checked_array<QUICK_RANGE *> ranges_arg)
+    : QUICK_SELECT_I(thd, table_arg, examined_rows),
+      ranges(ranges_arg),
       free_file(false),
       cur_range(nullptr),
       last_range(nullptr),
@@ -65,27 +70,27 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
       dont_free(false),
       need_rows_in_rowid_order(need_rows_in_rowid_order),
       reuse_handler(reuse_handler),
-      mem_root(return_mem_root) {
+      mem_root(return_mem_root),
+      m_expected_rows(expected_rows) {
   DBUG_TRACE;
 
   in_ror_merged_scan = false;
   index = key_nr;
-  m_table = table;
-  key_part_info = m_table->key_info[index].key_part;
+  key_part_info = table()->key_info[index].key_part;
 
-  file = m_table->file;
+  file = table()->file;
 }
 
 int QUICK_RANGE_SELECT::shared_init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
     my_bitmap_map *bitmap =
-        (my_bitmap_map *)mem_root->Alloc(m_table->s->column_bitmap_size);
+        (my_bitmap_map *)mem_root->Alloc(table()->s->column_bitmap_size);
     if (bitmap == nullptr) {
       column_bitmap.bitmap = nullptr;
       return true;
     } else {
-      bitmap_init(&column_bitmap, bitmap, m_table->s->fields);
+      bitmap_init(&column_bitmap, bitmap, table()->s->fields);
     }
   }
 
@@ -95,7 +100,7 @@ int QUICK_RANGE_SELECT::shared_init() {
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   DBUG_TRACE;
-  if (m_table->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
+  if (table()->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
     file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
 
   if (!dont_free) {
@@ -185,6 +190,62 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
   return 0;
 }
 
+/// Does this TABLE have a primary key with a BLOB component?
+static bool has_blob_primary_key(const TABLE *table) {
+  if (table->s->is_missing_primary_key()) {
+    return false;
+  }
+
+  const KEY &key = table->key_info[table->s->primary_key];
+  return std::any_of(key.key_part, key.key_part + key.user_defined_key_parts,
+                     [](const KEY_PART_INFO &key_part) {
+                       return Overlaps(key_part.key_part_flag, HA_BLOB_PART);
+                     });
+}
+
+bool QUICK_RANGE_SELECT::Init() {
+  empty_record(table());
+
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
+  int error = reset();
+  if (error) {
+    // Ensures error status is propagated back to client.
+    (void)report_handler_error(table(), error);
+    return true;
+  }
+
+  // Set up a record buffer. Note that we don't use
+  // table->m_record_buffer, since if we are part of a ROR scan, all range
+  // selects in the scan share the same TABLE object (but not the same
+  // handler).
+  if (first_init && table()->file->inited) {
+    // Rowid-ordered retrievals may add the primary key to the read_set at
+    // a later stage. If the primary key contains a BLOB component, a
+    // record buffer cannot be used, since BLOBs require storage space
+    // outside of the record. So don't request a buffer in this case, even
+    // though the current read_set gives the impression that using a
+    // record buffer would be fine.
+    const bool skip_record_buffer =
+        need_rows_in_rowid_order &&
+        Overlaps(table()->file->ha_table_flags(),
+                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
+        has_blob_primary_key(table());
+    if (!skip_record_buffer) {
+      if (set_record_buffer(table(), m_expected_rows)) {
+        return true; /* purecov: inspected */
+      }
+    }
+  }
+
+  m_seen_eof = false;
+  return false;
+}
+
 int QUICK_RANGE_SELECT::reset() {
   if (!inited) {
     int err = need_rows_in_rowid_order ? init_ror_merged_scan() : shared_init();
@@ -208,10 +269,10 @@ int QUICK_RANGE_SELECT::shared_reset() {
   cur_range = ranges.begin();
 
   /* set keyread to true if index is covering */
-  if (!m_table->no_keyread && m_table->covering_keys.is_set(index))
-    m_table->set_keyread(true);
+  if (!table()->no_keyread && table()->covering_keys.is_set(index))
+    table()->set_keyread(true);
   else
-    m_table->set_keyread(false);
+    table()->set_keyread(false);
   if (!file->inited) {
     /*
       read_set is set to the correct value for ror_merge_scan here as a
@@ -219,8 +280,8 @@ int QUICK_RANGE_SELECT::shared_reset() {
       initializing the read set in index_read() leading to wrong
       results while merging.
     */
-    MY_BITMAP *const save_read_set = m_table->read_set;
-    MY_BITMAP *const save_write_set = m_table->write_set;
+    MY_BITMAP *const save_read_set = table()->read_set;
+    MY_BITMAP *const save_write_set = table()->write_set;
     const bool sorted = (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2", DBUG_SET("+d,ha_index_init_fail"););
 
@@ -228,9 +289,9 @@ int QUICK_RANGE_SELECT::shared_reset() {
     if (in_ror_merged_scan) {
       /*
         We don't need to signal the bitmap change as the bitmap is always the
-        same for this m_table->file
+        same for this table()->file
       */
-      m_table->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+      table()->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     }
     if ((error = file->ha_index_init(index, sorted))) {
       file->print_error(error, MYF(0));
@@ -239,16 +300,16 @@ int QUICK_RANGE_SELECT::shared_reset() {
     if (in_ror_merged_scan) {
       file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
       /* Restore bitmaps set on entry */
-      m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+      table()->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
   }
   // Enable & reset unique record filter for multi-valued index
-  if (m_table->key_info[index].flags & HA_MULTI_VALUED_KEY) {
+  if (table()->key_info[index].flags & HA_MULTI_VALUED_KEY) {
     file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
     // Add PK's fields to read_set as unique filter uses rowid to skip dups
-    if (m_table->s->primary_key != MAX_KEY)
-      m_table->mark_columns_used_by_index_no_reset(m_table->s->primary_key,
-                                                   m_table->read_set);
+    if (table()->s->primary_key != MAX_KEY)
+      table()->mark_columns_used_by_index_no_reset(table()->s->primary_key,
+                                                   table()->read_set);
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
@@ -298,25 +359,25 @@ int QUICK_RANGE_SELECT::shared_reset() {
 
 int QUICK_RANGE_SELECT::get_next() {
   char *dummy;
-  MY_BITMAP *const save_read_set = m_table->read_set;
-  MY_BITMAP *const save_write_set = m_table->write_set;
+  MY_BITMAP *const save_read_set = table()->read_set;
+  MY_BITMAP *const save_write_set = table()->write_set;
   DBUG_TRACE;
 
   if (in_ror_merged_scan) {
     /*
       We don't need to signal the bitmap change as the bitmap is always the
-      same for this m_table->file
+      same for this table()->file
     */
-    m_table->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    table()->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   }
 
   int result = file->ha_multi_range_read_next(&dummy);
 
   if (in_ror_merged_scan) {
     /* Restore bitmaps set on entry */
-    m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+    table()->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     if (result == 0) {
-      file->position(m_table->record[0]);
+      file->position(table()->record[0]);
     }
   }
   return result;
@@ -359,7 +420,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     if (last_range) {
       /* Read the next record in the same range with prefix after cur_prefix. */
       assert(cur_prefix != nullptr);
-      result = file->ha_index_read_map(m_table->record[0], cur_prefix,
+      result = file->ha_index_read_map(table()->record[0], cur_prefix,
                                        keypart_map, HA_READ_AFTER_KEY);
       if (result || last_range->max_keypart_map == 0) return result;
 

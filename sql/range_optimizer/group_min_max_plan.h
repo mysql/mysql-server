@@ -95,8 +95,9 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
       uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
       Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg);
 
-  QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
-                             MEM_ROOT *mem_root) override;
+  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
+                             bool retrieve_full_rows, MEM_ROOT *mem_root,
+                             ha_rows *examined_rows) override;
   void use_index_scan() { is_index_scan = true; }
   bool get_is_index_scan() const { return is_index_scan; }
 

@@ -305,18 +305,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     }
     case AccessPath::INDEX_RANGE_SCAN: {
       const auto &param = path->index_range_scan();
-      QUICK_SELECT_I *quick = param.trp->make_quick(true, thd->mem_root);
-      if (quick == nullptr) {
-        return nullptr;
-      }
-      const int type = param.trp->get_type();
-      bool is_loose_index_scan =
-          (type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX);
-      bool is_ror =
-          (type == QS_TYPE_ROR_INTERSECT || type == QS_TYPE_ROR_UNION);
-      iterator = NewIterator<IndexRangeScanIterator>(
-          thd, param.table, quick, is_loose_index_scan, is_ror,
-          path->num_output_rows, examined_rows);
+      iterator.reset(param.trp->make_quick(thd, path->num_output_rows,
+                                           /*retrieve_full_rows=*/true,
+                                           thd->mem_root, examined_rows));
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {

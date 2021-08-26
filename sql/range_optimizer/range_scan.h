@@ -101,6 +101,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
  private:
   MEM_ROOT *mem_root;
   bool inited = false;
+  const bool m_expected_rows;
 
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
@@ -110,7 +111,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   int init_ror_merged_scan();
 
  public:
-  QUICK_RANGE_SELECT(TABLE *table, uint index_arg,
+  QUICK_RANGE_SELECT(THD *thd, TABLE *table, ha_rows *examined_rows,
+                     double expected_rows, uint index_arg,
                      bool need_rows_in_rowid_order, bool reuse_handler,
                      MEM_ROOT *return_mem_root, uint mrr_flags,
                      uint mrr_buf_size, const KEY_PART *key,
@@ -122,6 +124,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   /* Default move ctor used by QUICK_SELECT_DESC */
   QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
 
+  bool Init() override;
   int reset(void) override;
   int get_next() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,

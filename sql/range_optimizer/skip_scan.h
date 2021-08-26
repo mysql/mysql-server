@@ -109,14 +109,15 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool next_eq_prefix();
 
  public:
-  QUICK_SKIP_SCAN_SELECT(TABLE *table, KEY *index_info, uint index,
-                         KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
-                         uint eq_prefix_len, uint eq_prefix_key_parts,
-                         EQPrefix *eq_prefixes, uint used_key_parts,
-                         MEM_ROOT *temp_mem_root, bool has_aggregate_function,
-                         uchar *min_range_key, uchar *max_range_key,
-                         uchar *min_search_key, uchar *max_search_key,
-                         uint range_cond_flag, uint range_key_len);
+  QUICK_SKIP_SCAN_SELECT(THD *thd, TABLE *table, ha_rows *examined_rows,
+                         KEY *index_info, uint index, KEY_PART_INFO *range_part,
+                         SEL_ROOT *index_range_tree, uint eq_prefix_len,
+                         uint eq_prefix_key_parts, EQPrefix *eq_prefixes,
+                         uint used_key_parts, MEM_ROOT *temp_mem_root,
+                         bool has_aggregate_function, uchar *min_range_key,
+                         uchar *max_range_key, uchar *min_search_key,
+                         uchar *max_search_key, uint range_cond_flag,
+                         uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
   int reset() override;
   int get_next() override;

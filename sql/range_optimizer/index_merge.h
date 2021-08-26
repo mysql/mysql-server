@@ -99,7 +99,8 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   Unique *unique;
 
  public:
-  QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, TABLE *table);
+  QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, THD *thd, TABLE *table,
+                           ha_rows *examined_rows);
   ~QUICK_INDEX_MERGE_SELECT() override;
 
   int reset(void) override;

@@ -108,47 +108,6 @@ class IndexScanIterator final : public TableRowIterator {
   bool m_first = true;
 };
 
-/**
-  Scan a given range of the table (a “quick”), using an index.
-
-  IndexRangeScanIterator uses one of the QUICK_SELECT classes in opt_range.cc
-  to perform an index scan. There are loads of functionality hidden
-  in these quick classes. It handles all index scans of various kinds.
-
-  TODO: Convert the QUICK_SELECT framework to RowIterator, so that
-  we do not need this adapter.
- */
-class IndexRangeScanIterator final : public TableRowIterator {
- public:
-  // Does _not_ take ownership of "quick" (but maybe it should).
-  //
-  // “expected_rows” is used for scaling the record buffer.
-  // If zero or less, no record buffer will be set up.
-  //
-  // The pushed condition can be nullptr.
-  //
-  // "examined_rows", if not nullptr, is incremented for each successful Read().
-  IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
-                         bool is_loose_index_scan, bool is_ror,
-                         double expected_rows, ha_rows *examined_rows);
-  ~IndexRangeScanIterator() override;
-
-  bool Init() override;
-  int Read() override;
-
- private:
-  QUICK_SELECT_I *const m_quick;
-  const bool m_is_loose_index_scan;
-  const bool m_is_ror;
-  const double m_expected_rows;
-  ha_rows *const m_examined_rows;
-
-  // After m_quick has returned EOF, some of its members are destroyed, making
-  // subsequent requests for new rows undefined. We flag EOF so that the
-  // iterator does not request a new row.
-  bool m_seen_eof{false};
-};
-
 // Readers relating to reading sorted data (from filesort).
 //
 // Filesort will produce references to the records sorted; these

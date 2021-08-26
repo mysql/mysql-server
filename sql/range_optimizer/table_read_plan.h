@@ -75,17 +75,22 @@ class TABLE_READ_PLAN {
      make_quick()
        retrieve_full_rows  If true, created quick select will do full record
                            retrieval.
+       expected_rows       Number of rows we expect this iterator to return.
        return_mem_root     Memory pool to use.
+       examined_rows       If not nullptr, should be incremented whenever
+                           a row is fetched from the storage engine.
 
     NOTES
       retrieve_full_rows is ignored by some implementations.
 
     RETURN
       created quick select
-      NULL on any error.
+      nullptr on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(bool retrieve_full_rows,
-                                     MEM_ROOT *return_mem_root) = 0;
+  virtual QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
+                                     bool retrieve_full_rows,
+                                     MEM_ROOT *return_mem_root,
+                                     ha_rows *examined_rows) = 0;
 
   TABLE_READ_PLAN(TABLE *table_arg, int index_arg, uint used_key_parts_arg,
                   bool forced_by_hint_arg)

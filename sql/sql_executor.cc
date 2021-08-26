@@ -4010,7 +4010,8 @@ bool DynamicRangeIterator::Init() {
   if (trp == nullptr) {
     m_qep_tab->set_type(JT_ALL);
   } else {
-    qck = trp->make_quick(true, &m_mem_root);
+    qck = trp->make_quick(thd(), m_qep_tab->position()->rows_fetched, true,
+                          &m_mem_root, m_examined_rows);
     if (qck == nullptr || thd()->is_error()) {
       return true;
     }
@@ -4031,13 +4032,7 @@ bool DynamicRangeIterator::Init() {
   // two different read sets, to be used once the access strategy is chosen
   // here.
   if (qck) {
-    const int type = trp->get_type();
-    bool is_loose_index_scan =
-        (type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX);
-    bool is_ror = (type == QS_TYPE_ROR_INTERSECT || type == QS_TYPE_ROR_UNION);
-    m_iterator = NewIterator<IndexRangeScanIterator>(
-        thd(), table(), qck, is_loose_index_scan, is_ror,
-        m_qep_tab->position()->rows_fetched, m_examined_rows);
+    m_iterator.reset(qck);
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.
