@@ -76,14 +76,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
   file = m_table->file;
 }
 
-int QUICK_RANGE_SELECT::init() {
-  if (need_rows_in_rowid_order) {
-    return init_ror_merged_scan();
-  } else {
-    return shared_init();
-  }
-}
-
 int QUICK_RANGE_SELECT::shared_init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
@@ -194,6 +186,19 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 }
 
 int QUICK_RANGE_SELECT::reset() {
+  if (!inited) {
+    int err = need_rows_in_rowid_order ? init_ror_merged_scan() : shared_init();
+    if (err != 0) {
+      return err;
+    }
+    inited = true;
+  } else {
+    if (file->inited) file->ha_index_or_rnd_end();
+  }
+  return shared_reset();
+}
+
+int QUICK_RANGE_SELECT::shared_reset() {
   uint buf_size;
   uchar *mrange_buff = nullptr;
   int error;
@@ -232,6 +237,7 @@ int QUICK_RANGE_SELECT::reset() {
       return error;
     }
     if (in_ror_merged_scan) {
+      file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
       /* Restore bitmaps set on entry */
       m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }

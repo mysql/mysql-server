@@ -59,17 +59,6 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
   m_table = table;
 }
 
-int QUICK_INDEX_MERGE_SELECT::init() {
-  DBUG_TRACE;
-  return 0;
-}
-
-int QUICK_INDEX_MERGE_SELECT::reset() {
-  DBUG_TRACE;
-  const int retval = read_keys_and_merge();
-  return retval;
-}
-
 bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
     QUICK_RANGE_SELECT *quick_sel_range) {
   /*
@@ -108,6 +97,8 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
 }
 
 /*
+  Initialize the iterator for a new scan.
+
   Perform key scans for all used indexes (except CPK), get rowids and merge
   them into an ordered non-recurrent sequence of rowids.
 
@@ -124,7 +115,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
     other error
 */
 
-int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
+int QUICK_INDEX_MERGE_SELECT::reset() {
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT *cur_quick;
   int result;
@@ -143,11 +134,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     return 1;
   });
-  /*
-    We reuse the same instance of handler so we need to call both init and
-    reset here.
-  */
-  if (cur_quick->init() || cur_quick->reset()) return 1;
+  if (cur_quick->reset()) return 1;
 
   size_t sort_buffer_size = current_thd->variables.sortbuff_size;
 #ifndef NDEBUG
@@ -183,7 +170,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
       if (!cur_quick) break;
 
       if (cur_quick->file->inited) cur_quick->file->ha_index_or_rnd_end();
-      if (cur_quick->init() || cur_quick->reset()) return 1;
+      if (cur_quick->reset()) return 1;
     }
 
     if (result) {
@@ -246,9 +233,10 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select) {
       doing_pk_scan = true;
-      if ((result = pk_quick_select->init()) ||
-          (result = pk_quick_select->reset()))
+      result = pk_quick_select->reset();
+      if (result != 0) {
         return result;
+      }
       return pk_quick_select->get_next();
     }
   }

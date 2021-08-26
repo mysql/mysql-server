@@ -66,7 +66,6 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
                              MEM_ROOT *return_mem_root);
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
-  int init() override;
   int reset(void) override;
   int get_next() override;
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
@@ -90,6 +89,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 
  private:
   const bool need_rows_in_rowid_order;
+  bool inited = false;
 
   int init_ror_merged_scan();
 };
@@ -124,7 +124,6 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, TABLE *table);
   ~QUICK_ROR_UNION_SELECT() override;
 
-  int init() override;
   int reset(void) override;
   int get_next() override;
 
@@ -146,6 +145,7 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
 
  private:
   bool scans_inited;
+  bool inited = false;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_ROWID_ORDERED_RETRIEVAL_H_

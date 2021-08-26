@@ -112,39 +112,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 }
 
-/*
-  Do post-constructor initialization.
-
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::init()
-
-  DESCRIPTION
-    The method performs initialization that cannot be done in the constructor
-    such as memory allocations that may fail. It allocates memory for the
-    group prefix buffer, and for the lists of MIN/MAX item to be
-    updated during execution.
-
-  RETURN
-    0      OK
-    other  Error code
-*/
-
-int QUICK_GROUP_MIN_MAX_SELECT::init() {
-  if (group_prefix) /* Already initialized. */
-    return 0;
-
-  if (!(last_prefix = (uchar *)mem_root->Alloc(group_prefix_len))) return 1;
-  /*
-    We may use group_prefix to store keys with all select fields, so allocate
-    enough space for it.
-  */
-  if (!(group_prefix =
-            (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
-    return 1;
-
-  return 0;
-}
-
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
   DBUG_TRACE;
   if (m_table->file->inited)
@@ -173,7 +140,19 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     other  Error code
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
+int QUICK_GROUP_MIN_MAX_SELECT::reset() {
+  if (group_prefix == nullptr) {
+    // First-time initialization.
+    if (!(last_prefix = (uchar *)mem_root->Alloc(group_prefix_len))) return 1;
+    /*
+      We may use group_prefix to store keys with all select fields, so allocate
+      enough space for it.
+    */
+    if (!(group_prefix =
+              (uchar *)mem_root->Alloc(real_prefix_len + min_max_arg_len)))
+      return 1;
+  }
+
   int result;
   DBUG_TRACE;
 

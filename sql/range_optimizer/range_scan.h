@@ -100,11 +100,13 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
  private:
   MEM_ROOT *mem_root;
+  bool inited = false;
 
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
   int shared_init();
+  int shared_reset();
   int init_ror_merged_scan();
 
  public:
@@ -120,7 +122,6 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   /* Default move ctor used by QUICK_SELECT_DESC */
   QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
 
-  int init() override;
   int reset(void) override;
   int get_next() override;
   int get_next_prefix(uint prefix_length, uint group_key_parts,

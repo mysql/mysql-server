@@ -119,40 +119,6 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
   distinct_prefix_key_parts = used_key_parts - 1;
 }
 
-/**
-  Do post-constructor initialization.
-
-  SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::init()
-
-  DESCRIPTION
-    The method performs initialization that cannot be done in the constructor
-    such as memory allocations that may fail. It allocates memory for the
-    equality prefix and distinct prefix buffers. It also extracts all equality
-    prefixes from index_range_tree, as well as allocates memory to store them.
-
-  RETURN
-    0      OK
-    other  Error code
-*/
-
-int QUICK_SKIP_SCAN_SELECT::init() {
-  if (distinct_prefix) return 0;
-
-  assert(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
-  if (!(distinct_prefix = (uchar *)mem_root->Alloc(distinct_prefix_len)))
-    return 1;
-
-  if (eq_prefix_len > 0) {
-    eq_prefix = (uchar *)mem_root->Alloc(eq_prefix_len);
-    if (!eq_prefix) return 1;
-  } else {
-    eq_prefix = nullptr;
-  }
-
-  return 0;
-}
-
 QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
   DBUG_TRACE;
   if (m_table->file->inited) m_table->file->ha_index_or_rnd_end();
@@ -175,6 +141,19 @@ QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
 
 int QUICK_SKIP_SCAN_SELECT::reset(void) {
   DBUG_TRACE;
+
+  if (distinct_prefix == nullptr) {
+    assert(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
+    if (!(distinct_prefix = (uchar *)mem_root->Alloc(distinct_prefix_len)))
+      return 1;
+
+    if (eq_prefix_len > 0) {
+      eq_prefix = (uchar *)mem_root->Alloc(eq_prefix_len);
+      if (!eq_prefix) return 1;
+    } else {
+      eq_prefix = nullptr;
+    }
+  }
 
   int result;
   seen_first_key = false;

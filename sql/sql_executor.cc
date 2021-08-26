@@ -4014,9 +4014,6 @@ bool DynamicRangeIterator::Init() {
     if (qck == nullptr || thd()->is_error()) {
       return true;
     }
-    if (qck->init()) {
-      return true;
-    }
     m_qep_tab->set_type(calc_join_type(trp->get_type()));
   }
 

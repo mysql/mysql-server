@@ -184,14 +184,7 @@ enum RangeScanType {
   1. Create quick select
     quick = new (mem_root) QUICK_XXX_SELECT(...);
 
-  2. Perform lightweight initialization.
-    if (quick->init())
-    {
-      //the only valid action after failed init() call is destroy
-      destroy(quick);
-    }
-
-  3. Perform zero, one, or more scans.
+  2. Perform zero, one, or more scans.
     while (...)
     {
       // initialize quick select for scan. This may allocate
@@ -210,7 +203,7 @@ enum RangeScanType {
       } while (res && ...)
     }
 
-  4. Destroy the select:
+  3. Destroy the select:
     destroy(quick);
 */
 
@@ -220,25 +213,6 @@ class QUICK_SELECT_I {
 
   QUICK_SELECT_I() = default;
   virtual ~QUICK_SELECT_I() = default;
-
-  /*
-    Do post-constructor initialization.
-    SYNOPSIS
-      init()
-
-    init() performs initializations that should have been in constructor if
-    it was possible to return errors from constructors. The join optimizer may
-    create and then destroy quick selects without retrieving any rows so init()
-    must not contain any IO or CPU intensive code.
-
-    If init() call fails the only valid action is to destroy this quick select,
-    reset() and get_next() must not be called.
-
-    RETURN
-      0      OK
-      other  Error code
-  */
-  virtual int init() = 0;
 
   /*
     Initialize quick select for row retrieval.

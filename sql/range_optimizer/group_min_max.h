@@ -141,7 +141,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
       QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
       Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
-  int init() override;
   int reset() override;
   int get_next() override;
   bool is_agg_distinct() const { return have_agg_distinct; }

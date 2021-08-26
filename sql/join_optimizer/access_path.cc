@@ -306,7 +306,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::INDEX_RANGE_SCAN: {
       const auto &param = path->index_range_scan();
       QUICK_SELECT_I *quick = param.trp->make_quick(true, thd->mem_root);
-      if (quick == nullptr || quick->init()) {
+      if (quick == nullptr) {
         return nullptr;
       }
       const int type = param.trp->get_type();

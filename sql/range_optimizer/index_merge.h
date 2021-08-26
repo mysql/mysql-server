@@ -102,7 +102,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, TABLE *table);
   ~QUICK_INDEX_MERGE_SELECT() override;
 
-  int init() override;
   int reset(void) override;
   int get_next() override;
 
@@ -116,8 +115,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
   /* true if this select is currently doing a clustered PK scan */
   bool doing_pk_scan;
-
-  int read_keys_and_merge();
 
   /* used to get rows collected in Unique */
   unique_ptr_destroy_only<RowIterator> read_record;

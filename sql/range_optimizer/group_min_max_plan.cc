@@ -1730,21 +1730,12 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(bool, MEM_ROOT *return_mem_root) {
 
   // TODO(sgunders): Consider using Bounds_checked_array instead of std::move
   // here, so that make_quick() can be made const.
-  unique_ptr_destroy_only<QUICK_GROUP_MIN_MAX_SELECT> quick(
-      new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-          table, join, have_min, have_max, min_functions, max_functions,
-          have_agg_distinct, min_max_arg_part, group_prefix_len,
-          group_key_parts, real_key_parts, max_used_key_length, index_info,
-          index, key_infix_len, return_mem_root, is_index_scan,
-          quick_prefix_query_block, std::move(key_infix_ranges),
-          std::move(min_max_ranges)));
-  if (!quick) return nullptr;
-
-  if (quick->init()) {
-    return nullptr;
-  }
-
-  return quick.release();
+  return new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
+      table, join, have_min, have_max, min_functions, max_functions,
+      have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
+      real_key_parts, max_used_key_length, index_info, index, key_infix_len,
+      return_mem_root, is_index_scan, quick_prefix_query_block,
+      std::move(key_infix_ranges), std::move(min_max_ranges));
 }
 
 void TRP_GROUP_MIN_MAX::add_info_string(String *str) const {
