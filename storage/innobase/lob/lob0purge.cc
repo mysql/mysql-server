@@ -386,12 +386,14 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
+    ut_ad(!lob_mtr.conflicts_with(mtr));
     mtr_commit(&lob_mtr);
     mtr_start(&lob_mtr);
     lob_mtr.set_log_mode(mtr->get_log_mode());
     first.load_x(first_page_no);
   }
 
+  ut_ad(!lob_mtr.conflicts_with(mtr));
   mtr_commit(&lob_mtr);
 
   if (ctx->get_page_zip() != nullptr) {

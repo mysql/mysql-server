@@ -2154,7 +2154,8 @@ static void fsp_free_seg_inode(space_id_t space, const page_size_t &page_size,
 @param[in,out]	mtr		Mini-transaction
 @param[out]	block		Inode block, or NULL to ignore
 @return segment inode, page x-latched; NULL if the inode is free */
-static fseg_inode_t *fseg_inode_try_get(fseg_header_t *header, space_id_t space,
+static fseg_inode_t *fseg_inode_try_get(const fseg_header_t *header,
+                                        space_id_t space,
                                         const page_size_t &page_size,
                                         mtr_t *mtr, buf_block_t **block) {
   fil_addr_t inode_addr;
@@ -2175,16 +2176,9 @@ static fseg_inode_t *fseg_inode_try_get(fseg_header_t *header, space_id_t space,
   return (inode);
 }
 
-/** Returns the file segment inode, page x-latched.
-@param[in]	header		Segment header
-@param[in]	space		Space id
-@param[in]	page_size	Page size
-@param[in,out]	mtr		Mini-transaction
-@param[out]	block		Inode block
-@return segment inode, page x-latched */
-static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
-                                    const page_size_t &page_size, mtr_t *mtr,
-                                    buf_block_t **block = nullptr) {
+fseg_inode_t *fseg_inode_get(const fseg_header_t *header, space_id_t space,
+                             const page_size_t &page_size, mtr_t *mtr,
+                             buf_block_t **block) {
   fseg_inode_t *inode =
       fseg_inode_try_get(header, space, page_size, mtr, block);
   ut_a(inode);

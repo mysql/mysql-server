@@ -158,12 +158,25 @@ struct fil_space_t;
 
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {
-  /** pointer to the object */
+  /** Pointer to the object - either buf_block_t or rw_lock_t */
   void *object;
 
   /** type of the stored object (MTR_MEMO_S_LOCK, ...) */
   ulint type;
+
+  /** Check if the object stored in this slot is a lock (rw_lock_t).
+  @return true if it is a lock object, false otherwise. */
+  bool is_lock() const {
+    return type == MTR_MEMO_S_LOCK || type == MTR_MEMO_X_LOCK ||
+           type == MTR_MEMO_SX_LOCK;
+  }
+
+  std::ostream &print(std::ostream &out) const;
 };
+
+inline std::ostream &operator<<(std::ostream &out, const mtr_memo_slot_t &obj) {
+  return obj.print(out);
+}
 
 /** Mini-transaction handle and buffer */
 struct mtr_t {
@@ -518,6 +531,12 @@ struct mtr_t {
     m_impl.m_flush_observer = observer;
   }
 
+  /** Print the memo objects (mtr_memo_slot_t) of mtr_t to the given output
+  stream.
+  @param[in]   out   the output stream for printing
+  @return the output stream.  */
+  std::ostream &print_memos(std::ostream &out) const;
+
 #ifdef UNIV_DEBUG
   /** Check if memo contains the given item.
   @param memo	memo stack
@@ -644,6 +663,17 @@ struct mtr_t {
   /** Instance level logging information for all mtrs. */
   static Logging s_logging;
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+ public:
+  std::list<std::string> m_trace;
+
+  std::ostream &print_trace(std::ostream &out) const {
+    std::copy(m_trace.begin(), m_trace.end(),
+              std::ostream_iterator<std::string>(out, "\n"));
+    return out;
+  }
+#endif /* UNIV_DEBUG */
 
  private:
   Impl m_impl;

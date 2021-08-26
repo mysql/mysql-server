@@ -182,6 +182,7 @@ header slots are reserved */
   4 /* this many free extents are added \
     to the free list from above         \
     FSP_FREE_LIMIT at a time */
+
 /** @} */
 
 /* Maximum allowed value of AUTOEXTEND_SIZE attribue */
@@ -1008,11 +1009,12 @@ class File_segment_inode {
   mtr_t *m_mtr;
 
 #ifdef UNIV_DEBUG
- private:
+ public:
   /** Verify the stored FSEG_NOT_FULL_N_USED value.
   @return true if correct value, false if incorrect. */
   bool verify_not_full_n_used();
 
+ private:
   /** Calculate the value of FSEG_NOT_FULL_N_USED by traversing
   the FSEG_NOT_FULL list.
   @return the calculated value of FSEG_NOT_FULL_N_USED. */
@@ -1039,4 +1041,14 @@ inline std::ostream &operator<<(std::ostream &out,
   return (obj.print(out));
 }
 
+/** Returns the file segment inode, page x-latched.
+@param[in]	header		Segment header
+@param[in]	space		Space id
+@param[in]	page_size	Page size
+@param[in,out]	mtr		Mini-transaction
+@param[out]	block		Inode block
+@return segment inode, page x-latched */
+fseg_inode_t *fseg_inode_get(const fseg_header_t *header, space_id_t space,
+                             const page_size_t &page_size, mtr_t *mtr,
+                             buf_block_t **block = nullptr);
 #endif

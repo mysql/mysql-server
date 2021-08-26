@@ -440,23 +440,23 @@ static buf_block_t *btr_page_alloc_for_ibuf(
                                        reserved_ext > 0, mtr, init_mtr));
 }
 
-/** Allocates a new file page to be used in an index tree. NOTE: we assume
-that the caller has made the reservation for free extents!
-@param[in] index Index tree
-@param[in] hint_page_no Hint of a good page
-@param[in] file_direction Direction where a possible page split is made
-@param[in] level Level where the page is placed in the tree
-@param[in,out] mtr Mini-transaction for the allocation
-@param[in,out] init_mtr Mini-transaction for x-latching and initializing the
-page
-@retval NULL if no page could be allocated
-@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
-(init_mtr == mtr, or the page was not previously freed in mtr),
-returned block is not allocated nor initialized otherwise */
-buf_block_t *btr_page_alloc(dict_index_t *index, page_no_t hint_page_no,
-                            byte file_direction, ulint level, mtr_t *mtr,
-                            mtr_t *init_mtr) {
+buf_block_t *btr_page_alloc_priv(dict_index_t *index, page_no_t hint_page_no,
+                                 byte file_direction, ulint level, mtr_t *mtr,
+                                 mtr_t *init_mtr
+#ifdef UNIV_DEBUG
+                                 ,
+                                 const ut::Location &loc
+#endif /* UNIV_DEBUG */
+) {
   buf_block_t *new_block;
+
+#ifdef UNIV_DEBUG
+  {
+    std::ostringstream out;
+    out << "[Allocating Page: mtr=" << (void *)mtr << ", " << loc;
+    mtr->m_trace.push_back(out.str());
+  }
+#endif /* UNIV_DEBUG */
 
   if (dict_index_is_ibuf(index)) {
     return (btr_page_alloc_for_ibuf(index, mtr));
@@ -536,16 +536,24 @@ static void btr_page_free_for_ibuf(
   ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST, mtr));
 }
 
-/** Frees a file page used in an index tree. Can be used also to (BLOB)
- external storage pages. */
-void btr_page_free_low(
-    dict_index_t *index, /*!< in: index tree */
-    buf_block_t *block,  /*!< in: block to be freed, x-latched */
-    ulint level,         /*!< in: page level (ULINT_UNDEFINED=BLOB) */
-    mtr_t *mtr)          /*!< in: mtr */
-{
+void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
+                         mtr_t *mtr
+#ifdef UNIV_DEBUG
+                         ,
+                         const ut::Location &loc
+#endif /* UNIV_DEBUG */
+) {
   fseg_header_t *seg_header;
   page_t *root;
+
+#ifdef UNIV_DEBUG
+  {
+    std::ostringstream out;
+    out << "[Freeing Page: mtr=" << (void *)mtr
+        << ": page_id=" << block->get_page_id() << ", " << loc << "]";
+    mtr->m_trace.push_back(out.str());
+  }
+#endif /* UNIV_DEBUG */
 
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
   /* The page gets invalid for optimistic searches: increment the frame
@@ -4572,6 +4580,36 @@ bool btr_validate_index(
   }
 
   mtr_t mtr;
+
+#ifdef UNIV_DEBUG
+  /* Check the FSEG_NOT_FULL_N_USED field stored in the segment inode. */
+  {
+    const space_id_t space_id = dict_index_get_space(index);
+
+    fil_space_t *space = fil_space_acquire(space_id);
+
+    if (space == nullptr) {
+      return true;
+    }
+
+    mtr_start(&mtr);
+    const page_t *const root = btr_root_get(index, &mtr);
+    mtr_x_lock(&space->latch, &mtr);
+    const page_size_t page_size = dict_table_page_size(index->table);
+
+    for (auto offset : {PAGE_BTR_SEG_LEAF, PAGE_BTR_SEG_TOP}) {
+      const fseg_header_t *const seg_header = root + PAGE_HEADER + offset;
+      fseg_inode_t *inode =
+          fseg_inode_get(seg_header, space_id, page_size, &mtr);
+      File_segment_inode fsi(space_id, page_size, inode, &mtr);
+      ut_ad(fsi.verify_not_full_n_used());
+    }
+
+    mtr_commit(&mtr);
+
+    fil_space_release(space);
+  }
+#endif /* UNIV_DEBUG */
 
   mtr_start(&mtr);
 
