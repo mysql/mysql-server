@@ -4933,3 +4933,17 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES child, parent;
+#
+# Bug#33114045 - TRANSFER_PREEXISTING_FOREIGN_KEYS: ASSERTION `!FIND->IS_VIRTUAL_GCOL()'
+#                FAILED.
+# Assertion to make sure foreign key is referencing non-virtual column failed.
+#
+CREATE TABLE t (a INT KEY, b INT NOT NULL UNIQUE KEY,
+CONSTRAINT FOREIGN KEY (a) REFERENCES t(b));
+# Without fix, assertion fails for the following ALTER TABLE statements in
+# the debug build. Statements executes successfully in the non-debug build.
+ALTER TABLE t ADD COLUMN a INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'a'
+ALTER TABLE t ADD COLUMN b INT GENERATED ALWAYS AS (1) FIRST;
+ERROR 42S21: Duplicate column name 'b'
+DROP TABLE t;
