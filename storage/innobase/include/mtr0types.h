@@ -299,7 +299,7 @@ inline const char *mtr_memo_type(const ulint type) {
       ut_ad(0);
   }
   return "MTR_MEMO_UNKNOWN";
-};
+}
 
 #ifdef UNIV_DEBUG
 #define MTR_MAGIC_N 54551
