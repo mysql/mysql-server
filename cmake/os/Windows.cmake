@@ -180,6 +180,25 @@ IF(MSVC)
     STRING_APPEND(CMAKE_CXX_FLAGS " /MP")
   ENDIF()
 
+  IF(WIN32_CLANG)
+    # Adding -Wno-deprecated-declarations does not silence warnings,
+    # so add misc. macros instead.
+
+    # warning STL4015 The std::iterator class
+    # (used as a base class to provide typedefs) is deprecated in C++17
+    STRING_APPEND(CMAKE_CXX_FLAGS
+      " -D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
+
+    # 'strcpy' is deprecated. This function or variable may be unsafe.
+    STRING_APPEND(CMAKE_C_FLAGS   " -D_CRT_SECURE_NO_WARNINGS")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -D_CRT_SECURE_NO_WARNINGS")
+
+    # 'getpid' is deprecated. The POSIX name for this item is deprecated.
+    # Instead use the ISO C and C++ conformant name _getpid.
+    STRING_APPEND(CMAKE_C_FLAGS   " -D_CRT_NONSTDC_NO_DEPRECATE")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -D_CRT_NONSTDC_NO_DEPRECATE")
+  ENDIF()
+
   #TODO: update the code and remove the disabled warnings
 
   # The compiler encountered a deprecated declaration.
