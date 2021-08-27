@@ -49,6 +49,9 @@ protected:
 
   void execINCL_NODEREQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
+
+ private:
+   Ndbinfo::Counts counts;
 };
 
 

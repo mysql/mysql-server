@@ -380,7 +380,7 @@ public:
      const DictTabInfo::TableType type;
      const char* name;
     };
-    static const int OBJ_TYPES_TABLE_SIZE = 20;
+    static const Uint32 OBJ_TYPES_TABLE_SIZE = 20;
 
 public:
   DictObjTypesTable() { }

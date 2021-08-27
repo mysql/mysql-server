@@ -88,11 +88,30 @@ public:
     CONFIG_NODES_TABLEID =       39
   };
 
+  struct Counts {
+    int data_nodes;
+    int all_nodes;
+    int log_parts;
+    int est_tables;
+    int cpus;
+    struct {
+       int db;    // all threads, from getThreadCount()
+       int send;  // send threads, from GlobalData.ndbMtSendThreads
+       int ldm;   // LDM threads, from getThreadCount(THRConfig::T_LDM)
+    } threads;
+    struct {
+      int tc;    // ndbMtTcWorkers
+      int lqh;   // ndbMtLqhWorkers
+      int pgman; // ndbMtLqhWorkers + 1
+    } instances;
+  };
+
   struct Table {
     struct Members {
       const char* name;
       int ncols;
       int flags;
+      Uint32 (*estimate_rows)(const struct Counts &);
       const char* comment;
     } m;
     Column col[1];

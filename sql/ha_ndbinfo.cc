@@ -674,7 +674,7 @@ int ha_ndbinfo::info(uint flag)
 {
   DBUG_ENTER("ha_ndbinfo::info");
   DBUG_PRINT("enter", ("flag: %d", flag));
-  if (m_impl.m_table != nullptr) {
+  if (m_impl.m_table != NULL) {
     stats.table_in_mem_estimate = m_impl.m_table->getVirtualTable() ? 1.0 : 0.0;
     if (flag & HA_STATUS_VARIABLE)
       stats.records = m_impl.m_table->getRowsEstimate();
@@ -743,7 +743,7 @@ ulonglong ha_ndbinfo::table_flags() const {
   ulonglong flags =
     HA_REC_NOT_IN_SEQ| HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
   // m_table could be null; sometimes table_flags() is called prior to open()
-  if (m_impl.m_table != nullptr && m_impl.m_table->rowCountIsExact())
+  if (m_impl.m_table != NULL && m_impl.m_table->rowCountIsExact())
     flags |= HA_STATS_RECORDS_IS_EXACT;
 
   return flags;

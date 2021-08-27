@@ -39,10 +39,11 @@ Table	Create Table
 ndb$tables	CREATE TABLE `ndb$tables` (
   `table_id` int(10) unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
-  `comment` varchar(512) DEFAULT NULL
+  `comment` varchar(512) DEFAULT NULL,
+  `rows_estimate` int(10) unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 table_id	table_name	comment
 0	tables	metadata for tables available through ndbinfo
 1	columns	metadata for columns available through ndbinfo 
@@ -88,9 +89,9 @@ SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
 40
 SELECT * FROM ndb$tables WHERE table_id = 2;
-table_id	table_name	comment
-2	test	for testing
-SELECT * FROM ndb$tables WHERE table_id > 5;
+table_id	table_name	comment	rows_estimate
+2	test	for testing	8000
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 table_id	table_name	comment
 6	logbuffers	logbuffer usage
 7	resources	resources usage (a.k.a superpool)
@@ -127,7 +128,7 @@ table_id	table_name	comment
 38	processes	Process ID and Name information for connected nodes
 39	config_nodes	All nodes of current cluster configuration
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
-table_id	table_name	comment
+table_id	table_name	comment	rows_estimate
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
   WHERE t.table_id = c.table_id AND
     t.table_id in (1,2,3,4,5,6);
@@ -191,10 +192,10 @@ table_id	column_id	column_name
 0	0	table_id
 0	1	table_name
 0	2	comment
+0	3	rows_estimate
 1	0	table_id
 1	1	column_id
 1	2	column_name
-1	3	column_type
 
 UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
 ERROR HY000: Table 'ndb$tables' is read only

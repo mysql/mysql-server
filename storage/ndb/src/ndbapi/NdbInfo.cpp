@@ -74,7 +74,8 @@ bool NdbInfo::load_hardcoded_tables(void)
     Table tabs("tables", 0);
     if (!tabs.addColumn(Column("table_id", 0, Column::Number)) ||
         !tabs.addColumn(Column("table_name", 1, Column::String)) ||
-        !tabs.addColumn(Column("comment", 2, Column::String)))
+        !tabs.addColumn(Column("comment", 2, Column::String)) ||
+        !tabs.addColumn(Column("rows_estimate", 3, Column::Number)))
       return false;
 
     BaseString hash_key = mysql_table_name(tabs.getName());
@@ -139,7 +140,8 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
     const NdbInfoRecAttr *tableIdRes = scanOp->getValue("table_id");
     const NdbInfoRecAttr *tableNameRes = scanOp->getValue("table_name");
-    if (!tableIdRes || !tableNameRes)
+    const NdbInfoRecAttr *estRowsRes = scanOp->getValue("rows_estimate");
+    if (!tableIdRes || !tableNameRes || !estRowsRes)
     {
       releaseScanOperation(scanOp);
       DBUG_RETURN(false);
@@ -152,13 +154,15 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
 
     int err;
+    m_tables_table->m_rows_estimate = 0;
     while ((err = scanOp->nextResult()) == 1)
     {
       m_tables_table->m_rows_estimate++;
       Uint32 tableId = tableIdRes->u_32_value();
       const char * tableName = tableNameRes->c_str();
-      DBUG_PRINT("info", ("table: '%s', id: %u",
-                 tableName, tableId));
+      Uint32 est_rows = 0;
+      if (! estRowsRes->isNULL()) est_rows = estRowsRes->u_32_value();
+      DBUG_PRINT("info", ("table: '%s', id: %u", tableName, tableId));
       switch (tableId) {
       case 0:
         assert(strcmp(tableName, "tables") == 0);
@@ -170,7 +174,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
       default:
         BaseString hash_key = mysql_table_name(tableName);
         if (!m_tables.insert(hash_key.c_str(),
-                             Table(tableName, tableId)))
+                             Table(tableName, tableId, est_rows, NULL)))
         {
           DBUG_PRINT("error", ("Failed to insert Table('%s', %u)",
                      tableName, tableId));
@@ -213,6 +217,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
 
     int err;
+    m_columns_table->m_rows_estimate = 0;
     while ((err = scanOp->nextResult()) == 1)
     {
       m_columns_table->m_rows_estimate++;

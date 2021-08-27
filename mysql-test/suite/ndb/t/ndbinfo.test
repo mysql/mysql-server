@@ -37,10 +37,10 @@ SELECT node_id, block_number, block_instance, pool_name,
 
 SHOW CREATE TABLE ndb$tables;
 
-SELECT * FROM ndb$tables;
+SELECT table_id, table_name, comment FROM ndb$tables;
 SELECT COUNT(*) FROM ndb$tables;
 SELECT * FROM ndb$tables WHERE table_id = 2;
-SELECT * FROM ndb$tables WHERE table_id > 5;
+SELECT table_id, table_name, comment FROM ndb$tables WHERE table_id > 5;
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 # Show a simple join is working
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
