@@ -4692,6 +4692,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
 
     ndbrequire( checkTriggerBufferLock(trigId) );
 
+    ndbrequire(b_trigBufferSize + dataLen <= SUMA_BUF_SZ);
     memcpy(b_buffer + b_trigBufferSize, trg->getData(), 4 * dataLen);
     b_trigBufferSize += dataLen;
 
@@ -4711,6 +4712,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
       ndbrequire( checkTriggerBufferLock(trigId) );
     }
 
+    ndbrequire(f_trigBufferSize + dataLen <= SUMA_BUF_SZ);
     memcpy(f_buffer + f_trigBufferSize, trg->getData(), 4 * dataLen);
     f_trigBufferSize += dataLen;
   }
