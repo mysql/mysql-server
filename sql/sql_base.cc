@@ -5315,8 +5315,24 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
     After we have identified the tablespace names, we iterate
     over the names and acquire IX locks on each of them.
   */
-  if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout))
-    return true;
+
+  if (thd->lex->sql_command == SQLCOM_DROP_DB) {
+    /*
+      In case of DROP DATABASE we might have to lock many thousands of
+      tablespaces in extreme cases. Ensure that we don't hold memory used
+      by corresponding MDL_requests after locks have been acquired to
+      reduce memory usage by DROP DATABASE in such cases.
+    */
+    MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
+
+    if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout,
+                              &mdl_reqs_root))
+      return true;
+  } else {
+    if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout,
+                              thd->mem_root))
+      return true;
+  }
 
   return false;
 }

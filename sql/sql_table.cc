@@ -10610,7 +10610,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
     over the names and acquire MDL lock for each of them.
   */
   if (lock_tablespace_names(thd, &tablespace_set,
-                            thd->variables.lock_wait_timeout)) {
+                            thd->variables.lock_wait_timeout, thd->mem_root)) {
     return true;
   }
 

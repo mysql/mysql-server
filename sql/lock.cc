@@ -781,12 +781,14 @@ bool lock_schema_name(THD *thd, const char *db) {
   @param thd               - Thread invoking this function.
   @param tablespace_set    - Set of tablespace names to be lock.
   @param lock_wait_timeout - Lock timeout.
+  @param mem_root          - Memory root on which MDL_request objects
+                             can be allocated.
 
   @return true - On failure
   @return false - On Success.
 */
 bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
-                           ulong lock_wait_timeout) {
+                           ulong lock_wait_timeout, MEM_ROOT *mem_root) {
   // Stop if we have nothing to lock
   if (tablespace_set->empty()) return false;
 
@@ -795,7 +797,7 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
   for (const std::string &tablespace : *tablespace_set) {
     assert(!tablespace.empty());
 
-    MDL_request *tablespace_request = new (thd->mem_root) MDL_request;
+    MDL_request *tablespace_request = new (mem_root) MDL_request;
     if (tablespace_request == nullptr) return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE, "",
                      tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,
