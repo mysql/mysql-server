@@ -1,5 +1,5 @@
 # Copyright (c) 2006, 2021, Oracle and/or its affiliates.
-#
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -262,7 +262,7 @@ IF(HAVE_DNS_SRV EQUAL 0)
   MESSAGE(FATAL_ERROR "Can't find neither Win32 nor Unix DNS SRV APIs")
 ENDIF()
 #
-# On Windows platform client library includes the client-side
+# On Windows platform client library includes the client-side 
 # Windows Native Authentication plugin.
 #
 IF(WIN32)
@@ -279,9 +279,6 @@ ADD_SUBDIRECTORY(authentication_fido)
 
 # authentication kerberos client plug-in
 ADD_SUBDIRECTORY(authentication_kerberos)
-
-# authentication IAM client plug-in
-ADD_SUBDIRECTORY(authentication_oci_client)
 
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}
@@ -309,14 +306,14 @@ ENDIF()
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
     SET(DOT_VERSION ".${VERSION}")
-    IF(DOT_VERSION STREQUAL ".")
+    IF(DOT_VERSION STREQUAL ".") 
       SET(DOT_VERSION "")
     ENDIF()
     IF(APPLE)
       SET(${OUTNAME} ${LIBNAME}${DOT_VERSION}${EXTENSION})
     ELSE()
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
-    ENDIF()
+    ENDIF() 
   ENDMACRO()
 ENDIF()
 
@@ -365,7 +362,7 @@ IF(UNIX)
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
     MY_TARGET_LINK_OPTIONS(libmysql
       "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-  ENDIF()
+  ENDIF() 
 
   # clean direct output needs to be set several targets have the same name
   #(mysqlclient in this case)

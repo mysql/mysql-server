@@ -11500,33 +11500,6 @@ ER_WARN_L_DISABLE_GTID_ONLY_WITH_SOURCE_AUTO_POS_INVALID_POS
 ER_RPL_CANNOT_OPEN_RELAY_LOG
   eng "Could not open relay log: %s"
 
-ER_AUTHENTICATION_OCI_PLUGIN_NOT_INITIALIZED
-  eng "Authentication plugin not initialized."
-
-ER_AUTHENTICATION_OCI_PRIVATE_KEY_ERROR
-  eng "Cannot use the generated private key file."
-
-ER_AUTHENTICATION_OCI_DOWNLOAD_PUBLIC_KEY
-  eng "Unavailable public key with fingerprint %s for user %s in tenancy %s ."
-
-ER_AUTHENTICATION_OCI_IMDS
-  eng "Cannot obtain the OCI configuration from the IMDS service."
-
-ER_AUTHENTICATION_OCI_IAM
-  eng "Cannot initialize the IAM service."
-
-ER_AUTHENTICATION_OCI_INVALID_AUTHENTICATION_STRING
-  eng "Invalid authentication string details for user: `%s`@`%s`."
-
-ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS
-  eng "None of the groups returned by IAM matches any of the entries from authentication string."
-
-ER_AUTHENTICATION_OCI_NO_GROUPS_FOUND
-  eng "User is not part of any groups. However, account is configured to use group mapping."
-
-ER_AUTHENTICATION_OCI_NONCE
-  eng "Public/private key mismatch (fingerprint %s) while authenticating user %s in tenancy %s ."
-
 ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_1
   eng "%s: Warning Level 1 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
 
