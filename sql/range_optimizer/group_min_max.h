@@ -143,7 +143,11 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
       Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool Init() override;
-  int get_next() override;
+  int Read() override;
+  int get_next() override {
+    assert(false);
+    return 1;
+  }
   bool is_agg_distinct() const { return have_agg_distinct; }
 };
 

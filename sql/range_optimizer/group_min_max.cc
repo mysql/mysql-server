@@ -202,7 +202,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
   Get the next key containing the MIN and/or MAX key for the next group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::get_next()
+    QUICK_GROUP_MIN_MAX_SELECT::Read()
 
   DESCRIPTION
     The method finds the next subsequent group of records that satisfies the
@@ -220,12 +220,13 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
     for a MAX key in this case.
 
   RETURN
-    0                  on success
-    HA_ERR_END_OF_FILE if returned all keys
-    other              if some error occurred
-*/
+    See RowIterator::Read()
+ */
+int QUICK_GROUP_MIN_MAX_SELECT::Read() {
+  if (m_seen_eof) {
+    return -1;
+  }
 
-int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
   int result;
   int is_last_prefix = 0;
 
@@ -259,7 +260,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
     // Reset MIN/MAX value only for the first infix range.
     bool reset_min_value = true;
     bool reset_max_value = true;
-    while (!append_next_infix()) {
+    while (!thd()->killed && !append_next_infix()) {
       assert(!result || !is_index_access_error(result));
       if (have_min || have_max) {
         if (min_max_keypart_asc) {
@@ -269,7 +270,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
             else {
               DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
                               result = HA_ERR_QUERY_INTERRUPTED;);
-              if (is_index_access_error(result)) return result;
+              if (is_index_access_error(result)) {
+                return HandleError(result);
+              }
               continue;  // Record is not found, no reason to call next_max()
             }
           }
@@ -277,7 +280,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
             if (!(result = next_max()))
               update_max_result(&reset_max_value);
             else if (is_index_access_error(result))
-              return result;
+              return HandleError(result);
           }
         } else {
           // Call next_max() first and then next_min() if
@@ -288,7 +291,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
             else {
               DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
                               result = HA_ERR_QUERY_INTERRUPTED;);
-              if (is_index_access_error(result)) return result;
+              if (is_index_access_error(result)) return HandleError(result);
               continue;  // Record is not found, no reason to call next_min()
             }
           }
@@ -296,7 +299,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
             if (!(result = next_min()))
               update_min_result(&reset_min_value);
             else if (is_index_access_error(result))
-              return result;
+              return HandleError(result);
           }
         }
         if (!result) found_result = true;
@@ -308,19 +311,30 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
           through the whole group to accumulate the MIN/MAX and returning just
           the one distinct record is enough.
         */
-        if (!(result = table()->file->ha_index_read_map(
-                  table()->record[0], group_prefix,
-                  make_prev_keypart_map(real_key_parts), HA_READ_KEY_EXACT)) ||
-            is_index_access_error(result))
-          return result;
+        result = table()->file->ha_index_read_map(
+            table()->record[0], group_prefix,
+            make_prev_keypart_map(real_key_parts), HA_READ_KEY_EXACT);
+        if (result == 0) {
+          return 0;
+        }
+        if (is_index_access_error(result)) {
+          return HandleError(result);
+        }
       }
     }
     if (seen_all_infix_ranges && found_result) return 0;
-  } while (!is_index_access_error(result) && is_last_prefix != 0);
+  } while (!thd()->killed && !is_index_access_error(result) &&
+           is_last_prefix != 0);
 
-  if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
+  if (result == 0) {
+    return 0;
+  }
 
-  return result;
+  int error_code = HandleError(result);
+  if (error_code == -1) {
+    m_seen_eof = true;
+  }
+  return error_code;
 }
 
 /*
