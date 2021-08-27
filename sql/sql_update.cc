@@ -80,7 +80,6 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/partition_pruning.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"

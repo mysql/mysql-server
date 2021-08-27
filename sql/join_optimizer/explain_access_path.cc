@@ -466,7 +466,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::INDEX_RANGE_SCAN: {
       TABLE *table = path->index_range_scan().table;
-      // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
+      // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can
       // get better outputs here (similar to dbug_dump()).
       String str;
       path->index_range_scan().trp->add_info_string(&str);
@@ -484,7 +484,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {
       TABLE *table = path->dynamic_index_range_scan().table;
-      // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
+      // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can
       // get better outputs here (similar to dbug_dump()), although it might get
       // tricky when there are many alternatives.
       string str = string(table->key_read ? "Covering index range scan on "

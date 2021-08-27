@@ -80,7 +80,7 @@ class List_iterator;
   index, this class produces only index keys, and not complete records.
 */
 
-class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
+class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
  private:
   JOIN *join;                  /* Descriptor of the current query */
   uint index;                  /* Index this quick select uses */
@@ -117,6 +117,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
     through index read
   */
   bool is_index_scan;
+  bool m_seen_eof;
   MEM_ROOT *mem_root;
   QUICK_RANGE_SELECT
   *quick_prefix_query_block; /* For retrieval of group prefixes. */
@@ -132,13 +133,12 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
 
  public:
   QUICK_GROUP_MIN_MAX_SELECT(
-      THD *thd, TABLE *table_arg, ha_rows *examined_rows, JOIN *join,
-      bool have_min, bool have_max, List<Item_sum> min_functions,
-      List<Item_sum> max_functions, bool have_agg_distinct,
-      KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
-      uint group_key_parts, uint real_key_parts, uint max_used_key_length_arg,
-      KEY *index_info, uint use_index, uint key_infix_len,
-      MEM_ROOT *return_mem_root, bool is_index_scan,
+      THD *thd, TABLE *table_arg, JOIN *join, bool have_min, bool have_max,
+      List<Item_sum> min_functions, List<Item_sum> max_functions,
+      bool have_agg_distinct, KEY_PART_INFO *min_max_arg_part,
+      uint group_prefix_len, uint group_key_parts, uint real_key_parts,
+      uint max_used_key_length_arg, KEY *index_info, uint use_index,
+      uint key_infix_len, MEM_ROOT *return_mem_root, bool is_index_scan,
       QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
       Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;

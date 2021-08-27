@@ -817,11 +817,12 @@ class WeedoutIterator final : public RowIterator {
 /**
   An iterator that removes consecutive rows that are the same according to
   a set of items (typically the join key), so-called “loose scan”
-  (not to be confused with “loose index scan”, which is a QUICK_SELECT_I).
-  This is similar in spirit to WeedoutIterator above (removing duplicates
-  allows us to treat the semijoin as a normal join), but is much cheaper
-  if the data is already ordered/grouped correctly, as the removal can
-  happen before the join, and it does not need a temporary table.
+  (not to be confused with “loose index scan”, which is made by the
+  range optimizer). This is similar in spirit to WeedoutIterator above
+  (removing duplicates allows us to treat the semijoin as a normal join),
+  but is much cheaper if the data is already ordered/grouped correctly,
+  as the removal can happen before the join, and it does not need a
+  temporary table.
  */
 class RemoveDuplicatesIterator final : public RowIterator {
  public:

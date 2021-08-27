@@ -94,7 +94,6 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
@@ -5103,7 +5102,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
   @param       order           Linked list of ORDER BY arguments
   @param       table           Table to find a key
   @param       limit           LIMIT clause parameter
-  @param [in,out] quick        QUICK_SELECT_I used for this table, if any
+  @param [in,out] quick        RowIterator used for this table, if any
   @param [out] need_sort       true if filesort needed
   @param [out] reverse
     true if the key is reversed again given ORDER (undefined if key == MAX_KEY)

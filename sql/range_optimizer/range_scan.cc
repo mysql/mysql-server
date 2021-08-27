@@ -57,7 +57,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
     uint key_nr, bool need_rows_in_rowid_order, bool reuse_handler,
     MEM_ROOT *return_mem_root, uint mrr_flags, uint mrr_buf_size,
     const KEY_PART *key, Bounds_checked_array<QUICK_RANGE *> ranges_arg)
-    : QUICK_SELECT_I(thd, table_arg, examined_rows),
+    : RowIDCapableRowIterator(thd, table_arg),
       ranges(ranges_arg),
       free_file(false),
       cur_range(nullptr),
@@ -249,7 +249,6 @@ bool QUICK_RANGE_SELECT::Init() {
     }
   }
 
-  m_seen_eof = false;
   return false;
 }
 

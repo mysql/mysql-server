@@ -53,9 +53,8 @@
 struct MY_BITMAP;
 
 QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
-                                                   THD *thd, TABLE *table,
-                                                   ha_rows *examined_rows)
-    : QUICK_SELECT_I(thd, table, examined_rows),
+                                                   THD *thd, TABLE *table)
+    : TableRowIterator(thd, table),
       unique(nullptr),
       pk_quick_select(nullptr),
       mem_root(return_mem_root) {
@@ -119,7 +118,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
 
 bool QUICK_INDEX_MERGE_SELECT::Init() {
   empty_record(table());
-  m_seen_eof = false;
 
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT *cur_quick;

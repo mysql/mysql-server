@@ -92,7 +92,6 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/query_options.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/records.h"
@@ -3983,7 +3982,7 @@ bool DynamicRangeIterator::Init() {
   thd()->unlock_query_plan();
 
   int rc;
-  QUICK_SELECT_I *qck = nullptr;
+  RowIterator *qck = nullptr;
 
   // Clear out and destroy any old iterators before we start constructing
   // new ones, since they may share the same memory in the union.

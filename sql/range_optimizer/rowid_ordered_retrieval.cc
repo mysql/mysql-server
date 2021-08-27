@@ -44,15 +44,15 @@
 #include "sql_string.h"
 
 QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
-    THD *thd, TABLE *table_arg, ha_rows *examined_rows, bool retrieve_full_rows,
+    THD *thd, TABLE *table_arg, bool retrieve_full_rows,
     bool need_rows_in_rowid_order, MEM_ROOT *return_mem_root)
-    : QUICK_SELECT_I(thd, table_arg, examined_rows),
+    : RowIDCapableRowIterator(thd, table_arg),
       mem_root(return_mem_root),
       cpk_quick(nullptr),
       retrieve_full_rows(retrieve_full_rows),
       scans_inited(false),
       need_rows_in_rowid_order(need_rows_in_rowid_order) {
-  last_rowid = mem_root->ArrayAlloc<uchar>(table()->file->ref_length);
+  m_last_rowid = mem_root->ArrayAlloc<uchar>(table()->file->ref_length);
 }
 
 /*
@@ -125,7 +125,6 @@ bool QUICK_RANGE_SELECT::init_ror_merged_scan() {
     goto failure;
   }
   free_file = true;
-  last_rowid = file->ref;
   file->ha_extra(HA_EXTRA_SECONDARY_SORT_ROWID);
 
 end:
@@ -194,8 +193,8 @@ bool QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
 bool QUICK_ROR_INTERSECT_SELECT::Init() {
   DBUG_TRACE;
   if (!inited) {
-    /* Check if last_rowid was successfully allocated in ctor */
-    if (last_rowid == nullptr) {
+    /* Check if m_last_rowid was successfully allocated in ctor */
+    if (m_last_rowid == nullptr) {
       table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
       return true;
     }
@@ -245,9 +244,8 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
 }
 
 QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
-                                               THD *thd, TABLE *table,
-                                               ha_rows *examined_rows)
-    : QUICK_SELECT_I(thd, table, examined_rows),
+                                               THD *thd, TABLE *table)
+    : TableRowIterator(thd, table),
       queue(Quick_ror_union_less(table->file),
             Malloc_allocator<PSI_memory_key>(PSI_INSTRUMENT_ME)),
       mem_root(return_mem_root),
@@ -282,13 +280,13 @@ bool QUICK_ROR_UNION_SELECT::Init() {
     Initialize scans for merged quick selects and put all merged quick
     selects into the queue.
   */
-  for (QUICK_SELECT_I &quick : quick_selects) {
+  for (RowIterator &quick : quick_selects) {
     if (quick.Init()) return true;
     int result = quick.Read();
     if (result == 1) {
       return true;
     } else if (result == 0) {
-      queue.push(&quick);
+      queue.push(down_cast<RowIDCapableRowIterator *>(&quick));
     }
   }
 
@@ -307,7 +305,8 @@ bool QUICK_ROR_UNION_SELECT::Init() {
   return false;
 }
 
-bool QUICK_ROR_UNION_SELECT::push_quick_back(QUICK_SELECT_I *quick_sel_range) {
+bool QUICK_ROR_UNION_SELECT::push_quick_back(
+    RowIDCapableRowIterator *quick_sel_range) {
   return quick_selects.push_back(quick_sel_range);
 }
 
@@ -362,7 +361,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
       }
     }
 
-    memcpy(last_rowid, quick->file->ref, table()->file->ref_length);
+    memcpy(m_last_rowid, quick->file->ref, table()->file->ref_length);
 
     /* quick that reads the given rowid first. This is needed in order
     to be able to unlock the row using the same handler object that locked
@@ -386,7 +385,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
             quick_with_last_rowid->UnlockRow();
           return error;
         }
-        cmp = table()->file->cmp_ref(quick->file->ref, last_rowid);
+        cmp = table()->file->cmp_ref(quick->file->ref, m_last_rowid);
         if (cmp < 0) {
           /* This row is being skipped.  Release lock on
            * it. */
@@ -408,7 +407,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
             }
           }
         }
-        memcpy(last_rowid, quick->file->ref, table()->file->ref_length);
+        memcpy(m_last_rowid, quick->file->ref, table()->file->ref_length);
         quick_with_last_rowid->UnlockRow();
         last_rowid_count = 1;
         quick_with_last_rowid = quick;
@@ -420,7 +419,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
 
     /* We get here if we got the same row ref in all scans. */
     if (retrieve_full_rows) {
-      int error = table()->file->ha_rnd_pos(table()->record[0], last_rowid);
+      int error = table()->file->ha_rnd_pos(table()->record[0], m_last_rowid);
       if (error == HA_ERR_RECORD_DELETED) {
         // The row was deleted, so we need to loop back.
         continue;
@@ -457,8 +456,8 @@ int QUICK_ROR_UNION_SELECT::Read() {
       if (queue.empty()) return -1;
       /* Ok, we have a queue with >= 1 scans */
 
-      QUICK_SELECT_I *quick = queue.top();
-      memcpy(cur_rowid, quick->last_rowid, rowid_length);
+      RowIDCapableRowIterator *quick = queue.top();
+      memcpy(cur_rowid, quick->last_rowid(), rowid_length);
 
       /* put into queue rowid from the same stream as top element */
       if (int ret = quick->Read(); ret != 0) {

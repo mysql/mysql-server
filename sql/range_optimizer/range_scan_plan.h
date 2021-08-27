@@ -36,7 +36,6 @@
 
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
-class QUICK_SELECT_I;
 class SEL_ROOT;
 class SEL_TREE;
 struct MEM_ROOT;
@@ -76,9 +75,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
         is_imerge(is_imerge_arg),
         ranges(ranges_arg) {}
 
-  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows, bool,
-                             MEM_ROOT *return_mem_root,
-                             ha_rows *examined_rows) override {
+  RowIterator *make_quick(THD *thd, double expected_rows, bool,
+                          MEM_ROOT *return_mem_root,
+                          ha_rows *examined_rows) override {
     DBUG_TRACE;
 
     QUICK_RANGE_SELECT *quick;

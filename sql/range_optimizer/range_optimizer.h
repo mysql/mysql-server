@@ -177,29 +177,6 @@ enum RangeScanType {
   QS_TYPE_SKIP_SCAN
 };
 
-// This is a transitional class, that will soon go away entirely.
-
-class QUICK_SELECT_I : public TableRowIterator {
- public:
-  QUICK_SELECT_I(THD *thd, TABLE *table, ha_rows *examined_rows)
-      : TableRowIterator(thd, table), m_examined_rows(examined_rows) {}
-
-  /*
-    Row ID of last row retrieved by this quick select. This is used only when
-    doing ROR-index_merge selects. Updated on successful Read().
-  */
-  uchar *last_rowid = nullptr;
-
- private:
-  ha_rows *const m_examined_rows;
-
- protected:
-  // After m_quick has returned EOF, some of its members are destroyed, making
-  // subsequent requests for new rows undefined. We flag EOF so that the
-  // iterator does not request a new row.
-  bool m_seen_eof{false};
-};
-
 using Quick_ranges = Mem_root_array<QUICK_RANGE *>;
 using Quick_ranges_array = Mem_root_array<Quick_ranges *>;
 

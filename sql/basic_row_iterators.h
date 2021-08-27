@@ -44,7 +44,6 @@
 
 class Filesort_info;
 class Item;
-class QUICK_SELECT_I;
 class Sort_result;
 class THD;
 class handler;

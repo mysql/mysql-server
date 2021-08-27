@@ -169,8 +169,8 @@ class FullTextSearchIterator final : public TableRowIterator {
   record". The trace for the range analysis below this point will
   be printed with different ranges for every record to the left of
   this table in the join; the range optimizer can either select any
-  QUICK_SELECT_I (aka IndexRangeScanIterator) or a full table
-  scan, and any Read() is just proxied over to that.
+  RowIterator or a full table scan, and any Read() is just proxied
+  over to that.
 
   Note in particular that this means the range optimizer will be
   executed anew on every single call to Init(), and modify the

@@ -31,7 +31,6 @@
 #include "sql/sql_class.h"
 
 class Opt_trace_context;
-class QUICK_SELECT_I;
 struct MEM_ROOT;
 
 void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
@@ -46,16 +45,16 @@ void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-QUICK_SELECT_I *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows,
-                                            bool, MEM_ROOT *return_mem_root,
-                                            ha_rows *examined_rows) {
+RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows, bool,
+                                         MEM_ROOT *return_mem_root,
+                                         ha_rows *examined_rows) {
   assert(!need_rows_in_rowid_order);
 
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
   QUICK_RANGE_SELECT *quick;
   /* index_merge always retrieves full rows, ignore retrieve_full_rows */
-  if (!(quick_imerge = new (return_mem_root) QUICK_INDEX_MERGE_SELECT(
-            return_mem_root, thd, table, /*examined_rows=*/nullptr)))
+  if (!(quick_imerge = new (return_mem_root)
+            QUICK_INDEX_MERGE_SELECT(return_mem_root, thd, table)))
     return nullptr;
 
   for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;

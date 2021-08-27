@@ -59,9 +59,9 @@ struct MY_BITMAP;
   used only to filter rowid sequence produced by other merged quick selects.
 */
 
-class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
+class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
  public:
-  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table_arg, ha_rows *examined_rows,
+  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table_arg,
                              bool retrieve_full_rows,
                              bool need_rows_in_rowid_order,
                              MEM_ROOT *return_mem_root);
@@ -69,6 +69,11 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 
   bool Init() override;
   int Read() override;
+  uchar *last_rowid() const override {
+    assert(need_rows_in_rowid_order);
+    return m_last_rowid;
+  }
+
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
   /*
@@ -90,6 +95,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 
  private:
   const bool need_rows_in_rowid_order;
+  uchar *m_last_rowid;
   bool inited = false;
 
   bool init_ror_merged_scan();
@@ -101,8 +107,8 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 */
 struct Quick_ror_union_less {
   explicit Quick_ror_union_less(const handler *file) : m_file(file) {}
-  bool operator()(QUICK_SELECT_I *a, QUICK_SELECT_I *b) {
-    return m_file->cmp_ref(a->last_rowid, b->last_rowid) > 0;
+  bool operator()(RowIDCapableRowIterator *a, RowIDCapableRowIterator *b) {
+    return m_file->cmp_ref(a->last_rowid(), b->last_rowid()) > 0;
   }
   const handler *m_file;
 };
@@ -120,23 +126,22 @@ struct Quick_ror_union_less {
 
 */
 
-class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
+class QUICK_ROR_UNION_SELECT : public TableRowIterator {
  public:
-  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, THD *thd, TABLE *table,
-                         ha_rows *examined_rows);
+  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, THD *thd, TABLE *table);
   ~QUICK_ROR_UNION_SELECT() override;
 
   bool Init() override;
   int Read() override;
 
-  bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
+  bool push_quick_back(RowIDCapableRowIterator *quick_sel_range);
 
-  List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
+  List<RowIDCapableRowIterator> quick_selects; /* Merged quick selects */
 
-  Priority_queue<
-      QUICK_SELECT_I *,
-      std::vector<QUICK_SELECT_I *, Malloc_allocator<QUICK_SELECT_I *>>,
-      Quick_ror_union_less>
+  Priority_queue<RowIDCapableRowIterator *,
+                 std::vector<RowIDCapableRowIterator *,
+                             Malloc_allocator<RowIDCapableRowIterator *>>,
+                 Quick_ror_union_less>
       queue; /* Priority queue for merge operation */
 
   MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */

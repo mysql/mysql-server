@@ -382,7 +382,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   SYNOPSIS
     test_quick_select()
       thd               Current thread
-      return_mem_root   MEM_ROOT to allocate TRPs, QUICK_SELECT_Is and
+      return_mem_root   MEM_ROOT to allocate TRPs, RowIterators and
                         dependent information on (ie., permanent artifacts
                         that must live on after the range optimizer
                         has finished executing).

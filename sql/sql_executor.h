@@ -58,7 +58,6 @@ class KEY;
 class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;
-class QUICK_SELECT_I;
 class THD;
 class Window;
 enum class Window_retrieve_cached_row_reason;

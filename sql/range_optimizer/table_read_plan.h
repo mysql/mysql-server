@@ -30,8 +30,8 @@ class RANGE_OPT_PARAM;
 class SEL_ROOT;
 
 /*
-  Table rows retrieval plan. Range optimizer creates QUICK_SELECT_I-derived
-  objects from table read plans.
+  Table rows retrieval plan. Range optimizer creates RowIterators
+  from table read plans.
 */
 class TABLE_READ_PLAN {
  public:
@@ -87,10 +87,10 @@ class TABLE_READ_PLAN {
       created quick select
       nullptr on any error.
   */
-  virtual QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
-                                     bool retrieve_full_rows,
-                                     MEM_ROOT *return_mem_root,
-                                     ha_rows *examined_rows) = 0;
+  virtual RowIterator *make_quick(THD *thd, double expected_rows,
+                                  bool retrieve_full_rows,
+                                  MEM_ROOT *return_mem_root,
+                                  ha_rows *examined_rows) = 0;
 
   TABLE_READ_PLAN(TABLE *table_arg, int index_arg, uint used_key_parts_arg,
                   bool forced_by_hint_arg)

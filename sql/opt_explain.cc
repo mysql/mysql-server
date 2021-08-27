@@ -77,7 +77,6 @@
 #include "sql/protocol.h"
 #include "sql/range_optimizer/group_min_max.h"
 #include "sql/range_optimizer/group_min_max_plan.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
@@ -436,7 +435,7 @@ class Explain_join : public Explain_table_base {
   const bool distinct;  ///< add "Distinct" string to "extra" column if true
 
   JOIN *join;      ///< current JOIN
-  int quick_type;  ///< current quick type, see anon. enum at QUICK_SELECT_I
+  int quick_type;  ///< current quick type, see anon. enum at TABLE_READ_PLAN
 
  public:
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,

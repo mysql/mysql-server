@@ -62,7 +62,7 @@ struct TABLE;
   index, this class produces only index keys, and not complete records.
 */
 
-class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
+class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
  private:
   uint index;                 /* Index this quick select uses */
   KEY *index_info;            /* Index for skip scan */
@@ -109,15 +109,14 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   bool next_eq_prefix();
 
  public:
-  QUICK_SKIP_SCAN_SELECT(THD *thd, TABLE *table, ha_rows *examined_rows,
-                         KEY *index_info, uint index, KEY_PART_INFO *range_part,
-                         SEL_ROOT *index_range_tree, uint eq_prefix_len,
-                         uint eq_prefix_key_parts, EQPrefix *eq_prefixes,
-                         uint used_key_parts, MEM_ROOT *temp_mem_root,
-                         bool has_aggregate_function, uchar *min_range_key,
-                         uchar *max_range_key, uchar *min_search_key,
-                         uchar *max_search_key, uint range_cond_flag,
-                         uint range_key_len);
+  QUICK_SKIP_SCAN_SELECT(THD *thd, TABLE *table, KEY *index_info, uint index,
+                         KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
+                         uint eq_prefix_len, uint eq_prefix_key_parts,
+                         EQPrefix *eq_prefixes, uint used_key_parts,
+                         MEM_ROOT *temp_mem_root, bool has_aggregate_function,
+                         uchar *min_range_key, uchar *max_range_key,
+                         uchar *min_search_key, uchar *max_search_key,
+                         uint range_cond_flag, uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
   bool Init() override;
   int Read() override;

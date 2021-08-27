@@ -31,6 +31,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/rowid_capable_row_iterator.h"
 
 class KEY_PART_INFO;
 class RANGE_OPT_PARAM;
@@ -56,7 +57,7 @@ struct QUICK_RANGE_SEQ_CTX {
   Quick select that does a range scan on a single key. The records are
   returned in key order if ::need_sorted_output() has been called.
 */
-class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
+class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
  protected:
   handler *file;
 
@@ -136,6 +137,10 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
                       uchar *cur_prefix);
 
   uint get_mrr_flags() const { return mrr_flags; }
+  uchar *last_rowid() const override {
+    assert(need_rows_in_rowid_order);
+    return file->ref;
+  }
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_

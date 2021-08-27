@@ -27,7 +27,6 @@
 
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
-class QUICK_SELECT_I;
 class TRP_RANGE;
 struct MEM_ROOT;
 
@@ -42,9 +41,9 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
   TRP_INDEX_MERGE(TABLE *table_arg, bool forced_by_hint_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg) {}
-  QUICK_SELECT_I *make_quick(THD *thd, double expected_rows,
-                             bool retrieve_full_rows, MEM_ROOT *return_mem_root,
-                             ha_rows *examined_rows) override;
+  RowIterator *make_quick(THD *thd, double expected_rows,
+                          bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                          ha_rows *examined_rows) override;
   TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
   TRP_RANGE **range_scans_end; /* end of the array */
 

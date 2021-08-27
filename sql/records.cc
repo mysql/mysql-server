@@ -45,8 +45,7 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/opt_explain.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
-#include "sql/sql_class.h"                        // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"

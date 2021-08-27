@@ -90,7 +90,6 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/range_optimizer/partition_pruning.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_base.h"  // init_ftfuncs
 #include "sql/sql_bitmap.h"
@@ -2282,8 +2281,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             The range optimizer constructed QUICK_RANGE for ref_key, and
             we want to use instead new_ref_key as the index. We can't
             just change the index of the quick select, because this may
-            result in an incosistent QUICK_SELECT object. Below we
-            create a new QUICK_SELECT from scratch so that all its
+            result in an incosistent RowIterator object. Below we
+            create a new RowIterator from scratch so that all its
             parameres are set correctly by the range optimizer.
 
             Note that the range optimizer is NOT called if
@@ -5984,7 +5983,7 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
   @param limit  maximum number of rows to select.
 
   @note
-    In case of valid range, a QUICK_SELECT_I object will be constructed and
+    In case of valid range, a RowIterator object will be constructed and
     saved in select->quick.
 
   @return Estimated number of result rows selected from 'tab'.

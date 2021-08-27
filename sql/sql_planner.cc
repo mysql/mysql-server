@@ -62,7 +62,6 @@
 #include "sql/opt_trace_context.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD

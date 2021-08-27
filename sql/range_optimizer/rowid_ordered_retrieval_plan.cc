@@ -54,7 +54,6 @@
 #include "sql_string.h"
 
 class Opt_trace_context;
-class QUICK_SELECT_I;
 
 using std::min;
 
@@ -144,10 +143,10 @@ static QUICK_RANGE_SELECT *get_quick_select_local(
   }
 }
 
-QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
-                                              bool retrieve_full_rows,
-                                              MEM_ROOT *return_mem_root,
-                                              ha_rows *examined_rows) {
+RowIterator *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
+                                           bool retrieve_full_rows,
+                                           MEM_ROOT *return_mem_root,
+                                           ha_rows *examined_rows) {
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
 
@@ -156,9 +155,8 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
   }
 
   QUICK_ROR_INTERSECT_SELECT *quick_intrsect = new (return_mem_root)
-      QUICK_ROR_INTERSECT_SELECT(thd, table, /*examined_rows=*/nullptr,
-                                 retrieve_full_rows, need_rows_in_rowid_order,
-                                 return_mem_root);
+      QUICK_ROR_INTERSECT_SELECT(thd, table, retrieve_full_rows,
+                                 need_rows_in_rowid_order, return_mem_root);
   if (quick_intrsect) {
     DBUG_EXECUTE("info",
                  print_ror_scans_arr(
@@ -195,9 +193,9 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
   return quick_intrsect;
 }
 
-QUICK_SELECT_I *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
-                                          MEM_ROOT *return_mem_root,
-                                          ha_rows *examined_rows) {
+RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
+                                       MEM_ROOT *return_mem_root,
+                                       ha_rows *examined_rows) {
   assert(!need_rows_in_rowid_order);
 
   DBUG_TRACE;
@@ -206,15 +204,15 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
     rows, so ignore the retrieve_full_rows parameter.
    */
   QUICK_ROR_UNION_SELECT *quick_roru =
-      new (return_mem_root) QUICK_ROR_UNION_SELECT(return_mem_root, thd, table,
-                                                   /*examined_rows=*/nullptr);
+      new (return_mem_root) QUICK_ROR_UNION_SELECT(return_mem_root, thd, table);
   if (quick_roru == nullptr) {
     return nullptr;
   }
   for (TABLE_READ_PLAN *scan : ror_scans) {
-    QUICK_SELECT_I *quick = scan->make_quick(thd, expected_rows, false,
-                                             return_mem_root, examined_rows);
-    if (quick == nullptr || quick_roru->push_quick_back(quick)) {
+    RowIterator *quick = scan->make_quick(thd, expected_rows, false,
+                                          return_mem_root, examined_rows);
+    if (quick == nullptr || quick_roru->push_quick_back(
+                                down_cast<RowIDCapableRowIterator *>(quick))) {
       return nullptr;
     }
   }

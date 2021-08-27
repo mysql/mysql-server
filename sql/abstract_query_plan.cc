@@ -33,7 +33,6 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
-#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"  // QEP_TAB

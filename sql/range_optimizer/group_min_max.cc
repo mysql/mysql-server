@@ -77,18 +77,17 @@
                        Child scan to get prefix keys
     key_infix_ranges   Ranges to scan for the infix key part(s)
     min_max_ranges     Ranges to scan for the MIN/MAX key part
-    examined_rows      If not nullptr, will be incremented for each row examined
  */
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
-    THD *thd, TABLE *table, ha_rows *examined_rows, JOIN *join, bool have_min,
-    bool have_max, List<Item_sum> min_functions, List<Item_sum> max_functions,
+    THD *thd, TABLE *table, JOIN *join, bool have_min, bool have_max,
+    List<Item_sum> min_functions, List<Item_sum> max_functions,
     bool have_agg_distinct, KEY_PART_INFO *min_max_arg_part,
     uint group_prefix_len, uint group_key_parts, uint real_key_parts_arg,
     uint max_used_key_length_arg, KEY *index_info, uint use_index,
     uint key_infix_len, MEM_ROOT *return_mem_root, bool is_index_scan,
     QUICK_RANGE_SELECT *quick_prefix_query_block,
     Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges)
-    : QUICK_SELECT_I(thd, table, examined_rows),
+    : TableRowIterator(thd, table),
       join(join),
       index_info(index_info),
       group_prefix_len(group_prefix_len),

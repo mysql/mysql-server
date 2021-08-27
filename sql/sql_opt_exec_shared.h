@@ -435,7 +435,7 @@ class QEP_shared {
 
   /**
      Non-NULL if quick-select used.
-     Filled in optimization, converted to a QUICK_SELECT_I before execution
+     Filled in optimization, converted to a RowIterator before execution
      (used to find rows), and in EXPLAIN.
   */
   TABLE_READ_PLAN *m_trp = nullptr;

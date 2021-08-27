@@ -35,7 +35,7 @@ class RANGE_OPT_PARAM {
   KEY_PART *key_parts_end;
   // Memory used for allocating TRPs (TABLE_READ_PLAN objects) and similar
   // objects that are required for a later call to make_quick(), as well as
-  // QUICK_SELECT_I objects and allocations they need to do themselves.
+  // RowIterator objects and allocations they need to do themselves.
   // Typically points to thd->mem_root, but DynamicRangeIterator uses its
   // own MEM_ROOT here, as it needs to delete all the old data and allocate
   // new objects. Note that not all data allocated here will indeed be used;

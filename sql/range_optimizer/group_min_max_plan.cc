@@ -64,7 +64,6 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-class QUICK_SELECT_I;
 struct MEM_ROOT;
 
 using std::max;
@@ -1711,9 +1710,9 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
     NULL otherwise.
 */
 
-QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
-                                              bool, MEM_ROOT *return_mem_root,
-                                              ha_rows *examined_rows) {
+RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows, bool,
+                                           MEM_ROOT *return_mem_root,
+                                           ha_rows *examined_rows) {
   DBUG_TRACE;
 
   assert(!need_rows_in_rowid_order);
@@ -1734,10 +1733,10 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
   // TODO(sgunders): Consider using Bounds_checked_array instead of std::move
   // here, so that make_quick() can be made const.
   return new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-      thd, table, examined_rows, join, have_min, have_max, min_functions,
-      max_functions, have_agg_distinct, min_max_arg_part, group_prefix_len,
-      group_key_parts, real_key_parts, max_used_key_length, index_info, index,
-      key_infix_len, return_mem_root, is_index_scan, quick_prefix_query_block,
+      thd, table, join, have_min, have_max, min_functions, max_functions,
+      have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
+      real_key_parts, max_used_key_length, index_info, index, key_infix_len,
+      return_mem_root, is_index_scan, quick_prefix_query_block,
       std::move(key_infix_ranges), std::move(min_max_ranges));
 }
 
