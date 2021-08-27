@@ -52,7 +52,11 @@ NDBT_find_binary_from_path(BaseString& name,
       n += strlen(PATH_SEPARATOR);
     }
     BaseString path;
+#ifndef _WIN32
     path.assfmt("%s/%s", s, binary_name);
+#else
+    path.assfmt("%s\\%s", s, binary_name);
+#endif
     if (access(path.c_str(), F_OK) == 0)
     {
       // Sucess, found the binary. Convert path to absolute and return it
@@ -144,6 +148,7 @@ NDBT_find_executable_in_test_env(BaseString& path, const char *program)
      *   => search in relative places relative argv[0]
      */
     * basename = 0;
+#ifndef _WIN32
     const char * places[] = {
       "../../../../runtime_output_directory",
       "../../src/mgmsrv",
@@ -153,6 +158,19 @@ NDBT_find_executable_in_test_env(BaseString& path, const char *program)
       "../bin",
       0
     };
+#else
+    const char* places[] = {
+  "..\\..\\..\\..\\runtime_output_directory",
+  "..\\..\\src\\mgmsrv",
+  "..\\storage\\ndb\\src\\mgmsrv",
+  "..\\libexec",
+  "..\\sbin",
+  "..\\bin",
+  ".",
+  0
+    };
+
+#endif
     BaseString searchpath = "";
     for (int i = 0; places[i] != 0; i++) {
       searchpath.appfmt("%s%s%c%s",
@@ -171,11 +189,20 @@ NDBT_find_executable_in_test_env(BaseString& path, const char *program)
 void
 NDBT_find_ndb_mgmd(BaseString& path)
 {
+#ifndef _WIN32
   return NDBT_find_executable_in_test_env(path, "ndb_mgmd");
+#else
+  return NDBT_find_executable_in_test_env(path, "ndb_mgmd.exe");
+#endif
 }
 
 void
 NDBT_find_ndbd(BaseString& path)
 {
+#ifndef _WIN32
   return NDBT_find_executable_in_test_env(path, "ndbd");
+#else
+  return NDBT_find_executable_in_test_env(path, "ndbd.exe");
+#endif
+
 }
