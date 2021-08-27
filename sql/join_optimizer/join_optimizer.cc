@@ -3907,8 +3907,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // The hypergraph optimizer does not do const tables,
   // nor does it evaluate subqueries during optimization.
-  query_block->add_active_options(OPTION_NO_CONST_TABLES |
-                                  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
+  assert(
+      IsSubset(OPTION_NO_CONST_TABLES | OPTION_NO_SUBQUERY_DURING_OPTIMIZATION,
+               query_block->active_options()));
 
   // In the case of rollup (only): After the base slice list was made, we may
   // have modified the field list to add rollup group items and sum switchers.

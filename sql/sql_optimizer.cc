@@ -380,6 +380,11 @@ bool JOIN::optimize(bool finalize_access_paths) {
                          /*finalize_access_paths=*/false))
         return true;
     }
+
+    // The hypergraph optimizer does not do const tables,
+    // nor does it evaluate subqueries during optimization.
+    query_block->add_active_options(OPTION_NO_CONST_TABLES |
+                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
   }
 
   has_lateral = false;

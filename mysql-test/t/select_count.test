@@ -228,6 +228,7 @@ SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 # Tests FORMAT=tree printing of COUNT(*).
 --skip_if_hypergraph  # Does not optimize COUNT(*) specially yet.
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+--skip_if_hypergraph  # Does not do const table optimization.
 --replace_regex /  \(cost=.*//
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
 

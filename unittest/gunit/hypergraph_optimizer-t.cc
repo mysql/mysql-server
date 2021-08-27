@@ -123,6 +123,11 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   Query_block *query_block = ::parse(&m_initializer, query, 0);
   m_thd = m_initializer.thd();
 
+  // The hypergraph optimizer does not do const tables,
+  // nor does it evaluate subqueries during optimization.
+  query_block->add_active_options(OPTION_NO_CONST_TABLES |
+                                  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION);
+
   // Create fake TABLE objects for all tables mentioned in the query.
   int num_tables = 0;
   for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;

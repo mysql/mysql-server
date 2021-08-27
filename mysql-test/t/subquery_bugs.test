@@ -484,12 +484,16 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('6'),('6');
 
---error ER_SUBQUERY_NO_1_ROW
+# The hypergraph optimizer does not evaluate the subquery during
+# optimization, and does not get an error.
+--disable_result_log
+--error 0, ER_SUBQUERY_NO_1_ROW
 EXPLAIN FORMAT=tree SELECT 1 WHERE (
   SELECT 1
   FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
   WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
 );
+--enable_result_log
 
 DROP TABLE t1;
 
