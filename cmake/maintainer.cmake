@@ -168,7 +168,6 @@ ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
 IF(MYSQL_MAINTAINER_MODE)
-  # Note: this is still experimental on Windows.
   IF(MSVC)
     STRING_APPEND(CMAKE_C_FLAGS   " /WX")
     STRING_APPEND(CMAKE_CXX_FLAGS " /WX")
