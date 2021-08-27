@@ -170,7 +170,7 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
 
   if (!unique) return 1;
   for (;;) {
-    while ((result = cur_quick->get_next()) == HA_ERR_END_OF_FILE) {
+    while ((result = cur_quick->Read()) == -1) {
       cur_quick = cur_quick_it++;
       if (!cur_quick) break;
 
@@ -178,12 +178,10 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
       if (cur_quick->Init()) return true;
     }
 
-    if (result) {
-      if (result != HA_ERR_END_OF_FILE) {
-        table()->file->print_error(result, MYF(0));
-        return true;
-      }
-      break;
+    if (result == -1) {
+      break;  // EOF.
+    } else if (result != 0) {
+      return true;
     }
 
     if (current_thd->killed) return 1;
@@ -222,15 +220,13 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
     The sets of rows retrieved in 1) and 2) are guaranteed to be disjoint.
 */
 
-int QUICK_INDEX_MERGE_SELECT::get_next() {
+int QUICK_INDEX_MERGE_SELECT::Read() {
   int result;
   DBUG_TRACE;
 
-  if (doing_pk_scan) return pk_quick_select->get_next();
+  if (doing_pk_scan) return pk_quick_select->Read();
 
   if ((result = read_record->Read()) == -1) {
-    result = HA_ERR_END_OF_FILE;
-
     // NOTE: destroying the RowIterator also clears
     // table()->unique_result.io_cache if it is initialized, since it
     // owns the io_cache it is reading from.
@@ -242,7 +238,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
       if (pk_quick_select->Init()) {
         return 1;
       }
-      return pk_quick_select->get_next();
+      return pk_quick_select->Read();
     }
   }
 
