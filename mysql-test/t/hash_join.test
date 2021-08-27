@@ -2507,3 +2507,19 @@ SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
 eval explain $query;
 eval $query;
 DROP TABLE t;
+
+--echo # Bug#33204161: Strings with ASCII charset and UCS2 don't match in join
+
+CREATE TABLE t1(wstr_name VARCHAR(64) COLLATE ucs2_general_ci);
+CREATE TABLE t2(str_name VARCHAR(64) COLLATE ascii_general_ci);
+
+INSERT INTO t1 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
+
+let $query =
+SELECT wstr_name, str_name
+FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;

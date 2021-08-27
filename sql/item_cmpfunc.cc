@@ -7412,8 +7412,8 @@ static bool append_string_value(Item *comparand,
   // collation. This is given by the Arg_comparator, so we call strnxfrm
   // to make the string values memcmp-able.
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
-  String *str = comparand->val_str(&str_buffer);
 
+  String *str = eval_string_arg(character_set, comparand, &str_buffer);
   if (comparand->null_value || str == nullptr) {
     return true;
   }
