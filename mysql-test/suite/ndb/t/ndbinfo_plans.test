@@ -37,6 +37,65 @@ echo $extra;
 let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
 echo $extra;
 
+## Information schema reveals row counts as seen by optimizer
+## (but filter out cpu-related tables where results are not predictable)
+set ndbinfo_show_hidden=1;
+--horizontal_results
+SELECT table_name, table_rows, avg_row_length
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+
+--disable_query_log
+CREATE TEMPORARY TABLE rowcounts
+  SELECT table_name, table_rows as est_rows, 0 as actual_rows
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+
+##
+## Compare estimated sizes of ndbinfo tables to actual size.
+--delimiter |;
+CREATE PROCEDURE populate_sizes()
+  BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE name varchar(64);
+    DECLARE cur CURSOR FOR SELECT table_name from rowcounts;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    PREPARE stmt1 FROM "UPDATE rowcounts SET actual_rows=? where table_name=?";
+    open cur;
+    read_loop: LOOP
+      IF done then
+        LEAVE read_loop;
+      END IF;
+      FETCH cur into name;
+      SET @name = name;
+      SET @sql = concat("select count(*) FROM ", name, " INTO @actual");
+      PREPARE stmt2 FROM @sql;
+      EXECUTE stmt2;
+      DEALLOCATE PREPARE stmt2;
+      EXECUTE stmt1 USING @actual, @name;
+    END LOOP;
+    DEALLOCATE PREPARE stmt1;
+    CLOSE cur;
+END|;
+--delimiter ;
+--enable_query_log
+
+## List the tables where estimated size equals actual size.
+CALL populate_sizes();
+SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+
+## Check that no tables have zero estimates
+SELECT table_name from rowcounts WHERE est_rows = 0;
+
+DROP TEMPORARY TABLE rowcounts;
+DROP PROCEDURE populate_sizes;
+
+--vertical_results
+
 ## The plan for counters
 explain format=tree select * from counters;
 

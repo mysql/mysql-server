@@ -44,27 +44,127 @@ Select tables optimized away
 ## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
 NULL
 
+## Information schema reveals row counts as seen by optimizer
+## (but filter out cpu-related tables where results are not predictable)
+set ndbinfo_show_hidden=1;
+SELECT table_name, table_rows, avg_row_length
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+TABLE_NAME	TABLE_ROWS	AVG_ROW_LENGTH
+ndb$acc_operations	15	64
+ndb$backup_id	1	20
+ndb$blocks	29	20
+ndb$columns	530	44
+ndb$config_nodes	34	28
+ndb$config_params	165	120
+ndb$config_values	326	24
+ndb$counters	200	24
+ndb$dblqh_tcconnect_state	19	52
+ndb$dbtc_apiconnect_state	25	52
+ndb$dict_obj_info	43	40
+ndb$dict_obj_types	20	20
+ndb$disk_write_speed_aggregate	8	120
+ndb$disk_write_speed_base	488	48
+ndb$diskpagebuffer	10	64
+ndb$diskstat	10	48
+ndb$diskstats_1sec	200	52
+ndb$error_messages	787	52
+ndb$frag_locks	344	96
+ndb$frag_mem_use	344	100
+ndb$frag_operations	344	192
+ndb$hwinfo	2	44
+ndb$logbuffers	8	40
+ndb$logspaces	8	40
+ndb$membership	2	88
+ndb$nodes	2	24
+ndb$operations	10	48
+ndb$pgman_time_track_stats	200	48
+ndb$pools	376	84
+ndb$processes	34	68
+ndb$resources	18	28
+ndb$restart_info	2	100
+ndb$stored_tables	43	80
+ndb$table_distribution_status	43	52
+ndb$table_distribution_status_all	86	52
+ndb$table_fragments	344	60
+ndb$table_fragments_all	344	60
+ndb$table_replicas	344	64
+ndb$table_replicas_all	344	64
+ndb$tables	49	40
+ndb$tc_time_track_stats	384	104
+ndb$test	8000	24
+ndb$threadblocks	124	16
+ndb$threads	26	40
+ndb$threadstat	22	144
+ndb$transactions	5	44
+ndb$transporters	32	64
+
+## List the tables where estimated size equals actual size.
+CALL populate_sizes();
+SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+count(*)
+29
+SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+table_name
+ndb$backup_id
+ndb$blocks
+ndb$columns
+ndb$config_nodes
+ndb$config_params
+ndb$config_values
+ndb$counters
+ndb$dblqh_tcconnect_state
+ndb$dbtc_apiconnect_state
+ndb$dict_obj_types
+ndb$disk_write_speed_aggregate
+ndb$disk_write_speed_base
+ndb$diskpagebuffer
+ndb$diskstat
+ndb$diskstats_1sec
+ndb$error_messages
+ndb$hwinfo
+ndb$logbuffers
+ndb$logspaces
+ndb$membership
+ndb$nodes
+ndb$pgman_time_track_stats
+ndb$pools
+ndb$resources
+ndb$tables
+ndb$test
+ndb$threads
+ndb$threadstat
+ndb$transporters
+
+## Check that no tables have zero estimates
+SELECT table_name from rowcounts WHERE est_rows = 0;
+table_name
+
+DROP TEMPORARY TABLE rowcounts;
+DROP PROCEDURE populate_sizes;
+
 ## The plan for counters
 explain format=tree select * from counters;
-EXPLAIN	-> Left hash join (b.block_number = c.block_number)  (cost=3.90 rows=0)
-    -> Table scan on c  (cost=2.00 rows=0)
+EXPLAIN	-> Left hash join (b.block_number = c.block_number)  (cost=580.53 rows=5800)
+    -> Table scan on c  (cost=22.00 rows=200)
     -> Hash
-        -> Table scan on b  (cost=3.40 rows=29)
+        -> Table scan on b  (cost=0.02 rows=29)
 
 
 ## The plan for memory_per_fragment
 explain format=tree select * from memory_per_fragment;
-EXPLAIN	-> Inner hash join (`types`.type_id = `name`.`type`)  (cost=4.50 rows=0)
-    -> Table scan on types  (cost=0.70 rows=20)
-    -> Hash
-        -> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=4.00 rows=0)
-            -> Inner hash join (`name`.id = space.table_id)  (cost=4.00 rows=0)
-                -> Filter: (`name`.`type` <= 6)  (cost=2.00 rows=0)
-                    -> Table scan on name  (cost=2.00 rows=0)
+EXPLAIN	-> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=4250.45 rows=42399)
+    -> Inner hash join (space.table_id = `name`.id)  (cost=1023.74 rows=986)
+        -> Table scan on space  (cost=0.20 rows=344)
+        -> Hash
+            -> Inner hash join (`types`.type_id = `name`.`type`)  (cost=35.48 rows=29)
+                -> Table scan on types  (cost=0.05 rows=20)
                 -> Hash
-                    -> Table scan on space  (cost=2.00 rows=0)
-            -> Hash
-                -> Table scan on parent_name  (cost=2.00 rows=0)
+                    -> Filter: (`name`.`type` <= 6)  (cost=6.30 rows=14)
+                        -> Table scan on name  (cost=6.30 rows=43)
+    -> Hash
+        -> Table scan on parent_name  (cost=0.01 rows=43)
 
 
 ## Create an all-MyISAM version of memory_per_fragment for comparison
