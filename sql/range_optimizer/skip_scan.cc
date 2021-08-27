@@ -226,7 +226,7 @@ bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
   Get the next row for skip scan.
 
   SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::get_next()
+    QUICK_SKIP_SCAN_SELECT::Read()
 
   DESCRIPTION
     Find the next record in the skip scan. The scan is broken into groups
@@ -253,12 +253,9 @@ bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
     distinct_prefix will always be a prefix of min_search_key/max_search_key.
 
   RETURN
-    0                  on success
-    HA_ERR_END_OF_FILE if returned all keys
-    other              if some error occurred
-*/
-
-int QUICK_SKIP_SCAN_SELECT::get_next() {
+    See RowIterator::Read()
+ */
+int QUICK_SKIP_SCAN_SELECT::Read() {
   DBUG_TRACE;
   int result = HA_ERR_END_OF_FILE;
   int past_eq_prefix = 0;
@@ -286,7 +283,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
                                       distinct_prefix_key_parts);
       }
 
-      if (result) goto exit;
+      if (result) return HandleError(result);
 
       // Save the prefix of this group for subsequent calls.
       key_copy(distinct_prefix, table()->record[0], index_info,
@@ -309,8 +306,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
             result = HA_ERR_END_OF_FILE;
             continue;
           }
-          result = HA_ERR_END_OF_FILE;
-          goto exit;
+          return -1;
         }
       }
 
@@ -368,28 +364,31 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       result = table()->file->ha_read_range_first(
           &start_key, &end_key, range_cond_flag & EQ_RANGE, true /* sorted */);
       if (result) {
-        if (result == HA_ERR_END_OF_FILE) {
+        int error_code = HandleError(result);
+        if (error_code == -1) {
           is_prefix_valid = false;
           continue;
         }
-        goto exit;
+        return error_code;
       }
     } else {
       result = table()->file->ha_read_range_next();
       if (result) {
-        if (result == HA_ERR_END_OF_FILE) {
+        int error_code = HandleError(result);
+        if (error_code == -1) {
           is_prefix_valid = false;
           continue;
         }
-        goto exit;
+        return error_code;
       }
     }
-  } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
+  } while (!thd()->killed &&
+           (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
 
-exit:
   table()->column_bitmaps_set_no_signal(save_read_set, table()->write_set);
 
-  if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
-
-  return result;
+  if (result == 0) {
+    return 0;
+  }
+  return HandleError(result);
 }

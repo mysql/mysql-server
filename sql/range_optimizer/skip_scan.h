@@ -120,7 +120,11 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
                          uint range_key_len);
   ~QUICK_SKIP_SCAN_SELECT() override;
   bool Init() override;
-  int get_next() override;
+  int Read() override;
+  int get_next() override {
+    assert(false);
+    return 1;
+  }
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_
