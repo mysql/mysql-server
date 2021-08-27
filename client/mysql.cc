@@ -230,6 +230,7 @@ static uint opt_protocol = 0;
 static const CHARSET_INFO *charset_info = &my_charset_latin1;
 
 static char *opt_fido_register_factor = nullptr;
+static char *opt_oci_config_file = nullptr;
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "multi_factor_passwordopt-vars.h"
@@ -1944,6 +1945,11 @@ static struct my_option my_long_options[] = {
      "done.",
      &opt_fido_register_factor, &opt_fido_register_factor, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"oci-config-file", 0,
+     "Specifies the location of the OCI configuration file. Default for Linux "
+     "is ~/.oci/config and %HOME/.oci/config on Windows.",
+     &opt_oci_config_file, &opt_oci_config_file, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
@@ -2182,8 +2188,8 @@ static int read_and_execute(bool interactive) {
         line_length = status.line_buff->read_length;
 
         /*
-          ASCII 0x00 is not allowed appearing in queries if it is not in binary
-          mode.
+          ASCII 0x00 is not allowed appearing in queries if it is not in
+          binary mode.
         */
         if (!real_binary_mode && strlen(line) != line_length) {
           status.exit_status = 1;
@@ -2317,9 +2323,9 @@ static int read_and_execute(bool interactive) {
 #endif
 
   /*
-    If the function is called by 'source' command, it will return to interactive
-    mode, so real_binary_mode should be false. Otherwise, it will exit the
-    program, it is safe to set real_binary_mode to false.
+    If the function is called by 'source' command, it will return to
+    interactive mode, so real_binary_mode should be false. Otherwise, it will
+    exit the program, it is safe to set real_binary_mode to false.
   */
   real_binary_mode = false;
   return status.exit_status;
@@ -3161,7 +3167,8 @@ static int com_server_help(String *buffer [[maybe_unused]],
         tee_fprintf(PAGER, "You asked for help about help category: \"%s\"\n",
                     cur[0]);
         put_info(
-            "For more information, type 'help <item>', where <item> is one of "
+            "For more information, type 'help <item>', where <item> is one "
+            "of "
             "the following",
             INFO_INFO);
         num_name = 1;
@@ -3625,12 +3632,13 @@ static void print_table_data(MYSQL_RES *result) {
       field_max_length = field->max_length;
 
       /*
-       How many text cells on the screen will this string span?  If it contains
-       multibyte characters, then the number of characters we occupy on screen
-       will be fewer than the number of bytes we occupy in memory.
+       How many text cells on the screen will this string span?  If it
+       contains multibyte characters, then the number of characters we occupy
+       on screen will be fewer than the number of bytes we occupy in memory.
 
        We need to find how much screen real-estate we will occupy to know how
-       many extra padding-characters we should send with the printing function.
+       many extra padding-characters we should send with the printing
+       function.
       */
       visible_length = charset_info->cset->numcells(charset_info, buffer,
                                                     buffer + data_length);
@@ -3653,8 +3661,8 @@ static void print_table_data(MYSQL_RES *result) {
     }
     (void)tee_fputs("\n", PAGER);
 
-    // Check interrupted_query last; this ensures that we get at least one row.
-    // This is useful for aborted EXPLAIN ANALYZE queries.
+    // Check interrupted_query last; this ensures that we get at least one
+    // row. This is useful for aborted EXPLAIN ANALYZE queries.
     if (interrupted_query) break;
   }
   tee_puts(separator.ptr(), PAGER);
@@ -4684,6 +4692,23 @@ static bool init_connection_options(MYSQL *mysql) {
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
   set_password_options(mysql);
+
+  if (opt_oci_config_file != nullptr) {
+    /* set OCI config file option if required */
+    struct st_mysql_client_plugin *oci_iam_plugin = mysql_client_find_plugin(
+        mysql, "authentication_oci_client", MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+    if (!oci_iam_plugin) {
+      put_info("Cannot load the authentication_oci_client plugin.", INFO_ERROR);
+      return 1;
+    }
+    if (mysql_plugin_options(oci_iam_plugin, "oci-config-file",
+                             opt_oci_config_file)) {
+      put_info(
+          "Failed to set config file for authentication_oci_client plugin.",
+          INFO_ERROR);
+      return 1;
+    }
+  }
   return false;
 }
 
