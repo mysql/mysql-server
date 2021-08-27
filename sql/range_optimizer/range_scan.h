@@ -102,6 +102,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   MEM_ROOT *mem_root;
   bool inited = false;
   const bool m_expected_rows;
+  ha_rows *m_examined_rows;
 
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
@@ -125,7 +126,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
 
   bool Init() override;
-  int get_next() override;
+  int Read() override;
   void UnlockRow() override {
     // Override TableRowIterator::UnlockRow(), since we may use
     // a different handler from m_table->file.

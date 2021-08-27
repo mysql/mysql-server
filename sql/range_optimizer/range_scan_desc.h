@@ -32,7 +32,7 @@
 class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
  public:
   QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q, uint used_key_parts);
-  int get_next() override;
+  int Read() override;
 
  private:
   bool range_reads_after_key(QUICK_RANGE *range);

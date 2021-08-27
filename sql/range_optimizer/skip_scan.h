@@ -121,10 +121,6 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
   ~QUICK_SKIP_SCAN_SELECT() override;
   bool Init() override;
   int Read() override;
-  int get_next() override {
-    assert(false);
-    return 1;
-  }
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_

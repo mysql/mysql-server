@@ -31,31 +31,43 @@
 
 /* Get next for geometrical indexes */
 
-int QUICK_RANGE_SELECT_GEOM::get_next() {
+int QUICK_RANGE_SELECT_GEOM::Read() {
   DBUG_TRACE;
 
   for (;;) {
-    int result;
     if (last_range) {
       // Already read through key
-      result = file->ha_index_next_same(table()->record[0], last_range->min_key,
-                                        last_range->min_length);
-      if (result != HA_ERR_END_OF_FILE) return result;
+      int result = file->ha_index_next_same(
+          table()->record[0], last_range->min_key, last_range->min_length);
+      if (result == 0) {
+        if (m_examined_rows != nullptr) {
+          ++*m_examined_rows;
+        }
+        return 0;
+      }
+      if (result != HA_ERR_END_OF_FILE) return HandleError(result);
     }
 
     const size_t count = ranges.size() - (cur_range - ranges.begin());
     if (count == 0) {
       /* Ranges have already been used up before. None is left for read. */
       last_range = nullptr;
-      return HA_ERR_END_OF_FILE;
+      return -1;
     }
     last_range = *(cur_range++);
 
-    result = file->ha_index_read_map(table()->record[0], last_range->min_key,
-                                     last_range->min_keypart_map,
-                                     last_range->rkey_func_flag);
-    if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
-      return result;
+    int result = file->ha_index_read_map(
+        table()->record[0], last_range->min_key, last_range->min_keypart_map,
+        last_range->rkey_func_flag);
+    if (result == 0) {
+      if (m_examined_rows != nullptr) {
+        ++*m_examined_rows;
+      }
+      return 0;
+    }
+    if (int error_code = HandleError(result); error_code != -1) {
+      return error_code;
+    }
     last_range = nullptr;  // Not found, to next range
   }
 }

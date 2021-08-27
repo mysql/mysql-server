@@ -32,11 +32,11 @@
 
 /*
   This is a hack: we inherit from QUICK_RANGE_SELECT so that we can use the
-  get_next() interface, but we have to hold a pointer to the original
+  Read() interface, but we have to hold a pointer to the original
   QUICK_RANGE_SELECT because its data are used all over the place. What
   should be done is to factor out the data that is needed into a base
   class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
-  which handle the ranges and implement the get_next() function.  But
+  which handle the ranges and implement the Read() function.  But
   for now, this seems to work right at least.
 */
 
@@ -71,7 +71,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q,
   q.dont_free = true;  // Don't free shared mem
 }
 
-int QUICK_SELECT_DESC::get_next() {
+int QUICK_SELECT_DESC::Read() {
   DBUG_TRACE;
 
   /* The max key is handled as follows:
@@ -88,22 +88,29 @@ int QUICK_SELECT_DESC::get_next() {
    */
 
   for (;;) {
-    int result;
     if (last_range) {  // Already read through key
-      result =
+      int result =
           ((last_range->flag & EQ_RANGE &&
             used_key_parts <= table()->key_info[index].user_defined_key_parts)
                ? file->ha_index_next_same(table()->record[0],
                                           last_range->min_key,
                                           last_range->min_length)
                : file->ha_index_prev(table()->record[0]));
-      if (!result) {
-        if (cmp_prev(*rev_it.ref()) == 0) return 0;
-      } else if (result != HA_ERR_END_OF_FILE)
-        return result;
+      if (result == 0) {
+        if (cmp_prev(*rev_it.ref()) == 0) {
+          if (m_examined_rows != nullptr) {
+            ++*m_examined_rows;
+          }
+          return 0;
+        }
+      } else {
+        if (int error_code = HandleError(result); error_code != -1) {
+          return error_code;
+        }
+      }
     }
 
-    if (!(last_range = rev_it++)) return HA_ERR_END_OF_FILE;  // All ranges used
+    if (!(last_range = rev_it++)) return -1;  // All ranges used
 
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts =
@@ -135,8 +142,7 @@ int QUICK_SELECT_DESC::get_next() {
 
     if (last_range->flag & NO_MAX_RANGE)  // Read last record
     {
-      int local_error;
-      if ((local_error = file->ha_index_last(table()->record[0]))) {
+      if (int result = file->ha_index_last(table()->record[0]); result != 0) {
         /*
           HA_ERR_END_OF_FILE is returned both when the table is empty and when
           there are no qualifying records in the range (when using ICP).
@@ -144,19 +150,25 @@ int QUICK_SELECT_DESC::get_next() {
           avoid loss of records. If the error code truly meant "empty table"
           the next iteration of the loop will exit.
         */
-        if (local_error != HA_ERR_END_OF_FILE) return local_error;
+        if (int error_code = HandleError(result); error_code != -1) {
+          return error_code;
+        }
         last_range = nullptr;  // Go to next range
         continue;
       }
 
-      if (cmp_prev(last_range) == 0) return 0;
+      if (cmp_prev(last_range) == 0) {
+        if (m_examined_rows != nullptr) {
+          ++*m_examined_rows;
+        }
+        return 0;
+      }
       last_range = nullptr;  // No match; go to next range
       continue;
     }
 
-    if (eqrange_all_keyparts)
-
-    {
+    int result;
+    if (eqrange_all_keyparts) {
       result = file->ha_index_read_map(table()->record[0], last_range->max_key,
                                        last_range->max_keypart_map,
                                        HA_READ_KEY_EXACT);
@@ -171,9 +183,10 @@ int QUICK_SELECT_DESC::get_next() {
           ((last_range->flag & NEAR_MAX) ? HA_READ_BEFORE_KEY
                                          : HA_READ_PREFIX_LAST_OR_PREV));
     }
-    if (result) {
-      if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
-        return result;
+    if (result != 0) {
+      if (int error_code = HandleError(result); error_code != -1) {
+        return error_code;
+      }
       last_range = nullptr;  // Not found, to next range
       continue;
     }
@@ -181,14 +194,17 @@ int QUICK_SELECT_DESC::get_next() {
       if ((last_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
           (UNIQUE_RANGE | EQ_RANGE))
         last_range = nullptr;  // Stop searching
-      return 0;                // Found key is in range
+      if (m_examined_rows != nullptr) {
+        ++*m_examined_rows;
+      }
+      return 0;  // Found key is in range
     }
     last_range = nullptr;  // To next range
   }
 }
 /*
   true if this range will require using HA_READ_AFTER_KEY
-  See comment in get_next() about this
+  See comment in Read() about this
 */
 
 bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg) {

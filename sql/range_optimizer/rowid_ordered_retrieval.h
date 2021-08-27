@@ -69,10 +69,6 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
 
   bool Init() override;
   int Read() override;
-  int get_next() override {
-    assert(false);
-    return 1;
-  }
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
   /*
@@ -132,10 +128,6 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
 
   bool Init() override;
   int Read() override;
-  int get_next() override {
-    assert(false);
-    return 1;
-  }
 
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
@@ -148,8 +140,8 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
       queue; /* Priority queue for merge operation */
 
   MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */
-  uchar *cur_rowid;   /* buffer used in get_next() */
-  uchar *prev_rowid;  /* rowid of last row returned by get_next() */
+  uchar *cur_rowid;   /* buffer used in Read() */
+  uchar *prev_rowid;  /* rowid of last row returned by Read() */
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 

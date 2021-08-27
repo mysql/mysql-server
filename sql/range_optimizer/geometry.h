@@ -43,8 +43,12 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
       : QUICK_RANGE_SELECT(thd, table, examined_rows, expected_rows, index_arg,
                            need_rows_in_rowid_order_arg, reuse_handler_arg,
                            return_mem_root, mrr_flags_arg, mrr_buf_size_arg,
-                           key, ranges_arg) {}
-  int get_next() override;
+                           key, ranges_arg),
+        m_examined_rows(examined_rows) {}
+  int Read() override;
+
+ private:
+  ha_rows *m_examined_rows;
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_GEOMETRY_H_

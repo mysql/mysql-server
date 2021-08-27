@@ -184,14 +184,9 @@ class QUICK_SELECT_I : public TableRowIterator {
   QUICK_SELECT_I(THD *thd, TABLE *table, ha_rows *examined_rows)
       : TableRowIterator(thd, table), m_examined_rows(examined_rows) {}
 
-  int Read() override;
-
-  /* get next record to retrieve */
-  virtual int get_next() = 0;
-
   /*
     Row ID of last row retrieved by this quick select. This is used only when
-    doing ROR-index_merge selects. Updated on successful get_next().
+    doing ROR-index_merge selects. Updated on successful Read().
   */
   uchar *last_rowid = nullptr;
 

@@ -71,7 +71,8 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
       need_rows_in_rowid_order(need_rows_in_rowid_order),
       reuse_handler(reuse_handler),
       mem_root(return_mem_root),
-      m_expected_rows(expected_rows) {
+      m_expected_rows(expected_rows),
+      m_examined_rows(examined_rows) {
   DBUG_TRACE;
 
   in_ror_merged_scan = false;
@@ -341,23 +342,7 @@ bool QUICK_RANGE_SELECT::shared_reset() {
   return false;
 }
 
-/*
-  Get next possible record using quick-struct.
-
-  SYNOPSIS
-    QUICK_RANGE_SELECT::get_next()
-
-  NOTES
-    Record is read into table->record[0]
-
-  RETURN
-    0			Found row
-    HA_ERR_END_OF_FILE	No (more) rows in range
-    #			Error code
-*/
-
-int QUICK_RANGE_SELECT::get_next() {
-  char *dummy;
+int QUICK_RANGE_SELECT::Read() {
   MY_BITMAP *const save_read_set = table()->read_set;
   MY_BITMAP *const save_write_set = table()->write_set;
   DBUG_TRACE;
@@ -370,6 +355,7 @@ int QUICK_RANGE_SELECT::get_next() {
     table()->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   }
 
+  char *dummy;
   int result = file->ha_multi_range_read_next(&dummy);
 
   if (in_ror_merged_scan) {
@@ -379,7 +365,10 @@ int QUICK_RANGE_SELECT::get_next() {
       file->position(table()->record[0]);
     }
   }
-  return result;
+  if (result == 0) {
+    return 0;
+  }
+  return HandleError(result);
 }
 
 /*
@@ -399,7 +388,7 @@ int QUICK_RANGE_SELECT::get_next() {
 
   @todo
 
-    This method is a modified copy of QUICK_RANGE_SELECT::get_next(), so both
+    This method is a modified copy of QUICK_RANGE_SELECT::Read(), so both
     methods should be unified into a more general one to reduce code
     duplication.
 

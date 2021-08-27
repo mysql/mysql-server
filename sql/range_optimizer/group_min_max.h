@@ -72,9 +72,9 @@ class List_iterator;
   The class of queries that can be processed by this quick select is fully
   specified in the description of get_best_trp_group_min_max() in opt_range.cc.
 
-  The get_next() method directly produces result tuples, thus obviating the
-  need to call end_send_group() because all grouping is already done inside
-  get_next().
+  The Read() method directly produces result tuples, thus obviating the
+  need to use AggregateIterator, because all grouping is already done inside
+  Read().
 
   Since one of the requirements is that all select fields are part of the same
   index, this class produces only index keys, and not complete records.
@@ -144,10 +144,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool Init() override;
   int Read() override;
-  int get_next() override {
-    assert(false);
-    return 1;
-  }
   bool is_agg_distinct() const { return have_agg_distinct; }
 };
 

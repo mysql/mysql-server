@@ -105,10 +105,6 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
 
   bool Init() override;
   int Read() override;
-  int get_next() override {
-    assert(false);
-    return 1;
-  }
 
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
