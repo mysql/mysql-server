@@ -3224,10 +3224,8 @@ bool Query_block::convert_subquery_to_semijoin(
                    return false;
                  });
       }
-    }
-    if (!view_ref_with_subquery) {
-      Item::Cleanup_after_removal_context ctx(this);
-      for (Item *item : subq_query_block->visible_fields()) {
+      if (!view_ref_with_subquery) {
+        Item::Cleanup_after_removal_context ctx(this);
         item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                    pointer_cast<uchar *>(&ctx));
       }
