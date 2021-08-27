@@ -287,7 +287,7 @@ bool add_line_to_config_file(const std::string &config_path,
  *
  * @param log_file path to file containing router log
  * @param log_regex value that is going to be searched for in the log
- * @param n_occurence number denoting which occurence of a log_regex is expected
+ * @param occurence number denoting which occurence of a log_regex is expected
  * @param timeout number of milliseconds we are going to wait for the log_regex
  * to occur at expected position
  *
