@@ -126,6 +126,11 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   bool Init() override;
   int get_next() override;
+  void UnlockRow() override {
+    // Override TableRowIterator::UnlockRow(), since we may use
+    // a different handler from m_table->file.
+    file->unlock_row();
+  }
   int get_next_prefix(uint prefix_length, uint group_key_parts,
                       uchar *cur_prefix);
 

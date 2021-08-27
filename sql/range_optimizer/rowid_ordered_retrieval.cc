@@ -135,7 +135,7 @@ end:
     We are only going to read key fields and call position() on 'file'
     The following sets table()->tmp_set to only use this key and then updates
     table()->read_set and table()->write_set to use this bitmap.
-    The now bitmap is stored in 'column_bitmap' which is used in ::get_next()
+    The new bitmap is stored in 'column_bitmap' which is used in ::Read()
   */
   org_file = table()->file;
   table()->file = file;
@@ -146,7 +146,7 @@ end:
   bitmap_copy(&column_bitmap, table()->read_set);
 
   /*
-    We have prepared a column_bitmap which get_next() will use. To do this we
+    We have prepared a column_bitmap which Read() will use. To do this we
     used TABLE::read_set/write_set as playground; restore them to their
     original value to not pollute other scans.
   */
@@ -192,15 +192,6 @@ bool QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
   }
   return false;
 }
-
-/*
-  Initialize quick select for row retrieval.
-  SYNOPSIS
-    reset()
-  RETURN
-    0      OK
-    other  Error code
-*/
 
 bool QUICK_ROR_INTERSECT_SELECT::Init() {
   DBUG_TRACE;
@@ -266,25 +257,16 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root,
   rowid_length = table->file->ref_length;
 }
 
-/*
-  Initialize quick select for row retrieval.
-  SYNOPSIS
-    reset()
-
-  RETURN
-    0      OK
-    other  Error code
-*/
-
 bool QUICK_ROR_UNION_SELECT::Init() {
   if (!inited) {
-    if (queue.reserve(quick_selects.elements)) {
+    if (queue.reserve(quick_selects.size())) {
       table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
       return true;
     }
 
     if (!(cur_rowid =
               mem_root->ArrayAlloc<uchar>(2 * table()->file->ref_length))) {
+      table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
       return true;
     }
     prev_rowid = cur_rowid + table()->file->ref_length;
@@ -304,12 +286,12 @@ bool QUICK_ROR_UNION_SELECT::Init() {
   */
   for (QUICK_SELECT_I &quick : quick_selects) {
     if (quick.Init()) return true;
-    if ((error = quick.get_next())) {
-      if (error == HA_ERR_END_OF_FILE) continue;
-      table()->file->print_error(error, MYF(0));
+    int result = quick.Read();
+    if (result == 1) {
       return true;
+    } else if (result == 0) {
+      queue.push(&quick);
     }
-    queue.push(&quick);
   }
 
   /* Prepare for ha_rnd_pos calls. */
@@ -340,7 +322,7 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
 /*
   Retrieve next record.
   SYNOPSIS
-     QUICK_ROR_INTERSECT_SELECT::get_next()
+     QUICK_ROR_INTERSECT_SELECT::Read()
 
   NOTES
     Invariant on enter/exit: all intersected selects have retrieved all index
@@ -360,59 +342,57 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
     used when reading the record.
 
   RETURN
-   0     - Ok
-   other - Error code if any error occurred.
-*/
-
-int QUICK_ROR_INTERSECT_SELECT::get_next() {
+    See RowIterator::Read()
+ */
+int QUICK_ROR_INTERSECT_SELECT::Read() {
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
 
-  /* quick that reads the given rowid first. This is needed in order
-  to be able to unlock the row using the same handler object that locked
-  it */
-  QUICK_RANGE_SELECT *quick_with_last_rowid;
-
-  int error, cmp;
-  uint last_rowid_count = 0;
   DBUG_TRACE;
 
-  do {
+  for (;;) {  // Termination condition within loop.
     /* Get a rowid for first quick and save it as a 'candidate' */
-    quick = quick_it++;
-    error = quick->get_next();
+    QUICK_RANGE_SELECT *quick = quick_it++;
+    if (int error = quick->Read(); error != 0) {
+      return error;
+    }
     if (cpk_quick) {
-      while (!error && !cpk_quick->row_in_ranges()) {
-        quick->file->unlock_row(); /* row not in range; unlock */
-        error = quick->get_next();
+      while (!cpk_quick->row_in_ranges()) {
+        quick->UnlockRow(); /* row not in range; unlock */
+        if (int error = quick->Read(); error != 0) {
+          return error;
+        }
       }
     }
-    if (error) return error;
 
     memcpy(last_rowid, quick->file->ref, table()->file->ref_length);
-    last_rowid_count = 1;
-    quick_with_last_rowid = quick;
 
-    while (last_rowid_count < quick_selects.elements) {
+    /* quick that reads the given rowid first. This is needed in order
+    to be able to unlock the row using the same handler object that locked
+    it */
+    QUICK_RANGE_SELECT *quick_with_last_rowid = quick;
+
+    uint last_rowid_count = 1;
+    while (last_rowid_count < quick_selects.size()) {
       if (!(quick = quick_it++)) {
         quick_it.rewind();
         quick = quick_it++;
       }
 
+      int cmp;
       do {
         DBUG_EXECUTE_IF("innodb_quick_report_deadlock",
                         DBUG_SET("+d,innodb_report_deadlock"););
-        if ((error = quick->get_next())) {
+        if (int error = quick->Read(); error != 0) {
           /* On certain errors like deadlock, trx might be rolled back.*/
           if (!current_thd->transaction_rollback_request)
-            quick_with_last_rowid->file->unlock_row();
+            quick_with_last_rowid->UnlockRow();
           return error;
         }
         cmp = table()->file->cmp_ref(quick->file->ref, last_rowid);
         if (cmp < 0) {
           /* This row is being skipped.  Release lock on
            * it. */
-          quick->file->unlock_row();
+          quick->UnlockRow();
         }
       } while (cmp < 0);
 
@@ -421,17 +401,17 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
         /* Found a row with ref > cur_ref. Make it a new 'candidate' */
         if (cpk_quick) {
           while (!cpk_quick->row_in_ranges()) {
-            quick->file->unlock_row(); /* row not in range; unlock */
-            if ((error = quick->get_next())) {
+            quick->UnlockRow(); /* row not in range; unlock */
+            if (int error = quick->Read(); error != 0) {
               /* On certain errors like deadlock, trx might be rolled back.*/
               if (!current_thd->transaction_rollback_request)
-                quick_with_last_rowid->file->unlock_row();
+                quick_with_last_rowid->UnlockRow();
               return error;
             }
           }
         }
         memcpy(last_rowid, quick->file->ref, table()->file->ref_length);
-        quick_with_last_rowid->file->unlock_row();
+        quick_with_last_rowid->UnlockRow();
         last_rowid_count = 1;
         quick_with_last_rowid = quick;
       } else {
@@ -441,16 +421,26 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
     }
 
     /* We get here if we got the same row ref in all scans. */
-    if (retrieve_full_rows)
-      error = table()->file->ha_rnd_pos(table()->record[0], last_rowid);
-  } while (error == HA_ERR_RECORD_DELETED);
-  return error;
+    if (retrieve_full_rows) {
+      int error = table()->file->ha_rnd_pos(table()->record[0], last_rowid);
+      if (error == HA_ERR_RECORD_DELETED) {
+        // The row was deleted, so we need to loop back.
+        continue;
+      }
+      if (error == 0) {
+        return 0;
+      }
+      return HandleError(error);
+    } else {
+      return 0;
+    }
+  }
 }
 
 /*
   Retrieve next record.
   SYNOPSIS
-    QUICK_ROR_UNION_SELECT::get_next()
+    QUICK_ROR_UNION_SELECT::Read()
 
   NOTES
     Enter/exit invariant:
@@ -458,27 +448,23 @@ int QUICK_ROR_INTERSECT_SELECT::get_next() {
     retrieved but the corresponding row hasn't been passed to output.
 
   RETURN
-   0     - Ok
-   other - Error code if any error occurred.
-*/
-
-int QUICK_ROR_UNION_SELECT::get_next() {
-  int error, dup_row;
-  QUICK_SELECT_I *quick;
-  uchar *tmp;
+    See RowIterator::Read()
+ */
+int QUICK_ROR_UNION_SELECT::Read() {
   DBUG_TRACE;
 
-  do {
+  for (;;) {  // Termination condition within loop.
+    bool dup_row;
     do {
-      if (queue.empty()) return HA_ERR_END_OF_FILE;
+      if (queue.empty()) return -1;
       /* Ok, we have a queue with >= 1 scans */
 
-      quick = queue.top();
+      QUICK_SELECT_I *quick = queue.top();
       memcpy(cur_rowid, quick->last_rowid, rowid_length);
 
       /* put into queue rowid from the same stream as top element */
-      if ((error = quick->get_next())) {
-        if (error != HA_ERR_END_OF_FILE) return error;
+      if (int ret = quick->Read(); ret != 0) {
+        if (ret != -1) return ret;
         queue.pop();
       } else {
         queue.update_top();
@@ -492,11 +478,17 @@ int QUICK_ROR_UNION_SELECT::get_next() {
         dup_row = !table()->file->cmp_ref(cur_rowid, prev_rowid);
     } while (dup_row);
 
-    tmp = cur_rowid;
-    cur_rowid = prev_rowid;
-    prev_rowid = tmp;
+    using std::swap;
+    swap(cur_rowid, prev_rowid);
 
-    error = table()->file->ha_rnd_pos(table()->record[0], prev_rowid);
-  } while (error == HA_ERR_RECORD_DELETED);
-  return error;
+    int error = table()->file->ha_rnd_pos(table()->record[0], prev_rowid);
+    if (error == HA_ERR_RECORD_DELETED) {
+      // The row was deleted, so we need to loop back.
+      continue;
+    }
+    if (error == 0) {
+      return 0;
+    }
+    return HandleError(error);
+  }
 }

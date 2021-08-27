@@ -68,7 +68,11 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   bool Init() override;
-  int get_next() override;
+  int Read() override;
+  int get_next() override {
+    assert(false);
+    return 1;
+  }
   bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
 
   /*
@@ -127,7 +131,11 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_UNION_SELECT() override;
 
   bool Init() override;
-  int get_next() override;
+  int Read() override;
+  int get_next() override {
+    assert(false);
+    return 1;
+  }
 
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
