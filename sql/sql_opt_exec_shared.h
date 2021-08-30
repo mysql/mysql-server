@@ -297,8 +297,8 @@ class QEP_shared {
   Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records = r; }
-  TABLE_READ_PLAN *trp() const { return m_trp; }
-  void set_trp(TABLE_READ_PLAN *q) { m_trp = q; }
+  AccessPath *range_scan() const { return m_range_scan; }
+  void set_range_scan(AccessPath *q) { m_range_scan = q; }
   table_map prefix_tables() const { return prefix_tables_map; }
   table_map added_tables() const { return added_tables_map; }
   Item_func_match *ft_func() const { return m_ft_func; }
@@ -438,7 +438,7 @@ class QEP_shared {
      Filled in optimization, converted to a RowIterator before execution
      (used to find rows), and in EXPLAIN.
   */
-  TABLE_READ_PLAN *m_trp = nullptr;
+  AccessPath *m_range_scan = nullptr;
 
   /*
     Maps below are shared because of dynamic range: in execution, it needs to
@@ -523,8 +523,8 @@ class QEP_shared_owner {
   Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
-  TABLE_READ_PLAN *trp() const { return m_qs->trp(); }
-  void set_trp(TABLE_READ_PLAN *q) { return m_qs->set_trp(q); }
+  AccessPath *range_scan() const { return m_qs->range_scan(); }
+  void set_range_scan(AccessPath *q) { return m_qs->set_range_scan(q); }
   table_map prefix_tables() const { return m_qs->prefix_tables(); }
   table_map added_tables() const { return m_qs->added_tables(); }
   Item_func_match *ft_func() const { return m_qs->ft_func(); }

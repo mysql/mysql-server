@@ -187,7 +187,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, bool ignore_table_scan,
-                      Query_block *query_block, TABLE_READ_PLAN **trp);
+                      Query_block *query_block, AccessPath **path);
 
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 

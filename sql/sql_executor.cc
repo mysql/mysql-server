@@ -93,6 +93,7 @@
 #include "sql/opt_trace_context.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/records.h"
 #include "sql/ref_row_iterators.h"
@@ -259,14 +260,16 @@ bool JOIN::create_intermediate_table(
     if (alloc_group_fields(this, group_list.order)) goto err;
     if (make_sum_func_list(*fields, true)) goto err;
     const bool need_distinct =
-        !(tab->trp() && tab->trp()->is_agg_loose_index_scan());
+        !(tab->range_scan() &&
+          tab->range_scan()->index_range_scan().trp->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
     group_list.clean();
   } else {
     if (make_sum_func_list(*fields, false)) goto err;
     const bool need_distinct =
-        !(tab->trp() && tab->trp()->is_agg_loose_index_scan());
+        !(tab->range_scan() &&
+          tab->range_scan()->index_range_scan().trp->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
@@ -2879,10 +2882,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       QEP_TAB *qep_tab = &this->qep_tab[const_tables];
       if (qep_tab->op_type == QEP_TAB::OT_MATERIALIZE) {
         qep_tab->table()->alias = "<temporary>";
-        AccessPath *table_path =
-            create_table_access_path(thd, qep_tab->table(), qep_tab->trp(),
-                                     qep_tab->table_ref, qep_tab->position(),
-                                     /*count_examined_rows=*/false);
+        AccessPath *table_path = create_table_access_path(
+            thd, qep_tab->table(), qep_tab->range_scan(), qep_tab->table_ref,
+            qep_tab->position(),
+            /*count_examined_rows=*/false);
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(
@@ -3050,7 +3053,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     }
 
     AccessPath *table_path =
-        create_table_access_path(thd, qep_tab->table(), qep_tab->trp(),
+        create_table_access_path(thd, qep_tab->table(), qep_tab->range_scan(),
                                  qep_tab->table_ref, qep_tab->position(),
                                  /*count_examined_rows=*/false);
     qep_tab->table()->alias = "<temporary>";
@@ -3936,8 +3939,8 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
 
 DynamicRangeIterator::~DynamicRangeIterator() {
   // This is owned by our MEM_ROOT.
-  destroy(m_qep_tab->trp());
-  m_qep_tab->set_trp(nullptr);
+  destroy(m_qep_tab->range_scan());
+  m_qep_tab->set_range_scan(nullptr);
 }
 
 bool DynamicRangeIterator::Init() {
@@ -3981,40 +3984,40 @@ bool DynamicRangeIterator::Init() {
   m_qep_tab->set_type(JT_UNKNOWN);
   thd()->unlock_query_plan();
 
-  int rc;
   RowIterator *qck = nullptr;
 
   // Clear out and destroy any old iterators before we start constructing
   // new ones, since they may share the same memory in the union.
   m_iterator.reset();
-  m_qep_tab->set_trp(nullptr);
+  m_qep_tab->set_range_scan(nullptr);
   m_mem_root.ClearForReuse();
 
-  TABLE_READ_PLAN *trp;
+  AccessPath *trp;
 
-  rc = test_quick_select(thd(), &m_mem_root, &m_mem_root, m_qep_tab->keys(),
-                         const_tables, read_tables, HA_POS_ERROR,
-                         false,  // don't force quick range
-                         ORDER_NOT_RELEVANT, m_qep_tab->table(),
-                         m_qep_tab->skip_records_in_range(),
-                         m_qep_tab->condition(), &needed_reg_dummy,
-                         m_qep_tab->table()->force_index,
-                         m_qep_tab->join()->query_block, &trp);
+  int rc = test_quick_select(thd(), &m_mem_root, &m_mem_root, m_qep_tab->keys(),
+                             const_tables, read_tables, HA_POS_ERROR,
+                             false,  // don't force quick range
+                             ORDER_NOT_RELEVANT, m_qep_tab->table(),
+                             m_qep_tab->skip_records_in_range(),
+                             m_qep_tab->condition(), &needed_reg_dummy,
+                             m_qep_tab->table()->force_index,
+                             m_qep_tab->join()->query_block, &trp);
   if (thd()->is_error())  // @todo consolidate error reporting
                           // of test_quick_select
   {
     return true;
   }
-  m_qep_tab->set_trp(trp);
+  m_qep_tab->set_range_scan(trp);
   if (trp == nullptr) {
     m_qep_tab->set_type(JT_ALL);
   } else {
-    qck = trp->make_quick(thd(), m_qep_tab->position()->rows_fetched, true,
-                          &m_mem_root, m_examined_rows);
+    qck = trp->index_range_scan().trp->make_quick(
+        thd(), m_qep_tab->position()->rows_fetched, true, &m_mem_root,
+        m_examined_rows);
     if (qck == nullptr || thd()->is_error()) {
       return true;
     }
-    m_qep_tab->set_type(calc_join_type(trp->get_type()));
+    m_qep_tab->set_type(calc_join_type(trp));
   }
 
   DEBUG_SYNC(thd(), "quick_droped_after_mutex");
@@ -4035,7 +4038,8 @@ bool DynamicRangeIterator::Init() {
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.
-    if (trp->index == MAX_KEY || table()->covering_keys.is_set(trp->index))
+    if (used_index(trp) == MAX_KEY ||
+        table()->covering_keys.is_set(used_index(trp)))
       table()->read_set = m_read_set_without_base_columns;
     else
       table()->read_set = &m_read_set_with_base_columns;
@@ -4349,8 +4353,8 @@ AccessPath *QEP_TAB::access_path() {
         path = NewDynamicIndexRangeScanAccessPath(join()->thd, table(), this,
                                                   /*count_examined_rows=*/true);
       } else {
-        path = create_table_access_path(join()->thd, table(), trp(), table_ref,
-                                        position(),
+        path = create_table_access_path(join()->thd, table(), range_scan(),
+                                        table_ref, position(),
                                         /*count_examined_rows=*/true);
       }
       break;

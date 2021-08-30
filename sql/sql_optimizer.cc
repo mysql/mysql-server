@@ -91,6 +91,7 @@
 #include "sql/query_result.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_base.h"  // init_ftfuncs
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -1310,11 +1311,11 @@ uint QEP_TAB::effective_index() const {
       return index();
 
     case JT_INDEX_MERGE:
-      assert(trp()->index == MAX_KEY);
+      assert(used_index(range_scan()) == MAX_KEY);
       return MAX_KEY;
 
     case JT_RANGE:
-      return trp()->index;
+      return used_index(range_scan());
 
     case JT_ALL:
     default:
@@ -1451,7 +1452,8 @@ bool JOIN::optimize_distinct_group_order() {
 
   if (plan_is_single_table() && (!group_list.empty() || select_distinct) &&
       !tmp_table_param.sum_func_count &&
-      (!tab->trp() || tab->trp()->get_type() != QS_TYPE_GROUP_MIN_MAX)) {
+      (!tab->range_scan() ||
+       get_range_scan_type(tab->range_scan()) != QS_TYPE_GROUP_MIN_MAX)) {
     if (!group_list.empty() && rollup_state == RollupState::NONE &&
         list_contains_unique_index(tab, find_field_in_order_list,
                                    (void *)group_list.order)) {
@@ -1603,7 +1605,8 @@ void JOIN::test_skip_sort() {
       now only for one table queries with covering indexes.
     */
     if (!(query_block->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
-        (tab->trp() && tab->trp()->get_type() == QS_TYPE_GROUP_MIN_MAX)) {
+        (tab->range_scan() &&
+         get_range_scan_type(tab->range_scan()) == QS_TYPE_GROUP_MIN_MAX)) {
       if (simple_group &&    // GROUP BY is possibly skippable
           !select_distinct)  // .. if not preceded by a DISTINCT
       {
@@ -2034,7 +2037,7 @@ class Plan_change_watchdog {
     if (no_changes_arg) {
       tab = tab_arg;
       type = tab->type();
-      if ((quick = tab->trp())) quick_index = quick->index;
+      if ((quick = tab->range_scan())) quick_index = used_index(quick);
       use_quick = tab->use_quick;
       ref_key = tab->ref().key;
       ref_key_parts = tab->ref().key_parts;
@@ -2051,8 +2054,8 @@ class Plan_change_watchdog {
     if (tab == nullptr) return;
     // changes are not allowed, we verify:
     assert(tab->type() == type);
-    assert(tab->trp() == quick);
-    assert((quick == nullptr) || tab->trp()->index == quick_index);
+    assert(tab->range_scan() == quick);
+    assert(quick == nullptr || used_index(tab->range_scan()) == quick_index);
     assert(tab->use_quick == use_quick);
     assert(tab->ref().key == ref_key);
     assert(tab->ref().key_parts == ref_key_parts);
@@ -2063,9 +2066,9 @@ class Plan_change_watchdog {
   const JOIN_TAB *tab;  ///< table, or NULL if changes are allowed
   enum join_type type;  ///< copy of tab->type()
   // "Range / index merge" info
-  const TABLE_READ_PLAN *quick{nullptr};  ///< copy of tab->select->quick
-  uint quick_index{0};                    ///< copy of tab->select->quick->index
-  enum quick_type use_quick;              ///< copy of tab->use_quick
+  const AccessPath *quick{nullptr};  ///< copy of tab->select->quick
+  uint quick_index{0};               ///< copy of tab->select->quick->index
+  enum quick_type use_quick;         ///< copy of tab->use_quick
   // "ref access" info
   int ref_key;         ///< copy of tab->ref().key
   uint ref_key_parts;  /// copy of tab->ref().key_parts
@@ -2121,7 +2124,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   TABLE *const table = tab->table();
   JOIN *const join = tab->join();
   THD *const thd = join->thd;
-  TABLE_READ_PLAN *const save_trp = tab->trp();
+  AccessPath *const save_trp = tab->range_scan();
   int best_key = -1;
   bool set_up_ref_access_to_key = false;
   bool can_skip_sorting = false;  // used as return value
@@ -2222,7 +2225,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     ref_key_parts = tab->ref().key_parts;
   } else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
     // Range found by opt_range
-    int quick_type = tab->trp()->get_type();
+    int quick_type = get_range_scan_type(tab->range_scan());
     /*
       assume results are not ordered when index merge is used
       TODO: sergeyp: Results of all index merge selects actually are ordered
@@ -2232,8 +2235,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     if (quick_type == QS_TYPE_INDEX_MERGE || quick_type == QS_TYPE_ROR_UNION ||
         quick_type == QS_TYPE_ROR_INTERSECT)
       return false;
-    ref_key = tab->trp()->index;
-    ref_key_parts = tab->trp()->used_key_parts;
+    ref_key = used_index(tab->range_scan());
+    ref_key_parts = get_used_key_parts(tab->range_scan());
   } else if (tab->type() == JT_INDEX_SCAN) {
     // The optimizer has decided to use an index scan.
     ref_key = tab->index();
@@ -2304,7 +2307,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           Opt_trace_object trace_recest(trace, "rows_estimation");
           trace_recest.add_utf8_table(tab->table_ref)
               .add_utf8("index", table->key_info[new_ref_key].name);
-          TABLE_READ_PLAN *trp;
+          AccessPath *trp;
           MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                  thd->variables.range_alloc_block_size);
           const bool no_quick =
@@ -2320,8 +2323,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
                   // we are after make_join_query_block():
                   tab->condition(), &tab->needed_reg, tab->table()->force_index,
                   join->query_block, &trp) <= 0;
-          assert(tab->trp() == save_trp);
-          tab->set_trp(trp);
+          assert(tab->range_scan() == save_trp);
+          tab->set_range_scan(trp);
           if (no_quick) {
             can_skip_sorting = false;
             goto fix_ICP;
@@ -2422,7 +2425,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       keys_to_use.set_bit(best_key);  // only best_key.
       MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                              thd->variables.range_alloc_block_size);
-      TABLE_READ_PLAN *trp;
+      AccessPath *trp;
       test_quick_select(
           thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
           0,  // empty table_map
@@ -2432,8 +2435,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           order.order->direction, tab->table(), tab->skip_records_in_range(),
           tab->condition(), &tab->needed_reg, tab->table()->force_index,
           join->query_block, &trp);
-      if (order_direction < 0 && tab->trp() != nullptr &&
-          tab->trp() != save_trp) {
+      if (order_direction < 0 && tab->range_scan() != nullptr &&
+          tab->range_scan() != save_trp) {
         /*
           We came here in case when 3 indexes are available for quick
           select:
@@ -2444,15 +2447,15 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
             3 - constructed right above
           In this case we drop quick #2 as #3 is expected to be better.
         */
-        destroy(tab->trp());
-        tab->set_trp(nullptr);
+        destroy(tab->range_scan());
+        tab->set_range_scan(nullptr);
       }
       /*
-        If tab->trp() pointed to another quick than save_trp, we would
+        If tab->range_scan() pointed to another quick than save_trp, we would
         lose access to it and leak memory.
       */
-      assert(tab->trp() == save_trp || tab->trp() == nullptr);
-      tab->set_trp(trp);
+      assert(tab->range_scan() == save_trp || tab->range_scan() == nullptr);
+      tab->set_range_scan(trp);
     }
     order_direction = best_key_direction;
     /*
@@ -2473,18 +2476,18 @@ check_reverse_order:
 
   if (order_direction == -1)  // If ORDER BY ... DESC
   {
-    if (tab->trp()) {
+    if (tab->range_scan()) {
       /*
         Don't reverse the sort order, if it's already done.
         (In some cases test_if_order_by_key() can be called multiple times
       */
-      if (tab->trp()->reverse_sorted()) {
+      if (is_reverse_sorted_range(tab->range_scan())) {
         can_skip_sorting = true;
         goto fix_ICP;
       }
       // test_if_cheaper_ordering() might disable range scan on current index
-      if (tab->table()->quick_keys.is_set(tab->trp()->index) &&
-          reverse_sort_possible(tab->trp()))
+      if (tab->table()->quick_keys.is_set(used_index(tab->range_scan())) &&
+          reverse_sort_possible(tab->range_scan()))
         can_skip_sorting = true;
       else {
         can_skip_sorting = false;
@@ -2553,11 +2556,12 @@ check_reverse_order:
         and best_key doesn't, then revert the decision.
       */
       if (!table->covering_keys.is_set(best_key)) table->set_keyread(false);
-      if (!tab->trp() || tab->trp() == save_trp)  // created no QUICK
+      if (!tab->range_scan() ||
+          tab->range_scan() == save_trp)  // created no QUICK
       {
         // Avoid memory leak:
-        assert(tab->trp() == save_trp || tab->trp() == nullptr);
-        tab->set_trp(nullptr);
+        assert(tab->range_scan() == save_trp || tab->range_scan() == nullptr);
+        tab->set_range_scan(nullptr);
         tab->set_index(best_key);
         tab->set_type(JT_INDEX_SCAN);  // Read with index_first(), index_next()
         /*
@@ -2582,11 +2586,11 @@ check_reverse_order:
           We need to change the access method so as the quick access
           method is actually used.
         */
-        assert(tab->trp());
-        assert(tab->trp()->index == (uint)best_key);
-        tab->set_type(calc_join_type(tab->trp()->get_type()));
+        assert(tab->range_scan());
+        assert(used_index(tab->range_scan()) == (uint)best_key);
+        tab->set_type(calc_join_type(tab->range_scan()));
         tab->use_quick = QS_RANGE;
-        if (is_loose_index_scan(tab->trp()))
+        if (is_loose_index_scan(tab->range_scan()))
           join->tmp_table_param.precomputed_group_by = true;
         tab->position()->filter_effect = COND_FILTER_STALE;
       }
@@ -2594,15 +2598,15 @@ check_reverse_order:
 
     if (order_direction == -1)  // If ORDER BY ... DESC
     {
-      if (tab->trp()) {
+      if (tab->range_scan()) {
         /* ORDER BY range_key DESC */
-        if (tab->trp()->make_reverse(used_key_parts)) {
+        if (make_reverse(used_key_parts, tab->range_scan())) {
           /* purecov: begin inspected */
           can_skip_sorting = false;  // Reverse sort failed -> filesort
           goto fix_ICP;
           /* purecov: end */
         }
-        tab->set_type(calc_join_type(tab->trp()->get_type()));
+        tab->set_type(calc_join_type(tab->range_scan()));
         tab->position()->filter_effect = COND_FILTER_STALE;
       } else if (tab->type() == JT_REF &&
                  tab->ref().key_parts <= used_key_parts) {
@@ -2624,15 +2628,15 @@ check_reverse_order:
         changed_key = tab->ref().key;
       } else if (tab->type() == JT_INDEX_SCAN)
         tab->reversed_access = true;
-    } else if (tab->trp())
-      tab->trp()->need_sorted_output();
+    } else if (tab->range_scan())
+      set_need_sorted_output(tab->range_scan());
 
   }  // QEP has been modified
 
 fix_ICP:
   /*
     Cleanup:
-    We may have both a 'tab->trp()' and 'save_trp' (original)
+    We may have both a 'tab->range_scan()' and 'save_trp' (original)
     at this point. Delete the one that we won't use.
   */
   if (can_skip_sorting && !no_changes) {
@@ -2643,13 +2647,13 @@ fix_ICP:
       tab->position()->filter_effect = COND_FILTER_STALE_NO_CONST;
     }
 
-    // Keep current (ordered) tab->trp()
-    if (save_trp != tab->trp()) destroy(save_trp);
+    // Keep current (ordered) tab->range_scan()
+    if (save_trp != tab->range_scan()) destroy(save_trp);
   } else {
     // Restore original save_trp
-    if (tab->trp() != save_trp) {
-      destroy(tab->trp());
-      tab->set_trp(save_trp);
+    if (tab->range_scan() != save_trp) {
+      destroy(tab->range_scan());
+      tab->set_range_scan(save_trp);
     }
   }
 
@@ -2765,8 +2769,8 @@ bool JOIN::prune_table_partitions() {
 static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                                          enum_order ordering,
                                          bool recheck_range) {
-  if ((tab->trp() &&                                       // 1)
-       tab->position()->key->key == tab->trp()->index) ||  // 2)
+  if ((tab->range_scan() &&                                            // 1)
+       tab->position()->key->key == used_index(tab->range_scan())) ||  // 2)
       recheck_range) {
     uint keyparts = 0, length = 0;
     table_map dep_map = 0;
@@ -2791,7 +2795,7 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
         Opt_trace_object trace_cond(
             trace, "rerunning_range_optimizer_for_single_index");
 
-        TABLE_READ_PLAN *trp;
+        AccessPath *trp;
         MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                thd->variables.range_alloc_block_size);
         if (test_quick_select(
@@ -2802,19 +2806,19 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
                 &tab->needed_reg, recheck_range, tab->join()->query_block,
                 &trp) > 0) {
-          if (length < trp->get_max_used_key_length()) {
-            destroy(tab->trp());
-            tab->set_trp(trp);
+          if (length < get_max_used_key_length(trp)) {
+            destroy(tab->range_scan());
+            tab->set_range_scan(trp);
             return true;
           } else {
             Opt_trace_object(trace, "access_type_unchanged")
                 .add("ref_key_length", length)
-                .add("range_key_length", trp->get_max_used_key_length());
+                .add("range_key_length", get_max_used_key_length(trp));
             destroy(trp);
           }
         }
       } else
-        return length < tab->trp()->get_max_used_key_length();  // 5)
+        return length < get_max_used_key_length(tab->range_scan());  // 5)
     }
   }
   return false;
@@ -2884,14 +2888,15 @@ void JOIN::adjust_access_methods() {
         tab->position()->filter_effect = COND_FILTER_STALE;
       } else {
         // Cleanup quick, REF/REF_OR_NULL/EQ_REF, will be clarified later
-        ::destroy(tab->trp());
-        tab->set_trp(nullptr);
+        ::destroy(tab->range_scan());
+        tab->set_range_scan(nullptr);
       }
     }
     // Ensure AM consistency
-    assert(!(tab->trp() && (tab->type() == JT_REF || tab->type() == JT_ALL)));
+    assert(!(tab->range_scan() &&
+             (tab->type() == JT_REF || tab->type() == JT_ALL)));
     assert((tab->type() != JT_RANGE && tab->type() != JT_INDEX_MERGE) ||
-           tab->trp());
+           tab->range_scan());
     if (!tab->const_keys.is_clear_all() &&
         tab->table()->reginfo.impossible_range &&
         ((i == const_tables && tab->type() == JT_REF) ||
@@ -3084,18 +3089,18 @@ bool JOIN::get_best_combination() {
     tab->set_position(pos);
     TABLE *const table = tab->table();
     if (tab->type() != JT_CONST && tab->type() != JT_SYSTEM) {
-      if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN && tab->trp() &&
-          tab->trp()->index != pos->loosescan_key) {
+      if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN && tab->range_scan() &&
+          used_index(tab->range_scan()) != pos->loosescan_key) {
         /*
           We must use the duplicate-eliminating index, so this QUICK is not
           an option.
         */
-        ::destroy(tab->trp());
-        tab->set_trp(nullptr);
+        ::destroy(tab->range_scan());
+        tab->set_range_scan(nullptr);
       }
       if (!pos->key) {
-        if (tab->trp())
-          tab->set_type(calc_join_type(tab->trp()->get_type()));
+        if (tab->range_scan())
+          tab->set_type(calc_join_type(tab->range_scan()));
         else
           tab->set_type(JT_ALL);
       } else
@@ -5766,7 +5771,7 @@ bool JOIN::estimate_rowcount() {
          (tl->embedding && tl->embedding->is_sj_or_aj_nest())))  // (3)
     {
       /*
-        This call fills tab->trp() with the best QUICK access method
+        This call fills tab->range_scan() with the best QUICK access method
         possible for this table, and only if it's better than table scan.
         It also fills tab->needed_reg.
       */
@@ -5803,7 +5808,7 @@ bool JOIN::estimate_rowcount() {
       }
       if (records != HA_POS_ERROR) {
         tab->found_records = records;
-        tab->read_time = tab->trp() ? tab->trp()->cost_est.total_cost() : 0.0;
+        tab->read_time = tab->range_scan() ? tab->range_scan()->cost : 0.0;
       }
     } else {
       Opt_trace_object(trace, "table_scan")
@@ -6003,7 +6008,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization()) {
-    TABLE_READ_PLAN *trp;
+    AccessPath *trp;
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
     MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
@@ -6017,9 +6022,9 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
         &tab->needed_reg, tab->table()->force_index, tab->join()->query_block,
         &trp);
-    tab->set_trp(trp);
+    tab->set_range_scan(trp);
 
-    if (error == 1) return trp->records;
+    if (error == 1) return trp->num_output_rows;
     if (error == -1) {
       tl->table->reginfo.impossible_range = true;
       return 0;
@@ -9366,7 +9371,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
       /* Add conditions added by add_not_null_conds(). */
       if (and_conditions(&tmp, tab->condition())) return true;
 
-      if (cond && !tmp && tab->trp()) {  // Outer join
+      if (cond && !tmp && tab->range_scan()) {  // Outer join
         assert(tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE);
         /*
           Hack to handle the case where we only refer to a table
@@ -9403,15 +9408,15 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
         DBUG_EXECUTE("where",
                      print_where(thd, tmp, tab->table()->alias, QT_ORDINARY););
 
-        if (tab->trp()) {
+        if (tab->range_scan()) {
           if (tab->needed_reg.is_clear_all() && tab->type() != JT_CONST) {
             /*
               We keep (for now) the QUICK AM calculated in
               get_quick_record_count().
             */
           } else {
-            destroy(tab->trp());
-            tab->set_trp(nullptr);
+            destroy(tab->range_scan());
+            tab->set_range_scan(nullptr);
           }
         }
 
@@ -9449,7 +9454,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
           assert(tab->const_keys.is_subset(tab->keys()));
 
           const join_type orig_join_type = tab->type();
-          const TABLE_READ_PLAN *const orig_trp = tab->trp();
+          const AccessPath *const orig_trp = tab->range_scan();
 
           if (cond &&                              // 1a
               (tab->keys() != tab->const_keys) &&  // 1b
@@ -9514,8 +9519,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 already selected index provides the order dictated by the
                 ORDER BY clause.
               */
-              if (tab->trp() && tab->trp()->index != MAX_KEY) {
-                const uint ref_key = tab->trp()->index;
+              if (tab->range_scan() &&
+                  used_index(tab->range_scan()) != MAX_KEY) {
+                const uint ref_key = used_index(tab->range_scan());
                 bool skip_quick;
                 read_direction = test_if_order_by_key(
                     &join->order, tab->table(), ref_key, nullptr, &skip_quick);
@@ -9529,8 +9535,9 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   (ASC/DESC) into account, so in case of DESC ordering
                   we still need to recheck.
                 */
-                if ((read_direction == 1) ||
-                    (read_direction == -1 && tab->trp()->reverse_sorted())) {
+                if (read_direction == 1 ||
+                    (read_direction == -1 &&
+                     is_reverse_sorted_range(tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }
               }
@@ -9567,11 +9574,11 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
 
             bool search_if_impossible = recheck_reason != DONT_RECHECK;
             if (search_if_impossible) {
-              if (tab->trp()) {
-                destroy(tab->trp());
+              if (tab->range_scan()) {
+                destroy(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
-              TABLE_READ_PLAN *trp;
+              AccessPath *trp;
               MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                      thd->variables.range_alloc_block_size);
               search_if_impossible =
@@ -9586,7 +9593,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                       tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, tab->table()->force_index,
                       join->query_block, &trp) < 0;
-              tab->set_trp(trp);
+              tab->set_range_scan(trp);
             }
             tab->set_condition(orig_cond);
             if (search_if_impossible) {
@@ -9597,11 +9604,11 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               if (!tab->join_cond())
                 return true;  // No ON, so it's really "impossible WHERE"
               Opt_trace_object trace_without_on(trace, "without_ON_clause");
-              if (tab->trp()) {
-                destroy(tab->trp());
+              if (tab->range_scan()) {
+                destroy(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
-              TABLE_READ_PLAN *trp;
+              AccessPath *trp;
               MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                      thd->variables.range_alloc_block_size);
               const bool impossible_where =
@@ -9616,7 +9623,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                       tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, tab->table()->force_index,
                       join->query_block, &trp) < 0;
-              tab->set_trp(trp);
+              tab->set_range_scan(trp);
               if (impossible_where) return true;  // Impossible WHERE
             }
 
@@ -9626,8 +9633,8 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               updated below will not have any effect on the execution
               plan.
             */
-            if (tab->trp())
-              tab->set_type(calc_join_type(tab->trp()->get_type()));
+            if (tab->range_scan())
+              tab->set_type(calc_join_type(tab->range_scan()));
 
           }  // end of "if (recheck_reason != DONT_RECHECK)"
 
@@ -9666,7 +9673,8 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
             */
             if (!tab->needed_reg.is_clear_all() &&
                 (tab->table()->quick_keys.is_clear_all() ||
-                 (tab->trp() && (tab->trp()->records >= 100L)))) {
+                 (tab->range_scan() &&
+                  (tab->range_scan()->num_output_rows >= 100.0)))) {
               tab->use_quick = QS_DYNAMIC_RANGE;
               tab->set_type(JT_ALL);
             } else
@@ -9674,7 +9682,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
           }
 
           if (tab->type() != orig_join_type ||
-              tab->trp() != orig_trp)  // Access method changed
+              tab->range_scan() != orig_trp)  // Access method changed
             tab->position()->filter_effect = COND_FILTER_STALE;
         }
       }

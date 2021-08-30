@@ -144,7 +144,7 @@ template class IndexScanIterator<false>;
 
   @param thd      Thread handle
   @param table    Table the data [originally] comes from
-  @param trp      TABLE_READ_PLAN to scan the table with, or nullptr
+  @param trp      AccessPath to scan the table with, or nullptr
   @param table_ref
                   Position for the table, must be non-nullptr for
                   WITH RECURSIVE
@@ -152,13 +152,13 @@ template class IndexScanIterator<false>;
   @param count_examined_rows
     See AccessPath::count_examined_rows.
  */
-AccessPath *create_table_access_path(THD *thd, TABLE *table,
-                                     TABLE_READ_PLAN *trp,
+AccessPath *create_table_access_path(THD *thd, TABLE *table, AccessPath *trp,
                                      TABLE_LIST *table_ref, POSITION *position,
                                      bool count_examined_rows) {
   AccessPath *path;
   if (trp != nullptr) {
-    path = NewIndexRangeScanAccessPath(thd, table, trp, count_examined_rows);
+    trp->count_examined_rows = count_examined_rows;
+    path = trp;
   } else if (table_ref != nullptr && table_ref->is_recursive_reference()) {
     path = NewFollowTailAccessPath(thd, table, count_examined_rows);
   } else {
@@ -172,7 +172,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table,
 }
 
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, TABLE_READ_PLAN *trp, TABLE_LIST *table_ref,
+    THD *thd, TABLE *table, AccessPath *trp, TABLE_LIST *table_ref,
     POSITION *position, bool ignore_not_found_rows, bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 

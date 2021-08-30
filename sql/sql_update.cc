@@ -81,6 +81,7 @@
 #include "sql/query_options.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/select_lex_visitor.h"
@@ -456,7 +457,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   table->mark_columns_needed_for_update(thd,
                                         false /*mark_binlog_columns=false*/);
 
-  TABLE_READ_PLAN *trp = nullptr;
+  AccessPath *trp = nullptr;
   join_type type = JT_UNKNOWN;
 
   auto cleanup = create_scope_guard([&trp, table] {
@@ -536,11 +537,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   uint used_index;
   {
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    used_index = get_index_for_order(&order_src, table, limit, &trp, &need_sort,
+    used_index = get_index_for_order(&order_src, table, limit, trp, &need_sort,
                                      &reverse);
     if (trp != nullptr) {
       // May have been changed by get_index_for_order().
-      type = calc_join_type(trp->get_type());
+      type = calc_join_type(trp);
     }
   }
   if (need_sort) {  // Assign table scan index to check below for modified key
@@ -556,7 +557,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       merge and should be handled in a different way.
     */
     used_key_is_modified =
-        (!trp->unique_key_range() && trp->is_keys_used(table->write_set));
+        (!unique_key_range(trp) && uses_index_on_fields(trp, table->write_set));
   }
 
   if (table->part_info)
@@ -581,7 +582,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   {  // Start of scope for Modification_plan
     ha_rows rows;
     if (trp)
-      rows = trp->records;
+      rows = trp->num_output_rows;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
@@ -817,8 +818,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit && !has_update_triggers && trp &&
-        trp->index != MAX_KEY && check_constant_expressions(*update_value_list))
-      read_removal = table->check_read_removal(trp->index);
+        ::used_index(trp) != MAX_KEY &&
+        check_constant_expressions(*update_value_list))
+      read_removal = table->check_read_removal(::used_index(trp));
 
     // If the update is batched, we cannot do partial update, so turn it off.
     if (will_batch) table->cleanup_partial_update(); /* purecov: inspected */
@@ -1931,16 +1933,17 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
       return !is_key_used(table, join_tab->ref().key, table->write_set);
     case JT_RANGE:
     case JT_INDEX_MERGE:
-      assert(join_tab->trp() != nullptr);
+      assert(join_tab->range_scan() != nullptr);
       // When scanning a range, it's possible to read a row twice if it moves
       // within the range:
-      if (join_tab->trp()->is_keys_used(table->write_set)) return false;
+      if (uses_index_on_fields(join_tab->range_scan(), table->write_set))
+        return false;
       // If the index access is using some secondary key(s), and if the table
       // has a clustered primary key, modifying that key might affect the
       // functioning of the the secondary key(s), so fall through to check that.
       [[fallthrough]];
     case JT_ALL:
-      assert(join_tab->type() != JT_ALL || join_tab->trp() == nullptr);
+      assert(join_tab->type() != JT_ALL || join_tab->range_scan() == nullptr);
       // If using the clustered key under the cover:
       if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
           table->s->primary_key < MAX_KEY)

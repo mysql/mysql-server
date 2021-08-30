@@ -57,6 +57,7 @@
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
@@ -184,7 +185,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   unit->set_limit(thd, query_block);
 
-  TABLE_READ_PLAN *trp = nullptr;
+  AccessPath *trp = nullptr;
   join_type type = JT_UNKNOWN;
 
   auto cleanup = create_scope_guard([&trp, table] {
@@ -410,11 +411,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    usable_index = get_index_for_order(&order_src, table, limit, &trp,
+    usable_index = get_index_for_order(&order_src, table, limit, trp,
                                        &need_sort, &reverse);
     if (trp != nullptr) {
       // May have been changed by get_index_for_order().
-      type = calc_join_type(trp->get_type());
+      type = calc_join_type(trp);
     }
   }
 
@@ -424,7 +425,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   {
     ha_rows rows;
     if (trp)
-      rows = trp->records;
+      rows = trp->num_output_rows;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
@@ -516,8 +517,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (thd->is_error()) return true;
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
-        !using_limit && !has_delete_triggers && trp && trp->index != MAX_KEY)
-      read_removal = table->check_read_removal(trp->index);
+        !using_limit && !has_delete_triggers && trp &&
+        used_index(trp) != MAX_KEY)
+      read_removal = table->check_read_removal(used_index(trp));
 
     assert(limit > 0);
 

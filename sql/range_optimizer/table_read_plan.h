@@ -183,19 +183,6 @@ class TABLE_READ_PLAN {
 #endif
 };
 
-inline bool is_loose_index_scan(const TABLE_READ_PLAN *trp) {
-  int type = trp->get_type();
-  return type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX;
-}
-
-/**
-  Whether the range access method is capable of returning records
-  in reverse order.
- */
-inline bool reverse_sort_possible(const TABLE_READ_PLAN *trp) {
-  return trp->get_type() == QS_TYPE_RANGE;
-}
-
-void trace_quick_description(TABLE_READ_PLAN *trp, Opt_trace_context *trace);
+void trace_quick_description(const AccessPath *path, Opt_trace_context *trace);
 
 #endif  // SQL_RANGE_OPTIMIZER_TABLE_READ_PLAN_H_

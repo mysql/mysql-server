@@ -65,6 +65,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
@@ -81,6 +82,7 @@
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -395,7 +397,7 @@ class Explain_table_base : public Explain {
 
   const TABLE *table{nullptr};
   join_type type{JT_UNKNOWN};
-  TABLE_READ_PLAN *trp{nullptr};
+  AccessPath *range_scan_path{nullptr};
   Item *condition{nullptr};
   bool dynamic_range{false};
   TABLE_LIST *table_ref{nullptr};
@@ -416,7 +418,7 @@ class Explain_table_base : public Explain {
   bool explain_possible_keys() override;
 
   bool explain_key_parts(int key, uint key_parts);
-  bool explain_key_and_len_quick(TABLE_READ_PLAN *trp);
+  bool explain_key_and_len_quick(AccessPath *trp);
   bool explain_key_and_len_index(int key);
   bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
   bool explain_extra_common(int quick_type, uint keyno);
@@ -501,7 +503,7 @@ class Explain_table : public Explain_table_base {
  public:
   Explain_table(THD *const explain_thd_arg, const THD *query_thd_arg,
                 Query_block *query_block_arg, TABLE *const table_arg,
-                enum join_type type_arg, TABLE_READ_PLAN *trp_arg,
+                enum join_type type_arg, AccessPath *range_scan_arg,
                 Item *condition_arg, uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
@@ -516,7 +518,7 @@ class Explain_table : public Explain_table_base {
         used_key_is_modified(used_key_is_modified_arg),
         message(msg) {
     type = type_arg;
-    trp = trp_arg;
+    range_scan_path = range_scan_arg;
     condition = condition_arg;
     usable_keys = table->possible_quick_keys;
     if (can_walk_clauses())
@@ -887,14 +889,15 @@ bool Explain_table_base::explain_key_parts(int key, uint key_parts) {
   return false;
 }
 
-bool Explain_table_base::explain_key_and_len_quick(TABLE_READ_PLAN *trp) {
+bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
   bool ret = false;
   StringBuffer<512> str_key(cs);
   StringBuffer<512> str_key_len(cs);
 
-  if (trp->index != MAX_KEY)
-    ret = explain_key_parts(trp->index, trp->used_key_parts);
-  trp->add_keys_and_lengths(&str_key, &str_key_len);
+  if (used_index(path) != MAX_KEY)
+    ret = explain_key_parts(used_index(range_scan_path),
+                            path->index_range_scan().trp->used_key_parts);
+  path->index_range_scan().trp->add_keys_and_lengths(&str_key, &str_key_len);
   return (ret || fmt->entry()->col_key.set(str_key) ||
           fmt->entry()->col_key_len.set(str_key_len));
 }
@@ -965,7 +968,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     case QS_TYPE_ROR_INTERSECT:
     case QS_TYPE_INDEX_MERGE: {
       StringBuffer<32> buff(cs);
-      trp->add_info_string(&buff);
+      range_scan_path->index_range_scan().trp->add_info_string(&buff);
       if (fmt->is_hierarchical()) {
         /*
           We are replacing existing col_key value with a quickselect info,
@@ -1011,7 +1014,8 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
         pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
-    if (((quick_type >= 0 && trp->reverse_sorted()) || reversed_access) &&
+    if (((quick_type >= 0 && is_reverse_sorted_range(range_scan_path)) ||
+         reversed_access) &&
         push_extra(ET_BACKWARD_SCAN))
       return true;
   }
@@ -1019,7 +1023,9 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     return true;
 
   if (quick_type == QS_TYPE_RANGE) {
-    uint mrr_flags = down_cast<TRP_RANGE *>(trp)->get_mrr_flags();
+    uint mrr_flags =
+        down_cast<TRP_RANGE *>(range_scan_path->index_range_scan().trp)
+            ->get_mrr_flags();
 
     /*
       During normal execution of a query, multi_range_read_init() is
@@ -1303,7 +1309,7 @@ bool Explain_join::shallow_explain() {
 bool Explain_join::explain_qep_tab(size_t tabnum) {
   tab = join->qep_tab + tabnum;
   type = tab->type();
-  trp = tab->trp();
+  range_scan_path = tab->range_scan();
   condition = tab->condition_optim();
   dynamic_range = tab->dynamic_range();
   skip_records_in_range = tab->skip_records_in_range();
@@ -1316,8 +1322,8 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   quick_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
-    assert(trp);
-    quick_type = trp->get_type();
+    assert(range_scan_path);
+    quick_type = get_range_scan_type(range_scan_path);
   }
 
   if (tab->starts_weedout()) fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
@@ -1447,8 +1453,8 @@ bool Explain_join::explain_key_and_len() {
   else if (type == JT_INDEX_SCAN || type == JT_FT)
     return explain_key_and_len_index(tab->index());
   else if (type == JT_RANGE || type == JT_INDEX_MERGE ||
-           ((type == JT_REF || type == JT_REF_OR_NULL) && trp))
-    return explain_key_and_len_quick(trp);
+           ((type == JT_REF || type == JT_REF_OR_NULL) && range_scan_path))
+    return explain_key_and_len_quick(range_scan_path);
   return false;
 }
 
@@ -1513,14 +1519,15 @@ bool Explain_join::explain_extra() {
     if (tab->ref().key_parts)
       keyno = tab->ref().key;
     else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE)
-      keyno = trp->index;
+      keyno = used_index(range_scan_path);
 
     if (explain_extra_common(quick_type, keyno)) return true;
 
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
         (quick_type == QS_TYPE_ROR_INTERSECT &&
-         down_cast<TRP_ROR_INTERSECT *>(trp)->get_is_covering()) ||
+         down_cast<TRP_ROR_INTERSECT *>(range_scan_path->index_range_scan().trp)
+             ->get_is_covering()) ||
         /*
           Notice that table->key_read can change on the fly (grep
           for set_keyread); so EXPLAIN CONNECTION reads a changing variable,
@@ -1529,7 +1536,8 @@ bool Explain_join::explain_extra() {
         */
         table->key_read || tab->keyread_optim()) {
       if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
-        TRP_GROUP_MIN_MAX *qgs = down_cast<TRP_GROUP_MIN_MAX *>(trp);
+        TRP_GROUP_MIN_MAX *qgs = down_cast<TRP_GROUP_MIN_MAX *>(
+            range_scan_path->index_range_scan().trp);
         StringBuffer<64> buff(cs);
         if (qgs->get_is_index_scan()) buff.append(STRING_WITH_LEN("scanning"));
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
@@ -1688,8 +1696,8 @@ bool Explain_table::explain_table_name() {
 
 bool Explain_table::explain_join_type() {
   join_type jt;
-  if (trp)
-    jt = calc_join_type(trp->get_type());
+  if (range_scan_path)
+    jt = calc_join_type(range_scan_path);
   else if (key != MAX_KEY)
     jt = JT_INDEX_SCAN;
   else
@@ -1700,8 +1708,8 @@ bool Explain_table::explain_join_type() {
 }
 
 bool Explain_table::explain_ref() {
-  if (trp) {
-    int key_parts = trp->used_key_parts;
+  if (range_scan_path) {
+    int key_parts = get_used_key_parts(range_scan_path);
     while (key_parts--) {
       fmt->entry()->col_ref.push_back("const");
     }
@@ -1710,8 +1718,8 @@ bool Explain_table::explain_ref() {
 }
 
 bool Explain_table::explain_key_and_len() {
-  if (trp)
-    return explain_key_and_len_quick(trp);
+  if (range_scan_path)
+    return explain_key_and_len_quick(range_scan_path);
   else if (key != MAX_KEY)
     return explain_key_and_len_index(key);
   return false;
@@ -1741,9 +1749,9 @@ bool Explain_table::explain_extra() {
 
   uint keyno;
   int quick_type;
-  if (trp) {
-    keyno = trp->index;
-    quick_type = trp->get_type();
+  if (range_scan_path) {
+    keyno = used_index(range_scan_path);
+    quick_type = get_range_scan_type(range_scan_path);
   } else {
     keyno = key;
     quick_type = -1;
@@ -1889,13 +1897,13 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
         check_acl_for_explain(query_thd->query_plan.get_lex()->query_tables))
       ret = true;
     else
-      ret =
-          Explain_table(explain_thd, query_thd, select, plan->table, plan->type,
-                        plan->trp, plan->condition, plan->key, plan->limit,
-                        plan->need_tmp_table, plan->need_sort, plan->mod_type,
-                        plan->used_key_is_modified, plan->message)
-              .send() ||
-          explain_thd->is_error();
+      ret = Explain_table(explain_thd, query_thd, select, plan->table,
+                          plan->type, plan->range_scan, plan->condition,
+                          plan->key, plan->limit, plan->need_tmp_table,
+                          plan->need_sort, plan->mod_type,
+                          plan->used_key_is_modified, plan->message)
+                .send() ||
+            explain_thd->is_error();
   }
   if (ret)
     result.abort_result_set(explain_thd);
@@ -2471,7 +2479,7 @@ void Modification_plan::register_in_thd() {
   @param mt             modification type - MT_INSERT/MT_UPDATE/etc
   @param table_arg      Table to modify
   @param type_arg       Access type (JT_*) for this table
-  @param trp_arg        Range index scan used, if any
+  @param range_scan_arg Range index scan used, if any
   @param condition_arg  Condition applied, if any
   @param key_arg        MAX_KEY or and index number of the key that was chosen
                         to access table data.
@@ -2487,14 +2495,14 @@ void Modification_plan::register_in_thd() {
 
 Modification_plan::Modification_plan(
     THD *thd_arg, enum_mod_type mt, TABLE *table_arg, enum join_type type_arg,
-    TABLE_READ_PLAN *trp_arg, Item *condition_arg, uint key_arg,
+    AccessPath *range_scan_arg, Item *condition_arg, uint key_arg,
     ha_rows limit_arg, bool need_tmp_table_arg, bool need_sort_arg,
     bool used_key_is_modified_arg, ha_rows rows)
     : thd(thd_arg),
       mod_type(mt),
       table(table_arg),
       type(type_arg),
-      trp(trp_arg),
+      range_scan(range_scan_arg),
       condition(condition_arg),
       key(key_arg),
       limit(limit_arg),

@@ -111,6 +111,7 @@
 #include "sql/field_common_properties.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
@@ -151,7 +152,7 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(
     SEL_IMERGE *imerge, Unique::Imerge_cost_buf_type *imerge_cost_buff,
     const Cost_estimate *cost_est, Key_map *needed_reg);
 #ifndef NDEBUG
-static void print_quick(TABLE_READ_PLAN *trp, const Key_map *needed_reg);
+static void print_quick(AccessPath *path, const Key_map *needed_reg);
 #endif
 
 namespace opt_range {
@@ -295,12 +296,12 @@ mem_err:
   trees_end = trees;
 }
 
-void trace_quick_description(TABLE_READ_PLAN *trp, Opt_trace_context *trace) {
+void trace_quick_description(const AccessPath *path, Opt_trace_context *trace) {
   Opt_trace_object range_trace(trace, "range_details");
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  trp->add_info_string(&range_info);
+  path->index_range_scan().trp->add_info_string(&range_info);
   range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
 }
 
@@ -411,7 +412,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
                           there is no quick.
       ignore_table_scan Disregard table scan while looking for range.
       query_block       The block the given table is part of.
-      trp [out]         Calculated TABLE_READ_PLAN, or nullptr.
+      path [out]        Calculated AccessPath, or nullptr.
 
   NOTES
     Updates the following:
@@ -475,10 +476,10 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, bool ignore_table_scan,
-                      Query_block *query_block, TABLE_READ_PLAN **trp) {
+                      Query_block *query_block, AccessPath **path) {
   DBUG_TRACE;
 
-  *trp = nullptr;
+  *path = nullptr;
   needed_reg->clear_all();
 
   if (keys_to_use.is_clear_all()) return 0;
@@ -836,7 +837,10 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     */
     if (best_trp && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
       records = best_trp->records;
-      *trp = best_trp;
+      *path = NewIndexRangeScanAccessPath(thd, best_trp->table, best_trp,
+                                          /*count_examined_rows=*/false);
+      (*path)->cost = best_trp->cost_est.total_cost();
+      (*path)->num_output_rows = best_trp->records;
     }
 
     if (unlikely(trace->is_started() && best_trp)) {
@@ -851,13 +855,13 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
           .add("chosen", true);
     }
 
-    DBUG_EXECUTE("info", print_quick(*trp, needed_reg););
+    DBUG_EXECUTE("info", print_quick(*path, needed_reg););
   }
 
   if (records == 0) {
     return -1;
   } else {
-    return *trp != nullptr;
+    return *path != nullptr;
   }
 }
 
@@ -1766,15 +1770,15 @@ void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
 
 #ifndef NDEBUG
 
-static void print_quick(TABLE_READ_PLAN *trp, const Key_map *needed_reg) {
+static void print_quick(AccessPath *path, const Key_map *needed_reg) {
   char buf[MAX_KEY / 8 + 1];
-  TABLE *table;
   my_bitmap_map *old_sets[2];
   DBUG_TRACE;
-  if (!trp) return;
+  if (path == nullptr) return;
   DBUG_LOCK_FILE;
 
-  table = trp->table;
+  TABLE_READ_PLAN *trp = path->index_range_scan().trp;
+  TABLE *table = trp->table;
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   trp->dbug_dump(0, true);
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);

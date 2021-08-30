@@ -47,6 +47,7 @@
 #include "sql/events.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/keycaches.h"
 #include "sql/mysqld.h"              // LOCK_status
@@ -134,7 +135,7 @@ void TEST_join(JOIN *join) {
             form->alias, join_type_str[tab->type()],
             tab->keys().print(key_map_buff), tab->ref().key_parts,
             tab->ref().key, tab->ref().key_length);
-    if (tab->trp()) {
+    if (tab->range_scan()) {
       char buf[MAX_KEY / 8 + 1];
       if (tab->use_quick == QS_DYNAMIC_RANGE)
         fprintf(DBUG_FILE,
@@ -143,7 +144,7 @@ void TEST_join(JOIN *join) {
                 form->quick_keys.print(buf));
       else {
         fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->trp()->dbug_dump(18, false);
+        tab->range_scan()->index_range_scan().trp->dbug_dump(18, false);
       }
     }
     if (tab->ref().key_parts) {

@@ -32,8 +32,10 @@
 #include "my_inttypes.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_opt_exec_shared.h"
@@ -52,7 +54,7 @@ Join_plan::Join_plan(const JOIN *join)
     be written to handle it.
   */
   assert(!m_qep_tabs[0].dynamic_range() || (m_qep_tabs[0].type() == JT_ALL) ||
-         (m_qep_tabs[0].trp() == nullptr));
+         (m_qep_tabs[0].range_scan() == nullptr));
 
   // Discard trailing allocated, but unused, tables.
   while (m_qep_tabs[m_access_count - 1].position() == nullptr) {
@@ -162,10 +164,12 @@ void Table_access::dbug_print() const {
 
   DBUG_PRINT("info", ("dynamic_range:%d", (int)get_qep_tab()->dynamic_range()));
   DBUG_PRINT("info", ("index:%d", get_qep_tab()->index()));
-  DBUG_PRINT("info", ("trp:%p", get_qep_tab()->trp()));
-  if (get_qep_tab()->trp()) {
-    DBUG_PRINT("info",
-               ("trp->get_type():%d", get_qep_tab()->trp()->get_type()));
+  DBUG_PRINT("info", ("trp:%p", get_qep_tab()->range_scan()));
+  if (get_qep_tab()->range_scan()) {
+    DBUG_PRINT(
+        "info",
+        ("trp->get_type():%d",
+         get_qep_tab()->range_scan()->index_range_scan().trp->get_type()));
   }
 }
 
@@ -253,8 +257,8 @@ void Table_access::compute_type_and_index() const {
         m_access_type = AT_UNDECIDED;
         m_index_no = -1;
       } else {
-        if (qep_tab->trp() != nullptr) {
-          TABLE_READ_PLAN *trp = qep_tab->trp();
+        if (qep_tab->range_scan() != nullptr) {
+          AccessPath *trp = qep_tab->range_scan();
 
           /** QUICK_SELECT results in execution of MRR (Multi Range Read).
            *  Depending on each range, it may require execution of
@@ -266,18 +270,12 @@ void Table_access::compute_type_and_index() const {
            **/
 
           const KEY *key_info = qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", trp->dbug_dump(0, true););
-
-          // Temporary assert as we are still investigation the relation between
-          // 'trp->index == MAX_KEY' and the different quick_types
-          assert((trp->index == MAX_KEY) ==
-                 (trp->get_type() == QS_TYPE_INDEX_MERGE ||
-                  trp->get_type() == QS_TYPE_ROR_INTERSECT ||
-                  trp->get_type() == QS_TYPE_ROR_UNION));
+          DBUG_EXECUTE("info",
+                       trp->index_range_scan().trp->dbug_dump(0, true););
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed
           // joins
-          if (trp->index == MAX_KEY) {
+          if (used_index(trp) == MAX_KEY) {
             m_index_no = qep_tab->table()->s->primary_key;
             m_access_type =
                 AT_MULTI_PRIMARY_KEY;  // Multiple PKs are produced by merge
@@ -285,14 +283,14 @@ void Table_access::compute_type_and_index() const {
 
           // Else JT_RANGE: May be both exact PK and/or index scans when sorted
           // index available
-          else if (trp->index == qep_tab->table()->s->primary_key) {
-            m_index_no = trp->index;
+          else if (used_index(trp) == qep_tab->table()->s->primary_key) {
+            m_index_no = used_index(trp);
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type = AT_MULTI_PRIMARY_KEY;  // MRR w/ multiple PK's
             else
               m_access_type = AT_MULTI_MIXED;  // MRR w/ both range and PKs
           } else {
-            m_index_no = trp->index;
+            m_index_no = used_index(trp);
             if (key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)
               m_access_type =
                   AT_MULTI_UNIQUE_KEY;  // MRR with multiple unique keys
