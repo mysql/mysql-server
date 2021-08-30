@@ -42,6 +42,7 @@ var common_stmts = require("common_statements");
           "router_grant_on_pfs_db",
           "router_grant_on_routers",
           "router_update_routers_in_metadata",
+          "router_update_router_options_in_metadata",
         ],
         options);
 
