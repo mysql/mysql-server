@@ -927,6 +927,13 @@ bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
 
   metadata_table.setup(thd_ndb->ndb->getDictionary(),
                        sql_metadata_table.get_table());
+  const NdbError &err = metadata_table.initializeSnapshotLock(thd_ndb->ndb);
+  if (err.status != NdbError::Success) {
+    ndb_log_error("ndb_stored_grants initalizeSnapshotLock failure: %d %s",
+                  err.code, err.message);
+    return false;
+  }
+
   return true;
 }
 
@@ -1017,4 +1024,18 @@ bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
   context.apply_current_snapshot();
   context.handle_dropped_users();
   return true;  // success
+}
+
+NdbTransaction *Ndb_stored_grants::acquire_snapshot_lock(THD *thd) {
+  NdbTransaction *transaction;
+  Ndb *ndb = get_thd_ndb(thd)->ndb;
+  const NdbError &err = metadata_table.acquireSnapshotLock(ndb, transaction);
+  if (err.status != NdbError::Success)
+    ndb_log_error("acquire_snapshot_lock: Error %d '%s'", err.code,
+                  err.message);
+  return transaction;
+}
+
+void Ndb_stored_grants::release_snapshot_lock(NdbTransaction *transaction) {
+  metadata_table.releaseSnapshotLock(transaction);
 }
