@@ -37,7 +37,6 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
-#include "sql/current_thd.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"
@@ -111,7 +110,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
       if (free_file) {
         DBUG_PRINT("info",
                    ("Freeing separate handler %p (free: %d)", file, free_file));
-        file->ha_external_lock(current_thd, F_UNLCK);
+        file->ha_external_lock(thd(), F_UNLCK);
         file->ha_close();
         destroy(file);
       }

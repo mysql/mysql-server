@@ -140,7 +140,7 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   });
   if (cur_quick->Init()) return true;
 
-  size_t sort_buffer_size = current_thd->variables.sortbuff_size;
+  size_t sort_buffer_size = thd()->variables.sortbuff_size;
 #ifndef NDEBUG
   if (DBUG_EVALUATE_IF("sortbuff_size_256", 1, 0)) sort_buffer_size = 256;
 #endif /* NDEBUG */
@@ -186,7 +186,7 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
       return true;
     }
 
-    if (current_thd->killed) return 1;
+    if (thd()->killed) return true;
 
     /* skip row if it will be retrieved by clustered PK scan */
     if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
@@ -210,7 +210,7 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   /* index_merge currently doesn't support "using index" at all */
   table()->set_keyread(false);
   read_record.reset();  // Clear out any previous iterator.
-  read_record = init_table_iterator(current_thd, table(),
+  read_record = init_table_iterator(thd(), table(),
                                     /*ignore_not_found_rows=*/false,
                                     /*count_examined_rows=*/false);
   if (read_record == nullptr) return true;

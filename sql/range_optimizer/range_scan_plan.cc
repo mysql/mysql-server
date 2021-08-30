@@ -618,7 +618,7 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
       !(pk_is_clustered && keynr == param->table->s->primary_key))
     *mrr_flags |= HA_MRR_INDEX_ONLY;
 
-  if (current_thd->lex->sql_command != SQLCOM_SELECT)
+  if (thd->lex->sql_command != SQLCOM_SELECT)
     *mrr_flags |= HA_MRR_SORTED;  // Assumed to give faster ins/upd/del
 
   *bufsize = thd->variables.read_rnd_buff_size;

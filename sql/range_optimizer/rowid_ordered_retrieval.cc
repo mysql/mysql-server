@@ -35,7 +35,6 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysqld_error.h"
-#include "sql/current_thd.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
@@ -80,8 +79,6 @@ bool QUICK_RANGE_SELECT::init_ror_merged_scan() {
   MY_BITMAP *const save_write_set = table()->write_set;
   DBUG_TRACE;
 
-  THD *thd = current_thd;
-
   in_ror_merged_scan = true;
   mrr_flags |= HA_MRR_SORTED;
   if (reuse_handler) {
@@ -119,10 +116,11 @@ bool QUICK_RANGE_SELECT::init_ror_merged_scan() {
 
   table()->column_bitmaps_set(&column_bitmap, &column_bitmap);
 
-  if (file->ha_external_lock(thd, table()->file->get_lock_type())) goto failure;
+  if (file->ha_external_lock(thd(), table()->file->get_lock_type()))
+    goto failure;
 
   if (shared_init() || shared_reset()) {
-    file->ha_external_lock(thd, F_UNLCK);
+    file->ha_external_lock(thd(), F_UNLCK);
     file->ha_close();
     goto failure;
   }
@@ -384,7 +382,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
                         DBUG_SET("+d,innodb_report_deadlock"););
         if (int error = quick->Read(); error != 0) {
           /* On certain errors like deadlock, trx might be rolled back.*/
-          if (!current_thd->transaction_rollback_request)
+          if (!thd()->transaction_rollback_request)
             quick_with_last_rowid->UnlockRow();
           return error;
         }
@@ -404,7 +402,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
             quick->UnlockRow(); /* row not in range; unlock */
             if (int error = quick->Read(); error != 0) {
               /* On certain errors like deadlock, trx might be rolled back.*/
-              if (!current_thd->transaction_rollback_request)
+              if (!thd()->transaction_rollback_request)
                 quick_with_last_rowid->UnlockRow();
               return error;
             }
