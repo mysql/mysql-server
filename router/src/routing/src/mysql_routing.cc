@@ -1127,35 +1127,39 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   }
   mysql_harness::on_service_ready(env);
 
-  auto allowed_nodes_changed =
-      [&](const AllowedNodes &existing_connections_nodes,
-          const AllowedNodes &new_connection_nodes, const bool disconnect,
-          const std::string &disconnect_reason) {
-        const std::string &port_str = get_port_str();
+  auto allowed_nodes_changed = [&](const AllowedNodes
+                                       &existing_connections_nodes,
+                                   const AllowedNodes &new_connection_nodes,
+                                   const bool disconnect,
+                                   const std::string &disconnect_reason) {
+    const std::string &port_str = get_port_str();
 
-        if (disconnect) {
-          log_info(
-              "Routing %s listening on %s got request to disconnect invalid "
-              "connections: %s",
-              context_.get_name().c_str(), port_str.c_str(),
-              disconnect_reason.c_str());
-
-          // handle allowed nodes changed for existing connections
+    if (disconnect) {
+      // handle allowed nodes changed for existing connections
+      const auto num_of_cons =
           connection_container_.disconnect(existing_connections_nodes);
-        }
 
-        if (!is_running(env)) return;
-        if (service_tcp_.is_open() && new_connection_nodes.empty()) {
-          stop_socket_acceptors();
-        } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
-          if (!start_accepting_connections(env)) {
-            // We could not start acceptor (e.g. the port is used by other app)
-            // In that case we should retry on the next md refresh with the
-            // latest instance information.
-            destination_->handle_sockets_acceptors();
-          }
-        }
-      };
+      if (num_of_cons > 0) {
+        log_info(
+            "Routing %s listening on %s got request to disconnect %u invalid "
+            "connections: %s",
+            context_.get_name().c_str(), port_str.c_str(), num_of_cons,
+            disconnect_reason.c_str());
+      }
+    }
+
+    if (!is_running(env)) return;
+    if (service_tcp_.is_open() && new_connection_nodes.empty()) {
+      stop_socket_acceptors();
+    } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
+      if (!start_accepting_connections(env)) {
+        // We could not start acceptor (e.g. the port is used by other app)
+        // In that case we should retry on the next md refresh with the
+        // latest instance information.
+        destination_->handle_sockets_acceptors();
+      }
+    }
+  };
 
   allowed_nodes_list_iterator_ =
       destination_->register_allowed_nodes_change_callback(

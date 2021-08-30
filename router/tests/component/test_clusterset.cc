@@ -363,7 +363,7 @@ TEST_F(ClusterSetTest, TargetClusterNoChange) {
       clusterset_data_.clusters[0].nodes[0].http_port, 3));
 
   // check the new target_cluster was repoted only once
-  const std::string needle = "New target cluster read from the metadata";
+  const std::string needle = "New target cluster assigned in the metadata";
   const std::string log_content = router.get_full_logfile();
 
   // 1 is expected, that comes from the inital reading of the metadata
@@ -468,7 +468,7 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
 
     const auto log_content = router.get_full_logfile();
     const std::string pattern =
-        "INFO .* New target cluster read from the metadata: '" +
+        "INFO .* New target cluster assigned in the metadata: '" +
         changed_target_cluster_name + "'";
     EXPECT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
@@ -479,6 +479,16 @@ TEST_P(ClusterChangeTargetClusterInTheMetadataTest,
         cluster_role + "'; " + accepting_rw;
 
     EXPECT_TRUE(pattern_found(log_content, pattern2)) << log_content;
+
+    const std::string pattern3 =
+        "INFO .* New router options read from the metadata "
+        "'\\{\"target_cluster\" : \"" +
+        changed_target_cluster + "\" \\}', was '\\{\"target_cluster\" : \"" +
+        initial_target_cluster + "\" \\}'";
+
+    EXPECT_TRUE(pattern_found(log_content, pattern3)) << "pattern:\n"
+                                                      << pattern << "\n"
+                                                      << log_content;
   }
 
   if (GetParam().initial_connections_should_drop) {

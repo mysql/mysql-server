@@ -130,7 +130,7 @@ enum class ClusterType {
 };
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql);
+                             MySQLSession *mysql, unsigned int router_id = 0);
 
 std::string to_string(const ClusterType cluster_type);
 
@@ -168,6 +168,11 @@ class TargetCluster {
     invalidated_cluster_routing_policy_ = value;
   }
 
+  std::string options_string() const { return options_string_; }
+  void options_string(const std::string &options_string) {
+    options_string_ = options_string;
+  }
+
  private:
   TargetType target_type_;
   std::string target_value_;
@@ -177,6 +182,8 @@ class TargetCluster {
   bool is_primary_{true};
   // is the Cluster marked as invalid in the metadata
   bool is_invalidated_{false};
+
+  std::string options_string_{"{}"};
 };
 
 }  // namespace mysqlrouter
