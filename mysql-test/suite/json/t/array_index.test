@@ -1376,6 +1376,73 @@ SELECT * FROM t WHERE 3 MEMBER OF (vc);
 
 DROP TABLE t;
 
+--echo # Bug#33275457: Fix multi-valued index
+
+CREATE TABLE t1 (
+  f1 VARCHAR(50) NOT NULL PRIMARY KEY,
+  f2 JSON NOT NULL,
+  INDEX idx2 ( (CAST(f2 AS CHAR(50) ARRAY)) )
+);
+
+CREATE VIEW v1 AS
+  SELECT * FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH '$')) AS ids;
+
+INSERT INTO t1 VALUES ('foo', '["aa", "bb"]'), ('bar', '["xx", "yy"]');
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+EXPLAIN SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT * FROM t1 WHERE 'xx' MEMBER OF (f2);
+SELECT * FROM t1 WHERE json_contains(f2, '"xx"');
+SELECT * FROM t1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT * FROM v1 WHERE 'xx' MEMBER OF (f2);
+SELECT * FROM v1 WHERE json_contains(f2, '"xx"');
+SELECT * FROM v1 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE 'xx' MEMBER OF (f2);
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_contains(f2, '"xx"');
+
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids
+WHERE json_overlaps(f2, '["xx", "zz"]');
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be
 # at the very end of the test.

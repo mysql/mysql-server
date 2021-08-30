@@ -1018,6 +1018,7 @@ static bool is_function_of_type(const Item *item, Item_func::Functype type) {
 
 Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found) {
+  func = func->real_item();
   Item *expr = fld->gcol_info->expr_item;
 
   /*
