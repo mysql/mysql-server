@@ -123,7 +123,6 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
 
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
   QUICK_RANGE_SELECT *cur_quick;
-  int result;
   handler *file = table()->file;
   DBUG_TRACE;
 
@@ -152,6 +151,9 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"););
     unique = new (mem_root) Unique(refpos_order_cmp, (void *)file,
                                    file->ref_length, sort_buffer_size);
+    if (unique == nullptr) {
+      return true;
+    }
   } else {
     unique->reset();
     table()->unique_result.sorted_result.reset();
@@ -168,8 +170,8 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   assert(file->ref_length == unique->get_size());
   assert(sort_buffer_size == unique->get_max_in_memory_size());
 
-  if (!unique) return 1;
   for (;;) {
+    int result;
     while ((result = cur_quick->Read()) == -1) {
       cur_quick = cur_quick_it++;
       if (!cur_quick) break;
@@ -190,8 +192,9 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
     if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
 
     cur_quick->file->position(cur_quick->table()->record[0]);
-    result = unique->unique_add((char *)cur_quick->file->ref);
-    if (result) return true;
+    if (unique->unique_add(cur_quick->file->ref)) {
+      return true;
+    }
   }
 
   /*
@@ -199,7 +202,10 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
     table()->sort structure so it can be used to iterate through the rowids
     sequence.
   */
-  result = unique->get(table());
+  if (unique->get(table())) {
+    return true;
+  }
+
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
   table()->set_keyread(false);
@@ -207,8 +213,8 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   read_record = init_table_iterator(current_thd, table(),
                                     /*ignore_not_found_rows=*/false,
                                     /*count_examined_rows=*/false);
-  if (read_record == nullptr) return 1;
-  return result;
+  if (read_record == nullptr) return true;
+  return false;
 }
 
 /*
