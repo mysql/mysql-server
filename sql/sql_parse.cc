@@ -2056,7 +2056,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       }
       mysql_reset_thd_for_next_command(thd);
       lex_start(thd);
-      auto guard = create_scope_guard([&]() { thd->lex->destroy(); });
       /* Must be before we init the table list. */
       if (lower_case_table_names && !is_infoschema_db(db.str, db.length))
         table_name.length = my_casedn_str(files_charset_info, table_name.str);
@@ -2117,6 +2116,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       }
 
       thd->cleanup_after_query();
+      thd->lex->destroy();
       break;
     }
     case COM_QUIT:
@@ -2152,7 +2152,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         during execution of COM_REFRESH.
       */
       lex_start(thd);
-      auto guard = create_scope_guard([&]() { thd->lex->destroy(); });
 
       thd->status_var.com_stat[SQLCOM_FLUSH]++;
       ulong options = (ulong)com_data->com_refresh.options;
