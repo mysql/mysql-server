@@ -1385,7 +1385,9 @@ CREATE TABLE t1 (
 );
 
 CREATE VIEW v1 AS
-  SELECT * FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH '$')) AS ids;
+SELECT *
+FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
+                    PATH '$')) AS ids;
 
 INSERT INTO t1 VALUES ('foo', '["aa", "bb"]'), ('bar', '["xx", "yy"]');
 
@@ -1439,6 +1441,105 @@ SELECT *
 FROM t1, JSON_TABLE(f2, '$[*]' COLUMNS(i FOR ORDINALITY, id VARCHAR(50)
                     PATH '$')) AS ids
 WHERE json_overlaps(f2, '["xx", "zz"]');
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'EXPLAIN SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+EXPLAIN
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM t1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM 'SELECT * FROM v1 WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE ? MEMBER OF (f2)';
+SET @a='xx';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_contains(f2, ?)';
+SET @a='"xx"';
+EXECUTE stmt USING @a;
+
+PREPARE stmt FROM '
+SELECT *
+FROM t1, JSON_TABLE(f2, \'$[*]\'
+                    COLUMNS(i FOR ORDINALITY, id VARCHAR(50) PATH \'$\')) AS ids
+WHERE json_overlaps(f2, ?)';
+SET @a='["xx", "cc"]';
+EXECUTE stmt USING @a;
 
 DROP VIEW v1;
 DROP TABLE t1;
