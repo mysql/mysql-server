@@ -2202,7 +2202,7 @@ void NDB_INDEX_DATA::fill_column_map(const KEY *key_info,
 int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab,
                                   const NdbDictionary::Table *ndbtab) const {
   int error = 0;
-  KEY *key_info = tab->key_info;
+  const KEY *key_info = tab->key_info;
   const char **key_name = tab->s->keynames.type_names;
   DBUG_TRACE;
 
@@ -2614,7 +2614,7 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint index_num) const {
 }
 
 NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint index_num,
-                                                      KEY *key_info,
+                                                      const KEY *key_info,
                                                       bool primary) const {
   const bool is_hash_index = (key_info[index_num].algorithm == HA_KEY_ALG_HASH);
   if (primary)
@@ -9995,7 +9995,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
   return create.succeeded();  // All OK
 }
 
-int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
+int ha_ndbcluster::create_index(THD *thd, const char *name, const KEY *key_info,
                                 NDB_INDEX_TYPE idx_type,
                                 const NdbDictionary::Table *ndbtab) const {
   int error = 0;
@@ -10060,7 +10060,7 @@ static constexpr unsigned MAX_INDEX_SIZE_STAT = 3056;
   @brief Create an index in NDB.
 */
 int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
-                                       KEY *key_info,
+                                       const KEY *key_info,
                                        const NdbDictionary::Table *ndbtab,
                                        bool unique) const {
   Ndb *ndb = get_thd_ndb(thd)->ndb;
