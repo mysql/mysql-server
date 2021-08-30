@@ -115,6 +115,12 @@ INSERT INTO t1 VALUES (1);
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" and member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_timeout= 240
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_member_stats WHERE Transactions_committed_all_members = "$_gtid_executed" and member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
 
 --echo
 --echo ############################################################

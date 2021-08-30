@@ -43,6 +43,7 @@ include/assert.inc ['There is a value 1 in table t1']
 # 5. Wait for stable set propagation and certification info
 #    garbage collection.
 [connection server2]
+[connection server1]
 
 ############################################################
 # 6. Check that stable set is properly updated after stable

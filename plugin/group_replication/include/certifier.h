@@ -183,11 +183,13 @@ class Certifier_interface : public Certifier_stats {
       std::map<std::string, std::string> *cert_info) = 0;
   virtual int set_certification_info(
       std::map<std::string, std::string> *cert_info) = 0;
+  virtual int stable_set_handle() = 0;
   virtual bool set_group_stable_transactions_set(
       Gtid_set *executed_gtid_set) = 0;
   virtual void enable_conflict_detection() = 0;
   virtual void disable_conflict_detection() = 0;
   virtual bool is_conflict_detection_enable() = 0;
+  virtual ulonglong get_certification_info_size() override = 0;
 };
 
 class Certifier : public Certifier_interface {
@@ -367,6 +369,16 @@ class Certifier : public Certifier_interface {
   */
   int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle,
                                                 bool local);
+
+  /**
+    Computes intersection between all sets received, so that we
+    have the already applied transactions on all servers.
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int stable_set_handle() override;
 
   /**
     This member function shall add transactions to the stable set
@@ -719,16 +731,6 @@ class Certifier : public Certifier_interface {
                               Otherwise 0;
   */
   Gtid_set *get_certified_write_set_snapshot_version(const char *item);
-
-  /**
-    Computes intersection between all sets received, so that we
-    have the already applied transactions on all servers.
-
-    @return the operation status
-      @retval 0      OK
-      @retval !=0    Error
-  */
-  int stable_set_handle();
 
   /**
     Removes the intersection of the received transactions stable
