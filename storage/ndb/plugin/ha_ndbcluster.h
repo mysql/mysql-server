@@ -468,10 +468,10 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int prepare_inplace__add_index(THD *thd, KEY *key_info,
                                  uint num_of_keys) const;
-  int create_index_in_NDB(THD *thd, const char *name, KEY *key_info,
+  int create_index_in_NDB(THD *thd, const char *name, const KEY *key_info,
                           const NdbDictionary::Table *ndbtab,
                           bool unique) const;
-  int create_index(THD *thd, const char *name, KEY *key_info,
+  int create_index(THD *thd, const char *name, const KEY *key_info,
                    NDB_INDEX_TYPE idx_type,
                    const NdbDictionary::Table *ndbtab) const;
   // Index list management
@@ -506,7 +506,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
                         bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_num, KEY *key_info,
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_num, const KEY *key_info,
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
 
