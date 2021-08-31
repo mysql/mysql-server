@@ -1260,7 +1260,7 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value) {
     return retval;
   } else {
     reset();
-    return nullptr;
+    return error_decimal(decimal_value);
   }
 }
 
