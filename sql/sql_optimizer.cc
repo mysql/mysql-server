@@ -219,7 +219,7 @@ bool JOIN::alloc_indirection_slices() {
   return false;
 }
 
-static bool HasFullTextFunction(Item *item) {
+bool HasFullTextFunction(Item *item) {
   return WalkItem(item, enum_walk::PREFIX, [](Item *inner_item) {
     return inner_item->type() == Item::FUNC_ITEM &&
            down_cast<Item_func *>(inner_item)->functype() == Item_func::FT_FUNC;

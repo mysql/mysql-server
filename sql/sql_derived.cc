@@ -1313,6 +1313,14 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   having ? derived_query_block->set_having_cond(derived_cond)
          : derived_query_block->set_where_cond(derived_cond);
   thd->lex->set_current_query_block(saved_query_block);
+  // Need to call setup_ftfuncs() if we have pushed down a condition having
+  // full text function.
+  if (derived_query_block->has_ft_funcs() &&
+      HasFullTextFunction(cond_to_attach)) {
+    if (setup_ftfuncs(thd, derived_query_block)) {
+      return true;
+    }
+  }
   return false;
 }
 
