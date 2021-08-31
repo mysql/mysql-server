@@ -103,6 +103,7 @@ usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/authentication_fido_client.so
 usr/lib/mysql/plugin/debug/authentication_kerberos_client.so
+usr/lib/mysql/plugin/debug/authentication_oci_client.so
 usr/lib/mysql/plugin/debug/component_example_component1.so
 usr/lib/mysql/plugin/debug/component_example_component2.so
 usr/lib/mysql/plugin/debug/component_example_component3.so
