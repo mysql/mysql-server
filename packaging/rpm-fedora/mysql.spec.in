@@ -939,6 +939,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 
 %files test
 %doc %{?license_files_server}
@@ -1037,6 +1038,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
@@ -1183,6 +1185,9 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Mon Aug 28 2021 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.27-1
+- Added authentication_oci_client
+
 * Mon Sep 21 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.23-1
 - Added component_reference_cache.so component
 
