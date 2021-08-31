@@ -1375,7 +1375,7 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
-* Mon Aug 28 2021 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.27-1
+* Tue Aug 31 2021 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.27-1
 - Added authentication_oci_client
 
 * Mon Sep 21 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.23-1
