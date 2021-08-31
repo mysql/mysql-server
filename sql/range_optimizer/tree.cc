@@ -922,6 +922,13 @@ SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
     return key1;
   }
 
+  // Two non-overlapped key ranges for multi-valued index do not mean
+  // an always false condition.
+  // For example, "1 member of(f) AND 2 member of(f)" for f=[1, 2].
+  if (key1->root->field->is_array() || key2->root->field->is_array()) {
+    return and_all_keys(param, key1, key2);
+  }
+
   SEL_ARG *e1 = key1->root->first(), *e2 = key2->root->first();
   SEL_ROOT *new_tree = nullptr;
 
