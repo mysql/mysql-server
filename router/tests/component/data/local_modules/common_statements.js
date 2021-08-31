@@ -560,7 +560,7 @@ function get_response(stmt_key, options) {
         "stmt_regex":
             "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET " +
             "options = JSON_SET\\(IF\\(options IS NULL, '\\{\\}', options\\), '\\$\\.target_cluster', '" +
-            options.router_expected_target_cluster + "'\\), " +
+            options.router_expected_target_cluster + "'\\) " +
             "WHERE router_id = .*",
         "ok": {}
       };
