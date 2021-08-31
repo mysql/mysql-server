@@ -35,13 +35,6 @@ class SEL_ROOT;
 */
 class TABLE_READ_PLAN {
  public:
-  /*
-    Plan read cost, with or without cost of full row retrieval, depending
-    on plan creation parameters.
-  */
-  Cost_estimate cost_est;
-  ha_rows records; /* estimate of #rows to be examined */
-
   // The table scanned.
   TABLE *const table;
 
@@ -105,9 +98,12 @@ class TABLE_READ_PLAN {
 
      @param thd          Thread handle
      @param param        Parameters for range analysis of this table
+     @param cost         Expected cost to execute the iterator
+     @param num_output_rows  Expected number of rows the iterator will produce
      @param trace_object The optimizer trace object the info is appended to
   */
   virtual void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+                                double cost, double num_output_rows,
                                 Opt_trace_object *trace_object) const = 0;
 
   virtual RangeScanType get_type() const = 0;

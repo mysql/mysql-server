@@ -94,7 +94,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   RowIterator *make_quick(THD *thd, double expected_rows,
                           bool retrieve_full_rows, MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   Cost_estimate get_index_scan_cost() const { return index_scan_cost; }
@@ -145,19 +146,16 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg,
-                Bounds_checked_array<AccessPath *> ror_scans_arg,
-                double cost_est_arg, ha_rows records_arg)
+                Bounds_checked_array<AccessPath *> ror_scans_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg),
-        ror_scans(ror_scans_arg) {
-    cost_est.add_cpu(cost_est_arg);
-    records = records_arg;
-  }
+        ror_scans(ror_scans_arg) {}
   RowIterator *make_quick(THD *thd, double expected_rows,
                           bool retrieve_full_rows, MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
 
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   RangeScanType get_type() const override { return QS_TYPE_ROR_UNION; }

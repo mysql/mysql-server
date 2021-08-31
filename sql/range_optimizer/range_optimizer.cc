@@ -971,13 +971,12 @@ static AccessPath *get_ror_union_trp(
       child->index_range_scan().trp->need_rows_in_rowid_order = true;
     }
     TRP_ROR_UNION *trp = new (param->return_mem_root)
-        TRP_ROR_UNION(table, force_index_merge, roru_read_plans,
-                      roru_total_cost, roru_total_records);
+        TRP_ROR_UNION(table, force_index_merge, roru_read_plans);
     AccessPath *path =
         NewIndexRangeScanAccessPath(thd, trp->table, trp,
                                     /*count_examined_rows=*/false);
-    path->cost = trp->cost_est.total_cost();
-    path->num_output_rows = trp->records;
+    path->cost = roru_total_cost;
+    path->num_output_rows = roru_total_records;
     return path;
   }
   return nullptr;

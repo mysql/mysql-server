@@ -46,7 +46,8 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
                           ha_rows *examined_rows) override;
   Bounds_checked_array<AccessPath *> range_scans; /* plans of merged scans */
 
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   RangeScanType get_type() const override { return QS_TYPE_INDEX_MERGE; }

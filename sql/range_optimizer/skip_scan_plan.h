@@ -94,17 +94,18 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
 
  public:
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
                 SEL_ROOT *index_range_tree, uint eq_prefix_len,
                 uint eq_prefix_key_parts, EQPrefix *eq_prefixes_arg,
                 KEY_PART_INFO *range_key_part, uint used_key_parts_arg,
-                bool forced_by_hint_arg, ha_rows read_records,
-                bool has_aggregate_function, uchar *min_range_key_arg,
-                uchar *max_range_key_arg, uchar *min_search_key_arg,
-                uchar *max_search_key_arg, uint range_cond_flag_arg,
+                bool forced_by_hint_arg, bool has_aggregate_function,
+                uchar *min_range_key_arg, uchar *max_range_key_arg,
+                uchar *min_search_key_arg, uchar *max_search_key_arg,
+                uint range_cond_flag_arg,
                 const SEL_ARG *range_part_tracing_only_arg,
                 uint range_key_len_arg)
       : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
@@ -122,9 +123,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
         range_key_len(range_key_len_arg),
         range_part_tracing_only(range_part_tracing_only_arg),
         index_range_tree(index_range_tree),
-        has_aggregate_function(has_aggregate_function) {
-    records = read_records;
-  }
+        has_aggregate_function(has_aggregate_function) {}
 
   ~TRP_SKIP_SCAN() override = default;
 

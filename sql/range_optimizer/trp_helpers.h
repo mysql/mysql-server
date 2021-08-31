@@ -165,7 +165,8 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
 inline void trace_basic_info(THD *thd, const AccessPath *path,
                              const RANGE_OPT_PARAM *param,
                              Opt_trace_object *trace_object) {
-  path->index_range_scan().trp->trace_basic_info(thd, param, trace_object);
+  path->index_range_scan().trp->trace_basic_info(
+      thd, param, path->cost, path->num_output_rows, trace_object);
 }
 
 /**

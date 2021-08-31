@@ -784,7 +784,8 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                         0, nullptr, num_key_parts, used_key_parts, ranges);
 }
 
-void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double,
+                                 double num_output_rows,
                                  Opt_trace_object *trace_object) const {
   assert(param->using_real_indexes);
   const uint keynr_in_table = param->real_keynr[key_idx];
@@ -794,7 +795,7 @@ void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
 
   trace_object->add_alnum("type", "range_scan")
       .add_utf8("index", cur_key.name)
-      .add("rows", records);
+      .add("rows", num_output_rows);
 
   Opt_trace_array trace_range(&thd->opt_trace, "ranges");
 
@@ -817,7 +818,6 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
   SEL_ROOT *key, *key_to_read = nullptr;
   ha_rows best_records = 0; /* protected by key_to_read */
   uint best_mrr_flags = 0, best_buf_size = 0;
-  TRP_RANGE *read_plan = nullptr;
   double read_cost = cost_est;
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -939,44 +939,39 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
   DBUG_EXECUTE("info",
                print_sel_tree(param, tree, &tree->ror_scans_map, "ROR scans"););
 
-  if (key_to_read) {
-    Quick_ranges ranges(param->return_mem_root);
-    unsigned used_key_parts;
-    if (get_ranges_from_tree(param->return_mem_root, param->table,
-                             param->key[best_idx], param->real_keynr[best_idx],
-                             key_to_read, MAX_REF_PARTS, &used_key_parts,
-                             &ranges)) {
-      return nullptr;
-    }
-
-    const bool is_ror = tree->ror_scans_map.is_set(best_idx);
-    if ((read_plan = new (param->return_mem_root) TRP_RANGE(
-             key_to_read, best_idx, best_mrr_flags, best_buf_size, param->table,
-             param->key[best_idx], param->real_keynr[best_idx], is_ror,
-             is_best_idx_imerge_scan,
-             Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
-             used_key_parts))) {
-      read_plan->records = best_records;
-      read_plan->cost_est.add_cpu(read_cost);
-      DBUG_PRINT("info",
-                 ("Returning range plan for key %s, cost %g, records %lu",
-                  param->table->key_info[param->real_keynr[best_idx]].name,
-                  read_plan->cost_est.total_cost(), (ulong)read_plan->records));
-    }
-  } else {
+  if (key_to_read == nullptr) {
     DBUG_PRINT("info", ("No 'range' table read plan found"));
-  }
-
-  if (read_plan != nullptr) {
-    AccessPath *path =
-        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
-                                    /*count_examined_rows=*/false);
-    path->cost = read_plan->cost_est.total_cost();
-    path->num_output_rows = read_plan->records;
-    return path;
-  } else {
     return nullptr;
   }
+
+  Quick_ranges ranges(param->return_mem_root);
+  unsigned used_key_parts;
+  if (get_ranges_from_tree(param->return_mem_root, param->table,
+                           param->key[best_idx], param->real_keynr[best_idx],
+                           key_to_read, MAX_REF_PARTS, &used_key_parts,
+                           &ranges)) {
+    return nullptr;
+  }
+
+  const bool is_ror = tree->ror_scans_map.is_set(best_idx);
+  TRP_RANGE *read_plan = new (param->return_mem_root)
+      TRP_RANGE(key_to_read, best_idx, best_mrr_flags, best_buf_size,
+                param->table, param->key[best_idx], param->real_keynr[best_idx],
+                is_ror, is_best_idx_imerge_scan,
+                Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
+                used_key_parts);
+  if (read_plan == nullptr) {
+    return nullptr;
+  }
+  AccessPath *path =
+      NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
+                                  /*count_examined_rows=*/false);
+  path->cost = read_cost;
+  path->num_output_rows = best_records;
+  DBUG_PRINT("info", ("Returning range plan for key %s, cost %g, records %g",
+                      param->table->key_info[param->real_keynr[best_idx]].name,
+                      path->cost, path->num_output_rows));
+  return path;
 }
 
 /*

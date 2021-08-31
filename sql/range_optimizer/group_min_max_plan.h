@@ -81,7 +81,8 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
   ha_rows quick_prefix_records;
 
  public:
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   TRP_GROUP_MIN_MAX(

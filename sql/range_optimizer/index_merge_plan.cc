@@ -35,6 +35,7 @@ class Opt_trace_context;
 struct MEM_ROOT;
 
 void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+                                       double, double,
                                        Opt_trace_object *trace_object) const {
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");

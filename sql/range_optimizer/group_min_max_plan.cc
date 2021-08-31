@@ -119,6 +119,7 @@ TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(
 }
 
 void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
+                                         double cost, double num_output_rows,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_group")
       .add_utf8("index", index_info->name);
@@ -130,8 +131,8 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
   trace_object->add("min_aggregate", have_min)
       .add("max_aggregate", have_max)
       .add("distinct_aggregate", have_agg_distinct)
-      .add("rows", records)
-      .add("cost", cost_est);
+      .add("rows", num_output_rows)
+      .add("cost", cost);
 
   const KEY_PART_INFO *key_part = index_info->key_part;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -1036,23 +1037,20 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
       real_key_parts, max_used_key_length, std::move(key_infix_ranges),
       std::move(min_max_ranges), std::move(prefix_ranges));
   if (read_plan) {
-    read_plan->cost_est = best_read_cost;
-    read_plan->records = best_records;
-    if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
-      trace_group.add("index_scan", true);
-      read_plan->cost_est.reset();
-      read_plan->use_index_scan();
-    }
-
-    DBUG_PRINT("info",
-               ("Returning group min/max plan: cost: %g, records: %lu",
-                read_plan->cost_est.total_cost(), (ulong)read_plan->records));
-
     AccessPath *path =
         NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
                                     /*count_examined_rows=*/false);
-    path->cost = read_plan->cost_est.total_cost();
+    path->cost = best_read_cost.total_cost();
     path->num_output_rows = best_records;
+    if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
+      trace_group.add("index_scan", true);
+      path->cost = 0.0;
+      read_plan->use_index_scan();
+    }
+
+    DBUG_PRINT("info", ("Returning group min/max plan: cost: %g, records: %g",
+                        path->cost, path->num_output_rows));
+
     return path;
   } else {
     return nullptr;

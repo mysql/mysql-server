@@ -77,10 +77,11 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 #endif
 
 void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
+                                         double cost, double num_output_rows,
                                          Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_roworder_intersect")
-      .add("rows", records)
-      .add("cost", cost_est)
+      .add("rows", num_output_rows)
+      .add("cost", cost)
       .add("covering", is_covering)
       .add("clustered_pk_scan", cpk_scan != nullptr);
 
@@ -112,6 +113,7 @@ void TRP_ROR_INTERSECT::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
 }
 
 void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+                                     double, double,
                                      Opt_trace_object *trace_object) const {
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
@@ -1054,36 +1056,33 @@ AccessPath *get_best_ror_intersect(
     if (trp == nullptr) {
       return nullptr;
     }
+    AccessPath *path =
+        NewIndexRangeScanAccessPath(thd, trp->table, trp,
+                                    /*count_examined_rows=*/false);
     trp->reuse_handler = reuse_handler;
-    trp->cost_est = intersect_best->total_cost;
+    path->cost = intersect_best->total_cost.total_cost();
     /* Prevent divisons by zero */
     ha_rows best_rows = double2rows(intersect_best->out_rows);
     if (!best_rows) best_rows = 1;
     table->quick_condition_rows = min(table->quick_condition_rows, best_rows);
-    trp->records = best_rows;
+    path->num_output_rows = best_rows;
 
-    trace_ror.add("rows", trp->records)
-        .add("cost", trp->cost_est)
+    trace_ror.add("rows", path->num_output_rows)
+        .add("cost", path->cost)
         .add("covering", intersect_best->is_covering)
         .add("chosen", true);
 
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
-                        "cost %g, records %lu",
-                        trp->cost_est.total_cost(), (ulong)trp->records));
-
-    AccessPath *path =
-        NewIndexRangeScanAccessPath(thd, trp->table, trp,
-                                    /*count_examined_rows=*/false);
-    path->cost = trp->cost_est.total_cost();
-    path->num_output_rows = trp->records;
+                        "cost %g, records %g",
+                        path->cost, path->num_output_rows));
     return path;
   } else {
     trace_ror.add("chosen", false)
         .add_alnum("cause", (cost_est > min_cost.total_cost())
                                 ? "too_few_indexes_to_merge"
                                 : "cost");
+    return nullptr;
   }
-  return nullptr;
 }
 
 bool TRP_ROR_INTERSECT::is_keys_used(const MY_BITMAP *fields) {

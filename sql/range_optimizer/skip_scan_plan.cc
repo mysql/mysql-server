@@ -65,7 +65,8 @@ struct MEM_ROOT;
 using std::max;
 using std::min;
 
-void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
+void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *, double,
+                                     double,
                                      Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "skip_scan")
       .add_utf8("index", index_info->name);
@@ -522,21 +523,17 @@ AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
   TRP_SKIP_SCAN *read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
       table, index_info, index, index_range_tree, eq_prefix_len,
       eq_prefix_key_parts, eq_prefixes, range_key_part, used_key_parts,
-      force_skip_scan, best_records, has_aggregate_function, min_range_key,
-      max_range_key, min_search_key, max_search_key, range_cond_flag,
+      force_skip_scan, has_aggregate_function, min_range_key, max_range_key,
+      min_search_key, max_search_key, range_cond_flag,
       /*range_part_tracing_only=*/range_sel_arg->first(), range_key_len);
   if (read_plan) {
-    read_plan->cost_est = best_read_cost;
-    read_plan->records = best_records;
-    DBUG_PRINT("info",
-               ("Returning skip scan: cost: %g, records: %lu",
-                read_plan->cost_est.total_cost(), (ulong)read_plan->records));
-
     AccessPath *path =
         NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
                                     /*count_examined_rows=*/false);
     path->cost = best_read_cost.total_cost();
     path->num_output_rows = best_records;
+    DBUG_PRINT("info", ("Returning skip scan: cost: %g, records: %g",
+                        path->cost, path->num_output_rows));
     return path;
   } else {
     return nullptr;

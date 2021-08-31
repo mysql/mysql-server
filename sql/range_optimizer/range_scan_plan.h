@@ -108,7 +108,8 @@ class TRP_RANGE : public TABLE_READ_PLAN {
     return quick;
   }
 
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
+  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
+                        double num_output_rows,
                         Opt_trace_object *trace_object) const override;
 
   bool can_be_used_for_ror() const { return is_ror; }
