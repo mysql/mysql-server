@@ -228,7 +228,7 @@ void update_router_info_v2(
     sqlstring query_options(
         "UPDATE mysql_innodb_cluster_metadata.v2_routers"
         " SET options = JSON_SET(IF(options IS NULL, '{}', options),"
-        " '$.target_cluster', ?),"
+        " '$.target_cluster', ?)"
         " WHERE router_id = ?");
 
     query_options << target_cluster << router_id << sqlstring::end;
