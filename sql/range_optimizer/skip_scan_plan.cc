@@ -38,6 +38,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/opt_costmodel.h"
@@ -183,10 +184,10 @@ static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
           otherwise skip index scan table read plan.
 */
 
-TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
-                                  SEL_TREE *tree, enum_order order_direction,
-                                  bool skip_records_in_range,
-                                  bool force_skip_scan) {
+AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
+                               enum_order order_direction,
+                               bool skip_records_in_range,
+                               bool force_skip_scan) {
   JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   const char *cause = nullptr;
@@ -530,8 +531,16 @@ TRP_SKIP_SCAN *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param,
     DBUG_PRINT("info",
                ("Returning skip scan: cost: %g, records: %lu",
                 read_plan->cost_est.total_cost(), (ulong)read_plan->records));
+
+    AccessPath *path =
+        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
+                                    /*count_examined_rows=*/false);
+    path->cost = best_read_cost.total_cost();
+    path->num_output_rows = best_records;
+    return path;
+  } else {
+    return nullptr;
   }
-  return read_plan;
 }
 
 /**

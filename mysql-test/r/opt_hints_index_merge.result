@@ -286,7 +286,7 @@ Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `f2`, `f3`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f1` = 4) or (`test`.`t1`.`f4` = 'f')))
 EXPLAIN SELECT /*+ INDEX_MERGE(t1 PRIMARY, f4) */ f1 FROM t1 WHERE (f2 = 5 OR f3 = 'c') AND (f5 = 'i' OR f4 = 'f');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3,f4	PRIMARY,f4	4,5	NULL	144	37.50	Using union(PRIMARY,f4); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,f2,f3,f4	PRIMARY,f4	4,5	NULL	137	37.50	Using union(PRIMARY,f4); Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ INDEX_MERGE(`t1`@`select#1` `PRIMARY`, `f4`) */ `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (((`test`.`t1`.`f2` = 5) or (`test`.`t1`.`f3` = 'c')) and ((`test`.`t1`.`f5` = 'i') or (`test`.`t1`.`f4` = 'f')))
 SET optimizer_switch='index_merge_union=on,index_merge=on';

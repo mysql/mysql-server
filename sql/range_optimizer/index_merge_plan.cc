@@ -28,6 +28,7 @@
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_class.h"
 
 class Opt_trace_context;
@@ -38,10 +39,9 @@ void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
-  for (TRP_RANGE **current = range_scans; current != range_scans_end;
-       current++) {
+  for (AccessPath *range_scan : range_scans) {
     Opt_trace_object trp_info(trace);
-    (*current)->trace_basic_info(thd, param, &trp_info);
+    ::trace_basic_info(thd, range_scan, param, &trp_info);
   }
 }
 
@@ -57,12 +57,12 @@ RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows, bool,
             QUICK_INDEX_MERGE_SELECT(return_mem_root, thd, table)))
     return nullptr;
 
-  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-       range_scan++) {
+  // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
+  for (AccessPath *range_scan : range_scans) {
     if (!(quick = down_cast<QUICK_RANGE_SELECT *>(
-              (*range_scan)
-                  ->make_quick(thd, expected_rows, /*retrieve_full_rows=*/false,
-                               return_mem_root, examined_rows))) ||
+              range_scan->index_range_scan().trp->make_quick(
+                  thd, expected_rows, /*retrieve_full_rows=*/false,
+                  return_mem_root, examined_rows))) ||
         quick_imerge->push_quick_back(quick)) {
       destroy(quick);
       destroy(quick_imerge);
@@ -73,17 +73,15 @@ RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows, bool,
 }
 
 bool TRP_INDEX_MERGE::is_keys_used(const MY_BITMAP *fields) {
-  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-       range_scan++) {
-    if (is_key_used(table, (*range_scan)->index, fields)) return true;
+  for (AccessPath *range_scan : range_scans) {
+    if (is_key_used(table, used_index(range_scan), fields)) return true;
   }
   return false;
 }
 
 void TRP_INDEX_MERGE::get_fields_used(MY_BITMAP *used_fields) const {
-  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-       range_scan++) {
-    (*range_scan)->get_fields_used(used_fields);
+  for (AccessPath *range_scan : range_scans) {
+    ::get_fields_used(range_scan, used_fields);
   }
 }
 
@@ -94,16 +92,15 @@ void TRP_INDEX_MERGE::add_info_string(String *str) const {
   // For EXPLAIN compatibility with older versions, PRIMARY is always printed
   // last.
   for (bool print_primary : {false, true}) {
-    for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-         range_scan++) {
+    for (AccessPath *range_scan : range_scans) {
       const bool is_primary = table->file->primary_key_is_clustered() &&
-                              (*range_scan)->index == table->s->primary_key;
+                              used_index(range_scan) == table->s->primary_key;
       if (is_primary != print_primary) continue;
       if (!first)
         str->append(',');
       else
         first = false;
-      (*range_scan)->add_info_string(str);
+      ::add_info_string(range_scan, str);
     }
   }
   str->append(')');
@@ -116,10 +113,9 @@ void TRP_INDEX_MERGE::add_keys_and_lengths(String *key_names,
   // For EXPLAIN compatibility with older versions, PRIMARY is always printed
   // last.
   for (bool print_primary : {false, true}) {
-    for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-         range_scan++) {
+    for (AccessPath *range_scan : range_scans) {
       const bool is_primary = table->file->primary_key_is_clustered() &&
-                              (*range_scan)->index == table->s->primary_key;
+                              used_index(range_scan) == table->s->primary_key;
       if (is_primary != print_primary) continue;
       if (first) {
         first = false;
@@ -128,7 +124,7 @@ void TRP_INDEX_MERGE::add_keys_and_lengths(String *key_names,
         used_lengths->append(',');
       }
 
-      (*range_scan)->add_keys_and_lengths(key_names, used_lengths);
+      ::add_keys_and_lengths(range_scan, key_names, used_lengths);
     }
   }
 }
@@ -137,9 +133,8 @@ void TRP_INDEX_MERGE::add_keys_and_lengths(String *key_names,
 void TRP_INDEX_MERGE::dbug_dump(int indent, bool verbose) {
   fprintf(DBUG_FILE, "%*squick index_merge select\n", indent, "");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  for (TRP_RANGE **range_scan = range_scans; range_scan != range_scans_end;
-       range_scan++) {
-    (*range_scan)->dbug_dump(indent + 2, verbose);
+  for (AccessPath *range_scan : range_scans) {
+    ::dbug_dump(range_scan, indent + 2, verbose);
   }
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }

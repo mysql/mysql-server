@@ -45,6 +45,7 @@
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/tree.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -115,9 +116,9 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
-  for (TABLE_READ_PLAN *current : ror_scans) {
+  for (AccessPath *current : ror_scans) {
     Opt_trace_object trp_info(trace);
-    current->trace_basic_info(thd, param, &trp_info);
+    ::trace_basic_info(thd, current, param, &trp_info);
   }
 }
 
@@ -208,9 +209,11 @@ RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
   if (quick_roru == nullptr) {
     return nullptr;
   }
-  for (TABLE_READ_PLAN *scan : ror_scans) {
-    RowIterator *quick = scan->make_quick(thd, expected_rows, false,
-                                          return_mem_root, examined_rows);
+
+  // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
+  for (AccessPath *scan : ror_scans) {
+    RowIterator *quick = scan->index_range_scan().trp->make_quick(
+        thd, expected_rows, false, return_mem_root, examined_rows);
     if (quick == nullptr || quick_roru->push_quick_back(
                                 down_cast<RowIDCapableRowIterator *>(quick))) {
       return nullptr;
@@ -848,11 +851,11 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
     NULL if out of memory or no suitable plan found.
 */
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(
+AccessPath *get_best_ror_intersect(
     THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_intersect_allowed, enum_order order_direction,
-    SEL_TREE *tree, const MY_BITMAP *needed_fields,
-    const Cost_estimate *cost_est, bool force_index_merge_result) {
+    SEL_TREE *tree, const MY_BITMAP *needed_fields, double cost_est,
+    bool force_index_merge_result, bool reuse_handler) {
   uint idx;
   Cost_estimate min_cost;
   Opt_trace_context *const trace = &thd->opt_trace;
@@ -1042,16 +1045,16 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
     }
   }
   /* Ok, return ROR-intersect plan if we have found one */
-  TRP_ROR_INTERSECT *trp = nullptr;
-  if ((min_cost < *cost_est || force_index_merge) &&
+  if ((min_cost.total_cost() < cost_est || force_index_merge) &&
       (cpk_scan_used || best_num > 1)) {
-    if (!(trp = new (param->return_mem_root) TRP_ROR_INTERSECT(
-              table, force_index_merge, param->key, param->real_keynr,
-              {intersect_scans, best_num}, intersect_best->index_scan_cost,
-              intersect_best->is_covering,
-              cpk_scan_used ? cpk_scan : nullptr))) {
-      return trp;
+    TRP_ROR_INTERSECT *trp = new (param->return_mem_root) TRP_ROR_INTERSECT(
+        table, force_index_merge, param->key, param->real_keynr,
+        {intersect_scans, best_num}, intersect_best->index_scan_cost,
+        intersect_best->is_covering, cpk_scan_used ? cpk_scan : nullptr);
+    if (trp == nullptr) {
+      return nullptr;
     }
+    trp->reuse_handler = reuse_handler;
     trp->cost_est = intersect_best->total_cost;
     /* Prevent divisons by zero */
     ha_rows best_rows = double2rows(intersect_best->out_rows);
@@ -1067,12 +1070,20 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(
     DBUG_PRINT("info", ("Returning non-covering ROR-intersect plan:"
                         "cost %g, records %lu",
                         trp->cost_est.total_cost(), (ulong)trp->records));
+
+    AccessPath *path =
+        NewIndexRangeScanAccessPath(thd, trp->table, trp,
+                                    /*count_examined_rows=*/false);
+    path->cost = trp->cost_est.total_cost();
+    path->num_output_rows = trp->records;
+    return path;
   } else {
     trace_ror.add("chosen", false)
-        .add_alnum("cause", (*cost_est > min_cost) ? "too_few_indexes_to_merge"
-                                                   : "cost");
+        .add_alnum("cause", (cost_est > min_cost.total_cost())
+                                ? "too_few_indexes_to_merge"
+                                : "cost");
   }
-  return trp;
+  return nullptr;
 }
 
 bool TRP_ROR_INTERSECT::is_keys_used(const MY_BITMAP *fields) {
@@ -1086,8 +1097,8 @@ bool TRP_ROR_INTERSECT::is_keys_used(const MY_BITMAP *fields) {
 }
 
 bool TRP_ROR_UNION::is_keys_used(const MY_BITMAP *fields) {
-  for (TABLE_READ_PLAN *scan : ror_scans) {
-    if (is_key_used(table, scan->index, fields)) return true;
+  for (AccessPath *scan : ror_scans) {
+    if (is_key_used(table, used_index(scan), fields)) return true;
   }
   return false;
 }
@@ -1106,8 +1117,8 @@ void TRP_ROR_INTERSECT::get_fields_used(MY_BITMAP *used_fields) const {
 }
 
 void TRP_ROR_UNION::get_fields_used(MY_BITMAP *used_fields) const {
-  for (TABLE_READ_PLAN *scan : ror_scans) {
-    scan->get_fields_used(used_fields);
+  for (AccessPath *scan : ror_scans) {
+    ::get_fields_used(scan, used_fields);
   }
 }
 
@@ -1133,12 +1144,12 @@ void TRP_ROR_INTERSECT::add_info_string(String *str) const {
 void TRP_ROR_UNION::add_info_string(String *str) const {
   bool first = true;
   str->append(STRING_WITH_LEN("union("));
-  for (TABLE_READ_PLAN *current : ror_scans) {
+  for (AccessPath *current : ror_scans) {
     if (!first)
       str->append(',');
     else
       first = false;
-    current->add_info_string(str);
+    ::add_info_string(current, str);
   }
   str->append(')');
 }
@@ -1191,14 +1202,14 @@ unsigned TRP_ROR_INTERSECT::get_max_used_key_length() const {
 void TRP_ROR_UNION::add_keys_and_lengths(String *key_names,
                                          String *used_lengths) const {
   bool first = true;
-  for (TABLE_READ_PLAN *current : ror_scans) {
+  for (AccessPath *current : ror_scans) {
     if (first) {
       first = false;
     } else {
       used_lengths->append(',');
       key_names->append(',');
     }
-    current->add_keys_and_lengths(key_names, used_lengths);
+    ::add_keys_and_lengths(current, key_names, used_lengths);
   }
 }
 
@@ -1221,8 +1232,8 @@ void TRP_ROR_INTERSECT::dbug_dump(int indent, bool verbose) {
 void TRP_ROR_UNION::dbug_dump(int indent, bool verbose) {
   fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  for (TABLE_READ_PLAN *current : ror_scans) {
-    current->dbug_dump(indent + 2, verbose);
+  for (AccessPath *current : ror_scans) {
+    ::dbug_dump(current, indent + 2, verbose);
   }
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }

@@ -32,6 +32,7 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_hints.h"
@@ -806,19 +807,18 @@ void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                             false);
 }
 
-TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
-                                SEL_TREE *tree, bool index_read_must_be_used,
-                                bool update_tbl_stats,
-                                enum_order order_direction,
-                                bool skip_records_in_range,
-                                const Cost_estimate &cost_est,
-                                Key_map *needed_reg) {
+AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
+                                 SEL_TREE *tree, bool index_read_must_be_used,
+                                 bool update_tbl_stats,
+                                 enum_order order_direction,
+                                 bool skip_records_in_range,
+                                 const double cost_est, Key_map *needed_reg) {
   uint idx, best_idx = 0;
   SEL_ROOT *key, *key_to_read = nullptr;
   ha_rows best_records = 0; /* protected by key_to_read */
   uint best_mrr_flags = 0, best_buf_size = 0;
   TRP_RANGE *read_plan = nullptr;
-  Cost_estimate read_cost = cost_est;
+  double read_cost = cost_est;
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;
   /*
@@ -906,7 +906,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
       }
 
       if (found_records != HA_POS_ERROR &&
-          (read_cost > cost ||
+          (read_cost > cost.total_cost() ||
            /*
              Ignore cost check if INDEX_MERGE hint is used with
              explicitly specified indexes or if INDEX_MERGE hint
@@ -916,7 +916,7 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
            (force_index_merge &&
             (!use_cheapest_index_merge || !key_to_read)))) {
         trace_idx.add("chosen", true);
-        read_cost = cost;
+        read_cost = cost.total_cost();
         best_records = found_records;
         key_to_read = key;
         best_idx = idx;
@@ -957,16 +957,26 @@ TRP_RANGE *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
              Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
              used_key_parts))) {
       read_plan->records = best_records;
-      read_plan->cost_est = read_cost;
+      read_plan->cost_est.add_cpu(read_cost);
       DBUG_PRINT("info",
                  ("Returning range plan for key %s, cost %g, records %lu",
                   param->table->key_info[param->real_keynr[best_idx]].name,
                   read_plan->cost_est.total_cost(), (ulong)read_plan->records));
     }
-  } else
+  } else {
     DBUG_PRINT("info", ("No 'range' table read plan found"));
+  }
 
-  return read_plan;
+  if (read_plan != nullptr) {
+    AccessPath *path =
+        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
+                                    /*count_examined_rows=*/false);
+    path->cost = read_plan->cost_est.total_cost();
+    path->num_output_rows = read_plan->records;
+    return path;
+  } else {
+    return nullptr;
+  }
 }
 
 /*

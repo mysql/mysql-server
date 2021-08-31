@@ -145,17 +145,13 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg,
-                Bounds_checked_array<TABLE_READ_PLAN *> ror_scans_arg,
-                const Cost_estimate &cost_est_arg, ha_rows records_arg)
+                Bounds_checked_array<AccessPath *> ror_scans_arg,
+                double cost_est_arg, ha_rows records_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg),
         ror_scans(ror_scans_arg) {
-    cost_est = cost_est_arg;
+    cost_est.add_cpu(cost_est_arg);
     records = records_arg;
-
-    for (TABLE_READ_PLAN *child : ror_scans_arg) {
-      child->need_rows_in_rowid_order = true;
-    }
   }
   RowIterator *make_quick(THD *thd, double expected_rows,
                           bool retrieve_full_rows, MEM_ROOT *return_mem_root,
@@ -178,13 +174,13 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 
  private:
   // The subplans for merged scans. Can be TRP_RANGE or TRP_ROR_INTERSECT.
-  Bounds_checked_array<TABLE_READ_PLAN *> ror_scans;
+  Bounds_checked_array<AccessPath *> ror_scans;
 };
 
-TRP_ROR_INTERSECT *get_best_ror_intersect(
+AccessPath *get_best_ror_intersect(
     THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_intersect_allowed, enum_order order_direction,
-    SEL_TREE *tree, const MY_BITMAP *needed_fields,
-    const Cost_estimate *cost_est, bool force_index_merge_result);
+    SEL_TREE *tree, const MY_BITMAP *needed_fields, double cost_est,
+    bool force_index_merge_result, bool reuse_handler);
 
 #endif  // SQL_RANGE_OPTIMIZER_ROWID_ORDERED_RETRIEVAL_PLAN_H_

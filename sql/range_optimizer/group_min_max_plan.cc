@@ -41,6 +41,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/opt_costmodel.h"
@@ -320,11 +321,10 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
    @retval !NULL Loose index scan table read plan
 */
 
-TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
-                                          SEL_TREE *tree,
-                                          enum_order order_direction,
-                                          bool skip_records_in_range,
-                                          const Cost_estimate *cost_est) {
+AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
+                                   SEL_TREE *tree, enum_order order_direction,
+                                   bool skip_records_in_range,
+                                   double cost_est) {
   JOIN *join = param->query_block->join;
   TABLE *table = param->table;
   bool have_min = false; /* true if there is a MIN function. */
@@ -1038,7 +1038,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   if (read_plan) {
     read_plan->cost_est = best_read_cost;
     read_plan->records = best_records;
-    if (*cost_est < best_read_cost && is_agg_distinct) {
+    if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
       trace_group.add("index_scan", true);
       read_plan->cost_est.reset();
       read_plan->use_index_scan();
@@ -1047,9 +1047,16 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     DBUG_PRINT("info",
                ("Returning group min/max plan: cost: %g, records: %lu",
                 read_plan->cost_est.total_cost(), (ulong)read_plan->records));
-  }
 
-  return read_plan;
+    AccessPath *path =
+        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
+                                    /*count_examined_rows=*/false);
+    path->cost = read_plan->cost_est.total_cost();
+    path->num_output_rows = best_records;
+    return path;
+  } else {
+    return nullptr;
+  }
 }
 
 /*

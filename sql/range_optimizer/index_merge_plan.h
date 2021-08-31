@@ -44,8 +44,7 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
   RowIterator *make_quick(THD *thd, double expected_rows,
                           bool retrieve_full_rows, MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
-  TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
-  TRP_RANGE **range_scans_end; /* end of the array */
+  Bounds_checked_array<AccessPath *> range_scans; /* plans of merged scans */
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
                         Opt_trace_object *trace_object) const override;
