@@ -896,8 +896,8 @@ bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
 
   if (used_index(path) != MAX_KEY)
     ret = explain_key_parts(used_index(range_scan_path),
-                            path->index_range_scan().trp->used_key_parts);
-  path->index_range_scan().trp->add_keys_and_lengths(&str_key, &str_key_len);
+                            path->trp_wrapper().trp->used_key_parts);
+  path->trp_wrapper().trp->add_keys_and_lengths(&str_key, &str_key_len);
   return (ret || fmt->entry()->col_key.set(str_key) ||
           fmt->entry()->col_key_len.set(str_key_len));
 }
@@ -968,7 +968,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     case QS_TYPE_ROR_INTERSECT:
     case QS_TYPE_INDEX_MERGE: {
       StringBuffer<32> buff(cs);
-      range_scan_path->index_range_scan().trp->add_info_string(&buff);
+      range_scan_path->trp_wrapper().trp->add_info_string(&buff);
       if (fmt->is_hierarchical()) {
         /*
           We are replacing existing col_key value with a quickselect info,
@@ -1023,9 +1023,8 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     return true;
 
   if (quick_type == QS_TYPE_RANGE) {
-    uint mrr_flags =
-        down_cast<TRP_RANGE *>(range_scan_path->index_range_scan().trp)
-            ->get_mrr_flags();
+    uint mrr_flags = down_cast<TRP_RANGE *>(range_scan_path->trp_wrapper().trp)
+                         ->get_mrr_flags();
 
     /*
       During normal execution of a query, multi_range_read_init() is
@@ -1526,7 +1525,7 @@ bool Explain_join::explain_extra() {
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
         (quick_type == QS_TYPE_ROR_INTERSECT &&
-         down_cast<TRP_ROR_INTERSECT *>(range_scan_path->index_range_scan().trp)
+         down_cast<TRP_ROR_INTERSECT *>(range_scan_path->trp_wrapper().trp)
              ->get_is_covering()) ||
         /*
           Notice that table->key_read can change on the fly (grep
@@ -1536,8 +1535,8 @@ bool Explain_join::explain_extra() {
         */
         table->key_read || tab->keyread_optim()) {
       if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
-        TRP_GROUP_MIN_MAX *qgs = down_cast<TRP_GROUP_MIN_MAX *>(
-            range_scan_path->index_range_scan().trp);
+        TRP_GROUP_MIN_MAX *qgs =
+            down_cast<TRP_GROUP_MIN_MAX *>(range_scan_path->trp_wrapper().trp);
         StringBuffer<64> buff(cs);
         if (qgs->get_is_index_scan()) buff.append(STRING_WITH_LEN("scanning"));
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;

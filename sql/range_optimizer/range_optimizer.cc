@@ -302,7 +302,7 @@ void trace_quick_description(const AccessPath *path, Opt_trace_context *trace) {
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  path->index_range_scan().trp->add_info_string(&range_info);
+  path->trp_wrapper().trp->add_info_string(&range_info);
   range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
 }
 
@@ -738,8 +738,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       }
     }
 
-    if (tree &&
-        (!best_trp || !best_trp->index_range_scan().trp->forced_by_hint)) {
+    if (tree && (!best_trp || !best_trp->trp_wrapper().trp->forced_by_hint)) {
       /*
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
@@ -891,7 +890,7 @@ static AccessPath *get_ror_union_trp(
         trace_basic_info(thd, *cur_child, param, &trp_info);
 
       const TRP_RANGE *trp =
-          down_cast<TRP_RANGE *>((*cur_child)->index_range_scan().trp);
+          down_cast<TRP_RANGE *>((*cur_child)->trp_wrapper().trp);
 
       /*
         Assume the best ROR scan is the one that has cheapest
@@ -922,10 +921,10 @@ static AccessPath *get_ror_union_trp(
           return nullptr;
         roru_index_cost += (*cur_roru_plan)->cost;
       } else {
-        roru_index_cost += down_cast<TRP_ROR_INTERSECT *>(
-                               (*cur_roru_plan)->index_range_scan().trp)
-                               ->get_index_scan_cost()
-                               .total_cost();
+        roru_index_cost +=
+            down_cast<TRP_ROR_INTERSECT *>((*cur_roru_plan)->trp_wrapper().trp)
+                ->get_index_scan_cost()
+                .total_cost();
       }
       roru_total_records += (*cur_roru_plan)->num_output_rows;
       roru_intersect_part *=
@@ -968,7 +967,7 @@ static AccessPath *get_ror_union_trp(
 
     // TODO: This should be done in CreateIteratorFromAccessPath() instead.
     for (AccessPath *child : roru_read_plans) {
-      child->index_range_scan().trp->need_rows_in_rowid_order = true;
+      child->trp_wrapper().trp->need_rows_in_rowid_order = true;
     }
     TRP_ROR_UNION *trp = new (param->return_mem_root)
         TRP_ROR_UNION(table, force_index_merge, roru_read_plans);
@@ -1123,7 +1122,7 @@ static AccessPath *get_best_disjunct_quick(
       }
 
       const TRP_RANGE *trp =
-          down_cast<TRP_RANGE *>((*cur_child)->index_range_scan().trp);
+          down_cast<TRP_RANGE *>((*cur_child)->trp_wrapper().trp);
       if (!trp->can_be_used_for_imerge()) {
         trace_idx.add("chosen", false)
             .add_alnum("cause", "index has DESC key part");
@@ -1793,7 +1792,7 @@ static void print_quick(AccessPath *path, const Key_map *needed_reg) {
   if (path == nullptr) return;
   DBUG_LOCK_FILE;
 
-  TABLE_READ_PLAN *trp = path->index_range_scan().trp;
+  TABLE_READ_PLAN *trp = path->trp_wrapper().trp;
   TABLE *table = trp->table;
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
   trp->dbug_dump(0, true);

@@ -144,7 +144,7 @@ void TEST_join(JOIN *join) {
                 form->quick_keys.print(buf));
       else {
         fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->range_scan()->index_range_scan().trp->dbug_dump(18, false);
+        tab->range_scan()->trp_wrapper().trp->dbug_dump(18, false);
       }
     }
     if (tab->ref().key_parts) {

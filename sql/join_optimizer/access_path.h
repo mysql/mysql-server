@@ -192,7 +192,7 @@ struct AccessPath {
     CONST_TABLE,
     MRR,
     FOLLOW_TAIL,
-    INDEX_RANGE_SCAN,
+    TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
     // Basic access paths that don't correspond to a specific table.
@@ -478,13 +478,13 @@ struct AccessPath {
     assert(type == FOLLOW_TAIL);
     return u.follow_tail;
   }
-  auto &index_range_scan() {
-    assert(type == INDEX_RANGE_SCAN);
-    return u.index_range_scan;
+  auto &trp_wrapper() {
+    assert(type == TRP_WRAPPER);
+    return u.trp_wrapper;
   }
-  const auto &index_range_scan() const {
-    assert(type == INDEX_RANGE_SCAN);
-    return u.index_range_scan;
+  const auto &trp_wrapper() const {
+    assert(type == TRP_WRAPPER);
+    return u.trp_wrapper;
   }
   auto &dynamic_index_range_scan() {
     assert(type == DYNAMIC_INDEX_RANGE_SCAN);
@@ -758,7 +758,7 @@ struct AccessPath {
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;
-    } index_range_scan;
+    } trp_wrapper;
     struct {
       TABLE *table;
       QEP_TAB *qep_tab;  // Used only for buffering.
@@ -1097,10 +1097,10 @@ inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
                                                TABLE_READ_PLAN *trp,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::INDEX_RANGE_SCAN;
+  path->type = AccessPath::TRP_WRAPPER;
   path->count_examined_rows = count_examined_rows;
-  path->index_range_scan().table = table;
-  path->index_range_scan().trp = trp;
+  path->trp_wrapper().table = table;
+  path->trp_wrapper().trp = trp;
   return path;
 }
 

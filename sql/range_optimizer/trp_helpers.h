@@ -27,7 +27,7 @@
   @file
   Various small helpers to abstract over the fact that AccessPath can contain
   a number of different range scan types. (For the time being, they are all
-  pretty similar, since they are grouped under the INDEX_RANGE_SCAN type
+  pretty similar, since they are grouped under the TRP_WRAPPER type
   with a TABLE_READ_PLAN inside, but as we start splitting them out into
   individual AccessPath types, they will grow more logic.)
  */
@@ -36,16 +36,16 @@
 #include "sql/range_optimizer/table_read_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return false;
   }
-  int type = path->index_range_scan().trp->get_type();
+  int type = path->trp_wrapper().trp->get_type();
   return type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX;
 }
 
 inline bool is_agg_loose_index_scan(const AccessPath *path) {
   return is_loose_index_scan(path) &&
-         path->index_range_scan().trp->is_agg_loose_index_scan();
+         path->trp_wrapper().trp->is_agg_loose_index_scan();
 }
 
 /**
@@ -53,10 +53,10 @@ inline bool is_agg_loose_index_scan(const AccessPath *path) {
   in reverse order.
  */
 inline bool reverse_sort_possible(const AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return false;
   }
-  return path->index_range_scan().trp->get_type() == QS_TYPE_RANGE;
+  return path->trp_wrapper().trp->get_type() == QS_TYPE_RANGE;
 }
 
 /**
@@ -64,10 +64,10 @@ inline bool reverse_sort_possible(const AccessPath *path) {
   (Note that non-range index scans return false here.)
  */
 inline bool is_reverse_sorted_range(const AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return false;
   }
-  return path->index_range_scan().trp->reverse_sorted();
+  return path->trp_wrapper().trp->reverse_sorted();
 }
 
 /**
@@ -75,14 +75,14 @@ inline bool is_reverse_sorted_range(const AccessPath *path) {
   Overridden only in TRP_RANGE.
  */
 inline bool make_reverse(uint used_key_parts, AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return false;
   }
-  return path->index_range_scan().trp->make_reverse(used_key_parts);
+  return path->trp_wrapper().trp->make_reverse(used_key_parts);
 }
 
 inline void set_need_sorted_output(AccessPath *path) {
-  path->index_range_scan().trp->need_sorted_output();
+  path->trp_wrapper().trp->need_sorted_output();
 }
 
 /**
@@ -90,10 +90,10 @@ inline void set_need_sorted_output(AccessPath *path) {
   index, returns the index used. Otherwise, MAX_KEY.
  */
 inline unsigned used_index(const AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return MAX_KEY;
   }
-  return path->index_range_scan().trp->index;
+  return path->trp_wrapper().trp->index;
 }
 
 /**
@@ -101,18 +101,18 @@ inline unsigned used_index(const AccessPath *path) {
   Overridden only by TRP_RANGE.
  */
 inline bool unique_key_range(const AccessPath *path) {
-  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
+  if (path->type != AccessPath::TRP_WRAPPER) {
     return false;
   }
-  return path->index_range_scan().trp->unique_key_range();
+  return path->trp_wrapper().trp->unique_key_range();
 }
 
 inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
-  path->index_range_scan().trp->get_fields_used(used_fields);
+  path->trp_wrapper().trp->get_fields_used(used_fields);
 }
 
 inline unsigned get_used_key_parts(const AccessPath *path) {
-  return path->index_range_scan().trp->used_key_parts;
+  return path->trp_wrapper().trp->used_key_parts;
 }
 
 /**
@@ -121,7 +121,7 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
  */
 inline bool uses_index_on_fields(const AccessPath *path,
                                  const MY_BITMAP *fields) {
-  return path->index_range_scan().trp->is_keys_used(fields);
+  return path->trp_wrapper().trp->is_keys_used(fields);
 }
 
 /**
@@ -130,7 +130,7 @@ inline bool uses_index_on_fields(const AccessPath *path,
   index (others will assert-fail).
  */
 inline unsigned get_max_used_key_length(const AccessPath *path) {
-  return path->index_range_scan().trp->get_max_used_key_length();
+  return path->trp_wrapper().trp->get_max_used_key_length();
 }
 
 /*
@@ -138,7 +138,7 @@ inline unsigned get_max_used_key_length(const AccessPath *path) {
   merged) to str. The result is added to "Extra" field in EXPLAIN output.
  */
 inline void add_info_string(const AccessPath *path, String *str) {
-  path->index_range_scan().trp->add_info_string(str);
+  path->trp_wrapper().trp->add_info_string(str);
 }
 
 /*
@@ -150,7 +150,7 @@ inline void add_info_string(const AccessPath *path, String *str) {
  */
 inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
                                  String *used_lengths) {
-  path->index_range_scan().trp->add_keys_and_lengths(key_names, used_lengths);
+  path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
 }
 
 /**
@@ -165,7 +165,7 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
 inline void trace_basic_info(THD *thd, const AccessPath *path,
                              const RANGE_OPT_PARAM *param,
                              Opt_trace_object *trace_object) {
-  path->index_range_scan().trp->trace_basic_info(
+  path->trp_wrapper().trp->trace_basic_info(
       thd, param, path->cost, path->num_output_rows, trace_object);
 }
 
@@ -174,7 +174,7 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
   If not generated by the range optimizer, will assert-fail.
  */
 inline RangeScanType get_range_scan_type(const AccessPath *path) {
-  return path->index_range_scan().trp->get_type();
+  return path->trp_wrapper().trp->get_type();
 }
 
 #ifndef NDEBUG
@@ -183,7 +183,7 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
    for locking DBUG_FILE before this call and unlocking it afterwards.
  */
 inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
-  path->index_range_scan().trp->dbug_dump(indent, verbose);
+  path->trp_wrapper().trp->dbug_dump(indent, verbose);
 }
 #endif
 

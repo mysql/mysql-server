@@ -196,8 +196,7 @@ Key_use *Optimize_table_order::find_best_ref(
     const double prefix_rowcount, bool *found_condition,
     table_map *ref_depend_map, uint *used_key_parts) {
   // Skip finding best_ref if quick object is forced by hint.
-  if (tab->range_scan() &&
-      tab->range_scan()->index_range_scan().trp->forced_by_hint)
+  if (tab->range_scan() && tab->range_scan()->trp_wrapper().trp->forced_by_hint)
     return nullptr;
 
   // Return value - will point to Key_use of the index with cheapest ref access

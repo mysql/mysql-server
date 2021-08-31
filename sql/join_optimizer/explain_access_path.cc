@@ -464,12 +464,12 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
                             path->follow_tail().table->alias);
       AddChildrenFromPushedCondition(path->follow_tail().table, &children);
       break;
-    case AccessPath::INDEX_RANGE_SCAN: {
-      TABLE *table = path->index_range_scan().table;
+    case AccessPath::TRP_WRAPPER: {
+      TABLE *table = path->trp_wrapper().table;
       // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can
       // get better outputs here (similar to dbug_dump()).
       String str;
-      path->index_range_scan().trp->add_info_string(&str);
+      path->trp_wrapper().trp->add_info_string(&str);
       string ret = string(table->key_read ? "Covering index range scan on "
                                           : "Index range scan on ") +
                    table->alias + " using " + to_string(str);

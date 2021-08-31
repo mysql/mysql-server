@@ -160,7 +160,7 @@ bool ShouldEnableBatchMode(AccessPath *path) {
     case AccessPath::REF_OR_NULL:
     case AccessPath::PUSHED_JOIN_REF:
     case AccessPath::FULL_TEXT_SEARCH:
-    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::TRP_WRAPPER:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
       return true;
     case AccessPath::FILTER:
@@ -303,8 +303,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           thd, param.table, path->num_output_rows, examined_rows);
       break;
     }
-    case AccessPath::INDEX_RANGE_SCAN: {
-      const auto &param = path->index_range_scan();
+    case AccessPath::TRP_WRAPPER: {
+      const auto &param = path->trp_wrapper();
       iterator.reset(param.trp->make_quick(thd, path->num_output_rows,
                                            /*retrieve_full_rows=*/true,
                                            thd->mem_root, examined_rows));

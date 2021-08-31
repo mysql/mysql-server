@@ -261,7 +261,7 @@ bool JOIN::create_intermediate_table(
     if (make_sum_func_list(*fields, true)) goto err;
     const bool need_distinct =
         !(tab->range_scan() &&
-          tab->range_scan()->index_range_scan().trp->is_agg_loose_index_scan());
+          tab->range_scan()->trp_wrapper().trp->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
     group_list.clean();
@@ -269,7 +269,7 @@ bool JOIN::create_intermediate_table(
     if (make_sum_func_list(*fields, false)) goto err;
     const bool need_distinct =
         !(tab->range_scan() &&
-          tab->range_scan()->index_range_scan().trp->is_agg_loose_index_scan());
+          tab->range_scan()->trp_wrapper().trp->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
@@ -4011,7 +4011,7 @@ bool DynamicRangeIterator::Init() {
   if (trp == nullptr) {
     m_qep_tab->set_type(JT_ALL);
   } else {
-    qck = trp->index_range_scan().trp->make_quick(
+    qck = trp->trp_wrapper().trp->make_quick(
         thd(), m_qep_tab->position()->rows_fetched, true, &m_mem_root,
         m_examined_rows);
     if (qck == nullptr || thd()->is_error()) {

@@ -61,7 +61,7 @@ RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows, bool,
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
   for (AccessPath *range_scan : range_scans) {
     if (!(quick = down_cast<QUICK_RANGE_SELECT *>(
-              range_scan->index_range_scan().trp->make_quick(
+              range_scan->trp_wrapper().trp->make_quick(
                   thd, expected_rows, /*retrieve_full_rows=*/false,
                   return_mem_root, examined_rows))) ||
         quick_imerge->push_quick_back(quick)) {

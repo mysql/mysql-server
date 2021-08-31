@@ -214,7 +214,7 @@ RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
 
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
   for (AccessPath *scan : ror_scans) {
-    RowIterator *quick = scan->index_range_scan().trp->make_quick(
+    RowIterator *quick = scan->trp_wrapper().trp->make_quick(
         thd, expected_rows, false, return_mem_root, examined_rows);
     if (quick == nullptr || quick_roru->push_quick_back(
                                 down_cast<RowIDCapableRowIterator *>(quick))) {

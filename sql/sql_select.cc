@@ -1364,7 +1364,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
         */
         if (tab->range_scan()) {
           assert(used_index(tab->range_scan()) == pos->loosescan_key);
-          tab->range_scan()->index_range_scan().trp->need_sorted_output();
+          tab->range_scan()->trp_wrapper().trp->need_sorted_output();
         }
 
         const uint keyno = pos->loosescan_key;
@@ -5229,7 +5229,7 @@ uint actual_key_flags(const KEY *key_info) {
 }
 
 join_type calc_join_type(AccessPath *path) {
-  int quick_type = path->index_range_scan().trp->get_type();
+  int quick_type = path->trp_wrapper().trp->get_type();
   if ((quick_type == QS_TYPE_INDEX_MERGE) ||
       (quick_type == QS_TYPE_ROR_INTERSECT) ||
       (quick_type == QS_TYPE_ROR_UNION))
