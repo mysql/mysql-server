@@ -56,7 +56,7 @@ enum class User_attribute_type {
   PASSWORD_LOCKING,
   METADATA,
   COMMENT,
-  MULTI_FACTOR_AUTHENTICATION
+  MULTI_FACTOR_AUTHENTICATION_DATA
 };
 
 struct Password_lock {

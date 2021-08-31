@@ -154,8 +154,21 @@ struct MEM_ROOT;
   "Authentication method switch" --> [ Client does not know requested auth method ] DISCONNECT
   "Authentication method switch" --> "Authentication exchange continuation"
 
+  "Authentication exchange continuation" --> [ No more factors to authenticate] OK
+  "Authentication exchange continuation" --> ERR
+
+  "Server Response" --> "Authenticate 2nd Factor"
+  "Client Response" --> "Authentication exchange continuation"
+
+  "Authentication exchange continuation" --> [ No more factors to authenticate] OK
+  "Authentication exchange continuation" --> ERR
+
+  "Server Response" --> "Authenticate 3rd Factor"
+  "Client Response" --> "Authentication exchange continuation"
+
   "Authentication exchange continuation" --> OK
   "Authentication exchange continuation" --> ERR
+
   @enduml
 
   @section sect_protocol_connection_phase_initial_handshake Initial Handshake
@@ -784,6 +797,7 @@ struct MEM_ROOT;
   @subpage page_protocol_connection_phase_packets_protocol_old_auth_switch_request
   @subpage page_protocol_connection_phase_packets_protocol_auth_switch_response
   @subpage page_protocol_connection_phase_packets_protocol_auth_more_data
+  @subpage page_protocol_connection_phase_packets_protocol_auth_next_factor_request
 */
 
 /**
@@ -1781,6 +1795,37 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   @sa wrap_plguin_data_into_proper_command, server_mpvio_write_packet,
   client_mpvio_read_packet
 */
+
+/**
+  @page page_protocol_connection_phase_packets_protocol_auth_next_factor_request Protocol::AuthNextFactor:
+
+  Next Authentication method Packet in @ref page_protocol_multi_factor_authentication_methods
+
+  If both server and the client support @ref MULTI_FACTOR_AUTHENTICATION capability,
+  server can send this packet to ask client to initiate next authentication method
+  in @ref page_protocol_multi_factor_authentication_methods process.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>0x02 </td>
+    <td>packet type</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string[NUL]"</td>
+    <td>plugin name</td>
+    <td>name of the client authentication plugin </td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string[EOF]"</td>
+    <td>plugin provided data</td>
+    <td>Initial authentication data for that client plugin</td></tr>
+  </table>
+
+  @return @ref page_protocol_connection_phase_packets_protocol_auth_next_factor_request
+  or closing the connection.
+
+  @sa send_auth_next_factor_packet(), client_mpvio_read_packet()
+  @ref send_auth_next_factor_packet(), client_mpvio_read_packet()
+*/
+
 /* clang-format on */
 
 /**
@@ -1845,6 +1890,48 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
                       client_auth_plugin.c_str()));
   return net_write_command(
       mpvio->protocol->get_net(), switch_plugin_request_buf[0],
+      pointer_cast<const uchar *>(client_auth_plugin.c_str()),
+      client_auth_plugin.size() + 1, pointer_cast<const uchar *>(data),
+      data_len);
+}
+
+/**
+  Sends a @ref
+  page_protocol_connection_phase_packets_protocol_auth_next_factor_request
+
+  Used by the server to request that a client should initiate authentication
+  for next authentication methods in the plugin chain of user definition.
+
+  See @ref
+  page_protocol_connection_phase_packets_protocol_auth_next_factor_request for
+  more details.
+
+  @param [in] mpvio      The communications channel
+  @param [in] data       Client plugin data
+  @param [in] data_len   Length of client plugin data
+
+  @retval false ok
+  @retval true error
+*/
+static bool send_auth_next_factor_packet(MPVIO_EXT *mpvio, const uchar *data,
+                                         uint data_len) {
+  static uchar auth_next_factor_request_buf[] = {2};
+  DBUG_TRACE;
+
+  /* Send the client side authentication plugin name */
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
+  assert(client_auth_plugin.c_str());
+  if (!(mpvio->protocol->has_client_capability(MULTI_FACTOR_AUTHENTICATION)))
+    return false;
+
+  DBUG_PRINT("info",
+             ("requesting client to initiate %s plugin's authentication",
+              client_auth_plugin.c_str()));
+
+  return net_write_command(
+      mpvio->protocol->get_net(), auth_next_factor_request_buf[0],
       pointer_cast<const uchar *>(client_auth_plugin.c_str()),
       client_auth_plugin.size() + 1, pointer_cast<const uchar *>(data),
       data_len);
@@ -3086,6 +3173,13 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
       return -1;  // Crash here.
     });
     res = send_plugin_request_packet(mpvio, packet, packet_len);
+  } else if (mpvio->status == MPVIO_EXT::START_MFA) {
+    res = send_auth_next_factor_packet(mpvio, packet, packet_len);
+    /*
+      reset the status to avoid sending AuthNextFactor again for the
+      same factor authentication.
+    */
+    mpvio->status = MPVIO_EXT::FAILURE;
   } else
     res = wrap_plguin_data_into_proper_command(protocol->get_net(), packet,
                                                packet_len);
@@ -3132,6 +3226,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
       and a client has used the correct plugin, then we can return the
       cached data straight away and avoid one round trip.
     */
+
     auto client_auth_plugin_name = client_plugin_name(mpvio->plugin);
     if (client_auth_plugin_name == nullptr ||
         my_strcasecmp(system_charset_info, mpvio->cached_client_reply.plugin,
@@ -3150,7 +3245,6 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
       pkt_len = packet_error;
       goto err;
     }
-
     /*
       But if the client has used the wrong plugin, the cached data are
       useless. Furthermore, we have to send a "change plugin" request
@@ -3159,6 +3253,14 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf) {
     if (mpvio->write_packet(mpvio, nullptr, 0))
       pkt_len = packet_error;
     else {
+      protocol->read_packet();
+      pkt_len = protocol->get_packet_length();
+    }
+  } else if (mpvio->status == MPVIO_EXT::START_MFA) {
+    /* Send AuthNextFactor packet to client and change mpvio status */
+    if (mpvio->write_packet(mpvio, nullptr, 0)) {
+      pkt_len = packet_error;
+    } else {
       protocol->read_packet();
       pkt_len = protocol->get_packet_length();
     }
@@ -3265,11 +3367,13 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   3. The client responds with
      @ref page_protocol_connection_phase_packets_protocol_handshake_response
   4. X authentication method packets are exchanged
-  5. The server responds with an @ref page_protocol_basic_ok_packet
-  6. Client reads plugin name from OK packet and loads corresponding client side plugin.
+  5. The server responds with an @ref page_protocol_connection_phase_packets_protocol_auth_next_factor_request
+     containing client side plugin name and plugin data of plugin Y.
+  6. Client reads plugin name and plugin data from AuthNextFactor packet and loads corresponding client side plugin.
   7. Y authentication method packets are exchanged
-  8. The server responds with an @ref page_protocol_basic_ok_packet
-  9. Client reads plugin name from OK packet and loads corresponding client side plugin.
+  8. The server responds with an @ref page_protocol_connection_phase_packets_protocol_auth_next_factor_request
+     containing client side plugin name and plugin data of plugin Z.
+  9. Client reads plugin name and plugin data from AuthNextFactor packet and loads corresponding client side plugin.
   10.Z authentication method packets are exchanged
   11.The server responds with an @ref page_protocol_basic_ok_packet
 
@@ -3281,11 +3385,11 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   == X authentication method packets are exchanged ==
 
-  Server -> Client: OK packet containing plugin name Y
+  Server -> Client: AuthNextFactor packet containing plugin name/data of plugin Y
 
   == Y authentication method packets are exchanged ==
 
-  Server -> Client: OK packet containing plugin name Z
+  Server -> Client: AuthNextFactor packet containing plugin name/data of plugin Z
 
   == Z authentication method packets are exchanged ==
 
@@ -3317,9 +3421,11 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
   /* user is not configured with Multi factor authentication */
   if (!mpvio->acl_user->m_mfa) return res;
   /*
-    Disable MFA temporarily.
+    If an old client connects to server with user account created with Multi
+    factor authentication methods, then return error.
   */
-  return CR_AUTH_USER_CREDENTIALS;
+  if (!mpvio->protocol->has_client_capability(MULTI_FACTOR_AUTHENTICATION))
+    return CR_AUTH_USER_CREDENTIALS;
 
   Multi_factor_auth_list *auth_factor =
       mpvio->acl_user->m_mfa->get_multi_factor_auth_list();
@@ -3345,8 +3451,7 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
           mpvio->auth_info
               .multi_factor_auth_info[mpvio->auth_info.current_auth_factor]
               .auth_string_length;
-      thd->get_protocol()->send_ok(thd->server_status, 0, 0, 0, nullptr);
-      thd->get_protocol()->flush();
+      mpvio->status = MPVIO_EXT::START_MFA;
       st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
       res = auth->authenticate_user(mpvio, &mpvio->auth_info);
       if (res == CR_OK_AUTH_IN_SANDBOX_MODE) {
@@ -3362,7 +3467,12 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
       }
 
       plugin_unlock(thd, plugin);
-      if (res != CR_OK) break;
+      if (res != CR_OK) {
+        mpvio->status = MPVIO_EXT::FAILURE;
+        break;
+      } else {
+        mpvio->status = MPVIO_EXT::SUCCESS;
+      }
     } else {
       /* Server cannot load the required plugin. */
       Host_errors errors;

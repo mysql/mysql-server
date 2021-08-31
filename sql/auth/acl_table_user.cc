@@ -128,7 +128,7 @@ static std::map<const User_attribute_type, const std::string>
         {User_attribute_type::PASSWORD_LOCKING, consts::Password_locking},
         {User_attribute_type::METADATA, consts::json_metadata_tag},
         {User_attribute_type::COMMENT, consts::json_comment_tag},
-        {User_attribute_type::MULTI_FACTOR_AUTHENTICATION,
+        {User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA,
          consts::json_multi_factor_authentication}};
 
 Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
@@ -213,7 +213,8 @@ void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
 bool Acl_user_attributes::deserialize_multi_factor(
     const Json_object &json_object) {
   Json_dom *mfa = json_object.get(
-      attribute_type_to_str[User_attribute_type::MULTI_FACTOR_AUTHENTICATION]);
+      attribute_type_to_str
+          [User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA]);
   if (mfa) {
     if (mfa->json_type() != enum_json_type::J_ARRAY) return true;
     Json_array *mfa_arr = down_cast<Json_array *>(mfa);
@@ -358,7 +359,8 @@ bool Acl_user_attributes::serialize(Json_object &json_object) const {
     Json_array mfa_arr;
     if (m_mfa->serialize(mfa_arr)) return true;
     json_object.add_clone(
-        attribute_type_to_str[User_attribute_type::MULTI_FACTOR_AUTHENTICATION],
+        attribute_type_to_str
+            [User_attribute_type::MULTI_FACTOR_AUTHENTICATION_DATA],
         &mfa_arr);
   }
   if (m_user_attributes_json) {

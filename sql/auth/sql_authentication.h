@@ -75,7 +75,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   } cached_server_packet;
   int packets_read, packets_written;  ///< counters for send/received packets
   /** when plugin returns a failure this tells us what really happened */
-  enum { SUCCESS, FAILURE, RESTART } status;
+  enum { SUCCESS, FAILURE, RESTART, START_MFA } status;
 
   /* encapsulation members */
   char *scramble;
