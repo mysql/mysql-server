@@ -189,10 +189,14 @@ longlong Item_func_regexp_instr::val_int() {
 
   std::optional<int32_t> result =
       m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
+  if (current_thd->is_error()) return error_int();
 
-  null_value = !result.has_value();
-
-  return null_value ? 0 : result.value();
+  if (result.has_value()) {
+    null_value = false;
+    return result.value();
+  }
+  null_value = true;
+  return 0;
 }
 
 longlong Item_func_regexp_like::val_int() {
@@ -209,10 +213,14 @@ longlong Item_func_regexp_like::val_int() {
   */
   std::optional<bool> result =
       m_facade->Matches(subject(), position().value(), occurrence().value());
-  null_value = !result.has_value();
-  if (null_value) return 0;
+  if (current_thd->is_error()) return error_int();
 
-  return result.value();
+  if (result.has_value()) {
+    null_value = false;
+    return result.value();
+  }
+  null_value = true;
+  return 0;
 }
 
 bool Item_func_regexp_like::resolve_type(THD *thd) {
@@ -267,6 +275,8 @@ String *Item_func_regexp_replace::val_str(String *buf) {
   buf->set_charset(collation.collation);
   String *result = m_facade->Replace(subject(), replacement(), pos.value(),
                                      occ.value(), buf);
+  if (current_thd->is_error()) return error_str();
+
   null_value = (result == nullptr);
   return result;
 }
@@ -291,10 +301,12 @@ String *Item_func_regexp_substr::val_str(String *buf) {
   }
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    return null_return_str();
+    return error_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
+  if (current_thd->is_error()) return error_str();
+
   null_value = (result == nullptr);
   return result;
 }

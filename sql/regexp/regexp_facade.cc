@@ -27,6 +27,7 @@
 #include <tuple>
 
 #include "my_pointer_arithmetic.h"
+#include "sql/item_func.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
 #include "sql/regexp/regexp_engine.h"
 #include "sql_string.h"
@@ -98,7 +99,11 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
     size_t converted_size = my_convert(to, to_size, regexp_lib_charset, start,
                                        length, source_charset, &errors);
 
-    if (errors > 0) return true;
+    if (errors > 0) {
+      report_conversion_error(regexp_lib_charset, start, length,
+                              source_charset);
+      return true;
+    }
     assert(converted_size % sizeof(UChar) == 0);
     out->resize(converted_size / sizeof(UChar));
     return false;

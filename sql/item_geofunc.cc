@@ -4738,8 +4738,7 @@ longlong Item_func_st_issimple::val_int() {
 
   String backing_arg_wkb;
   String *arg_wkb = args[0]->val_str(&backing_arg_wkb);
-
-  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+  if (current_thd->is_error()) return error_int();
 
   if (args[0]->null_value) {
     null_value = true;
@@ -4806,6 +4805,7 @@ longlong Item_func_isvalid::val_int() {
 
   String tmp;
   String *swkb = args[0]->val_str(&tmp);
+  if (current_thd->is_error()) return error_int();
 
   if ((null_value = args[0]->null_value)) {
     assert(is_nullable());
@@ -4993,6 +4993,7 @@ double Item_func_coordinate_observer::val_real() {
   assert(fixed);
   String tmp_str;
   String *swkb = args[0]->val_str(&tmp_str);
+  if (current_thd->is_error()) return error_real();
 
   if ((null_value = (args[0]->null_value))) {
     assert(is_nullable());
@@ -5736,11 +5737,11 @@ double Item_func_st_distance_sphere::val_real() {
 
   String backing_arg_wkb1;
   String *arg_wkb1 = args[0]->val_str(&backing_arg_wkb1);
+  if (current_thd->is_error()) return error_real();
 
   String backing_arg_wkb2;
   String *arg_wkb2 = args[1]->val_str(&backing_arg_wkb2);
-
-  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+  if (current_thd->is_error()) return error_real();
 
   if (args[0]->null_value || args[1]->null_value) {
     null_value = true;
