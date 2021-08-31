@@ -611,6 +611,50 @@ TEST_F(MakeHypergraphTest, Predicates) {
             graph.predicates[1].total_eligibility_set);  // Both t1 and t2!
 }
 
+TEST_F(MakeHypergraphTest, PushdownFromOuterJoinCondition) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2 JOIN t3) "
+      "ON t1.x=t2.x AND t2.y=t3.y AND t3.z > 3",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t2/t3.
+  ASSERT_EQ(2, graph.edges.size());
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+  ASSERT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.y = t3.y)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+
+  // t1/(t2,t3).
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x06, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(0, graph.edges[1].expr->join_conditions.size());
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+
+  // The z > 3 condition should be pushed all the way down to a predicate.
+  ASSERT_EQ(1, graph.predicates.size());
+  EXPECT_EQ("(t3.z > 3)", ItemToString(graph.predicates[0].condition));
+  EXPECT_EQ(0x04, graph.predicates[0].total_eligibility_set);  // Only t3.
+}
+
 // See also the PredicatePushdown* tests below.
 TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   // Note that the WHERE condition needs _both_ associativity and

@@ -1395,9 +1395,6 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   if (expr->type == RelationalExpression::TABLE) {
     assert(!IsMultipleEquals(cond));
     table_filters->push_back(cond);
-    if (remaining_parts != nullptr) {
-      remaining_parts->push_back(cond);
-    }
     return;
   }
   const table_map used_tables =
@@ -1744,10 +1741,17 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
     Mem_root_array<Item *> *cycle_inducing_edges, string *trace) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
-    if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS)) {
-      // Only push down join conditions, not filters; they will stay in WHERE,
-      // as we handle them separately in FoundSingleNode() and
-      // FoundSubgraphPair().
+    if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
+        !is_join_condition_for_expr) {
+      // Simple filters will stay in WHERE; we go through them with
+      // AddPredicate() (in MakeJoinHypergraph()) and convert them into
+      // table filters, then handle them separately in FoundSingleNode()
+      // and FoundSubgraphPair().
+      //
+      // Note that filters that were part of a join condition
+      // (e.g. an outer join) won't go through that path, so they will
+      // be sent through PushDownCondition() below, and possibly end up
+      // in table_filters.
       remaining_parts.push_back(item);
     } else if (is_join_condition_for_expr &&
                !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
