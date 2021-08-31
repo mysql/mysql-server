@@ -812,11 +812,11 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 EXPLAIN
--> Inner hash join (no condition)  (cost=*** rows=5)
+-> Inner hash join (no condition)  (cost=*** rows=10)
     -> Table scan on t2  (cost=*** rows=5)
     -> Hash
-        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=1)
-            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=1)
+        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=2)
+            -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=2)
 
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
