@@ -788,9 +788,8 @@ void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double,
                                  double num_output_rows,
                                  Opt_trace_object *trace_object) const {
   assert(param->using_real_indexes);
-  const uint keynr_in_table = param->real_keynr[key_idx];
 
-  const KEY &cur_key = param->table->key_info[keynr_in_table];
+  const KEY &cur_key = param->table->key_info[index];
   const KEY_PART_INFO *key_part = cur_key.key_part;
 
   trace_object->add_alnum("type", "range_scan")
@@ -955,9 +954,9 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
 
   const bool is_ror = tree->ror_scans_map.is_set(best_idx);
   TRP_RANGE *read_plan = new (param->return_mem_root)
-      TRP_RANGE(key_to_read, best_idx, best_mrr_flags, best_buf_size,
-                param->table, param->key[best_idx], param->real_keynr[best_idx],
-                is_ror, is_best_idx_imerge_scan,
+      TRP_RANGE(key_to_read, best_mrr_flags, best_buf_size, param->table,
+                param->key[best_idx], param->real_keynr[best_idx], is_ror,
+                is_best_idx_imerge_scan,
                 Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
                 used_key_parts);
   if (read_plan == nullptr) {

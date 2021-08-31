@@ -901,10 +901,9 @@ static AccessPath *get_ror_union_trp(
       double scan_cost = 0.0;
       if (trp->can_be_used_for_ror()) {
         /* Ok, we have index_only cost, now get full rows scan cost */
-        scan_cost = table->file
-                        ->read_cost(param->real_keynr[trp->key_idx], 1,
-                                    (*cur_child)->num_output_rows)
-                        .total_cost();
+        scan_cost =
+            table->file->read_cost(trp->index, 1, (*cur_child)->num_output_rows)
+                .total_cost();
         scan_cost += table->cost_model()->row_evaluate_cost(
             (*cur_child)->num_output_rows);
       } else
@@ -1129,18 +1128,17 @@ static AccessPath *get_best_disjunct_quick(
         continue;
       }
 
-      const uint keynr_in_table = param->real_keynr[trp->key_idx];
       imerge_cost += (*cur_child)->cost;
       all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
       all_scans_rors &= trp->can_be_used_for_ror();
       const bool pk_is_clustered = table->file->primary_key_is_clustered();
-      if (pk_is_clustered && keynr_in_table == table->s->primary_key) {
+      if (pk_is_clustered && trp->index == table->s->primary_key) {
         cpk_scan = cur_child;
         cpk_scan_records = (*cur_child)->num_output_rows;
       } else
         non_cpk_scan_records += (*cur_child)->num_output_rows;
 
-      trace_idx.add_utf8("index_to_merge", table->key_info[keynr_in_table].name)
+      trace_idx.add_utf8("index_to_merge", table->key_info[trp->index].name)
           .add("cumulated_cost", imerge_cost);
     }
 

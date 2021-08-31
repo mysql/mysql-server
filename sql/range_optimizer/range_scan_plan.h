@@ -54,19 +54,15 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
 
 class TRP_RANGE : public TABLE_READ_PLAN {
  public:
-  uint key_idx; /* key number in RANGE_OPT_PARAM::key and
-                   RANGE_OPT_PARAM::real_keynr */
-
   // NOTE: Both used_key_part_arg and ranges must be allocated on the
   // return_mem_root, as they need to outlive the range optimizer.
-  TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg,
-            uint mrr_buf_size_arg, TABLE *table_arg,
-            KEY_PART *used_key_part_arg, uint keyno_arg, bool is_ror_arg,
-            bool is_imerge_arg, Bounds_checked_array<QUICK_RANGE *> ranges_arg,
+  TRP_RANGE(SEL_ROOT *key_arg, uint mrr_flags_arg, uint mrr_buf_size_arg,
+            TABLE *table_arg, KEY_PART *used_key_part_arg, uint keyno_arg,
+            bool is_ror_arg, bool is_imerge_arg,
+            Bounds_checked_array<QUICK_RANGE *> ranges_arg,
             uint used_key_parts_arg)
       : TABLE_READ_PLAN(table_arg, keyno_arg, used_key_parts_arg,
                         /*forced_by_hint_arg=*/false),
-        key_idx(idx_arg),
         key(key_arg),
         mrr_flags(mrr_flags_arg),
         mrr_buf_size(mrr_buf_size_arg),
