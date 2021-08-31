@@ -42,6 +42,8 @@ struct MCPVIO_EXT {
   struct {
     uchar *pkt; /**< pointer into NET::buff */
     uint pkt_len;
+    /** a flag indicating that pkt, pkt_len contain valid packet to be reused */
+    bool pkt_received;
   } cached_server_reply;
   int packets_read, packets_written; /**< counters for send/received packets */
   int mysql_change_user;             /**< if it's mysql_change_user() */

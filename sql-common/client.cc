@@ -1681,6 +1681,18 @@ static bool is_OK_packet(MYSQL *mysql, ulong length) {
 }
 
 /**
+  Helper method to check if received packet is AuthNextFactor packet.
+
+  @param[in]   mysql              connection handle
+
+  @retval      true packet is AuthNextFactor packet
+  @retval      false if its not AuthNextFactor packet
+*/
+static bool is_auth_next_factor_packet(MYSQL *mysql) {
+  return ((mysql->server_capabilities & MULTI_FACTOR_AUTHENTICATION) &&
+          (mysql->net.read_pos[0] == AUTH_NEXT_FACTOR_PACKETTYPE));
+}
+/**
   Read a packet from network. If it's an OK packet, flush it.
 
   @return  true if error, false otherwise. In case of
@@ -4983,11 +4995,14 @@ static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf) {
   ulong pkt_len;
 
   /* there are cached data left, feed it to a plugin */
-  if (mpvio->cached_server_reply.pkt && mpvio->cached_server_reply.pkt_len) {
+  if (mpvio->cached_server_reply.pkt_received) {
     *buf = mpvio->cached_server_reply.pkt;
     mpvio->cached_server_reply.pkt = nullptr;
     mpvio->packets_read++;
-    return mpvio->cached_server_reply.pkt_len;
+    pkt_len = mpvio->cached_server_reply.pkt_len;
+    mpvio->cached_server_reply.pkt_len = 0;
+    mpvio->cached_server_reply.pkt_received = false;
+    return pkt_len;
   }
 
   if (mpvio->packets_read == 0) {
@@ -5041,11 +5056,13 @@ static net_async_status client_mpvio_read_packet_nonblocking(
   int error;
 
   /* there are cached data left, feed it to a plugin */
-  if (mpvio->cached_server_reply.pkt) {
+  if (mpvio->cached_server_reply.pkt_received) {
     *buf = mpvio->cached_server_reply.pkt;
     mpvio->cached_server_reply.pkt = nullptr;
     mpvio->packets_read++;
     *result = mpvio->cached_server_reply.pkt_len;
+    mpvio->cached_server_reply.pkt_len = 0;
+    mpvio->cached_server_reply.pkt_received = false;
     return NET_ASYNC_COMPLETE;
   }
 
@@ -5442,6 +5459,16 @@ static mysql_state_machine_status authsm_begin_plugin_auth(
   ctx->mpvio.mysql_change_user = ctx->data_plugin == nullptr;
   ctx->mpvio.cached_server_reply.pkt = (uchar *)ctx->data;
   ctx->mpvio.cached_server_reply.pkt_len = ctx->data_len;
+  /*
+    Sometimes plugin provided data (like scramble) can be optional, in such a
+    case we set pkt_received flag to false based on data length. This flag is
+    later checked in client_mpvio_read_packet() to decide on to read from
+    network or return the cached data.
+  */
+  if (ctx->data_len == 0)
+    ctx->mpvio.cached_server_reply.pkt_received = false;
+  else
+    ctx->mpvio.cached_server_reply.pkt_received = true;
   ctx->mpvio.read_packet = client_mpvio_read_packet;
   ctx->mpvio.write_packet = client_mpvio_write_packet;
   ctx->mpvio.read_packet_nonblocking = client_mpvio_read_packet_nonblocking;
@@ -5575,6 +5602,8 @@ static mysql_state_machine_status authsm_handle_change_user_result(
 
   if (mysql->net.read_pos[0] == 254) {
     ctx->state_function = authsm_run_second_authenticate_user;
+  } else if (is_auth_next_factor_packet(mysql)) {
+    ctx->state_function = authsm_init_multi_auth;
   } else {
     if (is_OK_packet(mysql, ctx->pkt_length)) {
       read_ok_ex(mysql, ctx->pkt_length);
@@ -5606,6 +5635,7 @@ static mysql_state_machine_status authsm_run_second_authenticate_user(
         ctx->auth_plugin_name); /* safe as my_net_read always appends \0 */
     ctx->mpvio.cached_server_reply.pkt_len = ctx->pkt_length - len - 2;
     ctx->mpvio.cached_server_reply.pkt = mysql->net.read_pos + len + 2;
+    ctx->mpvio.cached_server_reply.pkt_received = true;
     DBUG_PRINT("info", ("change plugin packet from server for plugin %s",
                         ctx->auth_plugin_name));
   }
@@ -5660,14 +5690,16 @@ static mysql_state_machine_status authsm_handle_second_authenticate_user(
                                  "reading final connect information", errno);
       return STATE_MACHINE_FAILED;
     }
-    if (is_OK_packet(mysql, ctx->pkt_length))
+    if (is_auth_next_factor_packet(mysql)) {
+      ctx->state_function = authsm_init_multi_auth;
+      return STATE_MACHINE_CONTINUE;
+    } else if (is_OK_packet(mysql, ctx->pkt_length)) {
       read_ok_ex(mysql, ctx->pkt_length);
-    else {
+    } else {
       set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
       return STATE_MACHINE_FAILED;
     }
   }
-
   ctx->state_function = authsm_finish_auth;
   return STATE_MACHINE_CONTINUE;
 }
@@ -5682,9 +5714,6 @@ static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx) {
   */
   ctx->res = (mysql->net.read_pos[0] != 0);
 
-  /* keep compiler silent */
-  if (0) ctx->state_function = authsm_init_multi_auth;
-
   MYSQL_TRACE(AUTHENTICATED, mysql, ());
   return ctx->res ? STATE_MACHINE_FAILED : STATE_MACHINE_DONE;
 }
@@ -5694,43 +5723,64 @@ static mysql_state_machine_status authsm_init_multi_auth(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
+  /*
+    If previous factor authentication is a success, read AuthNextFactor packet,
+    extract client plugin name and plugin specific data and initiate next factor
+    authentication.
+  */
+  size_t len;
+  ctx->auth_plugin_name = (char *)mysql->net.read_pos + 1;
+  len = strlen(ctx->auth_plugin_name);
+  /* adjust cached plugin data packet */
+  ctx->mpvio.cached_server_reply.pkt_len = ctx->pkt_length - len - 2;
+  ctx->mpvio.cached_server_reply.pkt = mysql->net.read_pos + len + 2;
+  ctx->mpvio.cached_server_reply.pkt_received = true;
+  DBUG_PRINT("info", ("AuthNextFactor plugin packet from server %s",
+                      ctx->auth_plugin_name));
 
-  if (mysql->options.extension &&
-      mysql->options.extension->client_auth_info[ctx->current_factor_index]
-          .plugin_name) {
-    ctx->auth_plugin_name =
-        mysql->options.extension->client_auth_info[ctx->current_factor_index]
-            .plugin_name;
-    if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
-              mysql, ctx->auth_plugin_name,
-              MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
-      my_free(
-          mysql->options.extension->client_auth_info[ctx->current_factor_index]
-              .plugin_name);
-      mysql->options.extension->client_auth_info[ctx->current_factor_index]
-          .plugin_name = 0;
+  /* update current factor index to point to nth factor */
+  ctx->current_factor_index++;
+  if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+            mysql, ctx->auth_plugin_name,
+            MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
+    set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
+                             unknown_sqlstate,
+                             ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
+                             ctx->auth_plugin->name, "plugin not available");
+    return STATE_MACHINE_FAILED;
+  }
+  if (mysql->options.extension) {
+    char **plugin_name =
+        &mysql->options.extension->client_auth_info[ctx->current_factor_index]
+             .plugin_name;
+    *plugin_name = static_cast<char *>(
+        my_malloc(PSI_NOT_INSTRUMENTED, len + 1, MYF(MY_WME | MY_ZEROFILL)));
+    if (!*plugin_name) {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return STATE_MACHINE_FAILED;
     }
-    DBUG_EXECUTE_IF("simulate_fido_testing", {
-      bool is_fido_testing = true;
-      mysql_plugin_options((struct st_mysql_client_plugin *)ctx->auth_plugin,
-                           "is_fido_testing", &is_fido_testing);
-    });
-    /* check if plugin is enabled */
-    if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
+    memcpy(*plugin_name, ctx->auth_plugin_name, len);
+  }
+  DBUG_EXECUTE_IF("simulate_fido_testing", {
+    bool is_fido_testing = true;
+    mysql_plugin_options((struct st_mysql_client_plugin *)ctx->auth_plugin,
+                         "is_fido_testing", &is_fido_testing);
+  });
+  /* check if plugin is enabled */
+  if (check_plugin_enabled(mysql, ctx)) return STATE_MACHINE_FAILED;
 
-    /* reset password for next client auth plugin */
-    if (mysql->passwd) mysql->passwd[0] = 0;
-    /* get password */
-    if (mysql->options.extension->client_auth_info[ctx->current_factor_index]
-            .password) {
-      my_free(mysql->passwd);
-      mysql->passwd = my_strdup(
-          key_memory_MYSQL,
-          mysql->options.extension->client_auth_info[ctx->current_factor_index]
-              .password,
-          MYF(0));
-    }
+  /* reset password for next client auth plugin */
+  if (mysql->passwd) mysql->passwd[0] = 0;
+  /* get password */
+  if (mysql->options.extension &&
+      mysql->options.extension->client_auth_info[ctx->current_factor_index]
+          .password) {
+    my_free(mysql->passwd);
+    mysql->passwd = my_strdup(
+        key_memory_MYSQL,
+        mysql->options.extension->client_auth_info[ctx->current_factor_index]
+            .password,
+        MYF(0));
   }
   ctx->state_function = authsm_do_multi_plugin_auth;
   return STATE_MACHINE_CONTINUE;
@@ -5774,9 +5824,12 @@ static mysql_state_machine_status authsm_handle_multi_auth_response(
                                  "reading final connect information", errno);
       return STATE_MACHINE_FAILED;
     }
-    if (is_OK_packet(mysql, ctx->pkt_length))
+    if (is_auth_next_factor_packet(mysql)) {
+      ctx->state_function = authsm_init_multi_auth;
+      return STATE_MACHINE_CONTINUE;
+    } else if (is_OK_packet(mysql, ctx->pkt_length)) {
       read_ok_ex(mysql, ctx->pkt_length);
-    else {
+    } else {
       set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
       return STATE_MACHINE_FAILED;
     }

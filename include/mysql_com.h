@@ -729,6 +729,21 @@
 #define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
 
 /**
+  Support Multi factor authentication.
+
+  Server
+  ------
+  Server sends AuthNextFactor packet after every nth factor authentication
+  method succeeds, except the last factor authentication.
+
+  Client
+  ------
+  Client reads AuthNextFactor packet sent by server and initiates next factor
+  authentication method.
+*/
+#define MULTI_FACTOR_AUTHENTICATION (1UL << 28)
+
+/**
   This flag will be reserved to extend the 32bit capabilities structure to
   64bits.
 */
@@ -771,7 +786,8 @@
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
-   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES)
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES |               \
+   MULTI_FACTOR_AUTHENTICATION)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and

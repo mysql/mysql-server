@@ -310,4 +310,8 @@ bool mysql_int_serialize_param_data(
 
 #define protocol_41(A) ((A)->server_capabilities & CLIENT_PROTOCOL_41)
 
+/*
+  AuthNextFactor packet is defined to have value 2 in 1st byte.
+*/
+#define AUTH_NEXT_FACTOR_PACKETTYPE 2
 #endif /* SQL_COMMON_INCLUDED */
