@@ -26,8 +26,6 @@
 
 # The client authentication plug-in is part of the community build.
 
-message(STATUS "Building the OCI authentication cient plugin.")
-
 # Skip it if disabled.
 IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
   MESSAGE(STATUS "Skipping the OCI authentication client plugin.")
