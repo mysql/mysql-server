@@ -2184,6 +2184,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       if (trans_commit_implicit(thd)) break;
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
+      thd->lex->destroy();
       my_ok(thd);
       break;
     }
