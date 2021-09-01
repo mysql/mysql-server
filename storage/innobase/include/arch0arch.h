@@ -1039,14 +1039,15 @@ class Arch_Group {
 #ifdef UNIV_DEBUG
   /** Adjust end LSN to end of file. This is used in debug
   mode to test the case when LSN is at file boundary.
-  @param[in,out]        stop_lsn        stop lsn for client
-  @param[out]   blk_len         last block length */
+  @param[in,out]  stop_lsn  stop lsn for client
+  @param[out]     blk_len   last block length */
   void adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len);
 
   /** Adjust redo copy length to end of file. This is used
   in debug mode to archive only till end of file.
-  @param[in,out]        length  data to copy in bytes */
-  void adjust_copy_length(uint32_t &length);
+  @param[in]      arch_lsn  LSN up to which data is already archived
+  @param[in,out]  copy_len  length of data to copy in bytes */
+  void adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len);
 
   /** Check if the information maintained in the memory is the same
   as the information maintained in the files.

@@ -1431,19 +1431,27 @@ int Clone_Handle::process_chunk(Clone_Task *task, uint32_t chunk_num,
     file_index_hint = task->m_current_file_index;
   }
 
-  /* Except for page copy file remains same for all blocks of a chunk. */
+  auto state = m_clone_task_manager.get_state();
+  bool is_page_copy = (state == CLONE_SNAPSHOT_PAGE_COPY);
+  bool is_redo_copy = (state == CLONE_SNAPSHOT_REDO_COPY);
+
+  /* Except for page copy, file remains same for all blocks of a chunk. */
   auto snapshot = m_clone_task_manager.get_snapshot();
 
   const auto *file_ctx =
       snapshot->get_file_ctx(chunk_num, block_num, file_index_hint);
-  const auto *file_meta = file_ctx->get_file_meta_read();
+
+  const Clone_File_Meta *file_meta = nullptr;
+
+  /* For page copy, file context is null if current chunk is over. */
+  ut_ad(is_page_copy || file_ctx != nullptr);
+
+  if (file_ctx != nullptr) {
+    file_meta = file_ctx->get_file_meta_read();
+  }
 
   /* Loop over all the blocks of current chunk and send data. */
   int err = 0;
-
-  auto state = m_clone_task_manager.get_state();
-  bool is_page_copy = (state == CLONE_SNAPSHOT_PAGE_COPY);
-  bool is_redo_copy = (state == CLONE_SNAPSHOT_REDO_COPY);
 
   uint32_t pin_loop_count = 0;
   uint32_t unpin_count = snapshot->get_max_blocks_pin();
