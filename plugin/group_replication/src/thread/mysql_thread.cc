@@ -32,18 +32,28 @@ static void *launch_thread(void *arg) {
   return nullptr;
 }
 
-Mysql_thread::Mysql_thread(Mysql_thread_body *body)
-    : m_state(), m_aborted(false), m_trigger_run_complete(false), m_body(body) {
-  mysql_mutex_init(key_GR_LOCK_mysql_thread_run, &m_run_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_GR_COND_mysql_thread_run, &m_run_cond);
-  mysql_mutex_init(key_GR_LOCK_mysql_thread_dispatcher_run, &m_dispatcher_lock,
-                   MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_GR_COND_mysql_thread_dispatcher_run, &m_dispatcher_cond);
-  m_trigger_queue =
-      new Abortable_synchronized_queue<Mysql_thread_body_parameters *>();
-}
+void Mysql_thread_task::execute() { m_body->run(m_parameters); }
 
+Mysql_thread::Mysql_thread(PSI_thread_key thread_key,
+                           PSI_mutex_key run_mutex_key,
+                           PSI_cond_key run_cond_key,
+                           PSI_mutex_key dispatcher_mutex_key,
+                           PSI_cond_key dispatcher_cond_key)
+    : m_thread_key(thread_key),
+      m_mutex_key(run_mutex_key),
+      m_cond_key(run_cond_key),
+      m_dispatcher_mutex_key(dispatcher_mutex_key),
+      m_dispatcher_cond_key(dispatcher_cond_key),
+      m_state(),
+      m_aborted(false),
+      m_trigger_run_complete(false) {
+  mysql_mutex_init(m_mutex_key, &m_run_lock, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(m_cond_key, &m_run_cond);
+  mysql_mutex_init(m_dispatcher_mutex_key, &m_dispatcher_lock,
+                   MY_MUTEX_INIT_FAST);
+  mysql_cond_init(m_dispatcher_cond_key, &m_dispatcher_cond);
+  m_trigger_queue = new Abortable_synchronized_queue<Mysql_thread_task *>();
+}
 Mysql_thread::~Mysql_thread() {
   mysql_mutex_destroy(&m_run_lock);
   mysql_cond_destroy(&m_run_cond);
@@ -53,9 +63,9 @@ Mysql_thread::~Mysql_thread() {
   if (nullptr != m_trigger_queue) {
     while (m_trigger_queue->size() > 0) {
       /* purecov: begin inspected */
-      Mysql_thread_body_parameters *parameters = nullptr;
-      m_trigger_queue->pop(&parameters);
-      delete parameters;
+      Mysql_thread_task *task = nullptr;
+      m_trigger_queue->pop(&task);
+      delete task;
       /* purecov: end */
     }
   }
@@ -75,9 +85,8 @@ bool Mysql_thread::initialize() {
 
   m_aborted = false;
 
-  if ((mysql_thread_create(key_GR_THD_mysql_thread, &m_pthd,
-                           get_connection_attrib(), launch_thread,
-                           (void *)this))) {
+  if ((mysql_thread_create(m_thread_key, &m_pthd, get_connection_attrib(),
+                           launch_thread, (void *)this))) {
     /* purecov: begin inspected */
     mysql_mutex_unlock(&m_run_lock);
     return true;
@@ -150,12 +159,12 @@ void Mysql_thread::dispatcher() {
       break;
     }
 
-    Mysql_thread_body_parameters *parameters = nullptr;
-    if (m_trigger_queue->pop(&parameters)) {
+    Mysql_thread_task *task = nullptr;
+    if (m_trigger_queue->pop(&task)) {
       break;
     }
 
-    m_body->run(parameters);
+    task->execute();
 
     mysql_mutex_lock(&m_dispatcher_lock);
     m_trigger_run_complete = true;
@@ -187,14 +196,13 @@ void Mysql_thread::dispatcher() {
   my_thread_exit(nullptr);
 }
 
-bool Mysql_thread::trigger(Mysql_thread_body_parameters *parameters) {
+bool Mysql_thread::trigger(Mysql_thread_task *task) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&m_dispatcher_lock);
-  if (m_trigger_queue->push(parameters)) {
+  if (m_trigger_queue->push(task)) {
     /* purecov: begin inspected */
     mysql_mutex_unlock(&m_dispatcher_lock);
-    delete parameters;
     return true;
     /* purecov: end */
   }

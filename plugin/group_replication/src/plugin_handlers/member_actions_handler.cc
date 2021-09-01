@@ -52,7 +52,10 @@ bool Member_actions_handler::init() {
 
   // Create worker thread.
   assert(nullptr == m_mysql_thread);
-  m_mysql_thread = new Mysql_thread(this);
+  m_mysql_thread = new Mysql_thread(
+      key_GR_THD_mysql_thread, key_GR_LOCK_mysql_thread_run,
+      key_GR_COND_mysql_thread_run, key_GR_LOCK_mysql_thread_dispatcher_run,
+      key_GR_COND_mysql_thread_dispatcher_run);
   if (m_mysql_thread->initialize()) {
     return true; /* purecov: inspected */
   }
@@ -293,9 +296,10 @@ void Member_actions_handler::trigger_actions(
   DBUG_TRACE;
   assert(local_member_info->in_primary_mode());
 
-  Member_actions_trigger_parameters *parameters =
-      new Member_actions_trigger_parameters(event);
-  m_mysql_thread->trigger(parameters);
+  Mysql_thread_task *task =
+      new Mysql_thread_task(this, new Member_actions_trigger_parameters(event));
+  m_mysql_thread->trigger(task);
+  delete task;
 }
 
 void Member_actions_handler::run(Mysql_thread_body_parameters *parameters) {
@@ -309,7 +313,6 @@ void Member_actions_handler::run(Mysql_thread_body_parameters *parameters) {
          trigger_parameters->get_event());
   const std::string event =
       Member_actions::get_event_name(trigger_parameters->get_event());
-  delete trigger_parameters;
 
   // Get the actions for the event.
   protobuf_replication_group_member_actions::ActionList action_list;

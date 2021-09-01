@@ -31,7 +31,7 @@
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/sql_service/sql_service_command.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME = "gtid_extracted";
 const std::string Certifier::CERTIFICATION_INFO_ERROR_NAME =
@@ -320,7 +320,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
   int error = 0;
-  Sql_service_command_interface *sql_command_interface = nullptr;
+  Get_system_variable *get_system_variable = nullptr;
   std::string gtid_executed;
   std::string applier_retrieved_gtids;
 
@@ -405,16 +405,9 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     }
   }
 
-  sql_command_interface = new Sql_service_command_interface();
-  if (sql_command_interface->establish_session_connection(PSESSION_USE_THREAD,
-                                                          GROUPREPL_USER)) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_SERVER_CONN_ERROR); /* purecov: inspected */
-    error = 1;                                  /* purecov: inspected */
-    goto end;                                   /* purecov: inspected */
-  }
+  get_system_variable = new Get_system_variable();
 
-  error = sql_command_interface->get_server_gtid_executed(gtid_executed);
+  error = get_system_variable->get_server_gtid_executed(gtid_executed);
   DBUG_EXECUTE_IF("gr_server_gtid_executed_extraction_error", error = 1;);
   if (error) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ERROR_FETCHING_GTID_EXECUTED_SET);
@@ -454,7 +447,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   compute_group_available_gtid_intervals();
 
 end:
-  delete sql_command_interface;
+  delete get_system_variable;
 
   return error;
 }
