@@ -516,3 +516,16 @@ EXPLAIN FORMAT=tree
   SELECT 1 IN (SELECT 1 FROM t1) FROM t1 WHERE 1=2;
 
 DROP TABLE t1;
+
+#
+# Demonstrates printing an index range scan with too many ranges to print
+# (more than three). The pushed index condition is redundant.
+#
+
+CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
+
+DROP TABLE t1;

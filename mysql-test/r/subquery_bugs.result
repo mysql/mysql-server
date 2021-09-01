@@ -604,7 +604,7 @@ EXPLAIN
         -> Materialize with deduplication  (cost=3.42..3.42 rows=1)
             -> Nested loop left join  (cost=0.81 rows=1)
                 -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
-                    -> Covering index range scan on t1 using k1  (cost=0.46 rows=1)
+                    -> Covering index range scan on t1 using k1 over (o <= f1)  (cost=0.46 rows=1)
                 -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
     -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (cost=0.35 rows=1)
 
@@ -646,7 +646,7 @@ EXPLAIN
 -> Nested loop left join  (cost=0.91 rows=1)
     -> Nested loop semijoin  (cost=0.68 rows=1)
         -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
-            -> Index range scan on t1 using PRIMARY  (cost=0.46 rows=1)
+            -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.77 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
             -> Index scan on t4 using PRIMARY  (cost=1.30 rows=2)

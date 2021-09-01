@@ -123,6 +123,7 @@
 using std::make_pair;
 using std::max;
 using std::min;
+using std::move;
 using std::pair;
 using std::string;
 using std::unique_ptr;
@@ -3984,7 +3985,7 @@ bool DynamicRangeIterator::Init() {
   m_qep_tab->set_type(JT_UNKNOWN);
   thd()->unlock_query_plan();
 
-  RowIterator *qck = nullptr;
+  unique_ptr_destroy_only<RowIterator> qck;
 
   // Clear out and destroy any old iterators before we start constructing
   // new ones, since they may share the same memory in the union.
@@ -4011,9 +4012,9 @@ bool DynamicRangeIterator::Init() {
   if (trp == nullptr) {
     m_qep_tab->set_type(JT_ALL);
   } else {
-    qck = trp->trp_wrapper().trp->make_quick(
-        thd(), m_qep_tab->position()->rows_fetched, &m_mem_root,
-        m_examined_rows);
+    qck =
+        CreateIteratorFromAccessPath(thd(), &m_mem_root, trp, /*join=*/nullptr,
+                                     /*eligible_for_batch_mode=*/false);
     if (qck == nullptr || thd()->is_error()) {
       return true;
     }
@@ -4034,7 +4035,7 @@ bool DynamicRangeIterator::Init() {
   // two different read sets, to be used once the access strategy is chosen
   // here.
   if (qck) {
-    m_iterator.reset(qck);
+    m_iterator = move(qck);
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.

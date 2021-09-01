@@ -296,9 +296,9 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                       "index": "b",
                       "rows": 3,
                       "ranges": [
-                        "1 <= b <= 1 AND 98 <= d",
-                        "2 <= b <= 2 AND 98 <= d",
-                        "3 <= b <= 3 AND 98 <= d"
+                        "1 <= b <= 1 AND 98 <= d AND 1 <= a",
+                        "2 <= b <= 2 AND 98 <= d AND 1 <= a",
+                        "3 <= b <= 3 AND 98 <= d AND 1 <= a"
                       ]
                     },
                     "rows_for_plan": 3,

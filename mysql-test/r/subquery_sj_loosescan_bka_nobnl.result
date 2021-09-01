@@ -4259,7 +4259,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=442.26 rows=400)
     -> Nested loop semijoin with duplicate removal on kp1  (cost=32.26 rows=40)
         -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=18.26 rows=40)
-            -> Index range scan on t1 using kp1  (cost=18.26 rows=40)
+            -> Index range scan on t1 using kp1 over (NULL < kp1 < 20)  (cost=18.26 rows=40)
         -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
     -> Filter: (t3.a = t1.kp1)  (cost=11.00 rows=10)
         -> Table scan on t3  (cost=11.00 rows=100)

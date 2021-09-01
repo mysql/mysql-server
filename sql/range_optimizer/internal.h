@@ -50,6 +50,11 @@ void append_range_all_keyparts(Opt_trace_array *range_trace,
                                const KEY_PART_INFO *key_parts,
                                const bool print_full);
 
+// Simplified version of the logic in append_range_all_keyparts(),
+// supporting only append to string and using QUICK_RANGE instead of SEL_ROOT.
+void append_range_to_string(const QUICK_RANGE *range,
+                            const KEY_PART_INFO *first_key_part, String *out);
+
 /**
   Shared sentinel node for all trees. Initialized by range_optimizer_init(),
   destroyed by range_optimizer_free();

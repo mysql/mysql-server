@@ -57,6 +57,7 @@
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
 #include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -144,7 +145,7 @@ void TEST_join(JOIN *join) {
                 form->quick_keys.print(buf));
       else {
         fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->range_scan()->trp_wrapper().trp->dbug_dump(18, false);
+        dbug_dump(tab->range_scan(), 18, false);
       }
     }
     if (tab->ref().key_parts) {

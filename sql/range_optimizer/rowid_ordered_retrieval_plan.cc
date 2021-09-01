@@ -125,7 +125,7 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
 }
 
 // Create a QUICK_RANGE_SELECT from given key and the ranges from that key.
-// Does not support reverse range scans, unlike TRP_RANGE::make_quick().
+// Does not support reverse range scans, unlike CreateIteratorFromAccessPath().
 static QUICK_RANGE_SELECT *get_quick_select_local(
     THD *thd, ha_rows *examined_rows, double expected_rows,
     MEM_ROOT *return_mem_root, TABLE *table, bool reuse_handler, KEY_PART *key,
@@ -195,9 +195,8 @@ RowIterator *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
   return quick_intrsect;
 }
 
-RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows,
-                                       MEM_ROOT *return_mem_root,
-                                       ha_rows *examined_rows) {
+RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double,
+                                       MEM_ROOT *return_mem_root, ha_rows *) {
   assert(!need_rows_in_rowid_order);
 
   DBUG_TRACE;
@@ -213,10 +212,13 @@ RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows,
       down_cast<TRP_ROR_INTERSECT *>(scan->trp_wrapper().trp)
           ->retrieve_full_rows = false;
     }
-    RowIterator *quick = scan->trp_wrapper().trp->make_quick(
-        thd, expected_rows, return_mem_root, examined_rows);
-    if (quick == nullptr || quick_roru->push_quick_back(
-                                down_cast<RowIDCapableRowIterator *>(quick))) {
+
+    unique_ptr_destroy_only<RowIterator> iterator =
+        CreateIteratorFromAccessPath(thd, scan, /*join=*/nullptr,
+                                     /*eligible_for_batch_mode=*/false);
+    if (iterator == nullptr ||
+        quick_roru->push_quick_back(down_cast<RowIDCapableRowIterator *>(
+            iterator.release()->real_iterator()))) {
       return nullptr;
     }
   }

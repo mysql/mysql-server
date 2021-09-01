@@ -302,7 +302,7 @@ void trace_quick_description(const AccessPath *path, Opt_trace_context *trace) {
 
   String range_info;
   range_info.set_charset(system_charset_info);
-  path->trp_wrapper().trp->add_info_string(&range_info);
+  add_info_string(path, &range_info);
   range_trace.add_utf8("used_index", range_info.ptr(), range_info.length());
 }
 
@@ -738,7 +738,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       }
     }
 
-    if (tree && (!best_trp || !best_trp->trp_wrapper().trp->forced_by_hint)) {
+    if (tree && (best_trp == nullptr || !get_forced_by_hint(best_trp))) {
       /*
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
@@ -889,8 +889,7 @@ static AccessPath *get_ror_union_trp(
       if (unlikely(trace->is_started()))
         trace_basic_info(thd, *cur_child, param, &trp_info);
 
-      const TRP_RANGE *trp =
-          down_cast<TRP_RANGE *>((*cur_child)->trp_wrapper().trp);
+      const auto &child_param = (*cur_child)->index_range_scan();
 
       /*
         Assume the best ROR scan is the one that has cheapest
@@ -899,10 +898,11 @@ static AccessPath *get_ror_union_trp(
         calculate overall index_intersection cost.
       */
       double scan_cost = 0.0;
-      if (trp->can_be_used_for_ror()) {
+      if (child_param.can_be_used_for_ror) {
         /* Ok, we have index_only cost, now get full rows scan cost */
         scan_cost =
-            table->file->read_cost(trp->index, 1, (*cur_child)->num_output_rows)
+            table->file
+                ->read_cost(child_param.index, 1, (*cur_child)->num_output_rows)
                 .total_cost();
         scan_cost += table->cost_model()->row_evaluate_cost(
             (*cur_child)->num_output_rows);
@@ -914,7 +914,7 @@ static AccessPath *get_ror_union_trp(
                 thd, param, table, index_merge_intersect_allowed,
                 interesting_order, *ptree, needed_fields, scan_cost,
                 /*force_index_merge_result=*/false, /*reuse_handler=*/false))) {
-        if (trp->can_be_used_for_ror())
+        if (child_param.can_be_used_for_ror)
           *cur_roru_plan = prev_plan;
         else
           return nullptr;
@@ -966,7 +966,16 @@ static AccessPath *get_ror_union_trp(
 
     // TODO: This should be done in CreateIteratorFromAccessPath() instead.
     for (AccessPath *child : roru_read_plans) {
-      child->trp_wrapper().trp->need_rows_in_rowid_order = true;
+      switch (child->type) {
+        case AccessPath::INDEX_RANGE_SCAN:
+          child->index_range_scan().need_rows_in_rowid_order = true;
+          break;
+        case AccessPath::TRP_WRAPPER:
+          child->trp_wrapper().trp->need_rows_in_rowid_order = true;
+          break;
+        default:
+          assert(false);
+      }
     }
     TRP_ROR_UNION *trp = new (param->return_mem_root)
         TRP_ROR_UNION(table, force_index_merge, roru_read_plans);
@@ -1120,9 +1129,8 @@ static AccessPath *get_best_disjunct_quick(
         continue;
       }
 
-      const TRP_RANGE *trp =
-          down_cast<TRP_RANGE *>((*cur_child)->trp_wrapper().trp);
-      if (!trp->can_be_used_for_imerge()) {
+      const auto &child_param = (*cur_child)->index_range_scan();
+      if (!child_param.can_be_used_for_imerge) {
         trace_idx.add("chosen", false)
             .add_alnum("cause", "index has DESC key part");
         continue;
@@ -1130,15 +1138,16 @@ static AccessPath *get_best_disjunct_quick(
 
       imerge_cost += (*cur_child)->cost;
       all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
-      all_scans_rors &= trp->can_be_used_for_ror();
+      all_scans_rors &= child_param.can_be_used_for_ror;
       const bool pk_is_clustered = table->file->primary_key_is_clustered();
-      if (pk_is_clustered && trp->index == table->s->primary_key) {
+      if (pk_is_clustered && child_param.index == table->s->primary_key) {
         cpk_scan = cur_child;
         cpk_scan_records = (*cur_child)->num_output_rows;
       } else
         non_cpk_scan_records += (*cur_child)->num_output_rows;
 
-      trace_idx.add_utf8("index_to_merge", table->key_info[trp->index].name)
+      trace_idx
+          .add_utf8("index_to_merge", table->key_info[child_param.index].name)
           .add("cumulated_cost", imerge_cost);
     }
 
@@ -1657,6 +1666,38 @@ void append_range_all_keyparts(Opt_trace_array *range_trace,
   }
 }
 
+void append_range_to_string(const QUICK_RANGE *range,
+                            const KEY_PART_INFO *first_key_part, String *out) {
+  const uchar *min_key = range->min_key;
+  const uchar *max_key = range->max_key;
+  for (int keypart_idx :
+       BitsSetIn(range->min_keypart_map | range->max_keypart_map)) {
+    uint16 flag = range->flag;
+    if (!IsBitSet(keypart_idx, range->min_keypart_map)) {
+      flag |= NO_MIN_RANGE;
+    }
+    if (!IsBitSet(keypart_idx, range->max_keypart_map)) {
+      flag |= NO_MAX_RANGE;
+    }
+    if (Overlaps(range->min_keypart_map | range->max_keypart_map,
+                 BitsBetween(keypart_idx + 1, MAX_REF_PARTS))) {
+      // We're not the last keypart, so we need to show <= and >= instead of
+      // < and >; e.g. a < (1,2) is printed as “a <= 1 AND a < 2”, not
+      // “a < 1 AND a < 2”. This isn't strictly correct, though, as the right
+      // thing to print would be “a < 1 OR (a <= 1 AND a < 2)”, but it's
+      // how it's always been done traditionally.
+      // TODO(sgunders): Consider changing this to using the tuple syntax
+      // instead.
+      flag &= ~(NEAR_MIN | NEAR_MAX);
+    }
+
+    // NOTE: append_range() automatically adds “ AND ” if needed.
+    append_range(out, &first_key_part[keypart_idx], min_key, max_key, flag);
+    min_key += first_key_part[keypart_idx].store_length;
+    max_key += first_key_part[keypart_idx].store_length;
+  }
+}
+
 void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
                 const RANGE_OPT_PARAM *param, const bool print_full) {
   if (!param->using_real_indexes) {
@@ -1790,10 +1831,19 @@ static void print_quick(AccessPath *path, const Key_map *needed_reg) {
   if (path == nullptr) return;
   DBUG_LOCK_FILE;
 
-  TABLE_READ_PLAN *trp = path->trp_wrapper().trp;
-  TABLE *table = trp->table;
+  TABLE *table = nullptr;
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      table = path->index_range_scan().used_key_part[0].field->table;
+      break;
+    case AccessPath::TRP_WRAPPER:
+      table = path->trp_wrapper().trp->table;
+      break;
+    default:
+      assert(false);
+  }
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
-  trp->dbug_dump(0, true);
+  dbug_dump(path, 0, true);
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 
   fprintf(DBUG_FILE, "other_keys: 0x%s:\n", needed_reg->print(buf));

@@ -33,7 +33,10 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/range_optimizer/geometry.h"
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/range_scan.h"
+#include "sql/range_optimizer/range_scan_desc.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
@@ -304,6 +307,35 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->follow_tail();
       iterator = NewIterator<FollowTailIterator>(
           thd, mem_root, param.table, path->num_output_rows, examined_rows);
+      break;
+    }
+    case AccessPath::INDEX_RANGE_SCAN: {
+      const auto &param = path->index_range_scan();
+      TABLE *table = param.used_key_part[0].field->table;
+      if (param.geometry) {
+        iterator = NewIterator<QUICK_RANGE_SELECT_GEOM>(
+            thd, mem_root, table, examined_rows, path->num_output_rows,
+            param.index, param.need_rows_in_rowid_order,
+            /*reuse_handler=*/false, mem_root, param.mrr_flags,
+            param.mrr_buf_size, param.used_key_part,
+            Bounds_checked_array{param.ranges, param.num_ranges});
+      } else {
+        iterator = NewIterator<QUICK_RANGE_SELECT>(
+            thd, mem_root, table, examined_rows, path->num_output_rows,
+            param.index, param.need_rows_in_rowid_order,
+            /*reuse_handler=*/false, mem_root, param.mrr_flags,
+            param.mrr_buf_size, param.used_key_part,
+            Bounds_checked_array{param.ranges, param.num_ranges});
+        if (param.reverse) {
+          // TODO: Unify the two classes, or at least make some way
+          // of constructing a QUICK_SELECT_DESC without creating
+          // the forward class first.
+          iterator.reset(new (mem_root) QUICK_SELECT_DESC(
+              std::move(*down_cast<QUICK_RANGE_SELECT *>(
+                  iterator.release()->real_iterator())),
+              param.num_used_key_parts));
+        }
+      }
       break;
     }
     case AccessPath::TRP_WRAPPER: {

@@ -27,7 +27,6 @@
 
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
-class TRP_RANGE;
 struct MEM_ROOT;
 
 /*

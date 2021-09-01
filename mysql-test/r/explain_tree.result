@@ -895,3 +895,13 @@ EXPLAIN
         -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 DROP TABLE t1;
+CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
+EXPLAIN
+-> Index range scan on t1 using a over (2 <= a <= 2) OR (4 <= a <= 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (cost=2.07 rows=5)
+
+DROP TABLE t1;

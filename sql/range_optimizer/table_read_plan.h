@@ -55,8 +55,8 @@ class TABLE_READ_PLAN {
 
   /*
     Whether we are expected to output rows ordered by row ID, ie.,
-    we are the child of a ROR scan. This is only applicable for TRP_RANGE
-    and QUICK_ROR_INTERSECT_SELECT.
+    we are the child of a ROR scan. This is only applicable for
+    index range and intersection scans.
    */
   bool need_rows_in_rowid_order = false;
 
@@ -116,16 +116,8 @@ class TABLE_READ_PLAN {
   virtual void add_keys_and_lengths(String *key_names,
                                     String *used_lengths) const = 0;
 
-  // Return 1 if there is only one range and this uses the whole unique key.
-  // Overridden only by TRP_RANGE.
-  virtual bool unique_key_range() const { return false; }
-
   // Overridden only by TRP_GROUP_MIN_MAX.
   virtual bool is_agg_loose_index_scan() const { return false; }
-
-  // Whether the range access method returns records in reverse order.
-  // Overridden only by TRP_RANGE.
-  virtual bool reverse_sorted() const { return false; }
 
   /*
     Request that this quick select produce sorted output.
@@ -136,12 +128,6 @@ class TABLE_READ_PLAN {
     internals.
    */
   virtual void need_sorted_output() = 0;
-
-  // Ask the TRP to reverse itself; returns false if successful.
-  // Overridden only in TRP_RANGE.
-  virtual bool make_reverse(uint used_key_parts [[maybe_unused]]) {
-    return true;
-  }
 
   /*
     Return 1 if any index used by this quick select

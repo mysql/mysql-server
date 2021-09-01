@@ -33,6 +33,7 @@
  */
 
 #include "sql/join_optimizer/access_path.h"
+#include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
@@ -53,36 +54,46 @@ inline bool is_agg_loose_index_scan(const AccessPath *path) {
   in reverse order.
  */
 inline bool reverse_sort_possible(const AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
-    return false;
-  }
-  return path->trp_wrapper().trp->get_type() == QS_TYPE_RANGE;
+  return path->type == AccessPath::INDEX_RANGE_SCAN;
 }
 
 /**
-  Whether the access path is a TRP_RANGE that returns rows in reverse order.
-  (Note that non-range index scans return false here.)
+  Whether the access path is an INDEX_RANGE_SCAN that returns rows in reverse
+  order. (Note that non-range index scans return false here.)
  */
 inline bool is_reverse_sorted_range(const AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
-    return false;
-  }
-  return path->trp_wrapper().trp->reverse_sorted();
+  return path->type == AccessPath::INDEX_RANGE_SCAN &&
+         path->index_range_scan().reverse;
 }
 
 /**
   Ask the TRP to reverse itself; returns false if successful.
-  Overridden only in TRP_RANGE.
+  Overridden only in INDEX_RANGE_SCAN.
  */
 inline bool make_reverse(uint used_key_parts, AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
+  if (path->type == AccessPath::INDEX_RANGE_SCAN) {
+    if (path->index_range_scan().geometry) {
+      return true;
+    }
+    path->index_range_scan().reverse = true;
+    path->index_range_scan().num_used_key_parts = used_key_parts;
     return false;
+  } else {
+    return true;
   }
-  return path->trp_wrapper().trp->make_reverse(used_key_parts);
 }
 
 inline void set_need_sorted_output(AccessPath *path) {
-  path->trp_wrapper().trp->need_sorted_output();
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      path->index_range_scan().mrr_flags |= HA_MRR_SORTED;
+      break;
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->need_sorted_output();
+      break;
+    default:
+      assert(false);
+  }
 }
 
 /**
@@ -90,29 +101,62 @@ inline void set_need_sorted_output(AccessPath *path) {
   index, returns the index used. Otherwise, MAX_KEY.
  */
 inline unsigned used_index(const AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
-    return MAX_KEY;
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      return path->index_range_scan().index;
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->index;
+    default:
+      return MAX_KEY;
   }
-  return path->trp_wrapper().trp->index;
 }
 
 /**
   Return true if there is only one range and this uses the whole unique key.
-  Overridden only by TRP_RANGE.
  */
 inline bool unique_key_range(const AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
+  if (path->type != AccessPath::INDEX_RANGE_SCAN) {
     return false;
   }
-  return path->trp_wrapper().trp->unique_key_range();
+  if (path->index_range_scan().num_ranges == 1) {
+    QUICK_RANGE *tmp = path->index_range_scan().ranges[0];
+    if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE) {
+      KEY *key =
+          path->index_range_scan().used_key_part[0].field->table->key_info +
+          path->index_range_scan().index;
+      return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
+    }
+  }
+  return false;
 }
 
 inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
-  path->trp_wrapper().trp->get_fields_used(used_fields);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      for (uint i = 0; i < path->index_range_scan().num_used_key_parts; ++i) {
+        bitmap_set_bit(
+            used_fields,
+            path->index_range_scan().used_key_part[i].field->field_index());
+      }
+      break;
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->get_fields_used(used_fields);
+      break;
+    default:
+      assert(false);
+  }
 }
 
 inline unsigned get_used_key_parts(const AccessPath *path) {
-  return path->trp_wrapper().trp->used_key_parts;
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      return path->index_range_scan().num_used_key_parts;
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->used_key_parts;
+    default:
+      assert(false);
+      return 0;
+  }
 }
 
 /**
@@ -121,7 +165,16 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
  */
 inline bool uses_index_on_fields(const AccessPath *path,
                                  const MY_BITMAP *fields) {
-  return path->trp_wrapper().trp->is_keys_used(fields);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      return is_key_used(path->index_range_scan().used_key_part[0].field->table,
+                         path->index_range_scan().index, fields);
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->is_keys_used(fields);
+    default:
+      assert(false);
+      return false;
+  }
 }
 
 /**
@@ -130,7 +183,25 @@ inline bool uses_index_on_fields(const AccessPath *path,
   index (others will assert-fail).
  */
 inline unsigned get_max_used_key_length(const AccessPath *path) {
-  return path->trp_wrapper().trp->get_max_used_key_length();
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN: {
+      int max_used_key_length = 0;
+      Bounds_checked_array ranges{path->index_range_scan().ranges,
+                                  path->index_range_scan().num_ranges};
+      for (const QUICK_RANGE *range : ranges) {
+        max_used_key_length =
+            std::max<int>(max_used_key_length, range->min_length);
+        max_used_key_length =
+            std::max<int>(max_used_key_length, range->max_length);
+      }
+      return max_used_key_length;
+    }
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->get_max_used_key_length();
+    default:
+      assert(false);
+      return 0;
+  }
 }
 
 /*
@@ -138,7 +209,19 @@ inline unsigned get_max_used_key_length(const AccessPath *path) {
   merged) to str. The result is added to "Extra" field in EXPLAIN output.
  */
 inline void add_info_string(const AccessPath *path, String *str) {
-  path->trp_wrapper().trp->add_info_string(str);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN: {
+      TABLE *table = path->index_range_scan().used_key_part[0].field->table;
+      KEY *key_info = table->key_info + path->index_range_scan().index;
+      str->append(key_info->name);
+      break;
+    }
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->add_info_string(str);
+      break;
+    default:
+      assert(false);
+  }
 }
 
 /*
@@ -150,7 +233,24 @@ inline void add_info_string(const AccessPath *path, String *str) {
  */
 inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
                                  String *used_lengths) {
-  path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN: {
+      TABLE *table = path->index_range_scan().used_key_part[0].field->table;
+      KEY *key_info = table->key_info + path->index_range_scan().index;
+      key_names->append(key_info->name);
+
+      char buf[64];
+      size_t length =
+          longlong10_to_str(get_max_used_key_length(path), buf, 10) - buf;
+      used_lengths->append(buf, length);
+      break;
+    }
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
+      break;
+    default:
+      assert(false);
+  }
 }
 
 /**
@@ -165,8 +265,17 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
 inline void trace_basic_info(THD *thd, const AccessPath *path,
                              const RANGE_OPT_PARAM *param,
                              Opt_trace_object *trace_object) {
-  path->trp_wrapper().trp->trace_basic_info(
-      thd, param, path->cost, path->num_output_rows, trace_object);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      trace_basic_info_index_range_scan(thd, path, param, trace_object);
+      break;
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->trace_basic_info(
+          thd, param, path->cost, path->num_output_rows, trace_object);
+      break;
+    default:
+      assert(false);
+  }
 }
 
 /**
@@ -174,7 +283,27 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
   If not generated by the range optimizer, will assert-fail.
  */
 inline RangeScanType get_range_scan_type(const AccessPath *path) {
-  return path->trp_wrapper().trp->get_type();
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      return QS_TYPE_RANGE;
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->get_type();
+    default:
+      assert(false);
+      return QS_TYPE_RANGE;
+  }
+}
+
+inline bool get_forced_by_hint(const AccessPath *path) {
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN:
+      return false;  // There is no hint for plain range scan.
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->forced_by_hint;
+    default:
+      assert(false);
+      return false;
+  }
 }
 
 #ifndef NDEBUG
@@ -183,7 +312,20 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
    for locking DBUG_FILE before this call and unlocking it afterwards.
  */
 inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
-  path->trp_wrapper().trp->dbug_dump(indent, verbose);
+  switch (path->type) {
+    case AccessPath::INDEX_RANGE_SCAN: {
+      const auto &param = path->index_range_scan();
+      dbug_dump_range(indent, verbose, param.used_key_part[0].field->table,
+                      param.index, param.used_key_part,
+                      {param.ranges, param.num_ranges});
+      break;
+    }
+    case AccessPath::TRP_WRAPPER:
+      path->trp_wrapper().trp->dbug_dump(0, true);
+      break;
+    default:
+      assert(false);
+  }
 }
 #endif
 

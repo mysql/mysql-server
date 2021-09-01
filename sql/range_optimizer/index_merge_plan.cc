@@ -46,23 +46,23 @@ void TRP_INDEX_MERGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
   }
 }
 
-RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double expected_rows,
-                                         MEM_ROOT *return_mem_root,
-                                         ha_rows *examined_rows) {
+RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double,
+                                         MEM_ROOT *return_mem_root, ha_rows *) {
   assert(!need_rows_in_rowid_order);
 
   QUICK_INDEX_MERGE_SELECT *quick_imerge;
-  QUICK_RANGE_SELECT *quick;
   if (!(quick_imerge = new (return_mem_root)
             QUICK_INDEX_MERGE_SELECT(return_mem_root, thd, table)))
     return nullptr;
 
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
   for (AccessPath *range_scan : range_scans) {
-    if (!(quick = down_cast<QUICK_RANGE_SELECT *>(
-              range_scan->trp_wrapper().trp->make_quick(
-                  thd, expected_rows, return_mem_root, examined_rows))) ||
-        quick_imerge->push_quick_back(quick)) {
+    unique_ptr_destroy_only<RowIterator> iterator =
+        CreateIteratorFromAccessPath(thd, range_scan, /*join=*/nullptr,
+                                     /*eligible_for_batch_mode=*/false);
+    QUICK_RANGE_SELECT *quick =
+        down_cast<QUICK_RANGE_SELECT *>(iterator.release()->real_iterator());
+    if (quick == nullptr || quick_imerge->push_quick_back(quick)) {
       destroy(quick);
       destroy(quick_imerge);
       return nullptr;

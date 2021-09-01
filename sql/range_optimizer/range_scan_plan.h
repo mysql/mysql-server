@@ -46,128 +46,6 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                           Quick_ranges *ranges);
 
 /*
-  Plan for a QUICK_RANGE_SELECT scan.
-*/
-
-class TRP_RANGE : public TABLE_READ_PLAN {
- public:
-  // NOTE: Both used_key_part_arg and ranges must be allocated on the
-  // return_mem_root, as they need to outlive the range optimizer.
-  TRP_RANGE(SEL_ROOT *key_arg, uint mrr_flags_arg, uint mrr_buf_size_arg,
-            TABLE *table_arg, KEY_PART *used_key_part_arg, uint keyno_arg,
-            bool is_ror_arg, bool is_imerge_arg,
-            Bounds_checked_array<QUICK_RANGE *> ranges_arg,
-            uint used_key_parts_arg)
-      : TABLE_READ_PLAN(table_arg, keyno_arg, used_key_parts_arg,
-                        /*forced_by_hint_arg=*/false),
-        key(key_arg),
-        mrr_flags(mrr_flags_arg),
-        mrr_buf_size(mrr_buf_size_arg),
-        used_key_part(used_key_part_arg),
-        is_ror(is_ror_arg),
-        is_imerge(is_imerge_arg),
-        ranges(ranges_arg) {}
-
-  RowIterator *make_quick(THD *thd, double expected_rows,
-                          MEM_ROOT *return_mem_root,
-                          ha_rows *examined_rows) override {
-    DBUG_TRACE;
-
-    QUICK_RANGE_SELECT *quick;
-    if (table->key_info[index].flags & HA_SPATIAL) {
-      quick = new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-          thd, table, examined_rows, expected_rows, index,
-          need_rows_in_rowid_order,
-          /*reuse_handler=*/false, return_mem_root, mrr_flags, mrr_buf_size,
-          used_key_part, ranges);
-    } else {
-      quick = new (return_mem_root)
-          QUICK_RANGE_SELECT(thd, table, examined_rows, expected_rows, index,
-                             need_rows_in_rowid_order,
-                             /*reuse_handler=*/false, return_mem_root,
-                             mrr_flags, mrr_buf_size, used_key_part, ranges);
-      if (reverse) {
-        // TODO: Unify the two classes, or at least make some way
-        // of costructing a QUICK_SELECT_DESC without creating
-        // the forward class first.
-        QUICK_RANGE_SELECT *reverse_quick = new (return_mem_root)
-            QUICK_SELECT_DESC(std::move(*quick), used_key_parts);
-        destroy(quick);
-        return reverse_quick;
-      } else {
-        return quick;
-      }
-    }
-    return quick;
-  }
-
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
-                        double num_output_rows,
-                        Opt_trace_object *trace_object) const override;
-
-  bool can_be_used_for_ror() const { return is_ror; }
-  bool can_be_used_for_imerge() const { return is_imerge; }
-  uint get_mrr_flags() const { return mrr_flags; }
-
-  bool unique_key_range() const override;
-
-  RangeScanType get_type() const override { return QS_TYPE_RANGE; }
-  bool reverse_sorted() const override { return reverse; }
-
-  void need_sorted_output() override { mrr_flags |= HA_MRR_SORTED; }
-
-  bool make_reverse(uint used_key_parts_arg) override {
-    reverse = true;
-    used_key_parts = used_key_parts_arg;
-    return false;
-  }
-
-  void get_fields_used(MY_BITMAP *used_fields) const override {
-    for (uint i = 0; i < used_key_parts; ++i) {
-      bitmap_set_bit(used_fields, used_key_part[i].field->field_index());
-    }
-  }
-
-  void add_info_string(String *str) const override;
-  void add_keys_and_lengths(String *key_names,
-                            String *used_lengths) const override;
-  unsigned get_max_used_key_length() const final;
-
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
-
- private:
-  /**
-    Root of red-black tree for intervals over key fields to be used in
-    "range" method retrieval. See SEL_ARG graph description.
-
-    Used only for tracing.
-   */
-  SEL_ROOT *key;
-  uint mrr_flags;
-  uint mrr_buf_size;
-
-  // The key part(s) we are scanning on. Note that this may be an array.
-  KEY_PART *used_key_part;
-
-  /*
-    If true, the scan returns rows in rowid order.
-   */
-  const bool is_ror;
-
-  /*
-    If true, this plan can be used for index merge scan.
-   */
-  const bool is_imerge;
-
-  // The actual ranges we are scanning over (originally derived from “key”).
-  Bounds_checked_array<QUICK_RANGE *> ranges;
-
-  bool reverse = false;
-};
-
-/*
   Get best "range" table read plan for given SEL_TREE, also update some info
 
   SYNOPSIS
@@ -251,5 +129,9 @@ void dbug_dump_range(int indent, bool verbose, TABLE *table, int index,
                      KEY_PART *used_key_part,
                      Bounds_checked_array<QUICK_RANGE *> ranges);
 #endif
+
+void trace_basic_info_index_range_scan(THD *thd, const AccessPath *path,
+                                       const RANGE_OPT_PARAM *param,
+                                       Opt_trace_object *trace_object);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_

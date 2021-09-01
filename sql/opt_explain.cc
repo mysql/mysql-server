@@ -896,8 +896,8 @@ bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
 
   if (used_index(path) != MAX_KEY)
     ret = explain_key_parts(used_index(range_scan_path),
-                            path->trp_wrapper().trp->used_key_parts);
-  path->trp_wrapper().trp->add_keys_and_lengths(&str_key, &str_key_len);
+                            get_used_key_parts(path));
+  add_keys_and_lengths(path, &str_key, &str_key_len);
   return (ret || fmt->entry()->col_key.set(str_key) ||
           fmt->entry()->col_key_len.set(str_key_len));
 }
@@ -1023,8 +1023,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     return true;
 
   if (quick_type == QS_TYPE_RANGE) {
-    uint mrr_flags = down_cast<TRP_RANGE *>(range_scan_path->trp_wrapper().trp)
-                         ->get_mrr_flags();
+    uint mrr_flags = range_scan_path->index_range_scan().mrr_flags;
 
     /*
       During normal execution of a query, multi_range_read_init() is

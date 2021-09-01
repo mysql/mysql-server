@@ -37,8 +37,11 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/sql_array.h"
 #include "sql/sql_class.h"
 
+template <class T>
+class Bounds_checked_array;
 class Common_table_expr;
 class Filesort;
 class Item;
@@ -47,12 +50,14 @@ class JOIN;
 class KEY;
 class RowIterator;
 class QEP_TAB;
+class QUICK_RANGE;
 class SJ_TMP_TABLE;
 class TABLE_READ_PLAN;
 class Table_function;
 class Temp_table_param;
 class Window;
 struct AccessPath;
+struct KEY_PART;
 struct ORDER;
 struct POSITION;
 struct RelationalExpression;
@@ -192,6 +197,7 @@ struct AccessPath {
     CONST_TABLE,
     MRR,
     FOLLOW_TAIL,
+    INDEX_RANGE_SCAN,
     TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
@@ -478,6 +484,14 @@ struct AccessPath {
     assert(type == FOLLOW_TAIL);
     return u.follow_tail;
   }
+  auto &index_range_scan() {
+    assert(type == INDEX_RANGE_SCAN);
+    return u.index_range_scan;
+  }
+  const auto &index_range_scan() const {
+    assert(type == INDEX_RANGE_SCAN);
+    return u.index_range_scan;
+  }
   auto &trp_wrapper() {
     assert(type == TRP_WRAPPER);
     return u.trp_wrapper;
@@ -755,6 +769,42 @@ struct AccessPath {
     struct {
       TABLE *table;
     } follow_tail;
+    struct {
+      // The key part(s) we are scanning on. Note that this may be an array.
+      // You can get the table we are working on by looking into
+      // used_key_parts[0].field->table (it is not stored directly, to avoid
+      // going over the AccessPath size limits).
+      KEY_PART *used_key_part;
+
+      // The actual ranges we are scanning over (originally derived from “key”).
+      // Not a Bounds_checked_array, to save 4 bytes on the length.
+      QUICK_RANGE **ranges;
+      unsigned num_ranges;
+
+      unsigned mrr_flags;
+      unsigned mrr_buf_size;
+
+      // Which index (in the TABLE) we are scanning over, and how many of its
+      // key parts we are using.
+      unsigned index;
+      unsigned num_used_key_parts;
+
+      // If true, the scan can return rows in rowid order.
+      bool can_be_used_for_ror : 1;
+
+      // If true, the scan _should_ return rows in rowid order.
+      // Should only be set if can_be_used_for_ror == true.
+      bool need_rows_in_rowid_order : 1;
+
+      // If true, this plan can be used for index merge scan.
+      bool can_be_used_for_imerge : 1;
+
+      // Whether we are scanning over a geometry key part.
+      bool geometry : 1;
+
+      // Whether we need a reverse scan. Only supported if geometry == false.
+      bool reverse : 1;
+    } index_range_scan;
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;

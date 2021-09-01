@@ -171,7 +171,8 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
 #endif
 
  private:
-  // The subplans for merged scans. Can be TRP_RANGE or TRP_ROR_INTERSECT.
+  // The subplans for merged scans. Can be INDEX_RANGE_SCAN or
+  // TRP_ROR_INTERSECT.
   Bounds_checked_array<AccessPath *> ror_scans;
 };
 

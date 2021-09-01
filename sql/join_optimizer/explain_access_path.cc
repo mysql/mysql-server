@@ -29,6 +29,7 @@
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
@@ -464,6 +465,36 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
                             path->follow_tail().table->alias);
       AddChildrenFromPushedCondition(path->follow_tail().table, &children);
       break;
+    case AccessPath::INDEX_RANGE_SCAN: {
+      const auto &param = path->index_range_scan();
+      TABLE *table = param.used_key_part[0].field->table;
+      KEY *key_info = table->key_info + param.index;
+      string ret = string(table->key_read ? "Covering index range scan on "
+                                          : "Index range scan on ") +
+                   table->alias + " using " + key_info->name + " over ";
+      for (unsigned range_idx = 0; range_idx < param.num_ranges; ++range_idx) {
+        if (range_idx == 2 && param.num_ranges > 3) {
+          char str[256];
+          snprintf(str, sizeof(str), " OR (%u more)", param.num_ranges - 2);
+          ret += str;
+          break;
+        } else if (range_idx > 0) {
+          ret += " OR ";
+        }
+        String str;
+        append_range_to_string(param.ranges[range_idx], key_info->key_part,
+                               &str);
+        ret += "(" + to_string(str) + ")";
+      }
+      if (table->file->pushed_idx_cond != nullptr) {
+        ret += ", with index condition: " +
+               ItemToString(table->file->pushed_idx_cond);
+      }
+      ret += table->file->explain_extra();
+      description.push_back(move(ret));
+      AddChildrenFromPushedCondition(table, &children);
+      break;
+    }
     case AccessPath::TRP_WRAPPER: {
       TABLE *table = path->trp_wrapper().table;
       // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can

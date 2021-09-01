@@ -784,27 +784,30 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                         0, nullptr, num_key_parts, used_key_parts, ranges);
 }
 
-void TRP_RANGE::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double,
-                                 double num_output_rows,
-                                 Opt_trace_object *trace_object) const {
+void trace_basic_info_index_range_scan(THD *thd, const AccessPath *path,
+                                       const RANGE_OPT_PARAM *param,
+                                       Opt_trace_object *trace_object) {
   assert(param->using_real_indexes);
+  const uint keynr_in_table = path->index_range_scan().index;
 
-  const KEY &cur_key = param->table->key_info[index];
+  const KEY &cur_key = param->table->key_info[keynr_in_table];
   const KEY_PART_INFO *key_part = cur_key.key_part;
 
   trace_object->add_alnum("type", "range_scan")
       .add_utf8("index", cur_key.name)
-      .add("rows", num_output_rows);
+      .add("rows", path->num_output_rows);
 
   Opt_trace_array trace_range(&thd->opt_trace, "ranges");
 
-  // TRP_RANGE should not be created if there are no range intervals
-  assert(key);
-
   String range_info;
   range_info.set_charset(system_charset_info);
-  append_range_all_keyparts(&trace_range, nullptr, &range_info, key, key_part,
-                            false);
+  for (QUICK_RANGE *range :
+       Bounds_checked_array{path->index_range_scan().ranges,
+                            path->index_range_scan().num_ranges}) {
+    append_range_to_string(range, key_part, &range_info);
+    trace_range.add_utf8(range_info.ptr(), range_info.length());
+    range_info.length(0);
+  }
 }
 
 AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
@@ -952,24 +955,29 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
     return nullptr;
   }
 
-  const bool is_ror = tree->ror_scans_map.is_set(best_idx);
-  TRP_RANGE *read_plan = new (param->return_mem_root)
-      TRP_RANGE(key_to_read, best_mrr_flags, best_buf_size, param->table,
-                param->key[best_idx], param->real_keynr[best_idx], is_ror,
-                is_best_idx_imerge_scan,
-                Bounds_checked_array<QUICK_RANGE *>{&ranges[0], ranges.size()},
-                used_key_parts);
-  if (read_plan == nullptr) {
-    return nullptr;
-  }
-  AccessPath *path =
-      NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
-                                  /*count_examined_rows=*/false);
+  KEY *used_key = &param->table->key_info[param->real_keynr[best_idx]];
+
+  AccessPath *path = new (param->return_mem_root) AccessPath;
+  path->type = AccessPath::INDEX_RANGE_SCAN;
   path->cost = read_cost;
   path->num_output_rows = best_records;
+  path->index_range_scan().index = param->real_keynr[best_idx];
+  path->index_range_scan().num_used_key_parts = used_key_parts;
+  path->index_range_scan().used_key_part = param->key[best_idx];
+  path->index_range_scan().ranges = &ranges[0];
+  path->index_range_scan().num_ranges = ranges.size();
+  path->index_range_scan().mrr_flags = best_mrr_flags;
+  path->index_range_scan().mrr_buf_size = best_buf_size;
+  path->index_range_scan().can_be_used_for_ror =
+      tree->ror_scans_map.is_set(best_idx);
+  path->index_range_scan().need_rows_in_rowid_order =
+      false;  // May be changed by callers later.
+  path->index_range_scan().can_be_used_for_imerge = is_best_idx_imerge_scan;
+  path->index_range_scan().geometry = (used_key->flags & HA_SPATIAL);
+  path->index_range_scan().reverse =
+      false;  // May be changed by make_reverse() later.
   DBUG_PRINT("info", ("Returning range plan for key %s, cost %g, records %g",
-                      param->table->key_info[param->real_keynr[best_idx]].name,
-                      path->cost, path->num_output_rows));
+                      used_key->name, path->cost, path->num_output_rows));
   return path;
 }
 
@@ -1212,41 +1220,6 @@ static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
   return false;
 }
 
-bool TRP_RANGE::unique_key_range() const {
-  if (ranges.size() == 1) {
-    QUICK_RANGE *tmp = ranges[0];
-    if ((tmp->flag & (EQ_RANGE | NULL_RANGE)) == EQ_RANGE) {
-      KEY *key = table->key_info + index;
-      return (key->flags & HA_NOSAME) && key->key_length == tmp->min_length;
-    }
-  }
-  return false;
-}
-
-void TRP_RANGE::add_info_string(String *str) const {
-  KEY *key_info = table->key_info + index;
-  str->append(key_info->name);
-}
-
-void TRP_RANGE::add_keys_and_lengths(String *key_names,
-                                     String *used_lengths) const {
-  KEY *key_info = table->key_info + index;
-  key_names->append(key_info->name);
-
-  char buf[64];
-  size_t length = longlong10_to_str(get_max_used_key_length(), buf, 10) - buf;
-  used_lengths->append(buf, length);
-}
-
-unsigned TRP_RANGE::get_max_used_key_length() const {
-  int max_used_key_length = 0;
-  for (const QUICK_RANGE *range : ranges) {
-    max_used_key_length = std::max<int>(max_used_key_length, range->min_length);
-    max_used_key_length = std::max<int>(max_used_key_length, range->max_length);
-  }
-  return max_used_key_length;
-}
-
 #ifndef NDEBUG
 static void print_multiple_key_values(const KEY_PART *key_part,
                                       const uchar *key, uint used_length) {
@@ -1330,7 +1303,4 @@ void dbug_dump_range(int indent, bool verbose, TABLE *table, int index,
   /* purecov: end */
 }
 
-void TRP_RANGE::dbug_dump(int indent, bool verbose) {
-  dbug_dump_range(indent, verbose, table, index, used_key_part, ranges);
-}
 #endif

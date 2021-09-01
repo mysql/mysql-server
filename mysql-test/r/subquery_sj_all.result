@@ -4309,7 +4309,7 @@ EXPLAIN
             -> Filter: (t1.kp1 is not null)  (cost=29.95 rows=40)
                 -> Nested loop inner join  (cost=29.95 rows=40)
                     -> Filter: (t1.c is not null)  (cost=15.95 rows=40)
-                        -> Index range scan on t1 using kp1, with index condition: (t1.kp1 < 20)  (cost=15.95 rows=40)
+                        -> Index range scan on t1 using kp1 over (NULL < kp1 < 20), with index condition: (t1.kp1 < 20)  (cost=15.95 rows=40)
                     -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 

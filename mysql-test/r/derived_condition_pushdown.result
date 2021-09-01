@@ -20,7 +20,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (t1.f1 > 2)  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1_2 over (2 < f1)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt WHERE f1 > 2;
 f1	f2
@@ -34,7 +34,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((t1.f1 < 3) and (t1.f2 > 11))  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 3)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt
 WHERE f1 < 3 and f2 > 11;
@@ -47,7 +47,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((t1.f2 < 25) and (t1.f3 > 200))  (cost=*** rows=***)
-            -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+            -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE f1 > 2 and f2 < 25 and f3 > 200;
@@ -94,7 +94,7 @@ EXPLAIN
     -> Table scan on dt  (cost=*** rows=***)
         -> Materialize  (cost=*** rows=***)
             -> Filter: (t1.f2 < 50)  (cost=*** rows=***)
-                -> Index range scan on t1 using f1, with index condition: (t1.f1 > 3)  (cost=*** rows=***)
+                -> Index range scan on t1 using f1 over (3 < f1), with index condition: (t1.f1 > 3)  (cost=*** rows=***)
     -> Hash
         -> Filter: (t0.i0 > 3)  (cost=*** rows=***)
             -> Table scan on t0  (cost=*** rows=***)
@@ -113,7 +113,7 @@ EXPLAIN
         -> Table scan on dt1  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: ((t1.f2 < 50) and (t1.f3 > 200))  (cost=*** rows=***)
-                    -> Index range scan on t1 using f1, with index condition: (t1.f1 > 3)  (cost=*** rows=***)
+                    -> Index range scan on t1 using f1 over (3 < f1), with index condition: (t1.f1 > 3)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2
 WHERE f1 > 3 and f2 < 50 and f3 > 200;
@@ -126,7 +126,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((t1.f2 < 35) and ((t1.f1 + t1.f3) > 300))  (cost=*** rows=***)
-            -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+            -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, f2, f3 FROM t1) as dt
 WHERE (f1 > 2 and f2 < 35) and (f1+f3) > 300;
@@ -162,12 +162,12 @@ EXPLAIN
         -> Table scan on dt2  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: (t1.f3 < 400)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f3  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f3 over (NULL < f3 < 400)  (cost=*** rows=***)
         -> Hash
             -> Table scan on dt1  (cost=*** rows=***)
                 -> Materialize  (cost=*** rows=***)
                     -> Filter: ((t1.f1 > 2) and (t1.f2 < 35))  (cost=*** rows=***)
-                        -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                        -> Covering index range scan on t1 using f1_2 over (2 < f1)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
 (SELECT f3 FROM t1) as dt2
@@ -189,12 +189,12 @@ EXPLAIN
                 -> Table scan on dt2  (cost=*** rows=***)
                     -> Materialize  (cost=*** rows=***)
                         -> Filter: (t1.f3 < 300)  (cost=*** rows=***)
-                            -> Covering index range scan on t1 using f3  (cost=*** rows=***)
+                            -> Covering index range scan on t1 using f3 over (NULL < f3 < 300)  (cost=*** rows=***)
                 -> Hash
                     -> Table scan on dt1  (cost=*** rows=***)
                         -> Materialize  (cost=*** rows=***)
                             -> Filter: ((t1.f1 > 2) and (t1.f2 < 35))  (cost=*** rows=***)
-                                -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                                -> Covering index range scan on t1 using f1_2 over (2 < f1)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT * FROM (SELECT f1, f2 FROM t1) as dt1,
 (SELECT f3 FROM t1) as dt2) as dt3
@@ -210,7 +210,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((t1.f1 > 1) and ((t1.f1 + t1.f2) > 40))  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1_2 over (1 < f1)  (cost=*** rows=***)
 
 SELECT i, j, k FROM (SELECT f1 as i, f2 as j, f2 as k FROM t1) as dt
 WHERE i > 1 and i+j > 40;
@@ -228,7 +228,7 @@ EXPLAIN
         -> Table scan on dt1  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: ((t1.f1 + t1.f2) > 40)  (cost=*** rows=***)
-                    -> Index range scan on t1 using f1, with index condition: (t1.f1 > 1)  (cost=*** rows=***)
+                    -> Index range scan on t1 using f1 over (1 < f1), with index condition: (t1.f1 > 1)  (cost=*** rows=***)
 
 SELECT i, j, k
 FROM (SELECT l as i, m as j, n as k
@@ -248,7 +248,7 @@ EXPLAIN
         -> Table scan on dt1  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: ((t1.f1 > 1) and ((t1.f1 + t1.f2) > 40))  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (1 < f1)  (cost=*** rows=***)
         -> Hash
             -> Table scan on dt2  (cost=*** rows=***)
                 -> Materialize  (cost=*** rows=***)
@@ -319,7 +319,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1 over (10 < f1)  (cost=*** rows=***)
 
 SELECT i FROM (SELECT f1 FROM t1) as dt(i) WHERE i > 10;
 i
@@ -351,7 +351,7 @@ EXPLAIN
     -> Materialize  (cost=*** rows=***)
         -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
             -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
-                -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                -> Covering index range scan on t1 using f1_2 over (3 < f1)  (cost=*** rows=***)
 
 SELECT f1 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3;
@@ -435,7 +435,7 @@ EXPLAIN
     -> Materialize  (cost=*** rows=***)
         -> Sort: t1.f2  (cost=*** rows=***)
             -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
-                -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                -> Covering index range scan on t1 using f1_2 over (3 < f1)  (cost=*** rows=***)
 
 SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2) as dt
 WHERE f1 > 3;
@@ -493,7 +493,7 @@ EXPLAIN
                 -> Table scan on <temporary>  (cost=*** rows=***)
                     -> Temporary table with deduplication  (cost=*** rows=***)
                         -> Filter: (t1.f1 > 2)  (cost=*** rows=***)
-                            -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                            -> Covering index range scan on t1 using f1_2 over (2 < f1)  (cost=*** rows=***)
 
 SELECT *
 FROM (SELECT f1, SUM(f2) OVER(PARTITION BY f1)
@@ -532,7 +532,7 @@ EXPLAIN
                 -> Sort: t1.f1
                     -> Table scan on <temporary>  (cost=*** rows=***)
                         -> Temporary table with deduplication  (cost=*** rows=***)
-                            -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+                            -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT *
 FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1)
@@ -552,7 +552,7 @@ EXPLAIN
                 -> Sort: t1.f1, t1.f2
                     -> Table scan on <temporary>  (cost=*** rows=***)
                         -> Temporary table with deduplication  (cost=*** rows=***)
-                            -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+                            -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT *
 FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1,f2)
@@ -577,7 +577,7 @@ EXPLAIN
                                 -> Sort: t1.f1, t1.f2
                                     -> Table scan on <temporary>  (cost=*** rows=***)
                                         -> Temporary table with deduplication  (cost=*** rows=***)
-                                            -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+                                            -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT *
 FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1,f2),
@@ -627,7 +627,7 @@ EXPLAIN
                                     -> Temporary table  (cost=*** rows=***)
                                         -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1,t1.f2 ) 
                                             -> Sort: t1.f1, t1.f2  (cost=*** rows=***)
-                                                -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
+                                                -> Index range scan on t1 using f1 over (2 < f1), with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
 SELECT *
 FROM (SELECT f1, SUM(f2) OVER (PARTITION by f1,f2),
@@ -682,7 +682,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1 over (3 < f1)  (cost=*** rows=***)
 
 DROP PREPARE p;
 SET @p1 = 10;
@@ -726,7 +726,7 @@ EXPLAIN
         -> Filter: (t1.f1 > (3 * rand()))  (cost=*** rows=***)
             -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
@@ -738,7 +738,7 @@ EXPLAIN
             -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1  (cost=*** rows=***)
                     -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
-                        -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                        -> Covering index range scan on t1 using f1_2 over (NULL < f1 < 10)  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1 FROM t1) as dt
@@ -747,7 +747,7 @@ EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize  (cost=*** rows=***)
         -> Filter: ((t1.f1 > (3 * rand())) and (t1.f1 < 10))  (cost=*** rows=***)
-            -> Covering index range scan on t1 using f1  (cost=*** rows=***)
+            -> Covering index range scan on t1 using f1 over (NULL < f1 < 10)  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1 UNION SELECT f2 FROM t1) as dt
@@ -923,7 +923,7 @@ EXPLAIN
     -> Index lookup on dt using <auto_key0> (f2=t1.f2)
         -> Materialize  (cost=*** rows=***)
             -> Filter: (t1.f1 > 31)  (cost=*** rows=***)
-                -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                -> Covering index range scan on t1 using f1_2 over (31 < f1)  (cost=*** rows=***)
 
 SELECT * FROM t1 JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 31 and t1.f2  > 40;
@@ -955,7 +955,7 @@ EXPLAIN
         -> Table scan on dt  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (3 < f1)  (cost=*** rows=***)
 
 SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 3;
@@ -972,7 +972,7 @@ EXPLAIN
         -> Table scan on dt  (cost=*** rows=***)
             -> Materialize  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (3 < f1)  (cost=*** rows=***)
 
 SELECT * FROM t1 INNER JOIN (SELECT f1, f2 FROM t1) as dt ON dt.f1 > 3;
 f1	f2	f3	f1	f2
@@ -1024,7 +1024,7 @@ EXPLAIN
         -> Filter: (sum(t1.f2) > 10)  (cost=*** rows=***)
             -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (10 < f1)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT * FROM (SELECT f1, SUM(f2) AS sum
 FROM t1 GROUP BY f1) as dt1
@@ -1039,7 +1039,7 @@ EXPLAIN
         -> Filter: (sum(t1.f2) > 10)  (cost=*** rows=***)
             -> Group aggregate: sum(t1.f2)  (cost=*** rows=***)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
-                    -> Covering index range scan on t1 using f1_2  (cost=*** rows=***)
+                    -> Covering index range scan on t1 using f1_2 over (10 < f1)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) AS sum
 FROM (SELECT f1, f2 FROM t1 WHERE f1 > 10) as dt1

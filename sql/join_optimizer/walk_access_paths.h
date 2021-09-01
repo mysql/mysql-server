@@ -26,6 +26,7 @@
 #include <type_traits>
 
 #include "sql/join_optimizer/access_path.h"
+#include "sql/range_optimizer/range_optimizer.h"
 
 enum class WalkAccessPathPolicy {
   // Stop on _any_ MATERIALIZE or STREAM path, even if they do not cross query
@@ -82,6 +83,7 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
     case AccessPath::CONST_TABLE:
     case AccessPath::MRR:
     case AccessPath::FOLLOW_TAIL:
+    case AccessPath::INDEX_RANGE_SCAN:
     case AccessPath::TRP_WRAPPER:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
@@ -247,6 +249,8 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
             return func(path->mrr().table);
           case AccessPath::FOLLOW_TAIL:
             return func(path->follow_tail().table);
+          case AccessPath::INDEX_RANGE_SCAN:
+            return func(path->index_range_scan().used_key_part[0].field->table);
           case AccessPath::TRP_WRAPPER:
             return func(path->trp_wrapper().table);
           case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
