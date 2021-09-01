@@ -1703,19 +1703,12 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
     TRP_GROUP_MIN_MAX::make_quick()
     return_mem_root    Memory pool to use.
 
-  NOTES
-    Make_quick ignores the retrieve_full_rows parameter because
-    QUICK_GROUP_MIN_MAX_SELECT always performs 'index only' scans.
-    The other parameter are ignored as well because all necessary
-    data to create the QUICK object is computed at this TRP creation
-    time.
-
   RETURN
     New QUICK_GROUP_MIN_MAX_SELECT object if successfully created,
     NULL otherwise.
 */
 
-RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows, bool,
+RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
                                            MEM_ROOT *return_mem_root,
                                            ha_rows *examined_rows) {
   DBUG_TRACE;

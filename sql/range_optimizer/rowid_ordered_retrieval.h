@@ -52,7 +52,7 @@ struct MY_BITMAP;
   All merged quick selects retrieve {rowid, covered_fields} tuples (not full
   table records).
   QUICK_ROR_INTERSECT_SELECT retrieves full records if it is not being used
-  by QUICK_ROR_INTERSECT_SELECT and all merged quick selects together don't
+  by QUICK_ROR_UNION_SELECT and all merged quick selects together don't
   cover needed all fields.
 
   If one of the merged quick selects is a Clustered PK range scan, it is
@@ -89,7 +89,45 @@ class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
   */
   QUICK_RANGE_SELECT *cpk_quick;
 
-  bool retrieve_full_rows; /* if true, do retrieve full table records. */
+  /*
+    If true, do retrieve full table rows.
+
+    The way this works is somewhat convoluted; this is my (sgunders')
+    understanding as of September 2021:
+
+    For covering indexes (for some complicated value of “covering” if there are
+    multiple indexes involved), we always use index-only scans; otherwise,
+    the index range scan uses a normal scan (table->file->set_keyread(false)),
+    which does first a lookup into the index, and then the secondary lookup to
+    get the actual row.
+
+    However, for intersection scans, we don't actually need all sub-scans to
+    fetch the actual row; that's just a waste, especially since in most cases,
+    we won't need the row. So in this case, the _intention_ is that we'd always
+    turn on index-only scans, although it seems the code for this was never
+    written. The idea is that the intersection iterator then is responsible for
+    doing a kind of “fetch after the fact” once the intersection has yielded a
+    row (unless we're covering). This is done by
+
+      table->file->ha_rnd_pos(table->record[0], rowid);
+
+    although index merge uses position() instead of ha_rnd_pos().
+    Both seem to have the (undocumented?) side effect of actually fetching the
+    row even on an index-only scan. This is the reason why we need the
+    intersection iterator to reuse the handler reuse for MyISAM; otherwise, we'd
+    never actually get the row, since it's stored privately in MI_INFO and not
+    in the row ID.
+
+    But if there's something above the intersection scan again (which can only
+    be a union), it's the same game; when we find a row, it might be a duplicate
+    of the same row ID from another sub-iterator of the union (whether a range
+    scan or an intersection of range scans), and then it's not worth it to fetch
+    the entire row. So that's why the intersection scan needs to be told “no,
+    don't do ha_rnd_pos; your parent will be doing that if it's interested”. And
+    that is what this variable is for.
+   */
+  bool retrieve_full_rows;
+
   /* in top-level quick select, true if merged scans where initialized */
   bool scans_inited;
 

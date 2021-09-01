@@ -32,8 +32,6 @@ struct MEM_ROOT;
 
 /*
   Plan for QUICK_INDEX_MERGE_SELECT scan.
-  QUICK_ROR_INTERSECT_SELECT always retrieves full rows, so retrieve_full_rows
-  is ignored by make_quick.
 */
 
 class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
@@ -42,7 +40,7 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg) {}
   RowIterator *make_quick(THD *thd, double expected_rows,
-                          bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                          MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
   Bounds_checked_array<AccessPath *> range_scans; /* plans of merged scans */
 

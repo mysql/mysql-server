@@ -306,7 +306,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::TRP_WRAPPER: {
       const auto &param = path->trp_wrapper();
       iterator.reset(param.trp->make_quick(thd, path->num_output_rows,
-                                           /*retrieve_full_rows=*/true,
                                            thd->mem_root, examined_rows));
       break;
     }

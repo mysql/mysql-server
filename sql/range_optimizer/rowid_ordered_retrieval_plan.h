@@ -92,7 +92,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
         real_keynr(real_keynr_arg) {}
 
   RowIterator *make_quick(THD *thd, double expected_rows,
-                          bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                          MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
                         double num_output_rows,
@@ -112,6 +112,8 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 #ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
+
+  bool retrieve_full_rows = true;
 
   // If true, the first child scan should reuse table->file instead of
   // creating its own. This is true if the intersection is the topmost
@@ -139,8 +141,6 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 
 /*
   Plan for QUICK_ROR_UNION_SELECT scan.
-  QUICK_ROR_UNION_SELECT always retrieves full rows, so retrieve_full_rows
-  is ignored by make_quick.
 */
 
 class TRP_ROR_UNION : public TABLE_READ_PLAN {
@@ -151,7 +151,7 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
                         forced_by_hint_arg),
         ror_scans(ror_scans_arg) {}
   RowIterator *make_quick(THD *thd, double expected_rows,
-                          bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                          MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
 
   void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,

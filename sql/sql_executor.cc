@@ -4012,7 +4012,7 @@ bool DynamicRangeIterator::Init() {
     m_qep_tab->set_type(JT_ALL);
   } else {
     qck = trp->trp_wrapper().trp->make_quick(
-        thd(), m_qep_tab->position()->rows_fetched, true, &m_mem_root,
+        thd(), m_qep_tab->position()->rows_fetched, &m_mem_root,
         m_examined_rows);
     if (qck == nullptr || thd()->is_error()) {
       return true;

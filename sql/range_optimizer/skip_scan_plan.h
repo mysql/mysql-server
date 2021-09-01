@@ -128,7 +128,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
   ~TRP_SKIP_SCAN() override = default;
 
   RowIterator *make_quick(THD *thd, double expected_rows,
-                          bool retrieve_full_rows, MEM_ROOT *return_mem_root,
+                          MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override;
   void need_sorted_output() override {}
   bool is_agg_loose_index_scan() const override {

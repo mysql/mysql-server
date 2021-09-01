@@ -108,19 +108,14 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *, double,
 
   SYNOPSIS
     TRP_SKIP_SCAN::make_quick()
-    retrieve_full_rows ignored
     return_mem_root    Memory pool to use
-
-  NOTES
-    Make_quick ignores the retrieve_full_rows parameter because
-    QUICK_SKIP_SCAN_SELECT always performs index only scans.
 
   RETURN
     New QUICK_SKIP_SCAN_SELECT object if successfully created,
     NULL otherwise.
 */
 
-RowIterator *TRP_SKIP_SCAN::make_quick(THD *thd, double, bool,
+RowIterator *TRP_SKIP_SCAN::make_quick(THD *thd, double,
                                        MEM_ROOT *return_mem_root, ha_rows *) {
   DBUG_TRACE;
   assert(!need_rows_in_rowid_order);

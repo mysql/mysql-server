@@ -147,7 +147,6 @@ static QUICK_RANGE_SELECT *get_quick_select_local(
 }
 
 RowIterator *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
-                                           bool retrieve_full_rows,
                                            MEM_ROOT *return_mem_root,
                                            ha_rows *examined_rows) {
   QUICK_RANGE_SELECT *quick;
@@ -196,16 +195,12 @@ RowIterator *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
   return quick_intrsect;
 }
 
-RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
+RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows,
                                        MEM_ROOT *return_mem_root,
                                        ha_rows *examined_rows) {
   assert(!need_rows_in_rowid_order);
 
   DBUG_TRACE;
-  /*
-    It is impossible to construct a ROR-union that will not retrieve full
-    rows, so ignore the retrieve_full_rows parameter.
-   */
   QUICK_ROR_UNION_SELECT *quick_roru =
       new (return_mem_root) QUICK_ROR_UNION_SELECT(return_mem_root, thd, table);
   if (quick_roru == nullptr) {
@@ -214,8 +209,12 @@ RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double expected_rows, bool,
 
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
   for (AccessPath *scan : ror_scans) {
+    if (get_range_scan_type(scan) == QS_TYPE_ROR_INTERSECT) {
+      down_cast<TRP_ROR_INTERSECT *>(scan->trp_wrapper().trp)
+          ->retrieve_full_rows = false;
+    }
     RowIterator *quick = scan->trp_wrapper().trp->make_quick(
-        thd, expected_rows, false, return_mem_root, examined_rows);
+        thd, expected_rows, return_mem_root, examined_rows);
     if (quick == nullptr || quick_roru->push_quick_back(
                                 down_cast<RowIDCapableRowIterator *>(quick))) {
       return nullptr;

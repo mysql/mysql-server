@@ -66,22 +66,16 @@ class TABLE_READ_PLAN {
     Create quick select for this plan.
     SYNOPSIS
      make_quick()
-       retrieve_full_rows  If true, created quick select will do full record
-                           retrieval.
        expected_rows       Number of rows we expect this iterator to return.
        return_mem_root     Memory pool to use.
        examined_rows       If not nullptr, should be incremented whenever
                            a row is fetched from the storage engine.
-
-    NOTES
-      retrieve_full_rows is ignored by some implementations.
 
     RETURN
       created quick select
       nullptr on any error.
   */
   virtual RowIterator *make_quick(THD *thd, double expected_rows,
-                                  bool retrieve_full_rows,
                                   MEM_ROOT *return_mem_root,
                                   ha_rows *examined_rows) = 0;
 

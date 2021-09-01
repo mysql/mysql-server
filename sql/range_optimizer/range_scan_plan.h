@@ -47,9 +47,6 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
 
 /*
   Plan for a QUICK_RANGE_SELECT scan.
-  TRP_RANGE::make_quick ignores retrieve_full_rows parameter because
-  QUICK_RANGE_SELECT doesn't distinguish between 'index only' scans and full
-  record retrieval scans.
 */
 
 class TRP_RANGE : public TABLE_READ_PLAN {
@@ -71,7 +68,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
         is_imerge(is_imerge_arg),
         ranges(ranges_arg) {}
 
-  RowIterator *make_quick(THD *thd, double expected_rows, bool,
+  RowIterator *make_quick(THD *thd, double expected_rows,
                           MEM_ROOT *return_mem_root,
                           ha_rows *examined_rows) override {
     DBUG_TRACE;
