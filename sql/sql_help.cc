@@ -539,13 +539,15 @@ static unique_ptr_destroy_only<RowIterator> prepare_simple_query_block(
   if (!cond->fixed) cond->fix_fields(thd, &cond);  // can never fail
 
   unique_ptr_destroy_only<RowIterator> table_scan_iterator =
-      NewIterator<TableScanIterator>(thd, table, /*expected_rows=*/100.0,
+      NewIterator<TableScanIterator>(thd, thd->mem_root, table,
+                                     /*expected_rows=*/100.0,
                                      /*examined_rows=*/nullptr);
   if (table_scan_iterator == nullptr) {
     return nullptr;
   }
   unique_ptr_destroy_only<RowIterator> filter_iterator =
-      NewIterator<FilterIterator>(thd, std::move(table_scan_iterator), cond);
+      NewIterator<FilterIterator>(thd, thd->mem_root,
+                                  std::move(table_scan_iterator), cond);
   if (filter_iterator == nullptr || filter_iterator->Init()) {
     return nullptr;
   }

@@ -180,7 +180,7 @@ std::string TimingIterator<RealIterator>::TimingString() const {
   return buf;
 }
 
-// Allocates a new iterator on the given THD's MEM_ROOT. The MEM_ROOT must live
+// Allocates a new iterator on the given MEM_ROOT. The MEM_ROOT must live
 // for at least as long as the iterator does.
 //
 // If we are in EXPLAIN ANALYZE, the iterator is wrapped in a TimingIterator<T>,
@@ -188,14 +188,15 @@ std::string TimingIterator<RealIterator>::TimingString() const {
 // instantiations of iterators should go through this function.
 
 template <class RealIterator, class... Args>
-unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd, Args &&... args) {
+unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd, MEM_ROOT *mem_root,
+                                                 Args &&... args) {
   if (thd->lex->is_explain_analyze) {
     return unique_ptr_destroy_only<RowIterator>(
-        new (thd->mem_root)
+        new (mem_root)
             TimingIterator<RealIterator>(thd, std::forward<Args>(args)...));
   } else {
     return unique_ptr_destroy_only<RowIterator>(
-        new (thd->mem_root) RealIterator(thd, std::forward<Args>(args)...));
+        new (mem_root) RealIterator(thd, std::forward<Args>(args)...));
   }
 }
 

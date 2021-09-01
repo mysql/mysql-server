@@ -4045,7 +4045,8 @@ bool DynamicRangeIterator::Init() {
       table()->read_set = &m_read_set_with_base_columns;
   } else {
     m_iterator = NewIterator<TableScanIterator>(
-        thd(), table(), m_qep_tab->position()->rows_fetched, m_examined_rows);
+        thd(), &m_mem_root, table(), m_qep_tab->position()->rows_fetched,
+        m_examined_rows);
     // For a table scan, include base columns in read set.
     table()->read_set = &m_read_set_with_base_columns;
   }

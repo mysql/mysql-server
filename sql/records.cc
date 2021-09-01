@@ -182,8 +182,9 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
     iterator = NewIterator<SortFileIndirectIterator>(
-        thd, Mem_root_array<TABLE *>{table}, table->unique_result.io_cache,
-        ignore_not_found_rows, /*has_null_flags=*/false,
+        thd, thd->mem_root, Mem_root_array<TABLE *>{table},
+        table->unique_result.io_cache, ignore_not_found_rows,
+        /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
@@ -195,8 +196,8 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
     assert(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator = NewIterator<SortBufferIndirectIterator>(
-        thd, Mem_root_array<TABLE *>{table}, &table->unique_result,
-        ignore_not_found_rows, /*has_null_flags=*/false,
+        thd, thd->mem_root, Mem_root_array<TABLE *>{table},
+        &table->unique_result, ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
   } else {
     AccessPath *path = create_table_access_path(thd, table, trp, table_ref,

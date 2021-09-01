@@ -1459,7 +1459,17 @@ void FindTablesToGetRowidFor(AccessPath *path);
 bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
-    THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
+    THD *thd, MEM_ROOT *mem_root, AccessPath *path, JOIN *join,
+    bool eligible_for_batch_mode);
+
+// A short form of CreateIteratorFromAccessPath() that implicitly uses the THD's
+// MEM_ROOT for storage, which is nearly always what you want. (The only caller
+// that does anything else is DynamicRangeIterator.)
+inline unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
+    THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode) {
+  return CreateIteratorFromAccessPath(thd, thd->mem_root, path, join,
+                                      eligible_for_batch_mode);
+}
 
 void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,

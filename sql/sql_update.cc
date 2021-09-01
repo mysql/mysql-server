@@ -769,7 +769,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         iterator = NewIterator<SortFileIndirectIterator>(
-            thd, Mem_root_array<TABLE *>{table}, tempfile,
+            thd, thd->mem_root, Mem_root_array<TABLE *>{table}, tempfile,
             /*ignore_not_found_rows=*/false, /*has_null_flags=*/false,
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
