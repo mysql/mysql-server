@@ -547,7 +547,7 @@ TEST(Expected, T_string_E_std_error_code) {
           make_error_code(std::errc::already_connected));
     }
 
-    return {stdx::in_place, "from_func"s};
+    return {std::in_place, "from_func"s};
   };
 
   // std::string in libstdc++
@@ -559,7 +559,7 @@ TEST(Expected, T_string_E_std_error_code) {
 
   // instantiation
   auto res =
-      stdx::expected<std::string, std::error_code>(stdx::in_place, "initial"s);
+      stdx::expected<std::string, std::error_code>(std::in_place, "initial"s);
 
   static_assert(std::is_move_assignable<std::string>::value, "");
 

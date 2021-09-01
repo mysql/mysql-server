@@ -105,7 +105,7 @@ MySQLXProtocol::decode_single_message(const std::vector<uint8_t> &payload) {
   auto buf = net::buffer(payload) + 1;
 
   return {
-      stdx::in_place, msg_id,
+      std::in_place, msg_id,
       protocol_decoder_.decode_message(
           header_msg_id, static_cast<const uint8_t *>(buf.data()), buf.size())};
 }

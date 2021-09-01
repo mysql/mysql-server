@@ -42,62 +42,6 @@ enum class endian {
 #endif
 };
 
-// from http://wg21.link/p0504r0
-#if __cplusplus >= 201703L
-using in_place_t = std::in_place_t;
-inline constexpr in_place_t in_place{};
-#else
-struct in_place_t {
-  explicit in_place_t() = default;
-};
-static constexpr in_place_t in_place{};
-#endif
-
-// std::negation from C++17
-template <class B>
-struct negation : std::integral_constant<bool, !bool(B::value)> {};
-
-// std::conjuntion from C++17
-template <class...>
-struct conjunction;
-
-template <>
-struct conjunction<> : std::true_type {};
-
-template <class P1, class... Pn>
-struct conjunction<P1, Pn...>
-    : std::conditional_t<P1::value, conjunction<Pn...>, std::false_type> {};
-
-// std::disjunction from C++17
-template <class...>
-struct disjunction : std::false_type {};
-
-template <class P1>
-struct disjunction<P1> : P1 {};
-
-template <class P1, class... Pn>
-struct disjunction<P1, Pn...>
-    : std::conditional_t<P1::value, P1, disjunction<Pn...>> {};
-
-// void_t from C++17
-//
-// see: https://en.cppreference.com/w/cpp/types/void_t
-// see: http::/wg21.link/n3911
-// seealso: http::/wg21.link/n4436
-
-#if defined(__GNUC__) && __GNUC__ < 5
-// GCC 4.x needs this verbose form, GCC 5.0 has the fix applied
-template <typename... Ts>
-struct make_void {
-  using type = void;
-};
-template <typename... Ts>
-using void_t = typename make_void<Ts...>::type;
-#else
-template <class...>
-using void_t = void;
-#endif
-
 }  // namespace stdx
 
 #endif

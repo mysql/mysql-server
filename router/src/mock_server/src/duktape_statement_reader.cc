@@ -875,7 +875,7 @@ DuktapeStatementReader::server_greeting(bool with_tls) {
   }
   duk_pop(ctx);
 
-  return {stdx::in_place,
+  return {std::in_place,
           0x0a,
           server_version,
           connection_id,
