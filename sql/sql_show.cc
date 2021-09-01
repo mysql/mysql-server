@@ -2193,18 +2193,19 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   packet->append(STRING_WITH_LEN("\n)"));
+
+  /**
+    Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
+    This is done only while binlogging CREATE TABLE AS SELECT.
+  */
+  if (!thd->lex->query_block->field_list_is_empty() &&
+      (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+    packet->append(STRING_WITH_LEN(" START TRANSACTION"));
+  }
+
   bool show_tablespace = false;
   if (!foreign_db_mode) {
     show_table_options = true;
-
-    /**
-      Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
-      This is done only while binlogging CREATE TABLE AS SELECT.
-    */
-    if (!thd->lex->query_block->field_list_is_empty() &&
-        (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
-      packet->append(STRING_WITH_LEN(" START TRANSACTION"));
-    }
 
     // Show tablespace name only if it is explicitly provided by user.
     if (share->tmp_table) {

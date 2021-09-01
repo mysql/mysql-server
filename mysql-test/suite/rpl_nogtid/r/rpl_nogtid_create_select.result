@@ -49,4 +49,19 @@ include/diff_tables.inc [master:t1, slave:t1]
 # Cleanup
 [connection master]
 DROP TABLE t0,t1;
+include/sync_slave_sql_with_master.inc
+#
+# R3 Verify that executing CREATE TABLE ... SELECT with sql mode set
+#    to ANSI gets replicated to slave. This test is added for Bug#33064062.
+#
+[connection master]
+SET @orig_sql_mode_session= @@SESSION.sql_mode;
+SET SESSION sql_mode='ANSI';
+CREATE TABLE t1 AS SELECT 1;
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+SET SESSION sql_mode= @orig_sql_mode_session;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
