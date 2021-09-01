@@ -32,9 +32,12 @@
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql_session.h"
 #include "mysqlxclient/xsession.h"
 #include "router_component_test.h"
@@ -224,6 +227,71 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   // check the wait was long enough, but not too long.
   EXPECT_GE(end - start, client_connect_timeout);
   EXPECT_LT(end - start, client_connect_timeout + 5s);
+}
+
+/**
+ * check empty packet leads to an error.
+ *
+ * - Bug#33240637 crash when empty packet is sent in first handshake packet
+ */
+TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any
+  // queries
+  const std::string json_stmts =
+      get_data_dir().join("handshake_too_many_con_error.js").str();
+
+  // launch the server mock
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           0, server_x_port);
+
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:xproto",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"protocol", "x"},
+       {"destinations", "127.0.0.1:" + std::to_string(server_x_port)}});
+
+  const std::string conf_file =
+      create_config_file(get_test_temp_dir_name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  /*auto &router_static =*/launch_router({"-c", conf_file});
+
+  SCOPED_TRACE("// connect to router");
+
+  net::io_context io_ctx;
+  net::ip::tcp::socket router_sock{io_ctx};
+
+  net::ip::tcp::endpoint router_ep{net::ip::address_v4::loopback(),
+                                   router_port};
+
+  const auto connect_res = router_sock.connect(router_ep);
+  EXPECT_THAT(connect_res,
+              ::testing::Truly([](auto res) { return bool(res); }));
+  const auto write_res =
+      router_sock.write_some(net::buffer("\x00\x00\x00\x00"));
+  EXPECT_THAT(write_res, ::testing::Truly([](auto res) { return bool(res); }));
+
+  {
+    // a notify.
+    std::vector<uint8_t> recv_buf;
+    const auto read_res = net::read(router_sock, net::dynamic_buffer(recv_buf));
+    ASSERT_THAT(read_res, ::testing::Truly([](auto res) { return bool(res); }));
+    EXPECT_THAT(recv_buf, ::testing::SizeIs(
+                              ::testing::Ge(4 + 7)));  // notify (+ error-msg)
+  }
+
+  {
+    std::vector<uint8_t> recv_buf;
+    const auto read_res = net::read(router_sock, net::dynamic_buffer(recv_buf));
+    // the read will either block until the socket is closed or succeed.
+    EXPECT_THAT(read_res, ::testing::AnyOf(::testing::Eq(
+                              stdx::make_unexpected(net::stream_errc::eof))));
+  }
 }
 
 class RouterMaxConnectionsTest : public RouterRoutingTest {
