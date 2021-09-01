@@ -1673,6 +1673,12 @@ void dict_table_change_id_sys_tables();
                                            const char *algorithm,
                                            bool is_import_op);
 
+/** @return true if all base column of virtual column is foreign key column
+@param[in]	vcol	in-memory virtul column
+@param[in]	foreign	in-memory Foreign key constraint */
+uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
+                                       dict_foreign_t *foreign);
+
 #include "dict0dict.ic"
 
 #endif

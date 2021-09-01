@@ -896,7 +896,29 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
 
     if (node->is_delete ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
                         : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-      dfield_set_null(&upd_field->new_val);
+      uint32_t col_match_count = dict_vcol_base_is_foreign_key(col, foreign);
+      if (col_match_count == col->num_base) {
+        /* If all base columns of virtual col are in FK */
+        dfield_set_null(&upd_field->new_val);
+      } else if (col_match_count == 0) {
+        /* If no base column of virtual col is in FK */
+        dfield_copy(&(upd_field->new_val), vfield);
+      } else {
+        /* If at least one base column of virtual col is in FK */
+        for (uint32_t j = 0; j < col->num_base; j++) {
+          dict_col_t *base_col = col->base_col[j];
+          uint32_t col_no = base_col->ind;
+          dfield_t *row_field = innobase_get_field_from_update_vector(
+              foreign, node->update, col_no);
+          if (row_field != nullptr) {
+            dfield_set_null(row_field);
+          }
+        }
+        dfield_t *new_vfield = innobase_get_computed_value(
+            update->old_vrow, col, index, &v_heap, update->heap, nullptr, thd,
+            nullptr, nullptr, node->update, foreign);
+        dfield_copy(&(upd_field->new_val), new_vfield);
+      }
     }
 
     if (!node->is_delete && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
