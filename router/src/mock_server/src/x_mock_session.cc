@@ -307,7 +307,10 @@ void MySQLServerMockSessionX::handshake() {
     } else {
       log_warning("decoding handshake-frame failed: %s", ec.message().c_str());
 
-      disconnect();
+      protocol_.encode_error({ER_X_BAD_MESSAGE, "Bad Message", "HY000"});
+
+      send_response_then_disconnect();
+
       return;
     }
   }
@@ -317,7 +320,10 @@ void MySQLServerMockSessionX::handshake() {
     auto ec = decode_res.error();
     log_warning("decoding handshake-message failed: %s", ec.message().c_str());
 
-    disconnect();
+    protocol_.encode_error({ER_X_BAD_MESSAGE, "Bad Message", "HY000"});
+
+    send_response_then_disconnect();
+
     return;
   }
 
