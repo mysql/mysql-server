@@ -46,6 +46,7 @@
 #include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/services/status_service/status_service.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
+#include "plugin/group_replication/include/thread/mysql_thread.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
@@ -123,6 +124,8 @@ Message_service_handler *message_service_handler = nullptr;
 /** Handle validation of advertised recovery endpoints */
 Advertised_recovery_endpoints *advertised_recovery_endpoints = nullptr;
 Member_actions_handler *member_actions_handler = nullptr;
+/** Handle tasks on mysql_thread */
+Mysql_thread *mysql_thread_handler = nullptr;
 
 Plugin_gcs_events_handler *events_handler = nullptr;
 Plugin_gcs_view_modification_notifier *view_change_notifier = nullptr;
@@ -1301,6 +1304,20 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
                   { lv.rejoin_timeout = 60ULL; };);
 
   /*
+    Mysql thread handler.
+  */
+  if (modules_to_init[gr_modules::MYSQL_THREAD_HANDLER]) {
+    mysql_thread_handler = new Mysql_thread(
+        key_GR_THD_mysql_thread_handler, key_GR_LOCK_mysql_thread_handler_run,
+        key_GR_COND_mysql_thread_handler_run,
+        key_GR_LOCK_mysql_thread_handler_dispatcher_run,
+        key_GR_COND_mysql_thread_handler_dispatcher_run);
+    if (mysql_thread_handler->initialize()) {
+      return GROUP_REPLICATION_CONFIGURATION_ERROR;
+    }
+  }
+
+  /*
     Registry module.
   */
   if (modules_to_init[gr_modules::REGISTRY_MODULE]) {
@@ -1655,6 +1672,17 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     }
   }
 
+  /*
+    Mysql thread handler.
+  */
+  if (modules_to_terminate[gr_modules::MYSQL_THREAD_HANDLER]) {
+    if (nullptr != mysql_thread_handler) {
+      mysql_thread_handler->terminate();
+      delete mysql_thread_handler;
+      mysql_thread_handler = nullptr;
+    }
+  }
+
   return error;
 }
 
@@ -1675,6 +1703,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MEMBER_ACTIONS_HANDLER, true);
+  modules_mask.set(gr_modules::MYSQL_THREAD_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   modules_mask.set(gr_modules::RECOVERY_MODULE, true);

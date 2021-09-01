@@ -177,6 +177,12 @@ int group_replication_trans_before_commit(Trans_param *param) {
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
+  DBUG_EXECUTE_IF("group_replication_pause_on_before_commit_hook", {
+    // DBUG_SYNC are hold by same MDL lock test is using
+    const uint sleep_time_seconds = VIEW_MODIFICATION_TIMEOUT * 1.5;
+    my_sleep(sleep_time_seconds * 1000000);
+  });
+
   /*
     If the originating id belongs to a thread in the plugin, the transaction
     was already certified. Channel operations can deadlock against

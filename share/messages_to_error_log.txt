@@ -4607,7 +4607,7 @@ ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
 ER_GRP_RPL_MEMBER_ALREADY_EXISTS
   eng "There is already a member with server_uuid %s. The member will now exit the group."
 
-ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR
+OBSOLETE_ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR
   eng "Error when extracting information for group change. Operations and checks made to group joiners may be incomplete."
 
 ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR

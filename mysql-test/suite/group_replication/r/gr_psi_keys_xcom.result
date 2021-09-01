@@ -65,6 +65,8 @@ wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_mysql_thread_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_mysql_thread_dispatcher_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_connection_map	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_mysql_handler_thread_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_mysql_thread_handler_dispatcher_run	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_channel_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
@@ -157,6 +159,7 @@ thread/group_rpl/THD_Gcs_xcom_control::m_xcom_thread	BACKGROUND	YES
 thread/group_rpl/THD_Gcs_xcom_engine::m_engine_thread	BACKGROUND	YES
 thread/group_rpl/THD_message_service_handler	BACKGROUND	YES
 thread/group_rpl/THD_mysql_thread	BACKGROUND	YES
+thread/group_rpl/THD_mysql_thread_handler	BACKGROUND	YES
 
 ############################################################
 # 5. Test end.

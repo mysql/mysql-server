@@ -50,6 +50,27 @@ class Mysql_thread_body {
   virtual void run(Mysql_thread_body_parameters *parameters) = 0;
 };
 
+class Mysql_thread_task {
+ public:
+  Mysql_thread_task(Mysql_thread_body *body,
+                    Mysql_thread_body_parameters *parameters)
+      : m_body(body), m_parameters(parameters){};
+  virtual ~Mysql_thread_task() {
+    delete m_parameters;
+    m_parameters = nullptr;
+  };
+
+  /**
+    Execute task, calling body function with parameters
+    */
+  void execute();
+
+ private:
+  // cannot be deleted, represent class where method will run
+  Mysql_thread_body *m_body{nullptr};
+  Mysql_thread_body_parameters *m_parameters{nullptr};
+};
+
 /**
   @class Mysql_thread
 
@@ -60,7 +81,9 @@ class Mysql_thread {
   /**
     Mysql_thread constructor
   */
-  Mysql_thread(Mysql_thread_body *body);
+  Mysql_thread(PSI_thread_key thread_key, PSI_mutex_key run_mutex_key,
+               PSI_cond_key run_cond_key, PSI_mutex_key dispatcher_mutex_key,
+               PSI_cond_key dispatcher_cond_key);
   virtual ~Mysql_thread();
 
   /**
@@ -95,9 +118,15 @@ class Mysql_thread {
       @retval false  Successful
       @retval true   Error
   */
-  bool trigger(Mysql_thread_body_parameters *parameters);
+  bool trigger(Mysql_thread_task *task);
 
  private:
+  PSI_thread_key m_thread_key;
+  PSI_mutex_key m_mutex_key;
+  PSI_cond_key m_cond_key;
+  PSI_mutex_key m_dispatcher_mutex_key;
+  PSI_cond_key m_dispatcher_cond_key;
+
   THD *m_thd{nullptr};
   my_thread_handle m_pthd;
   mysql_mutex_t m_run_lock;
@@ -109,9 +138,7 @@ class Mysql_thread {
   mysql_cond_t m_dispatcher_cond;
   bool m_trigger_run_complete{false};
 
-  Mysql_thread_body *m_body{nullptr};
-  Abortable_synchronized_queue<Mysql_thread_body_parameters *> *m_trigger_queue{
-      nullptr};
+  Abortable_synchronized_queue<Mysql_thread_task *> *m_trigger_queue{nullptr};
 };
 
 #endif /* MYSQL_THREAD_INCLUDE */

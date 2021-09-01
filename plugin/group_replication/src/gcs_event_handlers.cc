@@ -46,6 +46,7 @@
 #include "plugin/group_replication/include/plugin_messages/sync_before_execution_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_prepared_message.h"
 #include "plugin/group_replication/include/plugin_messages/transaction_with_guarantee_message.h"
+#include "plugin/group_replication/include/services/get_system_variable/get_system_variable.h"
 
 using std::vector;
 
@@ -1271,24 +1272,15 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
   std::string applier_retrieved_gtids;
   Replication_thread_api applier_channel("group_replication_applier");
 
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
+  Get_system_variable *get_system_variable = new Get_system_variable();
 
-  if (sql_command_interface->establish_session_connection(
-          PSESSION_DEDICATED_THREAD, GROUPREPL_USER, get_plugin_pointer())) {
-    /* purecov: begin inspected */
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GRP_CHANGE_INFO_EXTRACT_ERROR);
-    goto sending;
-    /* purecov: end */
-  }
-
-  if (sql_command_interface->get_server_gtid_executed(server_executed_gtids)) {
+  if (get_system_variable->get_server_gtid_executed(server_executed_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_EXECUTED_EXTRACT_ERROR);
     goto sending;
     /* purecov: inspected */
   }
-  if (sql_command_interface->get_server_gtid_purged(server_purged_gtids)) {
+  if (get_system_variable->get_server_gtid_purged(server_purged_gtids)) {
     /* purecov: begin inspected */
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_GTID_PURGED_EXTRACT_ERROR);
     goto sending;
@@ -1304,7 +1296,7 @@ Gcs_message_data *Plugin_gcs_events_handler::get_exchangeable_data() const {
                                      applier_retrieved_gtids);
 sending:
 
-  delete sql_command_interface;
+  delete get_system_variable;
 
   std::vector<uchar> data;
 
