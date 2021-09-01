@@ -200,7 +200,6 @@ void Partition_share::release_auto_inc_if_possible(
 */
 
 bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
-  uint tot_names;
   uint num_subparts = part_info->num_subparts;
   DBUG_TRACE;
   assert(!part_info->is_sub_partitioned() || num_subparts);
@@ -221,10 +220,6 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
 #endif
   if (partition_name_hash != nullptr) {
     return false;
-  }
-  tot_names = part_info->num_parts;
-  if (part_info->is_sub_partitioned()) {
-    tot_names += part_info->num_parts * num_subparts;
   }
   partition_names = static_cast<const uchar **>(my_malloc(
       key_memory_Partition_share,

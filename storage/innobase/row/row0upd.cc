@@ -2535,12 +2535,10 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
 
 #ifdef UNIV_DEBUG
     if (UNIV_LIKELY(rec != nullptr)) {
-      const byte *rec_data = rec_get_nth_field(rec, offsets, i, &len);
+      (void)rec_get_nth_field(rec, offsets, i, &len);
       ut_ad(len == dfield_get_len(dfield));
       ut_ad(len != UNIV_SQL_NULL);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
-
-      rec_data += len - BTR_EXTERN_FIELD_REF_SIZE;
 
       /* The pointer must not be zero. */
       ut_ad(!ref.is_null());

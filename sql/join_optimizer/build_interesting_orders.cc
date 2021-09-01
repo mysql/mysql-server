@@ -444,7 +444,6 @@ void BuildInterestingOrders(
     const table_map inner_tables = pred.expr->right->tables_in_subtree;
     Ordering ordering =
         Ordering::Alloc(thd->mem_root, pred.expr->equijoin_conditions.size());
-    table_map used_tables = 0;
     bool contains_row_item = false;
     for (size_t i = 0; i < pred.expr->equijoin_conditions.size(); ++i) {
       Item *item = pred.expr->equijoin_conditions[i]->get_arg(1);
@@ -466,7 +465,6 @@ void BuildInterestingOrders(
         }
       }
       ordering[i].item = orderings->GetHandle(item);
-      used_tables |= item->used_tables();
     }
     if (contains_row_item) {
       continue;
