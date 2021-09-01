@@ -96,30 +96,33 @@ struct TABLE;
 */
 
 class QUICK_INDEX_MERGE_SELECT : public TableRowIterator {
-  Unique *unique;
-
  public:
-  QUICK_INDEX_MERGE_SELECT(MEM_ROOT *mem_root, THD *thd, TABLE *table);
+  // NOTE: Both pk_quick_select (if non-nullptr) and all children must be
+  // of the type QUICK_RANGE_SELECT, possibly wrapped in a TimingIterator.
+  QUICK_INDEX_MERGE_SELECT(
+      MEM_ROOT *mem_root, THD *thd, TABLE *table,
+      unique_ptr_destroy_only<RowIterator> pk_quick_select,
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
   ~QUICK_INDEX_MERGE_SELECT() override;
 
   bool Init() override;
   int Read() override;
 
-  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
-
-  /* range quick selects this index_merge read consists of */
-  List<QUICK_RANGE_SELECT> quick_selects;
-
-  /* quick select that uses clustered primary key (NULL if none) */
-  QUICK_RANGE_SELECT *pk_quick_select;
-
-  /* true if this select is currently doing a clustered PK scan */
-  bool doing_pk_scan;
+ private:
+  unique_ptr_destroy_only<Unique> unique;
 
   /* used to get rows collected in Unique */
   unique_ptr_destroy_only<RowIterator> read_record;
 
- private:
+  /* quick select that uses clustered primary key (NULL if none) */
+  unique_ptr_destroy_only<RowIterator> pk_quick_select;
+
+  /* range quick selects this index_merge read consists of */
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> m_children;
+
+  /* true if this select is currently doing a clustered PK scan */
+  bool doing_pk_scan;
+
   MEM_ROOT *mem_root;
 };
 

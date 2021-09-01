@@ -35,6 +35,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/records.h"
@@ -50,49 +51,30 @@
 #include "sql/uniques.h"
 #include "sql_string.h"
 
-struct MY_BITMAP;
-
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(MEM_ROOT *return_mem_root,
-                                                   THD *thd, TABLE *table)
+QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(
+    MEM_ROOT *return_mem_root, THD *thd, TABLE *table,
+    unique_ptr_destroy_only<RowIterator> pk_quick_select,
+    Mem_root_array<unique_ptr_destroy_only<RowIterator>> children)
     : TableRowIterator(thd, table),
-      unique(nullptr),
-      pk_quick_select(nullptr),
-      mem_root(return_mem_root) {
-  DBUG_TRACE;
-}
-
-bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
-    QUICK_RANGE_SELECT *quick_sel_range) {
-  /*
-    Save quick_select that does scan on clustered primary key as it will be
-    processed separately.
-  */
-  if (table()->file->primary_key_is_clustered() &&
-      quick_sel_range->index == table()->s->primary_key)
-    pk_quick_select = quick_sel_range;
-  else
-    return quick_selects.push_back(quick_sel_range);
-  return false;
-}
+      pk_quick_select(std::move(pk_quick_select)),
+      m_children(std::move(children)),
+      mem_root(return_mem_root) {}
 
 QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
-  List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
   bool disable_unique_filter = false;
-  destroy(unique);
-  quick_it.rewind();
-  while ((quick = quick_it++)) {
+  for (unique_ptr_destroy_only<RowIterator> &quick : m_children) {
+    QUICK_RANGE_SELECT *range =
+        down_cast<QUICK_RANGE_SELECT *>(quick.get()->real_iterator());
+
     // Normally it's disabled by dtor of QUICK_RANGE_SELECT, but it can't be
     // done without table's handler
     disable_unique_filter |=
-        (0 != (table()->key_info[quick->index].flags & HA_MULTI_VALUED_KEY));
-    quick->file = nullptr;
+        Overlaps(table()->key_info[range->index].flags, HA_MULTI_VALUED_KEY);
+    range->file = nullptr;
   }
-  quick_selects.destroy_elements();
   if (disable_unique_filter)
     table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
-  destroy(pk_quick_select);
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
   free_io_cache(table());
@@ -119,8 +101,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
 bool QUICK_INDEX_MERGE_SELECT::Init() {
   empty_record(table());
 
-  List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
-  QUICK_RANGE_SELECT *cur_quick;
   handler *file = table()->file;
   DBUG_TRACE;
 
@@ -128,15 +108,10 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   table()->set_keyread(true);
   table()->prepare_for_position();
 
-  cur_quick_it.rewind();
-  cur_quick = cur_quick_it++;
-  assert(cur_quick != nullptr);
-
   DBUG_EXECUTE_IF("simulate_bug13919180", {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     return true;
   });
-  if (cur_quick->Init()) return true;
 
   size_t sort_buffer_size = thd()->variables.sortbuff_size;
 #ifndef NDEBUG
@@ -147,8 +122,8 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
     DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(););
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created",
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"););
-    unique = new (mem_root) Unique(refpos_order_cmp, (void *)file,
-                                   file->ref_length, sort_buffer_size);
+    unique.reset(new (mem_root) Unique(refpos_order_cmp, (void *)file,
+                                       file->ref_length, sort_buffer_size));
     if (unique == nullptr) {
       return true;
     }
@@ -168,30 +143,30 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   assert(file->ref_length == unique->get_size());
   assert(sort_buffer_size == unique->get_max_in_memory_size());
 
-  for (;;) {
-    int result;
-    while ((result = cur_quick->Read()) == -1) {
-      cur_quick = cur_quick_it++;
-      if (!cur_quick) break;
+  for (unique_ptr_destroy_only<RowIterator> &child : m_children) {
+    if (child->Init()) return true;
 
-      if (cur_quick->file->inited) cur_quick->file->ha_index_or_rnd_end();
-      if (cur_quick->Init()) return true;
-    }
+    for (;;) {
+      int result = child->Read();
+      if (result == -1) {
+        break;  // EOF.
+      } else if (result != 0 || thd()->killed) {
+        return true;
+      }
 
-    if (result == -1) {
-      break;  // EOF.
-    } else if (result != 0) {
-      return true;
-    }
+      /* skip row if it will be retrieved by clustered PK scan */
+      if (pk_quick_select && down_cast<QUICK_RANGE_SELECT *>(
+                                 pk_quick_select.get()->real_iterator())
+                                 ->row_in_ranges()) {
+        continue;
+      }
 
-    if (thd()->killed) return true;
-
-    /* skip row if it will be retrieved by clustered PK scan */
-    if (pk_quick_select && pk_quick_select->row_in_ranges()) continue;
-
-    cur_quick->file->position(cur_quick->table()->record[0]);
-    if (unique->unique_add(cur_quick->file->ref)) {
-      return true;
+      handler *child_file =
+          down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->file;
+      child_file->position(table()->record[0]);
+      if (unique->unique_add(child_file->ref)) {
+        return true;
+      }
     }
   }
 

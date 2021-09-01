@@ -50,25 +50,27 @@ RowIterator *TRP_INDEX_MERGE::make_quick(THD *thd, double,
                                          MEM_ROOT *return_mem_root, ha_rows *) {
   assert(!need_rows_in_rowid_order);
 
-  QUICK_INDEX_MERGE_SELECT *quick_imerge;
-  if (!(quick_imerge = new (return_mem_root)
-            QUICK_INDEX_MERGE_SELECT(return_mem_root, thd, table)))
-    return nullptr;
-
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
+  unique_ptr_destroy_only<RowIterator> pk_quick_select;
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(
+      return_mem_root);
+  children.reserve(range_scans.size());
   for (AccessPath *range_scan : range_scans) {
     unique_ptr_destroy_only<RowIterator> iterator =
         CreateIteratorFromAccessPath(thd, range_scan, /*join=*/nullptr,
                                      /*eligible_for_batch_mode=*/false);
-    QUICK_RANGE_SELECT *quick =
-        down_cast<QUICK_RANGE_SELECT *>(iterator.release()->real_iterator());
-    if (quick == nullptr || quick_imerge->push_quick_back(quick)) {
-      destroy(quick);
-      destroy(quick_imerge);
-      return nullptr;
+    if (table->file->primary_key_is_clustered() &&
+        range_scan->index_range_scan().index == table->s->primary_key) {
+      assert(pk_quick_select == nullptr);
+      pk_quick_select = std::move(iterator);
+    } else {
+      children.push_back(std::move(iterator));
     }
   }
-  return quick_imerge;
+
+  return new (return_mem_root)
+      QUICK_INDEX_MERGE_SELECT(return_mem_root, thd, table,
+                               std::move(pk_quick_select), std::move(children));
 }
 
 bool TRP_INDEX_MERGE::is_keys_used(const MY_BITMAP *fields) {
