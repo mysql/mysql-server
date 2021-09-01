@@ -402,6 +402,26 @@ void Arch_Group::adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len) {
                   blk_len = OS_FILE_LOG_BLOCK_SIZE;
                   stop_lsn += 64;);
 }
+
+void Arch_Group::adjust_copy_length(lsn_t arch_lsn, uint32_t &copy_len) {
+  lsn_t end_lsn = LSN_MAX;
+  uint32_t blk_len = 0;
+  adjust_end_lsn(end_lsn, blk_len);
+
+  if (end_lsn <= arch_lsn) {
+    copy_len = 0;
+    return;
+  }
+
+  /* Adjust if copying beyond end LSN. */
+  auto len_left = end_lsn - arch_lsn;
+  len_left = ut_uint64_align_down(len_left, OS_FILE_LOG_BLOCK_SIZE);
+
+  if (len_left < copy_len) {
+    copy_len = static_cast<uint32_t>(len_left);
+  }
+}
+
 #endif /* UNIV_DEBUG */
 
 /** Stop redo log archiving.
@@ -798,7 +818,7 @@ data by calling it repeatedly over time.
 bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
                            bool *wait) {
   Arch_State curr_state;
-  uint arch_len;
+  uint32_t arch_len;
 
   dberr_t err = DB_SUCCESS;
   bool is_abort = false;
@@ -821,6 +841,10 @@ bool Arch_Log_Sys::archive(bool init, Arch_File_Ctx *curr_ctx, lsn_t *arch_lsn,
   curr_state = check_set_state(is_abort, arch_lsn, &arch_len);
 
   if (curr_state == ARCH_STATE_ACTIVE) {
+    /* Adjust archiver length to no go beyond file end. */
+    DBUG_EXECUTE_IF("clone_arch_log_stop_file_end",
+                    m_current_group->adjust_copy_length(*arch_lsn, arch_len););
+
     /* Simulate archive error. */
     DBUG_EXECUTE_IF("clone_redo_no_archive", arch_len = 0;);
 

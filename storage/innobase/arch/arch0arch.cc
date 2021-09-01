@@ -342,12 +342,6 @@ dberr_t Arch_File_Ctx::init(const char *path, const char *base_dir,
 
 dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
                             uint64_t file_offset) {
-  os_file_create_t option;
-  os_file_type_t type;
-
-  bool success;
-  bool exists;
-
   /* Close current file, if open. */
   close();
 
@@ -358,11 +352,16 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
 
   build_name(m_index, start_lsn, nullptr, 0);
 
-  success = os_file_status(m_name_buf, &exists, &type);
+  bool exists;
+  os_file_type_t type;
+
+  bool success = os_file_status(m_name_buf, &exists, &type);
 
   if (!success) {
     return (DB_CANNOT_OPEN_FILE);
   }
+
+  os_file_create_t option;
 
   if (read_only) {
     if (!exists) {
@@ -382,7 +381,19 @@ dberr_t Arch_File_Ctx::open(bool read_only, lsn_t start_lsn, uint file_index,
     return (DB_CANNOT_OPEN_FILE);
   }
 
-  success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
+  /* For newly created file, zero fill the header section. This is required
+  for archived redo files that are just created. Clone expects the header
+  length to be written. */
+  if (!exists && file_offset != 0) {
+    /* This call would extend the length by multiple of UNIV_PAGE_SIZE. This is
+    not an issue but we need to lseek to keep the current position at offset. */
+    success =
+        os_file_set_size(m_name_buf, m_file, 0, file_offset, false, false);
+  }
+
+  if (success) {
+    success = os_file_seek(m_name_buf, m_file.m_file, file_offset);
+  }
 
   return (success ? DB_SUCCESS : DB_IO_ERROR);
 }
