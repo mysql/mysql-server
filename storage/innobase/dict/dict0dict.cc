@@ -6009,4 +6009,24 @@ dict_persist_t::Enable_immediate::~Enable_immediate() {
   m_persister = nullptr;
 }
 
+/** @return number of base columns of virtual column in foreign key column
+@param[in]      vcol    in-memory virtual column
+@param[in]      foreign in-memory Foreign key constraint */
+uint32_t dict_vcol_base_is_foreign_key(dict_v_col_t *vcol,
+                                       dict_foreign_t *foreign) {
+  const dict_table_t *table = foreign->foreign_table;
+  uint32_t foreign_col_count = 0;
+
+  for (uint32_t i = 0; i < foreign->n_fields; i++) {
+    const char *foreign_col_name = foreign->foreign_col_names[i];
+    for (uint32_t j = 0; j < vcol->num_base; j++) {
+      if (strcmp(foreign_col_name,
+                 table->get_col_name(vcol->base_col[j]->ind)) == 0) {
+        foreign_col_count++;
+      }
+    }
+  }
+  return foreign_col_count;
+}
+
 #endif /* !UNIV_HOTBACKUP */
