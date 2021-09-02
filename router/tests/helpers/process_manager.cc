@@ -29,6 +29,7 @@
 #include <chrono>
 #include <iterator>
 #include <stdexcept>
+#include <string_view>
 #include <system_error>
 #include <thread>
 
@@ -54,7 +55,6 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
@@ -155,8 +155,8 @@ ProcessManager::Spawner::wait_for_notified(
       const auto bytes_read = read_res.value();
 
       if (bytes_read >= expected_notification.size()) {
-        if (stdx::string_view(expected_notification) ==
-            stdx::string_view(buff.data(), expected_notification.size())) {
+        if (expected_notification ==
+            std::string_view(buff.data(), expected_notification.size())) {
           return {};
         }
       } else {
@@ -199,8 +199,8 @@ ProcessManager::Spawner::wait_for_notified(
       const auto bytes_read = read_res.value();
 
       if (bytes_read >= expected_notification.size()) {
-        if (stdx::string_view(expected_notification) ==
-            stdx::string_view(buff.data(), expected_notification.size())) {
+        if (expected_notification ==
+            std::string_view(buff.data(), expected_notification.size())) {
           return {};
         }
       } else {

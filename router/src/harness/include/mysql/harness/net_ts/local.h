@@ -55,7 +55,6 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 
 namespace local {
 
@@ -82,7 +81,7 @@ class basic_endpoint {
   // namespace' (starting with \0)
   //
   // note: can be 'constexpr' with C++2a's http://wg21.link/P0202 applied
-  basic_endpoint(stdx::string_view path) : data_{} {
+  basic_endpoint(std::string_view path) : data_{} {
     data_.sun_family = protocol_type().family();
 
     const auto truncated_path =
