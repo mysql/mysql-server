@@ -316,16 +316,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       if (param.geometry) {
         iterator = NewIterator<QUICK_RANGE_SELECT_GEOM>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
-            param.index, param.need_rows_in_rowid_order,
-            /*reuse_handler=*/false, mem_root, param.mrr_flags,
-            param.mrr_buf_size, param.used_key_part,
+            param.index, param.need_rows_in_rowid_order, param.reuse_handler,
+            mem_root, param.mrr_flags, param.mrr_buf_size, param.used_key_part,
             Bounds_checked_array{param.ranges, param.num_ranges});
       } else {
         iterator = NewIterator<QUICK_RANGE_SELECT>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
-            param.index, param.need_rows_in_rowid_order,
-            /*reuse_handler=*/false, mem_root, param.mrr_flags,
-            param.mrr_buf_size, param.used_key_part,
+            param.index, param.need_rows_in_rowid_order, param.reuse_handler,
+            mem_root, param.mrr_flags, param.mrr_buf_size, param.used_key_part,
             Bounds_checked_array{param.ranges, param.num_ranges});
         if (param.reverse) {
           // TODO: Unify the two classes, or at least make some way

@@ -808,6 +808,9 @@ struct AccessPath {
       // If true, this plan can be used for index merge scan.
       bool can_be_used_for_imerge : 1;
 
+      // See row intersection for more details.
+      bool reuse_handler : 1;
+
       // Whether we are scanning over a geometry key part.
       bool geometry : 1;
 

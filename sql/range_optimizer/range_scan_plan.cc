@@ -973,6 +973,7 @@ AccessPath *get_key_scans_params(THD *thd, RANGE_OPT_PARAM *param,
   path->index_range_scan().need_rows_in_rowid_order =
       false;  // May be changed by callers later.
   path->index_range_scan().can_be_used_for_imerge = is_best_idx_imerge_scan;
+  path->index_range_scan().reuse_handler = false;
   path->index_range_scan().geometry = (used_key->flags & HA_SPATIAL);
   path->index_range_scan().reverse =
       false;  // May be changed by make_reverse() later.

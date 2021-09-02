@@ -36,6 +36,9 @@ class SEL_ROOT;
 class SEL_TREE;
 struct MEM_ROOT;
 
+// TODO(sgunders): Consider whether we can create INDEX_RANGE_SCAN AccessPaths
+// directly, instead of first creating this structure and then creating
+// AccessPaths from it.
 struct ROR_SCAN_INFO {
   uint idx;         ///< # of used key in param->keys
   uint keynr;       ///< # of used key in table
@@ -78,18 +81,17 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   // by make_quick(), which can be called after the range optimizer
   // has returned.
   TRP_ROR_INTERSECT(TABLE *table_arg, bool forced_by_hint_arg,
-                    KEY_PART *const *key_arg, const uint *real_keynr_arg,
-                    Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans_arg,
+                    KEY_PART *const *key_arg,
+                    Mem_root_array<AccessPath *> intersect_scans_arg,
                     Cost_estimate index_scan_cost_arg, bool is_covering_arg,
-                    ROR_SCAN_INFO *cpk_scan_arg)
+                    AccessPath *cpk_scan_arg)
       : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
                         forced_by_hint_arg),
-        intersect_scans(intersect_scans_arg),
+        intersect_scans(std::move(intersect_scans_arg)),
         cpk_scan(cpk_scan_arg),
         is_covering(is_covering_arg),
         index_scan_cost(index_scan_cost_arg),
-        key(key_arg),
-        real_keynr(real_keynr_arg) {}
+        key(key_arg) {}
 
   RowIterator *make_quick(THD *thd, double expected_rows,
                           MEM_ROOT *return_mem_root,
@@ -130,13 +132,12 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
 
  private:
   /* ROR range scans used in this intersection */
-  Bounds_checked_array<ROR_SCAN_INFO *> intersect_scans;
-  ROR_SCAN_INFO *cpk_scan; /* Clustered PK scan, if there is one */
-  const bool is_covering;  /* true if no row retrieval phase is necessary */
+  Mem_root_array<AccessPath *> intersect_scans;
+  AccessPath *cpk_scan;   /* Clustered PK scan, if there is one */
+  const bool is_covering; /* true if no row retrieval phase is necessary */
   const Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
 
   KEY_PART *const *key;
-  const uint *real_keynr;
 };
 
 /*
