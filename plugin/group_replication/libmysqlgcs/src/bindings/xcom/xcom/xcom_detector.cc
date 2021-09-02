@@ -311,6 +311,18 @@ int detector_task(task_arg arg [[maybe_unused]]) {
         /* Send xcom message if node has changed state */
         IFDBG(D_DETECT, FN; NDBG(ep->notify, d));
         if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
+          const site_def *current_site_def = get_site_def();
+          if (current_site_def) {
+            server *my_server = current_site_def->servers[x_site->nodeno];
+            if (my_server) {
+              G_INFO(
+                  "A configuration change was detected. Sending a Global View "
+                  "Message to all nodes. My node identifier is %d and my "
+                  "address "
+                  "is %s:%d",
+                  x_site->nodeno, my_server->srv, my_server->port);
+            }
+          }
           ep->notify = 0;
           send_my_view(x_site);
         }

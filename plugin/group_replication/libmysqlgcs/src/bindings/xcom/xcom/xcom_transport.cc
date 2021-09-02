@@ -1553,6 +1553,7 @@ int sender_task(task_arg arg) {
       msg_link_delete(&ep->link);
       /* TASK_YIELD; */
     }
+    G_MESSAGE("Sender task disconnected from %s:%d", ep->s->srv, ep->s->port);
   }
   FINALLY
   empty_msg_channel(&ep->s->outgoing);
@@ -1659,6 +1660,8 @@ void update_servers(site_def *s, cargo_type operation) {
 
     IFDBG(D_NONE, FN; NDBG(get_maxnodes(s), u); NDBG(n, d); PTREXP(s));
 
+    G_INFO("Updating physical connections to other servers");
+
     for (i = 0; i < n; i++) {
       char *addr = s->nodes.node_list_val[i].address;
       char *name = NULL;
@@ -1679,7 +1682,7 @@ void update_servers(site_def *s, cargo_type operation) {
         server *sp = find_server(all_servers, maxservers, name, port);
 
         if (sp) {
-          G_INFO("Re-using server node %d host %s:%d", i, name, port);
+          G_INFO("Using existing server node %d host %s:%d", i, name, port);
           s->servers[i] = sp;
 
           /*

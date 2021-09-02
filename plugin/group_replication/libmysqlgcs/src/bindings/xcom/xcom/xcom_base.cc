@@ -1183,6 +1183,8 @@ bool_t xcom_input_new_signal_connection(char const *address, xcom_port port) {
 #endif
     set_connected(input_signal_connection, CON_FD);
 
+    G_INFO("Successfully connected to the local XCom via anonymous pipe");
+
     return SUCCESSFUL;
   } else {
     /* purecov: begin deadcode */
@@ -1217,12 +1219,13 @@ bool_t xcom_input_new_signal_connection(char const *address, xcom_port port) {
         }
       }
 #endif
-
+      G_INFO("Successfully connected to the local XCom via socket connection");
       return SUCCESSFUL;
     } else {
-      G_DEBUG(
+      G_INFO(
           "Error converting the signalling connection handler into a "
-          "local_server task on the client side.");
+          "local_server task on the client side. This will result on a failure "
+          "to join this node to a configuration");
       xcom_input_free_signal_connection();
       return UNSUCCESSFUL;
     }
@@ -1863,11 +1866,12 @@ void site_install_action(site_def *site, cargo_type operation) {
     update_servers(site, operation);
   }
   site->install_time = task_now();
-  G_INFO("pid %d Installed site start=" SY_FMT " boot_key=" SY_FMT
-         " event_horizon=%" PRIu32
-         " node %u chksum_node_list(&site->nodes) %" PRIu32,
-         xpid(), SY_MEM(site->start), SY_MEM(site->boot_key),
-         site->event_horizon, get_nodeno(site), chksum_node_list(&site->nodes));
+  G_INFO(
+      "Sucessfully installed new site definition. Start synode for this "
+      "configuration is " SY_FMT ", boot key synode is " SY_FMT
+      ", configured event horizon=%" PRIu32 ", my node identifier is %u",
+      SY_MEM(site->start), SY_MEM(site->boot_key), site->event_horizon,
+      get_nodeno(site));
   IFDBG(D_NONE, FN; NDBG(get_nodeno(site), u));
   IFDBG(D_NONE, FN; SYCEXP(site->start); SYCEXP(site->boot_key);
         NDBG(site->install_time, f));
@@ -3474,6 +3478,11 @@ site_def *handle_add_node(app_data_ptr a) {
     return NULL;
   }
   {
+    for (u_int node = 0; node < a->body.app_u_u.nodes.node_list_len; node++) {
+      G_INFO("Adding new node to the configuration: %s",
+             a->body.app_u_u.nodes.node_list_val[node].address)
+    }
+
     site_def const *old_site = get_site_def();
     site_def *site = clone_site_def(old_site);
     IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_list(&a->body.app_u_u.nodes)););
@@ -5433,6 +5442,10 @@ static inline void handle_alive(site_def const *site, linkage *reply_queue,
     CREATE_REPLY(pm);
     init_need_boot_op(reply, cfg_app_xcom_get_identity());
     sent_alive = task_now();
+    G_INFO(
+        "Node has not booted. Requesting an XCom snapshot from node number %d "
+        "in the current configuration",
+        pm->from);
     SEND_REPLY;
   }
   IFDBG(D_NONE, FN; STRLIT("sent need_boot_op"););
@@ -5540,7 +5553,8 @@ static u_int allow_add_node(app_data_ptr a) {
         */
         G_MESSAGE(
             "Old incarnation found while trying to "
-            "add node %s %.*s.",
+            "add node %s %.*s. Please stop the old node or wait for it to "
+            "leave the group.",
             nodes_to_change[i].address, nodes_to_change[i].uuid.data.data_len,
             nodes_to_change[i].uuid.data.data_val);
         return 0;
@@ -5627,8 +5641,16 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
     // If we have not booted and we receive an add_node that contains us...
     if (add_node_adding_own_address(a))
       return REQUEST_FAIL;
-    else
+    else {
+      /*G_INFO(
+          "Configuration change failed. Request on a node that has not booted "
+          "yet.");*/
+      G_INFO(
+          "This node received a Configuration change request, but it not yet "
+          "started. This could happen if one starts several nodes "
+          "simultaneously. This request will be retried by whoever sent it.");
       return REQUEST_RETRY;
+    }
   }
 
   if (a && a->group_id != 0 && a->group_id != executed_msg.group_id) {
@@ -7084,11 +7106,13 @@ void send_x_fsm_complete() {
 
 static void server_handle_need_snapshot(server *srv, site_def const *s,
                                         node_no node) {
+  G_INFO("Received an XCom snapshot request from %s:%d", srv->srv, srv->port);
   gcs_snapshot *gs = create_snapshot();
 
   if (gs) {
     server_send_snapshot(srv, s, gs, node);
     IFDBG(D_NONE, FN; STRLIT("sent snapshot"););
+    G_INFO("XCom snapshot sent to %s:%d", srv->srv, srv->port);
     server_push_log(srv, gs->log_start, node);
     send_global_view();
   }
@@ -7147,6 +7171,8 @@ static int better_snapshot(gcs_snapshot *gcs) {
 
 /* Install snapshot */
 static void handle_x_snapshot(gcs_snapshot *gcs) {
+  G_INFO(
+      "Installing requested snapshot. Importing all incoming configurations.");
   import_config(gcs);
   if (get_nodeno(get_site_def()) == VOID_NODE_NO) {
     IFDBG(D_BASE, FN; STRLIT("Not member of site, not executing log"));
@@ -7161,6 +7187,9 @@ static void handle_x_snapshot(gcs_snapshot *gcs) {
   log_end_max = gcs->log_end;
 
   set_last_received_config(get_highest_boot_key(gcs));
+
+  G_INFO("Finished snapshot installation. My node number is %d",
+         get_nodeno(get_site_def()));
 
   IFDBG(D_BUG, FN; SYCEXP(gcs->log_start); SYCEXP(gcs->log_end);
         SYCEXP(last_config_modification_id); SYCEXP(executed_msg););
@@ -8214,9 +8243,15 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
         case REQUEST_OK:
           return REQUEST_OK_RECEIVED;
         case REQUEST_FAIL:
+          G_INFO(
+              "Sending a request to a remote XCom failed. Please check the "
+              "remote node log for more details.")
           return REQUEST_FAIL_RECEIVED;
         case REQUEST_RETRY:
           if (retry_count > 1) xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
+          G_INFO(
+              "Retrying a request to a remote XCom. Please check the remote "
+              "node log for more details.")
           xcom_sleep(1);
           break;
         case REQUEST_REDIRECT:
@@ -8227,11 +8262,11 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
           xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
           return REQUEST_OK_REDIRECT;
         default:
-          G_WARNING("client protocol botched");
+          G_WARNING("XCom client connection has received an unknown response.");
           return REQUEST_BOTCHED;
       }
     } else {
-      G_WARNING("read failed");
+      G_WARNING("Reading a request from a remote XCom failed.");
       return RECEIVE_REQUEST_FAILED;
     }
   } while (--retry_count);
