@@ -61,10 +61,11 @@ struct MY_BITMAP;
 
 class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
  public:
-  QUICK_ROR_INTERSECT_SELECT(THD *thd, TABLE *table_arg,
-                             bool retrieve_full_rows,
-                             bool need_rows_in_rowid_order,
-                             MEM_ROOT *return_mem_root);
+  QUICK_ROR_INTERSECT_SELECT(
+      THD *thd, MEM_ROOT *return_mem_root, TABLE *table_arg,
+      bool retrieve_full_rows, bool need_rows_in_rowid_order,
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children,
+      unique_ptr_destroy_only<RowIterator> cpk_child);
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   bool Init() override;
@@ -74,20 +75,18 @@ class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
     return m_last_rowid;
   }
 
-  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
-
+ private:
   /*
     Range quick selects this intersection consists of, not including
     cpk_quick.
   */
-  List<QUICK_RANGE_SELECT> quick_selects;
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> m_children;
 
-  MEM_ROOT *mem_root; /* Memory pool for this and merged quick selects data. */
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
     select is not used for row retrieval, it is used for row retrieval.
   */
-  QUICK_RANGE_SELECT *cpk_quick;
+  unique_ptr_destroy_only<RowIterator> m_cpk_child;
 
   /*
     If true, do retrieve full table rows.
@@ -131,7 +130,6 @@ class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
   /* in top-level quick select, true if merged scans where initialized */
   bool scans_inited;
 
- private:
   const bool need_rows_in_rowid_order;
   uchar *m_last_rowid;
   bool inited = false;
@@ -166,15 +164,16 @@ struct Quick_ror_union_less {
 
 class QUICK_ROR_UNION_SELECT : public TableRowIterator {
  public:
-  QUICK_ROR_UNION_SELECT(MEM_ROOT *return_mem_root, THD *thd, TABLE *table);
+  QUICK_ROR_UNION_SELECT(
+      THD *thd, MEM_ROOT *return_mem_root, TABLE *table,
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
   ~QUICK_ROR_UNION_SELECT() override;
 
   bool Init() override;
   int Read() override;
 
-  bool push_quick_back(RowIDCapableRowIterator *quick_sel_range);
-
-  List<RowIDCapableRowIterator> quick_selects; /* Merged quick selects */
+ private:
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> m_children;
 
   Priority_queue<RowIDCapableRowIterator *,
                  std::vector<RowIDCapableRowIterator *,
@@ -188,7 +187,6 @@ class QUICK_ROR_UNION_SELECT : public TableRowIterator {
   bool have_prev_rowid; /* true if prev_rowid has valid data */
   uint rowid_length;    /* table rowid length */
 
- private:
   bool scans_inited;
   bool inited = false;
 };

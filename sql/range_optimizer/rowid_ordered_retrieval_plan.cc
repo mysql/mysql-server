@@ -126,7 +126,7 @@ void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
 
 // Create a QUICK_RANGE_SELECT from given key and the ranges from that key.
 // Does not support reverse range scans, unlike CreateIteratorFromAccessPath().
-static QUICK_RANGE_SELECT *get_quick_select_local(
+static unique_ptr_destroy_only<RowIterator> get_quick_select_local(
     THD *thd, ha_rows *examined_rows, double expected_rows,
     MEM_ROOT *return_mem_root, TABLE *table, bool reuse_handler, KEY_PART *key,
     uint keyno, uint mrr_flags, uint mrr_buf_size,
@@ -134,79 +134,72 @@ static QUICK_RANGE_SELECT *get_quick_select_local(
   DBUG_TRACE;
 
   if (table->key_info[keyno].flags & HA_SPATIAL) {
-    return new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
-        thd, table, examined_rows, expected_rows, keyno,
-        /*need_rows_in_rowid_order=*/true, reuse_handler, return_mem_root,
-        mrr_flags, mrr_buf_size, key, ranges);
+    return unique_ptr_destroy_only<RowIterator>{
+        new (return_mem_root) QUICK_RANGE_SELECT_GEOM(
+            thd, table, examined_rows, expected_rows, keyno,
+            /*need_rows_in_rowid_order=*/true, reuse_handler, return_mem_root,
+            mrr_flags, mrr_buf_size, key, ranges)};
   } else {
-    return new (return_mem_root) QUICK_RANGE_SELECT(
-        thd, table, examined_rows, expected_rows, keyno,
-        /*need_rows_in_rowid_order=*/true, reuse_handler, return_mem_root,
-        mrr_flags, mrr_buf_size, key, ranges);
+    return unique_ptr_destroy_only<RowIterator>{
+        new (return_mem_root) QUICK_RANGE_SELECT(
+            thd, table, examined_rows, expected_rows, keyno,
+            /*need_rows_in_rowid_order=*/true, reuse_handler, return_mem_root,
+            mrr_flags, mrr_buf_size, key, ranges)};
   }
 }
 
 RowIterator *TRP_ROR_INTERSECT::make_quick(THD *thd, double expected_rows,
                                            MEM_ROOT *return_mem_root,
                                            ha_rows *examined_rows) {
-  QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
 
   if (is_covering) {
     retrieve_full_rows = false;
   }
 
-  QUICK_ROR_INTERSECT_SELECT *quick_intrsect = new (return_mem_root)
-      QUICK_ROR_INTERSECT_SELECT(thd, table, retrieve_full_rows,
-                                 need_rows_in_rowid_order, return_mem_root);
-  if (quick_intrsect) {
-    DBUG_EXECUTE("info",
-                 print_ror_scans_arr(
-                     table, "creating ROR-intersect", &intersect_scans[0],
-                     &intersect_scans[0] + intersect_scans.size()););
-    bool first = true;
-    for (ROR_SCAN_INFO *current : intersect_scans) {
-      uint idx = current->idx;
-      if (!(quick = get_quick_select_local(
-                thd, examined_rows, expected_rows, return_mem_root, table,
-                /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
-                key[idx], real_keynr[idx], HA_MRR_SORTED, 0,
-                current->ranges)) ||
-          quick_intrsect->push_quick_back(quick)) {
-        destroy(quick_intrsect);
-        return nullptr;
-      }
-      first = false;
+  // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
+  DBUG_EXECUTE("info", print_ror_scans_arr(
+                           table, "creating ROR-intersect", &intersect_scans[0],
+                           &intersect_scans[0] + intersect_scans.size()););
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(
+      return_mem_root);
+  bool first = true;
+  for (ROR_SCAN_INFO *current : intersect_scans) {
+    uint idx = current->idx;
+    unique_ptr_destroy_only<RowIterator> child = get_quick_select_local(
+        thd, examined_rows, expected_rows, return_mem_root, table,
+        /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
+        key[idx], real_keynr[idx], HA_MRR_SORTED, 0, current->ranges);
+    if (child == nullptr) {
+      return nullptr;
     }
-    if (cpk_scan) {
-      uint idx = cpk_scan->idx;
-      if (!(quick = get_quick_select_local(
-                thd, examined_rows, expected_rows, return_mem_root, table,
-                /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
-                key[idx], real_keynr[idx], HA_MRR_SORTED, 0,
-                cpk_scan->ranges))) {
-        destroy(quick_intrsect);
-        return nullptr;
-      }
-      quick->file = nullptr;
-      quick_intrsect->cpk_quick = quick;
+    first = false;
+    children.push_back(move(child));
+  }
+  unique_ptr_destroy_only<RowIterator> cpk_child;
+  if (cpk_scan) {
+    uint idx = cpk_scan->idx;
+    cpk_child = get_quick_select_local(
+        thd, examined_rows, expected_rows, return_mem_root, table,
+        /*reuse_handler=*/reuse_handler && !retrieve_full_rows && first,
+        key[idx], real_keynr[idx], HA_MRR_SORTED, 0, cpk_scan->ranges);
+    if (cpk_child == nullptr) {
+      return nullptr;
     }
   }
-  return quick_intrsect;
+
+  return new (return_mem_root) QUICK_ROR_INTERSECT_SELECT(
+      thd, return_mem_root, table, retrieve_full_rows, need_rows_in_rowid_order,
+      move(children), move(cpk_child));
 }
 
 RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double,
                                        MEM_ROOT *return_mem_root, ha_rows *) {
   assert(!need_rows_in_rowid_order);
 
-  DBUG_TRACE;
-  QUICK_ROR_UNION_SELECT *quick_roru =
-      new (return_mem_root) QUICK_ROR_UNION_SELECT(return_mem_root, thd, table);
-  if (quick_roru == nullptr) {
-    return nullptr;
-  }
-
   // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
+  Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(
+      return_mem_root);
   for (AccessPath *scan : ror_scans) {
     if (get_range_scan_type(scan) == QS_TYPE_ROR_INTERSECT) {
       down_cast<TRP_ROR_INTERSECT *>(scan->trp_wrapper().trp)
@@ -216,13 +209,14 @@ RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double,
     unique_ptr_destroy_only<RowIterator> iterator =
         CreateIteratorFromAccessPath(thd, scan, /*join=*/nullptr,
                                      /*eligible_for_batch_mode=*/false);
-    if (iterator == nullptr ||
-        quick_roru->push_quick_back(down_cast<RowIDCapableRowIterator *>(
-            iterator.release()->real_iterator()))) {
+    if (iterator == nullptr) {
       return nullptr;
     }
+    children.push_back(move(iterator));
   }
-  return quick_roru;
+
+  return new (return_mem_root)
+      QUICK_ROR_UNION_SELECT(thd, return_mem_root, table, move(children));
 }
 
 /*
