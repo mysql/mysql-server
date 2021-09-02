@@ -160,8 +160,16 @@ int Primary_election_primary_process::primary_election_process_handler() {
   stage_handler->set_stage(
       info_GR_STAGE_primary_election_buffered_transactions.m_key, __FILE__,
       __LINE__, 1, 0);
+  /*
+   Force primary_change to fail.
+   This is needed so that we move to applier suspension.
+   Maybe this fail will automatically happen during shutdown in real scenario
+  */
+  DBUG_EXECUTE_IF("group_replication_wait_for_current_events_execution_fail",
+                  { error = 1; };);
   if (election_mode != SAFE_OLD_PRIMARY) {
-    if (applier_module->wait_for_current_events_execution(
+    if (error ||
+        applier_module->wait_for_current_events_execution(
             applier_checkpoint_condition, &election_process_aborted, false)) {
       error = 1;
       err_msg.assign("Could not wait for the execution of local transactions.");

@@ -135,6 +135,20 @@ void leave_group_on_failure::leave(
   */
   if (actions[leave_group_on_failure::STOP_APPLIER]) {
     bool aborted = false;
+    DBUG_EXECUTE_IF(
+        "group_replication_wait_for_current_events_execution_fail", {
+          /*
+           Inform the test to execute SHUTDOWN and block for shutdown to send
+           kill For blocking sleep has been used, hopefully in 10 seconds
+           shutdown will send kill to the thread
+           */
+          const char act[] =
+              "now signal "
+              "signal.group_replication_wait_for_current_events_execution_fail_"
+              "applier_add_suspension_packet";
+          assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+          my_sleep(10 * 1000 * 1000);
+        };);
     applier_module->add_suspension_packet();
     applier_module->wait_for_applier_complete_suspension(&aborted, false);
   }
