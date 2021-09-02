@@ -904,4 +904,14 @@ SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 EXPLAIN
 -> Index range scan on t1 using a over (2 <= a <= 2) OR (4 <= a <= 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (cost=2.07 rows=5)
 
+EXPLAIN ANALYZE
+SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
+EXPLAIN
+-> Filter: ((t1.pk > 1) or (t1.a > 2) or (t1.b > 3))  (cost=1.97 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Sort-deduplicate by row ID  (cost=1.97 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Clustered primary key (scanned separately)
+            -> Index range scan on t1 using PRIMARY over (1 < pk)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Index range scan on t1 using a over (2 < a)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Index range scan on t1 using b over (3 < b)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+
 DROP TABLE t1;

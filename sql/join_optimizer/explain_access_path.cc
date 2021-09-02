@@ -495,6 +495,20 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       AddChildrenFromPushedCondition(table, &children);
       break;
     }
+    case AccessPath::INDEX_MERGE: {
+      const auto &param = path->index_merge();
+      description.push_back("Sort-deduplicate by row ID");
+      for (AccessPath *child : *path->index_merge().children) {
+        if (param.table->file->primary_key_is_clustered() &&
+            child->index_range_scan().index == param.table->s->primary_key) {
+          children.push_back(
+              {child, "Clustered primary key (scanned separately)"});
+        } else {
+          children.push_back({child});
+        }
+      }
+      break;
+    }
     case AccessPath::TRP_WRAPPER: {
       TABLE *table = path->trp_wrapper().table;
       // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can

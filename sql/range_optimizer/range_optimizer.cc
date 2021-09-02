@@ -1237,18 +1237,18 @@ static AccessPath *get_best_disjunct_quick(
                         imerge_cost, read_cost));
 
     if (imerge_cost < read_cost || force_index_merge) {
-      TRP_INDEX_MERGE *imerge_trp = new (param->return_mem_root)
-          TRP_INDEX_MERGE(table, force_index_merge);
-      if (imerge_trp == nullptr) {
-        return nullptr;
-      }
-      imerge_path = NewIndexRangeScanAccessPath(
-          thd, imerge_trp->table, imerge_trp, /*count_examined_rows=*/false);
+      imerge_path = new (param->return_mem_root) AccessPath;
+      imerge_path->type = AccessPath::INDEX_MERGE;
+      imerge_path->index_merge().table = table;
+      imerge_path->index_merge().forced_by_hint = force_index_merge;
+      imerge_path->index_merge().children =
+          new (param->return_mem_root) Mem_root_array<AccessPath *>(
+              param->return_mem_root, range_scans, range_scans + n_child_scans);
+
+      // TODO(sgunders): init_cost is high in practice, so should not be zero.
       imerge_path->cost = imerge_cost;
       imerge_path->num_output_rows = min<double>(
           non_cpk_scan_records + cpk_scan_records, table->file->stats.records);
-      imerge_trp->range_scans =
-          Bounds_checked_array<AccessPath *>(range_scans, n_child_scans);
       read_cost = imerge_cost;
     }
   }
@@ -1835,6 +1835,9 @@ static void print_quick(AccessPath *path, const Key_map *needed_reg) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
       table = path->index_range_scan().used_key_part[0].field->table;
+      break;
+    case AccessPath::INDEX_MERGE:
+      table = path->index_merge().table;
       break;
     case AccessPath::TRP_WRAPPER:
       table = path->trp_wrapper().trp->table;

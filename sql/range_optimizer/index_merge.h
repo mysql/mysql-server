@@ -100,7 +100,7 @@ class QUICK_INDEX_MERGE_SELECT : public TableRowIterator {
   // NOTE: Both pk_quick_select (if non-nullptr) and all children must be
   // of the type QUICK_RANGE_SELECT, possibly wrapped in a TimingIterator.
   QUICK_INDEX_MERGE_SELECT(
-      MEM_ROOT *mem_root, THD *thd, TABLE *table,
+      THD *thd, MEM_ROOT *mem_root, TABLE *table,
       unique_ptr_destroy_only<RowIterator> pk_quick_select,
       Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
   ~QUICK_INDEX_MERGE_SELECT() override;

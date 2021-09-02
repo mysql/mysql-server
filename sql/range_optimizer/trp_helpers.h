@@ -33,6 +33,7 @@
  */
 
 #include "sql/join_optimizer/access_path.h"
+#include "sql/range_optimizer/index_merge_plan.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 
@@ -139,6 +140,11 @@ inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
             path->index_range_scan().used_key_part[i].field->field_index());
       }
       break;
+    case AccessPath::INDEX_MERGE:
+      for (AccessPath *child : *path->index_merge().children) {
+        get_fields_used(child, used_fields);
+      }
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->get_fields_used(used_fields);
       break;
@@ -151,6 +157,8 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
       return path->index_range_scan().num_used_key_parts;
+    case AccessPath::INDEX_MERGE:
+      return 0;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->used_key_parts;
     default:
@@ -169,6 +177,13 @@ inline bool uses_index_on_fields(const AccessPath *path,
     case AccessPath::INDEX_RANGE_SCAN:
       return is_key_used(path->index_range_scan().used_key_part[0].field->table,
                          path->index_range_scan().index, fields);
+    case AccessPath::INDEX_MERGE:
+      for (AccessPath *child : *path->index_merge().children) {
+        if (uses_index_on_fields(child, fields)) {
+          return true;
+        }
+      }
+      return false;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->is_keys_used(fields);
     default:
@@ -216,6 +231,28 @@ inline void add_info_string(const AccessPath *path, String *str) {
       str->append(key_info->name);
       break;
     }
+    case AccessPath::INDEX_MERGE: {
+      bool first = true;
+      TABLE *table = path->index_merge().table;
+      str->append(STRING_WITH_LEN("sort_union("));
+
+      // For EXPLAIN compatibility with older versions, PRIMARY is always
+      // printed last.
+      for (bool print_primary : {false, true}) {
+        for (AccessPath *child : *path->index_merge().children) {
+          const bool is_primary = table->file->primary_key_is_clustered() &&
+                                  used_index(child) == table->s->primary_key;
+          if (is_primary != print_primary) continue;
+          if (!first)
+            str->append(',');
+          else
+            first = false;
+          ::add_info_string(child, str);
+        }
+      }
+      str->append(')');
+      break;
+    }
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_info_string(str);
       break;
@@ -245,6 +282,29 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
       used_lengths->append(buf, length);
       break;
     }
+    case AccessPath::INDEX_MERGE: {
+      bool first = true;
+      TABLE *table = path->index_merge().table;
+
+      // For EXPLAIN compatibility with older versions, PRIMARY is always
+      // printed last.
+      for (bool print_primary : {false, true}) {
+        for (AccessPath *child : *path->index_merge().children) {
+          const bool is_primary = table->file->primary_key_is_clustered() &&
+                                  used_index(child) == table->s->primary_key;
+          if (is_primary != print_primary) continue;
+          if (first) {
+            first = false;
+          } else {
+            key_names->append(',');
+            used_lengths->append(',');
+          }
+
+          ::add_keys_and_lengths(child, key_names, used_lengths);
+        }
+      }
+      break;
+    }
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
       break;
@@ -269,6 +329,10 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
     case AccessPath::INDEX_RANGE_SCAN:
       trace_basic_info_index_range_scan(thd, path, param, trace_object);
       break;
+    case AccessPath::INDEX_MERGE: {
+      trace_basic_info_index_merge(thd, path, param, trace_object);
+      break;
+    }
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->trace_basic_info(
           thd, param, path->cost, path->num_output_rows, trace_object);
@@ -286,6 +350,8 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
       return QS_TYPE_RANGE;
+    case AccessPath::INDEX_MERGE:
+      return QS_TYPE_INDEX_MERGE;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->get_type();
     default:
@@ -298,6 +364,8 @@ inline bool get_forced_by_hint(const AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
       return false;  // There is no hint for plain range scan.
+    case AccessPath::INDEX_MERGE:
+      return path->index_merge().forced_by_hint;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->forced_by_hint;
     default:
@@ -318,6 +386,10 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
       dbug_dump_range(indent, verbose, param.used_key_part[0].field->table,
                       param.index, param.used_key_part,
                       {param.ranges, param.num_ranges});
+      break;
+    }
+    case AccessPath::INDEX_MERGE: {
+      dbug_dump_index_merge(indent, verbose, *path->index_merge().children);
       break;
     }
     case AccessPath::TRP_WRAPPER:

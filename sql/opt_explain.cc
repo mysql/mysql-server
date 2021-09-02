@@ -968,7 +968,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     case QS_TYPE_ROR_INTERSECT:
     case QS_TYPE_INDEX_MERGE: {
       StringBuffer<32> buff(cs);
-      range_scan_path->trp_wrapper().trp->add_info_string(&buff);
+      add_info_string(range_scan_path, &buff);
       if (fmt->is_hierarchical()) {
         /*
           We are replacing existing col_key value with a quickselect info,

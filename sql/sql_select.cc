@@ -5232,10 +5232,11 @@ join_type calc_join_type(AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
       return JT_RANGE;
+    case AccessPath::INDEX_MERGE:
+      return JT_INDEX_MERGE;
     case AccessPath::TRP_WRAPPER: {
       int quick_type = path->trp_wrapper().trp->get_type();
-      if ((quick_type == QS_TYPE_INDEX_MERGE) ||
-          (quick_type == QS_TYPE_ROR_INTERSECT) ||
+      if ((quick_type == QS_TYPE_ROR_INTERSECT) ||
           (quick_type == QS_TYPE_ROR_UNION))
         return JT_INDEX_MERGE;
       else

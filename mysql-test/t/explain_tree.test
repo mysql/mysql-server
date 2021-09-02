@@ -528,4 +528,13 @@ ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 
+#
+# EXPLAIN ANALYZE on an IndexMergeIterator. Also demonstrates printing of
+# scanning over clustered primary keys. (The filter is redundant.)
+#
+
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE
+  SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
+
 DROP TABLE t1;

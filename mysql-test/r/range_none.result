@@ -1249,7 +1249,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 EXPLAIN
 -> Filter: (0 not between t1.b and t1.c)  (cost=2.15 rows=3)
-    -> Index range scan on t1 using sort_union(idx1,idx2)  (cost=2.15 rows=3)
+    -> Sort-deduplicate by row ID  (cost=2.15 rows=3)
+        -> Index range scan on t1 using idx1 over (0 < b)  (cost=0.46 rows=2)
+        -> Index range scan on t1 using idx2 over (c < 0)  (cost=0.36 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 (                                      

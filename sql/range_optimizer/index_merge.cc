@@ -52,7 +52,7 @@
 #include "sql_string.h"
 
 QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(
-    MEM_ROOT *return_mem_root, THD *thd, TABLE *table,
+    THD *thd, MEM_ROOT *return_mem_root, TABLE *table,
     unique_ptr_destroy_only<RowIterator> pk_quick_select,
     Mem_root_array<unique_ptr_destroy_only<RowIterator>> children)
     : TableRowIterator(thd, table),

@@ -34,6 +34,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/range_optimizer/geometry.h"
+#include "sql/range_optimizer/index_merge.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_desc.h"
@@ -336,6 +337,30 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
               param.num_used_key_parts));
         }
       }
+      break;
+    }
+    case AccessPath::INDEX_MERGE: {
+      const auto &param = path->index_merge();
+      unique_ptr_destroy_only<RowIterator> pk_quick_select;
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(mem_root);
+      children.reserve(param.children->size());
+      for (AccessPath *range_scan : *param.children) {
+        unique_ptr_destroy_only<RowIterator> child_iterator =
+            CreateIteratorFromAccessPath(thd, range_scan, join,
+                                         /*eligible_for_batch_mode=*/false);
+        if (param.table->file->primary_key_is_clustered() &&
+            range_scan->index_range_scan().index ==
+                param.table->s->primary_key) {
+          assert(pk_quick_select == nullptr);
+          pk_quick_select = std::move(child_iterator);
+        } else {
+          children.push_back(std::move(child_iterator));
+        }
+      }
+
+      iterator = NewIterator<QUICK_INDEX_MERGE_SELECT>(
+          thd, mem_root, mem_root, param.table, std::move(pk_quick_select),
+          std::move(children));
       break;
     }
     case AccessPath::TRP_WRAPPER: {

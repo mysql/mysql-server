@@ -198,6 +198,7 @@ struct AccessPath {
     MRR,
     FOLLOW_TAIL,
     INDEX_RANGE_SCAN,
+    INDEX_MERGE,
     TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
@@ -491,6 +492,14 @@ struct AccessPath {
   const auto &index_range_scan() const {
     assert(type == INDEX_RANGE_SCAN);
     return u.index_range_scan;
+  }
+  auto &index_merge() {
+    assert(type == INDEX_MERGE);
+    return u.index_merge;
+  }
+  const auto &index_merge() const {
+    assert(type == INDEX_MERGE);
+    return u.index_merge;
   }
   auto &trp_wrapper() {
     assert(type == TRP_WRAPPER);
@@ -805,6 +814,11 @@ struct AccessPath {
       // Whether we need a reverse scan. Only supported if geometry == false.
       bool reverse : 1;
     } index_range_scan;
+    struct {
+      TABLE *table;
+      bool forced_by_hint;
+      Mem_root_array<AccessPath *> *children;
+    } index_merge;
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;

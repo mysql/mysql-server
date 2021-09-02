@@ -205,6 +205,12 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
       WalkAccessPaths(path->cache_invalidator().child, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
+    case AccessPath::INDEX_MERGE:
+      for (AccessPath *child : *path->index_merge().children) {
+        WalkAccessPaths(child, join, cross_query_blocks,
+                        std::forward<Func &&>(func), post_order_traversal);
+      }
+      break;
   }
   if (post_order_traversal) {
     if (func(path, join)) {
@@ -295,6 +301,7 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
           case AccessPath::TEMPTABLE_AGGREGATE:
           case AccessPath::WEEDOUT:
           case AccessPath::ZERO_ROWS_AGGREGATED:
+          case AccessPath::INDEX_MERGE:
             return false;
         }
         assert(false);
