@@ -1,0 +1,129 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test verifies that if view changes modification takes time then state
+# of the member is reset to ERROR state.
+# Description : Auto rejoin starts a new view and member moves to RECOVERING
+# and then ONLINE state.
+# It is possible that on a slow machine member will move to RECOVERING/ONLINE
+# and view change time will expire. In such scenario auto rejoin threads
+# initiate member leave, which is in parallel/post to join.
+# When member leaves old state of RECOVERING/ONLINE should be reset to ERROR
+# since member is leaving the group.
+#
+# Test:
+# 0. The test requires three servers.
+# 1. Start 3 servers.
+# 2. Enable auto-rejoin and expel one of the members.
+# 3. Make sure view-change initiated by auto-rejoin has changed member
+#    state out of ERROR.
+#    Unblock wait_for_view_modification to fail during auto rejoin.
+# 4. Verify that the expelled member will try to rejoin the group.
+# 5. Assert member state is set to ERROR on view change failure.
+# 6. Cleanup.
+################################################################################
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/linux.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start 3 servers.
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt.");
+call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
+call mtr.add_suppression("Error while sending message in the group replication incremental recovery process.");
+SET sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+--let $server1_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @group_replication_autorejoin_tries_saved = @@GLOBAL.group_replication_autorejoin_tries;
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Enable auto-rejoin and expel one of the members.
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_autorejoin_tries = 1;
+SET @@GLOBAL.DEBUG='+d,group_replication_skip_wait_for_view_modification';
+SET @@GLOBAL.DEBUG='+d,group_replication_force_view_modification_timeout';
+SET @@GLOBAL.DEBUG='+d,group_replication_autorejoin_allow_join_to_change_state';
+
+# Force expel on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+--echo
+--echo # 3. Make sure view-change initiated by auto-rejoin has changed member
+--echo #    state out of ERROR.
+--echo #    Unblock wait_for_view_modification to fail during auto rejoin.
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_id='$server1_uuid' AND MEMBER_STATE!="ERROR";
+--source include/wait_condition_or_abort.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.group_replication_autorejoin_allow_join_to_change_state_resume";
+
+--echo
+--echo # 4. Verify that the expelled member will try to rejoin the group.
+
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+--let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-013374' AND data LIKE '%Timeout while waiting for a view change event during the auto-rejoin procedure%'
+--source include/wait_condition_or_abort.inc
+
+--let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.error_log WHERE error_code='MY-013375' AND data LIKE '%Auto-rejoin procedure attempt 1 of 1 finished. Member was not able to join the group.%'
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo # 5. Assert member state is set to ERROR on view change failure.
+
+# Should be in ERROR state
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member_id
+--source include/gr_wait_for_member_state.inc
+
+# Verify that super_read_only is enabled
+--source include/assert_and_disable_read_only.inc
+
+--echo
+--echo # 6. Cleanup.
+
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG = @debug_saved;
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+SET @@GLOBAL.group_replication_autorejoin_tries = @group_replication_autorejoin_tries_saved;
+
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc
