@@ -450,14 +450,6 @@ buf_block_t *btr_page_alloc_priv(dict_index_t *index, page_no_t hint_page_no,
 ) {
   buf_block_t *new_block;
 
-#ifdef UNIV_DEBUG
-  {
-    std::ostringstream out;
-    out << "[Allocating Page: mtr=" << (void *)mtr << ", " << loc;
-    mtr->m_trace.push_back(out.str());
-  }
-#endif /* UNIV_DEBUG */
-
   if (dict_index_is_ibuf(index)) {
     return (btr_page_alloc_for_ibuf(index, mtr));
   }
@@ -545,15 +537,6 @@ void btr_page_free_lower(dict_index_t *index, buf_block_t *block, ulint level,
 ) {
   fseg_header_t *seg_header;
   page_t *root;
-
-#ifdef UNIV_DEBUG
-  {
-    std::ostringstream out;
-    out << "[Freeing Page: mtr=" << (void *)mtr
-        << ": page_id=" << block->get_page_id() << ", " << loc << "]";
-    mtr->m_trace.push_back(out.str());
-  }
-#endif /* UNIV_DEBUG */
 
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
   /* The page gets invalid for optimistic searches: increment the frame

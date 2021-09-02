@@ -223,9 +223,7 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   bool conflict = !m_impl.m_memo.for_each_block_in_reverse(iterator);
   if (conflict) {
     print_memos(std::cout);
-    print_trace(std::cout);
     mtr2->print_memos(std::cout);
-    mtr2->print_trace(std::cout);
   }
   return conflict;
 }
@@ -695,9 +693,6 @@ void mtr_t::commit() {
 #endif /* !UNIV_HOTBACKUP */
 
   ut_d(remove_from_debug_list());
-#ifdef UNIV_DEBUG
-  m_trace.clear();
-#endif /* UNIV_DEBUG */
 }
 
 #ifdef UNIV_DEBUG
