@@ -342,6 +342,19 @@ bool Window::setup_range_expressions(THD *thd) {
               return true;
             }
           }
+
+          // Special case to handle "INTERVAL expr" border. It is special
+          // because we allow a general expression there, not just a
+          // literal. If expr is a constant subquery like (SELECT 1), it gets
+          // replaced during fix_fields above with an Item_int. If it is not
+          // constant, we will detect it later in check_constant_bound.
+          if (border_type == WBT_VALUE_PRECEDING ||
+              border_type == WBT_VALUE_FOLLOWING) {
+            Item *border_val = down_cast<Item_func *>(cmp_arg)->arguments()[1];
+            if (border_val != *border->border_ptr())  // replaced?
+              *border->border_ptr() = border_val;
+          }
+
           comparators[i] = Arg_comparator(left_args, right_args);
           bool compare_func_set = false;
           // In case of enum/set type, as ordering is based on
