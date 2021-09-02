@@ -190,6 +190,24 @@ void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
   str->append(STRING_WITH_LEN("@"));
   append_query_string(thd, system_charset_info, &from_host, str);
 }
+
+/**
+  Append the authorization id for the user. This quotes auth_id with ` or "
+  based on the sql_mode set.
+
+  @param [in]       thd     The THD to find the SQL mode
+  @param [in]       user    LEX User to retrieve the plugin string
+  @param [in]       comma   Separator to be prefixed before adding user info
+  @param [in, out]  str     The string in which authID is suffixed
+*/
+void append_auth_id_identifier(const THD *thd, const LEX_USER *user, bool comma,
+                               String *str) {
+  assert(thd);
+  if (comma) str->append(',');
+  append_auth_id_string(thd, user->user.str, user->user.length, user->host.str,
+                        user->host.length, str);
+}
+
 /**
   Used with List<>::sort for alphabetic sorting of LEX_USER records
   using user,host as keys.
@@ -1115,7 +1133,7 @@ void Rewriter_show_create_user::rewrite_password_reuse(const LEX *lex,
 void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
                                                       bool comma,
                                                       String *str) const {
-  append_auth_id(m_thd, user, comma, str);
+  append_auth_id_identifier(m_thd, user, comma, str);
   List_iterator<LEX_MFA> mfa_list(user->mfa_list);
   LEX_MFA *tmp_mfa;
   bool is_passwordless = false;

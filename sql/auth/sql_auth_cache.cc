@@ -603,17 +603,14 @@ bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
                              grant->proxied_host.get_host());
 }
 
-void ACL_PROXY_USER::print_grant(String *str) {
-  str->append(STRING_WITH_LEN("GRANT PROXY ON '"));
-  if (proxied_user) str->append(proxied_user, strlen(proxied_user));
-  str->append(STRING_WITH_LEN("'@'"));
-  if (proxied_host.get_host())
-    str->append(proxied_host.get_host(), strlen(proxied_host.get_host()));
-  str->append(STRING_WITH_LEN("' TO '"));
-  if (user) str->append(user, strlen(user));
-  str->append(STRING_WITH_LEN("'@'"));
-  if (host.get_host()) str->append(host.get_host(), strlen(host.get_host()));
-  str->append(STRING_WITH_LEN("'"));
+void ACL_PROXY_USER::print_grant(THD *thd, String *str) {
+  str->append(STRING_WITH_LEN("GRANT PROXY ON "));
+  append_auth_id_string(thd, proxied_user, get_proxied_user_length(),
+                        proxied_host.get_host(), proxied_host.get_host_len(),
+                        str);
+  str->append(STRING_WITH_LEN(" TO "));
+  append_auth_id_string(thd, user, get_user_length(), host.get_host(),
+                        host.get_host_len(), str);
   if (with_grant) str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 }
 
@@ -682,6 +679,38 @@ void ACL_DB::set_user(MEM_ROOT *mem, const char *user_arg) {
 
 void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
   set_hostname(&host, host_arg, mem);
+}
+
+/**
+  Append the authorization id for the user
+
+  @param [in]       thd     The THD to find the SQL mode
+  @param [in]       user    ACL User to retrieve the user information
+  @param [in, out]  str     The string in which authID is suffixed
+*/
+void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str) {
+  assert(thd);
+  append_auth_id_string(thd, acl_user->user, acl_user->get_username_length(),
+                        acl_user->host.get_host(),
+                        acl_user->host.get_host_len(), str);
+}
+
+/**
+  Append the user@host to the str
+
+  @param [in]       thd      The THD to find the SQL mode
+  @param [in]       user     Username to append to authID
+  @param [in]       user_len Length of Username
+  @param [in]       host     hostname to append to authID
+  @param [in]       host_len Length of hostname
+  @param [in, out]  str      The string in which authID is suffixed
+*/
+void append_auth_id_string(const THD *thd, const char *user, size_t user_len,
+                           const char *host, size_t host_len, String *str) {
+  assert(thd);
+  append_identifier(thd, str, user, user_len);
+  str->append(STRING_WITH_LEN("@"));
+  append_identifier(thd, str, host, host_len);
 }
 
 /**

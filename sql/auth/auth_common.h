@@ -762,6 +762,8 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked);
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
 bool wildcard_db_grant_exists();
+void append_auth_id_string(const THD *thd, const char *user, size_t user_len,
+                           const char *host, size_t host_len, String *str);
 
 /* sql_authorization */
 bool skip_grant_tables();

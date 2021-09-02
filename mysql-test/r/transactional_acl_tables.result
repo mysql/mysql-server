@@ -1251,7 +1251,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
+GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_3";
 SET debug="+d,wl7158_replace_proxies_priv_table_4";
 REVOKE PROXY ON plug_dest FROM u1@h;
@@ -1262,7 +1262,7 @@ Error	3501	The ACL operation failed due to the following error from SE: errcode 
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
 GRANT USAGE ON *.* TO `u1`@`h`
-GRANT PROXY ON 'plug_dest'@'%' TO 'u1'@'h'
+GRANT PROXY ON `plug_dest`@`%` TO `u1`@`h`
 SET debug="-d,wl7158_replace_proxies_priv_table_4";
 DROP USER u1@h;
 CREATE TABLE t1 (a INT);

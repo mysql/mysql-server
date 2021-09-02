@@ -985,11 +985,7 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
     }
   }
   global->append(STRING_WITH_LEN(" ON *.* TO "));
-  size_t len = acl_user->get_username_length();
-  append_identifier(thd, global, acl_user->user, len);
-  global->append('@');
-  append_identifier(thd, global, acl_user->host.get_host(),
-                    acl_user->host.get_host_len());
+  append_auth_id(thd, acl_user, global);
   if (want_access & GRANT_ACL)
     global->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 }
@@ -1042,11 +1038,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       db.append(STRING_WITH_LEN(" ON "));
       append_identifier(thd, &db, db_name.c_str(), db_name.length());
       db.append(STRING_WITH_LEN(".* TO "));
-      append_identifier(thd, &db, role->user, role->get_username_length());
-      db.append('@');
-      // host and lex_user->host are equal except for case
-      append_identifier(thd, &db, role->host.get_host(),
-                        role->host.get_host_len());
+      append_auth_id(thd, role, &db);
       if (want_access & GRANT_ACL)
         db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
       protocol->start_row();
@@ -1089,12 +1081,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
         append_identifier(thd, &db, rl_itr.first.c_str(),
                           rl_itr.first.length());
         db.append(STRING_WITH_LEN(".* FROM "));
-        append_identifier(thd, &db, acl_user->user,
-                          acl_user->get_username_length());
-        db.append('@');
-        // host and lex_user->host are equal except for case
-        append_identifier(thd, &db, acl_user->host.get_host(),
-                          acl_user->host.get_host_len());
+        append_auth_id(thd, acl_user, &db);
         protocol->start_row();
         protocol->store_string(db.ptr(), db.length(), db.charset());
         protocol->end_row();
@@ -1124,7 +1111,7 @@ void make_proxy_privilege_statement(THD *thd [[maybe_unused]], ACL_USER *user,
        proxy != acl_proxy_users->end(); ++proxy) {
     if (proxy->granted_on(user->host.get_host(), user->user)) {
       String global;
-      proxy->print_grant(&global);
+      proxy->print_grant(thd, &global);
       protocol->start_row();
       protocol->store_string(global.ptr(), global.length(), global.charset());
       protocol->end_row();
@@ -1179,11 +1166,7 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
       db.append(STRING_WITH_LEN("FUNCTION "));
     db.append(sp_name.c_str(), sp_name.length());
     db.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &db, role->user, role->get_username_length());
-    db.append(STRING_WITH_LEN("@"));
-    // host and lex_user->host are equal except for case
-    append_identifier(thd, &db, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &db);
     if (want_access & GRANT_ACL)
       db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
@@ -1221,11 +1204,7 @@ void make_with_admin_privilege_statement(
   }
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, acl_user->user,
-                      acl_user->get_username_length());
-    global.append('@');
-    append_identifier(thd, &global, acl_user->host.get_host(),
-                      acl_user->host.get_host_len());
+    append_auth_id(thd, acl_user, &global);
     global.append(" WITH ADMIN OPTION");
 
     protocol->start_row();
@@ -1257,14 +1236,7 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
     if (found) {
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
-      if (role->user != nullptr)
-        append_identifier(thd, &global, role->user,
-                          role->get_username_length());
-      else
-        global.append(STRING_WITH_LEN("''"));
-      global.append('@');
-      append_identifier(thd, &global, role->host.get_host(),
-                        role->host.get_host_len());
+      append_auth_id(thd, role, &global);
       if (grant_option) global.append(" WITH GRANT OPTION");
       protocol->start_row();
       protocol->store_string(global.ptr(), global.length(), global.charset());
@@ -1302,21 +1274,16 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
     if (got_more_granted_roles && !it->second &&
         !(got_more_mandatory_roles && *it2 < it->first)) {
       if (found) global.append(',');
-      append_identifier(thd, &global, it->first.user().c_str(),
-                        it->first.user().length());
-      global.append('@');
-      append_identifier(thd, &global, it->first.host().c_str(),
-                        it->first.host().length());
+      append_auth_id_string(thd, it->first.user().c_str(),
+                            it->first.user().length(), it->first.host().c_str(),
+                            it->first.host().length(), &global);
       found = true;
       if (got_more_mandatory_roles && it->first == *it2) ++it2;
       ++it;
     } else if (got_more_mandatory_roles) {
       if (found) global.append(',');
-      append_identifier(thd, &global, it2->user().c_str(),
-                        it2->user().length());
-      global.append('@');
-      append_identifier(thd, &global, it2->host().c_str(),
-                        it2->host().length());
+      append_auth_id_string(thd, it2->user().c_str(), it2->user().length(),
+                            it2->host().c_str(), it2->host().length(), &global);
       found = true;
       ++it2;
     } else
@@ -1326,10 +1293,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
   }  // end while
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, role->get_username_length());
-    global.append('@');
-    append_identifier(thd, &global, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &global);
     protocol->start_row();
     protocol->store_string(global.ptr(), global.length(), global.charset());
     protocol->end_row();
@@ -1398,11 +1362,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     global.append(STRING_WITH_LEN(" ON "));
     global.append(qualified_table_name.c_str(), qualified_table_name.length());
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, role->get_username_length());
-    global.append('@');
-    // host and lex_user->host are equal except for case
-    append_identifier(thd, &global, role->host.get_host(),
-                      role->host.get_host_len());
+    append_auth_id(thd, role, &global);
     if (agg.table_access & GRANT_ACL)
       global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
