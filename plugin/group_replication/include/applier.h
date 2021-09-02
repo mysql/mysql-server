@@ -314,7 +314,7 @@ class Applier_module : public Applier_module_interface {
       @retval !=0    yes
   */
   bool is_applier_thread_aborted() {
-    return (applier_aborted || applier_thd->killed);
+    return (applier_aborted || applier_thd == nullptr || applier_thd->killed);
   }
 
   /**
@@ -878,8 +878,6 @@ class Applier_module : public Applier_module_interface {
   mysql_cond_t suspend_cond;
   /* Suspend flag that informs if the applier is suspended */
   bool suspended;
-  /* Suspend wait flag used when waiting for the applier to suspend */
-  bool waiting_for_applier_suspension;
 
   /* The condition for signaling the applier suspension*/
   mysql_cond_t suspension_waiting_condition;

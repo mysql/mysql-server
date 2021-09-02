@@ -56,7 +56,6 @@ Applier_module::Applier_module()
       applier_aborted(false),
       applier_error(0),
       suspended(false),
-      waiting_for_applier_suspension(false),
       incoming(nullptr),
       pipeline(nullptr),
       stop_wait_timeout(LONG_TIMEOUT),
@@ -514,6 +513,23 @@ int Applier_module::applier_thread_handle() {
         packet_application_error = apply_leaving_members_action_packet(
             static_cast<Leaving_members_action_packet *>(packet));
         this->incoming->pop();
+        /**
+         @ref group_replication_wait_for_current_events_execution_fail
+         Member leave has been received. Primary change has started in
+         separate thread. Primary change will go to error and try to suspend
+         the applier by adding suspension packet. But we want to kill the
+         applier via shutdown before suspension packet is processed. So block
+         here till SHUTDOWN forwards the KILL signal.
+
+         @note If we do not block here, even if KILL is forwarded suspension
+         packet is processed and kill is seen post processing of suspend
+         packet, hence the DEBUG here
+        */
+        DBUG_EXECUTE_IF(
+            "group_replication_wait_for_current_events_execution_fail", {
+              while (!is_applier_thread_aborted()) my_sleep(1 * 1000 * 1000);
+            };);
+
         break;
       default:
         assert(0); /* purecov: inspected */
@@ -521,6 +537,7 @@ int Applier_module::applier_thread_handle() {
 
     delete packet;
   }
+
   if (packet_application_error) applier_error = packet_application_error;
   delete fde_evt;
   delete cont;
@@ -601,6 +618,9 @@ end:
   my_thread_end();
   applier_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
+  mysql_mutex_lock(&suspend_lock);
+  mysql_cond_broadcast(&suspension_waiting_condition);
+  mysql_mutex_unlock(&suspend_lock);
   mysql_mutex_unlock(&run_lock);
 
   applier_thread_is_exiting = true;
@@ -779,13 +799,14 @@ int Applier_module::wait_for_applier_complete_suspension(
       we_are_waiting = true;
       wait();
   */
-  while (!suspended && !(*abort_flag) && !applier_aborted && !applier_error) {
+  while (!suspended && !(*abort_flag) && !is_applier_thread_aborted() &&
+         !applier_error) {
     mysql_cond_wait(&suspension_waiting_condition, &suspend_lock);
   }
 
   mysql_mutex_unlock(&suspend_lock);
 
-  if (applier_aborted || applier_error)
+  if (is_applier_thread_aborted() || applier_error)
     return APPLIER_THREAD_ABORTED; /* purecov: inspected */
 
   /**
