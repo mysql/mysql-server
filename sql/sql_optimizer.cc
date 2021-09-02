@@ -1159,8 +1159,10 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
   if (where_cond) {
     // Item_func::compile will dereference this pointer, provide valid value.
     uchar i, *dummy = &i;
-    where_cond->compile(&Item::gc_subst_analyzer, &dummy,
-                        &Item::gc_subst_transformer, (uchar *)&indexed_gc);
+    if (where_cond->compile(&Item::gc_subst_analyzer, &dummy,
+                            &Item::gc_subst_transformer,
+                            pointer_cast<uchar *>(&indexed_gc)) == nullptr)
+      return true;
     subst_gc.add("resulting_condition", where_cond);
   }
 

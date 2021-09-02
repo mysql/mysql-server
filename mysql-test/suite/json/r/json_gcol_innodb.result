@@ -120,9 +120,6 @@ a	c
 [1]	1
 [1]	1
 drop table t;
-SET NAMES utf8;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # WL#8170: Expression analyzer for GC.
 # Queries with GC and JSON_EXTRACT  compared to strings should use index
@@ -139,6 +136,7 @@ insert into t1(f1) select f1 from t1;
 insert into t1(f1) values ('"asd"'),('"asdf"'),('"asasas"');
 set @save_opt_sw= @@optimizer_switch;
 set @@optimizer_switch="index_condition_pushdown=off";
+set @string_literal='asd';
 select f1 from t1 where gc = "asd";
 f1
 "asd"
@@ -147,6 +145,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+select f1 from t1 where gc = @string_literal;
+f1
+"asd"
+explain select f1 from t1 where gc = @string_literal;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = (@`string_literal`))
 select f1 from t1 where json_extract(f1,"$") = "asd";
 f1
 "asd"
@@ -155,6 +161,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+select f1 from t1 where json_extract(f1,"$") = @string_literal;
+f1
+"asd"
+explain select f1 from t1 where json_extract(f1,"$") = @string_literal;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = (@`string_literal`))
 select f1 from t1 where "asd" = json_extract(f1,"$");
 f1
 "asd"
@@ -163,6 +177,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ('asd' = `test`.`t1`.`gc`)
+select f1 from t1 where @string_literal = json_extract(f1,"$");
+f1
+"asd"
+explain select f1 from t1 where @string_literal = json_extract(f1,"$");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((@`string_literal`) = `test`.`t1`.`gc`)
+set @string_literal = 'z';
 select f1 from t1 where gc > "z";
 f1
 "zxc"
@@ -174,6 +197,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > 'z')
+select f1 from t1 where gc > @string_literal;
+f1
+"zxc"
+"zxc"
+"zxc"
+"zxc"
+explain select f1 from t1 where gc > @string_literal;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > <cache>((@`string_literal`)))
 select f1 from t1 where json_extract(f1,"$") > "z";
 f1
 "zxc"
@@ -185,6 +219,19 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > 'z')
+select f1 from t1 where json_extract(f1,"$") > @string_literal;
+f1
+"zxc"
+"zxc"
+"zxc"
+"zxc"
+explain select f1 from t1 where json_extract(f1,"$") > @string_literal;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` > <cache>((@`string_literal`)))
+set @string_lo = 'v';
+set @string_hi = 'z';
 select f1 from t1 where gc > "v" and gc < "z";
 f1
 "vbn"
@@ -196,17 +243,38 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > 'v') and (`test`.`t1`.`gc` < 'z'))
-select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
+select f1 from t1 where gc > @string_lo and gc < @string_hi;
 f1
 "vbn"
 "vbn"
 "vbn"
 "vbn"
-explain select f1 from t1 where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
+explain select f1 from t1 where gc > @string_lo and gc < @string_hi;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > 'v') and (`test`.`t1`.`gc` < 'z'))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > <cache>((@`string_lo`))) and (`test`.`t1`.`gc` < <cache>((@`string_hi`))))
+select f1 from t1
+where json_extract(f1,"$") > "v" and json_extract(f1,"$") < "z";
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+select f1 from t1
+where json_extract(f1,"$") > @string_lo and json_extract(f1,"$") < @string_hi;
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+explain
+select f1 from t1
+where json_extract(f1,"$") > @string_lo and json_extract(f1,"$") < @string_hi;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where ((`test`.`t1`.`gc` > <cache>((@`string_lo`))) and (`test`.`t1`.`gc` < <cache>((@`string_hi`))))
 select f1 from t1 where gc between "v" and "z";
 f1
 "vbn"
@@ -218,6 +286,17 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between 'v' and 'z')
+select f1 from t1 where gc between @string_lo and @string_hi;
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+explain select f1 from t1 where gc between @string_lo and @string_hi;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between <cache>((@`string_lo`)) and <cache>((@`string_hi`)))
 select f1 from t1 where json_extract(f1,"$") between "v" and "z";
 f1
 "vbn"
@@ -232,6 +311,24 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the BETWEEN operator'
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between 'v' and 'z')
+select f1 from t1 where json_extract(f1,"$") between @string_lo and @string_hi;
+f1
+"vbn"
+"vbn"
+"vbn"
+"vbn"
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the BETWEEN operator'
+Warnings:
+explain
+select f1 from t1 where json_extract(f1,"$") between @string_lo and @string_hi;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	4	100.00	Using where
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the BETWEEN operator'
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` between <cache>((@`string_lo`)) and <cache>((@`string_hi`)))
+set @string_1 = 'asd';
+set @string_2 = 'asasas';
+set @string_3 = 'asdf';
 select f1 from t1 where gc in ("asd","asasas","asdf");
 f1
 "asasas"
@@ -242,6 +339,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in ('asd','asasas','asdf'))
+select f1 from t1 where gc in (@string_1, @string_2, @string_3);
+f1
+"asasas"
+"asd"
+"asdf"
+explain select f1 from t1 where gc in (@string_1, @string_2, @string_3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in (<cache>((@`string_1`)),<cache>((@`string_2`)),<cache>((@`string_3`))))
 select f1 from t1 where json_extract(f1,"$") in ("asd","asasas","asdf");
 f1
 "asasas"
@@ -252,14 +359,35 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in ('asd','asasas','asdf'))
-select f1 from t1 where json_unquote(json_extract(f1,"$"))="asd";
+select f1 from t1
+where json_extract(f1,"$") in (@string_1, @string_2, @string_3);
+f1
+"asasas"
+"asd"
+"asdf"
+explain
+select f1 from t1
+where json_extract(f1,"$") in (@string_1, @string_2, @string_3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc_idx	gc_idx	83	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` in (<cache>((@`string_1`)),<cache>((@`string_2`)),<cache>((@`string_3`))))
+select f1 from t1 where json_unquote(json_extract(f1,"$")) = "asd";
 f1
 "asd"
-explain select f1 from t1 where json_unquote(json_extract(f1,"$"))="asd";
+explain select f1 from t1 where json_unquote(json_extract(f1,"$")) = "asd";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = 'asd')
+select f1 from t1 where json_unquote(json_extract(f1,"$")) = @string_literal;
+f1
+explain
+select f1 from t1 where json_unquote(json_extract(f1,"$")) = @string_literal;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	gc_idx	gc_idx	83	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`gc` = (@`string_literal`))
 set @@optimizer_switch= @save_opt_sw;
 drop table t1;
 create table t1(f1 varchar(10), gc varchar(10) as (json_unquote(f1)) stored,

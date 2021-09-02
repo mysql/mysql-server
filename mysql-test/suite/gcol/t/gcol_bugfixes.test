@@ -1442,3 +1442,39 @@ INSERT INTO t1 (id, mac) VALUES
 SELECT * FROM t1;
 
 DROP TABLE t1;
+
+
+--echo # Bug#32427727: Functional index ignored by SELECT query from
+--echo #               within stored function
+
+CREATE TABLE t1
+ (pk BIGINT AUTO_INCREMENT PRIMARY KEY,
+  n1 varchar(30),
+  n2 varchar(30),
+  n3 varchar(30),
+  index n12((concat(n1, n2)))
+);
+
+ANALYZE TABLE t1;
+
+DELIMITER |;
+
+CREATE PROCEDURE p1 (str VARCHAR(60))
+BEGIN
+  EXPLAIN
+  SELECT n3, COUNT(*) as 'count'
+  FROM t1
+  WHERE CONCAT(n1,n2) = str
+  GROUP BY n3;
+  SELECT n3, COUNT(*) as 'count'
+  FROM t1
+  WHERE CONCAT(n1,n2) = str
+  GROUP BY n3;
+END |
+
+DELIMITER ;|
+
+CALL p1('str');
+
+DROP PROCEDURE p1;
+DROP TABLE t1;

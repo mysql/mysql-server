@@ -1506,3 +1506,33 @@ id	mac	str	separated
 3	NULL	NULL	NULL
 4	684756486	000028D08E06	00:00:28:D0:8E:06
 DROP TABLE t1;
+# Bug#32427727: Functional index ignored by SELECT query from
+#               within stored function
+CREATE TABLE t1
+(pk BIGINT AUTO_INCREMENT PRIMARY KEY,
+n1 varchar(30),
+n2 varchar(30),
+n3 varchar(30),
+index n12((concat(n1, n2)))
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE PROCEDURE p1 (str VARCHAR(60))
+BEGIN
+EXPLAIN
+SELECT n3, COUNT(*) as 'count'
+  FROM t1
+WHERE CONCAT(n1,n2) = str
+GROUP BY n3;
+SELECT n3, COUNT(*) as 'count'
+  FROM t1
+WHERE CONCAT(n1,n2) = str
+GROUP BY n3;
+END |
+CALL p1('str');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	n12	n12	243	const	1	100.00	Using where; Using temporary
+n3	count
+DROP PROCEDURE p1;
+DROP TABLE t1;
