@@ -408,7 +408,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
          (host.get_host() && host_arg && !strcmp(host.get_host(), host_arg))));
   }
 
-  void print_grant(String *str);
+  void print_grant(THD *thd, String *str);
 
   void set_data(ACL_PROXY_USER *grant) { with_grant = grant->with_grant; }
 
@@ -423,6 +423,12 @@ class ACL_PROXY_USER : public ACL_ACCESS {
                                const LEX_CSTRING &proxied_host,
                                const LEX_CSTRING &proxied_user, bool with_grant,
                                const char *grantor);
+
+  size_t get_user_length() const { return user ? strlen(user) : 0; }
+
+  size_t get_proxied_user_length() const {
+    return proxied_user ? strlen(proxied_user) : 0;
+  }
 };
 
 class acl_entry {

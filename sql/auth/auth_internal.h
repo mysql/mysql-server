@@ -177,6 +177,7 @@ bool acl_reload(THD *thd, bool mdl_locked);
 bool grant_reload(THD *thd, bool mdl_locked);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
+void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str);
 
 /* sql_user_table */
 ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
