@@ -506,25 +506,18 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
 /**
  * @test
  * Verify that bootstrap enables REST API by default. 'mysqlrouter.conf' should
- * contain lines required to enable REST API and connecting to REST API
- * should work.
+ * contain lines required to enable REST API.
  *
  * WL13906:TS_FR03_01
  * WL13906:TS_FR05_01
  */
-TEST_F(TestRestApiEnable, ensure_rest_works) {
+TEST_F(TestRestApiEnable, ensure_rest_is_configured_by_default) {
   ASSERT_NO_FATAL_FAILURE(do_bootstrap({/*default command line arguments*/}));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
   assert_rest_config(config_path, true);
-
-  patch_config_file(config_path.str());
-
-  ProcessManager::launch_router({"-c", config_path.str()});
-
-  assert_rest_works(default_rest_port);
 }
 
 /**
@@ -673,7 +666,8 @@ class RestApiEnableUserCertificates
  */
 TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   create_cert_files(GetParam());
-  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  auto &router_bootstrap =
+      do_bootstrap({"--https-port", std::to_string(custom_port)});
   const auto expected_message = mysqlrouter::string_format(
       "- Using existing certificates from the '%s' directory",
       datadir_path.real_path().c_str());
@@ -689,7 +683,7 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
 
   ProcessManager::launch_router({"-c", config_path.str()});
 
-  assert_rest_works(default_rest_port);
+  assert_rest_works(custom_port);
 }
 
 INSTANTIATE_TEST_SUITE_P(
