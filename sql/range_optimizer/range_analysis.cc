@@ -178,7 +178,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
     // We don't support row constructors (multiple columns on lhs) here.
     if (predicand->type() != Item::FIELD_ITEM) return nullptr;
 
-    Field *field = static_cast<Item_field *>(predicand)->field;
+    Field *field = down_cast<Item_field *>(predicand)->field;
 
     if (op->array && !op->array->is_row_result()) {
       /*
@@ -360,7 +360,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
   // The expression is IN, not negated.
   if (predicand->type() == Item::FIELD_ITEM) {
     // The expression is (<column>) IN (...)
-    Field *field = static_cast<Item_field *>(predicand)->field;
+    Field *field = down_cast<Item_field *>(predicand)->field;
     SEL_TREE *tree =
         get_mm_parts(thd, param, prev_tables, read_tables, op, field,
                      Item_func::EQ_FUNC, op->arguments()[1]);
@@ -387,7 +387,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
       (col1 = const1 AND col2 = const2) OR (col1 = const3 AND col2 = const4)
     */
     SEL_TREE *or_tree = &null_sel_tree;
-    Item_row *row_predicand = static_cast<Item_row *>(predicand);
+    Item_row *row_predicand = down_cast<Item_row *>(predicand);
 
     // Iterate over the rows on the rhs of the in predicate, building an OR.
     for (uint i = 1; i < op->argument_count(); ++i) {
@@ -486,7 +486,7 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
     if (wr.length() == 0) return nullptr;
 
     Field_typed_array *field = down_cast<Field_typed_array *>(
-        static_cast<Item_field *>(predicand)->field);
+        down_cast<Item_field *>(predicand)->field);
     if (wr.type() == enum_json_type::J_ARRAY)
       wr.remove_duplicates(
           field->type() == MYSQL_TYPE_VARCHAR ? field->charset() : nullptr);
@@ -510,7 +510,7 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
     field->coerce_json_value(&elt, true, nullptr);
     SEL_TREE *tree =
         get_mm_parts(thd, param, prev_tables, read_tables, op, field,
-                     Item_func::EQ_FUNC, static_cast<Item_field *>(predicand));
+                     Item_func::EQ_FUNC, down_cast<Item_field *>(predicand));
     // .. and OR with others
     if (tree) {
       for (; i < len; i++) {
@@ -519,7 +519,7 @@ static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
         tree = tree_or(param, remove_jump_scans, tree,
                        get_mm_parts(thd, param, prev_tables, read_tables, op,
                                     field, Item_func::EQ_FUNC,
-                                    static_cast<Item_field *>(predicand)));
+                                    down_cast<Item_field *>(predicand)));
         if (!tree)  // OOM
           break;
       }
@@ -562,7 +562,7 @@ static SEL_TREE *get_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
 
     case Item_func::NE_FUNC:
       if (predicand->type() == Item::FIELD_ITEM) {
-        Field *field = static_cast<Item_field *>(predicand)->field;
+        Field *field = down_cast<Item_field *>(predicand)->field;
         tree =
             get_ne_mm_tree(thd, param, prev_tables, read_tables,
                            remove_jump_scans, cond_func, field, value, value);
@@ -571,7 +571,7 @@ static SEL_TREE *get_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
 
     case Item_func::BETWEEN:
       if (predicand->type() == Item::FIELD_ITEM) {
-        Field *field = static_cast<Item_field *>(predicand)->field;
+        Field *field = down_cast<Item_field *>(predicand)->field;
 
         if (!value) {
           if (inv) {
@@ -613,9 +613,42 @@ static SEL_TREE *get_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
           thd, param, prev_tables, read_tables, remove_jump_scans, predicand,
           cond_func);
     } break;
+
+    case Item_func::MEMBER_OF_FUNC:
+      if (predicand->type() == Item::FIELD_ITEM && predicand->returns_array()) {
+        Field_typed_array *field = down_cast<Field_typed_array *>(
+            down_cast<Item_field *>(predicand)->field);
+        Item *arg = cond_func->arguments()[0];
+
+        Json_wrapper wr;
+        if (arg->val_json(&wr)) {
+          break;
+        }
+
+        assert(!arg->null_value && wr.type() != enum_json_type::J_ERROR);
+
+        if (wr.type() == enum_json_type::J_NULL) {
+          break;
+        }
+
+        // Fake const table for get_mm_parts(), as we are using constants from
+        // JSON array
+
+        const bool save_const = field->table->const_table;
+        field->table->const_table = true;
+        field->set_notnull();
+        field->coerce_json_value(&wr, true, nullptr);
+
+        tree = get_mm_parts(thd, param, prev_tables, read_tables, cond_func,
+                            field, Item_func::EQ_FUNC, predicand);
+
+        field->table->const_table = save_const;
+      }
+      break;
+
     default:
       if (predicand->type() == Item::FIELD_ITEM) {
-        Field *field = static_cast<Item_field *>(predicand)->field;
+        Field *field = down_cast<Item_field *>(predicand)->field;
 
         /*
            Here the function for the following predicates are processed:
@@ -920,6 +953,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
 
     case Item_func::JSON_CONTAINS:
     case Item_func::JSON_OVERLAPS:
+    case Item_func::MEMBER_OF_FUNC:
     case Item_func::IN_FUNC: {
       Item *predicand = cond_func->key_item();
       if (!predicand) return nullptr;

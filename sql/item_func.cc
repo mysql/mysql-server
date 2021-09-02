@@ -1024,6 +1024,7 @@ bool contains_function_of_type(Item *item, Item_func::Functype type) {
 
 Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found) {
+  func = func->real_item();
   Item *expr = fld->gcol_info->expr_item;
 
   /*
@@ -1320,11 +1321,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       Item_result type = args[0]->result_type();
       /*
         Check whether MEMBER OF is applicable for optimization:
-        1) 1st arg is a constant
+        1) 1st arg is constant for execution
         2) .. and it isn't NULL, as MEMBER OF can't be used to lookup NULLs
         3) 2nd arg can be substituted for a GC
       */
-      if (args[0]->const_item() &&                               // 1
+      if (args[0]->const_for_execution() &&                      // 1
           !args[0]->is_null() &&                                 // 2
           args[1]->can_be_substituted_for_gc(/*array=*/true)) {  // 3
         if (substitute_gc_expression(args + 1, args, gc_fields, type, this))
@@ -1338,12 +1339,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       /*
         Check whether JSON_CONTAINS is applicable for optimization:
         1) 1st arg can be substituted with a generated column
-        2) value to lookup is a constant
+        2) value to lookup is constant for execution
         3) value to lookup is a proper JSON doc
         4) value to lookup is an array or scalar
       */
       if (!args[0]->can_be_substituted_for_gc(/*array=*/true) ||  // 1
-          !args[1]->real_item()->const_item())                    // 2
+          !args[1]->const_for_execution())                        // 2
         break;
       if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr) ||  // 3
           args[1]->null_value ||
@@ -1358,17 +1359,17 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
 
       /*
         Check whether JSON_OVERLAPS is applicable for optimization:
-        1) One argument is a constant
+        1) One argument is constant for execution
         2) The other argument can be substituted with a generated column
         3) value to lookup is a proper JSON doc
         4) value to lookup is an array or scalar
       */
       if (args[0]->can_be_substituted_for_gc(/*array=*/true) &&  // 2
-          args[1]->const_item()) {                               // 1
+          args[1]->const_for_execution()) {                      // 1
         func = args;
         vals = 1;
       } else if (args[1]->can_be_substituted_for_gc(/*array=*/true) &&  // 2
-                 args[0]->const_item()) {                               // 1
+                 args[0]->const_for_execution()) {                      // 1
         func = args + 1;
         vals = 0;
       } else {
