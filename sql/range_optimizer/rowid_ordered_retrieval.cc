@@ -351,8 +351,8 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
     uint last_rowid_count = 1;
     while (last_rowid_count < m_children.size()) {
       current_child_idx = (current_child_idx + 1) % m_children.size();
-      RowIterator *child = m_children[current_child_idx].get();
-      const uchar *child_rowid =
+      child = m_children[current_child_idx].get();
+      child_rowid =
           down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->file->ref;
 
       int cmp;
