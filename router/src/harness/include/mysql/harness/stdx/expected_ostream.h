@@ -30,8 +30,6 @@
 #include <ostream>
 #include <type_traits>
 
-#include "mysql/harness/stdx/type_traits.h"
-
 // operator<< for std::expected
 //
 // the functions are kept in a separate header as it
@@ -46,7 +44,7 @@ struct is_to_stream_writable : std::false_type {};
 
 template <typename S, typename T>
 struct is_to_stream_writable<
-    S, T, stdx::void_t<decltype(std::declval<S &>() << std::declval<T>())>>
+    S, T, std::void_t<decltype(std::declval<S &>() << std::declval<T>())>>
     : std::true_type {};
 
 }  // namespace impl

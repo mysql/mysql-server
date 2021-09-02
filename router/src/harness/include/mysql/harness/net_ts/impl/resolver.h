@@ -41,7 +41,6 @@
 
 #include "mysql/harness/net_ts/impl/socket_error.h"  // socket::last_error_code
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/type_traits.h"  // stdx::in_place
 
 namespace net {
 namespace ip {
@@ -262,7 +261,7 @@ getaddrinfo(const char *node, const char *service,
 #endif
   }
 
-  return {stdx::in_place, ainfo, &::freeaddrinfo};
+  return {std::in_place, ainfo, &::freeaddrinfo};
 }
 
 inline stdx::expected<const char *, std::error_code> inetntop(int af,

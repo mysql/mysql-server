@@ -115,13 +115,7 @@ connect_to_notify_socket(net::io_context &io_ctx,
 
       // stay in the loop in case we got interrupted.
     } else {
-#if defined(__SUNPRO_CC)
-      // suncc needs a std::move(), while gcc complains about redundant
-      // std::move().
-      return std::move(sock);
-#else
       return sock;
-#endif
     }
   } while (true);
 }

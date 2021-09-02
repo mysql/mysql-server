@@ -31,8 +31,8 @@
 #include <system_error>
 
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/stdx/attribute.h"  // STDX_NONNULL
 #include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 
 namespace mysql_harness {
 enum class option_errc {
@@ -74,7 +74,7 @@ inline std::error_code make_error_code(option_errc e) noexcept {
 
 class ConfigOption {
  public:
-  ConfigOption(stdx::string_view name, stdx::string_view default_value)
+  ConfigOption(std::string_view name, std::string_view default_value)
       : name_{std::move(name)},
         is_required_{false},
         default_value_{std::move(default_value)} {
@@ -83,8 +83,8 @@ class ConfigOption {
     }
   }
 
-  explicit ConfigOption(::stdx::string_view name)
-      : name_{name}, is_required_{true} {
+  explicit ConfigOption(std::string_view name)
+      : name_{std::move(name)}, is_required_{true} {
     if (name.empty()) {
       throw std::invalid_argument("expected 'name' to be non-empty");
     }

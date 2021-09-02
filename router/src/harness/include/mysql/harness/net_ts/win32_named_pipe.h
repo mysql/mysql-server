@@ -598,14 +598,14 @@ class basic_named_pipe_acceptor : public basic_named_pipe_impl<Protocol> {
       // ERROR_NO_DATA too, it just meands the pipe is already closed, but quite
       // likely readable.
       if (last_ec == ec_pipe_connected || last_ec == ec_no_data) {
-        return {stdx::in_place, get_executor().context(), protocol,
+        return {std::in_place, get_executor().context(), protocol,
                 release().value()};
       }
 
       return stdx::make_unexpected(last_ec);
     }
 
-    return {stdx::in_place, get_executor().context(), protocol,
+    return {std::in_place, get_executor().context(), protocol,
             release().value()};
   }
 

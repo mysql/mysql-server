@@ -576,9 +576,6 @@ TEST(NetTS_io_context, executor_defer_called_once) {
   ASSERT_EQ(global_called, 1);
 }
 
-#if !defined(__SUNPRO_CC)
-// sunproc can't generate move-only lambda's
-
 /**
  * test that net::defer() compiles with move only lambdas.
  */
@@ -604,7 +601,6 @@ TEST(NetTS_io_context, executor_defer_move_only_lambda) {
   ASSERT_EQ(0, io_ctx.run_one());
   ASSERT_EQ(called, 1);
 }
-#endif
 
 // net::is_executor_v<> chokes with solaris-ld on
 //

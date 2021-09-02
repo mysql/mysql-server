@@ -590,11 +590,11 @@ stdx::expected<std::string, std::error_code> cert_get_name(X509_NAME *name) {
 
   BIO_get_mem_ptr(bio.get(), &buf);
 
-  return {stdx::in_place, buf->data, buf->data + buf->length};
+  return {std::in_place, buf->data, buf->data + buf->length};
 #else
   std::array<char, 256> buf;
 
-  return {stdx::in_place, X509_NAME_oneline(name, buf.data(), buf.size())};
+  return {std::in_place, X509_NAME_oneline(name, buf.data(), buf.size())};
 #endif
 }
 

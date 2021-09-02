@@ -86,7 +86,9 @@ using namespace std::chrono_literals;
 static std::atomic<size_t> num_of_non_ready_services{0};
 
 static const char kLogReopenServiceName[] = "log_reopen";
+#if defined(USE_POSIX_SIGNALS)
 static const char kSignalHandlerServiceName[] = "signal_handler";
+#endif
 
 /**
  * @defgroup Loader Plugin loader

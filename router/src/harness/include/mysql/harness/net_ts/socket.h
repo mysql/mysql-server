@@ -550,7 +550,7 @@ class basic_socket_impl : public basic_socket_impl_base {
                                                  endpoint_size);
     if (!res) return stdx::make_unexpected(res.error());
 
-    return {stdx::in_place, io_ctx, protocol_, std::move(res.value())};
+    return {std::in_place, io_ctx, protocol_, std::move(res.value())};
   }
 
   stdx::expected<socket_type, error_type> accept(io_context &io_ctx,

@@ -46,7 +46,7 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-using namespace stdx::string_view_literals;
+using namespace std::string_view_literals;
 IMPORT_LOG_FUNCTIONS()
 
 static std::string get_log_prefix(const mysql_harness::ConfigSection *section,
@@ -437,7 +437,7 @@ uint16_t get_option_max_connections(
     const mysql_harness::ConfigSection *section) {
   const auto result = get_uint_option<uint16_t>(
       section, mysql_harness::ConfigOption(
-                   "max_connections"_sv,
+                   "max_connections"sv,
                    std::to_string(routing::kDefaultMaxConnections)));
 
   auto &routing_component = MySQLRoutingComponent::get_instance();
@@ -461,42 +461,42 @@ RoutingPluginConfig::RoutingPluginConfig(
     const mysql_harness::ConfigSection *section)
     : metadata_cache_(false),
       protocol(
-          get_protocol(section, mysql_harness::ConfigOption("protocol"_sv))),
+          get_protocol(section, mysql_harness::ConfigOption("protocol"sv))),
       destinations(get_option_destinations(
-          section, mysql_harness::ConfigOption("destinations"_sv), protocol,
+          section, mysql_harness::ConfigOption("destinations"sv), protocol,
           metadata_cache_)),
       bind_port(get_option_tcp_port(
-          section, mysql_harness::ConfigOption("bind_port"_sv, ""_sv))),
+          section, mysql_harness::ConfigOption("bind_port"sv, ""sv))),
       bind_address(get_option_tcp_address(
           section,
-          mysql_harness::ConfigOption("bind_address"_sv,
+          mysql_harness::ConfigOption("bind_address"sv,
                                       routing::kDefaultBindAddress),
           false, bind_port)),
       named_socket(get_option_named_socket(
-          section, mysql_harness::ConfigOption("socket"_sv, ""_sv))),
+          section, mysql_harness::ConfigOption("socket"sv, ""sv))),
       connect_timeout(get_uint_option<uint16_t>(
           section,
           mysql_harness::ConfigOption(
-              "connect_timeout"_sv,
+              "connect_timeout"sv,
               std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
                                  routing::kDefaultDestinationConnectionTimeout)
                                  .count())),
           1)),
-      mode(get_option_mode(section, mysql_harness::ConfigOption("mode"_sv))),
+      mode(get_option_mode(section, mysql_harness::ConfigOption("mode"sv))),
       routing_strategy(get_option_routing_strategy(
-          section, mysql_harness::ConfigOption("routing_strategy"_sv), mode,
+          section, mysql_harness::ConfigOption("routing_strategy"sv), mode,
           metadata_cache_)),
       max_connections(get_option_max_connections(section)),
       max_connect_errors(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(
-              "max_connect_errors"_sv,
+              "max_connect_errors"sv,
               std::to_string(routing::kDefaultMaxConnectErrors)),
           1, UINT32_MAX)),
       client_connect_timeout(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(
-              "client_connect_timeout"_sv,
+              "client_connect_timeout"sv,
               std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
                                  routing::kDefaultClientConnectTimeout)
                                  .count())),
@@ -504,54 +504,52 @@ RoutingPluginConfig::RoutingPluginConfig(
       net_buffer_length(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(
-              "net_buffer_length"_sv,
+              "net_buffer_length"sv,
               std::to_string(routing::kDefaultNetBufferLength)),
           1024, 1048576)),
       thread_stack_size(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(
-              "thread_stack_size"_sv,
+              "thread_stack_size"sv,
               std::to_string(mysql_harness::kDefaultStackSizeInKiloBytes)),
           1, 65535)),
       source_ssl_mode{get_option_ssl_mode(
-          section, mysql_harness::ConfigOption("client_ssl_mode"_sv, ""_sv),
+          section, mysql_harness::ConfigOption("client_ssl_mode"sv, ""sv),
           {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
            SslMode::kPassthrough, SslMode::kDefault})},
       source_ssl_cert{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_cert"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("client_ssl_cert"sv, ""sv))},
       source_ssl_key{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_key"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("client_ssl_key"sv, ""sv))},
       source_ssl_cipher{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_cipher"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("client_ssl_cipher"sv, ""sv))},
       source_ssl_curves{get_option_string(
-          section, mysql_harness::ConfigOption("client_ssl_curves"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("client_ssl_curves"sv, ""sv))},
       source_ssl_dh_params{get_option_string(
           section,
-          mysql_harness::ConfigOption("client_ssl_dh_params"_sv, ""_sv))},
+          mysql_harness::ConfigOption("client_ssl_dh_params"sv, ""sv))},
       dest_ssl_mode{get_option_ssl_mode(
           section,
-          mysql_harness::ConfigOption("server_ssl_mode"_sv, "as_client"_sv),
+          mysql_harness::ConfigOption("server_ssl_mode"sv, "as_client"sv),
           {SslMode::kDisabled, SslMode::kPreferred, SslMode::kRequired,
            SslMode::kAsClient})},
       dest_ssl_verify{get_option_ssl_verify(
           section,
-          mysql_harness::ConfigOption("server_ssl_verify"_sv, "disabled"_sv),
+          mysql_harness::ConfigOption("server_ssl_verify"sv, "disabled"sv),
           {SslVerify::kDisabled, SslVerify::kVerifyCa,
            SslVerify::kVerifyIdentity})},
       dest_ssl_cipher{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_cipher"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("server_ssl_cipher"sv, ""sv))},
       dest_ssl_ca_file{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_ca"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("server_ssl_ca"sv, ""sv))},
       dest_ssl_ca_dir{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_capath"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("server_ssl_capath"sv, ""sv))},
       dest_ssl_crl_file{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_crl"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("server_ssl_crl"sv, ""sv))},
       dest_ssl_crl_dir{get_option_string(
-          section,
-          mysql_harness::ConfigOption("server_ssl_crlpath"_sv, ""_sv))},
+          section, mysql_harness::ConfigOption("server_ssl_crlpath"sv, ""sv))},
       dest_ssl_curves{get_option_string(
-          section,
-          mysql_harness::ConfigOption("server_ssl_curves"_sv, ""_sv))} {
+          section, mysql_harness::ConfigOption("server_ssl_curves"sv, ""sv))} {
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both

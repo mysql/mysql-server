@@ -304,12 +304,7 @@ MySQLSession::real_query(const std::string &q) {
     return stdx::make_unexpected(make_mysql_error_code(connection_));
   }
 
-#if defined(__SUNPRO_CC)
-  // ensure sun-cc doesn't try to the copy-constructor on a move-only type
-  return std::move(res);
-#else
   return res;
-#endif
 }
 
 stdx::expected<MySQLSession::mysql_result_type, MysqlError>

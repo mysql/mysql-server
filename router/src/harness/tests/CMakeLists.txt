@@ -128,7 +128,6 @@ ADD_GOOGLETEST_FILE(test_net_ts_local.cc
 SET(TESTS
   test_stdx_bit.cc
   test_stdx_expected.cc
-  test_stdx_string_view.cc
   test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
