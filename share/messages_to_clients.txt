@@ -9655,6 +9655,12 @@ ER_VALUE_OUT_OF_RANGE
 ER_FULLTEXT_WITH_ROLLUP
   eng "MATCH does not support ROLLUP columns."
 
+ER_REGEXP_MISSING_RESOURCE
+  eng "Missing locale resource in regular expression library."
+
+ER_WARN_REGEXP_USING_DEFAULT
+  eng "Regular expression library used default (root) locale."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
