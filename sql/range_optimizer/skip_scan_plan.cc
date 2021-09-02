@@ -118,8 +118,6 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *, double,
 RowIterator *TRP_SKIP_SCAN::make_quick(THD *thd, double,
                                        MEM_ROOT *return_mem_root, ha_rows *) {
   DBUG_TRACE;
-  assert(!need_rows_in_rowid_order);
-
   return new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
       thd, table, index_info, index, range_key_part, index_range_tree,
       eq_prefix_len, eq_prefix_key_parts, eq_prefixes, used_key_parts,

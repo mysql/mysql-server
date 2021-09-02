@@ -1091,8 +1091,8 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   } else if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&  //(3)
              !table->covering_keys.is_clear_all() && best_ref &&          //(3)
              (!tab->range_scan() ||                                       //(3)
-              (get_range_scan_type(tab->range_scan()) ==
-                   QS_TYPE_ROR_INTERSECT &&                      //(3)
+              (tab->range_scan()->type ==
+                   AccessPath::ROWID_INTERSECTION &&             //(3)
                best_ref->read_cost < tab->range_scan()->cost)))  //(3)
   {
     if (tab->range_scan()) {
@@ -1732,7 +1732,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
     // Ok, can use the strategy
 
     if (tab->range_scan() && used_index(tab->range_scan()) == key &&
-        get_range_scan_type(tab->range_scan()) == QS_TYPE_RANGE) {
+        tab->range_scan()->type == AccessPath::INDEX_RANGE_SCAN) {
       quick_uses_applicable_index = true;
       quick_max_keypart = max_keypart;
     }

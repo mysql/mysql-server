@@ -72,74 +72,6 @@ struct ROR_SCAN_INFO {
   uint used_key_parts;
 };
 
-/* Plan for QUICK_ROR_INTERSECT_SELECT scan. */
-
-class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
- public:
-  // intersect_scans (both the pointers and the structs themselves)
-  // must be allocated on return_mem_root, as it will be used
-  // by make_quick(), which can be called after the range optimizer
-  // has returned.
-  TRP_ROR_INTERSECT(TABLE *table_arg, bool forced_by_hint_arg,
-                    KEY_PART *const *key_arg,
-                    Mem_root_array<AccessPath *> intersect_scans_arg,
-                    Cost_estimate index_scan_cost_arg, bool is_covering_arg,
-                    AccessPath *cpk_scan_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
-                        forced_by_hint_arg),
-        intersect_scans(std::move(intersect_scans_arg)),
-        cpk_scan(cpk_scan_arg),
-        is_covering(is_covering_arg),
-        index_scan_cost(index_scan_cost_arg),
-        key(key_arg) {}
-
-  RowIterator *make_quick(THD *thd, double expected_rows,
-                          MEM_ROOT *return_mem_root,
-                          ha_rows *examined_rows) override;
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
-                        double num_output_rows,
-                        Opt_trace_object *trace_object) const override;
-
-  Cost_estimate get_index_scan_cost() const { return index_scan_cost; }
-  bool get_is_covering() const { return is_covering; }
-
-  RangeScanType get_type() const override { return QS_TYPE_ROR_INTERSECT; }
-  bool is_keys_used(const MY_BITMAP *fields) override;
-  void need_sorted_output() override { assert(false); /* Can't do it */ }
-  void get_fields_used(MY_BITMAP *used_fields) const override;
-  void add_info_string(String *str) const override;
-  void add_keys_and_lengths(String *key_names,
-                            String *used_lengths) const override;
-  unsigned get_max_used_key_length() const final;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
-
-  bool retrieve_full_rows = true;
-
-  // If true, the first child scan should reuse table->file instead of
-  // creating its own. This is true if the intersection is the topmost
-  // range scan, but _not_ if it's below a union. (The reasons for this
-  // are unknown.) It can also be negated by logic involving
-  // retrieve_full_rows and is_covering, again for unknown reasons.
-  //
-  // This is not only for performance; multi-table delete has a hidden
-  // dependency on this behavior when running against certain types of
-  // tables (e.g. MyISAM), as it assumes table->file is correctly positioned
-  // when deleting (and not all table types can transfer the position of one
-  // handler to another by using position()).
-  bool reuse_handler = false;
-
- private:
-  /* ROR range scans used in this intersection */
-  Mem_root_array<AccessPath *> intersect_scans;
-  AccessPath *cpk_scan;   /* Clustered PK scan, if there is one */
-  const bool is_covering; /* true if no row retrieval phase is necessary */
-  const Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
-
-  KEY_PART *const *key;
-};
-
 /*
   Plan for QUICK_ROR_UNION_SELECT scan.
 */
@@ -182,5 +114,18 @@ AccessPath *get_best_ror_intersect(
     bool index_merge_intersect_allowed, enum_order order_direction,
     SEL_TREE *tree, const MY_BITMAP *needed_fields, double cost_est,
     bool force_index_merge_result, bool reuse_handler);
+
+void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
+                                         const RANGE_OPT_PARAM *param,
+                                         Opt_trace_object *trace_object);
+
+void add_keys_and_lengths_rowid_intersection(const AccessPath *path,
+                                             String *key_names,
+                                             String *used_lengths);
+
+#ifndef NDEBUG
+void dbug_dump_rowid_intersection(int indent, bool verbose,
+                                  const Mem_root_array<AccessPath *> &children);
+#endif
 
 #endif  // SQL_RANGE_OPTIMIZER_ROWID_ORDERED_RETRIEVAL_PLAN_H_

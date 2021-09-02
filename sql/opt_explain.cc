@@ -1524,8 +1524,7 @@ bool Explain_join::explain_extra() {
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
         (quick_type == QS_TYPE_ROR_INTERSECT &&
-         down_cast<TRP_ROR_INTERSECT *>(range_scan_path->trp_wrapper().trp)
-             ->get_is_covering()) ||
+         range_scan_path->rowid_intersection().is_covering) ||
         /*
           Notice that table->key_read can change on the fly (grep
           for set_keyread); so EXPLAIN CONNECTION reads a changing variable,

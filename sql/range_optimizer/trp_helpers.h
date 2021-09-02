@@ -26,15 +26,13 @@
 /**
   @file
   Various small helpers to abstract over the fact that AccessPath can contain
-  a number of different range scan types. (For the time being, they are all
-  pretty similar, since they are grouped under the TRP_WRAPPER type
-  with a TABLE_READ_PLAN inside, but as we start splitting them out into
-  individual AccessPath types, they will grow more logic.)
+  a number of different range scan types.
  */
 
 #include "sql/join_optimizer/access_path.h"
 #include "sql/range_optimizer/index_merge_plan.h"
 #include "sql/range_optimizer/range_scan_plan.h"
+#include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
@@ -145,6 +143,14 @@ inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
         get_fields_used(child, used_fields);
       }
       break;
+    case AccessPath::ROWID_INTERSECTION:
+      for (AccessPath *child : *path->rowid_intersection().children) {
+        get_fields_used(child, used_fields);
+      }
+      if (path->rowid_intersection().cpk_child != nullptr) {
+        get_fields_used(path->rowid_intersection().cpk_child, used_fields);
+      }
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->get_fields_used(used_fields);
       break;
@@ -158,6 +164,7 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
     case AccessPath::INDEX_RANGE_SCAN:
       return path->index_range_scan().num_used_key_parts;
     case AccessPath::INDEX_MERGE:
+    case AccessPath::ROWID_INTERSECTION:
       return 0;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->used_key_parts;
@@ -184,6 +191,14 @@ inline bool uses_index_on_fields(const AccessPath *path,
         }
       }
       return false;
+    case AccessPath::ROWID_INTERSECTION:
+      for (AccessPath *child : *path->rowid_intersection().children) {
+        if (uses_index_on_fields(child, fields)) {
+          return true;
+        }
+      }
+      return path->rowid_intersection().cpk_child != nullptr &&
+             uses_index_on_fields(path->rowid_intersection().cpk_child, fields);
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->is_keys_used(fields);
     default:
@@ -253,6 +268,23 @@ inline void add_info_string(const AccessPath *path, String *str) {
       str->append(')');
       break;
     }
+    case AccessPath::ROWID_INTERSECTION: {
+      bool first = true;
+      str->append(STRING_WITH_LEN("intersect("));
+      for (AccessPath *current : *path->rowid_intersection().children) {
+        if (!first)
+          str->append(',');
+        else
+          first = false;
+        ::add_info_string(current, str);
+      }
+      if (path->rowid_intersection().cpk_child) {
+        str->append(',');
+        ::add_info_string(path->rowid_intersection().cpk_child, str);
+      }
+      str->append(')');
+      break;
+    }
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_info_string(str);
       break;
@@ -282,29 +314,12 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
       used_lengths->append(buf, length);
       break;
     }
-    case AccessPath::INDEX_MERGE: {
-      bool first = true;
-      TABLE *table = path->index_merge().table;
-
-      // For EXPLAIN compatibility with older versions, PRIMARY is always
-      // printed last.
-      for (bool print_primary : {false, true}) {
-        for (AccessPath *child : *path->index_merge().children) {
-          const bool is_primary = table->file->primary_key_is_clustered() &&
-                                  used_index(child) == table->s->primary_key;
-          if (is_primary != print_primary) continue;
-          if (first) {
-            first = false;
-          } else {
-            key_names->append(',');
-            used_lengths->append(',');
-          }
-
-          ::add_keys_and_lengths(child, key_names, used_lengths);
-        }
-      }
+    case AccessPath::INDEX_MERGE:
+      add_keys_and_lengths_index_merge(path, key_names, used_lengths);
       break;
-    }
+    case AccessPath::ROWID_INTERSECTION:
+      add_keys_and_lengths_rowid_intersection(path, key_names, used_lengths);
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
       break;
@@ -329,10 +344,12 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
     case AccessPath::INDEX_RANGE_SCAN:
       trace_basic_info_index_range_scan(thd, path, param, trace_object);
       break;
-    case AccessPath::INDEX_MERGE: {
+    case AccessPath::INDEX_MERGE:
       trace_basic_info_index_merge(thd, path, param, trace_object);
       break;
-    }
+    case AccessPath::ROWID_INTERSECTION:
+      trace_basic_info_rowid_intersection(thd, path, param, trace_object);
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->trace_basic_info(
           thd, param, path->cost, path->num_output_rows, trace_object);
@@ -352,6 +369,8 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
       return QS_TYPE_RANGE;
     case AccessPath::INDEX_MERGE:
       return QS_TYPE_INDEX_MERGE;
+    case AccessPath::ROWID_INTERSECTION:
+      return QS_TYPE_ROR_INTERSECT;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->get_type();
     default:
@@ -366,6 +385,8 @@ inline bool get_forced_by_hint(const AccessPath *path) {
       return false;  // There is no hint for plain range scan.
     case AccessPath::INDEX_MERGE:
       return path->index_merge().forced_by_hint;
+    case AccessPath::ROWID_INTERSECTION:
+      return path->rowid_intersection().forced_by_hint;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->forced_by_hint;
     default:
@@ -392,6 +413,10 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
       dbug_dump_index_merge(indent, verbose, *path->index_merge().children);
       break;
     }
+    case AccessPath::ROWID_INTERSECTION:
+      dbug_dump_rowid_intersection(indent, verbose,
+                                   *path->index_merge().children);
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->dbug_dump(0, true);
       break;

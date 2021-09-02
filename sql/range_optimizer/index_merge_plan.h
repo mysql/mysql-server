@@ -27,6 +27,7 @@ template <class T>
 class Mem_root_array;
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
+class String;
 class THD;
 struct AccessPath;
 struct MEM_ROOT;
@@ -34,6 +35,9 @@ struct MEM_ROOT;
 void trace_basic_info_index_merge(THD *thd, const AccessPath *path,
                                   const RANGE_OPT_PARAM *param,
                                   Opt_trace_object *trace_object);
+
+void add_keys_and_lengths_index_merge(const AccessPath *path, String *key_names,
+                                      String *used_lengths);
 
 #ifndef NDEBUG
 void dbug_dump_index_merge(int indent, bool verbose,

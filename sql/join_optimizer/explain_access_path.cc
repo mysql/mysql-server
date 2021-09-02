@@ -509,6 +509,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       }
       break;
     }
+    case AccessPath::ROWID_INTERSECTION: {
+      description.push_back("Intersect rows sorted by row ID");
+      for (AccessPath *child : *path->rowid_intersection().children) {
+        children.push_back({child});
+      }
+      break;
+    }
     case AccessPath::TRP_WRAPPER: {
       TABLE *table = path->trp_wrapper().table;
       // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can

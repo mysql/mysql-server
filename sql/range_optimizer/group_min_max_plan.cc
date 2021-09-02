@@ -1713,8 +1713,6 @@ RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
                                            ha_rows *examined_rows) {
   DBUG_TRACE;
 
-  assert(!need_rows_in_rowid_order);
-
   QUICK_RANGE_SELECT *quick_prefix_query_block = nullptr;
   if (!prefix_ranges.empty()) {
     quick_prefix_query_block = new (return_mem_root) QUICK_RANGE_SELECT(

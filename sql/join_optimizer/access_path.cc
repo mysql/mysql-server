@@ -38,6 +38,7 @@
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
@@ -359,6 +360,27 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       iterator = NewIterator<QUICK_INDEX_MERGE_SELECT>(
           thd, mem_root, mem_root, param.table, std::move(pk_quick_select),
           std::move(children));
+      break;
+    }
+    case AccessPath::ROWID_INTERSECTION: {
+      const auto &param = path->rowid_intersection();
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(mem_root);
+      children.reserve(param.children->size());
+      for (AccessPath *range_scan : *param.children) {
+        children.push_back(
+            CreateIteratorFromAccessPath(thd, range_scan, join,
+                                         /*eligible_for_batch_mode=*/false));
+      }
+
+      unique_ptr_destroy_only<RowIterator> cpk_child;
+      if (param.cpk_child != nullptr) {
+        cpk_child = CreateIteratorFromAccessPath(
+            thd, param.cpk_child, join, /*eligible_for_batch_mode=*/false);
+      }
+      iterator = NewIterator<QUICK_ROR_INTERSECT_SELECT>(
+          thd, mem_root, mem_root, param.table, param.retrieve_full_rows,
+          param.need_rows_in_rowid_order, std::move(children),
+          std::move(cpk_child));
       break;
     }
     case AccessPath::TRP_WRAPPER: {

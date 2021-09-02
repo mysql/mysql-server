@@ -42,6 +42,30 @@ void trace_basic_info_index_merge(THD *thd, const AccessPath *path,
   }
 }
 
+void add_keys_and_lengths_index_merge(const AccessPath *path, String *key_names,
+                                      String *used_lengths) {
+  bool first = true;
+  TABLE *table = path->index_merge().table;
+
+  // For EXPLAIN compatibility with older versions, PRIMARY is always
+  // printed last.
+  for (bool print_primary : {false, true}) {
+    for (AccessPath *child : *path->index_merge().children) {
+      const bool is_primary = table->file->primary_key_is_clustered() &&
+                              used_index(child) == table->s->primary_key;
+      if (is_primary != print_primary) continue;
+      if (first) {
+        first = false;
+      } else {
+        key_names->append(',');
+        used_lengths->append(',');
+      }
+
+      ::add_keys_and_lengths(child, key_names, used_lengths);
+    }
+  }
+}
+
 #ifndef NDEBUG
 void dbug_dump_index_merge(int indent, bool verbose,
                            const Mem_root_array<AccessPath *> &children) {

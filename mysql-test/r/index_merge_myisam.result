@@ -557,6 +557,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	99.37	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
+explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+EXPLAIN
+-> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (cost=19.91 rows=29)
+    -> Intersect rows sorted by row ID  (cost=19.91 rows=29)
+        -> Index range scan on t1 using cola over (foo <= cola <= foo)  (cost=4.91 rows=504)
+        -> Index range scan on t1 using colb over (bar <= colb <= bar)  (cost=4.91 rows=504)
+
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	99.37	Using intersect(cola,colb); Using where

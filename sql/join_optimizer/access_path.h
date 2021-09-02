@@ -199,6 +199,7 @@ struct AccessPath {
     FOLLOW_TAIL,
     INDEX_RANGE_SCAN,
     INDEX_MERGE,
+    ROWID_INTERSECTION,
     TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
@@ -500,6 +501,14 @@ struct AccessPath {
   const auto &index_merge() const {
     assert(type == INDEX_MERGE);
     return u.index_merge;
+  }
+  auto &rowid_intersection() {
+    assert(type == ROWID_INTERSECTION);
+    return u.rowid_intersection;
+  }
+  const auto &rowid_intersection() const {
+    assert(type == ROWID_INTERSECTION);
+    return u.rowid_intersection;
   }
   auto &trp_wrapper() {
     assert(type == TRP_WRAPPER);
@@ -822,6 +831,33 @@ struct AccessPath {
       bool forced_by_hint;
       Mem_root_array<AccessPath *> *children;
     } index_merge;
+    struct {
+      TABLE *table;
+      Mem_root_array<AccessPath *> *children;
+
+      // Clustered primary key scan, if any.
+      AccessPath *cpk_child;
+
+      bool forced_by_hint;
+      bool retrieve_full_rows;
+      bool need_rows_in_rowid_order;
+
+      // If true, the first child scan should reuse table->file instead of
+      // creating its own. This is true if the intersection is the topmost
+      // range scan, but _not_ if it's below a union. (The reasons for this
+      // are unknown.) It can also be negated by logic involving
+      // retrieve_full_rows and is_covering, again for unknown reasons.
+      //
+      // This is not only for performance; multi-table delete has a hidden
+      // dependency on this behavior when running against certain types of
+      // tables (e.g. MyISAM), as it assumes table->file is correctly positioned
+      // when deleting (and not all table types can transfer the position of one
+      // handler to another by using position()).
+      bool reuse_handler;
+
+      // true if no row retrieval phase is necessary.
+      bool is_covering;
+    } rowid_intersection;
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;

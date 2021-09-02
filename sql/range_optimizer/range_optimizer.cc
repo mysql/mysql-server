@@ -918,13 +918,8 @@ static AccessPath *get_ror_union_trp(
           *cur_roru_plan = prev_plan;
         else
           return nullptr;
-        roru_index_cost += (*cur_roru_plan)->cost;
-      } else {
-        roru_index_cost +=
-            down_cast<TRP_ROR_INTERSECT *>((*cur_roru_plan)->trp_wrapper().trp)
-                ->get_index_scan_cost()
-                .total_cost();
       }
+      roru_index_cost += (*cur_roru_plan)->cost;
       roru_total_records += (*cur_roru_plan)->num_output_rows;
       roru_intersect_part *=
           (*cur_roru_plan)->num_output_rows / table->file->stats.records;
@@ -970,8 +965,8 @@ static AccessPath *get_ror_union_trp(
         case AccessPath::INDEX_RANGE_SCAN:
           child->index_range_scan().need_rows_in_rowid_order = true;
           break;
-        case AccessPath::TRP_WRAPPER:
-          child->trp_wrapper().trp->need_rows_in_rowid_order = true;
+        case AccessPath::ROWID_INTERSECTION:
+          child->rowid_intersection().need_rows_in_rowid_order = true;
           break;
         default:
           assert(false);

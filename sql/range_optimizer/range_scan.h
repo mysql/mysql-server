@@ -69,7 +69,6 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
   // TODO: pre-allocate space to avoid malloc/free for small number of columns.
   MY_BITMAP column_bitmap;
 
-  friend class TRP_ROR_INTERSECT;
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
