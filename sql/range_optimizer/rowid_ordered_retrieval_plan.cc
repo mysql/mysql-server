@@ -56,6 +56,7 @@
 
 class Opt_trace_context;
 
+using std::max;
 using std::min;
 using std::move;
 
@@ -1065,9 +1066,9 @@ AccessPath *get_best_ror_intersect(
     trp->reuse_handler = reuse_handler;
     path->cost = intersect_best->total_cost.total_cost();
     /* Prevent divisons by zero */
-    ha_rows best_rows = double2rows(intersect_best->out_rows);
-    if (!best_rows) best_rows = 1;
-    table->quick_condition_rows = min(table->quick_condition_rows, best_rows);
+    double best_rows = max(intersect_best->out_rows, 1.0);
+    table->quick_condition_rows =
+        min<ha_rows>(table->quick_condition_rows, best_rows);
     path->num_output_rows = best_rows;
 
     trace_ror.add("rows", path->num_output_rows)
