@@ -5255,6 +5255,10 @@ static const char *construct_prompt() {
         case 'l':
           processed_prompt.append(delimiter_str);
           break;
+        case 'T':
+          if (mysql.server_status & SERVER_STATUS_IN_TRANS)
+            processed_prompt.append("*");
+          break;
         default:
           processed_prompt.append(c);
       }
