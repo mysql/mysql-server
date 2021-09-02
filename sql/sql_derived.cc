@@ -1316,7 +1316,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   // Need to call setup_ftfuncs() if we have pushed down a condition having
   // full text function.
   if (derived_query_block->has_ft_funcs() &&
-      HasFullTextFunction(cond_to_attach)) {
+      contains_function_of_type(cond_to_attach, Item_func::FT_FUNC)) {
     if (setup_ftfuncs(thd, derived_query_block)) {
       return true;
     }

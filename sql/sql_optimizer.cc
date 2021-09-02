@@ -220,13 +220,6 @@ bool JOIN::alloc_indirection_slices() {
   return false;
 }
 
-bool HasFullTextFunction(Item *item) {
-  return WalkItem(item, enum_walk::PREFIX, [](Item *inner_item) {
-    return inner_item->type() == Item::FUNC_ITEM &&
-           down_cast<Item_func *>(inner_item)->functype() == Item_func::FT_FUNC;
-  });
-}
-
 /**
   The List<Item_equal> in COND_EQUAL partially overlaps with the argument list
   in various Item_cond via C-style casts. However, the hypergraph optimizer can
@@ -942,7 +935,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
       primary_tables - const_tables == 1 && order.empty() &&
       best_ref[const_tables]->table_ref->is_fulltext_searched()) {
     for (Item *item : VisibleFields(*fields)) {
-      need_tmp_before_win |= HasFullTextFunction(item);
+      need_tmp_before_win |=
+          contains_function_of_type(item, Item_func::FT_FUNC);
       if (need_tmp_before_win) break;
     }
   }
@@ -1670,8 +1664,7 @@ void JOIN::test_skip_sort() {
 
 static Item_func_match *test_if_ft_index_order(ORDER *order) {
   if (order && order->next == nullptr && order->direction == ORDER_DESC &&
-      (*order->item)->type() == Item::FUNC_ITEM &&
-      down_cast<Item_func *>(*order->item)->functype() == Item_func::FT_FUNC)
+      is_function_of_type(*order->item, Item_func::FT_FUNC))
     return down_cast<Item_func_match *>(*order->item)->get_master();
 
   return nullptr;
@@ -7616,8 +7609,7 @@ static bool add_ft_keys(Key_use_array *keyuse_array, Item *cond,
     } else if (func->arg_count == 2) {
       Item *arg0 = func->arguments()[0];
       Item *arg1 = func->arguments()[1];
-      if (arg1->const_item() && arg0->type() == Item::FUNC_ITEM &&
-          down_cast<Item_func *>(arg0)->functype() == Item_func::FT_FUNC &&
+      if (arg1->const_item() && is_function_of_type(arg0, Item_func::FT_FUNC) &&
           ((functype == Item_func::GE_FUNC &&
             (op_value = arg1->val_real()) > 0) ||
            (functype == Item_func::GT_FUNC &&
@@ -7628,9 +7620,8 @@ static bool add_ft_keys(Key_use_array *keyuse_array, Item *cond,
         else if (functype == Item_func::GT_FUNC)
           op_type = FT_OP_GT;
         cond_func->set_hints_op(op_type, op_value);
-      } else if (arg0->const_item() && arg1->type() == Item::FUNC_ITEM &&
-                 down_cast<Item_func *>(arg1)->functype() ==
-                     Item_func::FT_FUNC &&
+      } else if (arg0->const_item() &&
+                 is_function_of_type(arg1, Item_func::FT_FUNC) &&
                  ((functype == Item_func::LE_FUNC &&
                    (op_value = arg0->val_real()) > 0) ||
                   (functype == Item_func::LT_FUNC &&

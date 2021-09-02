@@ -1199,6 +1199,4 @@ double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
  */
 bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
 
-bool HasFullTextFunction(Item *item);
-
 #endif /* SQL_OPTIMIZER_INCLUDED */

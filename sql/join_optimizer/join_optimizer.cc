@@ -434,15 +434,6 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
   }
 }
 
-bool IsFullTextFunction(const Item *item) {
-  return item->type() == Item::FUNC_ITEM &&
-         down_cast<const Item_func *>(item)->functype() == Item_func::FT_FUNC;
-}
-
-bool HasFullTextFunction(Item *item) {
-  return WalkItem(item, enum_walk::PREFIX, IsFullTextFunction);
-}
-
 /// Returns the MATCH function of a predicate that can be pushed down to a
 /// full-text index. This can be done if the predicate is a MATCH function,
 /// or in some cases (see IsSargableFullTextIndexPredicate() for details)
@@ -1129,7 +1120,7 @@ bool IsSubsumableFullTextPredicate(Item_func *condition) {
     }
     case Item_func::GT_FUNC: {
       // WHERE MATCH (col) AGAINST ('search string') > 0 is subsumable.
-      assert(IsFullTextFunction(condition->get_arg(0)));
+      assert(is_function_of_type(condition->get_arg(0), Item_func::FT_FUNC));
       assert(condition->get_arg(1)->const_item());
       const double value = condition->get_arg(1)->val_real();
       assert(!condition->get_arg(1)->null_value);
@@ -1138,7 +1129,7 @@ bool IsSubsumableFullTextPredicate(Item_func *condition) {
     case Item_func::LT_FUNC: {
       // WHERE 0 < MATCH (col) AGAINST ('search string') subsumable.
       assert(condition->get_arg(0)->const_item());
-      assert(IsFullTextFunction(condition->get_arg(1)));
+      assert(is_function_of_type(condition->get_arg(1), Item_func::FT_FUNC));
       const double value = condition->get_arg(0)->val_real();
       assert(!condition->get_arg(0)->null_value);
       return value == 0;
@@ -1146,14 +1137,14 @@ bool IsSubsumableFullTextPredicate(Item_func *condition) {
     case Item_func::GE_FUNC:
       // WHERE MATCH >= const is not subsumable, but assert the predicate is on
       // the expected form.
-      assert(IsFullTextFunction(condition->get_arg(0)));
+      assert(is_function_of_type(condition->get_arg(0), Item_func::FT_FUNC));
       assert(condition->get_arg(1)->const_item());
       return false;
     case Item_func::LE_FUNC:
       // WHERE const <= MATCH is not subsumable, but assert the predicate is on
       // the expected form.
       assert(condition->get_arg(0)->const_item());
-      assert(IsFullTextFunction(condition->get_arg(1)));
+      assert(is_function_of_type(condition->get_arg(1), Item_func::FT_FUNC));
       return false;
     default:
       // Not a sargable full-text predicate, so we don't expect to be called on
@@ -2877,7 +2868,9 @@ bool CreateTemporaryTableForFullTextFunctions(
   // If we didn't find any full-text functions that needed materialization, we
   // don't need a temporary table.
   if (std::none_of(items_to_materialize.begin(), items_to_materialize.end(),
-                   HasFullTextFunction)) {
+                   [](Item *item) {
+                     return contains_function_of_type(item, Item_func::FT_FUNC);
+                   })) {
     *temp_table = nullptr;
     return false;
   }
@@ -2975,7 +2968,8 @@ bool IsSargableFullTextIndexPredicate(Item *condition) {
   // constant value.
   Item *const_arg = func->get_arg(const_arg_idx);
   Item *match_arg = func->get_arg(1 - const_arg_idx);
-  if (!IsFullTextFunction(match_arg) || !const_arg->const_item()) {
+  if (!is_function_of_type(match_arg, Item_func::FT_FUNC) ||
+      !const_arg->const_item()) {
     return false;
   }
 

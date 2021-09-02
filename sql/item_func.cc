@@ -1001,6 +1001,12 @@ bool is_function_of_type(const Item *item, Item_func::Functype type) {
          down_cast<const Item_func *>(item)->functype() == type;
 }
 
+bool contains_function_of_type(Item *item, Item_func::Functype type) {
+  return WalkItem(item, enum_walk::PREFIX, [type](Item *inner_item) {
+    return is_function_of_type(inner_item, type);
+  });
+}
+
 /**
   Return new Item_field if given expression matches GC
 
@@ -7861,9 +7867,8 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
   /* We ignore FT_SORTED flag when checking for equality since result is
-     equvialent regardless of sorting */
-  if (item->type() != FUNC_ITEM ||
-      down_cast<const Item_func *>(item)->functype() != FT_FUNC ||
+     equivalent regardless of sorting */
+  if (!is_function_of_type(item, FT_FUNC) ||
       (flags | FT_SORTED) !=
           (down_cast<const Item_func_match *>(item)->flags | FT_SORTED))
     return false;

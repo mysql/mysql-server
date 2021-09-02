@@ -4021,4 +4021,7 @@ extern bool volatile mqh_used;
 /// Checks if "item" is a function of the specified type.
 bool is_function_of_type(const Item *item, Item_func::Functype type);
 
+/// Checks if "item" contains a function of the specified type.
+bool contains_function_of_type(Item *item, Item_func::Functype type);
+
 #endif /* ITEM_FUNC_INCLUDED */

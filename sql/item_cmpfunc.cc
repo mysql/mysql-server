@@ -5372,8 +5372,7 @@ Item *make_condition(Parse_context *pc, Item *item) {
   assert(!item->is_bool_func());
 
   Item *predicate;
-  if (item->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(item)->functype() != Item_func::FT_FUNC) {
+  if (!is_function_of_type(item, Item_func::FT_FUNC)) {
     Item *const item_zero = new (pc->mem_root) Item_int(0);
     if (item_zero == nullptr) return nullptr;
     predicate = new (pc->mem_root) Item_func_ne(item_zero, item);
