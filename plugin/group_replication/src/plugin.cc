@@ -1814,6 +1814,14 @@ bool attempt_rejoin() {
       } else {
         // Only log a error when a view modification was not cancelled.
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_TIMEOUT_RECEIVED_VC_ON_REJOIN);
+        DBUG_EXECUTE_IF(
+            "group_replication_autorejoin_allow_join_to_change_state", {
+              const char act[] =
+                  "now wait_for "
+                  "signal.group_replication_autorejoin_allow_join_to_change_"
+                  "state_resume";
+              assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+            });
       }
     } else {
       /*
@@ -1860,6 +1868,10 @@ end:
     */
     gcs_module->leave(nullptr);
     gcs_module->finalize();
+    Notification_context ctx;
+    group_member_mgr->update_member_status(
+        local_member_info->get_uuid(), Group_member_info::MEMBER_ERROR, ctx);
+    notify_and_reset_ctx(ctx);
   }
 
   gcs_module->remove_view_notifer(view_change_notifier);
