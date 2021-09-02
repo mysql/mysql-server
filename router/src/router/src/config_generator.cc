@@ -492,13 +492,7 @@ static stdx::expected<std::ofstream, std::error_code> open_ofstream(
         std::error_code{errno, std::generic_category()});
   }
 
-#ifdef __SUNPRO_CC
-  // make sure sun-cc uses the move-constructor (and not the non-existant
-  // copy-constructor)
-  return {std::move(of)};
-#else
   return of;
-#endif
 }
 
 void ConfigGenerator::bootstrap_system_deployment(
