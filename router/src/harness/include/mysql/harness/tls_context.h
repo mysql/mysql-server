@@ -63,6 +63,10 @@ enum class TlsVerify { NONE, PEER };
 class HARNESS_TLS_EXPORT TlsLibraryContext {
  public:
   TlsLibraryContext();
+  TlsLibraryContext(const TlsLibraryContext &) = delete;
+  TlsLibraryContext(TlsLibraryContext &&) = delete;
+  TlsLibraryContext &operator=(const TlsLibraryContext &) = delete;
+  TlsLibraryContext &operator=(TlsLibraryContext &&) = delete;
   ~TlsLibraryContext();
 };
 
