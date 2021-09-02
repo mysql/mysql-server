@@ -17,3 +17,14 @@ SELECT 0 FROM t1 FORCE INDEX FOR GROUP BY(a) WHERE a = 0 OR b = 0 AND c = 0;
 0
 DROP TABLE t1;
 End of 5.6 tests
+#
+# Bug#33250020: regression: FullTextSearchIterator::Init():
+#               Assertion `m_ft_func->ft_handler != nullptr' failed.
+#
+CREATE TABLE t(a VARCHAR(10), FULLTEXT (a)) ENGINE = BLACKHOLE;
+INSERT INTO t VALUES ('abc'), ('xyz');
+SELECT MATCH (a) AGAINST ('abc') AS score FROM t;
+score
+SELECT 1 FROM t WHERE MATCH (a) AGAINST ('abc');
+1
+DROP TABLE t;

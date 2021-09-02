@@ -7640,7 +7640,9 @@ bool Item_func_match::init_search(THD *thd) {
 
   assert(master == nullptr);
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
-  if (thd->is_error()) return true;
+  if (ft_handler == nullptr) {
+    return true;
+  }
 
   if (score_from_index_scan) table->file->ft_handler = ft_handler;
 

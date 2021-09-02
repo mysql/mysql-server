@@ -4163,7 +4163,11 @@ bool FullTextSearchIterator::Init() {
   // Mark the full-text function as reading from an index scan, and initialize
   // the full-text index scan.
   m_ft_func->score_from_index_scan = true;
-  table()->file->ft_init();
+  if (int error = table()->file->ft_init(); error != 0) {
+    PrintError(error);
+    return true;
+  }
+
   return false;
 }
 
