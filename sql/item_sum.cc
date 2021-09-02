@@ -559,6 +559,17 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
       if (aggr_query_block->inner_sum_func_list == this)
         aggr_query_block->inner_sum_func_list = prev;
     }
+    // Replace the removed item with a NULL value. Perform a replace rather
+    // than a removal so that the size of the array stays the same. A hidden
+    // NULL value will not affect processing of the query block.
+    for (size_t i = 0; i < aggr_query_block->fields.size(); i++) {
+      if (aggr_query_block->fields[i] == this) {
+        Item_null *null_item = new Item_null();
+        null_item->hidden = true;
+        aggr_query_block->fields[i] = null_item;
+        break;
+      }
+    }
   }
 
   return false;
