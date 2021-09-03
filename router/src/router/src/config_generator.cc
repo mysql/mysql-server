@@ -423,25 +423,25 @@ void ConfigGenerator::init(
 
   // throws std::runtime_error, std::logic_error,
   connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
-  auto schema_version = mysqlrouter::get_metadata_schema_version(mysql_.get());
+  schema_version_ = mysqlrouter::get_metadata_schema_version(mysql_.get());
 
-  if (schema_version == mysqlrouter::kUpgradeInProgressMetadataVersion) {
+  if (schema_version_ == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(
         "Currently the cluster metadata update is in progress. Please rerun "
         "the bootstrap when it is finished.");
   }
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
-                                             schema_version)) {
+                                             schema_version_)) {
     throw std::runtime_error(mysqlrouter::string_format(
         "This version of MySQL Router is not compatible with the provided "
         "MySQL InnoDB cluster metadata. Expected metadata version %s, "
         "got %s",
         to_string(kRequiredBootstrapSchemaVersion).c_str(),
-        to_string(schema_version).c_str()));
+        to_string(schema_version_).c_str()));
   }
 
-  metadata_ = mysqlrouter::create_metadata(schema_version, mysql_.get(),
+  metadata_ = mysqlrouter::create_metadata(schema_version_, mysql_.get(),
                                            bootstrap_options);
 
   // at this point we know the cluster type so let's do additional verifications
@@ -2020,6 +2020,42 @@ static void save_initial_dynamic_state(
   mdc_dynamic_state.save(state_stream);
 }
 
+/**
+ * Add proper authentication backend section to the config based on the
+ * metadata version. If needed it creates an empty authentication password
+ * file used in the config.
+ *
+ * @param[in] datadir - path of a router data directory
+ * @param[in] auth_backend_name - authentication backend section name
+ * @param[in] schema_version - metadata schema version
+ *
+ * @return http_auth_backend config section string
+ */
+static std::string create_http_auth_backend_section(
+    const mysql_harness::Path &datadir,
+    const std::string_view auth_backend_name,
+    const mysqlrouter::MetadataSchemaVersion schema_version) {
+  if (metadata_schema_version_is_compatible(kNewMetadataVersion,
+                                            schema_version)) {
+    return mysql_harness::ConfigBuilder::build_section(
+        std::string{"http_auth_backend:"}.append(auth_backend_name),
+        {{"backend", "metadata_cache"}});
+  } else {
+    const auto auth_backend_passwd_file =
+        datadir.join("auth_backend_passwd_file").str();
+    const auto open_res = open_ofstream(auth_backend_passwd_file);
+    if (!open_res) {
+      log_warning("Cannot create file '%s': %s",
+                  auth_backend_passwd_file.c_str(),
+                  open_res.error().message().c_str());
+    }
+
+    return mysql_harness::ConfigBuilder::build_section(
+        std::string{"http_auth_backend:"}.append(auth_backend_name),
+        {{"backend", "file"}, {"filename", auth_backend_passwd_file}});
+  }
+}
+
 /*static*/ std::string ConfigGenerator::gen_metadata_cache_routing_section(
     bool is_classic, bool is_writable, const Options::Endpoint endpoint,
     const Options &options, const std::string &metadata_key) {
@@ -2203,9 +2239,8 @@ std::string ConfigGenerator::generate_config_for_rest(
   config << mysql_harness::ConfigBuilder::build_section("rest_api", {});
 
   config << "\n\n";
-  config << mysql_harness::ConfigBuilder::build_section(
-      "http_auth_backend:" + auth_backend_name,
-      {{"backend", "metadata_cache"}});
+  config << create_http_auth_backend_section(datadir_path, auth_backend_name,
+                                             schema_version_);
 
   config << "\n\n";
   config << mysql_harness::ConfigBuilder::build_section(
