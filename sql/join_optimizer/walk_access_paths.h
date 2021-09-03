@@ -84,6 +84,7 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
     case AccessPath::MRR:
     case AccessPath::FOLLOW_TAIL:
     case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
     case AccessPath::TRP_WRAPPER:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
@@ -269,6 +270,8 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
             return func(path->follow_tail().table);
           case AccessPath::INDEX_RANGE_SCAN:
             return func(path->index_range_scan().used_key_part[0].field->table);
+          case AccessPath::INDEX_SKIP_SCAN:
+            return func(path->index_skip_scan().table);
           case AccessPath::TRP_WRAPPER:
             return func(path->trp_wrapper().table);
           case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:

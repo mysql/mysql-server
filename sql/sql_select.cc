@@ -5231,6 +5231,7 @@ uint actual_key_flags(const KEY *key_info) {
 join_type calc_join_type(AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
     case AccessPath::TRP_WRAPPER:
       return JT_RANGE;
     case AccessPath::INDEX_MERGE:

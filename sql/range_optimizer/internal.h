@@ -153,4 +153,7 @@ class SEL_IMERGE {
 */
 #define double2rows(x) ((ha_rows)(x))
 
+void print_key_value(String *out, const KEY_PART_INFO *key_part,
+                     const uchar *key);
+
 #endif  // SQL_RANGE_OPTIMIZER_INTERNAL_H_

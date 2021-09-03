@@ -39,6 +39,8 @@
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_desc.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
+#include "sql/range_optimizer/skip_scan.h"
+#include "sql/range_optimizer/skip_scan_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
@@ -392,6 +394,18 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
 
       iterator = NewIterator<QUICK_ROR_UNION_SELECT>(
           thd, mem_root, mem_root, param.table, std::move(children));
+      break;
+    }
+    case AccessPath::INDEX_SKIP_SCAN: {
+      const IndexSkipScanParameters *param = path->index_skip_scan().param;
+      iterator = NewIterator<QUICK_SKIP_SCAN_SELECT>(
+          thd, mem_root, path->index_skip_scan().table, param->index_info,
+          path->index_skip_scan().index, param->eq_prefix_len,
+          param->eq_prefix_key_parts, param->eq_prefixes,
+          path->index_skip_scan().num_used_key_parts, mem_root,
+          param->has_aggregate_function, param->min_range_key,
+          param->max_range_key, param->min_search_key, param->max_search_key,
+          param->range_cond_flag, param->range_key_len);
       break;
     }
     case AccessPath::TRP_WRAPPER: {

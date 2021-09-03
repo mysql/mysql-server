@@ -1446,8 +1446,8 @@ int index_next_different(bool is_index_scan, handler *file,
   @param[in]  key_part     Index components description
   @param[in]  key          Key tuple
 */
-static void print_key_value(String *out, const KEY_PART_INFO *key_part,
-                            const uchar *key) {
+void print_key_value(String *out, const KEY_PART_INFO *key_part,
+                     const uchar *key) {
   Field *field = key_part->field;
 
   if (field->is_flag_set(BLOB_FLAG)) {

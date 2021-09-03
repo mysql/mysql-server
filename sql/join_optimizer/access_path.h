@@ -57,6 +57,7 @@ class Table_function;
 class Temp_table_param;
 class Window;
 struct AccessPath;
+struct IndexSkipScanParameters;
 struct KEY_PART;
 struct ORDER;
 struct POSITION;
@@ -201,6 +202,7 @@ struct AccessPath {
     INDEX_MERGE,
     ROWID_INTERSECTION,
     ROWID_UNION,
+    INDEX_SKIP_SCAN,
     TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
@@ -518,6 +520,14 @@ struct AccessPath {
   const auto &rowid_union() const {
     assert(type == ROWID_UNION);
     return u.rowid_union;
+  }
+  auto &index_skip_scan() {
+    assert(type == INDEX_SKIP_SCAN);
+    return u.index_skip_scan;
+  }
+  const auto &index_skip_scan() const {
+    assert(type == INDEX_SKIP_SCAN);
+    return u.index_skip_scan;
   }
   auto &trp_wrapper() {
     assert(type == TRP_WRAPPER);
@@ -872,6 +882,15 @@ struct AccessPath {
       Mem_root_array<AccessPath *> *children;
       bool forced_by_hint;
     } rowid_union;
+    struct {
+      TABLE *table;
+      unsigned index;
+      unsigned num_used_key_parts;
+      bool forced_by_hint;
+
+      // Large, so split out into its own allocation.
+      IndexSkipScanParameters *param;
+    } index_skip_scan;
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;

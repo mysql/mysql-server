@@ -51,6 +51,7 @@
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/skip_scan.h"
 #include "sql/range_optimizer/tree.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -65,28 +66,31 @@ struct MEM_ROOT;
 using std::max;
 using std::min;
 
-void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *, double,
-                                     double,
-                                     Opt_trace_object *trace_object) const {
-  trace_object->add_alnum("type", "skip_scan")
-      .add_utf8("index", index_info->name);
+void trace_basic_info_index_skip_scan(THD *thd, const AccessPath *path,
+                                      const RANGE_OPT_PARAM *,
+                                      Opt_trace_object *trace_object) {
+  const IndexSkipScanParameters *param = path->index_skip_scan().param;
 
-  const KEY_PART_INFO *key_part = index_info->key_part;
+  trace_object->add_alnum("type", "skip_scan")
+      .add_utf8("index", param->index_info->name);
+
+  const KEY_PART_INFO *key_part = param->index_info->key_part;
   Opt_trace_context *const trace = &thd->opt_trace;
   {
     Opt_trace_array trace_keyparts(trace, "key_parts_used_for_access");
-    for (uint partno = 0; partno < used_key_parts; partno++) {
+    for (uint partno = 0; partno < path->index_skip_scan().num_used_key_parts;
+         partno++) {
       const KEY_PART_INFO *cur_key_part = key_part + partno;
       trace_keyparts.add_utf8(cur_key_part->field->field_name);
     }
   }
 
-  if (index_range_tree && eq_prefix_key_parts > 0) {
+  if (param->index_range_tree && param->eq_prefix_key_parts > 0) {
     Opt_trace_array trace_range(trace, "prefix ranges");
     String range_info;
     range_info.set_charset(system_charset_info);
     append_range_all_keyparts(&trace_range, nullptr, &range_info,
-                              index_range_tree, key_part, false);
+                              param->index_range_tree, key_part, false);
   }
 
   Opt_trace_array trace_range(trace, "range");
@@ -94,35 +98,14 @@ void TRP_SKIP_SCAN::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *, double,
     String range_info;
     range_info.set_charset(system_charset_info);
     const KEY_PART_INFO *cur_key_part =
-        key_part + range_part_tracing_only->part;
-    append_range(
-        &range_info, cur_key_part, range_part_tracing_only->min_value,
-        range_part_tracing_only->max_value,
-        range_part_tracing_only->min_flag | range_part_tracing_only->max_flag);
+        key_part + param->range_part_tracing_only->part;
+    append_range(&range_info, cur_key_part,
+                 param->range_part_tracing_only->min_value,
+                 param->range_part_tracing_only->max_value,
+                 param->range_part_tracing_only->min_flag |
+                     param->range_part_tracing_only->max_flag);
     trace_range.add_utf8(range_info.ptr(), range_info.length());
   }
-}
-
-/**
-  Construct a new quick select object for queries doing skip scans.
-
-  SYNOPSIS
-    TRP_SKIP_SCAN::make_quick()
-    return_mem_root    Memory pool to use
-
-  RETURN
-    New QUICK_SKIP_SCAN_SELECT object if successfully created,
-    NULL otherwise.
-*/
-
-RowIterator *TRP_SKIP_SCAN::make_quick(THD *thd, double,
-                                       MEM_ROOT *return_mem_root, ha_rows *) {
-  DBUG_TRACE;
-  return new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
-      thd, table, index_info, index, eq_prefix_len, eq_prefix_key_parts,
-      eq_prefixes, used_key_parts, return_mem_root, has_aggregate_function,
-      min_range_key, max_range_key, min_search_key, max_search_key,
-      range_cond_flag, range_key_len);
 }
 
 static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
@@ -513,24 +496,34 @@ AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
     }
   }
 
-  TRP_SKIP_SCAN *read_plan = new (param->return_mem_root) TRP_SKIP_SCAN(
-      table, index_info, index, index_range_tree, eq_prefix_len,
-      eq_prefix_key_parts, eq_prefixes, range_key_part, used_key_parts,
-      force_skip_scan, has_aggregate_function, min_range_key, max_range_key,
-      min_search_key, max_search_key, range_cond_flag,
-      /*range_part_tracing_only=*/range_sel_arg->first(), range_key_len);
-  if (read_plan) {
-    AccessPath *path =
-        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
-                                    /*count_examined_rows=*/false);
-    path->cost = best_read_cost.total_cost();
-    path->num_output_rows = best_records;
-    DBUG_PRINT("info", ("Returning skip scan: cost: %g, records: %g",
-                        path->cost, path->num_output_rows));
-    return path;
-  } else {
-    return nullptr;
-  }
+  AccessPath *path = new (param->return_mem_root) AccessPath;
+  path->type = AccessPath::INDEX_SKIP_SCAN;
+  path->cost = best_read_cost.total_cost();
+  path->num_output_rows = best_records;
+
+  IndexSkipScanParameters *ext =
+      new (param->return_mem_root) IndexSkipScanParameters;
+  ext->index_info = index_info;
+  ext->eq_prefix_len = eq_prefix_len;
+  ext->eq_prefix_key_parts = eq_prefix_key_parts;
+  ext->eq_prefixes = eq_prefixes;
+  ext->range_key_part = range_key_part;
+  ext->min_range_key = min_range_key;
+  ext->max_range_key = max_range_key;
+  ext->min_search_key = min_search_key;
+  ext->max_search_key = max_search_key;
+  ext->range_cond_flag = range_cond_flag;
+  ext->range_key_len = range_key_len;
+  ext->range_part_tracing_only = range_sel_arg->first();
+  ext->index_range_tree = index_range_tree;
+  ext->has_aggregate_function = has_aggregate_function;
+
+  path->index_skip_scan().table = table;
+  path->index_skip_scan().index = index;
+  path->index_skip_scan().num_used_key_parts = used_key_parts;
+  path->index_skip_scan().forced_by_hint = force_skip_scan;
+  path->index_skip_scan().param = ext;
+  return path;
 }
 
 /**
@@ -548,8 +541,8 @@ AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
     trace_idx            [in] optimizer_trace object
 
   DESCRIPTION
-    This method computes the access cost of a TRP_SKIP_SCAN instance and
-    the number of rows returned.
+    This method computes the access cost of an INDEX_SKIP_SCAN access path
+    and the number of rows returned.
 
   NOTES
 
@@ -658,53 +651,17 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
               (ulong)table_records, (uint)keys_per_group, (ulong)*records));
 }
 
-void TRP_SKIP_SCAN::add_info_string(String *str) const {
-  str->append(STRING_WITH_LEN("index_for_skip_scan("));
-  str->append(index_info->name);
-  str->append(')');
-}
-
-/**
-  Append comma-separated list of keys this quick select uses to key_names;
-  append comma-separated list of corresponding used lengths to used_lengths.
-
-  SYNOPSIS
-    TRP_SKIP_SCAN::add_keys_and_lengths()
-    key_names    [out] Names of used indexes
-    used_lengths [out] Corresponding lengths of the index names
-
-  DESCRIPTION
-    This method is used by select_describe to extract the names of the
-    indexes used by a quick select.
-
- */
-
-void TRP_SKIP_SCAN::add_keys_and_lengths(String *key_names,
-                                         String *used_lengths) const {
-  key_names->append(index_info->name);
-
-  char buf[64];
-  uint length = longlong10_to_str(get_max_used_key_length(), buf, 10) - buf;
-  used_lengths->append(buf, length);
-}
-
-unsigned TRP_SKIP_SCAN::get_max_used_key_length() const {
-  int max_used_key_length = 0;
-  KEY_PART_INFO *p = index_info->key_part;
-  for (uint i = 0; i < used_key_parts; i++, p++) {
-    max_used_key_length += p->store_length;
-  }
-  return max_used_key_length;
-}
-
 #ifndef NDEBUG
-void TRP_SKIP_SCAN::dbug_dump(int indent, bool verbose) {
+void dbug_dump_index_skip_scan(int indent, bool verbose,
+                               const AccessPath *path) {
+  const IndexSkipScanParameters *param = path->index_skip_scan().param;
   fprintf(DBUG_FILE,
           "%*squick_skip_scan_query_block: index %s (%d), length: %d\n", indent,
-          "", index_info->name, index, get_max_used_key_length());
-  if (eq_prefix_len > 0) {
+          "", param->index_info->name, path->index_skip_scan().index,
+          get_max_used_key_length(path));
+  if (param->eq_prefix_len > 0) {
     fprintf(DBUG_FILE, "%*susing eq_prefix with length %d:\n", indent, "",
-            eq_prefix_len);
+            param->eq_prefix_len);
   }
 
   if (verbose) {
@@ -712,20 +669,21 @@ void TRP_SKIP_SCAN::dbug_dump(int indent, bool verbose) {
     buff1[0] = '\0';
     String range_result(buff1, sizeof(buff1), system_charset_info);
 
-    if (index_range_tree && eq_prefix_key_parts > 0) {
+    if (param->index_range_tree && param->eq_prefix_key_parts > 0) {
       range_result.length(0);
       char buff2[128];
       String range_so_far(buff2, sizeof(buff2), system_charset_info);
       range_so_far.length(0);
       append_range_all_keyparts(nullptr, &range_result, &range_so_far,
-                                index_range_tree, index_info->key_part, false);
+                                param->index_range_tree,
+                                param->index_info->key_part, false);
       fprintf(DBUG_FILE, "Prefix ranges: %s\n", range_result.c_ptr());
     }
 
     {
       range_result.length(0);
-      append_range(&range_result, range_key_part, min_range_key, max_range_key,
-                   range_cond_flag);
+      append_range(&range_result, param->range_key_part, param->min_range_key,
+                   param->max_range_key, param->range_cond_flag);
       fprintf(DBUG_FILE, "Range: %s\n", range_result.c_ptr());
     }
   }

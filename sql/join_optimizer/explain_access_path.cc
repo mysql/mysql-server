@@ -28,8 +28,10 @@
 #include "sql/filesort.h"
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
+#include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/skip_scan_plan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
@@ -305,6 +307,69 @@ static void ExplainMaterializeAccessPath(const AccessPath *path, JOIN *join,
   }
 }
 
+static void ExplainIndexSkipScanAccessPath(const AccessPath *path,
+                                           JOIN *join [[maybe_unused]],
+                                           vector<string> *description,
+                                           vector<ExplainData::Child> *children
+                                           [[maybe_unused]]) {
+  TABLE *table = path->index_skip_scan().table;
+  KEY *key_info = table->key_info + path->index_skip_scan().index;
+
+  // NOTE: Currently, index skip scan is always covering, but there's no
+  // good reason why we cannot fix this limitation in the future.
+  string ret = string(table->key_read ? "Covering index skip scan on "
+                                      : "Index skip scan on ") +
+               table->alias + " using " + key_info->name + " over ";
+  IndexSkipScanParameters *param = path->index_skip_scan().param;
+
+  // Print out any equality ranges.
+  bool first = true;
+  for (unsigned key_part_idx = 0; key_part_idx < param->eq_prefix_key_parts;
+       ++key_part_idx) {
+    if (!first) {
+      ret += ", ";
+    }
+    first = false;
+
+    ret += param->index_info->key_part[key_part_idx].field->field_name;
+    Bounds_checked_array<unsigned char *> prefixes =
+        param->eq_prefixes[key_part_idx].eq_key_prefixes;
+    if (prefixes.size() == 1) {
+      ret += " = ";
+      String out;
+      print_key_value(&out, &param->index_info->key_part[key_part_idx],
+                      prefixes[0]);
+      ret += to_string(out);
+    } else {
+      ret += " IN (";
+      for (unsigned i = 0; i < prefixes.size(); ++i) {
+        if (i == 2 && prefixes.size() > 3) {
+          ret += StringPrintf(", (%zu more)", prefixes.size() - 2);
+          break;
+        } else if (i != 0) {
+          ret += ", ";
+        }
+        String out;
+        print_key_value(&out, &param->index_info->key_part[key_part_idx],
+                        prefixes[i]);
+        ret += to_string(out);
+      }
+      ret += ")";
+    }
+  }
+
+  // Then the ranges.
+  if (!first) {
+    ret += ", ";
+  }
+  String out;
+  append_range(&out, param->range_key_part, param->min_range_key,
+               param->max_range_key, param->range_cond_flag);
+  ret += to_string(out);
+
+  description->push_back(ret);
+}
+
 static void AddChildrenFromPushedCondition(
     const TABLE *table, vector<ExplainData::Child> *children) {
   /*
@@ -521,6 +586,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       for (AccessPath *child : *path->rowid_union().children) {
         children.push_back({child});
       }
+      break;
+    }
+    case AccessPath::INDEX_SKIP_SCAN: {
+      ExplainIndexSkipScanAccessPath(path, join, &description, &children);
       break;
     }
     case AccessPath::TRP_WRAPPER: {

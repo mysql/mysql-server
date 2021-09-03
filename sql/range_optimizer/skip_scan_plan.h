@@ -65,95 +65,47 @@ struct EQPrefix {
   unsigned cur_eq_prefix;
 };
 
-/*
-  Plan for a QUICK_SKIP_SCAN_SELECT scan.
-*/
-
-class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
- private:
+/**
+  Logically a part of AccessPath::index_skip_scan(), but is too large,
+  so split out into its own struct.
+ */
+struct IndexSkipScanParameters {
   KEY *index_info;           ///< The index chosen for data access
   uint eq_prefix_len;        ///< Length of the equality prefix
   uint eq_prefix_key_parts;  ///< Number of key parts in the equality prefix
   EQPrefix *eq_prefixes;     ///< Array of equality constants (IN list)
   KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
                                   ///< condition
-  uchar *const min_range_key;
-  uchar *const max_range_key;
-  uchar *const min_search_key;
-  uchar *const max_search_key;
-  const uint range_cond_flag;
-  const uint range_key_len;
+  uchar *min_range_key;
+  uchar *max_range_key;
+  uchar *min_search_key;
+  uchar *max_search_key;
+  uint range_cond_flag;
+  uint range_key_len;
 
   // The sub-tree corresponding to the range condition
   // (on key part C - for more details see description of get_best_skip_scan()).
   //
-  // Does not necessarily live as long as the TRP, so used for tracing only.
+  // Does not necessarily live as long as the AccessPath, so used for tracing
+  // only.
   const SEL_ARG *range_part_tracing_only;
 
   SEL_ROOT *index_range_tree;   ///< The sub-tree corresponding to index_info
   bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
-
- public:
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
-                        double num_output_rows,
-                        Opt_trace_object *trace_object) const override;
-
-  TRP_SKIP_SCAN(TABLE *table_arg, KEY *index_info, uint index_arg,
-                SEL_ROOT *index_range_tree, uint eq_prefix_len,
-                uint eq_prefix_key_parts, EQPrefix *eq_prefixes_arg,
-                KEY_PART_INFO *range_key_part, uint used_key_parts_arg,
-                bool forced_by_hint_arg, bool has_aggregate_function,
-                uchar *min_range_key_arg, uchar *max_range_key_arg,
-                uchar *min_search_key_arg, uchar *max_search_key_arg,
-                uint range_cond_flag_arg,
-                const SEL_ARG *range_part_tracing_only_arg,
-                uint range_key_len_arg)
-      : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
-                        forced_by_hint_arg),
-        index_info(index_info),
-        eq_prefix_len(eq_prefix_len),
-        eq_prefix_key_parts(eq_prefix_key_parts),
-        eq_prefixes(eq_prefixes_arg),
-        range_key_part(range_key_part),
-        min_range_key(min_range_key_arg),
-        max_range_key(max_range_key_arg),
-        min_search_key(min_search_key_arg),
-        max_search_key(max_search_key_arg),
-        range_cond_flag(range_cond_flag_arg),
-        range_key_len(range_key_len_arg),
-        range_part_tracing_only(range_part_tracing_only_arg),
-        index_range_tree(index_range_tree),
-        has_aggregate_function(has_aggregate_function) {}
-
-  ~TRP_SKIP_SCAN() override = default;
-
-  RowIterator *make_quick(THD *thd, double expected_rows,
-                          MEM_ROOT *return_mem_root,
-                          ha_rows *examined_rows) override;
-  void need_sorted_output() override {}
-  bool is_agg_loose_index_scan() const override {
-    return has_aggregate_function;
-  }
-
-  RangeScanType get_type() const override { return QS_TYPE_SKIP_SCAN; }
-  void get_fields_used(MY_BITMAP *used_fields) const override {
-    for (uint i = 0; i < used_key_parts; ++i) {
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
-    }
-  }
-
-  void add_info_string(String *str) const override;
-  void add_keys_and_lengths(String *key_names,
-                            String *used_lengths) const override;
-  unsigned get_max_used_key_length() const final;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
 };
 
 AccessPath *get_best_skip_scan(THD *thd, RANGE_OPT_PARAM *param, SEL_TREE *tree,
                                enum_order order_direction,
                                bool skip_records_in_range,
                                bool force_skip_scan);
+
+void trace_basic_info_index_skip_scan(THD *thd, const AccessPath *path,
+                                      const RANGE_OPT_PARAM *param,
+                                      Opt_trace_object *trace_object);
+
+#ifndef NDEBUG
+void dbug_dump_index_skip_scan(int indent, bool verbose,
+                               const AccessPath *path);
+#endif
 
 #endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_PLAN_H_
