@@ -350,7 +350,9 @@ size_t z_first_page_t::free_all_frag_node_pages() {
     z_frag_node_page_t frag_node_page(&local_mtr, m_index);
     frag_node_page.load_x(page_no);
     page_no_t next_page = frag_node_page.get_next_page_no();
-    set_frag_node_page_no(next_page);
+
+    /* Make all changes to the first page using local_mtr. */
+    set_frag_node_page_no(next_page, &local_mtr);
     frag_node_page.dealloc();
     n_pages_freed++;
 
@@ -380,10 +382,8 @@ size_t z_first_page_t::free_all_index_pages() {
     index_page.load_x(page_no);
     page_no_t next_page = index_page.get_next_page_no();
 
-    /* The z_first_page_t::set_index_page_no() modifies the first page of
-    zlob. Since the m_mtr also modifies first page of zlob, we cannot use
-    local_mtr here.  Use m_mtr here. */
-    set_index_page_no(next_page);
+    /* Make all changes to the first page using local_mtr. */
+    set_index_page_no(next_page, &local_mtr);
 
     index_page.dealloc();
     n_pages_freed++;

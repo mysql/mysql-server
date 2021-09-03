@@ -337,6 +337,9 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       ref.set_length(0, nullptr);
       ctx->zblob_write_blobref(ctx->m_field_no, mtr);
     } else {
+      /* Only purge operation should reach this else block. */
+      ut_ad(purge_node != nullptr);
+
       /* Note that page_zip will be NULL in
       row_purge_upd_exist_or_extern(). */
       ref.set_page_no(FIL_NULL, mtr);

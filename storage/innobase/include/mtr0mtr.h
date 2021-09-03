@@ -664,17 +664,6 @@ struct mtr_t {
   static Logging s_logging;
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
- public:
-  std::list<std::string> m_trace;
-
-  std::ostream &print_trace(std::ostream &out) const {
-    std::copy(m_trace.begin(), m_trace.end(),
-              std::ostream_iterator<std::string>(out, "\n"));
-    return out;
-  }
-#endif /* UNIV_DEBUG */
-
  private:
   Impl m_impl;
 
