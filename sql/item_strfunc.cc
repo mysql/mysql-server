@@ -1383,24 +1383,28 @@ bool Item_func_right::resolve_type(THD *thd) {
 }
 
 String *Item_func_substr::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
+  null_value = false;
+  THD *const thd = current_thd;
   String *res = args[0]->val_str(str);
+  if (res == nullptr) return error_str();
   /* must be longlong to avoid truncation */
   longlong start = args[1]->val_int();
+  if (args[1]->null_value || thd->is_error()) {
+    return error_str();
+  }
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Limit so that code sees out-of-bound value properly. */
-  longlong length = arg_count == 3 ? args[2]->val_int() : INT_MAX32;
-  longlong tmp_length;
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value ||
-                     (arg_count == 3 && args[2]->null_value))))
-    return nullptr; /* purecov: inspected */
-
-  /* Negative or zero length, will return empty string. */
-  if ((arg_count == 3) && (length <= 0) &&
-      (length == 0 || !args[2]->unsigned_flag))
-    return make_empty_result();
-
+  longlong length = INT_MAX32;
+  if (arg_count > 2) {
+    length = args[2]->val_int();
+    if (args[2]->null_value || thd->is_error()) {
+      return error_str();
+    }
+    /* Negative or zero length, will return empty string. */
+    if (length <= 0 && (length == 0 || !args[2]->unsigned_flag))
+      return make_empty_result();
+  }
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((length <= 0) || (length > INT_MAX32)) length = INT_MAX32;
@@ -1417,7 +1421,7 @@ String *Item_func_substr::val_str(String *str) {
     return make_empty_result();
 
   length = res->charpos((int)length, (uint32)start);
-  tmp_length = static_cast<longlong>(res->length()) - start;
+  longlong tmp_length = static_cast<longlong>(res->length()) - start;
   length = min(length, tmp_length);
 
   if (!start && (longlong)res->length() == length) return res;
