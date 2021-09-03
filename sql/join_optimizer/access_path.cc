@@ -318,23 +318,20 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = NewIterator<QUICK_RANGE_SELECT_GEOM>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
             param.index, param.need_rows_in_rowid_order, param.reuse_handler,
-            mem_root, param.mrr_flags, param.mrr_buf_size, param.used_key_part,
+            mem_root, param.mrr_flags, param.mrr_buf_size,
             Bounds_checked_array{param.ranges, param.num_ranges});
+      } else if (param.reverse) {
+        iterator = NewIterator<QUICK_SELECT_DESC>(
+            thd, mem_root, table, examined_rows, path->num_output_rows,
+            param.index, mem_root, param.mrr_flags,
+            Bounds_checked_array{param.ranges, param.num_ranges},
+            param.num_used_key_parts);
       } else {
         iterator = NewIterator<QUICK_RANGE_SELECT>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
             param.index, param.need_rows_in_rowid_order, param.reuse_handler,
-            mem_root, param.mrr_flags, param.mrr_buf_size, param.used_key_part,
+            mem_root, param.mrr_flags, param.mrr_buf_size,
             Bounds_checked_array{param.ranges, param.num_ranges});
-        if (param.reverse) {
-          // TODO: Unify the two classes, or at least make some way
-          // of constructing a QUICK_SELECT_DESC without creating
-          // the forward class first.
-          iterator.reset(new (mem_root) QUICK_SELECT_DESC(
-              std::move(*down_cast<QUICK_RANGE_SELECT *>(
-                  iterator.release()->real_iterator())),
-              param.num_used_key_parts));
-        }
       }
       break;
     }

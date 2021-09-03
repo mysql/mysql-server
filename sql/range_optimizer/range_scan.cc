@@ -56,7 +56,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
     THD *thd, TABLE *table_arg, ha_rows *examined_rows, double expected_rows,
     uint key_nr, bool need_rows_in_rowid_order, bool reuse_handler,
     MEM_ROOT *return_mem_root, uint mrr_flags, uint mrr_buf_size,
-    const KEY_PART *key, Bounds_checked_array<QUICK_RANGE *> ranges_arg)
+    Bounds_checked_array<QUICK_RANGE *> ranges_arg)
     : RowIDCapableRowIterator(thd, table_arg),
       ranges(ranges_arg),
       free_file(false),
@@ -65,8 +65,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
       mrr_flags(mrr_flags),
       mrr_buf_size(mrr_buf_size),
       mrr_buf_desc(nullptr),
-      key_parts(key),
-      dont_free(false),
       need_rows_in_rowid_order(need_rows_in_rowid_order),
       reuse_handler(reuse_handler),
       mem_root(return_mem_root),
@@ -103,17 +101,15 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   if (table()->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
     file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
 
-  if (!dont_free) {
-    /* file is NULL for CPK scan on covering ROR-intersection */
-    if (file) {
-      if (file->inited) file->ha_index_or_rnd_end();
-      if (free_file) {
-        DBUG_PRINT("info",
-                   ("Freeing separate handler %p (free: %d)", file, free_file));
-        file->ha_external_lock(thd(), F_UNLCK);
-        file->ha_close();
-        destroy(file);
-      }
+  /* file is NULL for CPK scan on covering ROR-intersection */
+  if (file) {
+    if (file->inited) file->ha_index_or_rnd_end();
+    if (free_file) {
+      DBUG_PRINT("info",
+                 ("Freeing separate handler %p (free: %d)", file, free_file));
+      file->ha_external_lock(thd(), F_UNLCK);
+      file->ha_close();
+      destroy(file);
     }
   }
   my_free(mrr_buf_desc);
@@ -220,9 +216,7 @@ bool QUICK_RANGE_SELECT::Init() {
   } else {
     if (file->inited) file->ha_index_or_rnd_end();
   }
-  if (int error = shared_reset(); error != 0) {
-    // Ensures error status is propagated back to client.
-    (void)report_handler_error(table(), error);
+  if (shared_reset()) {
     return true;
   }
 
@@ -252,19 +246,16 @@ bool QUICK_RANGE_SELECT::Init() {
   return false;
 }
 
-bool QUICK_RANGE_SELECT::shared_reset() {
-  uint buf_size;
-  uchar *mrange_buff = nullptr;
-  HANDLER_BUFFER empty_buf;
+bool InitIndexRangeScan(TABLE *table, handler *file, int index,
+                        unsigned mrr_flags, bool in_ror_merged_scan,
+                        MY_BITMAP *column_bitmap) {
   DBUG_TRACE;
-  last_range = nullptr;
-  cur_range = ranges.begin();
 
   /* set keyread to true if index is covering */
-  if (!table()->no_keyread && table()->covering_keys.is_set(index))
-    table()->set_keyread(true);
+  if (!table->no_keyread && table->covering_keys.is_set(index))
+    table->set_keyread(true);
   else
-    table()->set_keyread(false);
+    table->set_keyread(false);
   if (!file->inited) {
     /*
       read_set is set to the correct value for ror_merge_scan here as a
@@ -272,8 +263,8 @@ bool QUICK_RANGE_SELECT::shared_reset() {
       initializing the read set in index_read() leading to wrong
       results while merging.
     */
-    MY_BITMAP *const save_read_set = table()->read_set;
-    MY_BITMAP *const save_write_set = table()->write_set;
+    MY_BITMAP *const save_read_set = table->read_set;
+    MY_BITMAP *const save_write_set = table->write_set;
     const bool sorted = (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2", DBUG_SET("+d,ha_index_init_fail"););
 
@@ -281,32 +272,45 @@ bool QUICK_RANGE_SELECT::shared_reset() {
     if (in_ror_merged_scan) {
       /*
         We don't need to signal the bitmap change as the bitmap is always the
-        same for this table()->file
+        same for this table->file
       */
-      table()->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+      table->column_bitmaps_set_no_signal(column_bitmap, column_bitmap);
     }
     if (int error = file->ha_index_init(index, sorted); error != 0) {
-      (void)report_handler_error(table(), error);
+      (void)report_handler_error(table, error);
       return true;
     }
     if (in_ror_merged_scan) {
       file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
       /* Restore bitmaps set on entry */
-      table()->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+      table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
   }
   // Enable & reset unique record filter for multi-valued index
-  if (table()->key_info[index].flags & HA_MULTI_VALUED_KEY) {
+  if (table->key_info[index].flags & HA_MULTI_VALUED_KEY) {
     file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
     // Add PK's fields to read_set as unique filter uses rowid to skip dups
-    if (table()->s->primary_key != MAX_KEY)
-      table()->mark_columns_used_by_index_no_reset(table()->s->primary_key,
-                                                   table()->read_set);
+    if (table->s->primary_key != MAX_KEY)
+      table->mark_columns_used_by_index_no_reset(table->s->primary_key,
+                                                 table->read_set);
+  }
+
+  return false;
+}
+
+bool QUICK_RANGE_SELECT::shared_reset() {
+  last_range = nullptr;
+  cur_range = ranges.begin();
+
+  if (InitIndexRangeScan(table(), file, index, mrr_flags, in_ror_merged_scan,
+                         &column_bitmap)) {
+    return true;
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
   if (mrr_buf_size && !mrr_buf_desc) {
-    buf_size = mrr_buf_size;
+    unsigned buf_size = mrr_buf_size;
+    uchar *mrange_buff = nullptr;
     while (buf_size &&
            !my_multi_malloc(key_memory_QUICK_RANGE_SELECT_mrr_buf_desc,
                             MYF(MY_WME), &mrr_buf_desc, sizeof(*mrr_buf_desc),
@@ -324,9 +328,11 @@ bool QUICK_RANGE_SELECT::shared_reset() {
     mrr_buf_desc->end_of_used_area = mrange_buff;
   }
 
-  if (!mrr_buf_desc)
+  HANDLER_BUFFER empty_buf;
+  if (mrr_buf_desc == nullptr) {
     empty_buf.buffer = empty_buf.buffer_end = empty_buf.end_of_used_area =
         nullptr;
+  }
 
   RANGE_SEQ_IF seq_funcs = {quick_range_seq_init, quick_range_seq_next,
                             nullptr};
@@ -337,6 +343,7 @@ bool QUICK_RANGE_SELECT::shared_reset() {
     (void)report_handler_error(table(), error);
     return true;
   }
+
   return false;
 }
 

@@ -29,23 +29,56 @@
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/sql_list.h"
 
-class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
+/**
+  An iterator much like QUICK_RANGE_SELECT, but it scans in the reverse order.
+  This makes it at times more complicated, but since it doesn't support being
+  a part of a ROR scan, it is also less complicated in many ways.
+
+  One could argue that this and QUICK_RANGE_SELECT should be factored into
+  a common base class with separate _ASC and _DESC classes, but they don't
+  actually duplicate that much code.
+ */
+class QUICK_SELECT_DESC : public TableRowIterator {
  public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q, uint used_key_parts);
+  QUICK_SELECT_DESC(THD *thd, TABLE *table, ha_rows *examined_rows,
+                    double expected_rows, int index, MEM_ROOT *return_mem_root,
+                    uint mrr_flags, Bounds_checked_array<QUICK_RANGE *> ranges,
+                    uint used_key_parts_arg);
+  ~QUICK_SELECT_DESC() override;
   int Read() override;
+  bool Init() override;
 
  private:
-  bool range_reads_after_key(QUICK_RANGE *range);
-  bool Init() override {
-    rev_it.rewind();
-    return QUICK_RANGE_SELECT::Init();
-  }
-  List<QUICK_RANGE> rev_ranges;
-  List_iterator<QUICK_RANGE> rev_it;
+  static range_seq_t quick_range_rev_seq_init(void *init_param, uint, uint);
+
+  const uint m_index; /* Index this quick select uses */
+  ha_rows m_expected_rows;
+  ha_rows *m_examined_rows;
+
+  MEM_ROOT *mem_root;
+  bool inited = false;
+
+  // TODO: pre-allocate space to avoid malloc/free for small number of columns.
+  MY_BITMAP column_bitmap;
+
+  uint m_mrr_flags; /* Flags to be used with MRR interface */
+
+  Bounds_checked_array<QUICK_RANGE *> ranges; /* ordered array of range ptrs */
+  /* Members needed to use the MRR interface */
+  QUICK_RANGE_SEQ_CTX qr_traversal_ctx;
+
+  QUICK_RANGE *last_range;  // The range we are currently scanning, or nullptr.
+  int current_range_idx;
+
+  /* Info about index we're scanning */
+  KEY_PART_INFO *key_part_info;
 
   // Max. number of (first) key parts this quick select uses for retrieval.
   // eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
   const uint used_key_parts;
+
+  bool range_reads_after_key(QUICK_RANGE *range);
+  int cmp_prev(QUICK_RANGE *range);
 };
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_

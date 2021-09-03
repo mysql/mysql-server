@@ -28,47 +28,97 @@
 #include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/key.h"
+#include "sql/sql_executor.h"
 #include "sql/table.h"
 
-/*
-  This is a hack: we inherit from QUICK_RANGE_SELECT so that we can use the
-  Read() interface, but we have to hold a pointer to the original
-  QUICK_RANGE_SELECT because its data are used all over the place. What
-  should be done is to factor out the data that is needed into a base
-  class (QUICK_SELECT), and then have two subclasses (_ASC and _DESC)
-  which handle the ranges and implement the Read() function.  But
-  for now, this seems to work right at least.
-*/
-
-QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT &&q,
+QUICK_SELECT_DESC::QUICK_SELECT_DESC(THD *thd, TABLE *table,
+                                     ha_rows *examined_rows,
+                                     double expected_rows, int index,
+                                     MEM_ROOT *return_mem_root, uint mrr_flags,
+                                     Bounds_checked_array<QUICK_RANGE *> ranges,
                                      uint used_key_parts_arg)
-    : QUICK_RANGE_SELECT(std::move(q)),
-      rev_it(rev_ranges),
+    : TableRowIterator(thd, table),
+      m_index(index),
+      m_expected_rows(expected_rows),
+      m_examined_rows(examined_rows),
+      mem_root(return_mem_root),
+      m_mrr_flags(mrr_flags),
+      ranges(ranges),
+      last_range(nullptr),
       used_key_parts(used_key_parts_arg) {
-  QUICK_RANGE *r;
   /*
     Use default MRR implementation for reverse scans. No table engine
     currently can do an MRR scan with output in reverse index order.
   */
-  mrr_buf_desc = nullptr;
-  mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
-  mrr_flags |= HA_MRR_SORTED;  // 'sorted' as internals use index_last/_prev
-  mrr_buf_size = 0;
+  m_mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+  m_mrr_flags |= HA_MRR_SORTED;  // 'sorted' as internals use index_last/_prev
 
-  Quick_ranges::const_iterator pr = ranges.begin();
-  Quick_ranges::const_iterator end_range = ranges.end();
-  for (; pr != end_range; pr++) {
-    rev_ranges.push_front(*pr);
-  }
-
-  /* Remove EQ_RANGE flag for keys that are not using the full key */
-  for (r = rev_it++; r; r = rev_it++) {
+  for (QUICK_RANGE *r : ranges) {
     if ((r->flag & EQ_RANGE) &&
-        table()->key_info[index].key_length != r->max_length)
+        table->key_info[m_index].key_length != r->max_length) {
       r->flag &= ~EQ_RANGE;
+    }
   }
-  rev_it.rewind();
-  q.dont_free = true;  // Don't free shared mem
+
+  key_part_info = table->key_info[m_index].key_part;
+}
+
+QUICK_SELECT_DESC::~QUICK_SELECT_DESC() {
+  if (table()->key_info[m_index].flags & HA_MULTI_VALUED_KEY && table()->file) {
+    table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
+  }
+}
+
+bool QUICK_SELECT_DESC::Init() {
+  current_range_idx = ranges.size();
+  empty_record(table());
+
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
+  if (!inited) {
+    if (column_bitmap.bitmap == nullptr) {
+      /* Allocate a bitmap for used columns */
+      my_bitmap_map *bitmap =
+          (my_bitmap_map *)mem_root->Alloc(table()->s->column_bitmap_size);
+      if (bitmap == nullptr) {
+        return true;
+      }
+      bitmap_init(&column_bitmap, bitmap, table()->s->fields);
+    }
+    inited = true;
+  }
+  if (table()->file->inited) table()->file->ha_index_or_rnd_end();
+
+  last_range = nullptr;
+  if (InitIndexRangeScan(table(), table()->file, m_index, m_mrr_flags,
+                         /*in_ror_merged_scan=*/false, &column_bitmap)) {
+    return true;
+  }
+
+  if (first_init && table()->file->inited) {
+    if (set_record_buffer(table(), m_expected_rows)) {
+      return true; /* purecov: inspected */
+    }
+  }
+
+  HANDLER_BUFFER empty_buf;
+  empty_buf.buffer = empty_buf.buffer_end = empty_buf.end_of_used_area =
+      nullptr;
+
+  RANGE_SEQ_IF seq_funcs = {quick_range_rev_seq_init, quick_range_seq_next,
+                            nullptr};
+  if (int error = table()->file->multi_range_read_init(
+          &seq_funcs, this, ranges.size(), m_mrr_flags, &empty_buf);
+      error != 0) {
+    (void)report_handler_error(table(), error);
+    return true;
+  }
+
+  return false;
 }
 
 int QUICK_SELECT_DESC::Read() {
@@ -88,16 +138,16 @@ int QUICK_SELECT_DESC::Read() {
    */
 
   for (;;) {
-    if (last_range) {  // Already read through key
+    if (last_range != nullptr) {  // Keep on reading from the same key.
       int result =
           ((last_range->flag & EQ_RANGE &&
-            used_key_parts <= table()->key_info[index].user_defined_key_parts)
-               ? file->ha_index_next_same(table()->record[0],
-                                          last_range->min_key,
-                                          last_range->min_length)
-               : file->ha_index_prev(table()->record[0]));
+            used_key_parts <= table()->key_info[m_index].user_defined_key_parts)
+               ? table()->file->ha_index_next_same(table()->record[0],
+                                                   last_range->min_key,
+                                                   last_range->min_length)
+               : table()->file->ha_index_prev(table()->record[0]));
       if (result == 0) {
-        if (cmp_prev(*rev_it.ref()) == 0) {
+        if (cmp_prev(last_range) == 0) {
           if (m_examined_rows != nullptr) {
             ++*m_examined_rows;
           }
@@ -110,12 +160,16 @@ int QUICK_SELECT_DESC::Read() {
       }
     }
 
-    if (!(last_range = rev_it++)) return -1;  // All ranges used
+    // EOF from this range, so read the next one.
+    if (current_range_idx == 0) {
+      return -1;  // No more ranges.
+    }
+    last_range = ranges[--current_range_idx];
 
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts =
         (last_range->flag & EQ_RANGE) &&
-        (used_key_parts <= table()->key_info[index].user_defined_key_parts);
+        (used_key_parts <= table()->key_info[m_index].user_defined_key_parts);
 
     /*
       If we have pushed an index condition (ICP) and this quick select
@@ -123,26 +177,27 @@ int QUICK_SELECT_DESC::Read() {
       handler know where to end the scan in order to avoid that the
       ICP implemention continues to read past the range boundary.
     */
-    if (file->pushed_idx_cond) {
+    if (table()->file->pushed_idx_cond) {
       if (!eqrange_all_keyparts) {
         key_range min_range;
         last_range->make_min_endpoint(&min_range);
         if (min_range.length > 0)
-          file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+          table()->file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
         else
-          file->set_end_range(nullptr, handler::RANGE_SCAN_DESC);
+          table()->file->set_end_range(nullptr, handler::RANGE_SCAN_DESC);
       } else {
         /*
           Will use ha_index_next_same() for reading records. In case we have
           set the end range for an earlier range, this need to be cleared.
         */
-        file->set_end_range(nullptr, handler::RANGE_SCAN_ASC);
+        table()->file->set_end_range(nullptr, handler::RANGE_SCAN_ASC);
       }
     }
 
     if (last_range->flag & NO_MAX_RANGE)  // Read last record
     {
-      if (int result = file->ha_index_last(table()->record[0]); result != 0) {
+      if (int result = table()->file->ha_index_last(table()->record[0]);
+          result != 0) {
         /*
           HA_ERR_END_OF_FILE is returned both when the table is empty and when
           there are no qualifying records in the range (when using ICP).
@@ -169,16 +224,16 @@ int QUICK_SELECT_DESC::Read() {
 
     int result;
     if (eqrange_all_keyparts) {
-      result = file->ha_index_read_map(table()->record[0], last_range->max_key,
-                                       last_range->max_keypart_map,
-                                       HA_READ_KEY_EXACT);
+      result = table()->file->ha_index_read_map(
+          table()->record[0], last_range->max_key, last_range->max_keypart_map,
+          HA_READ_KEY_EXACT);
     } else {
-      assert(
-          last_range->flag & NEAR_MAX ||
-          (last_range->flag & EQ_RANGE &&
-           used_key_parts > table()->key_info[index].user_defined_key_parts) ||
-          range_reads_after_key(last_range));
-      result = file->ha_index_read_map(
+      assert(last_range->flag & NEAR_MAX ||
+             (last_range->flag & EQ_RANGE &&
+              used_key_parts >
+                  table()->key_info[m_index].user_defined_key_parts) ||
+             range_reads_after_key(last_range));
+      result = table()->file->ha_index_read_map(
           table()->record[0], last_range->max_key, last_range->max_keypart_map,
           ((last_range->flag & NEAR_MAX) ? HA_READ_BEFORE_KEY
                                          : HA_READ_PREFIX_LAST_OR_PREV));
@@ -210,7 +265,32 @@ int QUICK_SELECT_DESC::Read() {
 bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg) {
   return ((range_arg->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
           !(range_arg->flag & EQ_RANGE) ||
-          table()->key_info[index].key_length != range_arg->max_length)
+          table()->key_info[m_index].key_length != range_arg->max_length)
              ? true
              : false;
+}
+
+/*
+  Returns 0 if found key is inside range (found key >= range->min_key).
+*/
+
+int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg) {
+  int cmp;
+  if (range_arg->flag & NO_MIN_RANGE) return 0; /* key can't be to small */
+
+  cmp = key_cmp(key_part_info, range_arg->min_key, range_arg->min_length);
+  if (cmp > 0 || (cmp == 0 && !(range_arg->flag & NEAR_MIN))) return 0;
+  return 1;  // outside of range
+}
+
+// Pretty much the same as quick_range_seq_init(), just with a different class.
+range_seq_t QUICK_SELECT_DESC::quick_range_rev_seq_init(void *init_param, uint,
+                                                        uint) {
+  QUICK_SELECT_DESC *quick = static_cast<QUICK_SELECT_DESC *>(init_param);
+  QUICK_RANGE **first = quick->ranges.begin();
+  QUICK_RANGE **last = quick->ranges.end();
+  quick->qr_traversal_ctx.first = first;
+  quick->qr_traversal_ctx.cur = first;
+  quick->qr_traversal_ctx.last = last;
+  return &quick->qr_traversal_ctx;
 }

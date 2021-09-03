@@ -72,7 +72,6 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
-  friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
 
@@ -91,10 +90,8 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
   HANDLER_BUFFER *mrr_buf_desc; /* the handler buffer */
 
   /* Info about index we're scanning */
-  const KEY_PART *key_parts;
   KEY_PART_INFO *key_part_info;
 
-  bool dont_free; /* Used by QUICK_SELECT_DESC */
   const bool need_rows_in_rowid_order;
   const bool reuse_handler;
 
@@ -116,7 +113,7 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
                      double expected_rows, uint index_arg,
                      bool need_rows_in_rowid_order, bool reuse_handler,
                      MEM_ROOT *return_mem_root, uint mrr_flags,
-                     uint mrr_buf_size, const KEY_PART *key,
+                     uint mrr_buf_size,
                      Bounds_checked_array<QUICK_RANGE *> ranges);
   ~QUICK_RANGE_SELECT() override;
 
@@ -141,5 +138,12 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
     return file->ref;
   }
 };
+
+bool InitIndexRangeScan(TABLE *table, handler *file, int index,
+                        unsigned mrr_flags, bool in_ror_merged_scan,
+                        MY_BITMAP *column_bitmap);
+
+range_seq_t quick_range_seq_init(void *init_param, uint, uint);
+uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_
