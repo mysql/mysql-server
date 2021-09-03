@@ -270,7 +270,7 @@ bool QUICK_ROR_UNION_SELECT::Init() {
     if (result == 1) {
       return true;
     } else if (result == 0) {
-      queue.push(down_cast<RowIDCapableRowIterator *>(quick->real_iterator()));
+      queue.push(quick.get());
     }
   }
 
@@ -437,8 +437,11 @@ int QUICK_ROR_UNION_SELECT::Read() {
       if (queue.empty()) return -1;
       /* Ok, we have a queue with >= 1 scans */
 
-      RowIDCapableRowIterator *quick = queue.top();
-      memcpy(cur_rowid, quick->last_rowid(), rowid_length);
+      RowIterator *quick = queue.top();
+      memcpy(cur_rowid,
+             down_cast<RowIDCapableRowIterator *>(quick->real_iterator())
+                 ->last_rowid(),
+             rowid_length);
 
       /* put into queue rowid from the same stream as top element */
       if (int ret = quick->Read(); ret != 0) {

@@ -143,8 +143,12 @@ class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
 */
 struct Quick_ror_union_less {
   explicit Quick_ror_union_less(const handler *file) : m_file(file) {}
-  bool operator()(RowIDCapableRowIterator *a, RowIDCapableRowIterator *b) {
-    return m_file->cmp_ref(a->last_rowid(), b->last_rowid()) > 0;
+  bool operator()(RowIterator *a, RowIterator *b) {
+    RowIDCapableRowIterator *real_a =
+        down_cast<RowIDCapableRowIterator *>(a->real_iterator());
+    RowIDCapableRowIterator *real_b =
+        down_cast<RowIDCapableRowIterator *>(b->real_iterator());
+    return m_file->cmp_ref(real_a->last_rowid(), real_b->last_rowid()) > 0;
   }
   const handler *m_file;
 };
@@ -175,9 +179,8 @@ class QUICK_ROR_UNION_SELECT : public TableRowIterator {
  private:
   Mem_root_array<unique_ptr_destroy_only<RowIterator>> m_children;
 
-  Priority_queue<RowIDCapableRowIterator *,
-                 std::vector<RowIDCapableRowIterator *,
-                             Malloc_allocator<RowIDCapableRowIterator *>>,
+  Priority_queue<RowIterator *,
+                 std::vector<RowIterator *, Malloc_allocator<RowIterator *>>,
                  Quick_ror_union_less>
       queue; /* Priority queue for merge operation */
 
