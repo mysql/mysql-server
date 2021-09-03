@@ -959,26 +959,35 @@ static AccessPath *get_ror_union_trp(
   if (roru_total_cost < read_cost || force_index_merge) {
     trace_best_disjunct->add("chosen", true);
 
-    // TODO: This should be done in CreateIteratorFromAccessPath() instead.
+    auto *children = new (param->return_mem_root)
+        Mem_root_array<AccessPath *>(param->return_mem_root);
+    children->reserve(roru_read_plans.size());
     for (AccessPath *child : roru_read_plans) {
+      // NOTE: This overwrites parameters in paths that may be used
+      // for something else, but since we've already decided that
+      // we are to choose a ROR union, it doesn't matter. If we are
+      // to keep multiple candidates around, we need to clone the
+      // AccessPaths here.
       switch (child->type) {
         case AccessPath::INDEX_RANGE_SCAN:
           child->index_range_scan().need_rows_in_rowid_order = true;
           break;
         case AccessPath::ROWID_INTERSECTION:
           child->rowid_intersection().need_rows_in_rowid_order = true;
+          child->rowid_intersection().retrieve_full_rows = false;
           break;
         default:
           assert(false);
       }
+      children->push_back(child);
     }
-    TRP_ROR_UNION *trp = new (param->return_mem_root)
-        TRP_ROR_UNION(table, force_index_merge, roru_read_plans);
-    AccessPath *path =
-        NewIndexRangeScanAccessPath(thd, trp->table, trp,
-                                    /*count_examined_rows=*/false);
+    AccessPath *path = new (param->return_mem_root) AccessPath;
+    path->type = AccessPath::ROWID_UNION;
     path->cost = roru_total_cost;
     path->num_output_rows = roru_total_records;
+    path->rowid_union().table = table;
+    path->rowid_union().children = children;
+    path->rowid_union().forced_by_hint = force_index_merge;
     return path;
   }
   return nullptr;

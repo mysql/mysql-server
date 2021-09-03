@@ -151,6 +151,11 @@ inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
         get_fields_used(path->rowid_intersection().cpk_child, used_fields);
       }
       break;
+    case AccessPath::ROWID_UNION:
+      for (AccessPath *child : *path->rowid_union().children) {
+        get_fields_used(child, used_fields);
+      }
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->get_fields_used(used_fields);
       break;
@@ -165,6 +170,7 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
       return path->index_range_scan().num_used_key_parts;
     case AccessPath::INDEX_MERGE:
     case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::ROWID_UNION:
       return 0;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->used_key_parts;
@@ -199,6 +205,13 @@ inline bool uses_index_on_fields(const AccessPath *path,
       }
       return path->rowid_intersection().cpk_child != nullptr &&
              uses_index_on_fields(path->rowid_intersection().cpk_child, fields);
+    case AccessPath::ROWID_UNION:
+      for (AccessPath *child : *path->rowid_union().children) {
+        if (uses_index_on_fields(child, fields)) {
+          return true;
+        }
+      }
+      return false;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->is_keys_used(fields);
     default:
@@ -285,6 +298,19 @@ inline void add_info_string(const AccessPath *path, String *str) {
       str->append(')');
       break;
     }
+    case AccessPath::ROWID_UNION: {
+      bool first = true;
+      str->append(STRING_WITH_LEN("union("));
+      for (AccessPath *current : *path->rowid_union().children) {
+        if (!first)
+          str->append(',');
+        else
+          first = false;
+        ::add_info_string(current, str);
+      }
+      str->append(')');
+      break;
+    }
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_info_string(str);
       break;
@@ -320,6 +346,9 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
     case AccessPath::ROWID_INTERSECTION:
       add_keys_and_lengths_rowid_intersection(path, key_names, used_lengths);
       break;
+    case AccessPath::ROWID_UNION:
+      add_keys_and_lengths_rowid_union(path, key_names, used_lengths);
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
       break;
@@ -350,6 +379,9 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
     case AccessPath::ROWID_INTERSECTION:
       trace_basic_info_rowid_intersection(thd, path, param, trace_object);
       break;
+    case AccessPath::ROWID_UNION:
+      trace_basic_info_rowid_union(thd, path, param, trace_object);
+      break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->trace_basic_info(
           thd, param, path->cost, path->num_output_rows, trace_object);
@@ -371,6 +403,8 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
       return QS_TYPE_INDEX_MERGE;
     case AccessPath::ROWID_INTERSECTION:
       return QS_TYPE_ROR_INTERSECT;
+    case AccessPath::ROWID_UNION:
+      return QS_TYPE_ROR_UNION;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->get_type();
     default:
@@ -387,6 +421,8 @@ inline bool get_forced_by_hint(const AccessPath *path) {
       return path->index_merge().forced_by_hint;
     case AccessPath::ROWID_INTERSECTION:
       return path->rowid_intersection().forced_by_hint;
+    case AccessPath::ROWID_UNION:
+      return path->rowid_union().forced_by_hint;
     case AccessPath::TRP_WRAPPER:
       return path->trp_wrapper().trp->forced_by_hint;
     default:
@@ -416,6 +452,9 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
     case AccessPath::ROWID_INTERSECTION:
       dbug_dump_rowid_intersection(indent, verbose,
                                    *path->index_merge().children);
+      break;
+    case AccessPath::ROWID_UNION:
+      dbug_dump_rowid_union(indent, verbose, *path->index_merge().children);
       break;
     case AccessPath::TRP_WRAPPER:
       path->trp_wrapper().trp->dbug_dump(0, true);

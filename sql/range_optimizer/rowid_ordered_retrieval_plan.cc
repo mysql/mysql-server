@@ -96,39 +96,16 @@ void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
   }
 }
 
-void TRP_ROR_UNION::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param,
-                                     double, double,
-                                     Opt_trace_object *trace_object) const {
+void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
+                                  const RANGE_OPT_PARAM *param,
+                                  Opt_trace_object *trace_object) {
   Opt_trace_context *const trace = &thd->opt_trace;
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
-  for (AccessPath *current : ror_scans) {
+  for (AccessPath *child : *path->rowid_union().children) {
     Opt_trace_object trp_info(trace);
-    ::trace_basic_info(thd, current, param, &trp_info);
+    ::trace_basic_info(thd, child, param, &trp_info);
   }
-}
-
-RowIterator *TRP_ROR_UNION::make_quick(THD *thd, double,
-                                       MEM_ROOT *return_mem_root, ha_rows *) {
-  // TODO: This needs to move into CreateIteratorFromAccessPath() instead.
-  Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(
-      return_mem_root);
-  for (AccessPath *scan : ror_scans) {
-    if (scan->type == AccessPath::ROWID_INTERSECTION) {
-      scan->rowid_intersection().retrieve_full_rows = false;
-    }
-
-    unique_ptr_destroy_only<RowIterator> iterator =
-        CreateIteratorFromAccessPath(thd, scan, /*join=*/nullptr,
-                                     /*eligible_for_batch_mode=*/false);
-    if (iterator == nullptr) {
-      return nullptr;
-    }
-    children.push_back(move(iterator));
-  }
-
-  return new (return_mem_root)
-      QUICK_ROR_UNION_SELECT(thd, return_mem_root, table, move(children));
 }
 
 /*
@@ -1039,32 +1016,6 @@ AccessPath *get_best_ror_intersect(
   }
 }
 
-bool TRP_ROR_UNION::is_keys_used(const MY_BITMAP *fields) {
-  for (AccessPath *scan : ror_scans) {
-    if (is_key_used(table, used_index(scan), fields)) return true;
-  }
-  return false;
-}
-
-void TRP_ROR_UNION::get_fields_used(MY_BITMAP *used_fields) const {
-  for (AccessPath *scan : ror_scans) {
-    ::get_fields_used(scan, used_fields);
-  }
-}
-
-void TRP_ROR_UNION::add_info_string(String *str) const {
-  bool first = true;
-  str->append(STRING_WITH_LEN("union("));
-  for (AccessPath *current : ror_scans) {
-    if (!first)
-      str->append(',');
-    else
-      first = false;
-    ::add_info_string(current, str);
-  }
-  str->append(')');
-}
-
 static int find_max_used_key_length(const AccessPath *scan) {
   int max_used_key_length = 0;
   for (const QUICK_RANGE *range :
@@ -1111,10 +1062,10 @@ void add_keys_and_lengths_rowid_intersection(const AccessPath *path,
   }
 }
 
-void TRP_ROR_UNION::add_keys_and_lengths(String *key_names,
-                                         String *used_lengths) const {
+void add_keys_and_lengths_rowid_union(const AccessPath *path, String *key_names,
+                                      String *used_lengths) {
   bool first = true;
-  for (AccessPath *current : ror_scans) {
+  for (AccessPath *current : *path->rowid_union().children) {
     if (first) {
       first = false;
     } else {
@@ -1123,11 +1074,6 @@ void TRP_ROR_UNION::add_keys_and_lengths(String *key_names,
     }
     ::add_keys_and_lengths(current, key_names, used_lengths);
   }
-}
-
-unsigned TRP_ROR_UNION::get_max_used_key_length() const {
-  assert(false);
-  return 0;
 }
 
 #ifndef NDEBUG
@@ -1141,11 +1087,12 @@ void dbug_dump_rowid_intersection(
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }
 
-void TRP_ROR_UNION::dbug_dump(int indent, bool verbose) {
+void dbug_dump_rowid_union(int indent, bool verbose,
+                           const Mem_root_array<AccessPath *> &children) {
   fprintf(DBUG_FILE, "%*squick ROR-union select\n", indent, "");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  for (AccessPath *current : ror_scans) {
-    ::dbug_dump(current, indent + 2, verbose);
+  for (AccessPath *child : children) {
+    ::dbug_dump(child, indent + 2, verbose);
   }
   fprintf(DBUG_FILE, "%*s}\n", indent, "");
 }

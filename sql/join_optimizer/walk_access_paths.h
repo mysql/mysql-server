@@ -217,6 +217,12 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
                         std::forward<Func &&>(func), post_order_traversal);
       }
       break;
+    case AccessPath::ROWID_UNION:
+      for (AccessPath *child : *path->rowid_union().children) {
+        WalkAccessPaths(child, join, cross_query_blocks,
+                        std::forward<Func &&>(func), post_order_traversal);
+      }
+      break;
   }
   if (post_order_traversal) {
     if (func(path, join)) {
@@ -309,6 +315,7 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
           case AccessPath::ZERO_ROWS_AGGREGATED:
           case AccessPath::INDEX_MERGE:
           case AccessPath::ROWID_INTERSECTION:
+          case AccessPath::ROWID_UNION:
             return false;
         }
         assert(false);

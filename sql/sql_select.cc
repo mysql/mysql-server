@@ -5231,17 +5231,12 @@ uint actual_key_flags(const KEY *key_info) {
 join_type calc_join_type(AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::TRP_WRAPPER:
       return JT_RANGE;
     case AccessPath::INDEX_MERGE:
     case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::ROWID_UNION:
       return JT_INDEX_MERGE;
-    case AccessPath::TRP_WRAPPER: {
-      int quick_type = path->trp_wrapper().trp->get_type();
-      if (quick_type == QS_TYPE_ROR_UNION)
-        return JT_INDEX_MERGE;
-      else
-        return JT_RANGE;
-    }
     default:
       assert(false);
       return JT_RANGE;

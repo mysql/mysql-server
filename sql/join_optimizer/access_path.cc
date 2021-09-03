@@ -383,6 +383,20 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           std::move(cpk_child));
       break;
     }
+    case AccessPath::ROWID_UNION: {
+      const auto &param = path->rowid_union();
+      Mem_root_array<unique_ptr_destroy_only<RowIterator>> children(mem_root);
+      children.reserve(param.children->size());
+      for (AccessPath *range_scan : *param.children) {
+        children.push_back(
+            CreateIteratorFromAccessPath(thd, range_scan, join,
+                                         /*eligible_for_batch_mode=*/false));
+      }
+
+      iterator = NewIterator<QUICK_ROR_UNION_SELECT>(
+          thd, mem_root, mem_root, param.table, std::move(children));
+      break;
+    }
     case AccessPath::TRP_WRAPPER: {
       const auto &param = path->trp_wrapper();
       iterator.reset(param.trp->make_quick(thd, path->num_output_rows, mem_root,

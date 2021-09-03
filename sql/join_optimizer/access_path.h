@@ -200,6 +200,7 @@ struct AccessPath {
     INDEX_RANGE_SCAN,
     INDEX_MERGE,
     ROWID_INTERSECTION,
+    ROWID_UNION,
     TRP_WRAPPER,
     DYNAMIC_INDEX_RANGE_SCAN,
 
@@ -509,6 +510,14 @@ struct AccessPath {
   const auto &rowid_intersection() const {
     assert(type == ROWID_INTERSECTION);
     return u.rowid_intersection;
+  }
+  auto &rowid_union() {
+    assert(type == ROWID_UNION);
+    return u.rowid_union;
+  }
+  const auto &rowid_union() const {
+    assert(type == ROWID_UNION);
+    return u.rowid_union;
   }
   auto &trp_wrapper() {
     assert(type == TRP_WRAPPER);
@@ -858,6 +867,11 @@ struct AccessPath {
       // true if no row retrieval phase is necessary.
       bool is_covering;
     } rowid_intersection;
+    struct {
+      TABLE *table;
+      Mem_root_array<AccessPath *> *children;
+      bool forced_by_hint;
+    } rowid_union;
     struct {
       TABLE *table;
       TABLE_READ_PLAN *trp;

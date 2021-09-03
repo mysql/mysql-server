@@ -72,43 +72,6 @@ struct ROR_SCAN_INFO {
   uint used_key_parts;
 };
 
-/*
-  Plan for QUICK_ROR_UNION_SELECT scan.
-*/
-
-class TRP_ROR_UNION : public TABLE_READ_PLAN {
- public:
-  TRP_ROR_UNION(TABLE *table_arg, bool forced_by_hint_arg,
-                Bounds_checked_array<AccessPath *> ror_scans_arg)
-      : TABLE_READ_PLAN(table_arg, MAX_KEY, /*used_key_parts=*/0,
-                        forced_by_hint_arg),
-        ror_scans(ror_scans_arg) {}
-  RowIterator *make_quick(THD *thd, double expected_rows,
-                          MEM_ROOT *return_mem_root,
-                          ha_rows *examined_rows) override;
-
-  void trace_basic_info(THD *thd, const RANGE_OPT_PARAM *param, double cost,
-                        double num_output_rows,
-                        Opt_trace_object *trace_object) const override;
-
-  RangeScanType get_type() const override { return QS_TYPE_ROR_UNION; }
-  bool is_keys_used(const MY_BITMAP *fields) override;
-  void need_sorted_output() override { assert(false); /* Can't do it */ }
-  void get_fields_used(MY_BITMAP *used_fields) const override;
-  void add_info_string(String *str) const override;
-  void add_keys_and_lengths(String *key_names,
-                            String *used_lengths) const override;
-  unsigned get_max_used_key_length() const final;
-#ifndef NDEBUG
-  void dbug_dump(int indent, bool verbose) override;
-#endif
-
- private:
-  // The subplans for merged scans. Can be INDEX_RANGE_SCAN or
-  // TRP_ROR_INTERSECT.
-  Bounds_checked_array<AccessPath *> ror_scans;
-};
-
 AccessPath *get_best_ror_intersect(
     THD *thd, const RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_intersect_allowed, enum_order order_direction,
@@ -119,13 +82,23 @@ void trace_basic_info_rowid_intersection(THD *thd, const AccessPath *path,
                                          const RANGE_OPT_PARAM *param,
                                          Opt_trace_object *trace_object);
 
+void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
+                                  const RANGE_OPT_PARAM *param,
+                                  Opt_trace_object *trace_object);
+
 void add_keys_and_lengths_rowid_intersection(const AccessPath *path,
                                              String *key_names,
                                              String *used_lengths);
 
+void add_keys_and_lengths_rowid_union(const AccessPath *path, String *key_names,
+                                      String *used_lengths);
+
 #ifndef NDEBUG
 void dbug_dump_rowid_intersection(int indent, bool verbose,
                                   const Mem_root_array<AccessPath *> &children);
+
+void dbug_dump_rowid_union(int indent, bool verbose,
+                           const Mem_root_array<AccessPath *> &children);
 #endif
 
 #endif  // SQL_RANGE_OPTIMIZER_ROWID_ORDERED_RETRIEVAL_PLAN_H_
