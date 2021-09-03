@@ -64,10 +64,9 @@ struct TABLE;
 
 class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
  private:
-  uint index;                 /* Index this quick select uses */
-  KEY *index_info;            /* Index for skip scan */
-  SEL_ROOT *index_range_tree; /* Range tree for skip scan */
-  MY_BITMAP column_bitmap;    /* Map of key parts to be read */
+  uint index;              /* Index this quick select uses */
+  KEY *index_info;         /* Index for skip scan */
+  MY_BITMAP column_bitmap; /* Map of key parts to be read */
 
   const uint eq_prefix_len; /* Total length of the equality prefix. */
   uint eq_prefix_key_parts; /* A number of keyparts in skip scan prefix */
@@ -85,7 +84,6 @@ class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
   uint distinct_prefix_len;
   uint distinct_prefix_key_parts;
 
-  KEY_PART_INFO *range_key_part; /* The keypart of range condition 'C'. */
   MEM_ROOT *mem_root;
   const uint range_key_len;
   /*
@@ -110,7 +108,6 @@ class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
 
  public:
   QUICK_SKIP_SCAN_SELECT(THD *thd, TABLE *table, KEY *index_info, uint index,
-                         KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
                          uint eq_prefix_len, uint eq_prefix_key_parts,
                          EQPrefix *eq_prefixes, uint used_key_parts,
                          MEM_ROOT *temp_mem_root, bool has_aggregate_function,

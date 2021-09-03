@@ -67,20 +67,17 @@
 
 QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     THD *thd, TABLE *table_arg, KEY *index_info, uint use_index,
-    KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree, uint eq_prefix_len,
-    uint eq_prefix_key_parts, EQPrefix *eq_prefixes, uint used_key_parts_arg,
-    MEM_ROOT *return_mem_root, bool has_aggregate_function,
-    uchar *min_range_key_arg, uchar *max_range_key_arg,
-    uchar *min_search_key_arg, uchar *max_search_key_arg,
-    uint range_cond_flag_arg, uint range_key_len_arg)
+    uint eq_prefix_len, uint eq_prefix_key_parts, EQPrefix *eq_prefixes,
+    uint used_key_parts_arg, MEM_ROOT *return_mem_root,
+    bool has_aggregate_function, uchar *min_range_key_arg,
+    uchar *max_range_key_arg, uchar *min_search_key_arg,
+    uchar *max_search_key_arg, uint range_cond_flag_arg, uint range_key_len_arg)
     : TableRowIterator(thd, table_arg),
       index_info(index_info),
-      index_range_tree(index_range_tree),
       eq_prefix_len(eq_prefix_len),
       eq_prefix_key_parts(eq_prefix_key_parts),
       eq_prefixes(eq_prefixes),
       distinct_prefix(nullptr),
-      range_key_part(range_part),
       mem_root(return_mem_root),
       range_key_len(range_key_len_arg),
       seen_first_key(false),

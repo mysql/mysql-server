@@ -119,10 +119,10 @@ RowIterator *TRP_SKIP_SCAN::make_quick(THD *thd, double,
                                        MEM_ROOT *return_mem_root, ha_rows *) {
   DBUG_TRACE;
   return new (return_mem_root) QUICK_SKIP_SCAN_SELECT(
-      thd, table, index_info, index, range_key_part, index_range_tree,
-      eq_prefix_len, eq_prefix_key_parts, eq_prefixes, used_key_parts,
-      return_mem_root, has_aggregate_function, min_range_key, max_range_key,
-      min_search_key, max_search_key, range_cond_flag, range_key_len);
+      thd, table, index_info, index, eq_prefix_len, eq_prefix_key_parts,
+      eq_prefixes, used_key_parts, return_mem_root, has_aggregate_function,
+      min_range_key, max_range_key, min_search_key, max_search_key,
+      range_cond_flag, range_key_len);
 }
 
 static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
