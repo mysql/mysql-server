@@ -595,12 +595,6 @@ IF(LINUX OR SOLARIS)
   TARGET_COMPILE_OPTIONS(icustubdata PRIVATE ${ICU_LINUX_COMPILE_OPTIONS})
 ENDIF()
 
-# uidna_toASCII_65 is marked as deprecated
-IF(MY_COMPILER_IS_GNU_OR_CLANG)
-  ADD_COMPILE_FLAGS(
-    ${ICU_VERSION_DIR}/source/common/uidna.cpp COMPILE_FLAGS "-Wno-deprecated-declarations")
-ENDIF()
-
 # Utility target to build all ICU libraries
 ADD_CUSTOM_TARGET(icu_all)
 ADD_DEPENDENCIES(icu_all icuuc icui18n icustubdata)
