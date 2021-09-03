@@ -23200,6 +23200,15 @@ Dblqh::execWAIT_LCP_IDLE_CONF(Signal *signal)
  * ------------------------------------------------------------------------- */
 void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
+  if (!isNdbMtLqh() && c_fragments_in_lcp == 0)
+  {
+    jam();
+    lcpPtr.i = 0;
+    ptrAss(lcpPtr, lcpRecord);
+    sendLCP_COMPLETE_REP(signal,
+                         lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId);
+    return;
+  }
   startLcpFragWatchdog(signal);
   DEB_EMPTY_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
