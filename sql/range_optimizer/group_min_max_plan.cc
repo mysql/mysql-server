@@ -74,18 +74,16 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
                       uint key_length, Quick_ranges *range_array);
 
 TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(
-    bool have_min_arg, bool have_max_arg, bool have_agg_distinct_arg,
-    KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
-    uint used_key_parts_arg, uint group_key_parts_arg, KEY *index_info_arg,
-    uint index_arg, uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
+    bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
+    uint group_prefix_len_arg, uint used_key_parts_arg,
+    uint group_key_parts_arg, KEY *index_info_arg, uint index_arg,
+    uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
     ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
     KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
     uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
     Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg)
     : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
                       /*forced_by_hint_arg=*/false),
-      have_min(have_min_arg),
-      have_max(have_max_arg),
       have_agg_distinct(have_agg_distinct_arg),
       min_max_arg_part(min_max_arg_part_arg),
       group_prefix_len(group_prefix_len_arg),
@@ -110,9 +108,9 @@ TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(
     Item_sum *min_max_item;
     Item_sum **func_ptr = join->sum_funcs;
     while ((min_max_item = *(func_ptr++))) {
-      if (have_min_arg && (min_max_item->sum_func() == Item_sum::MIN_FUNC))
+      if (min_max_item->sum_func() == Item_sum::MIN_FUNC)
         min_functions.push_back(min_max_item);
-      else if (have_max_arg && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
+      else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
         max_functions.push_back(min_max_item);
     }
   }
@@ -128,8 +126,8 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
                            min_max_arg_part->field->field_name);
   else
     trace_object->add_null("group_attribute");
-  trace_object->add("min_aggregate", have_min)
-      .add("max_aggregate", have_max)
+  trace_object->add("min_aggregate", !min_functions.is_empty())
+      .add("max_aggregate", !max_functions.is_empty())
       .add("distinct_aggregate", have_agg_distinct)
       .add("rows", num_output_rows)
       .add("cost", cost);
@@ -1030,12 +1028,12 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
 
   /* The query passes all tests, so construct a new TRP object. */
   TRP_GROUP_MIN_MAX *read_plan = new (param->return_mem_root) TRP_GROUP_MIN_MAX(
-      have_min, have_max, is_agg_distinct, min_max_arg_part, group_prefix_len,
-      used_key_parts, group_key_parts, index_info, index, key_infix_len,
-      best_index_tree, best_quick_prefix_records, table, join,
-      param->key[best_param_idx], param->real_keynr[best_param_idx],
-      real_key_parts, max_used_key_length, std::move(key_infix_ranges),
-      std::move(min_max_ranges), std::move(prefix_ranges));
+      is_agg_distinct, min_max_arg_part, group_prefix_len, used_key_parts,
+      group_key_parts, index_info, index, key_infix_len, best_index_tree,
+      best_quick_prefix_records, table, join, param->key[best_param_idx],
+      param->real_keynr[best_param_idx], real_key_parts, max_used_key_length,
+      std::move(key_infix_ranges), std::move(min_max_ranges),
+      std::move(prefix_ranges));
   if (read_plan) {
     AccessPath *path =
         NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
@@ -1728,11 +1726,11 @@ RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
   // TODO(sgunders): Consider using Bounds_checked_array instead of std::move
   // here, so that make_quick() can be made const.
   return new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-      thd, table, join, have_min, have_max, min_functions, max_functions,
-      have_agg_distinct, min_max_arg_part, group_prefix_len, group_key_parts,
-      real_key_parts, max_used_key_length, index_info, index, key_infix_len,
-      return_mem_root, is_index_scan, quick_prefix_query_block,
-      std::move(key_infix_ranges), std::move(min_max_ranges));
+      thd, table, join, min_functions, max_functions, have_agg_distinct,
+      min_max_arg_part, group_prefix_len, group_key_parts, real_key_parts,
+      max_used_key_length, index_info, index, key_infix_len, return_mem_root,
+      is_index_scan, quick_prefix_query_block, std::move(key_infix_ranges),
+      std::move(min_max_ranges));
 }
 
 void TRP_GROUP_MIN_MAX::add_info_string(String *str) const {

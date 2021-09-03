@@ -52,8 +52,6 @@
     thd                Thead handle
     table              The table being accessed
     join               Descriptor of the current query
-    have_min           true if the query selects a MIN function
-    have_max           true if the query selects a MAX function
     min_functions      MIN() functions in query block
     max_functions      MAX() functions in query block
     have_agg_distinct  Whether any aggregates are DISTINCT
@@ -79,12 +77,12 @@
     min_max_ranges     Ranges to scan for the MIN/MAX key part
  */
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
-    THD *thd, TABLE *table, JOIN *join, bool have_min, bool have_max,
-    List<Item_sum> min_functions, List<Item_sum> max_functions,
-    bool have_agg_distinct, KEY_PART_INFO *min_max_arg_part,
-    uint group_prefix_len, uint group_key_parts, uint real_key_parts_arg,
-    uint max_used_key_length_arg, KEY *index_info, uint use_index,
-    uint key_infix_len, MEM_ROOT *return_mem_root, bool is_index_scan,
+    THD *thd, TABLE *table, JOIN *join, List<Item_sum> min_functions,
+    List<Item_sum> max_functions, bool have_agg_distinct,
+    KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
+    uint group_key_parts, uint real_key_parts_arg, uint max_used_key_length_arg,
+    KEY *index_info, uint use_index, uint key_infix_len,
+    MEM_ROOT *return_mem_root, bool is_index_scan,
     QUICK_RANGE_SELECT *quick_prefix_query_block,
     Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges)
     : TableRowIterator(thd, table),
@@ -92,8 +90,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       index_info(index_info),
       group_prefix_len(group_prefix_len),
       group_key_parts(group_key_parts),
-      have_min(have_min),
-      have_max(have_max),
       have_agg_distinct(have_agg_distinct),
       seen_first_key(false),
       min_max_arg_part(min_max_arg_part),
@@ -261,9 +257,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
     bool reset_max_value = true;
     while (!thd()->killed && !append_next_infix()) {
       assert(!result || !is_index_access_error(result));
-      if (have_min || have_max) {
+      if (!min_functions.is_empty() || !max_functions.is_empty()) {
         if (min_max_keypart_asc) {
-          if (have_min) {
+          if (!min_functions.is_empty()) {
             if (!(result = next_min()))
               update_min_result(&reset_min_value);
             else {
@@ -275,7 +271,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
               continue;  // Record is not found, no reason to call next_max()
             }
           }
-          if (have_max) {
+          if (!max_functions.is_empty()) {
             if (!(result = next_max()))
               update_max_result(&reset_max_value);
             else if (is_index_access_error(result))
@@ -284,7 +280,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
         } else {
           // Call next_max() first and then next_min() if
           // MIN/MAX key part is descending.
-          if (have_max) {
+          if (!max_functions.is_empty()) {
             if (!(result = next_max()))
               update_max_result(&reset_max_value);
             else {
@@ -294,7 +290,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
               continue;  // Record is not found, no reason to call next_min()
             }
           }
-          if (have_min) {
+          if (!min_functions.is_empty()) {
             if (!(result = next_min()))
               update_min_result(&reset_min_value);
             else if (is_index_access_error(result))
@@ -585,16 +581,11 @@ void QUICK_GROUP_MIN_MAX_SELECT::reset_group() {
   seen_all_infix_ranges = false;
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 
-  if (have_min) {
-    for (Item_sum &min_func : min_functions) {
-      min_func.aggregator_clear();
-    }
+  for (Item_sum &min_func : min_functions) {
+    min_func.aggregator_clear();
   }
-
-  if (have_max) {
-    for (Item_sum &max_func : max_functions) {
-      max_func.aggregator_clear();
-    }
+  for (Item_sum &max_func : max_functions) {
+    max_func.aggregator_clear();
   }
 }
 

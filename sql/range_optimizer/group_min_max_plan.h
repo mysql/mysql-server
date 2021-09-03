@@ -45,8 +45,6 @@ struct MEM_ROOT;
 
 class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
  private:
-  bool have_min;  ///< true if there is a MIN function
-  bool have_max;  ///< true if there is a MAX function
   List<Item_sum> min_functions;
   List<Item_sum> max_functions;
   /**
@@ -86,10 +84,10 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
                         Opt_trace_object *trace_object) const override;
 
   TRP_GROUP_MIN_MAX(
-      bool have_min_arg, bool have_max_arg, bool have_agg_distinct_arg,
-      KEY_PART_INFO *min_max_arg_part_arg, uint group_prefix_len_arg,
-      uint used_key_parts_arg, uint group_key_parts_arg, KEY *index_info_arg,
-      uint index_arg, uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
+      bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
+      uint group_prefix_len_arg, uint used_key_parts_arg,
+      uint group_key_parts_arg, KEY *index_info_arg, uint index_arg,
+      uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
       ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
       KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
       uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
