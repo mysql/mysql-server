@@ -36,6 +36,7 @@
 
 #include "auto_cleaner.h"
 #include "mysql/harness/filesystem.h"
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/mysql_session.h"
@@ -616,6 +617,8 @@ class ConfigGenerator {
 #ifndef _WIN32
   SysUserOperationsBase *sys_user_operations_;
 #endif
+
+  mysqlrouter::MetadataSchemaVersion schema_version_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_one);

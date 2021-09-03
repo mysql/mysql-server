@@ -167,8 +167,9 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
       const std::vector<std::tuple<ProcessWrapper &, unsigned int>> &T);
 
   ProcessWrapper &launch_router_for_bootstrap(
-      std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS) {
-    params.push_back("--disable-rest");
+      std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
+      const bool disable_rest = true) {
+    if (disable_rest) params.push_back("--disable-rest");
     return ProcessManager::launch_router(
         params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
         /*wait_for_notify_ready=*/std::chrono::seconds(-1));
