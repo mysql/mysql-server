@@ -74,7 +74,7 @@ class Server {
   @return server thread */
   THD *get_thd() { return (m_server_thd); }
 
-  /** Allocate and return buufer for data copy
+  /** Allocate and return buffer for data copy
   @param[in]	len	buffer length
   @return allocated pointer */
   uchar *alloc_copy_buffer(uint len) {
