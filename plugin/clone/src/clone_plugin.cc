@@ -230,7 +230,7 @@ static bool scan_donor_list(const std::string &donor_list,
   return (true);
 }
 
-/** Validate the <HOST> and <PORT are configured in valid_donor_list
+/** Validate the <HOST> and <PORT> are configured in valid_donor_list
 @param[in,out]	thd	user session THD
 @param[in]	host	host name of donor
 @param[in]	port	port number of donor
@@ -282,7 +282,7 @@ static int match_valid_donor_address(MYSQL_THD thd, const char *host,
   return (ER_CLONE_SYS_CONFIG);
 }
 
-/** Check valid_donor_list format "<HOST1>:<PORT1>,<HOST2:PORT2,..."
+/** Check valid_donor_list format "<HOST1>:<PORT1>,<HOST2>:<PORT2>,..."
 @param[in]	thd	user session THD
 @param[in]	var	system variable
 @param[out]	save	possibly updated variable value
