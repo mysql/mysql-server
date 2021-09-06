@@ -49,7 +49,6 @@ class Query_block;
 class THD;
 struct MY_BITMAP;
 struct TABLE;
-class TABLE_READ_PLAN;
 
 struct KEY_PART {
   uint16 key, part;
@@ -217,5 +216,7 @@ void range_optimizer_free();
 bool comparable_in_index(Item *cond_func, const Field *field,
                          const Field::imagetype itype,
                          Item_func::Functype comp_type, const Item *value);
+
+void trace_quick_description(const AccessPath *path, Opt_trace_context *trace);
 
 #endif  // SQL_RANGE_OPTIMIZER_RANGE_OPTIMIZER_H_

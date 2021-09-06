@@ -90,8 +90,8 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/range_optimizer/partition_pruning.h"
-#include "sql/range_optimizer/table_read_plan.h"
-#include "sql/range_optimizer/trp_helpers.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_base.h"  // init_ftfuncs
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -2119,7 +2119,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   TABLE *const table = tab->table();
   JOIN *const join = tab->join();
   THD *const thd = join->thd;
-  AccessPath *const save_trp = tab->range_scan();
+  AccessPath *const save_range_scan = tab->range_scan();
   int best_key = -1;
   bool set_up_ref_access_to_key = false;
   bool can_skip_sorting = false;  // used as return value
@@ -2302,7 +2302,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           Opt_trace_object trace_recest(trace, "rows_estimation");
           trace_recest.add_utf8_table(tab->table_ref)
               .add_utf8("index", table->key_info[new_ref_key].name);
-          AccessPath *trp;
+          AccessPath *range_scan;
           MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                  thd->variables.range_alloc_block_size);
           const bool no_quick =
@@ -2317,9 +2317,9 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
                   tab->skip_records_in_range(),
                   // we are after make_join_query_block():
                   tab->condition(), &tab->needed_reg, tab->table()->force_index,
-                  join->query_block, &trp) <= 0;
-          assert(tab->range_scan() == save_trp);
-          tab->set_range_scan(trp);
+                  join->query_block, &range_scan) <= 0;
+          assert(tab->range_scan() == save_range_scan);
+          tab->set_range_scan(range_scan);
           if (no_quick) {
             can_skip_sorting = false;
             goto fix_ICP;
@@ -2420,7 +2420,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       keys_to_use.set_bit(best_key);  // only best_key.
       MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                              thd->variables.range_alloc_block_size);
-      AccessPath *trp;
+      AccessPath *range_scan;
       test_quick_select(
           thd, thd->mem_root, &temp_mem_root, keys_to_use, 0,
           0,  // empty table_map
@@ -2429,14 +2429,14 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           true,  // force quick range
           order.order->direction, tab->table(), tab->skip_records_in_range(),
           tab->condition(), &tab->needed_reg, tab->table()->force_index,
-          join->query_block, &trp);
+          join->query_block, &range_scan);
       if (order_direction < 0 && tab->range_scan() != nullptr &&
-          tab->range_scan() != save_trp) {
+          tab->range_scan() != save_range_scan) {
         /*
           We came here in case when 3 indexes are available for quick
           select:
             1 - found by join order optimizer (greedy search) and saved in
-                save_trp
+                save_range_scan
             2 - constructed far above, as better suited for order by, but it was
                 found that it requires backward scan.
             3 - constructed right above
@@ -2446,11 +2446,12 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         tab->set_range_scan(nullptr);
       }
       /*
-        If tab->range_scan() pointed to another quick than save_trp, we would
-        lose access to it and leak memory.
+        If tab->range_scan() pointed to another quick than save_range_scan, we
+        would lose access to it and leak memory.
       */
-      assert(tab->range_scan() == save_trp || tab->range_scan() == nullptr);
-      tab->set_range_scan(trp);
+      assert(tab->range_scan() == save_range_scan ||
+             tab->range_scan() == nullptr);
+      tab->set_range_scan(range_scan);
     }
     order_direction = best_key_direction;
     /*
@@ -2552,10 +2553,11 @@ check_reverse_order:
       */
       if (!table->covering_keys.is_set(best_key)) table->set_keyread(false);
       if (!tab->range_scan() ||
-          tab->range_scan() == save_trp)  // created no QUICK
+          tab->range_scan() == save_range_scan)  // created no QUICK
       {
         // Avoid memory leak:
-        assert(tab->range_scan() == save_trp || tab->range_scan() == nullptr);
+        assert(tab->range_scan() == save_range_scan ||
+               tab->range_scan() == nullptr);
         tab->set_range_scan(nullptr);
         tab->set_index(best_key);
         tab->set_type(JT_INDEX_SCAN);  // Read with index_first(), index_next()
@@ -2631,7 +2633,7 @@ check_reverse_order:
 fix_ICP:
   /*
     Cleanup:
-    We may have both a 'tab->range_scan()' and 'save_trp' (original)
+    We may have both a 'tab->range_scan()' and 'save_range_scan' (original)
     at this point. Delete the one that we won't use.
   */
   if (can_skip_sorting && !no_changes) {
@@ -2643,12 +2645,12 @@ fix_ICP:
     }
 
     // Keep current (ordered) tab->range_scan()
-    if (save_trp != tab->range_scan()) destroy(save_trp);
+    if (save_range_scan != tab->range_scan()) destroy(save_range_scan);
   } else {
-    // Restore original save_trp
-    if (tab->range_scan() != save_trp) {
+    // Restore original save_range_scan
+    if (tab->range_scan() != save_range_scan) {
       destroy(tab->range_scan());
-      tab->set_range_scan(save_trp);
+      tab->set_range_scan(save_range_scan);
     }
   }
 
@@ -2790,7 +2792,7 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
         Opt_trace_object trace_cond(
             trace, "rerunning_range_optimizer_for_single_index");
 
-        AccessPath *trp;
+        AccessPath *range_scan;
         MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                thd->variables.range_alloc_block_size);
         if (test_quick_select(
@@ -2800,16 +2802,16 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 tab->skip_records_in_range(),
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
                 &tab->needed_reg, recheck_range, tab->join()->query_block,
-                &trp) > 0) {
-          if (length < get_max_used_key_length(trp)) {
+                &range_scan) > 0) {
+          if (length < get_max_used_key_length(range_scan)) {
             destroy(tab->range_scan());
-            tab->set_range_scan(trp);
+            tab->set_range_scan(range_scan);
             return true;
           } else {
             Opt_trace_object(trace, "access_type_unchanged")
                 .add("ref_key_length", length)
-                .add("range_key_length", get_max_used_key_length(trp));
-            destroy(trp);
+                .add("range_key_length", get_max_used_key_length(range_scan));
+            destroy(range_scan);
           }
         }
       } else
@@ -6003,7 +6005,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
 
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization()) {
-    AccessPath *trp;
+    AccessPath *range_scan;
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
     MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
@@ -6016,10 +6018,10 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
         &tab->needed_reg, tab->table()->force_index, tab->join()->query_block,
-        &trp);
-    tab->set_range_scan(trp);
+        &range_scan);
+    tab->set_range_scan(range_scan);
 
-    if (error == 1) return trp->num_output_rows;
+    if (error == 1) return range_scan->num_output_rows;
     if (error == -1) {
       tl->table->reginfo.impossible_range = true;
       return 0;
@@ -9447,7 +9449,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
           assert(tab->const_keys.is_subset(tab->keys()));
 
           const join_type orig_join_type = tab->type();
-          const AccessPath *const orig_trp = tab->range_scan();
+          const AccessPath *const orig_range_scan = tab->range_scan();
 
           if (cond &&                              // 1a
               (tab->keys() != tab->const_keys) &&  // 1b
@@ -9571,7 +9573,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 destroy(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
-              AccessPath *trp;
+              AccessPath *range_scan;
               MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                      thd->variables.range_alloc_block_size);
               search_if_impossible =
@@ -9585,8 +9587,8 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                       interesting_order, tab->table(),
                       tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, tab->table()->force_index,
-                      join->query_block, &trp) < 0;
-              tab->set_range_scan(trp);
+                      join->query_block, &range_scan) < 0;
+              tab->set_range_scan(range_scan);
             }
             tab->set_condition(orig_cond);
             if (search_if_impossible) {
@@ -9601,7 +9603,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 destroy(tab->range_scan());
                 tab->set_type(JT_ALL);
               }
-              AccessPath *trp;
+              AccessPath *range_scan;
               MEM_ROOT temp_mem_root(key_memory_test_quick_select_exec,
                                      thd->variables.range_alloc_block_size);
               const bool impossible_where =
@@ -9615,8 +9617,8 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                       ORDER_NOT_RELEVANT, tab->table(),
                       tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, tab->table()->force_index,
-                      join->query_block, &trp) < 0;
-              tab->set_range_scan(trp);
+                      join->query_block, &range_scan) < 0;
+              tab->set_range_scan(range_scan);
               if (impossible_where) return true;  // Impossible WHERE
             }
 
@@ -9675,7 +9677,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
           }
 
           if (tab->type() != orig_join_type ||
-              tab->range_scan() != orig_trp)  // Access method changed
+              tab->range_scan() != orig_range_scan)  // Access method changed
             tab->position()->filter_effect = COND_FILTER_STALE;
         }
       }

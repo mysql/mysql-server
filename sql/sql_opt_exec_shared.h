@@ -37,7 +37,6 @@ class JOIN;
 class Item_func_match;
 class store_key;
 struct POSITION;
-class TABLE_READ_PLAN;
 
 /**
    This represents the index of a JOIN_TAB/QEP_TAB in an array. "plan_idx":

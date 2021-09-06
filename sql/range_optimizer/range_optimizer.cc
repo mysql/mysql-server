@@ -123,14 +123,14 @@
 #include "sql/range_optimizer/group_min_max_plan.h"
 #include "sql/range_optimizer/index_merge_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_opt_param.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/range_optimizer/skip_scan_plan.h"
-#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/range_optimizer/tree.h"
-#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -384,7 +384,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   SYNOPSIS
     test_quick_select()
       thd               Current thread
-      return_mem_root   MEM_ROOT to allocate TRPs, RowIterators and
+      return_mem_root   MEM_ROOT to allocate AccessPaths, RowIterators and
                         dependent information on (ie., permanent artifacts
                         that must live on after the range optimizer
                         has finished executing).
@@ -467,7 +467,7 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
     1 if found usable ranges and quick select has been successfully created.
 
   @note After this call, caller may decide to really use the returned QUICK,
-  by calling QEP_TAB::set_trp() and updating tab->type() if appropriate.
+  by calling QEP_TAB::set_range_scan() and updating tab->type() if appropriate.
 
 */
 int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
@@ -565,7 +565,8 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     thd->push_internal_handler(&param.error_handler);
     auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
 
-    // These are being stored in TRPs, so they need to be on return_mem_root.
+    // These are being stored in AccessPaths, so they need to be on
+    // return_mem_root.
     param.real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
     param.key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
     param.key_parts =
@@ -659,7 +660,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       if (!chosen) trace_cov.add_alnum("cause", "cost");
     }
 
-    AccessPath *best_trp = nullptr;
+    AccessPath *best_path = nullptr;
     double best_cost = cost_est.total_cost();
 
     if (cond) {
@@ -696,20 +697,20 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       Try to construct a QUICK_GROUP_MIN_MAX_SELECT.
       Notice that it can be constructed no matter if there is a range tree.
     */
-    AccessPath *group_trp = get_best_group_min_max(
+    AccessPath *group_path = get_best_group_min_max(
         thd, &param, tree, interesting_order, skip_records_in_range, best_cost);
-    if (group_trp) {
-      DBUG_EXECUTE_IF("force_lis_for_group_by", group_trp->cost = 0.0;);
+    if (group_path) {
+      DBUG_EXECUTE_IF("force_lis_for_group_by", group_path->cost = 0.0;);
       param.table->quick_condition_rows =
-          min<double>(group_trp->num_output_rows, table->file->stats.records);
+          min<double>(group_path->num_output_rows, table->file->stats.records);
       Opt_trace_object grp_summary(trace, "best_group_range_summary",
                                    Opt_trace_context::RANGE_OPTIMIZER);
       if (unlikely(trace->is_started()))
-        trace_basic_info(thd, group_trp, &param, &grp_summary);
-      if (group_trp->cost < best_cost) {
+        trace_basic_info(thd, group_path, &param, &grp_summary);
+      if (group_path->cost < best_cost) {
         grp_summary.add("chosen", true);
-        best_trp = group_trp;
-        best_cost = best_trp->cost;
+        best_path = group_path;
+        best_cost = best_path->cost;
       } else
         grp_summary.add("chosen", false).add_alnum("cause", "cost");
     }
@@ -718,27 +719,27 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                                        SKIP_SCAN_HINT_ENUM, 0);
 
     if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
-      AccessPath *skip_scan_trp =
+      AccessPath *skip_scan_path =
           get_best_skip_scan(thd, &param, tree, interesting_order,
                              skip_records_in_range, force_skip_scan);
-      if (skip_scan_trp) {
+      if (skip_scan_path) {
         param.table->quick_condition_rows = min<double>(
-            skip_scan_trp->num_output_rows, table->file->stats.records);
+            skip_scan_path->num_output_rows, table->file->stats.records);
         Opt_trace_object summary(trace, "best_skip_scan_summary",
                                  Opt_trace_context::RANGE_OPTIMIZER);
         if (unlikely(trace->is_started()))
-          trace_basic_info(thd, skip_scan_trp, &param, &summary);
+          trace_basic_info(thd, skip_scan_path, &param, &summary);
 
-        if (skip_scan_trp->cost < best_cost || force_skip_scan) {
+        if (skip_scan_path->cost < best_cost || force_skip_scan) {
           summary.add("chosen", true);
-          best_trp = skip_scan_trp;
-          best_cost = best_trp->cost;
+          best_path = skip_scan_path;
+          best_cost = best_path->cost;
         } else
           summary.add("chosen", false).add_alnum("cause", "cost");
       }
     }
 
-    if (tree && (best_trp == nullptr || !get_forced_by_hint(best_trp))) {
+    if (tree && (best_path == nullptr || !get_forced_by_hint(best_path))) {
       /*
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
@@ -757,14 +758,14 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         */
         Opt_trace_object trace_range_alt(trace, "analyzing_range_alternatives",
                                          Opt_trace_context::RANGE_OPTIMIZER);
-        AccessPath *range_trp = get_key_scans_params(
+        AccessPath *range_path = get_key_scans_params(
             thd, &param, tree, false, true, interesting_order,
             skip_records_in_range, best_cost, needed_reg);
 
         /* Get best 'range' plan and prepare data for making other plans */
-        if (range_trp) {
-          best_trp = range_trp;
-          best_cost = best_trp->cost;
+        if (range_path) {
+          best_path = range_path;
+          best_cost = best_path->cost;
         }
 
         /*
@@ -782,13 +783,13 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
             Get best non-covering ROR-intersection plan and prepare data for
             building covering ROR-intersection.
           */
-          AccessPath *rori_trp = get_best_ror_intersect(
+          AccessPath *rori_path = get_best_ror_intersect(
               thd, &param, table, index_merge_intersect_allowed,
               interesting_order, tree, &needed_fields, best_cost,
               /*force_index_merge_result=*/true, /*reuse_handler=*/true);
-          if (rori_trp) {
-            best_trp = rori_trp;
-            best_cost = best_trp->cost;
+          if (rori_path) {
+            best_path = rori_path;
+            best_cost = best_path->cost;
           }
         }
       }
@@ -803,7 +804,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
             param.table->file->stats.records) {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
-          AccessPath *best_conj_trp = nullptr, *new_conj_trp = nullptr;
+          AccessPath *best_conj_path = nullptr, *new_conj_path = nullptr;
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
                                           Opt_trace_context::RANGE_OPTIMIZER);
@@ -811,21 +812,21 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
           // Buffer for index_merge cost estimates.
           Unique::Imerge_cost_buf_type imerge_cost_buff;
           while ((imerge = it++)) {
-            new_conj_trp = get_best_disjunct_quick(
+            new_conj_path = get_best_disjunct_quick(
                 thd, &param, table, index_merge_union_allowed,
                 index_merge_sort_union_allowed, index_merge_intersect_allowed,
                 interesting_order, skip_records_in_range, &needed_fields,
                 imerge, &imerge_cost_buff, best_cost, needed_reg);
-            if (new_conj_trp)
+            if (new_conj_path)
               param.table->quick_condition_rows =
                   min<double>(param.table->quick_condition_rows,
-                              new_conj_trp->num_output_rows);
-            if (!best_conj_trp ||
-                (new_conj_trp && new_conj_trp->cost < best_conj_trp->cost)) {
-              best_conj_trp = new_conj_trp;
+                              new_conj_path->num_output_rows);
+            if (!best_conj_path ||
+                (new_conj_path && new_conj_path->cost < best_conj_path->cost)) {
+              best_conj_path = new_conj_path;
             }
           }
-          if (best_conj_trp) best_trp = best_conj_trp;
+          if (best_conj_path) best_path = best_conj_path;
         }
       }
     }
@@ -834,20 +835,21 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       If we got a read plan, return it, but only if the storage engine supports
       using indexes for access.
     */
-    if (best_trp && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
-      records = best_trp->num_output_rows;
-      *path = best_trp;
+    if (best_path &&
+        (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
+      records = best_path->num_output_rows;
+      *path = best_path;
     }
 
-    if (unlikely(trace->is_started() && best_trp)) {
+    if (unlikely(trace->is_started() && best_path)) {
       Opt_trace_object trace_range_summary(trace,
                                            "chosen_range_access_summary");
       {
         Opt_trace_object trace_range_plan(trace, "range_access_plan");
-        trace_basic_info(thd, best_trp, &param, &trace_range_plan);
+        trace_basic_info(thd, best_path, &param, &trace_range_plan);
       }
-      trace_range_summary.add("rows_for_plan", best_trp->num_output_rows)
-          .add("cost_for_plan", best_trp->cost)
+      trace_range_summary.add("rows_for_plan", best_path->num_output_rows)
+          .add("cost_for_plan", best_path->cost)
           .add("chosen", true);
     }
 
@@ -867,7 +869,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   ROR union was found to be more expensive than read_cost (which is presumably
   the cost for the index merge plan).
  */
-static AccessPath *get_ror_union_trp(
+static AccessPath *get_ror_union_path(
     THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_intersect_allowed, enum_order interesting_order,
     const MY_BITMAP *needed_fields, SEL_IMERGE *imerge, const double read_cost,
@@ -885,9 +887,9 @@ static AccessPath *get_ror_union_trp(
     AccessPath **cur_roru_plan = &roru_read_plans[0];
     for (SEL_TREE **ptree = imerge->trees; ptree != imerge->trees_next;
          ptree++, cur_child++, cur_roru_plan++) {
-      Opt_trace_object trp_info(trace);
+      Opt_trace_object path(trace);
       if (unlikely(trace->is_started()))
-        trace_basic_info(thd, *cur_child, param, &trp_info);
+        trace_basic_info(thd, *cur_child, param, &path);
 
       const auto &child_param = (*cur_child)->index_range_scan();
 
@@ -1182,7 +1184,7 @@ static AccessPath *get_best_disjunct_quick(
     if (all_scans_rors && (index_merge_union_allowed || force_index_merge)) {
       trace_best_disjunct.add("use_roworder_union", true)
           .add_alnum("cause", "always_cheaper_than_not_roworder_retrieval");
-      return get_ror_union_trp(
+      return get_ror_union_path(
           thd, param, table, index_merge_intersect_allowed, interesting_order,
           needed_fields, imerge, read_cost, force_index_merge,
           {range_scans, n_child_scans}, range_scans, &trace_best_disjunct);
@@ -1268,7 +1270,7 @@ static AccessPath *get_best_disjunct_quick(
     return imerge_path;
   }
 
-  AccessPath *roru = get_ror_union_trp(
+  AccessPath *roru = get_ror_union_path(
       thd, param, table, index_merge_intersect_allowed, interesting_order,
       needed_fields, imerge, read_cost, force_index_merge,
       {roru_read_plans, n_child_scans}, range_scans, &trace_best_disjunct);

@@ -52,7 +52,6 @@ class RowIterator;
 class QEP_TAB;
 class QUICK_RANGE;
 class SJ_TMP_TABLE;
-class TABLE_READ_PLAN;
 class Table_function;
 class Temp_table_param;
 class Window;

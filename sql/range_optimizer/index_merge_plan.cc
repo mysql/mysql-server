@@ -24,7 +24,7 @@
 
 #include "sql/join_optimizer/access_path.h"
 #include "sql/opt_trace.h"
-#include "sql/range_optimizer/trp_helpers.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/sql_class.h"
 
 class Opt_trace_context;
@@ -37,8 +37,8 @@ void trace_basic_info_index_merge(THD *thd, const AccessPath *path,
   trace_object->add_alnum("type", "index_merge");
   Opt_trace_array ota(trace, "index_merge_of");
   for (AccessPath *range_scan : *path->index_merge().children) {
-    Opt_trace_object trp_info(trace);
-    trace_basic_info(thd, range_scan, param, &trp_info);
+    Opt_trace_object path_info(trace);
+    trace_basic_info(thd, range_scan, param, &path_info);
   }
 }
 

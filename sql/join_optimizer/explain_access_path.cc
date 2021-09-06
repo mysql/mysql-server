@@ -32,8 +32,8 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/range_optimizer/group_min_max_plan.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/skip_scan_plan.h"
-#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -657,9 +657,6 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {
       TABLE *table = path->dynamic_index_range_scan().table;
-      // TODO(sgunders): Convert TABLE_READ_PLAN to AccessPath so that we can
-      // get better outputs here (similar to dbug_dump()), although it might get
-      // tricky when there are many alternatives.
       string str = string(table->key_read ? "Covering index range scan on "
                                           : "Index range scan on ") +
                    table->alias + " (re-planned for each iteration)";

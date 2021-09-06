@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/range_optimizer.h"
 
 class KEY;
 class KEY_PART_INFO;

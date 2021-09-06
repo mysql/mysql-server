@@ -78,11 +78,11 @@
 #include "sql/protocol.h"
 #include "sql/range_optimizer/group_min_max.h"
 #include "sql/range_optimizer/group_min_max_plan.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
-#include "sql/range_optimizer/table_read_plan.h"
-#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -418,7 +418,7 @@ class Explain_table_base : public Explain {
   bool explain_possible_keys() override;
 
   bool explain_key_parts(int key, uint key_parts);
-  bool explain_key_and_len_quick(AccessPath *trp);
+  bool explain_key_and_len_quick(AccessPath *range_scan);
   bool explain_key_and_len_index(int key);
   bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
   bool explain_extra_common(int quick_type, uint keyno);
@@ -437,7 +437,7 @@ class Explain_join : public Explain_table_base {
   const bool distinct;  ///< add "Distinct" string to "extra" column if true
 
   JOIN *join;      ///< current JOIN
-  int quick_type;  ///< current quick type, see anon. enum at TABLE_READ_PLAN
+  int quick_type;  ///< current quick type, really a RangeScanType
 
  public:
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,

@@ -29,9 +29,9 @@
 #include "sql/handler.h"
 #include "sql/range_optimizer/geometry.h"
 #include "sql/range_optimizer/range_opt_param.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_desc.h"
-#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_const.h"
 
 class Opt_trace_object;

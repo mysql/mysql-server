@@ -92,8 +92,8 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/query_options.h"
-#include "sql/range_optimizer/table_read_plan.h"
-#include "sql/range_optimizer/trp_helpers.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/records.h"
 #include "sql/ref_row_iterators.h"
@@ -3993,7 +3993,7 @@ bool DynamicRangeIterator::Init() {
   m_qep_tab->set_range_scan(nullptr);
   m_mem_root.ClearForReuse();
 
-  AccessPath *trp;
+  AccessPath *range_scan;
 
   int rc = test_quick_select(thd(), &m_mem_root, &m_mem_root, m_qep_tab->keys(),
                              const_tables, read_tables, HA_POS_ERROR,
@@ -4002,23 +4002,23 @@ bool DynamicRangeIterator::Init() {
                              m_qep_tab->skip_records_in_range(),
                              m_qep_tab->condition(), &needed_reg_dummy,
                              m_qep_tab->table()->force_index,
-                             m_qep_tab->join()->query_block, &trp);
+                             m_qep_tab->join()->query_block, &range_scan);
   if (thd()->is_error())  // @todo consolidate error reporting
                           // of test_quick_select
   {
     return true;
   }
-  m_qep_tab->set_range_scan(trp);
-  if (trp == nullptr) {
+  m_qep_tab->set_range_scan(range_scan);
+  if (range_scan == nullptr) {
     m_qep_tab->set_type(JT_ALL);
   } else {
-    qck =
-        CreateIteratorFromAccessPath(thd(), &m_mem_root, trp, /*join=*/nullptr,
-                                     /*eligible_for_batch_mode=*/false);
+    qck = CreateIteratorFromAccessPath(thd(), &m_mem_root, range_scan,
+                                       /*join=*/nullptr,
+                                       /*eligible_for_batch_mode=*/false);
     if (qck == nullptr || thd()->is_error()) {
       return true;
     }
-    m_qep_tab->set_type(calc_join_type(trp));
+    m_qep_tab->set_type(calc_join_type(range_scan));
   }
 
   DEBUG_SYNC(thd(), "quick_droped_after_mutex");
@@ -4039,8 +4039,8 @@ bool DynamicRangeIterator::Init() {
     // If the range optimizer chose index merge scan or a range scan with
     // covering index, use the read set without base columns. Otherwise we use
     // the read set with base columns included.
-    if (used_index(trp) == MAX_KEY ||
-        table()->covering_keys.is_set(used_index(trp)))
+    if (used_index(range_scan) == MAX_KEY ||
+        table()->covering_keys.is_set(used_index(range_scan)))
       table()->read_set = m_read_set_without_base_columns;
     else
       table()->read_set = &m_read_set_with_base_columns;

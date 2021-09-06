@@ -80,8 +80,8 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/partition_pruning.h"
-#include "sql/range_optimizer/table_read_plan.h"
-#include "sql/range_optimizer/trp_helpers.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/select_lex_visitor.h"
@@ -457,11 +457,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   table->mark_columns_needed_for_update(thd,
                                         false /*mark_binlog_columns=false*/);
 
-  AccessPath *trp = nullptr;
+  AccessPath *range_scan = nullptr;
   join_type type = JT_UNKNOWN;
 
-  auto cleanup = create_scope_guard([&trp, table] {
-    destroy(trp);
+  auto cleanup = create_scope_guard([&range_scan, table] {
+    destroy(range_scan);
     table->set_keyread(false);
     table->file->ha_index_or_rnd_end();
     free_io_cache(table);
@@ -485,7 +485,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                     thd, thd->mem_root, &temp_mem_root, keys_to_use, 0, 0,
                     limit, safe_update, ORDER_NOT_RELEVANT, table,
                     /*skip_records_in_range=*/false, conds, &needed_reg_dummy,
-                    table->force_index, query_block, &trp) < 0;
+                    table->force_index, query_block, &range_scan) < 0;
       if (thd->is_error()) return true;
     }
     if (no_rows) {
@@ -537,11 +537,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   uint used_index;
   {
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    used_index = get_index_for_order(&order_src, table, limit, trp, &need_sort,
-                                     &reverse);
-    if (trp != nullptr) {
+    used_index = get_index_for_order(&order_src, table, limit, range_scan,
+                                     &need_sort, &reverse);
+    if (range_scan != nullptr) {
       // May have been changed by get_index_for_order().
-      type = calc_join_type(trp);
+      type = calc_join_type(range_scan);
     }
   }
   if (need_sort) {  // Assign table scan index to check below for modified key
@@ -551,13 +551,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (used_index != MAX_KEY) {  // Check if we are modifying a key that we are
                                 // used to search with:
     used_key_is_modified = is_key_used(table, used_index, table->write_set);
-  } else if (trp) {
+  } else if (range_scan) {
     /*
-      select->trp != NULL and used_index == MAX_KEY happens for index
+      select->range_scan != NULL and used_index == MAX_KEY happens for index
       merge and should be handled in a different way.
     */
-    used_key_is_modified =
-        (!unique_key_range(trp) && uses_index_on_fields(trp, table->write_set));
+    used_key_is_modified = (!unique_key_range(range_scan) &&
+                            uses_index_on_fields(range_scan, table->write_set));
   }
 
   if (table->part_info)
@@ -581,8 +581,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   {  // Start of scope for Modification_plan
     ha_rows rows;
-    if (trp)
-      rows = trp->num_output_rows;
+    if (range_scan)
+      rows = range_scan->num_output_rows;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
@@ -590,8 +590,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       rows = table->file->stats.records;
     }
     DEBUG_SYNC(thd, "before_single_update");
-    Modification_plan plan(thd, MT_UPDATE, table, type, trp, conds, used_index,
-                           limit,
+    Modification_plan plan(thd, MT_UPDATE, table, type, range_scan, conds,
+                           used_index, limit,
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
@@ -618,7 +618,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         JOIN join(thd, query_block);  // Only for holding examined_rows.
         AccessPath *path = create_table_access_path(
-            thd, table, trp, /*table_ref=*/nullptr,
+            thd, table, range_scan, /*table_ref=*/nullptr,
             /*position=*/nullptr, /*count_examined_rows=*/true);
 
         if (conds != nullptr) {
@@ -645,8 +645,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           Filesort has already found and selected the rows we want to update,
           so we don't need the where clause
         */
-        destroy(trp);
-        trp = nullptr;
+        destroy(range_scan);
+        range_scan = nullptr;
         conds = nullptr;
       } else {
         /*
@@ -680,8 +680,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         AccessPath *path;
-        if (used_index == MAX_KEY || trp) {
-          path = create_table_access_path(thd, table, trp,
+        if (used_index == MAX_KEY || range_scan) {
+          path = create_table_access_path(thd, table, range_scan,
                                           /*table_ref=*/nullptr,
                                           /*position=*/nullptr,
                                           /*count_examined_rows=*/false);
@@ -774,14 +774,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
 
-        destroy(trp);
-        trp = nullptr;
+        destroy(range_scan);
+        range_scan = nullptr;
         conds = nullptr;
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
       iterator =
-          init_table_iterator(thd, table, trp,
+          init_table_iterator(thd, table, range_scan,
                               /*table_ref=*/nullptr, /*position=*/nullptr,
                               /*ignore_not_found_rows=*/false,
                               /*count_examined_rows=*/false);
@@ -817,10 +817,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       will_batch = !table->file->start_bulk_update();
     }
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
-        !thd->lex->is_ignore() && !using_limit && !has_update_triggers && trp &&
-        ::used_index(trp) != MAX_KEY &&
+        !thd->lex->is_ignore() && !using_limit && !has_update_triggers &&
+        range_scan && ::used_index(range_scan) != MAX_KEY &&
         check_constant_expressions(*update_value_list))
-      read_removal = table->check_read_removal(::used_index(trp));
+      read_removal = table->check_read_removal(::used_index(range_scan));
 
     // If the update is batched, we cannot do partial update, so turn it off.
     if (will_batch) table->cleanup_partial_update(); /* purecov: inspected */

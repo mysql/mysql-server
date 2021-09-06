@@ -292,7 +292,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
   alloc.set_error_for_capacity_exceeded(true);
   thd->push_internal_handler(&range_par->error_handler);
   range_par->return_mem_root =
-      &alloc;  // We never use the generated TRPs, if any.
+      &alloc;  // We never use the generated AccessPaths, if any.
   range_par->temp_mem_root = &alloc;
 
   if (create_partition_index_description(&prune_param)) {

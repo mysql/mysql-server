@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_TRP_HELPERS_H_
-#define SQL_RANGE_OPTIMIZER_TRP_HELPERS_H_
+#ifndef SQL_RANGE_OPTIMIZER_PATH_HELPERS_H_
+#define SQL_RANGE_OPTIMIZER_PATH_HELPERS_H_
 
 /**
   @file
@@ -32,10 +32,10 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/range_optimizer/group_min_max_plan.h"
 #include "sql/range_optimizer/index_merge_plan.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
 #include "sql/range_optimizer/skip_scan_plan.h"
-#include "sql/range_optimizer/table_read_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
   return path->type == AccessPath::INDEX_SKIP_SCAN ||
@@ -73,7 +73,7 @@ inline bool is_reverse_sorted_range(const AccessPath *path) {
 }
 
 /**
-  Ask the TRP to reverse itself; returns false if successful.
+  Ask the AccessPath to reverse itself; returns false if successful.
   Overridden only in INDEX_RANGE_SCAN.
  */
 inline bool make_reverse(uint used_key_parts, AccessPath *path) {
@@ -537,4 +537,4 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
 }
 #endif
 
-#endif  // SQL_RANGE_OPTIMIZER_TRP_HELPERS_H_
+#endif  // SQL_RANGE_OPTIMIZER_PATH_HELPERS_H_

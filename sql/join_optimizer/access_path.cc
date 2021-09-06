@@ -43,7 +43,6 @@
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/skip_scan.h"
 #include "sql/range_optimizer/skip_scan_plan.h"
-#include "sql/range_optimizer/table_read_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"

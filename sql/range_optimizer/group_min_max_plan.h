@@ -27,7 +27,7 @@
 
 #include "my_base.h"
 #include "my_inttypes.h"
-#include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_const.h"
 
 class KEY;

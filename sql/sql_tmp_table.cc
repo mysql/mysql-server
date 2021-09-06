@@ -68,7 +68,7 @@
 #include "sql/opt_trace_context.h"  // Opt_trace_context
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_base.h"   // free_io_cache
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"

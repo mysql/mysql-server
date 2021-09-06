@@ -40,12 +40,12 @@
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"
 #include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
 #include "sql/range_optimizer/tree.h"
-#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -103,8 +103,8 @@ void trace_basic_info_rowid_union(THD *thd, const AccessPath *path,
   trace_object->add_alnum("type", "index_roworder_union");
   Opt_trace_array ota(trace, "union_of");
   for (AccessPath *child : *path->rowid_union().children) {
-    Opt_trace_object trp_info(trace);
-    ::trace_basic_info(thd, child, param, &trp_info);
+    Opt_trace_object path_info(trace);
+    ::trace_basic_info(thd, child, param, &path_info);
   }
 }
 

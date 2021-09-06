@@ -94,8 +94,8 @@
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/range_optimizer/table_read_plan.h"
-#include "sql/range_optimizer/trp_helpers.h"
+#include "sql/range_optimizer/path_helpers.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sorting_iterator.h"
@@ -5135,7 +5135,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
     *need_sort = false;
     /*
       Returning of MAX_KEY here prevents updating of used_key_is_modified
-      in mysql_update(). Use TRP "as is".
+      in mysql_update(). Use AccessPath "as is".
     */
     return MAX_KEY;
   }
@@ -5143,7 +5143,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
   if (order->empty()) {
     *need_sort = false;
     if (range_scan)
-      return used_index(range_scan);  // index or MAX_KEY, use TRP as is
+      return used_index(range_scan);  // index or MAX_KEY, use AccessPath as is
     else
       return table->file
           ->key_used_on_scan;  // MAX_KEY or index for some engines
@@ -5162,9 +5162,9 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
     }
 
     uint used_key_parts;
-    bool skip_trp;
+    bool skip_path;
     switch (test_if_order_by_key(order, table, used_index(range_scan),
-                                 &used_key_parts, &skip_trp)) {
+                                 &used_key_parts, &skip_path)) {
       case 1:  // desired order
         *need_sort = false;
         return used_index(range_scan);
@@ -5173,7 +5173,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
         return MAX_KEY;
       case -1:  // desired order, but opposite direction
       {
-        if (!skip_trp && !make_reverse(used_key_parts, range_scan)) {
+        if (!skip_path && !make_reverse(used_key_parts, range_scan)) {
           *need_sort = false;
           return used_index(range_scan);
         } else {
@@ -5187,7 +5187,7 @@ uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
                                        // more efficient than filesort
 
     /*
-      Update trp_condition_rows since single table UPDATE/DELETE procedures
+      Update quick_condition_rows since single table UPDATE/DELETE procedures
       don't call JOIN::make_join_plan() and leave this variable uninitialized.
     */
     table->quick_condition_rows = table->file->stats.records;

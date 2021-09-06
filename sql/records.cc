@@ -144,7 +144,7 @@ template class IndexScanIterator<false>;
 
   @param thd      Thread handle
   @param table    Table the data [originally] comes from
-  @param trp      AccessPath to scan the table with, or nullptr
+  @param range_scan AccessPath to scan the table with, or nullptr
   @param table_ref
                   Position for the table, must be non-nullptr for
                   WITH RECURSIVE
@@ -152,13 +152,14 @@ template class IndexScanIterator<false>;
   @param count_examined_rows
     See AccessPath::count_examined_rows.
  */
-AccessPath *create_table_access_path(THD *thd, TABLE *table, AccessPath *trp,
+AccessPath *create_table_access_path(THD *thd, TABLE *table,
+                                     AccessPath *range_scan,
                                      TABLE_LIST *table_ref, POSITION *position,
                                      bool count_examined_rows) {
   AccessPath *path;
-  if (trp != nullptr) {
-    trp->count_examined_rows = count_examined_rows;
-    path = trp;
+  if (range_scan != nullptr) {
+    range_scan->count_examined_rows = count_examined_rows;
+    path = range_scan;
   } else if (table_ref != nullptr && table_ref->is_recursive_reference()) {
     path = NewFollowTailAccessPath(thd, table, count_examined_rows);
   } else {
@@ -172,7 +173,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, AccessPath *trp,
 }
 
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, AccessPath *trp, TABLE_LIST *table_ref,
+    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
     POSITION *position, bool ignore_not_found_rows, bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -200,8 +201,8 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
         &table->unique_result, ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
   } else {
-    AccessPath *path = create_table_access_path(thd, table, trp, table_ref,
-                                                position, count_examined_rows);
+    AccessPath *path = create_table_access_path(
+        thd, table, range_scan, table_ref, position, count_examined_rows);
     iterator = CreateIteratorFromAccessPath(thd, path,
                                             /*join=*/nullptr,
                                             /*eligible_for_batch_mode=*/false);

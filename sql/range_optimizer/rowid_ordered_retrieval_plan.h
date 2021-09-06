@@ -28,7 +28,7 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "sql/handler.h"
-#include "sql/range_optimizer/table_read_plan.h"
+#include "sql/range_optimizer/range_optimizer.h"
 
 class Opt_trace_object;
 class RANGE_OPT_PARAM;
