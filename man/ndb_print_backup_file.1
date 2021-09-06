@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_backup_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2021
+.\"      Date: 09/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_BACKUP_FILE" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_BACKUP_FILE" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -325,7 +325,7 @@ file) found in a cluster backup directory\&. These files are found in the data n
 BACKUP\-\fI#\fR, where
 \fI#\fR
 is the sequence number for the backup\&. For more information about cluster backup files and their contents, see
-Section\ \&23.5.8.1, \(lqNDB Cluster Backup Concepts\(rq\&.
+Section\ \&23.6.8.1, \(lqNDB Cluster Backup Concepts\(rq\&.
 .PP
 Like
 \fBndb_print_schema_file\fR
@@ -337,7 +337,7 @@ utilities that are intended to be run on a management server host or to connect 
 \fBndb_print_backup_file\fR
 must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
 .PP
-In NDB 8\&.0\&.17 and later, this program can also be used to read undo log files\&.
+In NDB 8\&.0, this program can also be used to read undo log files\&.
 Options
 .PP
 Prior to NDB 8\&.0\&.24,

@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2021
+.\"      Date: 09/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGM" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -528,7 +528,8 @@ T}:T{
 T}
 .TE
 .sp 1
-Same as \-\-ndb\-connectstring\&.
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
 .RE
 .sp
 .RS 4
@@ -850,7 +851,11 @@ T}:T{
 T}
 .TE
 .sp 1
-Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+Set connect string for connecting to
+\fBndb_mgmd\fR\&. Syntax: [nodeid=\fIid\fR;][host=]\fIhostname\fR[:\fIport\fR]\&. Overrides entries in
+NDB_CONNECTSTRING
+and
+my\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -884,7 +889,8 @@ T}:T{
 T}
 .TE
 .sp 1
-Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
+Set node ID for this node, overriding any ID set by
+\fB\-\-ndb\-connectstring\fR\&.
 .RE
 .sp
 .RS 4
@@ -918,7 +924,8 @@ T}:T{
 T}
 .TE
 .sp 1
-Same as \-\-ndb\-connectstring\&.
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
 .RE
 .sp
 .RS 4
@@ -1077,7 +1084,8 @@ T}:T{
 T}
 .TE
 .sp 1
-Display help text and exit; same as \-\-help\&.
+Display help text and exit; same as
+\fB\-\-help\fR\&.
 .RE
 .sp
 .RS 4
@@ -1105,7 +1113,7 @@ Display version information and exit\&.
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&23.5.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
+Section\ \&23.6.1, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

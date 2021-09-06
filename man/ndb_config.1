@@ -2,12 +2,12 @@
 .\"     Title: ndb_config
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2021
+.\"      Date: 09/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_CONFIG" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_CONFIG" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -744,8 +744,8 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&23.3.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
-Section\ \&23.3.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&23.4.3.10, \(lqNDB Cluster TCP/IP Connections\(rq, and
+Section\ \&23.4.3.12, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -977,7 +977,7 @@ T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -1075,7 +1075,7 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&23.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
+Section\ \&23.4.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
@@ -1424,7 +1424,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.33\-ndb\-7\&.5\&.23"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.35\-ndb\-7\&.5\&.24"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">

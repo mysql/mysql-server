@@ -2,12 +2,12 @@
 .\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2021
+.\"      Date: 09/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDB_RESTORE" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,30 +38,18 @@ The NDB Cluster restoration program is implemented as a separate command\-line u
 \fBndb_restore\fR, which can normally be found in the MySQL
 bin
 directory\&. This program reads the files created as a result of the backup and inserts the stored information into the database\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
 .PP
-Beginning with NDB 8\&.0\&.17, this program no longer prints
-NDBT_ProgramExit: \&.\&.\&.
-when it finishes its run\&. Applications depending on this behavior should be modified accordingly when upgrading from NDB 8\&.0\&.16 or earlier to a NDB 8\&.0 later release\&.
-.sp .5v
-.RE
+In NDB 7\&.6 and earlier, this program printed
+NDBT_ProgramExit \- \fIstatus\fR
+upon completion of its run, due to an unnecessary dependency on the
+NDBT
+testing library\&. This dependency has been removed in NDB 8\&.0, eliminating the extraneous output\&.
 .PP
 \fBndb_restore\fR
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -77,7 +65,7 @@ Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&23.5.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
+Section\ \&23.6.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
@@ -584,8 +572,7 @@ T{
 .PP
 \fB \fR\fB-z\fR\fB \fR
 T}:T{
-Nodegroup map for NDBCLUSTER storage engine; syntax: list of
-              (source_nodegroup, destination_nodegroup)
+Specify node group map; unused, unsupported
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -1190,9 +1177,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.23 to a cluster running NDB Cluster 7\&.4\&.33, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.24 to a cluster running NDB Cluster 7\&.4\&.33, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.23 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.24 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1343,7 +1330,7 @@ T}
 This option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -1359,7 +1346,7 @@ Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 When restoring cluster backups, you must be sure to restore all data nodes from backups having the same backup ID\&. Using files from different backups results at best in restoring the cluster to an inconsistent state, and is likely to fail altogether\&.
 .sp .5v
 .RE
-In NDB 8\&.0\&.15 and later, this option is required\&.
+In NDB 8\&.0, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -1724,6 +1711,8 @@ Disable restoration of indexes during restoration of the data from a native
 NDB
 backup\&. Afterwards, you can restore indexes for all tables at once with multithreaded building of indexes using
 \fB\-\-rebuild\-indexes\fR, which should be faster than rebuilding indexes concurrently for very large tables\&.
+.sp
+In NDB 8\&.0\&.27 and later, this option also drops any foreign keys specified in the backup\&.
 .RE
 .sp
 .RS 4
@@ -2403,10 +2392,10 @@ FALSE
 T}
 .TE
 .sp 1
-In NDB 8\&.0\&.19 and later,
+In NDB 8\&.0,
 \fBndb_restore\fR
 does not by default restore shared users and grants (see
-Section\ \&23.5.12, \(lqDistributed MySQL Privileges with NDB_STORED_USER\(rq) to the
+Section\ \&23.6.12, \(lqDistributed MySQL Privileges with NDB_STORED_USER\(rq) to the
 ndb_sql_metadata
 table\&. Specifying this option causes it to do so\&.
 .RE
@@ -2750,7 +2739,7 @@ T}
 This option stops
 \fBndb_restore\fR
 from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&23.5.10, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&23.6.10, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .RE
 .sp
 .RS 4
@@ -2870,8 +2859,9 @@ T}:T{
 T}
 .TE
 .sp 1
-This option can be used to restore a backup taken from one node group to a different node group\&. Its argument is a list of the form
-\fIsource_node_group\fR, \fItarget_node_group\fR\&.
+Intended for restoring a backup taken from one node group to a different node group, but never completely implemented; unsupported\&.
+.sp
+All code supporting this option was removed in NDB 8\&.0\&.27; in this and later versions, any value set for it is ignored, and the option itself does nothing\&.
 .RE
 .sp
 .RS 4
@@ -2992,7 +2982,7 @@ Specify the node ID of the data node on which the backup was taken\&.
 When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.) See
 the section called \(lqRestoring to a different number of data nodes\(rq, for additional information and examples\&.
 .sp
-In NDB 8\&.0\&.15 and later, this option is required\&.
+In NDB 8\&.0, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -3935,7 +3925,7 @@ BIGINT, and the option attempts to apply an offset value of 8 on a row in which 
 .RE
 .sp
 This option can be useful when you wish to merge data stored in multiple source instances of NDB Cluster (all using the same schema) into a single destination NDB Cluster, using NDB native backup (see
-Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq) and
+Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq) and
 \fBndb_restore\fR
 to merge the data, where primary and unique key values are overlapping between source clusters, and it is necessary as part of the process to remap these values to ranges that do not overlap\&. It may also be necessary to preserve other relationships between tables\&. To fulfill such requirements, it is possible to use the option multiple times in the same invocation of
 \fBndb_restore\fR
@@ -4047,7 +4037,7 @@ having
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&23.6.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
+Section\ \&23.7.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -4098,7 +4088,7 @@ In older versions of NDB Cluster, tables whose schemas were restored using this 
 \fBndb_restore\fR
 now uses the default number of partitions for the target cluster, unless the number of local data manager threads is also changed from what it was for data nodes in the original cluster\&.
 .sp
-When using this option in NDB 8\&.0\&.16 or later, it is recommended that auto synchronization be disabled by setting
+When using this option in NDB 8\&.0, it is recommended that auto synchronization be disabled by setting
 ndb_metadata_check=OFF
 until
 \fBndb_restore\fR
@@ -4164,10 +4154,10 @@ does not by default restore distributed MySQL privilege tables created in releas
 \fBndb_restore\fR
 to restore them\&.
 .sp
-In NDB 8\&.0\&.16 and later, such tables are not used for access control; as part of the MySQL server\*(Aqs upgrade process, the server creates
+In NDB 8\&.0, such tables are not used for access control; as part of the MySQL server\*(Aqs upgrade process, the server creates
 InnoDB
 copies of these tables local to itself\&. For more information, see
-Section\ \&23.2.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, as well as
+Section\ \&23.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, as well as
 Section\ \&6.2.3, \(lqGrant Tables\(rq\&.
 .RE
 .sp
@@ -4616,19 +4606,12 @@ requires at a minimum the
 \fB\-\-backup\-path\fR
 options\&.
 .PP
-Prior to NDB 8\&.0\&.19, when
-\fBndb_restore\fR
-was used to restore any tables containing unique indexes, it was necessary to include
-\fB\-\-disable\-indexes\fR
-or
-\fB\-\-rebuild\-indexes\fR\&. Beginning with NDB 8\&.0\&.19, when automatic metadata synchronization is enabled, this is no longer necessary\&.
-.PP
 The
 \fB\-c\fR
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server (see
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
+Section\ \&23.4.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -4646,7 +4629,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&23.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
+Section\ \&23.4.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
 .PP
 In NDB 8\&.0\&.22 and later,
 \fBndb_restore\fR
@@ -4705,7 +4688,7 @@ START SLAVE\&. This is a known issue in NDB Cluster\&.
 The following two sections provide information about restoring a native NDB backup to a different version of NDB Cluster from the version in which the backup was taken\&.
 .PP
 In addition, you should consult
-Section\ \&23.2.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for other issues you may encounter when attempting to restore an NDB backup to a cluster running a different version of the NDB software\&.
+Section\ \&23.3.7, \(lqUpgrading and Downgrading NDB Cluster\(rq, for other issues you may encounter when attempting to restore an NDB backup to a cluster running a different version of the NDB software\&.
 .PP
 It is also advisable to review
 What is New in NDB Cluster 8.0, as well as
@@ -4729,7 +4712,8 @@ You may encounter issues when restoring a backup taken from a later version of N
 .sp -1
 .IP \(bu 2.3
 .\}
-Tables created in NDB 8\&.0 by default use the
+.PP
+\fButf8mb4_ai_ci character set\fR. Tables created in NDB 8\&.0 by default use the
 utf8mb4_ai_ci
 character set, which is not available in NDB 7\&.6 and earlier, and so cannot be read by an
 \fBndb_restore\fR
@@ -4746,14 +4730,14 @@ so that they use a character set supported in the older version prior to perform
 .sp -1
 .IP \(bu 2.3
 .\}
-Due to changes in how the MySQL Server and NDB handle table metadata, tables created or altered using the included MySQL server binary from NDB 8\&.0\&.14 or later cannot be restored using
+.PP
+\fBTable metadata format\fR. Due to changes in how the MySQL Server and NDB handle table metadata, tables created or altered using the included MySQL server binary from NDB 8\&.0 cannot be restored using
 \fBndb_restore\fR
-to an earlier version of NDB Cluster\&. Such tables use
+to NDB 7\&.6 or an earlier version of NDB Cluster\&. Such tables use
 \&.sdi
 files which are not understood by older versions of
 \fBmysqld\fR\&.
-.sp
-A backup taken in NDB 8\&.0\&.14 or later of tables which were created in NDB 8\&.0\&.13 or earlier, and which have not been altered since upgrading to NDB 8\&.0\&.14 or later, should be restorable to older versions of NDB Cluster\&.
+A backup taken in NDB 8\&.0 of tables which were created in NDB 7\&.6 or earlier, and which have not been altered since upgrading to NDB 8\&.0, should be restorable to older versions of NDB Cluster\&.
 .sp
 Since it is possible to restore metadata and table data separately, you can in such cases restore the table schemas from a dump made using
 \fBmysqldump\fR, or by executing the necessary
@@ -4773,7 +4757,50 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Encrypted backups created in NDB 8\&.0\&.22 and later cannot be restored using
+.PP
+\fBMulti-threaded backups\fR. Multi\-threaded backups taken in NDB 8\&.0 can be restored to an cluster running an earlier version of
+NDB
+in either of the following two ways:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Using an
+\fBndb_restore\fR
+binary from NDB 8\&.0, perform a parallel restore\&. See
+the section called \(lqRestoring a parallel backup in parallel\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Restore the backups serially; in this case, a later version of
+\fBndb_restore\fR
+is not required\&. See
+the section called \(lqRestoring a parallel backup serially\(rq\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.PP
+\fBEncrypted backups\fR. Encrypted backups created in NDB 8\&.0\&.22 and later cannot be restored using
 \fBndb_restore\fR
 from NDB 8\&.0\&.21 or earlier\&.
 .RE
@@ -4786,9 +4813,10 @@ from NDB 8\&.0\&.21 or earlier\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-The
+.PP
+\fBNDB_STORED_USER privilege\fR. The
 NDB_STORED_USER
-privilege is not supported prior to NDB 8\&.0\&.18\&.
+privilege is supported only in NDB 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -4799,7 +4827,8 @@ privilege is not supported prior to NDB 8\&.0\&.18\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-NDB Cluster 8\&.0\&.18 and later supports up to 144 data nodes, while earlier versions support a maximum of only 48 data nodes\&. See
+.PP
+\fBMaximum number of data nodes\fR. NDB Cluster 8\&.0 supports up to 144 data nodes, while earlier versions support a maximum of only 48 data nodes\&. See
 the section called \(lqRestoring to Fewer Nodes Than the Original\(rq, for information with situations in which this incompatibility causes an issue\&.
 .RE
 .RE
@@ -4834,11 +4863,11 @@ option),
 \fBndb_restore\fR
 normally attempts to reproduce the captured table schema exactly as it was when the backup was taken\&.
 .sp
-Tables created in versions of NDB prior to 8\&.0\&.14 use
+Tables created in versions of NDB prior to 8\&.0 use
 \&.frm
 files for their metadata\&. These files can be read by the
 \fBmysqld\fR
-in NDB 8\&.0\&.14 and later, which can use the information contained therein to create the
+in NDB 8\&.0, which can use the information contained therein to create the
 \&.sdi
 files used by the MySQL data dictionary in later versions\&.
 .RE
@@ -4953,7 +4982,7 @@ or the equivalent\&.
 .IP "  2." 4.2
 .\}
 Perform a backup in the normal manner\&. See
-Section\ \&23.5.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
+Section\ \&23.6.8.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
 .RE
 .sp
 .RS 4
@@ -5532,10 +5561,10 @@ can contact the management server\&.
 .RE
 .SS "Restoring from a backup taken in parallel"
 .PP
-Beginning with NDB Cluster 8\&.0\&.16, it is possible to take parallel backups on each data node using
+NDB Cluster 8\&.0 supports parallel backups on each data node using
 \fBndbmtd\fR
 with multiple LDMs (see
-Section\ \&23.5.8.5, \(lqTaking an NDB Backup with Parallel Data Nodes\(rq)\&. The next two sections describe how to restore backups that were taken in this fashion\&.
+Section\ \&23.6.8.5, \(lqTaking an NDB Backup with Parallel Data Nodes\(rq)\&. The next two sections describe how to restore backups that were taken in this fashion\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -5547,7 +5576,7 @@ Section\ \&23.5.8.5, \(lqTaking an NDB Backup with Parallel Data Nodes\(rq)\&. T
 .PP
 Restoring a parallel backup in parallel requires an
 \fBndb_restore\fR
-binary from an NDB Cluster distribution version 8\&.0\&.16 or later\&. The process is not substantially different from that outlined in the general usage section under the description of the
+binary from an NDB 8\&.0 distribution\&. The process is not substantially different from that outlined in the general usage section under the description of the
 \fBndb_restore\fR
 program, and consists of executing
 \fBndb_restore\fR
@@ -5618,7 +5647,7 @@ shell> ndb_restore \-n 1 \-b 1 \-r \-\-backup\-path=opt/BACKUP/BACKUP\-100/BACKU
 .RE
 .\}
 .PP
-You can employ the same technique to restore a parallel backup to an older version of NDB Cluster (prior to NDB 8\&.0\&.16) that does not support parallel backups, using the
+You can employ the same technique to restore a parallel backup to an older version of NDB Cluster (7\&.6 or earlier) that does not support parallel backups, using the
 \fBndb_restore\fR
 binary supplied with the older version of the NDB Cluster software\&.
 .RE
