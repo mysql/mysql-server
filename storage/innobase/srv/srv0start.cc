@@ -2421,6 +2421,12 @@ files_checked:
 		trx_sys_file_format_tag_init();
 	}
 
+	if (!create_new_db) {
+		/* Check and reset any no-redo rseg slot on disk used by
+		pre-5.7.2 redo resg with no data to purge. */
+		trx_rseg_reset_pending();
+	}
+
 	if (!create_new_db && sum_of_new_sizes > 0) {
 		/* New data file(s) were added */
 		mtr_start(&mtr);

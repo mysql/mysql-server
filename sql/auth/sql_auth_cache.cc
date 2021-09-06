@@ -335,21 +335,22 @@ ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant)
 }
 
 void
-ACL_PROXY_USER::print_grant(String *str)
+ACL_PROXY_USER::print_grant(THD *thd, String *str)
 {
-  str->append(STRING_WITH_LEN("GRANT PROXY ON '"));
-  if (proxied_user)
-    str->append(proxied_user, strlen(proxied_user));
-  str->append(STRING_WITH_LEN("'@'"));
-  if (!proxied_host.is_null())
-    str->append(proxied_host.get_host(), proxied_host.get_host_len());
-  str->append(STRING_WITH_LEN("' TO '"));
-  if (user)
-    str->append(user, strlen(user));
-  str->append(STRING_WITH_LEN("'@'"));
-  if (!host.is_null())
-    str->append(host.get_host(), host.get_host_len());
-  str->append(STRING_WITH_LEN("'"));
+  str->append(STRING_WITH_LEN("GRANT PROXY ON "));
+  String proxied_user_str(proxied_user, get_proxied_user_length(),
+                          system_charset_info);
+  append_query_string(thd, system_charset_info, &proxied_user_str, str);
+  str->append(STRING_WITH_LEN("@"));
+  String proxied_host_str(proxied_host.get_host(), proxied_host.get_host_len(),
+                          system_charset_info);
+  append_query_string(thd, system_charset_info, &proxied_host_str, str);
+  str->append(STRING_WITH_LEN(" TO "));
+  String user_str(user, get_user_length(), system_charset_info);
+  append_query_string(thd, system_charset_info, &user_str, str);
+  str->append(STRING_WITH_LEN("@"));
+  String host_str(host.get_host(), host.get_host_len(), system_charset_info);
+  append_query_string(thd, system_charset_info, &host_str, str);
   if (with_grant)
     str->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
 }

@@ -1372,8 +1372,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                               MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
 
-  if (thd->m_digest != NULL)
-    thd->m_digest->reset(thd->m_token_array, max_digest_length);
+  // Do not pollute the current statement
+  // with a digest of the view definition
+  assert(! parser_state.m_input.m_has_digest);
 
   // Parse the query text of the view
   result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);

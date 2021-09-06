@@ -1663,8 +1663,15 @@ public:
     Returns true if this is constant but its value may be not known yet.
     (Can be used for parameters of prep. stmts or of stored procedures.)
   */
-  virtual bool const_during_execution() const 
+  virtual bool const_during_execution() const
   { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
+
+  /**
+    @returns true if this item is non-deterministic, which means that a
+             has a component that must be evaluated once per row in
+             execution of a JOIN query.
+  */
+  bool is_non_deterministic() const { return used_tables() & RAND_TABLE_BIT; }
 
   /**
     This method is used for to:
