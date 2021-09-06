@@ -2187,54 +2187,55 @@ TEST_F(ConfigGeneratorTest, fill_options) {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1";
     options = config_gen.fill_options(user_options, default_paths, {});
-    ASSERT_THAT(options.rw_endpoint.port, Eq(1));
+    EXPECT_THAT(options.rw_endpoint.port, Eq(1));
     user_options["base-port"] = "3306";
     options = config_gen.fill_options(user_options, default_paths, {});
-    ASSERT_THAT(options.rw_endpoint.port, Eq(3306));
+    EXPECT_THAT(options.rw_endpoint.port, Eq(3306));
     user_options["base-port"] = "";
-    ASSERT_THROW(
+    EXPECT_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error);
+        std::invalid_argument);
     user_options["base-port"] = "-1";
-    ASSERT_THROW(
+    EXPECT_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error);
+        std::invalid_argument);
     user_options["base-port"] = "999999";
-    ASSERT_THROW(
+    EXPECT_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error);
+        std::invalid_argument);
     user_options["base-port"] = "65536";
-    ASSERT_THROW(
+    EXPECT_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error);
+        std::invalid_argument);
     user_options["base-port"] = "2000bozo";
-    ASSERT_THROW(
+    EXPECT_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error);
+        std::invalid_argument);
 
     // Bug #24808309
     user_options["base-port"] = "65533";
-    ASSERT_THROW_LIKE(
+    EXPECT_THROW_LIKE(
         options = config_gen.fill_options(user_options, default_paths, {}),
-        std::runtime_error, "Invalid base-port number");
+        std::invalid_argument,
+        "base-port needs value between 0 and 65532 inclusive, was '65533'");
 
     user_options["base-port"] = "65532";
-    ASSERT_NO_THROW(
+    EXPECT_NO_THROW(
         options = config_gen.fill_options(user_options, default_paths, {}));
 
-    ASSERT_THAT(options.rw_endpoint, Eq(true));
-    ASSERT_THAT(options.rw_endpoint.port, Eq(65532));
-    ASSERT_THAT(options.rw_endpoint.socket, Eq(""));
-    ASSERT_THAT(options.ro_endpoint, Eq(true));
-    ASSERT_THAT(options.ro_endpoint.port, Eq(65533));
-    ASSERT_THAT(options.ro_endpoint.socket, Eq(""));
-    ASSERT_THAT(options.rw_x_endpoint, Eq(true));
-    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
-    ASSERT_THAT(options.rw_x_endpoint.port, Eq(65534));
-    ASSERT_THAT(options.rw_x_endpoint.socket, Eq(""));
-    ASSERT_THAT(options.ro_x_endpoint, Eq(true));
-    ASSERT_THAT(options.ro_x_endpoint.port, Eq(65535));
-    ASSERT_THAT(options.ro_x_endpoint.socket, Eq(""));
+    EXPECT_THAT(options.rw_endpoint, Eq(true));
+    EXPECT_THAT(options.rw_endpoint.port, Eq(65532));
+    EXPECT_THAT(options.rw_endpoint.socket, Eq(""));
+    EXPECT_THAT(options.ro_endpoint, Eq(true));
+    EXPECT_THAT(options.ro_endpoint.port, Eq(65533));
+    EXPECT_THAT(options.ro_endpoint.socket, Eq(""));
+    EXPECT_THAT(options.rw_x_endpoint, Eq(true));
+    EXPECT_THAT(options.ro_x_endpoint, Eq(true));
+    EXPECT_THAT(options.rw_x_endpoint.port, Eq(65534));
+    EXPECT_THAT(options.rw_x_endpoint.socket, Eq(""));
+    EXPECT_THAT(options.ro_x_endpoint, Eq(true));
+    EXPECT_THAT(options.ro_x_endpoint.port, Eq(65535));
+    EXPECT_THAT(options.ro_x_endpoint.socket, Eq(""));
   }
   {
     std::map<std::string, std::string> user_options;
@@ -3782,11 +3783,11 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
     bootstrap_queries.push_back(expected_bootstrap_queries.at(i));
   }
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
-  bootstrap_queries.push_back(
-      {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
-       " IDENTIFIED WITH mysql_native_password AS",
-       ACTION_ERROR, 0, 1524});
-  bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
+  bootstrap_queries.emplace_back(
+      "CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'"
+      " IDENTIFIED WITH mysql_native_password AS",
+      ACTION_ERROR, 0, 1524);
+  bootstrap_queries.emplace_back("ROLLBACK", ACTION_EXECUTE);
 
   // without --bootstrap
   {
@@ -3794,7 +3795,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
     try {
       MySQLRouter router(Path(), argv);
       FAIL() << "Expected exception";
-    } catch (const std::runtime_error &e) {
+    } catch (const std::exception &e) {
       EXPECT_STREQ(
           "Option --password-retries can only be used together with "
           "-B/--bootstrap",
@@ -3808,10 +3809,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
       bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
                               bootstrap_queries, "0");
       FAIL() << "Expecting exception";
-    } catch (const std::runtime_error &exc) {
+    } catch (const std::exception &exc) {
       EXPECT_STREQ(
-          "Invalid password-retries value '0'; please pick a value from 1 to "
-          "10000",
+          "--password-retries needs value between 1 and 10000 inclusive, was "
+          "'0'",
           exc.what());
     }
   }
@@ -3822,10 +3823,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
       bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
                               bootstrap_queries, "999999");
       FAIL() << "Expecting exception";
-    } catch (const std::runtime_error &exc) {
+    } catch (const std::exception &exc) {
       EXPECT_STREQ(
-          "Invalid password-retries value '999999'; please pick a value from 1 "
-          "to 10000",
+          "--password-retries needs value between 1 and 10000 inclusive, was "
+          "'999999'",
           exc.what());
     }
   }
@@ -3836,10 +3837,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
       bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
                               bootstrap_queries, "foo");
       FAIL() << "Expecting exception";
-    } catch (const std::runtime_error &exc) {
+    } catch (const std::exception &exc) {
       EXPECT_STREQ(
-          "Invalid password-retries value 'foo'; please pick a value from 1 to "
-          "10000",
+          "--password-retries needs value between 1 and 10000 inclusive, was "
+          "'foo'",
           exc.what());
     }
   }
@@ -3850,10 +3851,10 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
       bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
                               bootstrap_queries, "");
       FAIL() << "Expecting exception";
-    } catch (const std::runtime_error &exc) {
+    } catch (const std::exception &exc) {
       EXPECT_STREQ(
-          "Invalid password-retries value ''; please pick a value from 1 to "
-          "10000",
+          "--password-retries needs value between 1 and 10000 inclusive, was "
+          "''",
           exc.what());
     }
   }

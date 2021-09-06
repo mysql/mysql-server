@@ -1157,11 +1157,14 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       OptionNames({"--connect-timeout"}),
       "The time in seconds after which trying to connect to metadata server "
-      "should timeout. It applies to bootstrap mode and is written to "
-      "configuration file. It is also used in normal mode.",
+      "should timeout. It is used when bootstrapping and also written to the "
+      "configuration file (bootstrap)",
       CmdOptionValueReq::optional, "",
       [this](const std::string &connect_timeout) {
         this->bootstrap_options_["connect-timeout"] = connect_timeout;
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--connect-timeout");
       });
 
   arg_handler_.add_option(
@@ -1356,11 +1359,15 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--read-timeout"}),
-      "The time in seconds after which read from metadata server should "
-      "timeout. It applies to bootstrap mode and is written to configuration "
-      "file. It is also used in normal mode.",
-      CmdOptionValueReq::optional, "", [this](const std::string &read_timeout) {
+      "The time in seconds after which reads from metadata server should "
+      "timeout. It is used when bootstrapping and is also written to "
+      "configuration file. (bootstrap)",
+      CmdOptionValueReq::optional, "",
+      [this](const std::string &read_timeout) {
         this->bootstrap_options_["read-timeout"] = read_timeout;
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--read-timeout");
       });
   arg_handler_.add_option(
       OptionNames({"--report-host"}),

@@ -55,6 +55,7 @@
 #include "harness_assert.h"
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/logging/logging.h"
@@ -262,53 +263,44 @@ bool ConfigGenerator::warn_on_no_ssl(
 // throws std::runtime_error on invalid option value
 void ConfigGenerator::parse_bootstrap_options(
     const std::map<std::string, std::string> &bootstrap_options) {
-  if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("base-port").c_str();
-    int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
-    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port < 0 || base_port > max_base_port ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error("Invalid base-port number " +
-                               bootstrap_options.at("base-port") +
-                               "; please pick a value between 0 and " +
-                               std::to_string((max_base_port)));
+  {
+    const auto it = bootstrap_options.find("base-port");
+
+    if (it != bootstrap_options.end()) {
+      const int max_base_port =
+          (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+
+      // verify only.
+      mysql_harness::option_as_uint<uint16_t>(it->second, "--conf-base-port", 0,
+                                              max_base_port);
     }
   }
-  if (bootstrap_options.find("bind-address") != bootstrap_options.end()) {
-    auto address = bootstrap_options.at("bind-address");
-    if (!mysql_harness::is_valid_domainname(address)) {
-      throw std::runtime_error("Invalid bind-address value " + address);
+
+  {
+    const auto it = bootstrap_options.find("bind-address");
+
+    if (it != bootstrap_options.end()) {
+      const auto address = it->second;
+      if (!mysql_harness::is_valid_domainname(address)) {
+        throw std::runtime_error("Invalid --bind-address value " + address);
+      }
     }
   }
-  if (bootstrap_options.find("connect-timeout") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("connect-timeout").c_str();
-    int connect_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
 
-    if (connect_timeout <= 0 || connect_timeout > 65535 ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error(
-          "option connect-timeout needs value between 1 and 65535 inclusive, "
-          "was " +
-          std::to_string((connect_timeout)));
+  {
+    const auto it = bootstrap_options.find("connect-timeout");
+    if (it != bootstrap_options.end()) {
+      connect_timeout_ = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--connect-timeout", 1);
     }
-
-    connect_timeout_ = connect_timeout;
   }
-  if (bootstrap_options.find("read-timeout") != bootstrap_options.end()) {
-    char *end = nullptr;
-    const char *tmp = bootstrap_options.at("read-timeout").c_str();
-    int read_timeout = static_cast<int>(std::strtol(tmp, &end, 10));
 
-    if (read_timeout <= 0 || read_timeout > 65535 || end != tmp + strlen(tmp)) {
-      throw std::runtime_error(
-          "option read-timeout needs value between 1 and 65535 inclusive, "
-          "was " +
-          std::to_string((read_timeout)));
+  {
+    const auto it = bootstrap_options.find("read-timeout");
+    if (it != bootstrap_options.end()) {
+      read_timeout_ = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--read-timeout", 1);
     }
-
-    read_timeout_ = read_timeout;
   }
 }
 
@@ -842,22 +834,24 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   bool use_sockets = false;
   bool skip_tcp = false;
   int base_port = kBasePortDefault;
-  if (user_options.find("base-port") != user_options.end()) {
-    if (user_options.at("base-port").empty()) {
-      throw std::runtime_error("Value for base-port can't be empty");
-    }
-    char *end = nullptr;
-    const char *tmp = user_options.at("base-port").c_str();
-    base_port = static_cast<int>(std::strtol(tmp, &end, 10));
-    int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port < 0 || base_port > max_base_port ||
-        end != tmp + strlen(tmp)) {
-      throw std::runtime_error("Invalid base-port number " +
-                               user_options.at("base-port") +
-                               "; please pick a value lower than " +
-                               std::to_string((max_base_port)));
+
+  {
+    const auto it = user_options.find("base-port");
+
+    if (it != user_options.end()) {
+      const int max_base_port =
+          (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
+      if (it->second.empty()) {
+        throw std::invalid_argument(
+            "--conf-base-port needs value between 0 and " +
+            std::to_string(max_base_port) + " inclusive, was ''");
+      }
+
+      base_port = mysql_harness::option_as_uint<uint16_t>(
+          it->second, "--conf-base-port", 0, max_base_port);
     }
   }
+
   if (user_options.find("use-sockets") != user_options.end()) {
     use_sockets = true;
   }
@@ -1020,21 +1014,19 @@ namespace {
 
 unsigned get_password_retries(
     const std::map<std::string, std::string> &user_options) {
-  if (user_options.find("password-retries") == user_options.end()) {
+  const auto it = user_options.find("password-retries");
+  if (it == user_options.end()) {
     return kDefaultPasswordRetries;
   }
 
-  char *end = nullptr;
-  const char *tmp = user_options.at("password-retries").c_str();
-  unsigned result = static_cast<unsigned>(std::strtoul(tmp, &end, 10));
-  if (result == 0 || result > kMaxPasswordRetries || end != tmp + strlen(tmp)) {
-    throw std::runtime_error("Invalid password-retries value '" +
-                             user_options.at("password-retries") +
-                             "'; please pick a value from 1 to " +
-                             std::to_string((kMaxPasswordRetries)));
+  if (it->second.empty()) {
+    throw std::invalid_argument(
+        "--password-retries needs value between 1 and " +
+        std::to_string(kMaxPasswordRetries) + " inclusive, was ''");
   }
 
-  return result;
+  return mysql_harness::option_as_uint<unsigned long>(
+      it->second, "--password-retries", 1, kMaxPasswordRetries);
 }
 
 std::string compute_password_hash(const std::string &password) {
@@ -2441,7 +2433,7 @@ std::string ConfigGenerator::create_accounts_with_compliant_password(
       user_options.find("force-password-validation") != user_options.end();
   std::string password_candidate;
   unsigned retries =
-      get_password_retries(user_options);  // throws std::runtime_error
+      get_password_retries(user_options);  // throws std::invalid_argument
   if (!force_password_validation) {
     // 1) Try to create an account using mysql_native_password with the hashed
     // password to avoid validate_password verification (hashing is done inside

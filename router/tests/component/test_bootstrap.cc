@@ -378,19 +378,17 @@ TEST_P(RouterBootstrapErrorBasePortTest, RouterBootstrapErrorBasePort) {
 const BootstrapErrorBasePortTestParam bootstrap_error_base_port_test_param[] = {
     {"negative",
      {"--conf-base-port=-1"},
-     "Error: Invalid base-port number -1; please pick "
-     "a value between 0 and 65532"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '-1'"},
     {"too_big",
      {"--conf-base-port=65533"},
-     "Error: Invalid base-port number 65533; please pick "
-     "a value between 0 and 65532"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '65533'"},
     {"nan",
      {"--conf-base-port=abc"},
-     "Error: Invalid base-port number abc; please pick "
-     "a value between 0 and 65532"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was 'abc'"},
     {"empty",
      {"--conf-base-port="},
-     "Error: Value for base-port can't be empty"}};
+     "--conf-base-port needs value between 0 and 65532 inclusive, was ''"},
+};
 
 INSTANTIATE_TEST_SUITE_P(
     RouterBootstrapErrorBasePort, RouterBootstrapErrorBasePortTest,
@@ -1833,8 +1831,8 @@ TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.get_full_output(),
-              ::testing::HasSubstr("Error: Invalid base-port number 0x0; "
-                                   "please pick a value between 0 and 65532"));
+              ::testing::HasSubstr("--conf-base-port needs value between 0 and "
+                                   "65532 inclusive, was '0x0'"));
 }
 
 // unfortunately it's not (reasonably) possible to make folders read-only on

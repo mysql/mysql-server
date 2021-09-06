@@ -485,30 +485,28 @@ TEST(NetTS_local, socketpair_unsupported_protocol) {
 // - move-constructible
 // - move-assignable
 
-static_assert(std::is_destructible<local::stream_protocol::socket>::value, "");
+static_assert(std::is_destructible<local::stream_protocol::socket>::value);
 static_assert(
-    !std::is_copy_constructible<local::stream_protocol::socket>::value, "");
-static_assert(std::is_move_constructible<local::stream_protocol::socket>::value,
-              "");
-static_assert(!std::is_copy_assignable<local::stream_protocol::socket>::value,
-              "");
-static_assert(std::is_move_assignable<local::stream_protocol::socket>::value,
-              "");
+    !std::is_copy_constructible<local::stream_protocol::socket>::value);
+static_assert(
+    std::is_move_constructible<local::stream_protocol::socket>::value);
+static_assert(!std::is_copy_assignable<local::stream_protocol::socket>::value);
+static_assert(std::is_move_assignable<local::stream_protocol::socket>::value);
 
 // check constexpr
-static_assert(local::stream_protocol().family() != AF_UNSPEC, "");
-static_assert(local::datagram_protocol().family() != AF_UNSPEC, "");
-static_assert(local::seqpacket_protocol().family() != AF_UNSPEC, "");
+static_assert(local::stream_protocol().family() != AF_UNSPEC);
+static_assert(local::datagram_protocol().family() != AF_UNSPEC);
+static_assert(local::seqpacket_protocol().family() != AF_UNSPEC);
 
-static_assert(local::stream_protocol::endpoint().size() > 0, "");
-static_assert(local::stream_protocol::endpoint().capacity() > 0, "");
-static_assert(local::datagram_protocol::endpoint().size() > 0, "");
-static_assert(local::datagram_protocol::endpoint().capacity() > 0, "");
-static_assert(local::seqpacket_protocol::endpoint().size() > 0, "");
-static_assert(local::seqpacket_protocol::endpoint().capacity() > 0, "");
+static_assert(local::stream_protocol::endpoint().size() > 0);
+static_assert(local::stream_protocol::endpoint().capacity() > 0);
+static_assert(local::datagram_protocol::endpoint().size() > 0);
+static_assert(local::datagram_protocol::endpoint().capacity() > 0);
+static_assert(local::seqpacket_protocol::endpoint().size() > 0);
+static_assert(local::seqpacket_protocol::endpoint().capacity() > 0);
 
 // in C++20, this could succeed
-// static_assert(local::stream_protocol::endpoint("foo").size() > 0, "");
+// static_assert(local::stream_protocol::endpoint("foo").size() > 0);
 #endif
 
 int main(int argc, char *argv[]) {
