@@ -885,7 +885,7 @@ class ClusterSetBootstrapParamsNoBootstrapErrorTest
 TEST_P(ClusterSetBootstrapParamsNoBootstrapErrorTest,
        ClusterSetBootstrapParamsNoBootstrapError) {
   // const uint16_t server_port = port_pool_.get_next_available();
-  std::vector<std::string> router_params{"--connect-timeout=1"};
+  std::vector<std::string> router_params;
 
   router_params.insert(router_params.end(), GetParam().bootstrap_params.begin(),
                        GetParam().bootstrap_params.end());
