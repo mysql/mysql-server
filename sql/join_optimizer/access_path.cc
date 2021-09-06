@@ -411,14 +411,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::GROUP_INDEX_SKIP_SCAN: {
       const GroupIndexSkipScanParameters *param =
           path->group_index_skip_scan().param;
-      unique_ptr_destroy_only<RowIterator> quick_prefix_query_block;
-      if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
-        quick_prefix_query_block = CreateIteratorFromAccessPath(
-            thd, mem_root,
-            path->group_index_skip_scan().quick_prefix_query_block, join,
-            /*eligible_for_batch_mode=*/false);
-      }
-
       iterator = NewIterator<QUICK_GROUP_MIN_MAX_SELECT>(
           thd, mem_root, path->group_index_skip_scan().table,
           &param->min_functions, &param->max_functions,
@@ -426,8 +418,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           param->group_prefix_len, param->group_key_parts,
           param->real_key_parts, param->max_used_key_length, param->index_info,
           path->group_index_skip_scan().index, param->key_infix_len, mem_root,
-          param->is_index_scan, move(quick_prefix_query_block),
-          &param->key_infix_ranges, &param->min_max_ranges);
+          param->is_index_scan, &param->prefix_ranges, &param->key_infix_ranges,
+          &param->min_max_ranges);
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {

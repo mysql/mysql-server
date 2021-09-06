@@ -4511,9 +4511,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 EXPLAIN
 -> Filter: (t1.f1 = 1)
-    -> Covering index skip scan for grouping on t1 using f1
-        -> Prefix ranges to scan
-            -> Covering index range scan on t1 using f1 over (1 <= f1 <= 1)
+    -> Covering index skip scan for grouping on t1 using f1 over (1 <= f1 <= 1)
 
 SELECT MIN(f2) FROM t1 WHERE f1=1 GROUP BY f1;
 MIN(f2)
@@ -4525,9 +4523,7 @@ EXPLAIN
 -> Table scan on <temporary>
     -> Temporary table with deduplication
         -> Filter: (t1.f1 is null)
-            -> Covering index skip scan for grouping on t1 using f1
-                -> Prefix ranges to scan
-                    -> Covering index range scan on t1 using f1 over (NULL <= f1 <= NULL)
+            -> Covering index skip scan for grouping on t1 using f1 over (NULL <= f1 <= NULL)
 
 SELECT MIN(f2) FROM t1 WHERE f1 IS NULL GROUP BY f1;
 MIN(f2)

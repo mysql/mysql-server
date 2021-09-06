@@ -129,8 +129,6 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
     // a different handler from m_table->file.
     file->unlock_row();
   }
-  int get_next_prefix(uint prefix_length, uint group_key_parts,
-                      uchar *cur_prefix);
 
   uint get_mrr_flags() const { return mrr_flags; }
   uchar *last_rowid() const override {

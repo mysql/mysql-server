@@ -103,6 +103,11 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   // Indicates if all infix ranges have been used to retrieve rows (all ranges
   // in key_infix_ranges)
   bool seen_all_infix_ranges;
+
+  const Quick_ranges *prefix_ranges;
+  unsigned cur_prefix_range_idx;
+  QUICK_RANGE *last_prefix_range;
+
   const Quick_ranges
       *min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
   const Quick_ranges_array
@@ -118,9 +123,9 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   bool is_index_scan;
   bool m_seen_eof;
   MEM_ROOT *mem_root;
-  unique_ptr_destroy_only<RowIterator>
-      quick_prefix_query_block; /* For retrieval of group prefixes. */
   int next_prefix();
+  int get_next_prefix(uint prefix_length, uint group_key_parts,
+                      uchar *cur_prefix);
   bool append_next_infix();
   void reset_group();
   int next_min_in_range();
@@ -131,17 +136,19 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   void update_max_result(bool *reset);
 
  public:
-  QUICK_GROUP_MIN_MAX_SELECT(
-      THD *thd, TABLE *table_arg,
-      const Mem_root_array<Item_sum *> *min_functions,
-      const Mem_root_array<Item_sum *> *max_functions, bool have_agg_distinct,
-      KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
-      uint group_key_parts, uint real_key_parts, uint max_used_key_length_arg,
-      KEY *index_info, uint use_index, uint key_infix_len,
-      MEM_ROOT *return_mem_root, bool is_index_scan,
-      unique_ptr_destroy_only<RowIterator> quick_prefix_query_block_arg,
-      const Quick_ranges_array *key_infix_ranges,
-      const Quick_ranges *min_max_ranges);
+  QUICK_GROUP_MIN_MAX_SELECT(THD *thd, TABLE *table_arg,
+                             const Mem_root_array<Item_sum *> *min_functions,
+                             const Mem_root_array<Item_sum *> *max_functions,
+                             bool have_agg_distinct,
+                             KEY_PART_INFO *min_max_arg_part,
+                             uint group_prefix_len, uint group_key_parts,
+                             uint real_key_parts, uint max_used_key_length_arg,
+                             KEY *index_info, uint use_index,
+                             uint key_infix_len, MEM_ROOT *return_mem_root,
+                             bool is_index_scan,
+                             const Quick_ranges *prefix_ranges,
+                             const Quick_ranges_array *key_infix_ranges,
+                             const Quick_ranges *min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool Init() override;
   int Read() override;

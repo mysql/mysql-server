@@ -85,6 +85,7 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
     case AccessPath::FOLLOW_TAIL:
     case AccessPath::INDEX_RANGE_SCAN:
     case AccessPath::INDEX_SKIP_SCAN:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
     case AccessPath::FAKE_SINGLE_ROW:
@@ -221,13 +222,6 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
       for (AccessPath *child : *path->rowid_union().children) {
         WalkAccessPaths(child, join, cross_query_blocks,
                         std::forward<Func &&>(func), post_order_traversal);
-      }
-      break;
-    case AccessPath::GROUP_INDEX_SKIP_SCAN:
-      if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
-        WalkAccessPaths(path->group_index_skip_scan().quick_prefix_query_block,
-                        join, cross_query_blocks, std::forward<Func &&>(func),
-                        post_order_traversal);
       }
       break;
   }

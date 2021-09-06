@@ -376,7 +376,8 @@ static void ExplainIndexSkipScanAccessPath(const AccessPath *path,
 
 static void ExplainGroupIndexSkipScanAccessPath(
     const AccessPath *path, JOIN *join [[maybe_unused]],
-    vector<string> *description, vector<ExplainData::Child> *children) {
+    vector<string> *description,
+    vector<ExplainData::Child> *children [[maybe_unused]]) {
   TABLE *table = path->group_index_skip_scan().table;
   KEY *key_info = table->key_info + path->group_index_skip_scan().index;
   GroupIndexSkipScanParameters *param = path->group_index_skip_scan().param;
@@ -395,21 +396,28 @@ static void ExplainGroupIndexSkipScanAccessPath(
           table->alias + " using " + key_info->name;
   }
 
+  // Print out prefix ranges, if any.
+  if (!param->prefix_ranges.empty()) {
+    ret += " over ";
+    ret += PrintRanges(param->prefix_ranges.data(), param->prefix_ranges.size(),
+                       key_info->key_part, /*single_part_only=*/false);
+  }
+
   // Print out the ranges on the MIN/MAX keypart, if we have them.
   // (We don't print infix ranges, because they seem to be in an unusual
   // format.)
   if (!param->min_max_ranges.empty()) {
-    ret += " over";
+    if (param->prefix_ranges.empty()) {
+      ret += " over ";
+    } else {
+      ret += ", ";
+    }
     ret += PrintRanges(param->min_max_ranges.data(),
                        param->min_max_ranges.size(), param->min_max_arg_part,
                        /*single_part_only=*/true);
   }
 
   description->push_back(ret);
-  if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
-    children->push_back({path->group_index_skip_scan().quick_prefix_query_block,
-                         "Prefix ranges to scan"});
-  }
 }
 
 static void AddChildrenFromPushedCondition(

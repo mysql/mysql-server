@@ -897,7 +897,6 @@ struct AccessPath {
       unsigned index;
       unsigned num_used_key_parts;
       bool forced_by_hint;
-      AccessPath *quick_prefix_query_block;  // May be nullptr.
 
       // Large, so split out into its own allocation.
       GroupIndexSkipScanParameters *param;

@@ -1022,6 +1022,7 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   p->used_key_part = param->key[best_param_idx];
   p->real_key_parts = real_key_parts;
   p->max_used_key_length = max_used_key_length;
+  p->prefix_ranges = move(prefix_ranges);
   p->key_infix_ranges = move(key_infix_ranges);
   p->min_max_ranges = move(min_max_ranges);
   if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
@@ -1036,33 +1037,6 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   path->group_index_skip_scan().index = index;
   path->group_index_skip_scan().num_used_key_parts = used_key_parts;
   path->group_index_skip_scan().param = p;
-
-  if (prefix_ranges.empty()) {
-    path->group_index_skip_scan().quick_prefix_query_block = nullptr;
-  } else {
-    AccessPath *subpath = new (return_mem_root) AccessPath;
-    subpath->type = AccessPath::INDEX_RANGE_SCAN;
-    subpath->cost = path->cost;
-    subpath->num_output_rows = path->num_output_rows;
-    subpath->index_range_scan().used_key_part =
-        used_key_part;  // Only used for the TABLE.
-    subpath->index_range_scan().ranges = &prefix_ranges[0];
-    subpath->index_range_scan().num_ranges = prefix_ranges.size();
-    subpath->index_range_scan().mrr_flags = HA_MRR_SORTED;
-    subpath->index_range_scan().mrr_buf_size = 0;
-    subpath->index_range_scan().index = param->real_keynr[best_param_idx];
-    subpath->index_range_scan().num_used_key_parts = 0;  // Unused.
-
-    subpath->index_range_scan().can_be_used_for_ror = false;
-    subpath->index_range_scan().need_rows_in_rowid_order = false;
-    subpath->index_range_scan().can_be_used_for_imerge = false;
-    subpath->index_range_scan().reuse_handler = false;
-    subpath->index_range_scan().geometry = false;
-    subpath->index_range_scan().reverse = false;
-
-    path->group_index_skip_scan().quick_prefix_query_block = subpath;
-  }
-
   return path;
 }
 
@@ -1706,8 +1680,7 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
 }
 
 #ifndef NDEBUG
-void dbug_dump_group_index_skip_scan(int indent, bool verbose,
-                                     const AccessPath *path) {
+void dbug_dump_group_index_skip_scan(int indent, bool, const AccessPath *path) {
   const GroupIndexSkipScanParameters *param =
       path->group_index_skip_scan().param;
 
@@ -1718,11 +1691,6 @@ void dbug_dump_group_index_skip_scan(int indent, bool verbose,
   if (param->key_infix_len > 0) {
     fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n", indent, "",
             param->key_infix_len);
-  }
-  if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
-    fprintf(DBUG_FILE, "%*susing quick_range_query_block:\n", indent, "");
-    dbug_dump(path->group_index_skip_scan().quick_prefix_query_block, indent,
-              verbose);
   }
   if (param->min_max_ranges.size() > 0) {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",

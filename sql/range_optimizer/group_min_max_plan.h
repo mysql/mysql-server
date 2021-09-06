@@ -65,6 +65,7 @@ struct GroupIndexSkipScanParameters {
   KEY_PART *used_key_part;
   uint real_key_parts;
   uint max_used_key_length;
+  Quick_ranges prefix_ranges;
   Quick_ranges_array key_infix_ranges;
   Quick_ranges min_max_ranges;
 };

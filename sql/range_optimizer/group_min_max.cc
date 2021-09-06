@@ -72,6 +72,7 @@
                        rows with equal key value.
     quick_prefix_query_block_arg
                        Child scan to get prefix keys
+    prefix_ranges      Ranges to scan for the prefix key part(s)
     key_infix_ranges   Ranges to scan for the infix key part(s)
     min_max_ranges     Ranges to scan for the MIN/MAX key part
  */
@@ -82,7 +83,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
     uint group_key_parts, uint real_key_parts_arg, uint max_used_key_length_arg,
     KEY *index_info, uint use_index, uint key_infix_len,
     MEM_ROOT *return_mem_root, bool is_index_scan,
-    unique_ptr_destroy_only<RowIterator> quick_prefix_query_block_arg,
+    const Quick_ranges *prefix_ranges,
     const Quick_ranges_array *key_infix_ranges,
     const Quick_ranges *min_max_ranges)
     : TableRowIterator(thd, table),
@@ -96,14 +97,14 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       min_max_arg_part(min_max_arg_part),
       key_infix_len(key_infix_len),
       max_used_key_length(max_used_key_length_arg),
+      prefix_ranges(prefix_ranges),
       min_max_ranges(min_max_ranges),
       key_infix_ranges(key_infix_ranges),
       real_key_parts(real_key_parts_arg),
       min_functions(min_functions),
       max_functions(max_functions),
       is_index_scan(is_index_scan),
-      mem_root(return_mem_root),
-      quick_prefix_query_block(move(quick_prefix_query_block_arg)) {
+      mem_root(return_mem_root) {
   real_prefix_len = group_prefix_len + key_infix_len;
   min_max_arg_len = min_max_arg_part ? min_max_arg_part->store_length : 0;
   min_max_keypart_asc =
@@ -170,9 +171,9 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
     table()->file->print_error(result, MYF(0));
     return true;
   }
-  if (quick_prefix_query_block && quick_prefix_query_block->Init()) {
-    return true;
-  }
+
+  cur_prefix_range_idx = 0;
+  last_prefix_range = nullptr;
 
   if (int result = table()->file->ha_index_last(table()->record[0]);
       result != 0) {
@@ -483,28 +484,23 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
     other                if some error occurred
 */
 int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
-  int result;
   DBUG_TRACE;
 
-  if (quick_prefix_query_block) {
-    // TODO(sgunders): EXPLAIN ANALYZE won't count these properly.
-    // Given how little we use of QUICK_RANGE_SELECT, consider just
-    // assimilating the functionality.
+  if (!prefix_ranges->empty()) {
     uchar *cur_prefix = seen_first_key ? group_prefix : nullptr;
-    if ((result = down_cast<QUICK_RANGE_SELECT *>(
-                      quick_prefix_query_block->real_iterator())
-                      ->get_next_prefix(group_prefix_len, group_key_parts,
-                                        cur_prefix)))
+    if (int result =
+            get_next_prefix(group_prefix_len, group_key_parts, cur_prefix)) {
       return result;
+    }
     seen_first_key = true;
   } else {
     if (!seen_first_key) {
-      result = table()->file->ha_index_first(table()->record[0]);
+      int result = table()->file->ha_index_first(table()->record[0]);
       if (result) return result;
       seen_first_key = true;
     } else {
       /* Load the first key in this group into record. */
-      result = index_next_different(
+      int result = index_next_different(
           is_index_scan, table()->file, index_info->key_part,
           table()->record[0], group_prefix, group_prefix_len, group_key_parts);
       if (result) return result;
@@ -514,6 +510,71 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
   /* Save the prefix of this group for subsequent calls. */
   key_copy(group_prefix, table()->record[0], index_info, group_prefix_len);
   return 0;
+}
+
+/*
+  Get the next record with a different prefix.
+
+  @param prefix_length   length of cur_prefix
+  @param group_key_parts The number of key parts in the group prefix
+  @param cur_prefix      prefix of a key to be searched for
+
+  Each subsequent call to the method retrieves the first record that has a
+  prefix with length prefix_length and which is different from cur_prefix,
+  such that the record with the new prefix is within the ranges described by
+  this->ranges. The record found is stored into the buffer pointed by
+  this->record. The method is useful for GROUP-BY queries with range
+  conditions to discover the prefix of the next group that satisfies the range
+  conditions.
+
+  @retval 0                  on success
+  @retval HA_ERR_END_OF_FILE if returned all keys
+  @retval other              if some error occurred
+*/
+
+int QUICK_GROUP_MIN_MAX_SELECT::get_next_prefix(uint prefix_length,
+                                                uint group_key_parts,
+                                                uchar *cur_prefix) {
+  DBUG_TRACE;
+  const key_part_map keypart_map = make_prev_keypart_map(group_key_parts);
+
+  for (;;) {
+    if (last_prefix_range != nullptr) {
+      /* Read the next record in the same range with prefix after cur_prefix. */
+      assert(cur_prefix != nullptr);
+      int result = table()->file->ha_index_read_map(
+          table()->record[0], cur_prefix, keypart_map, HA_READ_AFTER_KEY);
+      if (result || last_prefix_range->max_keypart_map == 0) return result;
+
+      key_range previous_endpoint;
+      last_prefix_range->make_max_endpoint(&previous_endpoint, prefix_length,
+                                           keypart_map);
+      if (table()->file->compare_key(&previous_endpoint) <= 0) return 0;
+    }
+
+    if (cur_prefix_range_idx == prefix_ranges->size()) {
+      /* Ranges have already been used up before. None is left for read. */
+      last_prefix_range = nullptr;
+      return HA_ERR_END_OF_FILE;
+    }
+    last_prefix_range = (*prefix_ranges)[cur_prefix_range_idx++];
+
+    key_range start_key, end_key;
+    last_prefix_range->make_min_endpoint(&start_key, prefix_length,
+                                         keypart_map);
+    last_prefix_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
+
+    int result = table()->file->ha_read_range_first(
+        last_prefix_range->min_keypart_map ? &start_key : nullptr,
+        last_prefix_range->max_keypart_map ? &end_key : nullptr,
+        last_prefix_range->flag & EQ_RANGE, /*sorted=*/true);
+    if ((last_prefix_range->flag & (UNIQUE_RANGE | EQ_RANGE)) ==
+        (UNIQUE_RANGE | EQ_RANGE))
+      last_prefix_range = nullptr;  // Stop searching
+
+    if (result != HA_ERR_END_OF_FILE) return result;
+    last_prefix_range = nullptr;  // No matching rows; go to next range
+  }
 }
 
 /*
