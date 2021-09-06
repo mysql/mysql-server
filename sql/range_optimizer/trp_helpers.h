@@ -37,16 +37,22 @@
 #include "sql/range_optimizer/table_read_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
-  if (path->type != AccessPath::TRP_WRAPPER) {
-    return false;
-  }
-  int type = path->trp_wrapper().trp->get_type();
-  return type == QS_TYPE_SKIP_SCAN || type == QS_TYPE_GROUP_MIN_MAX;
+  return path->type == AccessPath::INDEX_SKIP_SCAN ||
+         (path->type == AccessPath::TRP_WRAPPER &&
+          path->trp_wrapper().trp->get_type() == QS_TYPE_GROUP_MIN_MAX);
 }
 
 inline bool is_agg_loose_index_scan(const AccessPath *path) {
-  return is_loose_index_scan(path) &&
-         path->trp_wrapper().trp->is_agg_loose_index_scan();
+  switch (path->type) {
+    case AccessPath::INDEX_SKIP_SCAN:
+      return path->index_skip_scan().param->has_aggregate_function;
+      break;
+    case AccessPath::TRP_WRAPPER:
+      return path->trp_wrapper().trp->is_agg_loose_index_scan();
+      break;
+    default:
+      return false;
+  }
 }
 
 /**
