@@ -172,6 +172,9 @@ struct fts_cache_t {
 	ulint		total_size;	/*!< total size consumed by the ilist
 					field of all nodes. SYNC is run
 					whenever this gets too big */
+	uint64_t	total_size_before_sync;
+	/*!< total size of fts cache, when last SYNC request was sent */
+
 	fts_sync_t*	sync;		/*!< sync structure to sync data to
 					disk */
 	ib_alloc_t*	sync_heap;	/*!< The heap allocator, for indexes

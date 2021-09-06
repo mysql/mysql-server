@@ -3302,6 +3302,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
+  parser_state.m_input.m_has_digest = true;
+
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
   if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))

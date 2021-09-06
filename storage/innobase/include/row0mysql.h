@@ -951,6 +951,18 @@ struct SysIndexCallback {
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
 
+/** Get the updated parent field value from the update vector for the
+given col_no.
+@param[in]	foreign		foreign key information
+@param[in]	update		updated parent vector.
+@param[in]	col_no		base column position of the child table to check
+@return updated field from the parent update vector, else NULL */
+dfield_t*
+innobase_get_field_from_update_vector(
+	dict_foreign_t*	foreign,
+	upd_t*		update,
+	uint32_t	col_no);
+
 /** Get the computed value by supplying the base column values.
 @param[in,out]	row		the data row
 @param[in]	col		virtual column

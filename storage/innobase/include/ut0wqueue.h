@@ -71,6 +71,14 @@ ib_wqueue_add(
 	mem_heap_t*	heap);		/*!< in: memory heap to use for
 					allocating the list node */
 
+/****************************************************************//**
+read total number of work item to the queue.
+@return total count of work item in the queue */
+uint64_t
+ib_wqueue_get_count(
+/*==========*/
+	ib_wqueue_t *wq);		/*!< in: work queue */
+
 /********************************************************************
 Check if queue is empty. */
 ibool

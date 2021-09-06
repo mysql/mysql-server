@@ -2837,13 +2837,14 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
         global.append('.');
         append_identifier(thd, &global, grant_proc->tname,
                           strlen(grant_proc->tname));
-        global.append(STRING_WITH_LEN(" TO '"));
-        global.append(lex_user->user.str, lex_user->user.length,
-                      system_charset_info);
-        global.append(STRING_WITH_LEN("'@'"));
+        global.append(STRING_WITH_LEN(" TO "));
+        String user_str(lex_user->user.str, lex_user->user.length,
+                        system_charset_info);
+        append_query_string(thd, system_charset_info, &user_str, &global);
+        global.append(STRING_WITH_LEN("@"));
         // host and lex_user->host are equal except for case
-        global.append(host, strlen(host), system_charset_info);
-        global.append('\'');
+        String host_str(host, strlen(host), system_charset_info);
+        append_query_string(thd, system_charset_info, &host_str, &global);
         if (proc_access & GRANT_ACL)
           global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
         protocol->start_row();
@@ -2873,7 +2874,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
     {
       String global(buff, buffsize, system_charset_info);
       global.length(0);
-      proxy->print_grant(&global);
+      proxy->print_grant(thd, &global);
       protocol->start_row();
       protocol->store(global.ptr(), global.length(), global.charset());
       if (protocol->end_row())
@@ -2996,13 +2997,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         }
       }
     }
-    global.append (STRING_WITH_LEN(" ON *.* TO '"));
-    global.append(lex_user->user.str, lex_user->user.length,
-                  system_charset_info);
-    global.append (STRING_WITH_LEN("'@'"));
-    global.append(lex_user->host.str,lex_user->host.length,
-                  system_charset_info);
-    global.append ('\'');
+    global.append (STRING_WITH_LEN(" ON *.* TO "));
+    String user_str(lex_user->user.str, lex_user->user.length,
+                    system_charset_info);
+    append_query_string(thd, system_charset_info, &user_str, &global);
+    global.append(STRING_WITH_LEN("@"));
+    String host_str(lex_user->host.str, lex_user->host.length,
+                    system_charset_info);
+    append_query_string(thd, system_charset_info, &host_str, &global);
     if (want_access & GRANT_ACL)
       global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
     protocol->start_row();
@@ -3061,13 +3063,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         }
         db.append (STRING_WITH_LEN(" ON "));
         append_identifier(thd, &db, acl_db->db, strlen(acl_db->db));
-        db.append (STRING_WITH_LEN(".* TO '"));
-        db.append(lex_user->user.str, lex_user->user.length,
-                  system_charset_info);
-        db.append (STRING_WITH_LEN("'@'"));
+        db.append (STRING_WITH_LEN(".* TO "));
+        String user_str(lex_user->user.str, lex_user->user.length,
+                        system_charset_info);
+        append_query_string(thd, system_charset_info, &user_str, &db);
+        db.append(STRING_WITH_LEN("@"));
         // host and lex_user->host are equal except for case
-        db.append(host, strlen(host), system_charset_info);
-        db.append ('\'');
+        String host_str(host, strlen(host), system_charset_info);
+        append_query_string(thd, system_charset_info, &host_str, &db);
         if (want_access & GRANT_ACL)
           db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
         protocol->start_row();
@@ -3175,13 +3178,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         global.append('.');
         append_identifier(thd, &global, grant_table->tname,
                           strlen(grant_table->tname));
-        global.append(STRING_WITH_LEN(" TO '"));
-        global.append(lex_user->user.str, lex_user->user.length,
-                      system_charset_info);
-        global.append(STRING_WITH_LEN("'@'"));
+        global.append(STRING_WITH_LEN(" TO "));
+        String user_str(lex_user->user.str, lex_user->user.length,
+                        system_charset_info);
+        append_query_string(thd, system_charset_info, &user_str, &global);
+        global.append(STRING_WITH_LEN("@"));
         // host and lex_user->host are equal except for case
-        global.append(host, strlen(host), system_charset_info);
-        global.append('\'');
+        String host_str(host, strlen(host), system_charset_info);
+        append_query_string(thd, system_charset_info, &host_str, &global);
         if (table_access & GRANT_ACL)
           global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
         protocol->start_row();

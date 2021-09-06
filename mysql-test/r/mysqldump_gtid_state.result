@@ -1,0 +1,72 @@
+#
+# Bug#32843447: GTID_PURGED IS GETTING EMPTY AND GTID_EXECUTED IS
+#               GETTING UPDATED AFTER RESTARTING MYSQL
+#
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+INSERT INTO t VALUES (1, 1);
+INSERT INTO t VALUES (2, 1);
+INSERT INTO t VALUES (3, 1);
+INSERT INTO t VALUES (4, 1);
+INSERT INTO t VALUES (5, 1);
+INSERT INTO t VALUES (6, 1);
+FLUSH LOGS;
+# BEFORE RESET
+include/assert.inc [Committed gtids :- MASTER_UUID:1-7]
+include/assert.inc [No purged gtids]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	7
+# MYSQLDUMP SKIPING THE DROP DATABASE FOR MYSQL SCHEMA USING THE OPTION --skip-mysql-schema
+Pattern "DROP DATABASE IF EXISTS `mysql`" not found
+# MYSQLDUMP WITHOUT SKIPING THE DROP DATABASE FOR MYSQL SCHEMA
+Pattern "DROP DATABASE IF EXISTS `mysql`" found
+# RESET
+RESET MASTER;
+# AFTER RESET
+include/assert.inc [No committed gtids after RESET]
+include/assert.inc [No purged gtids after RESET]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+# DUMP RESTORE WITH THE DUMP FILE HAVING DROP DATABASE ON MYSQL SCHEMA.
+# AFTER RESTORE
+include/assert.inc [Committed gtids after restore :- MASTER_UUID:1-7]
+include/assert.inc [Purged gtids after restore :- MASTER_UUID:1-7]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	7
+# INSERT
+INSERT INTO t VALUES (7, 1);
+INSERT INTO t VALUES (8, 1);
+INSERT INTO t VALUES (9, 1);
+# AFTER INSERTING
+include/assert.inc [Committed gtids after inserting :- MASTER_UUID:1-10]
+include/assert.inc [Purged gtids after inserting :- MASTER_UUID:1-7]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	7
+# RESTART
+# restart
+# AFTER RESTART
+include/assert.inc [Committed gtids after restart :- MASTER_UUID:1-10]
+include/assert.inc [Purged gtids after restart :- MASTER_UUID:1-7]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	7
+MASTER_UUID	8	10
+include/assert.inc [GTID_EXECUTED is correct after the restart]
+CALL mtr.add_suppression(".*InnoDB: Table `mysql`.`innodb_table_stats` not found.*");
+SHOW CREATE TABLE `mysql`.`innodb_table_stats`;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+#CLEANUP
+DROP TABLE t;
+RESET MASTER;
+# restart
