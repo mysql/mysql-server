@@ -46,6 +46,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"  // Variable_scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -1487,6 +1488,21 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       Implicit_substatement_state_guard substatement_guard(
           thd, enum_implicit_substatement_guard_mode ::
                    DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+
+      /*
+        This statement will be written to the binary log even if it fails. But a
+        failing statement calls trans_rollback_stmt which calls
+        gtid_state->update_on_rollback, which releases GTID ownership. And GTID
+        ownership must be held when the statement is being written to the binary
+        log. Therefore, we set this flag before executing the statement. The
+        flag tells gtid_state->update_on_rollback to skip releasing ownership.
+      */
+      Variable_scope_guard<bool> skip_gtid_rollback_guard(
+          thd->skip_gtid_rollback);
+      if ((thd->variables.gtid_next.type == ASSIGNED_GTID ||
+           thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
+          (!thd->skip_gtid_rollback))
+        thd->skip_gtid_rollback = true;
 
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
