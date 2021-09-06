@@ -112,7 +112,7 @@ TEST(NetTS_internet, address_comp_v4_lt_v6) {
   constexpr net::ip::address a4(net::ip::address_v4{});
   constexpr net::ip::address a6(net::ip::address_v6{});
 
-  static_assert(a4 < a6, "");
+  static_assert(a4 < a6);
 
   EXPECT_LT(a4, a6);
 }
@@ -121,7 +121,7 @@ TEST(NetTS_internet, address_comp_v4_eq) {
   constexpr net::ip::address a_1(net::ip::address_v4{});
   constexpr net::ip::address a_2(net::ip::address_v4{});
 
-  static_assert(a_1 == a_2, "");
+  static_assert(a_1 == a_2);
 
   EXPECT_EQ(a_1, a_2);
 }
@@ -130,8 +130,8 @@ TEST(NetTS_internet, address_comp_v4_ne) {
   constexpr net::ip::address a_1(net::ip::address_v4{});
   constexpr net::ip::address a_2(net::ip::address_v4{}.loopback());
 
-  static_assert(a_1 != a_2, "");
-  static_assert(a_1 < a_2, "");
+  static_assert(a_1 != a_2);
+  static_assert(a_1 < a_2);
 
   EXPECT_NE(a_1, a_2);
   EXPECT_LT(a_1, a_2);
@@ -141,7 +141,7 @@ TEST(NetTS_internet, address_comp_v6_eq) {
   constexpr net::ip::address a_1(net::ip::address_v6{});
   constexpr net::ip::address a_2(net::ip::address_v6{});
 
-  static_assert(a_1 == a_2, "");
+  static_assert(a_1 == a_2);
 
   EXPECT_EQ(a_1, a_2);
 }
@@ -150,8 +150,8 @@ TEST(NetTS_internet, address_comp_v6_ne) {
   constexpr net::ip::address a_1(net::ip::address_v6{});
   constexpr net::ip::address a_2(net::ip::address_v6{}.loopback());
 
-  static_assert(a_1 != a_2, "");
-  static_assert(a_1 < a_2, "");
+  static_assert(a_1 != a_2);
+  static_assert(a_1 < a_2);
 
   EXPECT_NE(a_1, a_2);
   EXPECT_LT(a_1, a_2);

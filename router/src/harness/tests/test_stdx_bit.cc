@@ -150,14 +150,11 @@ TYPED_TEST(StdxBitTest, countr_one) {
 
 // check that byteswap is really constexpr
 static_assert(UINT64_C(0x2200000000000000) ==
-                  stdx::byteswap(static_cast<uint64_t>(0x22)),
-              "");
+              stdx::byteswap(static_cast<uint64_t>(0x22)));
 static_assert(UINT32_C(0x22000000) ==
-                  stdx::byteswap(static_cast<uint32_t>(0x22)),
-              "");
-static_assert(UINT16_C(0x2200) == stdx::byteswap(static_cast<uint16_t>(0x22)),
-              "");
-static_assert(UINT8_C(0x22) == stdx::byteswap(static_cast<uint8_t>(0x22)), "");
+              stdx::byteswap(static_cast<uint32_t>(0x22)));
+static_assert(UINT16_C(0x2200) == stdx::byteswap(static_cast<uint16_t>(0x22)));
+static_assert(UINT8_C(0x22) == stdx::byteswap(static_cast<uint8_t>(0x22)));
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

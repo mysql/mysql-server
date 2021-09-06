@@ -144,8 +144,7 @@ template <typename T>
 T option_as_uint(const std::string &value, const std::string &option_name,
                  T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
   static_assert(std::numeric_limits<T>::max() <=
-                    std::numeric_limits<unsigned long long>::max(),
-                "");
+                std::numeric_limits<unsigned long long>::max());
 
   char *rest;
   errno = 0;

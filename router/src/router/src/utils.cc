@@ -506,8 +506,7 @@ unsigned strtoui_checked(const char *value,
 
 uint64_t strtoull_checked(const char *value, uint64_t default_result) noexcept {
   static_assert(std::numeric_limits<uint64_t>::max() <=
-                    std::numeric_limits<unsigned long long>::max(),
-                "");
+                std::numeric_limits<unsigned long long>::max());
 
   if (value == nullptr) return default_result;
 

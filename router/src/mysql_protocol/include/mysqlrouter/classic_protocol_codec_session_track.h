@@ -427,8 +427,7 @@ class Codec<session_track::Field>
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
       const ConstBufferSequence &buffers, capabilities::value_type caps) {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "");
+    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value);
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
     auto type_res = accu.template step<wire::FixedInt<1>>();

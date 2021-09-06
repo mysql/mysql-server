@@ -293,13 +293,13 @@ constexpr size_t max_bits(size_t max_value) {
   return used_bits;
 }
 
-static_assert(max_bits(0) == 0, "");
-static_assert(max_bits(1) == 1, "");
-static_assert(max_bits(2) == 2, "");
-static_assert(max_bits(3) == 2, "");
-static_assert(max_bits(4) == 3, "");
-static_assert(max_bits(7) == 3, "");
-static_assert(max_bits(8) == 4, "");
+static_assert(max_bits(0) == 0);
+static_assert(max_bits(1) == 1);
+static_assert(max_bits(2) == 2);
+static_assert(max_bits(3) == 2);
+static_assert(max_bits(4) == 3);
+static_assert(max_bits(7) == 3);
+static_assert(max_bits(8) == 4);
 
 template <class T, class Values, class Prev, size_t max_value>
 class ChainedBitset {
