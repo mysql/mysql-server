@@ -61,4 +61,25 @@ Scope_guard<TLambda> create_scope_guard(const TLambda rollback_lambda) {
   return Scope_guard<TLambda>(rollback_lambda);
 }
 
+/**
+  Template class to scope guard variables.
+*/
+template <typename T>
+class Variable_scope_guard {
+ public:
+  Variable_scope_guard() = delete;
+  Variable_scope_guard(T &var) : m_var_ref(var), m_var_val(var) {}
+
+  Variable_scope_guard(const Variable_scope_guard &) = delete;
+  Variable_scope_guard(Variable_scope_guard &&) = delete;
+
+  Variable_scope_guard &operator=(const Variable_scope_guard &) = delete;
+  Variable_scope_guard &operator=(Variable_scope_guard &&) = delete;
+
+  ~Variable_scope_guard() { m_var_ref = m_var_val; }
+
+ private:
+  T &m_var_ref;
+  T m_var_val;
+};
 #endif /* SCOPE_GUARD_H */
