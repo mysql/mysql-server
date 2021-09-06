@@ -2732,3 +2732,13 @@ SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS JSON );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON )' at line 1
 SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS REAL );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REAL )' at line 1
+#
+# Bug#32230229: MISMATCH EXPLAIN RESULT TO ACTUAL RUN WITH
+#               USER-DEFINED VARIABLE
+#
+EXPLAIN SELECT 1 INTO @x FROM DUAL INTO @y;
+ERROR HY000: Multiple INTO clauses in one query block.
+EXPLAIN SELECT 1 INTO DUMPFILE 'file1' FROM DUAL INTO DUMPFILE 'file2';
+ERROR HY000: Multiple INTO clauses in one query block.
+EXPLAIN SELECT 1 INTO OUTFILE 'file1' FROM DUAL INTO OUTFILE 'file2';
+ERROR HY000: Multiple INTO clauses in one query block.

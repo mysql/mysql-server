@@ -3522,12 +3522,9 @@ bool PT_into_destination_dumpfile::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   LEX *lex = pc->thd->lex;
-  if (!lex->is_explain()) {
-    lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    lex->result = new (pc->thd->mem_root) Query_result_dump(&m_exchange);
-    if (lex->result == nullptr) return true;
-  }
-  return false;
+  lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  lex->result = new (pc->thd->mem_root) Query_result_dump(&m_exchange);
+  return lex->result == nullptr;
 }
 
 bool PT_select_var_list::contextualize(Parse_context *pc) {
@@ -3540,8 +3537,6 @@ bool PT_select_var_list::contextualize(Parse_context *pc) {
   }
 
   LEX *const lex = pc->thd->lex;
-  if (lex->is_explain()) return false;
-
   Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar();
   if (dumpvar == nullptr) return true;
 
