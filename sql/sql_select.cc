@@ -5232,7 +5232,7 @@ join_type calc_join_type(AccessPath *path) {
   switch (path->type) {
     case AccessPath::INDEX_RANGE_SCAN:
     case AccessPath::INDEX_SKIP_SCAN:
-    case AccessPath::TRP_WRAPPER:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
       return JT_RANGE;
     case AccessPath::INDEX_MERGE:
     case AccessPath::ROWID_INTERSECTION:

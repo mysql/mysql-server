@@ -1533,10 +1533,9 @@ bool Explain_join::explain_extra() {
         */
         table->key_read || tab->keyread_optim()) {
       if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
-        TRP_GROUP_MIN_MAX *qgs =
-            down_cast<TRP_GROUP_MIN_MAX *>(range_scan_path->trp_wrapper().trp);
         StringBuffer<64> buff(cs);
-        if (qgs->get_is_index_scan()) buff.append(STRING_WITH_LEN("scanning"));
+        if (range_scan_path->group_index_skip_scan().param->is_index_scan)
+          buff.append(STRING_WITH_LEN("scanning"));
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
       } else if (quick_type == QS_TYPE_SKIP_SCAN) {
         if (push_extra(ET_USING_INDEX_FOR_SKIP_SCAN)) return true;

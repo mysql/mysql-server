@@ -258,7 +258,11 @@ static void AssertSupportedPath(const AccessPath *path) {
     case AccessPath::REF_OR_NULL:
     case AccessPath::EQ_REF:
     case AccessPath::PUSHED_JOIN_REF:
-    case AccessPath::TRP_WRAPPER:
+    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::INDEX_SKIP_SCAN:
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+    case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::ROWID_UNION:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
       assert(false); /* purecov: deadcode */
       break;

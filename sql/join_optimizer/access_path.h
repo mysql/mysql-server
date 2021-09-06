@@ -57,6 +57,7 @@ class Table_function;
 class Temp_table_param;
 class Window;
 struct AccessPath;
+struct GroupIndexSkipScanParameters;
 struct IndexSkipScanParameters;
 struct KEY_PART;
 struct ORDER;
@@ -203,7 +204,7 @@ struct AccessPath {
     ROWID_INTERSECTION,
     ROWID_UNION,
     INDEX_SKIP_SCAN,
-    TRP_WRAPPER,
+    GROUP_INDEX_SKIP_SCAN,
     DYNAMIC_INDEX_RANGE_SCAN,
 
     // Basic access paths that don't correspond to a specific table.
@@ -529,13 +530,13 @@ struct AccessPath {
     assert(type == INDEX_SKIP_SCAN);
     return u.index_skip_scan;
   }
-  auto &trp_wrapper() {
-    assert(type == TRP_WRAPPER);
-    return u.trp_wrapper;
+  auto &group_index_skip_scan() {
+    assert(type == GROUP_INDEX_SKIP_SCAN);
+    return u.group_index_skip_scan;
   }
-  const auto &trp_wrapper() const {
-    assert(type == TRP_WRAPPER);
-    return u.trp_wrapper;
+  const auto &group_index_skip_scan() const {
+    assert(type == GROUP_INDEX_SKIP_SCAN);
+    return u.group_index_skip_scan;
   }
   auto &dynamic_index_range_scan() {
     assert(type == DYNAMIC_INDEX_RANGE_SCAN);
@@ -888,13 +889,20 @@ struct AccessPath {
       unsigned num_used_key_parts;
       bool forced_by_hint;
 
-      // Large, so split out into its own allocation.
+      // Large, and has nontrivial destructors, so split out into
+      // its own allocation.
       IndexSkipScanParameters *param;
     } index_skip_scan;
     struct {
       TABLE *table;
-      TABLE_READ_PLAN *trp;
-    } trp_wrapper;
+      unsigned index;
+      unsigned num_used_key_parts;
+      bool forced_by_hint;
+      AccessPath *quick_prefix_query_block;  // May be nullptr.
+
+      // Large, so split out into its own allocation.
+      GroupIndexSkipScanParameters *param;
+    } group_index_skip_scan;
     struct {
       TABLE *table;
       QEP_TAB *qep_tab;  // Used only for buffering.
@@ -1226,17 +1234,6 @@ inline AccessPath *NewFollowTailAccessPath(THD *thd, TABLE *table,
   path->type = AccessPath::FOLLOW_TAIL;
   path->count_examined_rows = count_examined_rows;
   path->follow_tail().table = table;
-  return path;
-}
-
-inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
-                                               TABLE_READ_PLAN *trp,
-                                               bool count_examined_rows) {
-  AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::TRP_WRAPPER;
-  path->count_examined_rows = count_examined_rows;
-  path->trp_wrapper().table = table;
-  path->trp_wrapper().trp = trp;
   return path;
 }
 

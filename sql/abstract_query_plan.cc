@@ -166,9 +166,7 @@ void Table_access::dbug_print() const {
   DBUG_PRINT("info", ("index:%d", get_qep_tab()->index()));
   DBUG_PRINT("info", ("trp:%p", get_qep_tab()->range_scan()));
   if (get_qep_tab()->range_scan()) {
-    DBUG_PRINT("info",
-               ("trp->get_type():%d",
-                get_qep_tab()->range_scan()->trp_wrapper().trp->get_type()));
+    DBUG_PRINT("info", ("trp->type():%d", get_qep_tab()->range_scan()->type));
   }
 }
 
@@ -269,7 +267,7 @@ void Table_access::compute_type_and_index() const {
            **/
 
           const KEY *key_info = qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", trp->trp_wrapper().trp->dbug_dump(0, true););
+          DBUG_EXECUTE("info", dbug_dump(0, true, trp););
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed
           // joins

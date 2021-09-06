@@ -475,7 +475,7 @@ EXPLAIN
             -> Window aggregate with buffering: sum(t1.f2) OVER () 
                 -> Table scan on <temporary>  (cost=*** rows=***)
                     -> Temporary table with deduplication  (cost=*** rows=***)
-                        -> Covering index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
+                        -> Covering index skip scan for deduplication on t1 using f1_2  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;

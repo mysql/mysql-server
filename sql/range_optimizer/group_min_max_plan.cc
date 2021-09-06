@@ -54,6 +54,7 @@
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/tree.h"
+#include "sql/range_optimizer/trp_helpers.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -69,74 +70,36 @@ struct MEM_ROOT;
 
 using std::max;
 using std::min;
+using std::move;
 
 static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
                       uint key_length, Quick_ranges *range_array);
 
-TRP_GROUP_MIN_MAX::TRP_GROUP_MIN_MAX(
-    bool have_agg_distinct_arg, KEY_PART_INFO *min_max_arg_part_arg,
-    uint group_prefix_len_arg, uint used_key_parts_arg,
-    uint group_key_parts_arg, KEY *index_info_arg, uint index_arg,
-    uint key_infix_len_arg, SEL_ROOT *index_tree_arg,
-    ha_rows quick_prefix_records_arg, TABLE *table_arg, JOIN *join_arg,
-    KEY_PART *used_key_part_arg, uint keyno_arg, uint real_key_parts_arg,
-    uint max_used_key_length_arg, Quick_ranges_array key_infix_ranges_arg,
-    Quick_ranges min_max_ranges_arg, Quick_ranges prefix_ranges_arg)
-    : TABLE_READ_PLAN(table_arg, index_arg, used_key_parts_arg,
-                      /*forced_by_hint_arg=*/false),
-      have_agg_distinct(have_agg_distinct_arg),
-      min_max_arg_part(min_max_arg_part_arg),
-      group_prefix_len(group_prefix_len_arg),
-      group_key_parts(group_key_parts_arg),
-      index_info(index_info_arg),
-      key_infix_len(key_infix_len_arg),
-      index_tree_tracing_only(index_tree_arg),
-      is_index_scan(false),
-      join(join_arg),
-      used_key_part(used_key_part_arg),
-      keyno(keyno_arg),
-      real_key_parts(real_key_parts_arg),
-      max_used_key_length(max_used_key_length_arg),
-      key_infix_ranges(std::move(key_infix_ranges_arg)),
-      min_max_ranges(std::move(min_max_ranges_arg)),
-      prefix_ranges(std::move(prefix_ranges_arg)),
-      quick_prefix_records(quick_prefix_records_arg) {
-  // Extract the list of MIN and MAX functions; join->sum_funcs will change
-  // after temporary table setup, so it needs to be done before the iterator
-  // is created.
-  if (min_max_arg_part) {
-    Item_sum *min_max_item;
-    Item_sum **func_ptr = join->sum_funcs;
-    while ((min_max_item = *(func_ptr++))) {
-      if (min_max_item->sum_func() == Item_sum::MIN_FUNC)
-        min_functions.push_back(min_max_item);
-      else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
-        max_functions.push_back(min_max_item);
-    }
-  }
-}
+void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
+                                            const RANGE_OPT_PARAM *,
+                                            Opt_trace_object *trace_object) {
+  const GroupIndexSkipScanParameters *param =
+      +path->group_index_skip_scan().param;
 
-void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
-                                         double cost, double num_output_rows,
-                                         Opt_trace_object *trace_object) const {
   trace_object->add_alnum("type", "index_group")
-      .add_utf8("index", index_info->name);
-  if (min_max_arg_part)
+      .add_utf8("index", param->index_info->name);
+  if (param->min_max_arg_part)
     trace_object->add_utf8("group_attribute",
-                           min_max_arg_part->field->field_name);
+                           param->min_max_arg_part->field->field_name);
   else
     trace_object->add_null("group_attribute");
-  trace_object->add("min_aggregate", !min_functions.is_empty())
-      .add("max_aggregate", !max_functions.is_empty())
-      .add("distinct_aggregate", have_agg_distinct)
-      .add("rows", num_output_rows)
-      .add("cost", cost);
+  trace_object->add("min_aggregate", !param->min_functions.empty())
+      .add("max_aggregate", !param->max_functions.empty())
+      .add("distinct_aggregate", param->have_agg_distinct)
+      .add("rows", path->num_output_rows)
+      .add("cost", path->cost);
 
-  const KEY_PART_INFO *key_part = index_info->key_part;
+  const KEY_PART_INFO *key_part = param->index_info->key_part;
   Opt_trace_context *const trace = &thd->opt_trace;
   {
     Opt_trace_array trace_keyparts(trace, "key_parts_used_for_access");
-    for (uint partno = 0; partno < used_key_parts; partno++) {
+    for (uint partno = 0;
+         partno < path->group_index_skip_scan().num_used_key_parts; partno++) {
       const KEY_PART_INFO *cur_key_part = key_part + partno;
       trace_keyparts.add_utf8(cur_key_part->field->field_name);
     }
@@ -144,11 +107,11 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(THD *thd, const RANGE_OPT_PARAM *,
   Opt_trace_array trace_range(trace, "ranges");
 
   // can have group quick without ranges
-  if (index_tree_tracing_only) {
+  if (param->index_tree_tracing_only) {
     String range_info;
     range_info.set_charset(system_charset_info);
     append_range_all_keyparts(&trace_range, nullptr, &range_info,
-                              index_tree_tracing_only, key_part, false);
+                              param->index_tree_tracing_only, key_part, false);
   }
 }
 
@@ -179,7 +142,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 
 /**
   Test if this access method is applicable to a GROUP query with MIN/MAX
-  functions, and if so, construct a new TRP object.
+  functions, and if so, construct a new AccessPath.
 
   DESCRIPTION
     Test whether a query can be computed via a QUICK_GROUP_MIN_MAX_SELECT.
@@ -283,11 +246,11 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
 
   NOTES
     If the current query satisfies the conditions above, and if
-    (mem_root! = NULL), then the function constructs and returns a new TRP
-    object, that is later used to construct a new QUICK_GROUP_MIN_MAX_SELECT.
-    If (mem_root == NULL), then the function only tests whether the current
-    query satisfies the conditions above, and, if so, sets
-    is_applicable = true.
+    (mem_root! = NULL), then the function constructs and returns a new
+    AccessPath.  object, that is later used to construct a new
+    QUICK_GROUP_MIN_MAX_SELECT. If (mem_root == nullptr), then the function
+    only tests whether the current query satisfies the conditions above,
+    and, if so, sets is_applicable = true.
 
     Queries with DISTINCT for which index access can be used are transformed
     into equivalent group-by queries of the form:
@@ -1026,33 +989,81 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     }
   }
 
-  /* The query passes all tests, so construct a new TRP object. */
-  TRP_GROUP_MIN_MAX *read_plan = new (param->return_mem_root) TRP_GROUP_MIN_MAX(
-      is_agg_distinct, min_max_arg_part, group_prefix_len, used_key_parts,
-      group_key_parts, index_info, index, key_infix_len, best_index_tree,
-      best_quick_prefix_records, table, join, param->key[best_param_idx],
-      param->real_keynr[best_param_idx], real_key_parts, max_used_key_length,
-      std::move(key_infix_ranges), std::move(min_max_ranges),
-      std::move(prefix_ranges));
-  if (read_plan) {
-    AccessPath *path =
-        NewIndexRangeScanAccessPath(thd, read_plan->table, read_plan,
-                                    /*count_examined_rows=*/false);
-    path->cost = best_read_cost.total_cost();
-    path->num_output_rows = best_records;
-    if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
-      trace_group.add("index_scan", true);
-      path->cost = 0.0;
-      read_plan->use_index_scan();
+  /* The query passes all tests, so construct a new AccessPath. */
+  AccessPath *path = new (param->return_mem_root) AccessPath;
+  path->type = AccessPath::GROUP_INDEX_SKIP_SCAN;
+  path->cost = best_read_cost.total_cost();
+  path->num_output_rows = best_records;
+
+  // Extract the list of MIN and MAX functions; join->sum_funcs will change
+  // after temporary table setup, so it needs to be done before the iterator
+  // is created.
+  GroupIndexSkipScanParameters *p =
+      new (param->return_mem_root) GroupIndexSkipScanParameters;
+  p->min_functions.init(return_mem_root);
+  p->max_functions.init(return_mem_root);
+  if (min_max_arg_part != nullptr) {
+    Item_sum *min_max_item;
+    Item_sum **func_ptr = join->sum_funcs;
+    while ((min_max_item = *(func_ptr++))) {
+      if (min_max_item->sum_func() == Item_sum::MIN_FUNC)
+        p->min_functions.push_back(min_max_item);
+      else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
+        p->max_functions.push_back(min_max_item);
     }
-
-    DBUG_PRINT("info", ("Returning group min/max plan: cost: %g, records: %g",
-                        path->cost, path->num_output_rows));
-
-    return path;
-  } else {
-    return nullptr;
   }
+  p->have_agg_distinct = is_agg_distinct;
+  p->min_max_arg_part = min_max_arg_part;
+  p->group_prefix_len = group_prefix_len;
+  p->group_key_parts = group_key_parts;
+  p->index_info = index_info;
+  p->key_infix_len = key_infix_len;
+  p->index_tree_tracing_only = best_index_tree;
+  p->used_key_part = param->key[best_param_idx];
+  p->real_key_parts = real_key_parts;
+  p->max_used_key_length = max_used_key_length;
+  p->key_infix_ranges = move(key_infix_ranges);
+  p->min_max_ranges = move(min_max_ranges);
+  if (cost_est < best_read_cost.total_cost() && is_agg_distinct) {
+    trace_group.add("index_scan", true);
+    path->cost = 0.0;
+    p->is_index_scan = true;
+  } else {
+    p->is_index_scan = false;
+  }
+
+  path->group_index_skip_scan().table = table;
+  path->group_index_skip_scan().index = index;
+  path->group_index_skip_scan().num_used_key_parts = used_key_parts;
+  path->group_index_skip_scan().param = p;
+
+  if (prefix_ranges.empty()) {
+    path->group_index_skip_scan().quick_prefix_query_block = nullptr;
+  } else {
+    AccessPath *subpath = new (return_mem_root) AccessPath;
+    subpath->type = AccessPath::INDEX_RANGE_SCAN;
+    subpath->cost = path->cost;
+    subpath->num_output_rows = path->num_output_rows;
+    subpath->index_range_scan().used_key_part =
+        used_key_part;  // Only used for the TABLE.
+    subpath->index_range_scan().ranges = &prefix_ranges[0];
+    subpath->index_range_scan().num_ranges = prefix_ranges.size();
+    subpath->index_range_scan().mrr_flags = HA_MRR_SORTED;
+    subpath->index_range_scan().mrr_buf_size = 0;
+    subpath->index_range_scan().index = param->real_keynr[best_param_idx];
+    subpath->index_range_scan().num_used_key_parts = 0;  // Unused.
+
+    subpath->index_range_scan().can_be_used_for_ror = false;
+    subpath->index_range_scan().need_rows_in_rowid_order = false;
+    subpath->index_range_scan().can_be_used_for_imerge = false;
+    subpath->index_range_scan().reuse_handler = false;
+    subpath->index_range_scan().geometry = false;
+    subpath->index_range_scan().reverse = false;
+
+    path->group_index_skip_scan().quick_prefix_query_block = subpath;
+  }
+
+  return path;
 }
 
 /*
@@ -1490,8 +1501,8 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
                               attributes.
 
   DESCRIPTION
-    This method computes the access cost of a TRP_GROUP_MIN_MAX instance and
-    the number of rows returned.
+    This method computes the access cost of an GROUP_INDEX_SKIP_SCAN access path
+    and the number of rows returned.
 
   NOTES
     The cost computation distinguishes several cases:
@@ -1694,112 +1705,28 @@ static bool add_range(MEM_ROOT *return_mem_root, SEL_ARG *sel_range,
   return false;
 }
 
-/*
-  Construct a new quick select object for queries with group by with min/max.
-
-  SYNOPSIS
-    TRP_GROUP_MIN_MAX::make_quick()
-    return_mem_root    Memory pool to use.
-
-  RETURN
-    New QUICK_GROUP_MIN_MAX_SELECT object if successfully created,
-    NULL otherwise.
-*/
-
-RowIterator *TRP_GROUP_MIN_MAX::make_quick(THD *thd, double expected_rows,
-                                           MEM_ROOT *return_mem_root,
-                                           ha_rows *examined_rows) {
-  DBUG_TRACE;
-
-  QUICK_RANGE_SELECT *quick_prefix_query_block = nullptr;
-  if (!prefix_ranges.empty()) {
-    quick_prefix_query_block = new (return_mem_root) QUICK_RANGE_SELECT(
-        thd, table, examined_rows, expected_rows, keyno,
-        /*need_rows_in_rowid_order=*/false,
-        /*reuse_handler=*/false, return_mem_root, HA_MRR_SORTED,
-        /*mrr_buf_size=*/0, {&prefix_ranges[0], prefix_ranges.size()});
-    if (!quick_prefix_query_block) {
-      return nullptr;
-    }
-  }
-
-  // TODO(sgunders): Consider using Bounds_checked_array instead of std::move
-  // here, so that make_quick() can be made const.
-  return new (return_mem_root) QUICK_GROUP_MIN_MAX_SELECT(
-      thd, table, join, min_functions, max_functions, have_agg_distinct,
-      min_max_arg_part, group_prefix_len, group_key_parts, real_key_parts,
-      max_used_key_length, index_info, index, key_infix_len, return_mem_root,
-      is_index_scan, quick_prefix_query_block, std::move(key_infix_ranges),
-      std::move(min_max_ranges));
-}
-
-void TRP_GROUP_MIN_MAX::add_info_string(String *str) const {
-  str->append(STRING_WITH_LEN("index_for_group_by("));
-  str->append(index_info->name);
-  str->append(')');
-}
-
-/*
-  Append comma-separated list of keys this quick select uses to key_names;
-  append comma-separated list of corresponding used lengths to used_lengths.
-
-  SYNOPSIS
-    TRP_GROUP_MIN_MAX::add_keys_and_lengths()
-    key_names    [out] Names of used indexes
-    used_lengths [out] Corresponding lengths of the index names
-
-  DESCRIPTION
-    This method is used by select_describe to extract the names of the
-    indexes used by a quick select.
-
- */
-
-void TRP_GROUP_MIN_MAX::add_keys_and_lengths(String *key_names,
-                                             String *used_lengths) const {
-  key_names->append(index_info->name);
-
-  char buf[64];
-  size_t length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
-  used_lengths->append(buf, length);
-}
-
 #ifndef NDEBUG
-/*
-  Print quick select information to DBUG_FILE.
+void dbug_dump_group_index_skip_scan(int indent, bool verbose,
+                                     const AccessPath *path) {
+  const GroupIndexSkipScanParameters *param =
+      path->group_index_skip_scan().param;
 
-  SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::dbug_dump()
-    indent  Indentation offset
-    verbose If true show more detailed output.
-
-  DESCRIPTION
-    Print the contents of this quick select to DBUG_FILE. The method also
-    calls dbug_dump() for the used quick select if any.
-
-  IMPLEMENTATION
-    Caller is responsible for locking DBUG_FILE before this call and unlocking
-    it afterwards.
-
-  RETURN
-    None
-*/
-
-void TRP_GROUP_MIN_MAX::dbug_dump(int indent, bool verbose) {
   fprintf(DBUG_FILE,
           "%*squick_group_min_max_query_block: index %s (%d), length: %d\n",
-          indent, "", index_info->name, index, max_used_key_length);
-  if (key_infix_len > 0) {
+          indent, "", param->index_info->name,
+          path->group_index_skip_scan().index, param->max_used_key_length);
+  if (param->key_infix_len > 0) {
     fprintf(DBUG_FILE, "%*susing key_infix with length %d:\n", indent, "",
-            key_infix_len);
+            param->key_infix_len);
   }
-  if (!prefix_ranges.empty()) {
+  if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
     fprintf(DBUG_FILE, "%*susing quick_range_query_block:\n", indent, "");
-    dbug_dump_range(indent, verbose, table, keyno, used_key_part,
-                    {&prefix_ranges[0], prefix_ranges.size()});
+    dbug_dump(path->group_index_skip_scan().quick_prefix_query_block, indent,
+              verbose);
   }
-  if (min_max_ranges.size() > 0) {
+  if (param->min_max_ranges.size() > 0) {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",
-            static_cast<int>(min_max_ranges.size()));
+            static_cast<int>(param->min_max_ranges.size()));
   }
 }
 #endif

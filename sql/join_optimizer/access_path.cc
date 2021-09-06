@@ -34,6 +34,8 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/range_optimizer/geometry.h"
+#include "sql/range_optimizer/group_min_max.h"
+#include "sql/range_optimizer/group_min_max_plan.h"
 #include "sql/range_optimizer/index_merge.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/range_scan.h"
@@ -167,7 +169,6 @@ bool ShouldEnableBatchMode(AccessPath *path) {
     case AccessPath::REF_OR_NULL:
     case AccessPath::PUSHED_JOIN_REF:
     case AccessPath::FULL_TEXT_SEARCH:
-    case AccessPath::TRP_WRAPPER:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
       return true;
     case AccessPath::FILTER:
@@ -408,10 +409,26 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           param->range_cond_flag, param->range_key_len);
       break;
     }
-    case AccessPath::TRP_WRAPPER: {
-      const auto &param = path->trp_wrapper();
-      iterator.reset(param.trp->make_quick(thd, path->num_output_rows, mem_root,
-                                           examined_rows));
+    case AccessPath::GROUP_INDEX_SKIP_SCAN: {
+      const GroupIndexSkipScanParameters *param =
+          path->group_index_skip_scan().param;
+      unique_ptr_destroy_only<RowIterator> quick_prefix_query_block;
+      if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
+        quick_prefix_query_block = CreateIteratorFromAccessPath(
+            thd, mem_root,
+            path->group_index_skip_scan().quick_prefix_query_block, join,
+            /*eligible_for_batch_mode=*/false);
+      }
+
+      iterator = NewIterator<QUICK_GROUP_MIN_MAX_SELECT>(
+          thd, mem_root, path->group_index_skip_scan().table,
+          &param->min_functions, &param->max_functions,
+          param->have_agg_distinct, param->min_max_arg_part,
+          param->group_prefix_len, param->group_key_parts,
+          param->real_key_parts, param->max_used_key_length, param->index_info,
+          path->group_index_skip_scan().index, param->key_infix_len, mem_root,
+          param->is_index_scan, move(quick_prefix_query_block),
+          &param->key_infix_ranges, &param->min_max_ranges);
       break;
     }
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN: {

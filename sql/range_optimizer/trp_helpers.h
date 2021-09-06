@@ -30,6 +30,7 @@
  */
 
 #include "sql/join_optimizer/access_path.h"
+#include "sql/range_optimizer/group_min_max_plan.h"
 #include "sql/range_optimizer/index_merge_plan.h"
 #include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
@@ -38,8 +39,7 @@
 
 inline bool is_loose_index_scan(const AccessPath *path) {
   return path->type == AccessPath::INDEX_SKIP_SCAN ||
-         (path->type == AccessPath::TRP_WRAPPER &&
-          path->trp_wrapper().trp->get_type() == QS_TYPE_GROUP_MIN_MAX);
+         path->type == AccessPath::GROUP_INDEX_SKIP_SCAN;
 }
 
 inline bool is_agg_loose_index_scan(const AccessPath *path) {
@@ -47,8 +47,8 @@ inline bool is_agg_loose_index_scan(const AccessPath *path) {
     case AccessPath::INDEX_SKIP_SCAN:
       return path->index_skip_scan().param->has_aggregate_function;
       break;
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->is_agg_loose_index_scan();
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().param->have_agg_distinct;
       break;
     default:
       return false;
@@ -94,11 +94,9 @@ inline void set_need_sorted_output(AccessPath *path) {
     case AccessPath::INDEX_RANGE_SCAN:
       path->index_range_scan().mrr_flags |= HA_MRR_SORTED;
       break;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
     case AccessPath::INDEX_SKIP_SCAN:
       // Always sorted already.
-      break;
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->need_sorted_output();
       break;
     default:
       assert(false);
@@ -115,8 +113,8 @@ inline unsigned used_index(const AccessPath *path) {
       return path->index_range_scan().index;
     case AccessPath::INDEX_SKIP_SCAN:
       return path->index_skip_scan().index;
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->index;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().index;
     default:
       return MAX_KEY;
   }
@@ -175,8 +173,13 @@ inline void get_fields_used(const AccessPath *path, MY_BITMAP *used_fields) {
                                         .field->field_index());
       }
       break;
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->get_fields_used(used_fields);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      for (uint i = 0; i < path->group_index_skip_scan().num_used_key_parts;
+           ++i) {
+        bitmap_set_bit(used_fields, path->group_index_skip_scan()
+                                        .param->index_info->key_part[i]
+                                        .field->field_index());
+      }
       break;
     default:
       assert(false);
@@ -189,12 +192,12 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
       return path->index_range_scan().num_used_key_parts;
     case AccessPath::INDEX_SKIP_SCAN:
       return path->index_skip_scan().num_used_key_parts;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().num_used_key_parts;
     case AccessPath::INDEX_MERGE:
     case AccessPath::ROWID_INTERSECTION:
     case AccessPath::ROWID_UNION:
       return 0;
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->used_key_parts;
     default:
       assert(false);
       return 0;
@@ -236,8 +239,9 @@ inline bool uses_index_on_fields(const AccessPath *path,
     case AccessPath::INDEX_SKIP_SCAN:
       return is_key_used(path->index_skip_scan().table,
                          path->index_skip_scan().index, fields);
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->is_keys_used(fields);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return is_key_used(path->group_index_skip_scan().table,
+                         path->group_index_skip_scan().index, fields);
     default:
       assert(false);
       return false;
@@ -272,8 +276,8 @@ inline unsigned get_max_used_key_length(const AccessPath *path) {
       }
       return max_used_key_length;
     }
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->get_max_used_key_length();
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().param->max_used_key_length;
     default:
       assert(false);
       return 0;
@@ -350,9 +354,12 @@ inline void add_info_string(const AccessPath *path, String *str) {
       str->append(')');
       break;
     }
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->add_info_string(str);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN: {
+      str->append(STRING_WITH_LEN("index_for_group_by("));
+      str->append(path->group_index_skip_scan().param->index_info->name);
+      str->append(')');
       break;
+    }
     default:
       assert(false);
   }
@@ -398,9 +405,16 @@ inline void add_keys_and_lengths(const AccessPath *path, String *key_names,
 
       break;
     }
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->add_keys_and_lengths(key_names, used_lengths);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN: {
+      key_names->append(path->group_index_skip_scan().param->index_info->name);
+
+      char buf[64];
+      uint length =
+          longlong10_to_str(get_max_used_key_length(path), buf, 10) - buf;
+      used_lengths->append(buf, length);
+
       break;
+    }
     default:
       assert(false);
   }
@@ -434,9 +448,8 @@ inline void trace_basic_info(THD *thd, const AccessPath *path,
     case AccessPath::INDEX_SKIP_SCAN:
       trace_basic_info_index_skip_scan(thd, path, param, trace_object);
       break;
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->trace_basic_info(
-          thd, param, path->cost, path->num_output_rows, trace_object);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      trace_basic_info_group_index_skip_scan(thd, path, param, trace_object);
       break;
     default:
       assert(false);
@@ -459,8 +472,8 @@ inline RangeScanType get_range_scan_type(const AccessPath *path) {
       return QS_TYPE_ROR_UNION;
     case AccessPath::INDEX_SKIP_SCAN:
       return QS_TYPE_SKIP_SCAN;
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->get_type();
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return QS_TYPE_GROUP_MIN_MAX;
     default:
       assert(false);
       return QS_TYPE_RANGE;
@@ -477,10 +490,10 @@ inline bool get_forced_by_hint(const AccessPath *path) {
       return path->rowid_intersection().forced_by_hint;
     case AccessPath::ROWID_UNION:
       return path->rowid_union().forced_by_hint;
-    case AccessPath::TRP_WRAPPER:
-      return path->trp_wrapper().trp->forced_by_hint;
     case AccessPath::INDEX_SKIP_SCAN:
       return path->index_skip_scan().forced_by_hint;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      return path->group_index_skip_scan().forced_by_hint;
     default:
       assert(false);
       return false;
@@ -515,8 +528,8 @@ inline void dbug_dump(const AccessPath *path, int indent, bool verbose) {
     case AccessPath::INDEX_SKIP_SCAN:
       dbug_dump_index_skip_scan(indent, verbose, path);
       break;
-    case AccessPath::TRP_WRAPPER:
-      path->trp_wrapper().trp->dbug_dump(0, true);
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      dbug_dump_group_index_skip_scan(indent, verbose, path);
       break;
     default:
       assert(false);

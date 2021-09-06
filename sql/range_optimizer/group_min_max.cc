@@ -51,7 +51,6 @@
     QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT()
     thd                Thead handle
     table              The table being accessed
-    join               Descriptor of the current query
     min_functions      MIN() functions in query block
     max_functions      MAX() functions in query block
     have_agg_distinct  Whether any aggregates are DISTINCT
@@ -67,45 +66,45 @@
     read_cost          Cost of this access method
     records            Number of records returned
     key_infix_len      Length of the key infix appended to the group prefix
-    return_mem_root    Memory pool for this and quick_prefix_query_block data
+    return_mem_root    Memory pool to allocate temporary buffers on
     is_index_scan      get the next different key not by jumping on it via
                        index read, but by scanning until the end of the
                        rows with equal key value.
-    quick_prefix_query_block
+    quick_prefix_query_block_arg
                        Child scan to get prefix keys
     key_infix_ranges   Ranges to scan for the infix key part(s)
     min_max_ranges     Ranges to scan for the MIN/MAX key part
  */
 QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
-    THD *thd, TABLE *table, JOIN *join, List<Item_sum> min_functions,
-    List<Item_sum> max_functions, bool have_agg_distinct,
+    THD *thd, TABLE *table, const Mem_root_array<Item_sum *> *min_functions,
+    const Mem_root_array<Item_sum *> *max_functions, bool have_agg_distinct,
     KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
     uint group_key_parts, uint real_key_parts_arg, uint max_used_key_length_arg,
     KEY *index_info, uint use_index, uint key_infix_len,
     MEM_ROOT *return_mem_root, bool is_index_scan,
-    QUICK_RANGE_SELECT *quick_prefix_query_block,
-    Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges)
+    unique_ptr_destroy_only<RowIterator> quick_prefix_query_block_arg,
+    const Quick_ranges_array *key_infix_ranges,
+    const Quick_ranges *min_max_ranges)
     : TableRowIterator(thd, table),
-      join(join),
+      index(use_index),
       index_info(index_info),
+      group_prefix(nullptr),
       group_prefix_len(group_prefix_len),
       group_key_parts(group_key_parts),
       have_agg_distinct(have_agg_distinct),
       seen_first_key(false),
       min_max_arg_part(min_max_arg_part),
       key_infix_len(key_infix_len),
-      min_max_ranges(std::move(min_max_ranges)),
-      key_infix_ranges(std::move(key_infix_ranges)),
+      max_used_key_length(max_used_key_length_arg),
+      min_max_ranges(min_max_ranges),
+      key_infix_ranges(key_infix_ranges),
+      real_key_parts(real_key_parts_arg),
       min_functions(min_functions),
       max_functions(max_functions),
       is_index_scan(is_index_scan),
       mem_root(return_mem_root),
-      quick_prefix_query_block(quick_prefix_query_block) {
-  index = use_index;
-  real_key_parts = real_key_parts_arg;
-  max_used_key_length = max_used_key_length_arg;
+      quick_prefix_query_block(move(quick_prefix_query_block_arg)) {
   real_prefix_len = group_prefix_len + key_infix_len;
-  group_prefix = nullptr;
   min_max_arg_len = min_max_arg_part ? min_max_arg_part->store_length : 0;
   min_max_keypart_asc =
       min_max_arg_part ? !(min_max_arg_part->key_part_flag & HA_REVERSE_SORT)
@@ -123,7 +122,6 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
       ha_*_end() for whatever is the current access method.
     */
     table()->file->ha_index_or_rnd_end();
-  destroy(quick_prefix_query_block);
 }
 
 /*
@@ -257,9 +255,9 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
     bool reset_max_value = true;
     while (!thd()->killed && !append_next_infix()) {
       assert(!result || !is_index_access_error(result));
-      if (!min_functions.is_empty() || !max_functions.is_empty()) {
+      if (!min_functions->empty() || !max_functions->empty()) {
         if (min_max_keypart_asc) {
-          if (!min_functions.is_empty()) {
+          if (!min_functions->empty()) {
             if (!(result = next_min()))
               update_min_result(&reset_min_value);
             else {
@@ -271,7 +269,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
               continue;  // Record is not found, no reason to call next_max()
             }
           }
-          if (!max_functions.is_empty()) {
+          if (!max_functions->empty()) {
             if (!(result = next_max()))
               update_max_result(&reset_max_value);
             else if (is_index_access_error(result))
@@ -280,7 +278,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
         } else {
           // Call next_max() first and then next_min() if
           // MIN/MAX key part is descending.
-          if (!max_functions.is_empty()) {
+          if (!max_functions->empty()) {
             if (!(result = next_max()))
               update_max_result(&reset_max_value);
             else {
@@ -290,7 +288,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
               continue;  // Record is not found, no reason to call next_min()
             }
           }
-          if (!min_functions.is_empty()) {
+          if (!min_functions->empty()) {
             if (!(result = next_min()))
               update_min_result(&reset_min_value);
             else if (is_index_access_error(result))
@@ -360,7 +358,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
   DBUG_TRACE;
 
   /* Find the MIN key using the eventually extended group prefix. */
-  if (min_max_ranges.size() > 0) {
+  if (!min_max_ranges->empty()) {
     uchar key_buf[MAX_KEY_LENGTH];
     key_copy(key_buf, table()->record[0], index_info, max_used_key_length);
     result = next_min_in_range();
@@ -444,7 +442,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
   DBUG_TRACE;
 
   /* Get the last key in the (possibly extended) group. */
-  if (min_max_ranges.size() > 0) {
+  if (!min_max_ranges->empty()) {
     uchar key_buf[MAX_KEY_LENGTH];
     key_copy(key_buf, table()->record[0], index_info, max_used_key_length);
     result = next_max_in_range();
@@ -489,9 +487,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
   DBUG_TRACE;
 
   if (quick_prefix_query_block) {
+    // TODO(sgunders): EXPLAIN ANALYZE won't count these properly.
+    // Given how little we use of QUICK_RANGE_SELECT, consider just
+    // assimilating the functionality.
     uchar *cur_prefix = seen_first_key ? group_prefix : nullptr;
-    if ((result = quick_prefix_query_block->get_next_prefix(
-             group_prefix_len, group_key_parts, cur_prefix)))
+    if ((result = down_cast<QUICK_RANGE_SELECT *>(
+                      quick_prefix_query_block->real_iterator())
+                      ->get_next_prefix(group_prefix_len, group_key_parts,
+                                        cur_prefix)))
       return result;
     seen_first_key = true;
   } else {
@@ -536,11 +539,11 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
     // For each infix keypart, get the participating range for
     // the next row retrieval. cur_key_infix_position determines
     // which range needs to be used.
-    for (uint i = 0; i < key_infix_ranges.size(); i++) {
+    for (uint i = 0; i < key_infix_ranges->size(); i++) {
       QUICK_RANGE *cur_range = nullptr;
-      assert(key_infix_ranges[i]->size() > 0);
+      assert(!(*key_infix_ranges)[i]->empty());
 
-      Quick_ranges *infix_range_array = key_infix_ranges[i];
+      Quick_ranges *infix_range_array = (*key_infix_ranges)[i];
       cur_range = infix_range_array->at(cur_infix_range_position[i]);
       memcpy(key_ptr, cur_range->min_key, cur_range->min_length);
       key_ptr += cur_range->min_length;
@@ -548,9 +551,9 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
 
     // cur_infix_range_position is updated with the next infix range
     // position.
-    for (int i = key_infix_ranges.size() - 1; i >= 0; i--) {
+    for (int i = key_infix_ranges->size() - 1; i >= 0; i--) {
       cur_infix_range_position[i]++;
-      if (cur_infix_range_position[i] == key_infix_ranges[i]->size()) {
+      if (cur_infix_range_position[i] == (*key_infix_ranges)[i]->size()) {
         // All the ranges for infix keypart "i" is done
         cur_infix_range_position[i] = 0;
         if (i == 0) seen_all_infix_ranges = true;
@@ -581,11 +584,11 @@ void QUICK_GROUP_MIN_MAX_SELECT::reset_group() {
   seen_all_infix_ranges = false;
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 
-  for (Item_sum &min_func : min_functions) {
-    min_func.aggregator_clear();
+  for (Item_sum *min_func : *min_functions) {
+    min_func->aggregator_clear();
   }
-  for (Item_sum &max_func : max_functions) {
-    max_func.aggregator_clear();
+  for (Item_sum *max_func : *max_functions) {
+    max_func->aggregator_clear();
   }
 }
 
@@ -713,17 +716,17 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
   bool found_null = false;
   int result = HA_ERR_KEY_NOT_FOUND;
 
-  assert(min_max_ranges.size() > 0);
+  assert(!min_max_ranges->empty());
 
   /* Search from the left-most range to the right. */
-  for (Quick_ranges::const_iterator it = min_max_ranges.begin();
-       it != min_max_ranges.end(); ++it) {
+  for (Quick_ranges::const_iterator it = min_max_ranges->begin();
+       it != min_max_ranges->end(); ++it) {
     QUICK_RANGE *cur_range = *it;
     /*
       If the current value for the min/max argument is bigger than the right
       boundary of cur_range, there is no need to check this range.
     */
-    if (it != min_max_ranges.begin() && !(cur_range->flag & NO_MAX_RANGE) &&
+    if (it != min_max_ranges->begin() && !(cur_range->flag & NO_MAX_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar *)cur_range->max_key,
                  min_max_arg_len) == (min_max_keypart_asc ? 1 : -1)) &&
         !result)
@@ -840,17 +843,17 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
   key_part_map keypart_map;
   int result = HA_ERR_KEY_NOT_FOUND;
 
-  assert(min_max_ranges.size() > 0);
+  assert(!min_max_ranges->empty());
 
   /* Search from the right-most range to the left. */
-  for (Quick_ranges::const_iterator it = min_max_ranges.end();
-       it != min_max_ranges.begin(); --it) {
+  for (Quick_ranges::const_iterator it = min_max_ranges->end();
+       it != min_max_ranges->begin(); --it) {
     QUICK_RANGE *cur_range = *(it - 1);
     /*
       If the current value for the min/max argument is smaller than the left
       boundary of cur_range, there is no need to check this range.
     */
-    if (it != min_max_ranges.end() && !(cur_range->flag & NO_MIN_RANGE) &&
+    if (it != min_max_ranges->end() && !(cur_range->flag & NO_MIN_RANGE) &&
         (key_cmp(min_max_arg_part, (const uchar *)cur_range->min_key,
                  min_max_arg_len) == (min_max_keypart_asc ? -1 : 1)) &&
         !result)
@@ -945,12 +948,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
-  for (Item_sum &min_func : min_functions) {
+  for (Item_sum *min_func : *min_functions) {
     if (*reset) {
-      min_func.aggregator_clear();
+      min_func->aggregator_clear();
       *reset = false;
     }
-    min_func.aggregator_add();
+    min_func->aggregator_add();
   }
 }
 
@@ -979,11 +982,11 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool *reset) {
-  for (Item_sum &max_func : max_functions) {
+  for (Item_sum *max_func : *max_functions) {
     if (*reset) {
-      max_func.aggregator_clear();
+      max_func->aggregator_clear();
       *reset = false;
     }
-    max_func.aggregator_add();
+    max_func->aggregator_add();
   }
 }

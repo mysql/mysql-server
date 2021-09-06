@@ -70,7 +70,7 @@ class List_iterator;
 
   where all selected fields are parts of the same index.
   The class of queries that can be processed by this quick select is fully
-  specified in the description of get_best_trp_group_min_max() in opt_range.cc.
+  specified in the description of get_best_group_min_max().
 
   The Read() method directly produces result tuples, thus obviating the
   need to use AggregateIterator, because all grouping is already done inside
@@ -82,7 +82,6 @@ class List_iterator;
 
 class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
  private:
-  JOIN *join;                  /* Descriptor of the current query */
   uint index;                  /* Index this quick select uses */
   KEY *index_info;             /* The index chosen for data access */
   uchar *group_prefix;         /* Key prefix consisting of the GROUP fields. */
@@ -104,12 +103,14 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   // Indicates if all infix ranges have been used to retrieve rows (all ranges
   // in key_infix_ranges)
   bool seen_all_infix_ranges;
-  Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
-  Quick_ranges_array key_infix_ranges; /* Array of key infix range arrays.   */
-  uint real_prefix_len; /* Length of key prefix extended with key_infix. */
-  uint real_key_parts;  /* A number of keyparts in the above value.      */
-  List<Item_sum> min_functions;
-  List<Item_sum> max_functions;
+  const Quick_ranges
+      *min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  const Quick_ranges_array
+      *key_infix_ranges; /* Array of key infix range arrays.   */
+  uint real_prefix_len;  /* Length of key prefix extended with key_infix. */
+  uint real_key_parts;   /* A number of keyparts in the above value.      */
+  const Mem_root_array<Item_sum *> *min_functions;
+  const Mem_root_array<Item_sum *> *max_functions;
   /*
     Use index scan to get the next different key instead of jumping into it
     through index read
@@ -117,8 +118,8 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   bool is_index_scan;
   bool m_seen_eof;
   MEM_ROOT *mem_root;
-  QUICK_RANGE_SELECT
-  *quick_prefix_query_block; /* For retrieval of group prefixes. */
+  unique_ptr_destroy_only<RowIterator>
+      quick_prefix_query_block; /* For retrieval of group prefixes. */
   int next_prefix();
   bool append_next_infix();
   void reset_group();
@@ -131,14 +132,16 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
 
  public:
   QUICK_GROUP_MIN_MAX_SELECT(
-      THD *thd, TABLE *table_arg, JOIN *join, List<Item_sum> min_functions,
-      List<Item_sum> max_functions, bool have_agg_distinct,
+      THD *thd, TABLE *table_arg,
+      const Mem_root_array<Item_sum *> *min_functions,
+      const Mem_root_array<Item_sum *> *max_functions, bool have_agg_distinct,
       KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
       uint group_key_parts, uint real_key_parts, uint max_used_key_length_arg,
       KEY *index_info, uint use_index, uint key_infix_len,
       MEM_ROOT *return_mem_root, bool is_index_scan,
-      QUICK_RANGE_SELECT *quick_prefix_query_block_arg,
-      Quick_ranges_array key_infix_ranges, Quick_ranges min_max_ranges);
+      unique_ptr_destroy_only<RowIterator> quick_prefix_query_block_arg,
+      const Quick_ranges_array *key_infix_ranges,
+      const Quick_ranges *min_max_ranges);
   ~QUICK_GROUP_MIN_MAX_SELECT() override;
   bool Init() override;
   int Read() override;

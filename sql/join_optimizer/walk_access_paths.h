@@ -85,7 +85,6 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
     case AccessPath::FOLLOW_TAIL:
     case AccessPath::INDEX_RANGE_SCAN:
     case AccessPath::INDEX_SKIP_SCAN:
-    case AccessPath::TRP_WRAPPER:
     case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
     case AccessPath::TABLE_VALUE_CONSTRUCTOR:
     case AccessPath::FAKE_SINGLE_ROW:
@@ -224,6 +223,13 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
                         std::forward<Func &&>(func), post_order_traversal);
       }
       break;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      if (path->group_index_skip_scan().quick_prefix_query_block != nullptr) {
+        WalkAccessPaths(path->group_index_skip_scan().quick_prefix_query_block,
+                        join, cross_query_blocks, std::forward<Func &&>(func),
+                        post_order_traversal);
+      }
+      break;
   }
   if (post_order_traversal) {
     if (func(path, join)) {
@@ -272,8 +278,8 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
             return func(path->index_range_scan().used_key_part[0].field->table);
           case AccessPath::INDEX_SKIP_SCAN:
             return func(path->index_skip_scan().table);
-          case AccessPath::TRP_WRAPPER:
-            return func(path->trp_wrapper().table);
+          case AccessPath::GROUP_INDEX_SKIP_SCAN:
+            return func(path->group_index_skip_scan().table);
           case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
             return func(path->dynamic_index_range_scan().table);
           case AccessPath::STREAM:

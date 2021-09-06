@@ -87,6 +87,9 @@ class Mem_root_array_YY {
     m_capacity = 0;
   }
 
+  Element_type *data() { return m_array; }
+  const Element_type *data() const { return m_array; }
+
   Element_type &at(size_t n) {
     assert(n < size());
     return m_array[n];

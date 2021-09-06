@@ -1392,10 +1392,6 @@ static void debug_print_tree(SEL_ROOT *origin) {
 
 #endif  // !defined(NDEBUG)
 
-bool TABLE_READ_PLAN::is_keys_used(const MY_BITMAP *fields) {
-  return is_key_used(table, index, fields);
-}
-
 /**
   Find the next different key value by skiping all the rows with the same key
   value.
@@ -1843,8 +1839,17 @@ static void print_quick(AccessPath *path, const Key_map *needed_reg) {
     case AccessPath::INDEX_MERGE:
       table = path->index_merge().table;
       break;
-    case AccessPath::TRP_WRAPPER:
-      table = path->trp_wrapper().trp->table;
+    case AccessPath::ROWID_INTERSECTION:
+      table = path->rowid_intersection().table;
+      break;
+    case AccessPath::ROWID_UNION:
+      table = path->rowid_union().table;
+      break;
+    case AccessPath::INDEX_SKIP_SCAN:
+      table = path->index_skip_scan().table;
+      break;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      table = path->group_index_skip_scan().table;
       break;
     default:
       assert(false);
