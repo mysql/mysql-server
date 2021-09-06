@@ -28,6 +28,7 @@
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
 #include <time.h>
+#include <atomic>
 
 #include "my_dbug.h"
 #include "sql/field.h"
@@ -126,10 +127,20 @@ struct Ndb_index_stat {
   struct Ndb_index_stat *list_next;
   struct Ndb_index_stat *list_prev;
   struct NDB_SHARE *share;
-  uint ref_count;     /* from client requests */
   bool to_delete;     /* detached from share and marked for delete */
   bool abort_request; /* abort all requests and allow no more */
   Ndb_index_stat();
+
+ private:
+  std::atomic<uint> m_ref_count{0}; /* from client requests */
+ public:
+  void acquire_client_ref() { m_ref_count++; }
+  void release_client_ref() {
+    const uint prev_count [[maybe_unused]] = m_ref_count--;
+    // Detect decrement from zero, indicates mismatch
+    assert(prev_count > 0);
+  }
+  bool has_client_ref() const { return m_ref_count != 0; }
 };
 
 struct Ndb_index_stat_list {
@@ -696,7 +707,6 @@ Ndb_index_stat::Ndb_index_stat() {
   list_next = 0;
   list_prev = 0;
   share = 0;
-  ref_count = 0;
   to_delete = false;
   abort_request = false;
 }
@@ -838,19 +848,6 @@ static void ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag) {
   }
 }
 
-static void ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag) {
-  uint old_count = st->ref_count;
-  (void)old_count;  // USED
-  if (flag) {
-    st->ref_count++;
-  } else {
-    assert(st->ref_count != 0);
-    st->ref_count--;
-  }
-  DBUG_PRINT("index_stat",
-             ("st %s ref_count:%u->%u", st->id, old_count, st->ref_count));
-}
-
 /* Find or add entry under the share */
 
 /* Saved in ndb_index_stat_get_share() under stat_mutex */
@@ -965,8 +962,7 @@ static Ndb_index_stat *ndb_index_stat_get_share(NDB_SHARE *share,
   } while (0);
 
   if (err_out == 0) {
-    assert(st != 0);
-    ndb_index_stat_ref_count(st, true);
+    st->acquire_client_ref();
   } else
     st = 0;
 
@@ -1630,12 +1626,12 @@ static void ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr) {
 
     /*
       Do not wait for requests to terminate since this could
-      risk stats thread hanging.  Instead try again next time.
+      risk stats thread hanging. Instead try again next time.
       Presumably clients will eventually notice abort_request.
     */
-    if (st->ref_count != 0) {
-      DBUG_PRINT("index_stat", ("st %s proc %s: ref_count:%u", st->id,
-                                list.name, st->ref_count));
+    if (st->has_client_ref()) {
+      DBUG_PRINT("index_stat",
+                 ("st %s proc %s: referenced by client", st->id, list.name));
       continue;
     }
 
@@ -2534,9 +2530,8 @@ int ha_ndbcluster::ndb_index_stat_query(uint inx, const key_range *min_key,
   } while (0);
 
   /* Release reference to st */
-  mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-  ndb_index_stat_ref_count(st, false);
-  mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  st->release_client_ref();
+
   return err;
 }
 
@@ -2727,9 +2722,7 @@ int ha_ndbcluster::ndb_index_stat_analyze(uint *inx_list, uint inx_count) {
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
       r.err = ndb_index_stat_wait_analyze(r.st, r.snap);
       /* Release reference to r.st */
-      mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-      ndb_index_stat_ref_count(r.st, false);
-      mysql_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+      r.st->release_client_ref();
     }
   }
 
