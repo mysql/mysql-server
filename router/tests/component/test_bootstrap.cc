@@ -2032,8 +2032,8 @@ TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
       get_data_dir().join("bootstrap_gr_v1.js").str();
 
   // launch mock server that is our metadata server for the bootstrap
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port,
-                                               EXIT_SUCCESS, false, http_port);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false,
+                           http_port);
 
   set_mock_bootstrap_data(http_port, "test", {{"localhost", server_port}},
                           {1, 0, 0}, "cluster-specific-id");
