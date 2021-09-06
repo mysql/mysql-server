@@ -2,12 +2,12 @@
 .\"     Title: mysqladmin
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/04/2021
+.\"      Date: 09/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLADMIN" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLADMIN" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -397,9 +397,22 @@ Stop the server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+start\-replica
+.sp
+Start replication on a replica server\&. Use this command from MySQL 8\&.0\&.26\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 start\-slave
 .sp
-Start replication on a replica server\&.
+Start replication on a replica server\&. Use this command before MySQL 8\&.0\&.26\&.
 .RE
 .sp
 .RS 4
@@ -423,9 +436,22 @@ Display a short server status message\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+stop\-replica
+.sp
+Stop replication on a replica server\&. Use this command from MySQL 8\&.0\&.26\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 stop\-slave
 .sp
-Stop replication on a replica server\&.
+Stop replication on a replica server\&. Use this command before MySQL 8\&.0\&.26\&.
 .RE
 .sp
 .RS 4
