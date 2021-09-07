@@ -5136,11 +5136,7 @@ class handler {
   int compare_key_icp(const key_range *range) const;
   int compare_key_in_buffer(const uchar *buf) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
-  virtual FT_INFO *ft_init_ext(uint flags [[maybe_unused]],
-                               uint inx [[maybe_unused]],
-                               String *key [[maybe_unused]]) {
-    return nullptr;
-  }
+  virtual FT_INFO *ft_init_ext(uint flags, uint inx, String *key);
   virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
                                           Ft_hints *hints) {
     return ft_init_ext(hints->get_flags(), inx, key);

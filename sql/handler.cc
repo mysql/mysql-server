@@ -3028,6 +3028,13 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos) {
   return result;
 }
 
+FT_INFO *handler::ft_init_ext(uint flags [[maybe_unused]],
+                              uint inx [[maybe_unused]],
+                              String *key [[maybe_unused]]) {
+  my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+  return nullptr;
+}
+
 int handler::ha_ft_read(uchar *buf) {
   int result;
   DBUG_TRACE;
