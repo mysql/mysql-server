@@ -43,7 +43,7 @@
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
-QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
+RowIDIntersectionIterator::RowIDIntersectionIterator(
     THD *thd, MEM_ROOT *return_mem_root, TABLE *table_arg,
     bool retrieve_full_rows, bool need_rows_in_rowid_order,
     Mem_root_array<unique_ptr_destroy_only<RowIterator>> children,
@@ -61,7 +61,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
   Initialize this quick select to be a ROR-merged scan.
 
   SYNOPSIS
-    QUICK_RANGE_SELECT::init_ror_merged_scan()
+    IndexRangeScanIterator::init_ror_merged_scan()
 
   NOTES
     This function creates and prepares for subsequent use a separate handler
@@ -75,7 +75,7 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(
   RETURN
     true if error
  */
-bool QUICK_RANGE_SELECT::init_ror_merged_scan() {
+bool IndexRangeScanIterator::init_ror_merged_scan() {
   handler *save_file = file, *org_file;
   MY_BITMAP *const save_read_set = table()->read_set;
   MY_BITMAP *const save_write_set = table()->write_set;
@@ -165,14 +165,14 @@ failure:
   Initialize this quick select to be a part of a ROR-merged scan.
   Returns true if error.
  */
-bool QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
+bool RowIDIntersectionIterator::init_ror_merged_scan() {
   DBUG_TRACE;
 
 #ifndef NDEBUG
   /* Check all merged "children" quick selects */
   for (unique_ptr_destroy_only<RowIterator> &child : m_children) {
     TABLE *child_table =
-        down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->table();
+        down_cast<IndexRangeScanIterator *>(child->real_iterator())->table();
     const MY_BITMAP *const save_read_set = child_table->read_set;
     const MY_BITMAP *const save_write_set = child_table->write_set;
     // Sets are shared by all members of "quick_selects" so must not change
@@ -194,7 +194,7 @@ bool QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan() {
   return false;
 }
 
-bool QUICK_ROR_INTERSECT_SELECT::Init() {
+bool RowIDIntersectionIterator::Init() {
   DBUG_TRACE;
   if (!inited) {
     /* Check if m_last_rowid was successfully allocated in ctor */
@@ -221,11 +221,11 @@ bool QUICK_ROR_INTERSECT_SELECT::Init() {
   return 0;
 }
 
-QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT() {
+RowIDIntersectionIterator::~RowIDIntersectionIterator() {
   if (retrieve_full_rows && table()->file->inited) table()->file->ha_rnd_end();
 }
 
-QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(
+RowIDUnionIterator::RowIDUnionIterator(
     THD *thd, MEM_ROOT *return_mem_root, TABLE *table,
     Mem_root_array<unique_ptr_destroy_only<RowIterator>> children)
     : TableRowIterator(thd, table),
@@ -237,7 +237,7 @@ QUICK_ROR_UNION_SELECT::QUICK_ROR_UNION_SELECT(
   rowid_length = table->file->ref_length;
 }
 
-bool QUICK_ROR_UNION_SELECT::Init() {
+bool RowIDUnionIterator::Init() {
   if (!inited) {
     if (queue.reserve(m_children.size())) {
       table()->file->print_error(HA_ERR_OUT_OF_MEM, MYF(0));
@@ -289,14 +289,14 @@ bool QUICK_ROR_UNION_SELECT::Init() {
   return false;
 }
 
-QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
+RowIDUnionIterator::~RowIDUnionIterator() {
   if (table()->file->inited) table()->file->ha_rnd_end();
 }
 
 /*
   Retrieve next record.
   SYNOPSIS
-     QUICK_ROR_INTERSECT_SELECT::Read()
+     RowIDIntersectionIterator::Read()
 
   NOTES
     Invariant on enter/exit: all intersected selects have retrieved all index
@@ -318,7 +318,7 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT() {
   RETURN
     See RowIterator::Read()
  */
-int QUICK_ROR_INTERSECT_SELECT::Read() {
+int RowIDIntersectionIterator::Read() {
   size_t current_child_idx = 0;
 
   DBUG_TRACE;
@@ -330,7 +330,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
       return error;
     }
     if (m_cpk_child) {
-      while (!down_cast<QUICK_RANGE_SELECT *>(m_cpk_child->real_iterator())
+      while (!down_cast<IndexRangeScanIterator *>(m_cpk_child->real_iterator())
                   ->row_in_ranges()) {
         child->UnlockRow(); /* row not in range; unlock */
         if (int error = child->Read(); error != 0) {
@@ -340,7 +340,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
     }
 
     const uchar *child_rowid =
-        down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->file->ref;
+        down_cast<IndexRangeScanIterator *>(child->real_iterator())->file->ref;
     memcpy(m_last_rowid, child_rowid, table()->file->ref_length);
 
     /* child that reads the given rowid first. This is needed in order
@@ -352,8 +352,8 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
     while (last_rowid_count < m_children.size()) {
       current_child_idx = (current_child_idx + 1) % m_children.size();
       child = m_children[current_child_idx].get();
-      child_rowid =
-          down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->file->ref;
+      child_rowid = down_cast<IndexRangeScanIterator *>(child->real_iterator())
+                        ->file->ref;
 
       int cmp;
       do {
@@ -377,8 +377,9 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
       if (cmp > 0) {
         /* Found a row with ref > cur_ref. Make it a new 'candidate' */
         if (m_cpk_child) {
-          while (!down_cast<QUICK_RANGE_SELECT *>(m_cpk_child->real_iterator())
-                      ->row_in_ranges()) {
+          while (
+              !down_cast<IndexRangeScanIterator *>(m_cpk_child->real_iterator())
+                   ->row_in_ranges()) {
             child->UnlockRow(); /* row not in range; unlock */
             if (int error = child->Read(); error != 0) {
               /* On certain errors like deadlock, trx might be rolled back.*/
@@ -418,7 +419,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
 /*
   Retrieve next record.
   SYNOPSIS
-    QUICK_ROR_UNION_SELECT::Read()
+    RowIDUnionIterator::Read()
 
   NOTES
     Enter/exit invariant:
@@ -428,7 +429,7 @@ int QUICK_ROR_INTERSECT_SELECT::Read() {
   RETURN
     See RowIterator::Read()
  */
-int QUICK_ROR_UNION_SELECT::Read() {
+int RowIDUnionIterator::Read() {
   DBUG_TRACE;
 
   for (;;) {  // Termination condition within loop.

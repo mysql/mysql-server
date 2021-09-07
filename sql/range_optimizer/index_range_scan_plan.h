@@ -20,18 +20,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_
-#define SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_
+#ifndef SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_PLAN_H_
+#define SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_PLAN_H_
 
 #include <sys/types.h>
 
 #include "my_dbug.h"
 #include "sql/handler.h"
-#include "sql/range_optimizer/geometry.h"
+#include "sql/range_optimizer/geometry_index_range_scan.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
-#include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/sql_const.h"
 
 class Opt_trace_object;
@@ -134,4 +134,4 @@ void trace_basic_info_index_range_scan(THD *thd, const AccessPath *path,
                                        const RANGE_OPT_PARAM *param,
                                        Opt_trace_object *trace_object);
 
-#endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_PLAN_H_
+#endif  // SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_PLAN_H_

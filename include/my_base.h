@@ -292,8 +292,8 @@ enum ha_extra_function {
        table is not an old table when calling close_thread_table.
        close_thread_tables is called from many places as a general clean up
        function after completing a query.
-    3) It is called when deleting the QUICK_RANGE_SELECT object if the
-       QUICK_RANGE_SELECT object had its own handler object. It is called
+    3) It is called when deleting the IndexRangeScanIterator object if the
+       IndexRangeScanIterator object had its own handler object. It is called
        immediatley before close of this local handler object.
 
     If there is a READ CACHE it is reinit'ed. A cache is reinit'ed to

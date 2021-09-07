@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/reverse_index_range_scan.h"
 
 #include <assert.h>
 
@@ -31,12 +31,10 @@
 #include "sql/sql_executor.h"
 #include "sql/table.h"
 
-QUICK_SELECT_DESC::QUICK_SELECT_DESC(THD *thd, TABLE *table,
-                                     ha_rows *examined_rows,
-                                     double expected_rows, int index,
-                                     MEM_ROOT *return_mem_root, uint mrr_flags,
-                                     Bounds_checked_array<QUICK_RANGE *> ranges,
-                                     uint used_key_parts_arg)
+ReverseIndexRangeScanIterator::ReverseIndexRangeScanIterator(
+    THD *thd, TABLE *table, ha_rows *examined_rows, double expected_rows,
+    int index, MEM_ROOT *return_mem_root, uint mrr_flags,
+    Bounds_checked_array<QUICK_RANGE *> ranges, uint used_key_parts_arg)
     : TableRowIterator(thd, table),
       m_index(index),
       m_expected_rows(expected_rows),
@@ -63,13 +61,13 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(THD *thd, TABLE *table,
   key_part_info = table->key_info[m_index].key_part;
 }
 
-QUICK_SELECT_DESC::~QUICK_SELECT_DESC() {
+ReverseIndexRangeScanIterator::~ReverseIndexRangeScanIterator() {
   if (table()->key_info[m_index].flags & HA_MULTI_VALUED_KEY && table()->file) {
     table()->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
   }
 }
 
-bool QUICK_SELECT_DESC::Init() {
+bool ReverseIndexRangeScanIterator::Init() {
   current_range_idx = ranges.size();
   empty_record(table());
 
@@ -121,7 +119,7 @@ bool QUICK_SELECT_DESC::Init() {
   return false;
 }
 
-int QUICK_SELECT_DESC::Read() {
+int ReverseIndexRangeScanIterator::Read() {
   DBUG_TRACE;
 
   /* The max key is handled as follows:
@@ -262,7 +260,8 @@ int QUICK_SELECT_DESC::Read() {
   See comment in Read() about this
 */
 
-bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg) {
+bool ReverseIndexRangeScanIterator::range_reads_after_key(
+    QUICK_RANGE *range_arg) {
   return ((range_arg->flag & (NO_MAX_RANGE | NEAR_MAX)) ||
           !(range_arg->flag & EQ_RANGE) ||
           table()->key_info[m_index].key_length != range_arg->max_length)
@@ -274,7 +273,7 @@ bool QUICK_SELECT_DESC::range_reads_after_key(QUICK_RANGE *range_arg) {
   Returns 0 if found key is inside range (found key >= range->min_key).
 */
 
-int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg) {
+int ReverseIndexRangeScanIterator::cmp_prev(QUICK_RANGE *range_arg) {
   int cmp;
   if (range_arg->flag & NO_MIN_RANGE) return 0; /* key can't be to small */
 
@@ -284,9 +283,10 @@ int QUICK_SELECT_DESC::cmp_prev(QUICK_RANGE *range_arg) {
 }
 
 // Pretty much the same as quick_range_seq_init(), just with a different class.
-range_seq_t QUICK_SELECT_DESC::quick_range_rev_seq_init(void *init_param, uint,
-                                                        uint) {
-  QUICK_SELECT_DESC *quick = static_cast<QUICK_SELECT_DESC *>(init_param);
+range_seq_t ReverseIndexRangeScanIterator::quick_range_rev_seq_init(
+    void *init_param, uint, uint) {
+  ReverseIndexRangeScanIterator *quick =
+      static_cast<ReverseIndexRangeScanIterator *>(init_param);
   QUICK_RANGE **first = quick->ranges.begin();
   QUICK_RANGE **last = quick->ranges.end();
   quick->qr_traversal_ctx.first = first;

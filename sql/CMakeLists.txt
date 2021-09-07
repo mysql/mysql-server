@@ -478,21 +478,21 @@ SET(SQL_SHARED_SOURCES
   protocol_classic.cc
   psi_memory_key.cc
   query_result.cc
-  range_optimizer/geometry.cc
-  range_optimizer/group_min_max.cc
-  range_optimizer/group_min_max_plan.cc
+  range_optimizer/geometry_index_range_scan.cc
+  range_optimizer/group_index_skip_scan.cc
+  range_optimizer/group_index_skip_scan_plan.cc
   range_optimizer/index_merge.cc
   range_optimizer/index_merge_plan.cc
+  range_optimizer/index_range_scan.cc
+  range_optimizer/index_range_scan_plan.cc
+  range_optimizer/index_skip_scan.cc
+  range_optimizer/index_skip_scan_plan.cc
   range_optimizer/partition_pruning.cc
   range_optimizer/range_analysis.cc
   range_optimizer/range_optimizer.cc
-  range_optimizer/range_scan.cc
-  range_optimizer/range_scan_desc.cc
-  range_optimizer/range_scan_plan.cc
+  range_optimizer/reverse_index_range_scan.cc
   range_optimizer/rowid_ordered_retrieval.cc
   range_optimizer/rowid_ordered_retrieval_plan.cc
-  range_optimizer/skip_scan.cc
-  range_optimizer/skip_scan_plan.cc
   range_optimizer/tree.cc
   records.cc
   regexp/errors.cc

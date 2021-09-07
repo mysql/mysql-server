@@ -2458,7 +2458,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       saved_best_key_parts is actual number of used keyparts found by the
       test_if_order_by_key function. It could differ from keyinfo->key_parts,
       thus we have to restore it in case of desc order as it affects
-      QUICK_SELECT_DESC behaviour.
+      ReverseIndexRangeScanIterator behaviour.
     */
     used_key_parts =
         (order_direction == -1) ? saved_best_key_parts : best_key_parts;
@@ -7785,7 +7785,7 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
 
 
   Check if the query is a subject to AGGFN(DISTINCT) using loose index scan
-  (QUICK_GROUP_MIN_MAX_SELECT).
+  (GroupIndexSkipScanIterator).
   Optionally (if out_args is supplied) will push the arguments of
   AGGFN(DISTINCT) to the list
 
@@ -7911,7 +7911,7 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
   If the query has a DISTINCT clause, find all indexes that contain
   all SELECT fields, and add those indexes to join_tab->const_keys and
   join_tab->keys. This allows later on such queries to be processed by
-  a QUICK_GROUP_MIN_MAX_SELECT.
+  a GroupIndexSkipScanIterator.
 
   If the query does not have GROUP BY clause or any aggregate function
   the function collects possible keys to use for skip scan access.
@@ -9281,7 +9281,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
     Constant parts of join conditions from outer joins are attached to
     the appropriate table condition in JOIN::attach_join_conditions().
   */
-  if (cond) /* Because of QUICK_GROUP_MIN_MAX_SELECT */
+  if (cond) /* Because of GroupIndexSkipScanIterator */
   {         /* there may be a select without a cond. */
     if (join->primary_tables > 1)
       cond->update_used_tables();  // Table number may have changed
@@ -9389,7 +9389,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
         */
         if (cond && tmp) {
           /*
-            Because of QUICK_GROUP_MIN_MAX_SELECT there may be a select without
+            Because of GroupIndexSkipScanIterator there may be a select without
             a cond, so neutralize the hack above.
           */
           if (!(tmp = add_found_match_trig_cond(join, first_inner, tmp,

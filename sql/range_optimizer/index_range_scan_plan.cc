@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/range_scan_plan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
 
 #include <assert.h>
 #include <string.h>
@@ -38,12 +38,12 @@
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
-#include "sql/range_optimizer/geometry.h"
+#include "sql/range_optimizer/geometry_index_range_scan.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
-#include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -647,8 +647,8 @@ ha_rows check_quick_select(THD *thd, RANGE_OPT_PARAM *param, uint idx,
        indexes do not work well for ROR scans, except for clustered PK.
     3. SE states the index can't be used for ROR. We need 2nd check
        here to avoid enabling it for a non-ROR PK.
-    4. Index contains virtual columns. QUICK_ROR_INTERSECT_SELECT
-       and QUICK_ROR_UNION_SELECT do read_set manipulations in reset(),
+    4. Index contains virtual columns. RowIDIntersectionIterator
+       and RowIDUnionIterator do read_set manipulations in reset(),
        which breaks virtual generated column's computation logic, which
        is used when reading index values. So, disable index merge
        intersection/union for any index on such column.
@@ -1138,7 +1138,7 @@ static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
   */
   if (desc_flag) flag = (flag & ~DESC_FLAG) | *desc_flag;
 
-  /* Get range for retrieving rows in QUICK_SELECT::get_next */
+  /* Get range for retrieving rows in RowIterator::Read() */
   if (!(range = new (return_mem_root)
             QUICK_RANGE(base_min_key, (uint)(tmp_min_key - base_min_key),
                         min_part >= 0 ? make_keypart_map(min_part) : 0,

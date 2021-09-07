@@ -20,31 +20,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_
-#define SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_
+#ifndef SQL_RANGE_OPTIMIZER_REVERSE_INDEX_RANGE_SCAN_H_
+#define SQL_RANGE_OPTIMIZER_REVERSE_INDEX_RANGE_SCAN_H_
 
 #include <sys/types.h>
 
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
 #include "sql/sql_list.h"
 
 /**
-  An iterator much like QUICK_RANGE_SELECT, but it scans in the reverse order.
-  This makes it at times more complicated, but since it doesn't support being
-  a part of a ROR scan, it is also less complicated in many ways.
+  An iterator much like IndexRangeScanIterator, but it scans in the reverse
+  order. This makes it at times more complicated, but since it doesn't support
+  being a part of a ROR scan, it is also less complicated in many ways.
 
-  One could argue that this and QUICK_RANGE_SELECT should be factored into
+  One could argue that this and IndexRangeScanIterator should be factored into
   a common base class with separate _ASC and _DESC classes, but they don't
   actually duplicate that much code.
  */
-class QUICK_SELECT_DESC : public TableRowIterator {
+class ReverseIndexRangeScanIterator : public TableRowIterator {
  public:
-  QUICK_SELECT_DESC(THD *thd, TABLE *table, ha_rows *examined_rows,
-                    double expected_rows, int index, MEM_ROOT *return_mem_root,
-                    uint mrr_flags, Bounds_checked_array<QUICK_RANGE *> ranges,
-                    uint used_key_parts_arg);
-  ~QUICK_SELECT_DESC() override;
+  ReverseIndexRangeScanIterator(THD *thd, TABLE *table, ha_rows *examined_rows,
+                                double expected_rows, int index,
+                                MEM_ROOT *return_mem_root, uint mrr_flags,
+                                Bounds_checked_array<QUICK_RANGE *> ranges,
+                                uint used_key_parts_arg);
+  ~ReverseIndexRangeScanIterator() override;
   int Read() override;
   bool Init() override;
 
@@ -81,4 +82,4 @@ class QUICK_SELECT_DESC : public TableRowIterator {
   int cmp_prev(QUICK_RANGE *range);
 };
 
-#endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_DESC_H_
+#endif  // SQL_RANGE_OPTIMIZER_REVERSE_INDEX_RANGE_SCAN_H_

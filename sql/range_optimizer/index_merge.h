@@ -26,8 +26,8 @@
 #include <assert.h>
 
 #include "my_alloc.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
 #include "sql/sql_list.h"
 
 class RowIterator;
@@ -37,10 +37,10 @@ struct MY_BITMAP;
 struct TABLE;
 
 /*
-  QUICK_INDEX_MERGE_SELECT - index_merge access method quick select.
+  IndexMergeIterator - index_merge access method quick select.
 
-    QUICK_INDEX_MERGE_SELECT uses
-     * QUICK_RANGE_SELECTs to get rows
+    IndexMergeIterator uses
+     * IndexRangeScanIterators to get rows
      * Unique class to remove duplicate rows
 
   INDEX MERGE OPTIMIZER
@@ -70,7 +70,7 @@ struct TABLE;
     advantage of Clustered Primary Key (CPK) if the table has one.
     The index_merge algorithm consists of two phases:
 
-    Phase 1 (implemented in QUICK_INDEX_MERGE_SELECT::prepare_unique):
+    Phase 1 (implemented in IndexMergeIterator::prepare_unique):
     prepare()
     {
       activate 'index only';
@@ -84,7 +84,7 @@ struct TABLE;
       deactivate 'index only';
     }
 
-    Phase 2 (implemented as sequence of QUICK_INDEX_MERGE_SELECT::Read()
+    Phase 2 (implemented as sequence of IndexMergeIterator::Read()
     calls):
 
     fetch()
@@ -95,15 +95,15 @@ struct TABLE;
     }
 */
 
-class QUICK_INDEX_MERGE_SELECT : public TableRowIterator {
+class IndexMergeIterator : public TableRowIterator {
  public:
   // NOTE: Both pk_quick_select (if non-nullptr) and all children must be
-  // of the type QUICK_RANGE_SELECT, possibly wrapped in a TimingIterator.
-  QUICK_INDEX_MERGE_SELECT(
+  // of the type IndexRangeScanIterator, possibly wrapped in a TimingIterator.
+  IndexMergeIterator(
       THD *thd, MEM_ROOT *mem_root, TABLE *table,
       unique_ptr_destroy_only<RowIterator> pk_quick_select,
       Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
-  ~QUICK_INDEX_MERGE_SELECT() override;
+  ~IndexMergeIterator() override;
 
   bool Init() override;
   int Read() override;

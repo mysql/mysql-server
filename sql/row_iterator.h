@@ -66,7 +66,7 @@ class RowIterator {
 
   RowIterator(const RowIterator &) = delete;
 
-  // Default move ctor used by QUICK_RANGE_SELECT.
+  // Default move ctor used by IndexRangeScanIterator.
   RowIterator(RowIterator &&) = default;
 
   /**

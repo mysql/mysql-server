@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/skip_scan.h"
+#include "sql/range_optimizer/index_skip_scan.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -47,7 +47,7 @@
   See get_best_skip_scan() description for more details.
 
   SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT()
+    IndexSkipScanIterator::IndexSkipScanIterator()
     table              The table being accessed
     index_info         The index chosen for data access
     use_index          The id of index_info
@@ -65,7 +65,7 @@
     None
 */
 
-QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
+IndexSkipScanIterator::IndexSkipScanIterator(
     THD *thd, TABLE *table_arg, KEY *index_info, uint use_index,
     uint eq_prefix_len, uint eq_prefix_key_parts, EQPrefix *eq_prefixes,
     uint used_key_parts_arg, MEM_ROOT *return_mem_root,
@@ -117,12 +117,12 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
   distinct_prefix_key_parts = used_key_parts - 1;
 }
 
-QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
+IndexSkipScanIterator::~IndexSkipScanIterator() {
   DBUG_TRACE;
   if (table()->file->inited) table()->file->ha_index_or_rnd_end();
 }
 
-bool QUICK_SKIP_SCAN_SELECT::Init(void) {
+bool IndexSkipScanIterator::Init(void) {
   DBUG_TRACE;
 
   if (distinct_prefix == nullptr) {
@@ -173,7 +173,7 @@ bool QUICK_SKIP_SCAN_SELECT::Init(void) {
   Increments cur_prefix and sets what the next equality prefix should be.
 
   SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::next_eq_prefix()
+    IndexSkipScanIterator::next_eq_prefix()
 
   DESCRIPTION
     Increments cur_prefix and sets what the next equality prefix should be.
@@ -185,7 +185,7 @@ bool QUICK_SKIP_SCAN_SELECT::Init(void) {
     false  No more equality key prefixes.
 */
 
-bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
+bool IndexSkipScanIterator::next_eq_prefix() {
   DBUG_TRACE;
   /*
     Counts at which position we're at in eq_prefix from the back of the
@@ -223,7 +223,7 @@ bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
   Get the next row for skip scan.
 
   SYNOPSIS
-    QUICK_SKIP_SCAN_SELECT::Read()
+    IndexSkipScanIterator::Read()
 
   DESCRIPTION
     Find the next record in the skip scan. The scan is broken into groups
@@ -252,7 +252,7 @@ bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
   RETURN
     See RowIterator::Read()
  */
-int QUICK_SKIP_SCAN_SELECT::Read() {
+int IndexSkipScanIterator::Read() {
   DBUG_TRACE;
   int result = HA_ERR_END_OF_FILE;
   int past_eq_prefix = 0;

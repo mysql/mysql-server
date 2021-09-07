@@ -66,7 +66,7 @@ PSI_memory_key key_memory_NET_compress_packet;
 PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 PSI_memory_key key_memory_Owned_gtids_to_string;
 PSI_memory_key key_memory_PROFILE;
-PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
+PSI_memory_key key_memory_IndexRangeScanIterator_mrr_buf_desc;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
 PSI_memory_key key_memory_xa_recovered_transactions;
@@ -240,8 +240,8 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_TC_LOG_MMAP_pages, "TC_LOG_MMAP::pages", 0, 0,
      "In-memory transaction coordinator log."},
     {&key_memory_my_bitmap_map, "my_bitmap_map", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_QUICK_RANGE_SELECT_mrr_buf_desc,
-     "QUICK_RANGE_SELECT::mrr_buf_desc", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_IndexRangeScanIterator_mrr_buf_desc,
+     "IndexRangeScanIterator::mrr_buf_desc", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Event_queue_element_for_exec_names,
      "Event_queue_element_for_exec::names", 0, 0,
      "Copy of schema- and event name in exec queue element."},

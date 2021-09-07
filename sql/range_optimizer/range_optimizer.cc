@@ -35,9 +35,9 @@
 
   Range/index_merge/groupby-minmax optimizer module
     A module that accepts a table, condition, and returns
-     - a QUICK_*_SELECT object that can be used to retrieve rows that match
-       the specified condition, or a "no records will match the condition"
-       statement.
+     - an AccessPath that can give a RowIterator, that can be used to retrieve
+       rows that match the specified condition, or
+     - a "no records will match the condition" statement.
 
     The module entry point is
       test_quick_select()
@@ -120,16 +120,16 @@
 #include "sql/opt_trace.h"  // Opt_trace_array
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
-#include "sql/range_optimizer/group_min_max_plan.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_merge_plan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
-#include "sql/range_optimizer/skip_scan_plan.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
@@ -694,7 +694,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
     }
 
     /*
-      Try to construct a QUICK_GROUP_MIN_MAX_SELECT.
+      Try to construct a GroupIndexSkipScanIterator.
       Notice that it can be constructed no matter if there is a range tree.
     */
     AccessPath *group_path = get_best_group_min_max(
@@ -1193,7 +1193,7 @@ static AccessPath *get_best_disjunct_quick(
     if (cpk_scan) {
       /*
         Add one rowid/key comparison for each row retrieved on non-CPK
-        scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
+        scan. (it is done in IndexRangeScanIterator::row_in_ranges)
       */
       const double rid_comp_cost = cost_model->key_compare_cost(
           static_cast<double>(non_cpk_scan_records));

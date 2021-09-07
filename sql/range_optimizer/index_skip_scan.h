@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_
-#define SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_
+#ifndef SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_H_
+#define SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_H_
 
 #include <sys/types.h>
 
@@ -32,8 +32,8 @@
 #include "sql/field.h"  // Field
 #include "sql/key.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/skip_scan_plan.h"
 
 class Cost_estimate;
 class JOIN;
@@ -62,7 +62,7 @@ struct TABLE;
   index, this class produces only index keys, and not complete records.
 */
 
-class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
+class IndexSkipScanIterator : public TableRowIterator {
  private:
   uint index;              /* Index this quick select uses */
   KEY *index_info;         /* Index for skip scan */
@@ -107,16 +107,16 @@ class QUICK_SKIP_SCAN_SELECT : public TableRowIterator {
   bool next_eq_prefix();
 
  public:
-  QUICK_SKIP_SCAN_SELECT(THD *thd, TABLE *table, KEY *index_info, uint index,
-                         uint eq_prefix_len, uint eq_prefix_key_parts,
-                         EQPrefix *eq_prefixes, uint used_key_parts,
-                         MEM_ROOT *temp_mem_root, bool has_aggregate_function,
-                         uchar *min_range_key, uchar *max_range_key,
-                         uchar *min_search_key, uchar *max_search_key,
-                         uint range_cond_flag, uint range_key_len);
-  ~QUICK_SKIP_SCAN_SELECT() override;
+  IndexSkipScanIterator(THD *thd, TABLE *table, KEY *index_info, uint index,
+                        uint eq_prefix_len, uint eq_prefix_key_parts,
+                        EQPrefix *eq_prefixes, uint used_key_parts,
+                        MEM_ROOT *temp_mem_root, bool has_aggregate_function,
+                        uchar *min_range_key, uchar *max_range_key,
+                        uchar *min_search_key, uchar *max_search_key,
+                        uint range_cond_flag, uint range_key_len);
+  ~IndexSkipScanIterator() override;
   bool Init() override;
   int Read() override;
 };
 
-#endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_H_
+#endif  // SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_H_

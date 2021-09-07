@@ -4875,7 +4875,8 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
                                       of new_key prefix columns if success
                                       or undefined if the function fails
   @param [out]  saved_best_key_parts  NULL by default, otherwise preserve the
-                                      value for further use in QUICK_SELECT_DESC
+                                      value for further use in
+                                      ReverseIndexRangeScanIterator
 
   @note
     This function takes into account table->quick_condition_rows statistic

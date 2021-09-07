@@ -51,7 +51,7 @@
 #include "sql/uniques.h"
 #include "sql_string.h"
 
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(
+IndexMergeIterator::IndexMergeIterator(
     THD *thd, MEM_ROOT *return_mem_root, TABLE *table,
     unique_ptr_destroy_only<RowIterator> pk_quick_select,
     Mem_root_array<unique_ptr_destroy_only<RowIterator>> children)
@@ -60,14 +60,14 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(
       m_children(std::move(children)),
       mem_root(return_mem_root) {}
 
-QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
+IndexMergeIterator::~IndexMergeIterator() {
   DBUG_TRACE;
   bool disable_unique_filter = false;
   for (unique_ptr_destroy_only<RowIterator> &quick : m_children) {
-    QUICK_RANGE_SELECT *range =
-        down_cast<QUICK_RANGE_SELECT *>(quick.get()->real_iterator());
+    IndexRangeScanIterator *range =
+        down_cast<IndexRangeScanIterator *>(quick.get()->real_iterator());
 
-    // Normally it's disabled by dtor of QUICK_RANGE_SELECT, but it can't be
+    // Normally it's disabled by dtor of IndexRangeScanIterator, but it can't be
     // done without table's handler
     disable_unique_filter |=
         Overlaps(table()->key_info[range->index].flags, HA_MULTI_VALUED_KEY);
@@ -98,7 +98,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
     true if error
 */
 
-bool QUICK_INDEX_MERGE_SELECT::Init() {
+bool IndexMergeIterator::Init() {
   empty_record(table());
 
   handler *file = table()->file;
@@ -155,14 +155,14 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
       }
 
       /* skip row if it will be retrieved by clustered PK scan */
-      if (pk_quick_select && down_cast<QUICK_RANGE_SELECT *>(
+      if (pk_quick_select && down_cast<IndexRangeScanIterator *>(
                                  pk_quick_select.get()->real_iterator())
                                  ->row_in_ranges()) {
         continue;
       }
 
       handler *child_file =
-          down_cast<QUICK_RANGE_SELECT *>(child->real_iterator())->file;
+          down_cast<IndexRangeScanIterator *>(child->real_iterator())->file;
       child_file->position(table()->record[0]);
       if (unique->unique_add(child_file->ref)) {
         return true;
@@ -195,11 +195,11 @@ bool QUICK_INDEX_MERGE_SELECT::Init() {
   NOTES
     The rows are read from
       1. rowids stored in Unique.
-      2. QUICK_RANGE_SELECT with clustered primary key (if any).
+      2. IndexRangeScanIterator with clustered primary key (if any).
     The sets of rows retrieved in 1) and 2) are guaranteed to be disjoint.
 */
 
-int QUICK_INDEX_MERGE_SELECT::Read() {
+int IndexMergeIterator::Read() {
   int result;
   DBUG_TRACE;
 

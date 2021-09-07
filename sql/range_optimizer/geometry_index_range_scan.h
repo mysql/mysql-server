@@ -20,29 +20,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_GEOMETRY_H_
-#define SQL_RANGE_OPTIMIZER_GEOMETRY_H_
+#ifndef SQL_RANGE_OPTIMIZER_GEOMETRY_INDEX_RANGE_SCAN_H_
+#define SQL_RANGE_OPTIMIZER_GEOMETRY_INDEX_RANGE_SCAN_H_
 
 #include <sys/types.h>
 
-#include "sql/range_optimizer/range_scan.h"
+#include "sql/range_optimizer/index_range_scan.h"
 
 class THD;
 struct MEM_ROOT;
 struct TABLE;
 
-class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
+class GeometryIndexRangeScanIterator : public IndexRangeScanIterator {
  public:
-  QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, ha_rows *examined_rows,
-                          double expected_rows, uint index_arg,
-                          bool need_rows_in_rowid_order_arg,
-                          bool reuse_handler_arg, MEM_ROOT *return_mem_root,
-                          uint mrr_flags_arg, uint mrr_buf_size_arg,
-                          Bounds_checked_array<QUICK_RANGE *> ranges_arg)
-      : QUICK_RANGE_SELECT(thd, table, examined_rows, expected_rows, index_arg,
-                           need_rows_in_rowid_order_arg, reuse_handler_arg,
-                           return_mem_root, mrr_flags_arg, mrr_buf_size_arg,
-                           ranges_arg),
+  GeometryIndexRangeScanIterator(THD *thd, TABLE *table, ha_rows *examined_rows,
+                                 double expected_rows, uint index_arg,
+                                 bool need_rows_in_rowid_order_arg,
+                                 bool reuse_handler_arg,
+                                 MEM_ROOT *return_mem_root, uint mrr_flags_arg,
+                                 uint mrr_buf_size_arg,
+                                 Bounds_checked_array<QUICK_RANGE *> ranges_arg)
+      : IndexRangeScanIterator(thd, table, examined_rows, expected_rows,
+                               index_arg, need_rows_in_rowid_order_arg,
+                               reuse_handler_arg, return_mem_root,
+                               mrr_flags_arg, mrr_buf_size_arg, ranges_arg),
         m_examined_rows(examined_rows) {}
   int Read() override;
 
@@ -50,4 +51,4 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
   ha_rows *m_examined_rows;
 };
 
-#endif  // SQL_RANGE_OPTIMIZER_GEOMETRY_H_
+#endif  // SQL_RANGE_OPTIMIZER_GEOMETRY_INDEX_RANGE_SCAN_H_

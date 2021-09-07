@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_H_
-#define SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_H_
+#ifndef SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_H_
+#define SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_H_
 
 #include <sys/types.h>
 
@@ -39,7 +39,7 @@
 class Cost_estimate;
 class Item_sum;
 class JOIN;
-class QUICK_RANGE_SELECT;
+class IndexRangeScanIterator;
 class SEL_ARG;
 struct TABLE;
 template <class T>
@@ -80,7 +80,7 @@ class List_iterator;
   index, this class produces only index keys, and not complete records.
 */
 
-class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
+class GroupIndexSkipScanIterator : public TableRowIterator {
  private:
   uint index;                  /* Index this quick select uses */
   KEY *index_info;             /* The index chosen for data access */
@@ -136,7 +136,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
   void update_max_result(bool *reset);
 
  public:
-  QUICK_GROUP_MIN_MAX_SELECT(THD *thd, TABLE *table_arg,
+  GroupIndexSkipScanIterator(THD *thd, TABLE *table_arg,
                              const Mem_root_array<Item_sum *> *min_functions,
                              const Mem_root_array<Item_sum *> *max_functions,
                              bool have_agg_distinct,
@@ -149,10 +149,10 @@ class QUICK_GROUP_MIN_MAX_SELECT : public TableRowIterator {
                              const Quick_ranges *prefix_ranges,
                              const Quick_ranges_array *key_infix_ranges,
                              const Quick_ranges *min_max_ranges);
-  ~QUICK_GROUP_MIN_MAX_SELECT() override;
+  ~GroupIndexSkipScanIterator() override;
   bool Init() override;
   int Read() override;
   bool is_agg_distinct() const { return have_agg_distinct; }
 };
 
-#endif  // SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_H_
+#endif  // SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_H_

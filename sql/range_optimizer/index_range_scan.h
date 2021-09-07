@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_
-#define SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_
+#ifndef SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_H_
+#define SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_H_
 
 #include <sys/types.h>
 #include <memory>
@@ -57,7 +57,7 @@ struct QUICK_RANGE_SEQ_CTX {
   Quick select that does a range scan on a single key. The records are
   returned in key order if ::need_sorted_output() has been called.
 */
-class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
+class IndexRangeScanIterator : public RowIDCapableRowIterator {
  protected:
   handler *file;
 
@@ -72,8 +72,8 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
-  friend class QUICK_INDEX_MERGE_SELECT;
-  friend class QUICK_ROR_INTERSECT_SELECT;
+  friend class IndexMergeIterator;
+  friend class RowIDIntersectionIterator;
 
   Bounds_checked_array<QUICK_RANGE *> ranges; /* ordered array of range ptrs */
   bool free_file; /* TRUE <=> this->file is "owned" by this quick select */
@@ -109,18 +109,18 @@ class QUICK_RANGE_SELECT : public RowIDCapableRowIterator {
   bool init_ror_merged_scan();
 
  public:
-  QUICK_RANGE_SELECT(THD *thd, TABLE *table, ha_rows *examined_rows,
-                     double expected_rows, uint index_arg,
-                     bool need_rows_in_rowid_order, bool reuse_handler,
-                     MEM_ROOT *return_mem_root, uint mrr_flags,
-                     uint mrr_buf_size,
-                     Bounds_checked_array<QUICK_RANGE *> ranges);
-  ~QUICK_RANGE_SELECT() override;
+  IndexRangeScanIterator(THD *thd, TABLE *table, ha_rows *examined_rows,
+                         double expected_rows, uint index_arg,
+                         bool need_rows_in_rowid_order, bool reuse_handler,
+                         MEM_ROOT *return_mem_root, uint mrr_flags,
+                         uint mrr_buf_size,
+                         Bounds_checked_array<QUICK_RANGE *> ranges);
+  ~IndexRangeScanIterator() override;
 
-  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = delete;
+  IndexRangeScanIterator(const IndexRangeScanIterator &) = delete;
 
-  /* Default move ctor used by QUICK_SELECT_DESC */
-  QUICK_RANGE_SELECT(QUICK_RANGE_SELECT &&) = default;
+  /* Default move ctor used by ReverseIndexRangeScanIterator */
+  IndexRangeScanIterator(IndexRangeScanIterator &&) = default;
 
   bool Init() override;
   int Read() override;
@@ -144,4 +144,4 @@ bool InitIndexRangeScan(TABLE *table, handler *file, int index,
 range_seq_t quick_range_seq_init(void *init_param, uint, uint);
 uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
-#endif  // SQL_RANGE_OPTIMIZER_RANGE_SCAN_H_
+#endif  // SQL_RANGE_OPTIMIZER_INDEX_RANGE_SCAN_H_

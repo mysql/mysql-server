@@ -32,8 +32,8 @@
 #include "priority_queue.h"
 #include "sql/handler.h"
 #include "sql/malloc_allocator.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
 
@@ -44,29 +44,29 @@ struct MY_BITMAP;
 /*
   Rowid-Ordered Retrieval (ROR) index intersection quick select.
   This quick select produces intersection of row sequences returned
-  by several QUICK_RANGE_SELECTs it "merges".
+  by several IndexRangeScanIterators it "merges".
 
-  All merged QUICK_RANGE_SELECTs must return rowids in rowid order.
-  QUICK_ROR_INTERSECT_SELECT will return rows in rowid order, too.
+  All merged IndexRangeScanIterators must return rowids in rowid order.
+  RowIDIntersectionIterator will return rows in rowid order, too.
 
   All merged quick selects retrieve {rowid, covered_fields} tuples (not full
   table records).
-  QUICK_ROR_INTERSECT_SELECT retrieves full records if it is not being used
-  by QUICK_ROR_UNION_SELECT and all merged quick selects together don't
+  RowIDIntersectionIterator retrieves full records if it is not being used
+  by RowIDUnionIterator and all merged quick selects together don't
   cover needed all fields.
 
   If one of the merged quick selects is a Clustered PK range scan, it is
   used only to filter rowid sequence produced by other merged quick selects.
 */
 
-class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
+class RowIDIntersectionIterator : public RowIDCapableRowIterator {
  public:
-  QUICK_ROR_INTERSECT_SELECT(
+  RowIDIntersectionIterator(
       THD *thd, MEM_ROOT *return_mem_root, TABLE *table_arg,
       bool retrieve_full_rows, bool need_rows_in_rowid_order,
       Mem_root_array<unique_ptr_destroy_only<RowIterator>> children,
       unique_ptr_destroy_only<RowIterator> cpk_child);
-  ~QUICK_ROR_INTERSECT_SELECT() override;
+  ~RowIDIntersectionIterator() override;
 
   bool Init() override;
   int Read() override;
@@ -138,7 +138,7 @@ class QUICK_ROR_INTERSECT_SELECT : public RowIDCapableRowIterator {
 };
 
 /*
-  Comparison function to be used QUICK_ROR_UNION_SELECT::queue priority
+  Comparison function to be used RowIDUnionIterator::queue priority
   queue.
 */
 struct Quick_ror_union_less {
@@ -159,19 +159,19 @@ struct Quick_ror_union_less {
   quick select it "merges".
 
   All merged quick selects must return rowids in rowid order.
-  QUICK_ROR_UNION_SELECT will return rows in rowid order, too.
+  RowIDUnionIterator will return rows in rowid order, too.
 
   All merged quick selects are set not to retrieve full table records.
   ROR-union quick select always retrieves full records.
 
 */
 
-class QUICK_ROR_UNION_SELECT : public TableRowIterator {
+class RowIDUnionIterator : public TableRowIterator {
  public:
-  QUICK_ROR_UNION_SELECT(
+  RowIDUnionIterator(
       THD *thd, MEM_ROOT *return_mem_root, TABLE *table,
       Mem_root_array<unique_ptr_destroy_only<RowIterator>> children);
-  ~QUICK_ROR_UNION_SELECT() override;
+  ~RowIDUnionIterator() override;
 
   bool Init() override;
   int Read() override;

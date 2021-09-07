@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/group_min_max.h"
+#include "sql/range_optimizer/group_index_skip_scan.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -34,8 +34,8 @@
 #include "sql/handler.h"
 #include "sql/item_sum.h"
 #include "sql/psi_memory_key.h"
+#include "sql/range_optimizer/index_range_scan.h"
 #include "sql/range_optimizer/internal.h"
-#include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_class.h"
 #include "sql/sql_list.h"
@@ -48,7 +48,7 @@
   Construct new quick select for group queries with min/max.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT()
+    GroupIndexSkipScanIterator::GroupIndexSkipScanIterator()
     thd                Thead handle
     table              The table being accessed
     min_functions      MIN() functions in query block
@@ -76,7 +76,7 @@
     key_infix_ranges   Ranges to scan for the infix key part(s)
     min_max_ranges     Ranges to scan for the MIN/MAX key part
  */
-QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
+GroupIndexSkipScanIterator::GroupIndexSkipScanIterator(
     THD *thd, TABLE *table, const Mem_root_array<Item_sum *> *min_functions,
     const Mem_root_array<Item_sum *> *max_functions, bool have_agg_distinct,
     KEY_PART_INFO *min_max_arg_part, uint group_prefix_len,
@@ -113,7 +113,7 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 }
 
-QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
+GroupIndexSkipScanIterator::~GroupIndexSkipScanIterator() {
   DBUG_TRACE;
   if (table()->file->inited)
     /*
@@ -129,7 +129,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
   Initialize a quick group min/max select for key retrieval.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::reset()
+    GroupIndexSkipScanIterator::reset()
 
   DESCRIPTION
     Initialize the index chosen for access and find and store the prefix
@@ -139,7 +139,7 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     true if error
 */
 
-bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
+bool GroupIndexSkipScanIterator::Init() {
   empty_record(table());
   m_seen_eof = false;
 
@@ -164,7 +164,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
   table()->set_keyread(true); /* We need only the key attributes */
   /*
     Request ordered index access as usage of ::index_last(),
-    ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
+    ::index_first() within GroupIndexSkipScanIterator depends on it.
   */
   if (table()->file->inited) table()->file->ha_index_or_rnd_end();
   if (int result = table()->file->ha_index_init(index, true); result != 0) {
@@ -196,7 +196,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
   Get the next key containing the MIN and/or MAX key for the next group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::Read()
+    GroupIndexSkipScanIterator::Read()
 
   DESCRIPTION
     The method finds the next subsequent group of records that satisfies the
@@ -216,7 +216,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::Init() {
   RETURN
     See RowIterator::Read()
  */
-int QUICK_GROUP_MIN_MAX_SELECT::Read() {
+int GroupIndexSkipScanIterator::Read() {
   if (m_seen_eof) {
     return -1;
   }
@@ -335,7 +335,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
   Retrieve the minimal key in the next group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::next_min()
+    GroupIndexSkipScanIterator::next_min()
 
   DESCRIPTION
     Find the minimal key within this group such that the key satisfies the query
@@ -354,7 +354,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::Read() {
     other                if some error occurred
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
+int GroupIndexSkipScanIterator::next_min() {
   int result = 0;
   DBUG_TRACE;
 
@@ -425,7 +425,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
   Retrieve the maximal key in the next group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::next_max()
+    GroupIndexSkipScanIterator::next_max()
 
   DESCRIPTION
     Lookup the maximal key of the group, and store it into this->record.
@@ -437,7 +437,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min() {
     other                if some error occurred
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
+int GroupIndexSkipScanIterator::next_max() {
   int result = 0;
 
   DBUG_TRACE;
@@ -468,12 +468,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
   Determine the prefix of the next group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::next_prefix()
+    GroupIndexSkipScanIterator::next_prefix()
 
   DESCRIPTION
     Determine the prefix of the next group that satisfies the query conditions.
     If there is a range condition referencing the group attributes, use a
-    QUICK_RANGE_SELECT object to retrieve the *first* key that satisfies the
+    IndexRangeScanIterator object to retrieve the *first* key that satisfies the
     condition. The prefix is stored in this->group_prefix. The first key of
     the found group is stored in this->record, on which relies this->next_min().
 
@@ -483,7 +483,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max() {
     HA_ERR_END_OF_FILE   if there are no more keys
     other                if some error occurred
 */
-int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
+int GroupIndexSkipScanIterator::next_prefix() {
   DBUG_TRACE;
 
   if (!prefix_ranges->empty()) {
@@ -527,12 +527,30 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_prefix() {
   conditions to discover the prefix of the next group that satisfies the range
   conditions.
 
+<<<<<<< HEAD:sql/range_optimizer/group_min_max.cc
+||||||| parent of b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488
+[renaming, noclose]):sql/range_optimizer/group_min_max.cc
+  @todo
+
+    This method is a modified copy of QUICK_RANGE_SELECT::Read(), so both
+    methods should be unified into a more general one to reduce code
+    duplication.
+
+=======
+  @todo
+
+    This method is a modified copy of IndexRangeScanIterator::Read(), so both
+    methods should be unified into a more general one to reduce code
+    duplication.
+
+>>>>>>> b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488 [renaming,
+noclose]):sql/range_optimizer/group_index_skip_scan.cc
   @retval 0                  on success
   @retval HA_ERR_END_OF_FILE if returned all keys
   @retval other              if some error occurred
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::get_next_prefix(uint prefix_length,
+int GroupIndexSkipScanIterator::get_next_prefix(uint prefix_length,
                                                 uint group_key_parts,
                                                 uchar *cur_prefix) {
   DBUG_TRACE;
@@ -581,7 +599,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next_prefix(uint prefix_length,
   Determine and append the next infix.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::append_next_infix()
+    GroupIndexSkipScanIterator::append_next_infix()
 
   DESCRIPTION
     Appends the next infix onto this->group_prefix based on the current
@@ -592,7 +610,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next_prefix(uint prefix_length,
     false                on success
 */
 
-bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
+bool GroupIndexSkipScanIterator::append_next_infix() {
   if (seen_all_infix_ranges) return true;
 
   if (key_infix_len > 0) {
@@ -631,7 +649,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
   Reset all the variables that need to be updated for the new group.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::reset_group()
+    GroupIndexSkipScanIterator::reset_group()
 
   DESCRIPTION
     It is called before a new group is processed.
@@ -640,7 +658,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::append_next_infix() {
     None
 */
 
-void QUICK_GROUP_MIN_MAX_SELECT::reset_group() {
+void GroupIndexSkipScanIterator::reset_group() {
   // Reset the current infix range before a new group is processed.
   seen_all_infix_ranges = false;
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
@@ -755,7 +773,7 @@ static ha_rkey_function get_search_mode(QUICK_RANGE *cur_range, bool is_asc,
   min/max argument field.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
+    GroupIndexSkipScanIterator::next_min_in_range()
 
   DESCRIPTION
     Given the sequence of ranges min_max_ranges, find the minimal key that is
@@ -771,7 +789,7 @@ static ha_rkey_function get_search_mode(QUICK_RANGE *cur_range, bool is_asc,
     other                if some error
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
+int GroupIndexSkipScanIterator::next_min_in_range() {
   ha_rkey_function search_mode;
   key_part_map keypart_map;
   bool found_null = false;
@@ -883,7 +901,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
   min/max argument field.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
+    GroupIndexSkipScanIterator::next_max_in_range()
 
   DESCRIPTION
     Given the sequence of ranges min_max_ranges, find the maximal key that is
@@ -899,7 +917,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range() {
     other                if some error
 */
 
-int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
+int GroupIndexSkipScanIterator::next_max_in_range() {
   ha_rkey_function search_mode;
   key_part_map keypart_map;
   int result = HA_ERR_KEY_NOT_FOUND;
@@ -987,7 +1005,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
   Update all MIN function results with the newly found value.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::update_min_result()
+    GroupIndexSkipScanIterator::update_min_result()
 
   DESCRIPTION
     The method iterates through all MIN functions and updates the result value
@@ -1008,7 +1026,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
     None
 */
 
-void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
+void GroupIndexSkipScanIterator::update_min_result(bool *reset) {
   for (Item_sum *min_func : *min_functions) {
     if (*reset) {
       min_func->aggregator_clear();
@@ -1022,7 +1040,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
   Update all MAX function results with the newly found value.
 
   SYNOPSIS
-    QUICK_GROUP_MIN_MAX_SELECT::update_max_result()
+    GroupIndexSkipScanIterator::update_max_result()
 
   DESCRIPTION
     The method iterates through all MAX functions and updates the result value
@@ -1042,7 +1060,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
     None
 */
 
-void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool *reset) {
+void GroupIndexSkipScanIterator::update_max_result(bool *reset) {
   for (Item_sum *max_func : *max_functions) {
     if (*reset) {
       max_func->aggregator_clear();

@@ -30,12 +30,12 @@
  */
 
 #include "sql/join_optimizer/access_path.h"
-#include "sql/range_optimizer/group_min_max_plan.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_merge_plan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval_plan.h"
-#include "sql/range_optimizer/skip_scan_plan.h"
 
 inline bool is_loose_index_scan(const AccessPath *path) {
   return path->type == AccessPath::INDEX_SKIP_SCAN ||

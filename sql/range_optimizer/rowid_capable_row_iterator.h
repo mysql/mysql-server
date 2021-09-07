@@ -29,7 +29,7 @@
 /**
   An interface for RowIterators that have a given row ID, ie.,
   they can be children in ROR (rowid-ordered) scans. The only
-  examples of this are QUICK_RANGE_SCAN_SELECT and QUICK_ROR_INTERSECT_SELECT
+  examples of this are QUICK_RANGE_SCAN_SELECT and RowIDIntersectionIterator
   (which itself can also be a parent).
  */
 class RowIDCapableRowIterator : public TableRowIterator {
@@ -44,4 +44,4 @@ class RowIDCapableRowIterator : public TableRowIterator {
   virtual uchar *last_rowid() const = 0;
 };
 
-#endif  // !SQL_RANGE_OPTIMIZER_ROWID_CAPABLE_ROW_ITERATOR_H_
+#endif  // SQL_RANGE_OPTIMIZER_ROWID_CAPABLE_ROW_ITERATOR_H_

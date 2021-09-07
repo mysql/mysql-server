@@ -33,16 +33,16 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/walk_access_paths.h"
-#include "sql/range_optimizer/geometry.h"
-#include "sql/range_optimizer/group_min_max.h"
-#include "sql/range_optimizer/group_min_max_plan.h"
+#include "sql/range_optimizer/geometry_index_range_scan.h"
+#include "sql/range_optimizer/group_index_skip_scan.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_merge.h"
+#include "sql/range_optimizer/index_range_scan.h"
+#include "sql/range_optimizer/index_skip_scan.h"
+#include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/range_optimizer/range_scan.h"
-#include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
-#include "sql/range_optimizer/skip_scan.h"
-#include "sql/range_optimizer/skip_scan_plan.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
@@ -317,19 +317,19 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->index_range_scan();
       TABLE *table = param.used_key_part[0].field->table;
       if (param.geometry) {
-        iterator = NewIterator<QUICK_RANGE_SELECT_GEOM>(
+        iterator = NewIterator<GeometryIndexRangeScanIterator>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
             param.index, param.need_rows_in_rowid_order, param.reuse_handler,
             mem_root, param.mrr_flags, param.mrr_buf_size,
             Bounds_checked_array{param.ranges, param.num_ranges});
       } else if (param.reverse) {
-        iterator = NewIterator<QUICK_SELECT_DESC>(
+        iterator = NewIterator<ReverseIndexRangeScanIterator>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
             param.index, mem_root, param.mrr_flags,
             Bounds_checked_array{param.ranges, param.num_ranges},
             param.num_used_key_parts);
       } else {
-        iterator = NewIterator<QUICK_RANGE_SELECT>(
+        iterator = NewIterator<IndexRangeScanIterator>(
             thd, mem_root, table, examined_rows, path->num_output_rows,
             param.index, param.need_rows_in_rowid_order, param.reuse_handler,
             mem_root, param.mrr_flags, param.mrr_buf_size,
@@ -356,7 +356,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
       }
 
-      iterator = NewIterator<QUICK_INDEX_MERGE_SELECT>(
+      iterator = NewIterator<IndexMergeIterator>(
           thd, mem_root, mem_root, param.table, std::move(pk_quick_select),
           std::move(children));
       break;
@@ -376,7 +376,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         cpk_child = CreateIteratorFromAccessPath(
             thd, param.cpk_child, join, /*eligible_for_batch_mode=*/false);
       }
-      iterator = NewIterator<QUICK_ROR_INTERSECT_SELECT>(
+      iterator = NewIterator<RowIDIntersectionIterator>(
           thd, mem_root, mem_root, param.table, param.retrieve_full_rows,
           param.need_rows_in_rowid_order, std::move(children),
           std::move(cpk_child));
@@ -392,13 +392,13 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
                                          /*eligible_for_batch_mode=*/false));
       }
 
-      iterator = NewIterator<QUICK_ROR_UNION_SELECT>(
+      iterator = NewIterator<RowIDUnionIterator>(
           thd, mem_root, mem_root, param.table, std::move(children));
       break;
     }
     case AccessPath::INDEX_SKIP_SCAN: {
       const IndexSkipScanParameters *param = path->index_skip_scan().param;
-      iterator = NewIterator<QUICK_SKIP_SCAN_SELECT>(
+      iterator = NewIterator<IndexSkipScanIterator>(
           thd, mem_root, path->index_skip_scan().table, param->index_info,
           path->index_skip_scan().index, param->eq_prefix_len,
           param->eq_prefix_key_parts, param->eq_prefixes,
@@ -411,7 +411,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::GROUP_INDEX_SKIP_SCAN: {
       const GroupIndexSkipScanParameters *param =
           path->group_index_skip_scan().param;
-      iterator = NewIterator<QUICK_GROUP_MIN_MAX_SELECT>(
+      iterator = NewIterator<GroupIndexSkipScanIterator>(
           thd, mem_root, path->group_index_skip_scan().table,
           &param->min_functions, &param->max_functions,
           param->have_agg_distinct, param->min_max_arg_part,

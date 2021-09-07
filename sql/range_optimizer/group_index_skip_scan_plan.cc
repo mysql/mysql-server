@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/group_min_max_plan.h"
+#include "sql/range_optimizer/group_index_skip_scan_plan.h"
 
 #include <assert.h>
 #include <float.h>
@@ -49,11 +49,11 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parser_yystype.h"
-#include "sql/range_optimizer/group_min_max.h"
+#include "sql/range_optimizer/group_index_skip_scan.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_opt_param.h"
-#include "sql/range_optimizer/range_scan_plan.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -145,8 +145,8 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
   functions, and if so, construct a new AccessPath.
 
   DESCRIPTION
-    Test whether a query can be computed via a QUICK_GROUP_MIN_MAX_SELECT.
-    Queries computable via a QUICK_GROUP_MIN_MAX_SELECT must satisfy the
+    Test whether a query can be computed via a GroupIndexSkipScanIterator.
+    Queries computable via a GroupIndexSkipScanIterator must satisfy the
     following conditions:
     A) Table T has at least one compound index I of the form:
        I = <A_1, ...,A_k, [B_1,..., B_m], C, [D_1,...,D_n]>
@@ -248,7 +248,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     If the current query satisfies the conditions above, and if
     (mem_root! = NULL), then the function constructs and returns a new
     AccessPath.  object, that is later used to construct a new
-    QUICK_GROUP_MIN_MAX_SELECT. If (mem_root == nullptr), then the function
+    GroupIndexSkipScanIterator. If (mem_root == nullptr), then the function
     only tests whether the current query satisfies the conditions above,
     and, if so, sets is_applicable = true.
 
@@ -954,7 +954,8 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
   if (range_tree) {
     assert(best_quick_prefix_records > 0);
     if (best_quick_prefix_records != HA_POS_ERROR) {
-      /* Prepare for a QUICK_RANGE_SELECT to be used for group prefix retrieval.
+      /* Prepare for a IndexRangeScanIterator to be used for group prefix
+       * retrieval.
        */
       unsigned used_key_parts_unused;
       if (get_ranges_from_tree(return_mem_root, table, used_key_part, keyno,
@@ -1521,7 +1522,7 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
      - When both min and max are present, LIS will make two reads per group
        instead of one. Similarly when min and max functions are not present,
        rows retrived are different. Cost model should reflect what happens
-       in QUICK_GROUP_MIN_MAX::Read()
+       in GroupIndexSkipScanIterator::Read()
 
   RETURN
     None

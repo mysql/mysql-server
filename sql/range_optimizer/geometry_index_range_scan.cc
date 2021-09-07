@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/geometry.h"
+#include "sql/range_optimizer/geometry_index_range_scan.h"
 
 #include <stddef.h>
 
@@ -31,7 +31,7 @@
 
 /* Get next for geometrical indexes */
 
-int QUICK_RANGE_SELECT_GEOM::Read() {
+int GeometryIndexRangeScanIterator::Read() {
   DBUG_TRACE;
 
   for (;;) {

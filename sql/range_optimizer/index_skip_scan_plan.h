@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_SKIP_SCAN_PLAN_H_
-#define SQL_RANGE_OPTIMIZER_SKIP_SCAN_PLAN_H_
+#ifndef SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_PLAN_H_
+#define SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_PLAN_H_
 
 #include <sys/types.h>
 
@@ -108,4 +108,4 @@ void dbug_dump_index_skip_scan(int indent, bool verbose,
                                const AccessPath *path);
 #endif
 
-#endif  // SQL_RANGE_OPTIMIZER_SKIP_SCAN_PLAN_H_
+#endif  // SQL_RANGE_OPTIMIZER_INDEX_SKIP_SCAN_PLAN_H_

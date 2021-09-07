@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/range_optimizer/range_scan.h"
+#include "sql/range_optimizer/index_range_scan.h"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -40,7 +40,7 @@
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"
 #include "sql/psi_memory_key.h"
-#include "sql/range_optimizer/range_scan_desc.h"
+#include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -52,7 +52,7 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
+IndexRangeScanIterator::IndexRangeScanIterator(
     THD *thd, TABLE *table_arg, ha_rows *examined_rows, double expected_rows,
     uint key_nr, bool need_rows_in_rowid_order, bool reuse_handler,
     MEM_ROOT *return_mem_root, uint mrr_flags, uint mrr_buf_size,
@@ -79,7 +79,7 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(
   file = table()->file;
 }
 
-bool QUICK_RANGE_SELECT::shared_init() {
+bool IndexRangeScanIterator::shared_init() {
   if (column_bitmap.bitmap == nullptr) {
     /* Allocate a bitmap for used columns */
     my_bitmap_map *bitmap =
@@ -96,7 +96,7 @@ bool QUICK_RANGE_SELECT::shared_init() {
   return false;
 }
 
-QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
+IndexRangeScanIterator::~IndexRangeScanIterator() {
   DBUG_TRACE;
   if (table()->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
     file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
@@ -120,14 +120,15 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
 
   SYNOPSIS
     quick_range_seq_init()
-      init_param  Caller-opaque paramenter: QUICK_RANGE_SELECT* pointer
+      init_param  Caller-opaque paramenter: IndexRangeScanIterator* pointer
 
   RETURN
     Opaque value to be passed to quick_range_seq_next
 */
 
 range_seq_t quick_range_seq_init(void *init_param, uint, uint) {
-  QUICK_RANGE_SELECT *quick = static_cast<QUICK_RANGE_SELECT *>(init_param);
+  IndexRangeScanIterator *quick =
+      static_cast<IndexRangeScanIterator *>(init_param);
   QUICK_RANGE **first = quick->ranges.begin();
   QUICK_RANGE **last = quick->ranges.end();
   quick->qr_traversal_ctx.first = first;
@@ -199,7 +200,7 @@ static bool has_blob_primary_key(const TABLE *table) {
                      });
 }
 
-bool QUICK_RANGE_SELECT::Init() {
+bool IndexRangeScanIterator::Init() {
   empty_record(table());
 
   /*
@@ -298,7 +299,7 @@ bool InitIndexRangeScan(TABLE *table, handler *file, int index,
   return false;
 }
 
-bool QUICK_RANGE_SELECT::shared_reset() {
+bool IndexRangeScanIterator::shared_reset() {
   last_range = nullptr;
   cur_range = ranges.begin();
 
@@ -312,7 +313,7 @@ bool QUICK_RANGE_SELECT::shared_reset() {
     unsigned buf_size = mrr_buf_size;
     uchar *mrange_buff = nullptr;
     while (buf_size &&
-           !my_multi_malloc(key_memory_QUICK_RANGE_SELECT_mrr_buf_desc,
+           !my_multi_malloc(key_memory_IndexRangeScanIterator_mrr_buf_desc,
                             MYF(MY_WME), &mrr_buf_desc, sizeof(*mrr_buf_desc),
                             &mrange_buff, buf_size, NullS)) {
       /* Try to shrink the buffers until both are 0. */
@@ -347,7 +348,7 @@ bool QUICK_RANGE_SELECT::shared_reset() {
   return false;
 }
 
-int QUICK_RANGE_SELECT::Read() {
+int IndexRangeScanIterator::Read() {
   MY_BITMAP *const save_read_set = table()->read_set;
   MY_BITMAP *const save_write_set = table()->write_set;
   DBUG_TRACE;
@@ -377,7 +378,7 @@ int QUICK_RANGE_SELECT::Read() {
 }
 
 /*
-  Check if current row will be retrieved by this QUICK_RANGE_SELECT
+  Check if current row will be retrieved by this IndexRangeScanIterator
 
   NOTES
     It is assumed that currently a scan is being done on another index
@@ -394,7 +395,7 @@ int QUICK_RANGE_SELECT::Read() {
     false if not
 */
 
-bool QUICK_RANGE_SELECT::row_in_ranges() {
+bool IndexRangeScanIterator::row_in_ranges() {
   if (ranges.empty()) return false;
 
   QUICK_RANGE *res;
@@ -421,7 +422,7 @@ bool QUICK_RANGE_SELECT::row_in_ranges() {
   At least it could use key_cmp() from key.cc, it's almost identical.
 */
 
-int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg) {
+int IndexRangeScanIterator::cmp_next(QUICK_RANGE *range_arg) {
   int cmp;
   if (range_arg->flag & NO_MAX_RANGE) return 0; /* key can't be to large */
 
@@ -434,7 +435,7 @@ int QUICK_RANGE_SELECT::cmp_next(QUICK_RANGE *range_arg) {
   Returns 0 if found key is inside range (found key >= range->min_key).
 */
 
-int QUICK_RANGE_SELECT::cmp_prev(QUICK_RANGE *range_arg) {
+int IndexRangeScanIterator::cmp_prev(QUICK_RANGE *range_arg) {
   int cmp;
   if (range_arg->flag & NO_MIN_RANGE) return 0; /* key can't be to small */
 

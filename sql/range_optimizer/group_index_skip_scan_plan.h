@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_PLAN_H_
-#define SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_PLAN_H_
+#ifndef SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_PLAN_H_
+#define SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_PLAN_H_
 
 #include <sys/types.h>
 
@@ -38,7 +38,7 @@ class SEL_ROOT;
 class SEL_TREE;
 
 /*
-  Plan for a QUICK_GROUP_MIN_MAX_SELECT scan.
+  Plan for a GroupIndexSkipScanIterator scan.
 */
 
 struct GroupIndexSkipScanParameters {
@@ -81,4 +81,4 @@ void trace_basic_info_group_index_skip_scan(THD *thd, const AccessPath *path,
 void dbug_dump_group_index_skip_scan(int indent, bool verbose,
                                      const AccessPath *path);
 
-#endif  // SQL_RANGE_OPTIMIZER_GROUP_MIN_MAX_PLAN_H_
+#endif  // SQL_RANGE_OPTIMIZER_GROUP_INDEX_SKIP_SCAN_PLAN_H_
