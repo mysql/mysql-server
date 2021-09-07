@@ -1075,14 +1075,11 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
         .add("rows", tab->found_records)
         .add("chosen", false)
         .add_alnum("cause", "cost");
-  } else if (tab->range_scan() && best_ref &&                   // (2)
-             used_index(tab->range_scan()) == best_ref->key &&  // (2)
-             (used_key_parts >=
-              table->quick_key_parts[best_ref->key]) &&  // (2)
-             (get_range_scan_type(tab->range_scan()) !=
-              QS_TYPE_GROUP_MIN_MAX) &&
-             (get_range_scan_type(tab->range_scan()) !=
-              QS_TYPE_SKIP_SCAN))  // (2)
+  } else if (tab->range_scan() && best_ref &&                            // (2)
+             used_index(tab->range_scan()) == best_ref->key &&           // (2)
+             used_key_parts >= table->quick_key_parts[best_ref->key] &&  // (2)
+             tab->range_scan()->type != AccessPath::GROUP_INDEX_SKIP_SCAN &&
+             tab->range_scan()->type != AccessPath::INDEX_SKIP_SCAN)  // (2)
   {
     trace_access_scan.add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);

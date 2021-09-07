@@ -421,7 +421,7 @@ class Explain_table_base : public Explain {
   bool explain_key_and_len_quick(AccessPath *range_scan);
   bool explain_key_and_len_index(int key);
   bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
-  bool explain_extra_common(int quick_type, uint keyno);
+  bool explain_extra_common(int range_scan_type, uint keyno);
   bool explain_tmptable_and_filesort(bool need_tmp_table_arg,
                                      bool need_sort_arg);
 };
@@ -436,8 +436,8 @@ class Explain_join : public Explain_table_base {
   bool need_order;      ///< add "Using filesort"" to "extra" if true
   const bool distinct;  ///< add "Distinct" string to "extra" column if true
 
-  JOIN *join;      ///< current JOIN
-  int quick_type;  ///< current quick type, really a RangeScanType
+  JOIN *join;           ///< current JOIN
+  int range_scan_type;  ///< current range scan type, really an AccessPath::Type
 
  public:
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,
@@ -921,7 +921,7 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
           fmt->entry()->col_key_len.set(buff_key_len, length));
 }
 
-bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
+bool Explain_table_base::explain_extra_common(int range_scan_type, uint keyno) {
   if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
       table->file->pushed_idx_cond) {
     StringBuffer<160> buff(cs);
@@ -963,10 +963,10 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     }
   }
 
-  switch (quick_type) {
-    case QS_TYPE_ROR_UNION:
-    case QS_TYPE_ROR_INTERSECT:
-    case QS_TYPE_INDEX_MERGE: {
+  switch (range_scan_type) {
+    case AccessPath::ROWID_UNION:
+    case AccessPath::ROWID_INTERSECTION:
+    case AccessPath::INDEX_MERGE: {
       StringBuffer<32> buff(cs);
       add_info_string(range_scan_path, &buff);
       if (fmt->is_hierarchical()) {
@@ -1014,7 +1014,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
         pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
-    if (((quick_type >= 0 && is_reverse_sorted_range(range_scan_path)) ||
+    if (((range_scan_type >= 0 && is_reverse_sorted_range(range_scan_path)) ||
          reversed_access) &&
         push_extra(ET_BACKWARD_SCAN))
       return true;
@@ -1022,7 +1022,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
   if (table->reginfo.not_exists_optimize && push_extra(ET_NOT_EXISTS))
     return true;
 
-  if (quick_type == QS_TYPE_RANGE) {
+  if (range_scan_type == AccessPath::INDEX_RANGE_SCAN) {
     uint mrr_flags = range_scan_path->index_range_scan().mrr_flags;
 
     /*
@@ -1317,11 +1317,11 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   table = tab->table();
   usable_keys = tab->keys();
   usable_keys.merge(table->possible_quick_keys);
-  quick_type = -1;
+  range_scan_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
     assert(range_scan_path);
-    quick_type = get_range_scan_type(range_scan_path);
+    range_scan_type = range_scan_path->type;
   }
 
   if (tab->starts_weedout()) fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
@@ -1519,11 +1519,11 @@ bool Explain_join::explain_extra() {
     else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE)
       keyno = used_index(range_scan_path);
 
-    if (explain_extra_common(quick_type, keyno)) return true;
+    if (explain_extra_common(range_scan_type, keyno)) return true;
 
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
-        (quick_type == QS_TYPE_ROR_INTERSECT &&
+        (range_scan_type == AccessPath::ROWID_INTERSECTION &&
          range_scan_path->rowid_intersection().is_covering) ||
         /*
           Notice that table->key_read can change on the fly (grep
@@ -1532,12 +1532,12 @@ bool Explain_join::explain_extra() {
           cannot be severe (at worst, wrong EXPLAIN).
         */
         table->key_read || tab->keyread_optim()) {
-      if (quick_type == QS_TYPE_GROUP_MIN_MAX) {
+      if (range_scan_type == AccessPath::GROUP_INDEX_SKIP_SCAN) {
         StringBuffer<64> buff(cs);
         if (range_scan_path->group_index_skip_scan().param->is_index_scan)
           buff.append(STRING_WITH_LEN("scanning"));
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
-      } else if (quick_type == QS_TYPE_SKIP_SCAN) {
+      } else if (range_scan_type == AccessPath::INDEX_SKIP_SCAN) {
         if (push_extra(ET_USING_INDEX_FOR_SKIP_SCAN)) return true;
       } else {
         if (push_extra(ET_USING_INDEX)) return true;
@@ -1744,16 +1744,16 @@ bool Explain_table::explain_extra() {
       fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
 
   uint keyno;
-  int quick_type;
+  int range_scan_type;
   if (range_scan_path) {
     keyno = used_index(range_scan_path);
-    quick_type = get_range_scan_type(range_scan_path);
+    range_scan_type = range_scan_path->type;
   } else {
     keyno = key;
-    quick_type = -1;
+    range_scan_type = -1;
   }
 
-  return (explain_extra_common(quick_type, keyno) ||
+  return (explain_extra_common(range_scan_type, keyno) ||
           explain_tmptable_and_filesort(need_tmp_table, need_sort));
 }
 

@@ -167,15 +167,6 @@ class QUICK_RANGE {
   }
 };
 
-enum RangeScanType {
-  QS_TYPE_RANGE,
-  QS_TYPE_INDEX_MERGE,
-  QS_TYPE_ROR_INTERSECT,
-  QS_TYPE_ROR_UNION,
-  QS_TYPE_GROUP_MIN_MAX,
-  QS_TYPE_SKIP_SCAN
-};
-
 using Quick_ranges = Mem_root_array<QUICK_RANGE *>;
 using Quick_ranges_array = Mem_root_array<Quick_ranges *>;
 

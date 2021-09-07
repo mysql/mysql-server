@@ -1449,7 +1449,7 @@ bool JOIN::optimize_distinct_group_order() {
   if (plan_is_single_table() && (!group_list.empty() || select_distinct) &&
       !tmp_table_param.sum_func_count &&
       (!tab->range_scan() ||
-       get_range_scan_type(tab->range_scan()) != QS_TYPE_GROUP_MIN_MAX)) {
+       tab->range_scan()->type != AccessPath::GROUP_INDEX_SKIP_SCAN)) {
     if (!group_list.empty() && rollup_state == RollupState::NONE &&
         list_contains_unique_index(tab, find_field_in_order_list,
                                    (void *)group_list.order)) {
@@ -1602,7 +1602,7 @@ void JOIN::test_skip_sort() {
     */
     if (!(query_block->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->range_scan() &&
-         get_range_scan_type(tab->range_scan()) == QS_TYPE_GROUP_MIN_MAX)) {
+         tab->range_scan()->type == AccessPath::GROUP_INDEX_SKIP_SCAN)) {
       if (simple_group &&    // GROUP BY is possibly skippable
           !select_distinct)  // .. if not preceded by a DISTINCT
       {
@@ -2220,15 +2220,15 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     ref_key_parts = tab->ref().key_parts;
   } else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
     // Range found by opt_range
-    int quick_type = get_range_scan_type(tab->range_scan());
     /*
       assume results are not ordered when index merge is used
       TODO: sergeyp: Results of all index merge selects actually are ordered
       by clustered PK values.
     */
 
-    if (quick_type == QS_TYPE_INDEX_MERGE || quick_type == QS_TYPE_ROR_UNION ||
-        quick_type == QS_TYPE_ROR_INTERSECT)
+    if (tab->range_scan()->type == AccessPath::INDEX_MERGE ||
+        tab->range_scan()->type == AccessPath::ROWID_UNION ||
+        tab->range_scan()->type == AccessPath::ROWID_INTERSECTION)
       return false;
     ref_key = used_index(tab->range_scan());
     ref_key_parts = get_used_key_parts(tab->range_scan());
