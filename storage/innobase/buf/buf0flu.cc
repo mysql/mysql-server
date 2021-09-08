@@ -3353,6 +3353,15 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       lsn_limit = LSN_MAX;
     }
 
+    if (mtr_t::s_logging.is_enabled() && ret_sleep == OS_SYNC_TIME_EXCEEDED) {
+      /* For smooth page flushing along with WAL,
+      flushes log as much as possible. */
+      log_sys->recent_written.advance_tail();
+      auto wait_stats = log_write_up_to(
+          *log_sys, log_buffer_ready_for_write_lsn(*log_sys), true);
+      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    }
+
     if (is_sync_flush || is_server_active) {
       ulint n_to_flush;
 
