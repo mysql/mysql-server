@@ -841,12 +841,6 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
     if (it != user_options.end()) {
       const int max_base_port =
           (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-      if (it->second.empty()) {
-        throw std::invalid_argument(
-            "--conf-base-port needs value between 0 and " +
-            std::to_string(max_base_port) + " inclusive, was ''");
-      }
-
       base_port = mysql_harness::option_as_uint<uint16_t>(
           it->second, "--conf-base-port", 0, max_base_port);
     }
