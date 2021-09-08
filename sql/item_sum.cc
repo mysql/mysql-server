@@ -514,7 +514,7 @@ bool Item_sum::resolve_type(THD *thd) {
   @see Item_cond::fix_fields()
   @see Item_cond::remove_const_cond()
  */
-bool Item_sum::clean_up_after_removal(uchar *arg) {
+bool Item_sum::clean_up_after_removal(uchar *arg [[maybe_unused]]) {
   assert(arg != nullptr);
   /*
     Don't do anything if
