@@ -78,7 +78,7 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
                mock_server_host_ + ":" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "\n");
+      "");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
@@ -104,7 +104,7 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
               {"client_ssl_key", valid_ssl_key_},
               {"client_ssl_cert", valid_ssl_cert_},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -160,7 +160,7 @@ TEST_F(SplicerTest, invalid_metadata) {
                   {"metadata_cluster", "test"},
               }),
       },
-      "\n");
+      "");
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, conf_dir_.name());
@@ -262,7 +262,7 @@ TEST_P(SplicerFailParamTest, fails) {
   auto config = mysql_harness::join(
       std::vector<std::string>{
           mysql_harness::ConfigBuilder::build_section("routing", cmdline_opts)},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   auto &router =
@@ -762,7 +762,7 @@ TEST_P(SplicerConnectParamTest, check) {
   const auto config = mysql_harness::join(
       std::vector<std::string>{
           mysql_harness::ConfigBuilder::build_section("routing", cmdline_opts)},
-      "\n");
+      "");
 
   const auto conf_file = create_config_file(conf_dir_.name(), config);
 
@@ -1851,7 +1851,7 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
               {"client_ssl_key", valid_ssl_key_},
               {"client_ssl_cert", valid_ssl_cert_},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -1934,7 +1934,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
               {"server_ssl_mode",
                ssl_mode_to_string(GetParam().server_ssl_mode)},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
@@ -2072,7 +2072,7 @@ TEST_P(SplicerParamTest, xproto) {
                ssl_mode_to_string(GetParam().server_ssl_mode)},
               {"protocol", "x"},
           })},
-      "\n");
+      "");
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});

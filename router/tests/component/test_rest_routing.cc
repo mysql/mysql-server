@@ -169,7 +169,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section, "mysqlrouter.conf", "connect_timeout=1")};
 
   SCOPED_TRACE("// starting router");
@@ -1161,7 +1161,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   init_keyring(default_section, conf_dir_.name());
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section)};
 
   ProcessWrapper &http_server =

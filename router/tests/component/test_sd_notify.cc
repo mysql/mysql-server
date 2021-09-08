@@ -107,10 +107,8 @@ class NotifyTest : public RestApiComponentTest {
       const std::vector<std::string> &config_file_sections) {
     auto default_section = prepare_config_defaults();
 
-    std::string config_file_content;
-    for (const auto &section : config_file_sections) {
-      config_file_content += section + "\n";
-    }
+    const std::string config_file_content =
+        mysql_harness::join(config_file_sections, "");
 
     return ProcessManager::create_config_file(
         get_test_temp_dir_name(), config_file_content, &default_section);

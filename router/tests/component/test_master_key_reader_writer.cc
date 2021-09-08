@@ -108,8 +108,7 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
     auto section = metadata_cache_section(server_port);
 
     return mysql_harness::ConfigBuilder::build_section(section.first,
-                                                       section.second) +
-           "\n";
+                                                       section.second);
   }
 
   static std::pair<std::string, std::map<std::string, std::string>>

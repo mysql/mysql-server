@@ -1504,7 +1504,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
-                           default_paths, "state_file_name.json");
+                           default_paths, {}, "state_file_name.json");
 
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
@@ -1526,7 +1526,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -1592,7 +1592,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
   ConfigGenerator::Options options =
       config_gen.fill_options(user_options, default_paths, {});
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
-                           "cluster_user", options, default_paths,
+                           "cluster_user", options, default_paths, {},
                            "state_file_name.json");
 
   std::vector<std::string> lines;
@@ -1613,7 +1613,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -1683,7 +1683,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
   options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
-                           "cluster_user", options, default_paths,
+                           "cluster_user", options, default_paths, {},
                            "state_file_name.json");
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
@@ -1703,7 +1703,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -1776,7 +1776,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
   options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
-                           "cluster_user", options, default_paths,
+                           "cluster_user", options, default_paths, {},
                            "state_file_name.json");
 
   std::vector<std::string> lines;
@@ -1797,7 +1797,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -1863,7 +1863,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
   options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
-                           "cluster_user", options, default_paths,
+                           "cluster_user", options, default_paths, {},
                            "state_file_name.json");
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
@@ -1883,7 +1883,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -1958,7 +1958,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
-                           default_paths, "state_file_name.json");
+                           default_paths, {}, "state_file_name.json");
 
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
@@ -1980,7 +1980,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -2050,7 +2050,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
-                           default_paths, "state_file_name.json");
+                           default_paths, {}, "state_file_name.json");
 
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
@@ -2072,7 +2072,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
       "server_ssl_verify=DISABLED",
       "",
       "[logger]",
-      "level = INFO",
+      "level=INFO",
       "",
       "[metadata_cache:mycluster]",
       "cluster_type=gr",
@@ -3245,7 +3245,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
             {"server1", "server2", "server3"}, "", "gr_id", "mycluster"};
         config_gen.create_config(conf_output, state_output, 123, "myrouter",
                                  "user", cluster_info, "cluster_user", options,
-                                 default_paths);
+                                 default_paths, {});
         EXPECT_THAT(conf_output.str(), HasSubstr(result));
       };
 

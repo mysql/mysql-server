@@ -115,7 +115,7 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section_)};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
@@ -384,7 +384,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       }));
 
   std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
+      conf_dir_.name(), mysql_harness::join(config_sections, ""),
       &default_section_)};
 
   auto &router_proc{launch_router({"-c", conf_file})};
@@ -949,7 +949,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
       mysql_harness::ConfigBuilder::build_section("rest_metadata_cache", {}));
 
   const std::string conf_file{create_config_file(
-      conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
+      conf_dir_.name(), mysql_harness::join(config_sections, ""))};
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 

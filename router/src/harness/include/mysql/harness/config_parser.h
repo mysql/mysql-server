@@ -514,6 +514,12 @@ class HARNESS_EXPORT Config {
   unsigned int flags_;
 };
 
+/**
+ * Returns true if a character given as a parameter is valid for config
+ * identifier (section, section key or option name)
+ */
+bool HARNESS_EXPORT is_valid_conf_ident_char(const char ch);
+
 }  // namespace mysql_harness
 
 #endif /* MYSQL_HARNESS_CONFIG_PARSER_INCLUDED */

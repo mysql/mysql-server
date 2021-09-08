@@ -1697,6 +1697,20 @@ void MySQLRouter::prepare_command_options() noexcept {
         this->showing_info_ = true;
       });
 
+  arg_handler_.add_option(
+      OptionNames({"--conf-set-option"}),
+      "Allows forcing selected option in the configuration file when "
+      "bootstrapping (--conf-set-option=section_name.option_name=value)",
+      CmdOptionValueReq::required, "conf-set-option",
+      [this](const std::string &conf_option) {
+        std::vector<std::string> &conf_options =
+            this->bootstrap_multivalue_options_["conf-set-option"];
+        conf_options.push_back(conf_option);
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--conf-set-option");
+      });
+
 // These are additional Windows-specific options, added (at the time of writing)
 // in check_service_operations(). Grep after '--install-service' and you shall
 // find.
@@ -1909,6 +1923,7 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--bootstrap",
         "--bootstrap-socket",
         "--conf-use-sockets",
+        "--conf-set-option",
         "--conf-skip-tcp",
         "--conf-base-port",
         "--conf-use-gr-notifications",

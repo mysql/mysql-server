@@ -325,13 +325,14 @@ class ConfigGenerator {
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const Options &options);
 
-  void create_config(std::ostream &config_file, std::ostream &state_file,
-                     uint32_t router_id, const std::string &router_name,
-                     const std::string &system_username,
-                     const ClusterInfo &cluster_info,
-                     const std::string &username, const Options &options,
-                     const std::map<std::string, std::string> &default_paths,
-                     const std::string &state_file_name = "");
+  void create_config(
+      std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
+      const std::string &router_name, const std::string &system_username,
+      const ClusterInfo &cluster_info, const std::string &username,
+      const Options &options,
+      const std::map<std::string, std::string> &default_paths,
+      const std::map<std::string, std::string> &config_overwrites,
+      const std::string &state_file_name = "");
 
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
@@ -348,10 +349,6 @@ class ConfigGenerator {
       const std::map<std::string, std::string> &default_paths,
       const std::map<std::string, std::string> &user_options,
       const Options &options);
-
-  static std::string gen_metadata_cache_routing_section(
-      bool is_classic, bool is_writable, const Options::Endpoint endpoint,
-      const Options &options, const std::string &metadata_key);
 
   /** @brief Deletes Router accounts just created
    *
@@ -485,9 +482,6 @@ class ConfigGenerator {
 
   void update_router_info(uint32_t router_id, const Options &options);
 
-  static std::string endpoint_option(const Options &options,
-                                     const Options::Endpoint &ep);
-
   bool backup_config_file_if_different(
       const mysql_harness::Path &config_path, const std::string &new_file_path,
       const std::map<std::string, std::string> &options,
@@ -525,22 +519,6 @@ class ConfigGenerator {
                              const std::string &password,
                              const std::string &primary_cluster_name,
                              bool strict);
-
-  /**
-   * @brief Create Router configuration that allows to enable the REST services.
-   *
-   * Create configuration for the following plugins: http_server,
-   * http_auth_realm, rest_router, rest_api, http_auth_backend, rest_routing,
-   * rest_metadata_cache.
-   *
-   * @param[in] options Bootstrap config options.
-   * @param[in] default_paths Map of predefined default paths.
-   *
-   * @return Router configuration that enables the REST services.
-   */
-  std::string generate_config_for_rest(
-      const Options &options,
-      const std::map<std::string, std::string> &default_paths) const;
 
   /**
    * @brief Prepare X.509 certificates for the Router.

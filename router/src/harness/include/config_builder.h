@@ -78,7 +78,7 @@ class ConfigBuilder {
     for (const auto &pair : pairs) {
       lines.push_back(build_pair(pair));
     }
-    return mysql_harness::join(lines, "\n");
+    return mysql_harness::join(lines, "\n") + "\n\n";
   }
 };
 

@@ -57,7 +57,9 @@ namespace mysql_harness {
 // satisfy ODR requirements
 constexpr const char *Config::DEFAULT_PATTERN;
 
-static bool isident(const char ch) { return isalnum(ch) || ch == '_'; }
+bool is_valid_conf_ident_char(const char ch) {
+  return isalnum(ch) || ch == '_';
+}
 
 static void inplace_lower(std::string *str) {
   std::transform(str->begin(), str->end(), str->begin(), ::tolower);
@@ -69,7 +71,7 @@ static std::string lower(std::string str) {
 }
 
 static void check_option(const std::string &str) {
-  if (!all_of(str.begin(), str.end(), isident))
+  if (!all_of(str.begin(), str.end(), is_valid_conf_ident_char))
     throw bad_option("Not a legal option name: '" + str + "'");
 }
 
@@ -390,8 +392,8 @@ void Config::do_read_stream(std::istream &input) {
           }
 
           // Check that the section key is correct
-          const auto invalid_char_pos =
-              std::find_if_not(section_key.begin(), section_key.end(), isident);
+          const auto invalid_char_pos = std::find_if_not(
+              section_key.begin(), section_key.end(), is_valid_conf_ident_char);
           if (section_key.end() != invalid_char_pos) {
             const std::string message(
                 "config-section '" + line + "' contains invalid character '" +
@@ -411,8 +413,8 @@ void Config::do_read_stream(std::istream &input) {
       }
 
       // Check that the section name consists of allowable characters only
-      const auto invalid_char_pos =
-          std::find_if_not(section_name.begin(), section_name.end(), isident);
+      const auto invalid_char_pos = std::find_if_not(
+          section_name.begin(), section_name.end(), is_valid_conf_ident_char);
       if (section_name.end() != invalid_char_pos) {
         std::string message(
             "config-section '" + line + "' contains invalid character '" +
@@ -447,7 +449,7 @@ void Config::do_read_stream(std::istream &input) {
       strip(&value);
 
       // Check that the section name consists of allowable characters only
-      if (!std::all_of(option.begin(), option.end(), isident))
+      if (!std::all_of(option.begin(), option.end(), is_valid_conf_ident_char))
         throw syntax_error("Invalid option name '" + option + "'");
 
       current->add(option, value);  // throws syntax_error, bad_section

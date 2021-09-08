@@ -720,7 +720,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "\n");
+      "");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(bootstrap_dir.name(), config);
 
@@ -763,7 +763,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "\n");
+      "");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(
       bootstrap_dir.name(), config, nullptr, "mysqlrouter.conf",
@@ -772,7 +772,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert) {
               mysql_harness::ConfigBuilder::build_pair(
                   std::make_pair("client_ssl_cert", "foo")),
           },
-          "\n"));
+          ""));
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       {
@@ -863,7 +863,7 @@ TEST_P(BootstrapTlsEndpoint, existing_config_with_client_ssl_cert_and_key) {
               {"destinations", "127.0.0.1:" + std::to_string(server_port)},
               {"routing_strategy", "round-robin"},
           })},
-      "\n");
+      "");
   SCOPED_TRACE("starting router with config:\n" + config);
   auto conf_file = create_config_file(
       bootstrap_dir.name(), config, nullptr, "mysqlrouter.conf",

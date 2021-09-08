@@ -257,7 +257,7 @@ TEST_P(HttpServerPlainTest, ensure) {
       mysql_harness::join(
           std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
               "http_server", http_section)},
-          "\n"))};
+          ""))};
   ProcessWrapper &http_server{launch_router(
       {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE, true,
       false, GetParam().expected_success ? 5s : -1s)};
@@ -1596,7 +1596,7 @@ class HttpServerAuthTest
                                                    {"method", "basic"},
                                                    {"name", "API"},
                                                    {"require", "valid-user"}})},
-                "\n"))} {
+                ""))} {
     std::string pwf_name(
         mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
     std::fstream pwf{pwf_name, pwf.out};

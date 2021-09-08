@@ -1264,14 +1264,12 @@ TEST_P(StaticRoutingToNonExistentNodes, StaticRoutingToNonExistentNodesTest) {
            {"routing_strategy", "first-available"},
            {"destinations", "127.0.0.1:" + std::to_string(local_port)},
            {"protocol", "classic"}}) +
-      "\n" +
       mysql_harness::ConfigBuilder::build_section(
           "routing:R2",
           {{"bind_port", std::to_string(port2)},
            {"routing_strategy", "next-available"},
            {"destinations", "127.0.0.1:" + std::to_string(local_port)},
            {"protocol", "classic"}}) +
-      "\n" +
       mysql_harness::ConfigBuilder::build_section(
           "routing:R3",
           {{"bind_port", std::to_string(port3)},

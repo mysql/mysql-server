@@ -281,7 +281,7 @@ class TestRestApiEnable : public RouterComponentTest {
   }
 
   void patch_config_file(const std::string &config_filename) {
-    // bootstrap does 'level = INFO', we need 'DEBUG'
+    // bootstrap does 'level=INFO', we need 'DEBUG'
     // bootstrap sets logging_folder=..., we need where the ProcessManager
     // expects it.
 
@@ -292,8 +292,8 @@ class TestRestApiEnable : public RouterComponentTest {
 
     std::string line;
     while (std::getline(ifs, line)) {
-      if (line == "level = INFO") {
-        line = "level = DEBUG";
+      if (line == "level=INFO") {
+        line = "level=DEBUG";
       }
       if (line.substr(0, sizeof("logging_folder") - 1) == "logging_folder") {
         line = "logging_folder = " + get_logging_dir().str();
