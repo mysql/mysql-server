@@ -984,7 +984,6 @@ static int warp_rewrite_query_notify(
     return 0;
   }
   
-
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
     bool is_incremental = false;
