@@ -337,14 +337,14 @@ inline bool is_port_available_fallback(const uint16_t port) {
 
 bool is_port_available(const uint16_t port) {
 #if defined(__linux__)
-  const std::string &netstat_cmd{"netstat -tnl"};
+  const std::string netstat_cmd{"netstat -tnl"};
 #elif defined(_WIN32)
-  const std::string &netstat_cmd{"netstat -p tcp -n -a | findstr LISTEN"};
+  const std::string netstat_cmd{"netstat -p tcp -n -a"};
 #elif defined(__sun)
-  const std::string &netstat_cmd{"netstat -na -P tcp | grep LISTEN"};
+  const std::string netstat_cmd{"netstat -na -P tcp"};
 #else
   // BSD and MacOS
-  const std::string &netstat_cmd{"netstat -p tcp -an | grep LISTEN"};
+  const std::string netstat_cmd{"netstat -p tcp -an"};
 #endif
 
   TempDirectory temp_dir;
@@ -379,8 +379,8 @@ bool is_port_available(const uint16_t port) {
     //  SunOS
     //  *.XYZ                 *.*              0      0  256000      0 LISTEN
     //  127.0.0.1.XYZ         *.*              0      0  256000      0 LISTEN
-    if (pattern_found(
-            line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) + "[^\\d]?")) {
+    if (pattern_found(line, "[\\*,0,127]\\..*[.:]" + std::to_string(port) +
+                                "[^\\d].*LISTEN")) {
       return false;
     }
   }
