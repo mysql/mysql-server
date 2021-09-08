@@ -437,10 +437,6 @@
 #define HAVE_FCNTL_H 1
 #define HAVE_GETADDRINFO 1
 #define HAVE_INTTYPES_H 1
-/* libevent's select.c is not Windows compatible */
-#ifndef _WIN32
-#define HAVE_SELECT 1
-#endif
 #define HAVE_SIGNAL_H 1
 #define HAVE_STDARG_H 1
 #define HAVE_STDINT_H 1
