@@ -141,15 +141,20 @@ class HARNESS_EXPORT CmdArgHandler {
   /** @brief Constructor
    *
    * @param allow_rest_arguments_ whether we allow rest arguments or not
+   * @param ignore_unknown_arguments_ whether we ignore unknown arguments or
+   * give an error
    */
-  explicit CmdArgHandler(bool allow_rest_arguments_)
-      : allow_rest_arguments(allow_rest_arguments_) {}
+  explicit CmdArgHandler(bool allow_rest_arguments_,
+                         bool ignore_unknown_arguments_ = false)
+      : allow_rest_arguments(allow_rest_arguments_),
+        ignore_unknown_arguments(ignore_unknown_arguments_) {}
 
   /** @brief Default constructor
    *
-   * By default, rest arguments are not allowed.
+   * By default, rest arguments are not allowed and unknown arguments are not
+   * ignored.
    */
-  CmdArgHandler() : CmdArgHandler(false) {}
+  CmdArgHandler() : CmdArgHandler(false, false) {}
 
   /** @brief Adds a command line option
    *
@@ -409,6 +414,9 @@ class HARNESS_EXPORT CmdArgHandler {
 
   /** @brief Whether to allow rest arguments or not **/
   bool allow_rest_arguments;
+
+  /** @brief Whether to ignore unknown arguments **/
+  bool ignore_unknown_arguments;
 
  private:
   /** @brief Vector with registered options **/

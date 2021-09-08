@@ -71,6 +71,7 @@ const std::string path_sep = ":";
 #include <io.h>
 #include <string.h>
 #include "mysqlrouter/windows/password_vault.h"
+#include "mysqlrouter/windows/service_operations.h"
 #define strtok_r strtok_s
 const char dir_sep = '\\';
 const std::string path_sep = ";";
@@ -1709,28 +1710,11 @@ void MySQLRouter::prepare_command_options() noexcept {
         log_info("Removed successfully all passwords from the vault.");
         throw silent_exception();
       });
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--install-service"}),
-      "Install Router as Windows service which starts "
-      "automatically at system boot",
-      CmdOptionValueReq::none, "",
-      [](const std::string &) { /*implemented elsewhere*/ });
 
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--install-service-manual"}),
-      "Install Router as Windows service which needs to be started manually",
-      CmdOptionValueReq::none, "",
-      [](const std::string &) { /*implemented elsewhere*/ });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--remove-service"}),
-      "Remove Router from Windows services", CmdOptionValueReq::none, "",
-      [](const std::string &) { /*implemented elsewhere*/ });
-
-  arg_handler_.add_option(
-      CmdOption::OptionNames({"--service"}), "Start Router as Windows service",
-      CmdOptionValueReq::none, "",
-      [](const std::string &) { /*implemented elsewhere*/ });
+  // in this context we only want the service-related options to be known and
+  // displayed with --help; they are handled elsewhere (main-windows.cc)
+  ServiceConfOptions unused;
+  add_service_options(arg_handler_, unused);
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--remove-credentials-section"}),

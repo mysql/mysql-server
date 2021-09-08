@@ -134,9 +134,19 @@ void CmdArgHandler::process(const vector<string> &arguments) {
 
     const auto opt_iter = find_option(argpart);
     if (opt_iter == options_.end()) {
-      throw std::invalid_argument("unknown option '" + argpart + "'.");
+      if (!ignore_unknown_arguments)
+        throw std::invalid_argument("unknown option '" + argpart + "'.");
     }
-    const auto &option = *opt_iter;
+
+    // if ignore_unknown_arguments is true we use this no-op handler when we see
+    // one; this helps keeping the below code simple (skipping  '--', skipping
+    // option arg, etc. common for both known and ignored arguments)
+    CmdOption ignored_option(std::vector<std::string>{}, "",
+                             CmdOptionValueReq::optional, "",
+                             [](const std::string &) {});
+
+    const auto &option =
+        opt_iter == options_.end() ? ignored_option : *opt_iter;
 
     switch (option.value_req) {
       case CmdOptionValueReq::required:

@@ -49,6 +49,7 @@ IF(WIN32)
     windows/main-windows.cc
     windows/nt_servc.cc
     windows/password_vault.cc
+    windows/service_operations.cc
     )
 ENDIF()
 
