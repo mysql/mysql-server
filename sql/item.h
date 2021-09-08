@@ -2654,7 +2654,7 @@ class Item : public Parse_tree_node {
 
      param arg pointer to a Cleanup_after_removal_context object
   */
-  virtual bool clean_up_after_removal(uchar *arg) {
+  virtual bool clean_up_after_removal(uchar *arg [[maybe_unused]]) {
     assert(arg != nullptr);
     return false;
   }
