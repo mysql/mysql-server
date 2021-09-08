@@ -9661,6 +9661,9 @@ ER_REGEXP_MISSING_RESOURCE
 ER_WARN_REGEXP_USING_DEFAULT
   eng "Regular expression library used default (root) locale."
 
+ER_REGEXP_MISSING_FILE
+  eng "Missing data file in regular expression library."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

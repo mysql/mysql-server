@@ -66,6 +66,7 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_USING_DEFAULT_WARNING, ER_WARN_REGEXP_USING_DEFAULT},
     {U_ILLEGAL_ARGUMENT_ERROR, ER_REGEXP_ILLEGAL_ARGUMENT},
     {U_MISSING_RESOURCE_ERROR, ER_REGEXP_MISSING_RESOURCE},
+    {U_FILE_ACCESS_ERROR, ER_REGEXP_MISSING_FILE},
 
     // Recent versions of ICU are returning "Incorrect Unicode property".
     // Map it to the same as the more generic U_ILLEGAL_ARGUMENT_ERROR.
