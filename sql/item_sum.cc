@@ -515,6 +515,7 @@ bool Item_sum::resolve_type(THD *thd) {
   @see Item_cond::remove_const_cond()
  */
 bool Item_sum::clean_up_after_removal(uchar *arg) {
+  assert(arg != nullptr);
   /*
     Don't do anything if
     1) this is an unresolved item (This may happen if an
@@ -535,15 +536,12 @@ bool Item_sum::clean_up_after_removal(uchar *arg) {
 
   if (m_window) {
     // Cleanup the reference for this window function from m_functions
-    auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
-    if (ctx != nullptr) {
-      List_iterator<Item_sum> li(m_window->functions());
-      Item *item = nullptr;
-      while ((item = li++)) {
-        if (item == this) {
-          li.remove();
-          break;
-        }
+    List_iterator<Item_sum> li(m_window->functions());
+    Item *item = nullptr;
+    while ((item = li++)) {
+      if (item == this) {
+        li.remove();
+        break;
       }
     }
   } else {

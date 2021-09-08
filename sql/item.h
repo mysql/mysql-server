@@ -2625,22 +2625,35 @@ class Item : public Parse_tree_node {
   */
   virtual void bind_fields() {}
 
-  struct Cleanup_after_removal_context {
+  /**
+     Context object for (functions that override)
+     Item::clean_up_after_removal().
+   */
+  class Cleanup_after_removal_context final {
+   public:
+    Cleanup_after_removal_context(Query_block *root) : m_root(root) {
+      assert(root != nullptr);
+    }
+
+    Query_block *get_root() { return m_root; }
+
+   private:
     /**
       Pointer to Cleanup_after_removal_context containing from which
       select the walk started, i.e., the Query_block that contained the clause
       that was removed.
     */
-    Query_block *m_root;
-
-    Cleanup_after_removal_context(Query_block *root) : m_root(root) {}
+    Query_block *const m_root;
   };
   /**
      Clean up after removing the item from the item tree.
 
      param arg pointer to a Cleanup_after_removal_context object
   */
-  virtual bool clean_up_after_removal(uchar *) { return false; }
+  virtual bool clean_up_after_removal(uchar *arg) {
+    assert(arg != nullptr);
+    return false;
+  }
 
   /**
     Propagate components that use referenced columns from derived tables.

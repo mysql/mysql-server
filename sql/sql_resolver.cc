@@ -4333,10 +4333,14 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         cleaning up), but it may contain subqueries that should be
         unlinked.
       */
-      if ((*order->item)->real_item() != *select_item)
+      if ((*order->item)->real_item() != (*select_item)->real_item()) {
+        Item::Cleanup_after_removal_context ctx(
+            thd->lex->current_query_block());
+
         (*order->item)
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
-                   nullptr);
+                   pointer_cast<uchar *>(&ctx));
+      }
       order->item = &ref_item_array[counter];
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)

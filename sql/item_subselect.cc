@@ -2653,15 +2653,14 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
     in the SELECT list via an alias.
     In that case, do not remove this subselect.
   */
-  auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
-  Query_block *root = nullptr;
+  Query_block *const root =
+      pointer_cast<Cleanup_after_removal_context *>(arg)->get_root();
 
-  if (ctx != nullptr) {
-    if ((ctx->m_root->resolve_place != Query_block::RESOLVE_SELECT_LIST) &&
-        ctx->m_root->is_in_select_list(this))
-      return false;
-    root = ctx->m_root;
+  if ((root->resolve_place != Query_block::RESOLVE_SELECT_LIST) &&
+      root->is_in_select_list(this)) {
+    return false;
   }
+
   Query_block *sl = unit->outer_query_block();
 
   // Notify flatten_subqueries() that subquery has been removed.
