@@ -146,23 +146,41 @@ T option_as_uint(const std::string &value, const std::string &option_name,
   static_assert(std::numeric_limits<T>::max() <=
                 std::numeric_limits<unsigned long long>::max());
 
-  char *rest;
-  errno = 0;
-  unsigned long long toul = std::strtoull(value.c_str(), &rest, 10);
-  T result = static_cast<T>(toul);
+  // strtoul[l] allows negative values and silently negates them to positive
+  // values:
+  //
+  // -1 -> 18446744073709551615
+  //
+  // what we don't want.
+  //
+  // Fail, if the value param starts with ^\s*-
 
-  if (errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
-      result != toul ||  // if casting lost high-order bytes
-      (max_value > 0 && result > max_value)) {
-    std::ostringstream os;
-    os << option_name << " needs value between " << std::to_string(min_value)
-       << " and " << std::to_string(max_value) << " inclusive";
-    if (!value.empty()) {
-      os << ", was '" << value << "'";
+  // skip WS
+  const char *start = value.c_str();
+  for (; ::isspace(*start); ++start)
+    ;
+
+  if (*start != '-') {
+    // behaviour differs on empty value:
+    //
+    // maxosx sets: returns 0, *rest == value.c_str(), sets errno=EINVAL
+    // linux sets: returns 0, *rest == value.c_str()
+    char *rest;
+    errno = 0;  // reset errno to see ERANGE.
+    const unsigned long long toul = std::strtoull(start, &rest, 10);
+    const T result = static_cast<T>(toul);
+
+    if (start != rest && *rest == '\0' && result <= max_value &&
+        result >= min_value && result == toul && errno == 0) {
+      return result;
     }
-    throw std::invalid_argument(os.str());
   }
-  return result;
+
+  std::ostringstream os;
+  os << option_name << " needs value between " << std::to_string(min_value)
+     << " and " << std::to_string(max_value) << " inclusive, was '" << value
+     << "'";
+  throw std::invalid_argument(os.str());
 }
 
 }  // namespace mysql_harness

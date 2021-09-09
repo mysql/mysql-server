@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/internet.h"
 
 #include <gmock/gmock-more-matchers.h>
@@ -509,6 +510,130 @@ TEST(NetTS_internet, udp_ipv4_socket_bind_sendmsg_recvmsg) {
 
   SCOPED_TRACE("// check the sender address matches");
   EXPECT_EQ(recvfrom_endp, server_endp);
+}
+
+TEST(NetTS_internet, tcp_ipv4_socket_bind_accept_connect_dynbuffer) {
+  net::io_context io_ctx;
+
+  // localhost, any port
+  net::ip::tcp::endpoint endp(net::ip::address_v4().loopback(), 0);
+
+  net::ip::tcp::acceptor acceptor(io_ctx);
+  EXPECT_THAT(acceptor.open(endp.protocol()), ::testing::Truly(res_has_value));
+  EXPECT_THAT(acceptor.bind(endp), ::testing::Truly(res_has_value));
+  EXPECT_THAT(acceptor.listen(128), ::testing::Truly(res_has_value));
+
+  //
+  EXPECT_THAT(acceptor.native_non_blocking(true),
+              ::testing::Truly(res_has_value));
+
+  // should fail with EWOULDBLOCK as nothing connect()ed yet
+  EXPECT_EQ(acceptor.accept(), stdx::make_unexpected(make_error_condition(
+                                   std::errc::operation_would_block)));
+  auto local_endp_res = acceptor.local_endpoint();
+
+  ASSERT_TRUE(local_endp_res) << local_endp_res.error();
+
+  auto local_endp = std::move(*local_endp_res);
+
+  net::ip::tcp::socket client_sock(io_ctx);
+  EXPECT_TRUE(client_sock.open(local_endp.protocol()));
+
+  // ensure the connect() doesn't block
+  EXPECT_THAT(client_sock.native_non_blocking(true),
+              ::testing::Truly(res_has_value));
+
+  // it may succeed directly, or fail with in_progress due to non-blocking io
+  SCOPED_TRACE("// connecting to " + ss_to_string(local_endp));
+  auto connect_res = client_sock.connect(local_endp);
+  if (!connect_res) {
+    ASSERT_THAT(
+        connect_res.error(),
+        ::testing::AnyOf(make_error_condition(std::errc::operation_would_block),
+                         make_error_code(std::errc::operation_in_progress)));
+  }
+
+  acceptor.wait(net::socket_base::wait_read);
+
+  auto server_sock_res = acceptor.accept();
+  ASSERT_THAT(server_sock_res, ::testing::Truly(res_has_value));
+  auto server_sock = std::move(*server_sock_res);
+
+  if (!connect_res) {
+    client_sock.wait(net::socket_base::wait_write);
+
+    // finish the non-blocking connect
+    net::socket_base::error so_error;
+    ASSERT_TRUE(client_sock.get_option(so_error));
+    ASSERT_EQ(so_error.value(), 0);
+  }
+
+  SCOPED_TRACE("// nothing written, read failed with with would block");
+  std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
+  std::vector<char> sink;
+  EXPECT_EQ(net::read(client_sock, net::dynamic_buffer(sink)),
+            stdx::make_unexpected(
+                make_error_condition(std::errc::operation_would_block)));
+
+  SCOPED_TRACE("// writing");
+  auto write_res = net::write(server_sock, net::buffer(source));
+  ASSERT_THAT(write_res, ::testing::Truly(res_has_value));
+  EXPECT_EQ(*write_res, source.size());
+
+  SCOPED_TRACE("// wait for socket to become readable");
+  client_sock.wait(net::socket_base::wait_read);
+
+  // read a part.
+  SCOPED_TRACE("// reading");
+  auto read_res = net::read(client_sock, net::dynamic_buffer(sink),
+                            net::transfer_exactly(source.size() - 1));
+  ASSERT_THAT(read_res, ::testing::Truly(res_has_value));
+  EXPECT_EQ(*read_res, source.size() - 1);
+
+  // read the rest.
+  read_res = net::read(client_sock, net::dynamic_buffer(sink),
+                       net::transfer_exactly(2));
+  ASSERT_THAT(read_res, ::testing::Truly(res_has_value));
+  EXPECT_EQ(*read_res, 1);
+
+  // should block.
+  read_res = net::read(client_sock, net::dynamic_buffer(sink));
+  ASSERT_THAT(read_res, ::testing::Not(::testing::Truly(res_has_value)));
+  EXPECT_THAT(
+      read_res.error(),
+      ::testing::AnyOf(
+          make_error_condition(std::errc::operation_would_block),  // linux
+          make_error_condition(
+              std::errc::resource_unavailable_try_again)  // windows
+          ));
+
+  SCOPED_TRACE("// shutting down");
+  EXPECT_TRUE(server_sock.shutdown(net::socket_base::shutdown_send));
+  EXPECT_TRUE(server_sock.shutdown(net::socket_base::shutdown_receive));
+  EXPECT_TRUE(client_sock.shutdown(net::socket_base::shutdown_send));
+
+  SCOPED_TRACE("// read from shutdown socket");
+  // even though the socket is shutdown, the following read() may lead
+  // to errc::operator_would_block. Better wait.
+  client_sock.wait(net::socket_base::wait_read);
+
+  read_res = net::read(client_sock, net::dynamic_buffer(sink),
+                       net::transfer_at_least(source.size()));
+  ASSERT_THAT(read_res, ::testing::Not(::testing::Truly(res_has_value)));
+  EXPECT_EQ(read_res.error(), make_error_code(net::stream_errc::eof));
+
+  SCOPED_TRACE("// send to shutdown socket");
+  read_res = net::write(client_sock, net::buffer(sink),
+                        net::transfer_at_least(source.size()));
+  ASSERT_THAT(read_res, ::testing::Not(::testing::Truly(res_has_value)));
+  EXPECT_THAT(
+      read_res.error(),
+      ::testing::AnyOf(
+          make_error_code(net::stream_errc::eof),
+          make_error_condition(std::errc::broken_pipe),       // linux
+          make_error_condition(std::errc::connection_reset),  // wine
+          net::impl::socket::make_error_code(10058)  // windows: WSAESHUTDOWN
+          ));
 }
 
 TEST(NetTS_internet, tcp_ipv6_socket_bind_accept_connect) {

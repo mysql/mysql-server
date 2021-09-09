@@ -158,6 +158,8 @@ StreamHandler::StreamHandler(std::ostream &out, bool format_messages,
 void StreamHandler::do_log(const Record &record) {
   std::lock_guard<std::mutex> lock(stream_mutex_);
   stream_ << format(record) << std::endl;
+
+  has_logged(true);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -302,7 +304,11 @@ void FileHandler::do_log(const Record &record) {
   stream_ << format(record) << std::endl;
   // something is wrong with the logging file, let's at least log it on the
   // std error as a fallback
-  if (stream_.fail()) std::cerr << format(record) << std::endl;
+  if (stream_.fail()) {
+    std::cerr << format(record) << std::endl;
+  } else {
+    has_logged(true);
+  }
 }
 
 // satisfy ODR

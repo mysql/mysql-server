@@ -3155,15 +3155,16 @@ TEST_F(RouterLoggingTest, log_console_unused_filename_no_warning) {
   conf_params["logging_folder"] = tmp_dir.name();
 
   TempDirectory conf_dir("conf");
-  const std::string conf_text =
-      "[routing]\n\n[logger]\nfilename=" USER_LOGFILE_NAME
-      "\nsinks=consolelog\n[consolelog]\n";
-  const std::string conf_file =
-      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  auto writer = config_writer(conf_dir.name())
+                    .section("routing", {})
+                    .section("logger", {{"filename", USER_LOGFILE_NAME},
+                                        {"sinks", "consolelog"}})
+                    .section("consolelog", {});
 
   // empty routing section results in a failure, but while logging to
   // destination
-  auto &router = launch_router_for_fail({"-c", conf_file});
+  auto &router = launch_router_for_fail({"-c", writer.write()});
   check_exit_code(router, EXIT_FAILURE);
 
   // Expect the console log output to NOT contain warning or log file name
@@ -3207,16 +3208,16 @@ TEST_F(RouterLoggingTest, log_filename_dev_null_ugly) {
   Path dev_null("/dev/null");
   EXPECT_TRUE(dev_null.exists());
 
-  auto conf_params = get_DEFAULT_defaults();
-  conf_params["logging_folder"] = "/dev";
-
   TempDirectory conf_dir("conf");
-  const std::string conf_text = "[routing]\n\n[logger]\nfilename=null\n";
-  const std::string conf_file =
-      create_config_file(conf_dir.name(), conf_text, &conf_params);
+
+  auto writer = config_writer(conf_dir.name())
+                    .section("logger", {{"filename", "null"}})
+                    .section("routing", {});
+
+  writer.sections().at("DEFAULT")["logging_folder"] = "/dev";
 
   // empty routing section results in a failure, but while logging to file
-  auto &router = launch_router_for_fail({"-c", conf_file});
+  auto &router = launch_router_for_fail({"-c", writer.write()});
   check_exit_code(router, EXIT_FAILURE);
 
   // expect no default router file created in /dev
@@ -3226,6 +3227,56 @@ TEST_F(RouterLoggingTest, log_filename_dev_null_ugly) {
   EXPECT_TRUE(dev_null.exists());
 }
 #endif
+
+TEST_F(RouterLoggingTest, switch_from_main_logger_to_consolelog) {
+  TempDirectory conf_dir("conf");
+
+  auto writer = config_writer(conf_dir.name()).section("routing", {});
+
+  // set empty logging_folder for log-to-console
+  writer.sections().at("DEFAULT")["logging_folder"] = "";
+
+  auto &router = launch_router_for_fail({"-c", writer.write()});
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
+
+  EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::IsEmpty()));
+  EXPECT_FALSE(Path(router.get_logfile_path()).exists());
+}
+
+TEST_F(RouterLoggingTest, switch_without_consolelog) {
+  TempDirectory conf_dir("conf");
+
+  // default will write to filelog.
+  auto writer = config_writer(conf_dir.name()).section("routing", {});
+
+  // no runnable config-section -> failure.
+  auto &router = launch_router_for_fail({"-c", writer.write()});
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
+
+  // only filelog should have content.
+  EXPECT_THAT(router.get_full_output(), ::testing::IsEmpty());
+  EXPECT_TRUE(Path(router.get_logfile_path()).exists());
+  EXPECT_THAT(router.get_full_logfile(), ::testing::Not(::testing::IsEmpty()));
+}
+
+TEST_F(RouterLoggingTest, switch_with_consolelog) {
+  TempDirectory conf_dir("conf");
+
+  auto writer = config_writer(conf_dir.name())
+                    .section("routing", {})
+                    .section("logger", {{"sinks", "consolelog,filelog"}});
+
+  // empty routing section results in a failure, but while logging to
+  // destination
+  auto &router = launch_router_for_fail({"-c", writer.write()});
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
+
+  // both should have content.
+  EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::IsEmpty()));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::Not(::testing::HasSubstr("stopping to log")));
+  EXPECT_THAT(router.get_full_logfile(), ::testing::Not(::testing::IsEmpty()));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
