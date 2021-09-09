@@ -1183,8 +1183,6 @@ DROP TABLE t1;
 
 CREATE TABLE t1 ( a TIME );
 
---skip_if_hypergraph  # Adds a warning (on every row) instead of an error.
---error ER_CANT_AGGREGATE_NCOLLATIONS
 SELECT
   t1.a
 FROM

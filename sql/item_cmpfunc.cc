@@ -95,6 +95,8 @@ using std::min;
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
+static Item **cache_converted_constant(THD *thd, Item **value,
+                                       Item **cache_item, Item_result type);
 
 /**
   Compare row signature of two expressions
@@ -1110,6 +1112,11 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **, const Item *,
 /**
   Sets compare functions for various datatypes.
 
+  It additionally sets up Item_cache objects for caching any constant values
+  that need conversion to a type compatible with the comparator type, to avoid
+  the need for performing the conversion again each time the comparator is
+  invoked.
+
   NOTE
     The result type of a comparison is chosen by item_cmp_type().
     Here we override the chosen result type for certain expression
@@ -1448,9 +1455,8 @@ bool Arg_comparator::try_year_cmp_func(Item_result type) {
   @return cache item or original value.
 */
 
-Item **Arg_comparator::cache_converted_constant(THD *thd, Item **value,
-                                                Item **cache_item,
-                                                Item_result type) {
+static Item **cache_converted_constant(THD *thd, Item **value,
+                                       Item **cache_item, Item_result type) {
   // Don't need cache if doing context analysis only.
   if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       (*value)->const_for_execution() && type != (*value)->result_type()) {

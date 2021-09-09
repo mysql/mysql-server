@@ -219,8 +219,6 @@ class Arg_comparator {
 
   static bool can_compare_as_dates(const Item *a, const Item *b);
 
-  Item **cache_converted_constant(THD *thd, Item **value, Item **cache,
-                                  Item_result type);
   void set_datetime_cmp_func(Item_result_field *owner_arg, Item **a1,
                              Item **b1);
   static arg_cmp_func comparator_matrix[5];
@@ -641,6 +639,10 @@ class Item_bool_func2 : public Item_bool_func {
 
  public:
   bool resolve_type(THD *) override;
+  /// Sets up a comparator of the correct type based on the type of the
+  /// function's arguments. Also sets up caches to hold constant values
+  /// converted to the type expected by the comparator. See
+  /// Arg_comparator::set_cmp_func().
   bool set_cmp_func() {
     return cmp.set_cmp_func(this, args, args + 1, is_nullable());
   }

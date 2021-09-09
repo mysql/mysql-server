@@ -4745,21 +4745,7 @@ bool WalkAndReplace(
         return true;
       }
     }
-    switch (down_cast<Item_func *>(item)->functype()) {
-      case Item_func::GE_FUNC:
-      case Item_func::GT_FUNC:
-      case Item_func::LT_FUNC:
-      case Item_func::LE_FUNC:
-      case Item_func::EQ_FUNC:
-      case Item_func::NE_FUNC:
-      case Item_func::EQUAL_FUNC:
-        if (down_cast<Item_bool_func2 *>(item)->set_cmp_func()) {
-          return true;
-        }
-        break;
-      default:
-        break;
-    }
+
     if (item->m_is_window_function) {
       down_cast<Item_sum *>(item)->update_after_wf_arguments_changed(thd);
     }
@@ -4861,6 +4847,35 @@ void Query_block::remove_hidden_fields() {
 }
 
 /**
+  Refreshes the comparators after ROLLUP resolving.
+
+  This is needed because ROLLUP resolving happens after the comparators have
+  been set up. In ROLLUP resolving, it may turn out that something initially
+  believed to be constant, is not constant after all (e.g., group items that may
+  be NULL in some cases). So we call set_cmp_func() to make Arg_comparator
+  adjust/remove its caches accordingly.
+*/
+static bool refresh_comparators_after_rollup(Item *item) {
+  return WalkItem(item, enum_walk::POSTFIX, [](Item *inner_item) {
+    if (inner_item->type() != Item::FUNC_ITEM) {
+      return false;
+    }
+    switch (down_cast<Item_func *>(inner_item)->functype()) {
+      case Item_func::GE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::EQ_FUNC:
+      case Item_func::NE_FUNC:
+      case Item_func::EQUAL_FUNC:
+        return down_cast<Item_bool_func2 *>(inner_item)->set_cmp_func();
+      default:
+        return false;
+    }
+  });
+}
+
+/**
   Resolve an item (and its tree) for rollup processing by replacing items
   matching grouped expressions with Item_rollup_group_items and
   updating properties (m_nullable, PROP_ROLLUP_FIELD).
@@ -4890,6 +4905,9 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
       });
   if (error) return nullptr;
   if (changed) {
+    if (refresh_comparators_after_rollup(item)) {
+      return nullptr;
+    }
     item->update_used_tables();
     // Since item is now nullable, mark every expression (except rollup sum
     // functions) depending on it as also potentially nullable. (This is a

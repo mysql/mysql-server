@@ -2219,7 +2219,9 @@ FROM
 t1, t1 AS t2
 GROUP BY t1.a WITH ROLLUP
 HAVING COUNT(*) = 0 AND t1.a = '刔';
-ERROR HY000: Illegal mix of collations for operation '='
+a
+Warnings:
+Warning	1292	Incorrect time value: '刔' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#33036184: GROUP BY WITH ROLLUP AND CONCAT OVER GROUP BY KEY DOES NOT PRODUCE NULL
