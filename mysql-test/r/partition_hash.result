@@ -345,10 +345,10 @@ SET NAMES utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE T (a INT) PARTITION BY HASH('È') PARTITIONS 1;
-ERROR HY000: Invalid utf8 character string: 'C827'
+ERROR HY000: Invalid utf8mb3 character string: 'C827'
 CREATE TABLE T (a INT) ENGINE=InnoDB;
 ALTER TABLE T PARTITION BY HASH('È') PARTITIONS 1;
-ERROR HY000: Invalid utf8 character string: 'C827'
+ERROR HY000: Invalid utf8mb3 character string: 'C827'
 DROP TABLE T;
 SET NAMES default;
 DROP TABLE IF EXISTS t1;

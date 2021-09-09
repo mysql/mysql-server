@@ -14854,7 +14854,7 @@ IDENT_sys:
               {
                 ErrConvString err($1.str, $1.length, &my_charset_bin);
                 my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
-                         cs->csname, err.ptr());
+                         replace_utf8_utf8mb3(cs->csname), err.ptr());
                 MYSQL_YYABORT;
               }
               $$= $1;

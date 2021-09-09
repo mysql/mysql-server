@@ -290,9 +290,9 @@ t1p.ibd
 t1c.ibd
 t3.ibd
 ALTER TABLE t3 CHANGE c3 𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜 INT;
-ERROR HY000: Invalid utf8 character string: '\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x83'
+ERROR HY000: Invalid utf8mb3 character string: '\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x83'
 ALTER TABLE t3 CHANGE c3 😲 INT;
-ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x98\xB2'
+ERROR HY000: Invalid utf8mb3 character string: '\xF0\x9F\x98\xB2'
 ALTER TABLE t3 RENAME TO t2;
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.ibd

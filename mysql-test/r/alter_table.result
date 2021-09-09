@@ -2875,15 +2875,15 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
 #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
-ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8mb3' and 'CHARACTER SET latin1'
 # Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
 #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
-ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8mb3' and 'CHARACTER SET latin1'
 # Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
 #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
-ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8mb3' and 'CHARACTER SET latin1'
 # Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
@@ -2891,11 +2891,11 @@ ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
 # Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
-ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8mb3'
 # Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
 #          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
-ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8mb3'
 DROP TABLE t1;
 #
 # BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
