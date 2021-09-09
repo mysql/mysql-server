@@ -2737,7 +2737,7 @@ ER_RECORD_FILE_FULL
         cze "Tabulka '%-.192s' je plná"
         dan "Tabellen '%-.192s' er fuld"
         nla "De tabel '%-.192s' is vol"
-        eng "The table '%-.192s' is full"
+        eng "The table '%-.192s' is full and exceeded the size configured in innodb_temp_data_file_path"
         est "Tabel '%-.192s' on täis"
         fre "La table '%-.192s' est pleine"
         ger "Tabelle '%-.192s' ist voll"
@@ -2751,7 +2751,7 @@ ER_RECORD_FILE_FULL
         rus "Таблица '%-.192s' переполнена"
         serbian "Tabela '%-.192s' je popunjena do kraja"
         slo "Tabuľka '%-.192s' je plná"
-        spa "La tabla '%-.192s' está llena"
+        spa "La tabla '%-.192s' está llena y ha excedida el tamaño configurado en innodb_temp_data_file_path"
         swe "Tabellen '%-.192s' är full"
         ukr "Таблиця '%-.192s' заповнена"
 ER_UNKNOWN_CHARACTER_SET 42000

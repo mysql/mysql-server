@@ -9453,7 +9453,7 @@ ER_SERVER_OUT_OF_SORTMEMORY
   eng "Out of sort memory, consider increasing server sort buffer size!"
 
 ER_SERVER_RECORD_FILE_FULL
-  eng "The table '%-.192s' is full!"
+  eng "The table '%-.192s' is full and has exceeded the size configured in innodb_temp_data_file_path."
 
 ER_SERVER_DISK_FULL_NOWAIT
   eng "Create table/tablespace '%-.192s' failed, as disk is full."
