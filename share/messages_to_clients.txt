@@ -2740,7 +2740,7 @@ ER_RECORD_FILE_FULL
         eng "The table '%-.192s' is full and exceeded the size configured in innodb_temp_data_file_path"
         est "Tabel '%-.192s' on täis"
         fre "La table '%-.192s' est pleine"
-        ger "Tabelle ‘%-.192s’ ist voll und größer als das Limit in innodb_tmp_data_file_path"
+        ger "Tabelle '%-.192s' ist voll und größer als das Limit in innodb_tmp_data_file_path"
         greek "Ο πίνακας '%-.192s' είναι γεμάτος"
         hun "A '%-.192s' tabla megtelt"
         ita "La tabella '%-.192s' e` piena"
