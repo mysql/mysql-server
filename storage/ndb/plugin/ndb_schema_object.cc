@@ -134,8 +134,7 @@ NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
   assert(state.m_use_count == 0);
   // Check that all participants have completed
   assert(state.m_participants.size() == count_completed_participants());
-  // Check that the Co-ordinator completed all its operaion, when the schema
-  // operation is received by the Co-ordinator.
+  // Check that the coordinator completed if it has received schema operation
   assert(state.m_coordinator_completed ||
          !state.m_coordinator_received_schema_op);
 }

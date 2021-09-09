@@ -1118,9 +1118,8 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     ndb_log_error_dump("}");
   }
 
-  int count = 0;
-
   // Wait for participants to complete the schema change
+  int count = 0;
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
     if (completed) {
@@ -1129,16 +1128,14 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
       break;
     }
 
+    // Client normally relies on the coordinator to time out the schema
+    // operation when it has receieved the schema operation. Until then
+    // the client will check for timeout itself.
     count++;
-    if (count > opt_ndb_schema_dist_timeout &&
-        !ndb_schema_object->has_coordinator_received_schema_op()) {
-      // Client rely on the coordinator to time-out the schema operation.
-      // But when the client doesn't hear back from coordinator after
-      // ndb_schema_dist_timeout second(s), it implies that some thing is
-      // wrong and So, check if the coordinator has received the schema op.
+    if (ndb_schema_object->has_coordinator_received_schema_op() == false &&
+        count > opt_ndb_schema_dist_timeout) {
       ndb_log_verbose(19,
-                      "Schema events for '%s' - not received by "
-                      "the co-ordinator",
+                      "Schema events for '%s' - not received by coordinator",
                       op_name.c_str());
       ndb_log_warning("Schema dist client detected timeout");
       return false;
@@ -1170,7 +1167,7 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     if (thd_killed(m_thd)) {
       ndb_log_verbose(
           19,
-          "Distribution of '%s' - client killed but waiting for co-ordinator "
+          "Distribution of '%s' - client killed but waiting for coordinator "
           "to complete!",
           op_name.c_str());
     }
