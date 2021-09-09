@@ -974,7 +974,7 @@ static int warp_rewrite_query_notify(
       static_cast<const struct mysql_event_parse *>(event);
   std::string rewrite_error = "";
   //std::cerr << "INPUT QUERY: " << std::string(event_parse->query.str, event_parse->query.length) << "\n";
-  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), true);
+  std::vector<std::string> tokens = custom_lex(std::string(event_parse->query.str, event_parse->query.length), false);
  
   if(tokens.size() == 0) {
 	 return 0;
@@ -997,70 +997,91 @@ static int warp_rewrite_query_notify(
       return 0;
     }
 
-    // HANDLE CREATE TABLE STATEMENTS WITH REMOTE QUERIES
-    if(strstr(event_parse->query.str, "^@") != NULL || 
-      (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
-      (strtolower(tokens[0])=="insert"))  
-    { 
-      if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
-          std::string ddl = extract_ddl(&tokens);
-          std::string tmp = strip_remote_server(tokens);
-          sqlstr = ddl + " " + execute_remote_query(tokens, strtolower(tokens[0])=="insert" ? true : false);
-          is_create_table = true;
-      }
-    } else {
-      // handle create [incremental] materialized view
-      if(tokens[0] == "create") {
-        if(tokens[1] == "incremental") {
-          is_incremental = true;
-          if(tokens[2] != "materialized" && tokens[3] != "view") {
-            return -1;
-          }
-          mvname = tokens[4];
-        } else {
-          
-          if(tokens[1] == "materialized" && tokens[2] == "view") {
-            mvname = tokens[3];
-          } else {
-            //not a create [incremental] materialised view statement
-            return 0;
-          }
-        }
-      }
-    }
-    
-    if(mvname != "") {  
-      std::string prefix = "/*~cmv:";
-      if(is_incremental) {
-        prefix += "i";
-      } else {
-        prefix += "f";
-      } 
-      prefix += "|" + mvname ;
-      if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
-        prefix += "^" + get_remote_server(tokens);
-        prefix += "*/";
-        sqlstr = prefix + strip_remote_server(tokens);
-      } else {
-        for(int i=0;i<tokens.size();++i) {
-          if(tokens[i] == mvname) {
-            capture_sql = true;
-            if(i+1 < tokens.size()) {
-              if(strtolower(tokens[i+1]) == "as" || strtolower(tokens[i+1]) == "select") {
-                ++i;
-              }
-            }
-            continue;
-          }
-          if(capture_sql) sqlstr += tokens[i] + " ";
-        }
-        sqlstr = prefix + "*/" + sqlstr;
+    if(strtolower(tokens[0]) == "create" && 
+       strtolower(tokens[1]) == "materialized" && 
+       strtolower(tokens[2]) == "view" && 
+       strtolower(tokens[3]) == "log" && 
+       strtolower(tokens[4]) == "on") 
+    {
+      std::string mvlog_db = "database()";
+      std::string mvlog_table = "";
+      const char* dot_pos = NULL;
+      if( (dot_pos = strstr(tokens[5].c_str(),".")) != NULL ) {
+        mvlog_db = "'" + tokens[5].substr(0, dot_pos - tokens[5].c_str() ) + "'";
+        mvlog_table.assign(dot_pos+1);
+        mvlog_table = "'" + mvlog_table + "'";
+      } else{
+        mvlog_table = "'" + tokens[5] + "'";
       }
       
-    } else if(!is_create_table) {
-      sqlstr = execute_remote_query(tokens);
-    }  
+      sqlstr = "CALL leapdb.create_mvlog(" + mvlog_db + ", " + escape_for_call(mvlog_table) + ");";
+      
+    } else {
+      // HANDLE CREATE TABLE STATEMENTS WITH REMOTE QUERIES
+      if(strstr(event_parse->query.str, "^@") != NULL || 
+        (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
+        (strtolower(tokens[0])=="insert"))  
+      { 
+        if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
+            std::string ddl = extract_ddl(&tokens);
+            std::string tmp = strip_remote_server(tokens);
+            sqlstr = ddl + " " + execute_remote_query(tokens, strtolower(tokens[0])=="insert" ? true : false);
+            is_create_table = true;
+        }
+      } else {
+        // handle create [incremental] materialized view
+        if(strtolower(tokens[0]) == "create") {
+          if(strtolower(tokens[1]) == "incremental") {
+            is_incremental = true;
+            if(strtolower(tokens[2]) != "materialized" && strtolower(tokens[3]) != "view") {
+              return -1;
+            }
+            mvname = tokens[4];
+          } else {
+            
+            if(strtolower(tokens[1]) == "materialized" && strtolower(tokens[2]) == "view") {
+              mvname = tokens[3];
+            } else {
+              //not a create [incremental] materialised view statement
+              return 0;
+            }
+          }
+        }
+      }
+    
+      if(mvname != "") {  
+        std::string prefix = "/*~cmv:";
+        if(is_incremental) {
+          prefix += "i";
+        } else {
+          prefix += "f";
+        } 
+        prefix += "|" + mvname ;
+        if(is_remote_query(tokens) && is_valid_remote_query(tokens)) {
+          prefix += "^" + get_remote_server(tokens);
+          prefix += "*/";
+          sqlstr = prefix + strip_remote_server(tokens);
+        } else {
+          for(int i=0;i<tokens.size();++i) {
+            if(tokens[i] == mvname) {
+              capture_sql = true;
+              if(i+1 < tokens.size()) {
+                if(strtolower(tokens[i+1]) == "as" || strtolower(tokens[i+1]) == "select") {
+                  ++i;
+                }
+              }
+              continue;
+            }
+            if(capture_sql) sqlstr += tokens[i] + " ";
+          }
+          sqlstr = prefix + "*/" + sqlstr;
+        }
+        
+      } else if(!is_create_table) {
+        sqlstr = execute_remote_query(tokens);
+      }  
 
+    }
     //process_sql:
     if(sqlstr != "") {
       char *rewritten_query = static_cast<char *>(
