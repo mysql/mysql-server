@@ -3741,7 +3741,7 @@ Inserting records
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	99.37	Using intersect(cola,colb); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 
@@ -3920,7 +3920,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         "clustered_pk_added_to_intersect": false,
                         "cause": "no_clustered_pk_index"
                       } /* clustered_pk */,
-                      "rows": 29,
+                      "rows": 29.1838,
                       "cost": 17.0072,
                       "covering": false,
                       "chosen": true
@@ -3929,7 +3929,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_roworder_intersect",
-                      "rows": 29,
+                      "rows": 29.1838,
                       "cost": 17.0072,
                       "covering": false,
                       "clustered_pk_scan": false,
@@ -3952,7 +3952,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         }
                       ] /* intersect_of */
                     } /* range_access_plan */,
-                    "rows_for_plan": 29,
+                    "rows_for_plan": 29.1838,
                     "cost_for_plan": 17.0072,
                     "chosen": true
                   } /* chosen_range_access_summary */
