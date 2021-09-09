@@ -31,3 +31,7 @@ include/assert_grep.inc [Mgmd gives error when -f is not specifed]
 #
 # verify that mgmd throws error when --configdir=. is specified
 include/assert_grep.inc [Mgmd gives error when relative path is specified for configdir]
+#
+# check if NDB_MGMD hangs when the hostname is not proper
+#
+include/assert_grep.inc [Mgmd gives error when can not resolve address in connectstring]
