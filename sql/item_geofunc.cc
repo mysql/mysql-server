@@ -5867,14 +5867,6 @@ String *Item_func_st_intersection::val_str(String *str) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
     return error_str();
   }
-  // Currently not supporting geographic SRS
-  if (srs1 && srs1->is_geographic()) {
-    std::string parameters(gis::type_to_name(g1->type()));
-    parameters.append(", ").append(gis::type_to_name(g2->type()));
-    my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
-             parameters.c_str());
-    return error_str();
-  }
   std::unique_ptr<gis::Geometry> result_g;
   if (gis::intersection(srs1, g1.get(), g2.get(), func_name(), &result_g)) {
     assert(current_thd->is_error());
