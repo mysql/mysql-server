@@ -3353,7 +3353,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       lsn_limit = LSN_MAX;
     }
 
-    if (mtr_t::s_logging.is_enabled() && ret_sleep == OS_SYNC_TIME_EXCEEDED) {
+    if (!srv_read_only_mode && mtr_t::s_logging.is_enabled() &&
+        ret_sleep == OS_SYNC_TIME_EXCEEDED) {
       /* For smooth page flushing along with WAL,
       flushes log as much as possible. */
       log_sys->recent_written.advance_tail();
