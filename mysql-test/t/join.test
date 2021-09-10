@@ -1976,3 +1976,22 @@ FROM t1
 WHERE t2.b = t3.b;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33330728: HYPERGRAPH: ASSERTION `RIGHT_PATH->TYPE == ACCESSPATH::ZERO_ROWS' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT
+  1
+  FROM
+    t1
+    JOIN t1 AS t2
+    LEFT JOIN (
+      t1 AS t3
+      JOIN ( SELECT * FROM t1 WHERE FALSE ) AS empty_subq
+    ) ON empty_subq.a = t3.a
+  WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
+
+DROP TABLE t1;

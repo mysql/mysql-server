@@ -1567,12 +1567,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
         edge->expr->type != RelationalExpression::FULL_OUTER_JOIN) {
       // If the join condition can never be true, we also don't need to read the
       // right side. For inner joins and semijoins, we can actually just skip
-      // reading the left side as well, but if so, the join condition would be
-      // pulled up into a WHERE condition (or into the join condition of the
-      // next higher non-inner join), so we'll never see that in practice,
-      // and thus, don't care particularly about the case. We also don't need to
-      // care much about the ordering, since we don't propagate the right-hand
-      // ordering properties through joins.
+      // reading the left side as well, but if so, the join condition would
+      // normally be pulled up into a WHERE condition (or into the join
+      // condition of the next higher non-inner join), so we'll never see that
+      // in practice, and thus, don't care particularly about the case. We also
+      // don't need to care much about the ordering, since we don't propagate
+      // the right-hand ordering properties through joins.
       AccessPath *zero_path = NewZeroRowsAccessPath(
           m_thd, right_path, "Join condition rejects all rows");
       MutableOverflowBitset applied_sargable_join_predicates =
@@ -2053,7 +2053,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
     // We've already taken out all rows from the right-hand side
     // (by means of a ZeroRowsIterator), so no need to add filters;
     // they'd only clutter the EXPLAIN.
-    assert(right_path->type == AccessPath::ZERO_ROWS);
+    //
+    // Note that for obscure cases (inner joins where the join condition
+    // was not pulled up due to a pass ordering issue), we might see
+    // the left and right path be switched around due to commutativity.
+    assert(left_path->type == AccessPath::ZERO_ROWS ||
+           right_path->type == AccessPath::ZERO_ROWS);
   } else if (!edge->expr->equijoin_conditions.empty() ||
              !edge->expr->join_conditions.empty()) {
     // Apply join filters. Don't update num_output_rows, as the join's

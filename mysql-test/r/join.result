@@ -2669,3 +2669,19 @@ JOIN t3 ON t1.b = t3.c AND t2.b = t3.a
 WHERE t2.b = t3.b;
 b	a	b
 DROP TABLE t1, t2, t3;
+#
+# Bug #33330728: HYPERGRAPH: ASSERTION `RIGHT_PATH->TYPE == ACCESSPATH::ZERO_ROWS' FAILED
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT
+1
+FROM
+t1
+JOIN t1 AS t2
+LEFT JOIN (
+t1 AS t3
+JOIN ( SELECT * FROM t1 WHERE FALSE ) AS empty_subq
+) ON empty_subq.a = t3.a
+WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
+1
+DROP TABLE t1;
