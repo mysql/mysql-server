@@ -1192,7 +1192,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       store_record(table, record[1]);  // copy original row
     }
 
-    timeval tm;
+    my_timeval tm;
     tm = thd->query_start_timeval_trunc(0);
     table->field[5]->store_timestamp(&tm);
 
@@ -1457,7 +1457,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 
   table->field[4]->store(grantor, strlen(grantor), system_charset_info);
 
-  timeval tm;
+  my_timeval tm;
   tm = thd->query_start_timeval_trunc(0);
   table->field[5]->store_timestamp(&tm);
 
@@ -1622,7 +1622,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   table->field[5]->store(grantor, strlen(grantor), &my_charset_latin1);
   table->field[6]->store((longlong)store_proc_rights, true);
 
-  timeval tm;
+  my_timeval tm;
   tm = thd->query_start_timeval_trunc(0);
   table->field[7]->store_timestamp(&tm);
 
