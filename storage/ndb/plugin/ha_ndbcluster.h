@@ -126,32 +126,6 @@ struct NDB_INDEX_DATA {
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
-struct st_ndb_status {
-  st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }
-  long cluster_node_id;
-  const char *connected_host;
-  long connected_port;
-  long config_generation;
-  long number_of_data_nodes;
-  long number_of_ready_data_nodes;
-  long connect_count;
-  long execute_count;
-  long trans_hint_count;
-  long scan_count;
-  long pruned_scan_count;
-  long schema_locks_count;
-  long sorted_scan_count;
-  long pushed_queries_defined;
-  long pushed_queries_dropped;
-  long pushed_queries_executed;
-  long pushed_reads;
-  long long last_commit_epoch_server;
-  long long last_commit_epoch_session;
-  long long api_client_stats[Ndb::NumClientStatistics];
-  const char *system_name;
-  long fetch_table_stats;
-};
-
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
 class ha_ndbcluster : public handler, public Partition_handler {
