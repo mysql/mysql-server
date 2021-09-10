@@ -760,6 +760,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     *error = SSL_INITERR_ECDHFAIL;
     goto error;
   }
+  EC_KEY_free(eckey);
 #else
   if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) == 0) {
     *error = SSL_INITERR_ECDHFAIL;
