@@ -384,7 +384,7 @@ static void switch_to_loggers_in_config(
         log_info("stopping to log to the console. Continuing to log to %s",
                  mysql_harness::join(handler_names, ", ").c_str());
       }
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
       // not found.
     }
   }
