@@ -59,14 +59,15 @@
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"  // Prealloced_array
-#include "sql/composite_iterators.h"
+#include "prealloced_array.h"                // Prealloced_array
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
@@ -74,7 +75,6 @@
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES

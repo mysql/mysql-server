@@ -53,17 +53,20 @@
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant, check_access
-#include "sql/basic_row_iterators.h"
-#include "sql/binlog.h"  // mysql_bin_log
-#include "sql/composite_iterators.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
-#include "sql/field.h"       // Field
-#include "sql/filesort.h"    // Filesort
+#include "sql/binlog.h"            // mysql_bin_log
+#include "sql/debug_sync.h"        // DEBUG_SYNC
+#include "sql/derror.h"            // ER_THD
+#include "sql/field.h"             // Field
+#include "sql/filesort.h"          // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"            // Item
 #include "sql/item_json_func.h"  // Item_json_func
 #include "sql/item_subselect.h"  // Item_subselect
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/sorting_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
@@ -82,10 +85,7 @@
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
 #include "sql/select_lex_visitor.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // check_record, fill_record
 #include "sql/sql_bitmap.h"
@@ -93,6 +93,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -107,7 +108,6 @@
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_chain.h"
 #include "sql/trigger_def.h"

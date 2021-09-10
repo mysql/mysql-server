@@ -55,8 +55,6 @@
 #include "prealloced_array.h"  // Prealloced_array
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
@@ -64,6 +62,10 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
@@ -77,7 +79,6 @@
 #include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -91,7 +92,6 @@
 #include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
 #include "sql/window.h"  // Window
 #include "template_utils.h"
 

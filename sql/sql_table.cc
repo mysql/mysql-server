@@ -125,6 +125,7 @@
 #include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"       // KEY
@@ -143,8 +144,6 @@
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_rli.h"  // rli_slave etc
 #include "sql/session_tracker.h"
@@ -158,6 +157,7 @@
 #include "sql/sql_constraint.h"  // Constraint_type_resolver
 #include "sql/sql_db.h"          // get_default_db_collation
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_handler.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"

@@ -20,23 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/composite_iterators.h"
+#include "sql/iterators/composite_iterators.h"
 
 #include <limits.h>
 #include <string.h>
 #include <atomic>
-#include <mutex>
+#include <list>
 #include <string>
 #include <vector>
 
 #include "field_types.h"
 #include "mem_root_deque.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
-#include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"
 #include "sql/error_handler.h"
 #include "sql/field.h"
@@ -44,6 +44,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
+#include "sql/iterators/basic_row_iterators.h"
 #include "sql/key.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"

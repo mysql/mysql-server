@@ -73,14 +73,14 @@
 #include "sql/auth/auth_common.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/psi_memory_key.h"  // key_memory_servers
-#include "sql/records.h"         // init_read_record
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/psi_memory_key.h"   // key_memory_servers
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // close_mysql_tables
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"            // init_read_record
 #include "sql/sql_system_table_check.h"  // System_table_intact
 #include "sql/system_variables.h"
 #include "sql/table.h"

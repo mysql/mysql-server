@@ -40,10 +40,11 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/window_iterators.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"            // stage_executing
 #include "sql/parse_tree_nodes.h"  // PT_frame
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -53,7 +54,6 @@
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/window.h"
-#include "sql/window_iterators.h"
 #include "sql/window_lex.h"
 
 using std::min;

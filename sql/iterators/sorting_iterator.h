@@ -1,5 +1,5 @@
-#ifndef SQL_SORTING_ITERATOR_H_
-#define SQL_SORTING_ITERATOR_H_
+#ifndef SQL_ITERATORS_SORTING_ITERATOR_H_
+#define SQL_ITERATORS_SORTING_ITERATOR_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -30,8 +30,8 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_table_map.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_sort.h"
 
 class Filesort;
@@ -148,4 +148,4 @@ class SortingIterator final : public RowIterator {
   } m_result_iterator_holder;
 };
 
-#endif  // SQL_SORTING_ITERATOR_H_
+#endif  // SQL_ITERATORS_SORTING_ITERATOR_H_

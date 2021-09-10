@@ -56,11 +56,11 @@ Query_block), by calling explain_query_expression() for each of them.
 #include "my_base.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
-#include "sql/row_iterator.h"
-#include "sql/sql_cmd.h"  // Sql_cmd
+#include "sql/sql_cmd.h"       // Sql_cmd
 #include "sql/sql_opt_exec_shared.h"
 #include "sys/types.h"
 

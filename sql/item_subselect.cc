@@ -52,17 +52,20 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
-#include "sql/basic_row_iterators.h"  // ZeroRowsIterator
 #include "sql/check_stack.h"
-#include "sql/composite_iterators.h"  // FilterIterator
-#include "sql/current_thd.h"          // current_thd
-#include "sql/debug_sync.h"           // DEBUG_SYNC
-#include "sql/derror.h"               // ER_THD
+#include "sql/current_thd.h"  // current_thd
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/derror.h"       // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
-#include "sql/item_sum.h"  // Item_sum_max
+#include "sql/item_sum.h"                       // Item_sum_max
+#include "sql/iterators/basic_row_iterators.h"  // ZeroRowsIterator
+#include "sql/iterators/composite_iterators.h"  // FilterIterator
+#include "sql/iterators/ref_row_iterators.h"
+#include "sql/iterators/row_iterator.h"  // RowIterator
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
@@ -74,9 +77,7 @@
 #include "sql/parse_tree_nodes.h"  // PT_subquery
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/ref_row_iterators.h"
-#include "sql/row_iterator.h"  // RowIterator
-#include "sql/sql_class.h"     // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
@@ -92,7 +93,6 @@
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"

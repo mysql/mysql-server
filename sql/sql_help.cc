@@ -39,15 +39,16 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/composite_iterators.h"
 #include "sql/debug_sync.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/protocol.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // REPORT_ALL_ERRORS
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -55,7 +56,6 @@
 #include "sql/sql_list.h"
 #include "sql/sql_table.h"  // primary_key_name
 #include "sql/table.h"
-#include "sql/timing_iterator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"

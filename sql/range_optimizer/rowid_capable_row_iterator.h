@@ -24,7 +24,7 @@
 #define SQL_RANGE_OPTIMIZER_ROWID_CAPABLE_ROW_ITERATOR_H_
 
 #include "my_inttypes.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 
 /**
   An interface for RowIterators that have a given row ID, ie.,

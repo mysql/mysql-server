@@ -82,6 +82,8 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/sorting_iterator.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"
@@ -93,9 +95,7 @@
 #include "sql/opt_trace_context.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/psi_memory_key.h"
-#include "sql/row_iterator.h"
 #include "sql/sort_param.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"

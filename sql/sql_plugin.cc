@@ -81,16 +81,15 @@
 #include "sql/derror.h"                   // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"  // ha_initalize_handlerton
-#include "sql/key.h"      // key_copy
-#include "sql/lock.h"     // acquire_shared_global...
+#include "sql/iterators/row_iterator.h"
+#include "sql/key.h"   // key_copy
+#include "sql/lock.h"  // acquire_shared_global...
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // files_charset_info
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"        // mysql_audit_acquire_plugins
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
@@ -98,6 +97,7 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"  // check_string_char_length

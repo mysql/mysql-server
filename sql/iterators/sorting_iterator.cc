@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/sorting_iterator.h"
+#include "sql/iterators/sorting_iterator.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -40,11 +40,11 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
-#include "sql/basic_row_iterators.h"
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/iterators/basic_row_iterators.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"

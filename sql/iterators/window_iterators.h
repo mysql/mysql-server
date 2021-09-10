@@ -1,5 +1,5 @@
-#ifndef SQL_WINDOW_ITERATORS_INCLUDED
-#define SQL_WINDOW_ITERATORS_INCLUDED
+#ifndef SQL_ITERATORS_WINDOW_ITERATORS_H_
+#define SQL_ITERATORS_WINDOW_ITERATORS_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -24,7 +24,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_alloc.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 
 class JOIN;
 class THD;
@@ -258,4 +258,4 @@ class BufferingWindowIterator final : public RowIterator {
   bool m_eof;
 };
 
-#endif  // SQL_WINDOW_ITERATORS_INCLUDED
+#endif  // SQL_ITERATORS_WINDOW_ITERATORS_H_

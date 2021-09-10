@@ -59,7 +59,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/abstract_query_plan.h"  // Join_plan
-#include "sql/basic_row_iterators.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -73,6 +72,8 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
@@ -105,7 +106,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
-#include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"

@@ -27,32 +27,35 @@
   in some way). See row_iterator.h.
 */
 
-#include "sql/records.h"
-
-#include <string.h>
-#include <algorithm>
+#include <assert.h>
 #include <atomic>
-#include <new>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
-#include "sql/item.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
-#include "sql/join_optimizer/bit_utils.h"
-#include "sql/key.h"
-#include "sql/opt_explain.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
-#include "sql/sql_const.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/timing_iterator.h"
+
+struct POSITION;
 
 using std::string;
 using std::vector;
@@ -135,83 +138,6 @@ int IndexScanIterator<true>::Read() {  // Backward read.
 
 template class IndexScanIterator<true>;
 template class IndexScanIterator<false>;
-
-/**
-  create_table_access_path is used to scan by using a number of different
-  methods. Which method to use is set-up in this call so that you can
-  create an iterator from the returned access path and fetch rows through
-  said iterator afterwards.
-
-  @param thd      Thread handle
-  @param table    Table the data [originally] comes from
-  @param range_scan AccessPath to scan the table with, or nullptr
-  @param table_ref
-                  Position for the table, must be non-nullptr for
-                  WITH RECURSIVE
-  @param position Place to get cost information from, or nullptr
-  @param count_examined_rows
-    See AccessPath::count_examined_rows.
- */
-AccessPath *create_table_access_path(THD *thd, TABLE *table,
-                                     AccessPath *range_scan,
-                                     TABLE_LIST *table_ref, POSITION *position,
-                                     bool count_examined_rows) {
-  AccessPath *path;
-  if (range_scan != nullptr) {
-    range_scan->count_examined_rows = count_examined_rows;
-    path = range_scan;
-  } else if (table_ref != nullptr && table_ref->is_recursive_reference()) {
-    path = NewFollowTailAccessPath(thd, table, count_examined_rows);
-  } else {
-    path = NewTableScanAccessPath(thd, table, count_examined_rows);
-  }
-  if (position != nullptr) {
-    SetCostOnTableAccessPath(*thd->cost_model(), position,
-                             /*is_after_filter=*/false, path);
-  }
-  return path;
-}
-
-unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
-    POSITION *position, bool ignore_not_found_rows, bool count_examined_rows) {
-  unique_ptr_destroy_only<RowIterator> iterator;
-
-  empty_record(table);
-
-  if (table->unique_result.io_cache &&
-      my_b_inited(table->unique_result.io_cache)) {
-    DBUG_PRINT("info", ("using SortFileIndirectIterator"));
-    iterator = NewIterator<SortFileIndirectIterator>(
-        thd, thd->mem_root, Mem_root_array<TABLE *>{table},
-        table->unique_result.io_cache, ignore_not_found_rows,
-        /*has_null_flags=*/false,
-        /*examined_rows=*/nullptr);
-    table->unique_result.io_cache =
-        nullptr;  // Now owned by SortFileIndirectIterator.
-  } else if (table->unique_result.has_result_in_memory()) {
-    /*
-      The Unique class never puts its results into table->sort's
-      Filesort_buffer.
-    */
-    assert(!table->unique_result.sorted_result_in_fsbuf);
-    DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
-    iterator = NewIterator<SortBufferIndirectIterator>(
-        thd, thd->mem_root, Mem_root_array<TABLE *>{table},
-        &table->unique_result, ignore_not_found_rows, /*has_null_flags=*/false,
-        /*examined_rows=*/nullptr);
-  } else {
-    AccessPath *path = create_table_access_path(
-        thd, table, range_scan, table_ref, position, count_examined_rows);
-    iterator = CreateIteratorFromAccessPath(thd, path,
-                                            /*join=*/nullptr,
-                                            /*eligible_for_batch_mode=*/false);
-  }
-  if (iterator->Init()) {
-    return nullptr;
-  }
-  return iterator;
-}
 
 /**
   The default implementation of unlock-row method of RowIterator,

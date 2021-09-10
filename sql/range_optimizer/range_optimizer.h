@@ -36,9 +36,9 @@
 #include "sql/field.h"         // Field
 #include "sql/handler.h"
 #include "sql/item_func.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"  // IWYU pragma: keep
-#include "sql/row_iterator.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"

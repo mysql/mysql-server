@@ -22,23 +22,23 @@
 
 #include "sql/join_optimizer/access_path.h"
 
-#include "sql/basic_row_iterators.h"
-#include "sql/bka_iterator.h"
-#include "sql/composite_iterators.h"
 #include "sql/filesort.h"
-#include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/bka_iterator.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/hash_join_iterator.h"
+#include "sql/iterators/ref_row_iterators.h"
+#include "sql/iterators/sorting_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
 #include "sql/range_optimizer/index_skip_scan_plan.h"
 #include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/ref_row_iterators.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
-#include "sql/timing_iterator.h"
 
 #include <functional>
 #include <string>

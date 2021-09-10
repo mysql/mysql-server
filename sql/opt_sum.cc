@@ -98,7 +98,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
     @retval Product of number of rows in all tables. ULLONG_MAX for error.
 */
-ulonglong get_exact_record_count(TABLE_LIST *tables) {
+static ulonglong get_exact_record_count(TABLE_LIST *tables) {
   ulonglong count = 1;
   for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
     ha_rows tmp = 0;

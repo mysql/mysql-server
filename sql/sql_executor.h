@@ -29,7 +29,6 @@
 */
 
 #include <sys/types.h>
-
 #include <cstring>
 #include <memory>
 #include <string>
@@ -38,7 +37,7 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
 #include "sql/table.h"
@@ -58,8 +57,12 @@ class KEY;
 class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;
+class RowIterator;
 class THD;
 class Window;
+template <class T>
+class mem_root_deque;
+
 enum class Window_retrieve_cached_row_reason;
 struct AccessPath;
 struct CACHE_FIELD;
@@ -251,6 +254,7 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
+int read_const(TABLE *table, TABLE_REF *ref);
 
 class QEP_TAB : public QEP_shared_owner {
  public:
@@ -536,5 +540,32 @@ bool MaterializeIsDoingDeduplication(TABLE *table);
  */
 void ExtractConditions(Item *condition,
                        Mem_root_array<Item *> *condition_parts);
+
+AccessPath *create_table_access_path(THD *thd, TABLE *table,
+                                     AccessPath *range_scan,
+                                     TABLE_LIST *table_ref, POSITION *position,
+                                     bool count_examined_rows);
+
+/**
+  Creates an iterator for the given table, then calls Init() on the resulting
+  iterator. Unlike create_table_iterator(), this can create iterators for sort
+  buffer results (which are set in the TABLE object during query execution).
+  Returns nullptr on failure.
+ */
+unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, AccessPath *range_scan, TABLE_LIST *table_ref,
+    POSITION *position, bool ignore_not_found_rows, bool count_examined_rows);
+
+/**
+  A short form for when there's no range scan, recursive CTEs or cost
+  information; just a unique_result or a simple table scan. Normally, you should
+  prefer just instantiating an iterator yourself -- this is for legacy use only.
+ */
+inline unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, bool ignore_not_found_rows,
+    bool count_examined_rows) {
+  return init_table_iterator(thd, table, nullptr, nullptr, nullptr,
+                             ignore_not_found_rows, count_examined_rows);
+}
 
 #endif /* SQL_EXECUTOR_INCLUDED */

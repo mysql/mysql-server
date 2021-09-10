@@ -75,6 +75,8 @@
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/sorting_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/join_optimizer.h"
@@ -96,9 +98,7 @@
 #include "sql/query_result.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/row_iterator.h"
 #include "sql/set_var.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"

@@ -365,12 +365,10 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
-  bka_iterator.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc
   clone_handler.cc
-  composite_iterators.cc
   create_field.cc
   current_thd.cc
   dd_sql_view.cc
@@ -387,9 +385,6 @@ SET(SQL_SHARED_SOURCES
   aggregate_check.cc
   gstream.cc
   handler.cc
-  hash_join_buffer.cc
-  hash_join_chunk.cc
-  hash_join_iterator.cc
   histograms/equi_height.cc
   histograms/equi_height_bucket.cc
   histograms/histogram.cc
@@ -414,6 +409,15 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc
   item_xmlfunc.cc
   item_inetfunc.cc
+  iterators/basic_row_iterators.cc
+  iterators/bka_iterator.cc
+  iterators/composite_iterators.cc
+  iterators/hash_join_buffer.cc
+  iterators/hash_join_chunk.cc
+  iterators/hash_join_iterator.cc
+  iterators/ref_row_iterators.cc
+  iterators/sorting_iterator.cc
+  iterators/window_iterators.cc
   join_optimizer/access_path.cc
   join_optimizer/build_interesting_orders.cc
   join_optimizer/common_subexpression_elimination.cc
@@ -494,7 +498,6 @@ SET(SQL_SHARED_SOURCES
   range_optimizer/rowid_ordered_retrieval.cc
   range_optimizer/rowid_ordered_retrieval_plan.cc
   range_optimizer/tree.cc
-  records.cc
   regexp/errors.cc
   regexp/regexp_engine.cc
   regexp/regexp_facade.cc
@@ -512,7 +515,6 @@ SET(SQL_SHARED_SOURCES
   sdi_utils.cc
   session_tracker.cc
   set_var.cc
-  sorting_iterator.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -620,7 +622,6 @@ SET(SQL_SHARED_SOURCES
   trigger_chain.cc
   tztime.cc
   uniques.cc
-  window_iterators.cc
   xa.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
   )
@@ -806,7 +807,7 @@ MY_ADD_COMPILE_DEFINITIONS(
 
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
-  hash_join_iterator.cc
+  iterators/hash_join_iterator.cc
   rpl_write_set_handler.cc
   COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
   )

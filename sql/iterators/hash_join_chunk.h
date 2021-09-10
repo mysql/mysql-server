@@ -1,5 +1,5 @@
-#ifndef SQL_HASH_JOIN_CHUNK_H_
-#define SQL_HASH_JOIN_CHUNK_H_
+#ifndef SQL_ITERATORS_HASH_JOIN_CHUNK_H_
+#define SQL_ITERATORS_HASH_JOIN_CHUNK_H_
 
 /* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
@@ -140,4 +140,4 @@ class HashJoinChunk {
   bool m_uses_match_flags{false};
 };
 
-#endif  // SQL_HASH_JOIN_CHUNK_H_
+#endif  // SQL_ITERATORS_HASH_JOIN_CHUNK_H_

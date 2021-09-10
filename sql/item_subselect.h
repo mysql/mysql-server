@@ -42,10 +42,10 @@
 #include "mysql_time.h"
 #include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"            // Item_result_field
-#include "sql/parse_location.h"  // POS
+#include "sql/item.h"                    // Item_result_field
+#include "sql/iterators/row_iterator.h"  // IWYU pragma: keep
+#include "sql/parse_location.h"          // POS
 #include "sql/parse_tree_node_base.h"
-#include "sql/row_iterator.h"  // IWYU pragma: keep
 #include "sql/sql_const.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "template_utils.h"

@@ -41,9 +41,9 @@
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
-#include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"

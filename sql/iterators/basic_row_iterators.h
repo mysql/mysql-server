@@ -1,5 +1,5 @@
-#ifndef SQL_BASIC_ROW_ITERATORS_H_
-#define SQL_BASIC_ROW_ITERATORS_H_
+#ifndef SQL_ITERATORS_BASIC_ROW_ITERATORS_H_
+#define SQL_ITERATORS_BASIC_ROW_ITERATORS_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -38,8 +38,8 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/mem_root_array.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_list.h"
 
 class Filesort_info;
@@ -512,4 +512,4 @@ class TableValueConstructorIterator final : public RowIterator {
   mem_root_deque<Item *> *const m_output_refs;
 };
 
-#endif  // SQL_BASIC_ROW_ITERATORS_H_
+#endif  // SQL_ITERATORS_BASIC_ROW_ITERATORS_H_

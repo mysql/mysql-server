@@ -41,11 +41,14 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
-#include "sql/composite_iterators.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/filesort.h"    // Filesort
+#include "sql/debug_sync.h"        // DEBUG_SYNC
+#include "sql/filesort.h"          // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/row_iterator.h"
+#include "sql/iterators/sorting_iterator.h"
+#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
@@ -58,14 +61,12 @@
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
 #include "sql/range_optimizer/range_optimizer.h"
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // update_non_unique_table_error
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -79,7 +80,6 @@
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
-#include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"  // Unique

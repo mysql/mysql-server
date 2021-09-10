@@ -1,5 +1,5 @@
-#ifndef SQL_COMPOSITE_ITERATORS_INCLUDED
-#define SQL_COMPOSITE_ITERATORS_INCLUDED
+#ifndef SQL_ITERATORS_COMPOSITE_ITERATORS_H_
+#define SQL_ITERATORS_COMPOSITE_ITERATORS_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -50,10 +50,10 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
-#include "sql/row_iterator.h"
 #include "sql/table.h"
 #include "sql_string.h"
 
@@ -1012,4 +1012,4 @@ class AppendIterator final : public RowIterator {
   bool m_pfs_batch_mode_enabled = false;
 };
 
-#endif  // SQL_COMPOSITE_ITERATORS_INCLUDED
+#endif  // SQL_ITERATORS_COMPOSITE_ITERATORS_H_

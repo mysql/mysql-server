@@ -1,5 +1,5 @@
-#ifndef SQL_ROW_ITERATOR_H_
-#define SQL_ROW_ITERATOR_H_
+#ifndef SQL_ITERATORS_ROW_ITERATOR_H_
+#define SQL_ITERATORS_ROW_ITERATOR_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -60,7 +60,7 @@ struct TABLE;
 class RowIterator {
  public:
   // NOTE: Iterators should typically be instantiated using NewIterator,
-  // in sql/timing_iterator.h.
+  // in sql/iterators/timing_iterator.h.
   explicit RowIterator(THD *thd) : m_thd(thd) {}
   virtual ~RowIterator() = default;
 
@@ -218,4 +218,4 @@ class TableRowIterator : public RowIterator {
   friend class AlternativeIterator;
 };
 
-#endif  // SQL_ROW_ITERATOR_H_
+#endif  // SQL_ITERATORS_ROW_ITERATOR_H_

@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/hash_join_iterator.h"
+#include "sql/iterators/hash_join_iterator.h"
 
 #include <assert.h>
 #include <algorithm>
@@ -38,11 +38,11 @@
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysqld_error.h"
-#include "sql/hash_join_buffer.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/pfs_batch_mode.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_class.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"

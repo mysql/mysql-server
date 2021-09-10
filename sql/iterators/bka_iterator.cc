@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/bka_iterator.h"
+#include "sql/iterators/bka_iterator.h"
 
 #include <assert.h>
 #include <math.h>
@@ -40,10 +40,10 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
-#include "sql/hash_join_buffer.h"
 #include "sql/item.h"
+#include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/psi_memory_key.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"

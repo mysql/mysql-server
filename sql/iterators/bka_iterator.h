@@ -1,5 +1,5 @@
-#ifndef SQL_BKA_ITERATOR_H_
-#define SQL_BKA_ITERATOR_H_
+#ifndef SQL_ITERATORS_BKA_ITERATOR_H_
+#define SQL_ITERATORS_BKA_ITERATOR_H_
 
 /* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
@@ -57,11 +57,11 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/handler.h"
-#include "sql/hash_join_buffer.h"
+#include "sql/iterators/hash_join_buffer.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/pack_rows.h"
-#include "sql/row_iterator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -412,4 +412,4 @@ class MultiRangeRowIterator final : public TableRowIterator {
   const JoinType m_join_type;
 };
 
-#endif  // SQL_BKA_ITERATOR_H_
+#endif  // SQL_ITERATORS_BKA_ITERATOR_H_

@@ -22,12 +22,16 @@
 
 #include "sql/join_optimizer/access_path.h"
 
-#include "sql/basic_row_iterators.h"
-#include "sql/bka_iterator.h"
-#include "sql/composite_iterators.h"
 #include "sql/filesort.h"
-#include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/bka_iterator.h"
+#include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/hash_join_iterator.h"
+#include "sql/iterators/ref_row_iterators.h"
+#include "sql/iterators/sorting_iterator.h"
+#include "sql/iterators/timing_iterator.h"
+#include "sql/iterators/window_iterators.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
@@ -43,12 +47,8 @@
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/reverse_index_range_scan.h"
 #include "sql/range_optimizer/rowid_ordered_retrieval.h"
-#include "sql/ref_row_iterators.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
-#include "sql/timing_iterator.h"
-#include "sql/window_iterators.h"
 
 #include <vector>
 

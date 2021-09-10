@@ -62,13 +62,13 @@
 #include "mysqld_error.h"  // ER_*
 #include "sql/field.h"
 #include "sql/handler.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"   // opt_allow_suspicious_udfs
-#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
-#include "sql/row_iterator.h"
+#include "sql/mysqld.h"     // opt_allow_suspicious_udfs
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"            // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_parse.h"               // check_string_char_length
 #include "sql/sql_plugin.h"              // check_valid_path
 #include "sql/sql_system_table_check.h"  // System_table_intact

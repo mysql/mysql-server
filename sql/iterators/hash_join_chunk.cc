@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/hash_join_chunk.h"
+#include "sql/iterators/hash_join_chunk.h"
 
 #include <stddef.h>
 #include <new>
@@ -29,7 +29,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/hash_join_buffer.h"
+#include "sql/iterators/hash_join_buffer.h"
 #include "sql/mysqld.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"

@@ -1,5 +1,5 @@
-#ifndef SQL_REF_ROW_ITERATORS_H
-#define SQL_REF_ROW_ITERATORS_H
+#ifndef SQL_ITERATORS_REF_ROW_ITERATORS_H_
+#define SQL_ITERATORS_REF_ROW_ITERATORS_H_
 
 /* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
@@ -29,8 +29,8 @@
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/basic_row_iterators.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_sort.h"
 
 class Item_func_match;
@@ -329,4 +329,4 @@ class AlternativeIterator final : public RowIterator {
   MY_BITMAP *m_original_read_set;
 };
 
-#endif  // SQL_REF_ROW_ITERATORS_H
+#endif  // SQL_ITERATORS_REF_ROW_ITERATORS_H_

@@ -55,12 +55,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/field.h"     /* Field, Field_json, Field_enum, TYPE_OK */
 #include "sql/handler.h"   /* handler, DB_TYPE_NDBCLUSTER, handlerton */
 #include "sql/item_func.h" /* mqh_used */
-#include "sql/key.h"       /* key_copy, KEY */
-#include "sql/mysqld.h"    /* specialflag */
-#include "sql/records.h"
-#include "sql/row_iterator.h"     /* RowIterator */
-#include "sql/sql_class.h"        /* THD */
-#include "sql/sql_const.h"        /* ACL_ALLOC_BLOCK_SIZE, MAX_KEY_LENGTH */
+#include "sql/iterators/row_iterator.h" /* RowIterator */
+#include "sql/key.h"                    /* key_copy, KEY */
+#include "sql/mysqld.h"                 /* specialflag */
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_const.h" /* ACL_ALLOC_BLOCK_SIZE, MAX_KEY_LENGTH */
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"          /* LEX */
 #include "sql/sql_plugin.h"       /* plugin_unlock, my_plugin_lock_by_name */
 #include "sql/sql_plugin_ref.h"   /* plugin_decl, plugin_ref */

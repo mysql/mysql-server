@@ -1,5 +1,5 @@
-#ifndef SQL_TIMING_ITERATOR_H_
-#define SQL_TIMING_ITERATOR_H_
+#ifndef SQL_ITERATORS_TIMING_ITERATOR_H_
+#define SQL_ITERATORS_TIMING_ITERATOR_H_
 
 /* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
@@ -28,7 +28,7 @@
 #include <chrono>
 
 #include "my_alloc.h"
-#include "sql/row_iterator.h"
+#include "sql/iterators/row_iterator.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 
@@ -200,4 +200,4 @@ unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd, MEM_ROOT *mem_root,
   }
 }
 
-#endif  // SQL_TIMING_ITERATOR_H_
+#endif  // SQL_ITERATORS_TIMING_ITERATOR_H_
