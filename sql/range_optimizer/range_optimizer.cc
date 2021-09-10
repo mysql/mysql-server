@@ -1480,7 +1480,7 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
     optimizer trace expects. If the column is binary, the hex
     representation is printed to the trace instead.
   */
-  if (field->is_flag_set(BINARY_FLAG)) {
+  if (field->is_flag_set(BINARY_FLAG) && !is_temporal_type(field->type())) {
     out->append("0x");
     for (uint i = 0; i < store_length; i++) {
       out->append(_dig_vec_lower[*(key + i) >> 4]);
@@ -1503,7 +1503,16 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
     (void)field->val_int_as_str(&tmp, true);  // may change tmp's charset
   else
     field->val_str(&tmp);  // may change tmp's charset
+
+  const bool add_quotes =
+      is_temporal_type(field->type()) || is_string_type(field->type());
+  if (add_quotes) {
+    out->append("'");
+  }
   out->append(tmp.ptr(), tmp.length(), tmp.charset());
+  if (add_quotes) {
+    out->append("'");
+  }
 
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }

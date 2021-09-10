@@ -3864,7 +3864,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       {
                         "index": "cola",
                         "ranges": [
-                          "foo <= cola <= foo"
+                          "'foo' <= cola <= 'foo'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -3878,7 +3878,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       {
                         "index": "colb",
                         "ranges": [
-                          "bar <= colb <= bar"
+                          "'bar' <= colb <= 'bar'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -3939,7 +3939,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                           "index": "cola",
                           "rows": 504,
                           "ranges": [
-                            "foo <= cola <= foo"
+                            "'foo' <= cola <= 'foo'"
                           ] /* ranges */
                         },
                         {
@@ -3947,7 +3947,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                           "index": "colb",
                           "rows": 504,
                           "ranges": [
-                            "bar <= colb <= bar"
+                            "'bar' <= colb <= 'bar'"
                           ] /* ranges */
                         }
                       ] /* intersect_of */
@@ -4158,7 +4158,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                       {
                         "index": "cola",
                         "ranges": [
-                          "f\no <= cola <= f\no"
+                          "'f\no' <= cola <= 'f\no'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -4181,7 +4181,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                       "index": "cola",
                       "rows": 1,
                       "ranges": [
-                        "f\no <= cola <= f\no"
+                        "'f\no' <= cola <= 'f\no'"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -5827,7 +5827,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       {
                         "index": "v_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                          "'a' <= v <= 'a' AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5867,7 +5867,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "index": "v_idx",
                       "rows": 1,
                       "ranges": [
-                        "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                        "'a' <= v <= 'a' AND 1 <= i1 <= 1 AND pk < 3"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -6729,7 +6729,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       {
                         "index": "k1",
                         "ranges": [
-                          "1 <= c1 <= 1"
+                          "'1' <= c1 <= '1'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -6743,7 +6743,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       {
                         "index": "k2",
                         "ranges": [
-                          "1 <= c1 <= 1"
+                          "'1' <= c1 <= '1'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -6767,7 +6767,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                       "index": "k1",
                       "rows": 1,
                       "ranges": [
-                        "1 <= c1 <= 1"
+                        "'1' <= c1 <= '1'"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
@@ -6891,7 +6891,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                             {
                               "index": "k2",
                               "ranges": [
-                                "1 <= c1 <= 1"
+                                "'1' <= c1 <= '1'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": false,
@@ -6914,7 +6914,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                             "index": "k2",
                             "rows": 1,
                             "ranges": [
-                              "1 <= c1 <= 1"
+                              "'1' <= c1 <= '1'"
                             ] /* ranges */
                           } /* range_access_plan */,
                           "rows_for_plan": 1,

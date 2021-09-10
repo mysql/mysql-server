@@ -181,7 +181,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                             {
                               "index": "f3",
                               "ranges": [
-                                "c <= f3 <= c"
+                                "'c' <= f3 <= 'c'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
@@ -459,7 +459,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                       {
                         "index": "f4",
                         "ranges": [
-                          "h <= f4 <= h"
+                          "'h' <= f4 <= 'h'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -774,7 +774,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f3",
                               "ranges": [
-                                "b <= f3 <= b"
+                                "'b' <= f3 <= 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
@@ -811,7 +811,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "'b' <= f3 <= 'b'"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -850,7 +850,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f4",
                               "ranges": [
-                                "b <= f4 <= b"
+                                "'b' <= f4 <= 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
@@ -889,7 +889,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f4",
                           "rows": 1,
                           "ranges": [
-                            "b <= f4 <= b"
+                            "'b' <= f4 <= 'b'"
                           ] /* ranges */
                         }
                       ] /* index_merge_of */
@@ -1139,7 +1139,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f3",
                               "ranges": [
-                                "b <= f3 <= b"
+                                "'b' <= f3 <= 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
@@ -1176,7 +1176,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "'b' <= f3 <= 'b'"
                           ] /* ranges */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
@@ -1215,7 +1215,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                             {
                               "index": "f4",
                               "ranges": [
-                                "b <= f4 <= b"
+                                "'b' <= f4 <= 'b'"
                               ] /* ranges */,
                               "index_dives_for_eq_ranges": true,
                               "rowid_ordered": true,
@@ -1254,7 +1254,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                           "index": "f3",
                           "rows": 128,
                           "ranges": [
-                            "b <= f3 <= b"
+                            "'b' <= f3 <= 'b'"
                           ] /* ranges */
                         }
                       ] /* union_of */

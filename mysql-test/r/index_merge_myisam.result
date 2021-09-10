@@ -561,8 +561,8 @@ explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 EXPLAIN
 -> Filter: ((t1.colb = 'bar') and (t1.cola = 'foo'))  (cost=19.91 rows=29)
     -> Intersect rows sorted by row ID  (cost=19.91 rows=29)
-        -> Index range scan on t1 using cola over (foo <= cola <= foo)  (cost=4.91 rows=504)
-        -> Index range scan on t1 using colb over (bar <= colb <= bar)  (cost=4.91 rows=504)
+        -> Index range scan on t1 using cola over ('foo' <= cola <= 'foo')  (cost=4.91 rows=504)
+        -> Index range scan on t1 using colb over ('bar' <= colb <= 'bar')  (cost=4.91 rows=504)
 
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

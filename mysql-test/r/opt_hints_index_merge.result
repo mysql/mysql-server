@@ -407,8 +407,8 @@ EXPLAIN
         -> Deduplicate rows sorted by row ID  (cost=11.51 rows=57) (actual time=N.NNN..N.NNN rows=128 loops=1)
             -> Intersect rows sorted by row ID  (cost=1.60 rows=57) (actual time=N.NNN..N.NNN rows=128 loops=1)
                 -> Index range scan on t1 using f2 over (2 <= f2 <= 2)  (cost=0.30 rows=128) (actual time=N.NNN..N.NNN rows=128 loops=1)
-                -> Index range scan on t1 using f3 over (b <= f3 <= b)  (cost=0.30 rows=128) (actual time=N.NNN..N.NNN rows=128 loops=1)
-            -> Index range scan on t1 using f7 over (d <= f7 <= d)  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
+                -> Index range scan on t1 using f3 over ('b' <= f3 <= 'b')  (cost=0.30 rows=128) (actual time=N.NNN..N.NNN rows=128 loops=1)
+            -> Index range scan on t1 using f7 over ('d' <= f7 <= 'd')  (cost=0.36 rows=1) (actual time=N.NNN..N.NNN rows=0 loops=1)
 
 EXPLAIN SELECT f3 FROM t1 WHERE f4 = 'f' AND f2 = 3 AND f5 > '';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

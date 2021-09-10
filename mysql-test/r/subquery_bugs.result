@@ -604,7 +604,7 @@ EXPLAIN
         -> Materialize with deduplication  (cost=3.42..3.42 rows=1)
             -> Nested loop left join  (cost=0.81 rows=1)
                 -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
-                    -> Covering index range scan on t1 using k1 over (o <= f1)  (cost=0.46 rows=1)
+                    -> Covering index range scan on t1 using k1 over ('o' <= f1)  (cost=0.46 rows=1)
                 -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
     -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (cost=0.35 rows=1)
 

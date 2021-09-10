@@ -552,7 +552,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "c <= ÁÂÃÄ"
+                          "c <= 'ÁÂÃÄ'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
