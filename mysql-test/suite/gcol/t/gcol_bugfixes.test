@@ -1478,3 +1478,134 @@ CALL p1('str');
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
+
+--echo
+--echo # VARBINARY as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id VARBINARY(32) GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+SET @a = '2';
+SET @num = 2;
+
+let q1p = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?;
+let q1r = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+let q1n = SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = 2;
+let q2p = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?;
+let q2r = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+let q2n = SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = 2;
+let q3p = SELECT * FROM t1 WHERE id = ?;
+let q3r = SELECT * FROM t1 WHERE id = '2';
+let q3n = SELECT * FROM t1 WHERE id = 2;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+--echo # Not using index, resulting JSON comparison delivers empty result.
+--echo # This deviates from the result when the GC is not indexed.
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+
+DROP TABLE t1;
+
+--echo
+--echo # VARCHAR as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id VARCHAR(32) COLLATE utf8mb4_bin GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+--echo # Not using index, resulting JSON comparison delivers expected row
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+
+DROP TABLE t1;
+
+--echo
+--echo # BIGINT as primary key
+--echo
+
+CREATE TABLE t1 (
+  doc JSON,
+  id BIGINT GENERATED ALWAYS AS
+    (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+ (JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+
+eval $q1r;
+eval explain $q1r;
+eval $q2r;
+eval explain $q2r;
+eval $q2n;
+eval explain $q2n;
+eval $q3r;
+eval explain $q3r;
+eval PREPARE s11 FROM "$q1p";
+EXECUTE s11 USING @a;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @a;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @a;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @a;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @a;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @a;
+eval PREPARE s11 FROM "$q1p";
+EXECUTE s11 USING @num;
+eval PREPARE s21 FROM "$q1p";
+EXECUTE s11 USING @num;
+eval PREPARE s12 FROM "explain $q1p";
+EXECUTE s12 USING @num;
+eval PREPARE s21 FROM "$q2p";
+EXECUTE s21 USING @num;
+eval PREPARE s22 FROM "explain $q2p";
+EXECUTE s22 USING @num;
+eval PREPARE s31 FROM "$q3p";
+EXECUTE s31 USING @num;
+eval PREPARE s32 FROM "explain $q3p";
+EXECUTE s32 USING @num;
+
+DROP TABLE t1;

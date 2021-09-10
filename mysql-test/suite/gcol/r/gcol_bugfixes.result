@@ -1536,3 +1536,254 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 n3	count
 DROP PROCEDURE p1;
 DROP TABLE t1;
+
+# VARBINARY as primary key
+
+CREATE TABLE t1 (
+doc JSON,
+id VARBINARY(32) GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+(JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET @a = '2';
+SET @num = 2;
+SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	34	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	34	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+SELECT * FROM t1 WHERE id = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE id = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	34	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s11 FROM "SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+# Not using index, resulting JSON comparison delivers empty result.
+# This deviates from the result when the GC is not indexed.
+EXECUTE s11 USING @a;
+doc	id
+PREPARE s12 FROM "explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s12 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'id'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`id` = '2')
+PREPARE s21 FROM "SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s21 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s22 FROM "explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s22 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	34	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s31 FROM "SELECT * FROM t1 WHERE id = ?";
+EXECUTE s31 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s32 FROM "explain SELECT * FROM t1 WHERE id = ?";
+EXECUTE s32 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	34	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+DROP TABLE t1;
+
+# VARCHAR as primary key
+
+CREATE TABLE t1 (
+doc JSON,
+id VARCHAR(32) COLLATE utf8mb4_bin GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+(JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	130	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	130	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+SELECT * FROM t1 WHERE id = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE id = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	130	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s11 FROM "SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+# Not using index, resulting JSON comparison delivers expected row
+EXECUTE s11 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s12 FROM "explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s12 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'id'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`id` = '2')
+PREPARE s21 FROM "SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s21 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s22 FROM "explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s22 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	130	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s31 FROM "SELECT * FROM t1 WHERE id = ?";
+EXECUTE s31 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s32 FROM "explain SELECT * FROM t1 WHERE id = ?";
+EXECUTE s32 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	130	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+DROP TABLE t1;
+
+# BIGINT as primary key
+
+CREATE TABLE t1 (
+doc JSON,
+id BIGINT GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id'))) STORED PRIMARY KEY);
+INSERT INTO t1 (doc) VALUES
+(JSON_OBJECT('id','1','name','foo')),(JSON_OBJECT('id','2','name','bar'));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (json_extract(`test`.`t1`.`doc`,'$.id') = '2')
+SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (json_unquote(json_extract(`test`.`t1`.`doc`,'$.id')) = '2')
+SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = 2;
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+SELECT * FROM t1 WHERE id = '2';
+doc	id
+{"id": "2", "name": "bar"}	2
+explain SELECT * FROM t1 WHERE id = '2';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s11 FROM "SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s11 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s12 FROM "explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s12 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (json_extract(`test`.`t1`.`doc`,'$.id') = '2')
+PREPARE s21 FROM "SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s21 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s22 FROM "explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s22 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc`,`test`.`t1`.`id` AS `id` from `test`.`t1` where (json_unquote(json_extract(`test`.`t1`.`doc`,'$.id')) = '2')
+PREPARE s31 FROM "SELECT * FROM t1 WHERE id = ?";
+EXECUTE s31 USING @a;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s32 FROM "explain SELECT * FROM t1 WHERE id = ?";
+EXECUTE s32 USING @a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s11 FROM "SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s11 USING @num;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s21 FROM "SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s11 USING @num;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s12 FROM "explain SELECT * FROM t1 WHERE JSON_EXTRACT(doc, '$.id') = ?";
+EXECUTE s12 USING @num;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s21 FROM "SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s21 USING @num;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s22 FROM "explain SELECT * FROM t1 WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.id')) = ?";
+EXECUTE s22 USING @num;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+PREPARE s31 FROM "SELECT * FROM t1 WHERE id = ?";
+EXECUTE s31 USING @num;
+doc	id
+{"id": "2", "name": "bar"}	2
+PREPARE s32 FROM "explain SELECT * FROM t1 WHERE id = ?";
+EXECUTE s32 USING @num;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
+DROP TABLE t1;
