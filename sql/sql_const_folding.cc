@@ -543,6 +543,8 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
       // Compute actual (minimal) decimal type of the constant
       my_decimal buff, *d;
       d = (*const_val)->val_decimal(&buff);
+      if ((*const_val)->null_value) return false;
+      assert(d != nullptr);
       const int actual_frac = decimal_actual_fraction(d);
       const int actual_intg = decimal_intg(d);
       const bool overflow = actual_intg > f_intg;
