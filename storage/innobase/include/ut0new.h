@@ -857,10 +857,8 @@ inline T *new_arr_withkey(PSI_memory_key_t key, Args &&... args) {
 
   size_t idx = 0;
   try {
-    using arr_t = int[];
-    (void)arr_t{0, (detail::construct<T>(mem, sizeof(T) * idx++,
-                                         std::forward<Args>(args)),
-                    0)...};
+    (...,
+     detail::construct<T>(mem, sizeof(T) * idx++, std::forward<Args>(args)));
   } catch (...) {
     for (size_t offset = (idx - 1) * sizeof(T); offset != 0;
          offset -= sizeof(T)) {
