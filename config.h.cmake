@@ -190,6 +190,9 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine LINUX_ALPINE 1
 #cmakedefine LINUX_SUSE
+#cmakedefine LINUX_RHEL6
+#cmakedefine LINUX_RHEL7
+#cmakedefine LINUX_RHEL8
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
