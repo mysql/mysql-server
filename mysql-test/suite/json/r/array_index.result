@@ -2398,7 +2398,7 @@ test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(j as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx over (cast(`j` as unsigned array) = 0x0300000000000000) OR (cast(`j` as unsigned array) = 0x0200000000000000)  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
 vc	j
@@ -2408,7 +2408,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(j as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using j_idx over (cast(`j` as unsigned array) = 0x0300000000000000) OR (cast(`j` as unsigned array) = 0x0200000000000000)  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx over (3 MEMBER OF (j)) OR (2 MEMBER OF (j))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
 vc	j
@@ -2428,7 +2428,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 EXPLAIN
 -> Filter: json_overlaps(json'[2, 3]',cast(vc as unsigned array))  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx over (cast(`vc` as unsigned array) = 0x0300000000000000) OR (cast(`vc` as unsigned array) = 0x0200000000000000)  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
 vc	j
@@ -2438,7 +2438,7 @@ vc	j
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 EXPLAIN
 -> Filter: json_contains(cast(vc as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
-    -> Index range scan on t using vc_idx over (cast(`vc` as unsigned array) = 0x0300000000000000) OR (cast(`vc` as unsigned array) = 0x0200000000000000)  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx over (3 MEMBER OF (vc)) OR (2 MEMBER OF (vc))  (cost=2.07 rows=5)
 
 SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
 vc	j
@@ -3243,4 +3243,32 @@ bar	["xx", "yy"]	1	xx
 bar	["xx", "yy"]	2	yy
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#33343948: Multi-valued index ranges are printed as binary
+#
+CREATE TABLE t(doc JSON,
+KEY ((CAST(doc->'$[*].name' AS CHAR(3) ARRAY))),
+KEY ((CAST(doc->'$[*].date' AS DATE ARRAY))));
+INSERT INTO t VALUES (
+'[{"name": "abc", "date": "2021-01-01"}, {"name": "def", "date": "2021-01-02"},
+  {"name": "ghi", "date": "2021-01-03"}, {"name": "jkl", "date": "2021-01-04"}]'
+);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.10 rows=2)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
+EXPLAIN
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.10 rows=2)
+    -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.10 rows=2)
+
+DROP TABLE t;
 # restart:

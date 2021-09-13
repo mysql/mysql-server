@@ -1447,6 +1447,9 @@ int index_next_different(bool is_index_scan, handler *file,
 void print_key_value(String *out, const KEY_PART_INFO *key_part,
                      const uchar *key) {
   Field *field = key_part->field;
+  if (field->is_array()) {
+    field = down_cast<Field_typed_array *>(field)->get_conv_field();
+  }
 
   if (field->is_flag_set(BLOB_FLAG)) {
     // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
@@ -1480,7 +1483,8 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
     optimizer trace expects. If the column is binary, the hex
     representation is printed to the trace instead.
   */
-  if (field->is_flag_set(BINARY_FLAG) && !is_temporal_type(field->type())) {
+  if (field->result_type() == STRING_RESULT &&
+      field->charset() == &my_charset_bin) {
     out->append("0x");
     for (uint i = 0; i < store_length; i++) {
       out->append(_dig_vec_lower[*(key + i) >> 4]);
@@ -1489,9 +1493,8 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
     return;
   }
 
-  char buff[128];
-  String tmp(buff, sizeof(buff), system_charset_info);
-  tmp.length(0);
+  StringBuffer<128> tmp(system_charset_info);
+  bool add_quotes = field->result_type() == STRING_RESULT;
 
   TABLE *table = field->table;
   my_bitmap_map *old_sets[2];
@@ -1499,22 +1502,32 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
   dbug_tmp_use_all_columns(table, old_sets, table->read_set, table->write_set);
 
   field->set_key_image(key, key_part->length);
-  if (field->type() == MYSQL_TYPE_BIT)
+  if (field->type() == MYSQL_TYPE_BIT) {
     (void)field->val_int_as_str(&tmp, true);  // may change tmp's charset
-  else
+    add_quotes = false;
+  } else {
     field->val_str(&tmp);  // may change tmp's charset
-
-  const bool add_quotes =
-      is_temporal_type(field->type()) || is_string_type(field->type());
-  if (add_quotes) {
-    out->append("'");
-  }
-  out->append(tmp.ptr(), tmp.length(), tmp.charset());
-  if (add_quotes) {
-    out->append("'");
   }
 
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
+
+  if (add_quotes) {
+    out->append('\'');
+    // Worst case: Every character is escaped.
+    const size_t buffer_size = tmp.length() * 2 + 1;
+    char *quoted_string = current_thd->mem_root->ArrayAlloc<char>(buffer_size);
+    const size_t quoted_length = escape_string_for_mysql(
+        tmp.charset(), quoted_string, buffer_size, tmp.ptr(), tmp.length());
+    if (quoted_length == static_cast<size_t>(-1)) {
+      // Overflow. Our worst case estimate for the buffer size was too low.
+      assert(false);
+      return;
+    }
+    out->append(quoted_string, quoted_length, tmp.charset());
+    out->append('\'');
+  } else {
+    out->append(tmp.ptr(), tmp.length(), tmp.charset());
+  }
 }
 
 /**
@@ -1540,6 +1553,19 @@ void append_range(String *out, const KEY_PART_INFO *key_part,
     out->append(key_part->field->field_name);
     out->append(STRING_WITH_LEN(" "));
     print_key_value(out, key_part, min_key);
+    return;
+  }
+
+  // Range scans over multi-valued indexes use a sequence of MEMBER OF
+  // predicates ORed together.
+  if (key_part->field->is_array()) {
+    print_key_value(out, key_part, min_key);
+    out->append(STRING_WITH_LEN(" MEMBER OF ("));
+    const std::string expression = ItemToString(
+        down_cast<Item_func *>(key_part->field->gcol_info->expr_item)
+            ->get_arg(0));  // Strip off CAST(... AS <type> ARRAY).
+    out->append(expression.data(), expression.size());
+    out->append(')');
     return;
   }
 

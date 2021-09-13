@@ -926,3 +926,23 @@ EXPLAIN
     -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (cost=1.50 rows=5)
 
 DROP TABLE t1;
+#
+# Bug#33343948: Multi-valued index ranges are printed as binary
+#
+CREATE TABLE t(a VARCHAR(10) COLLATE utf8mb4_0900_bin, KEY (a));
+INSERT INTO t VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
+EXPLAIN
+-> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (cost=0.46 rows=1)
+    -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (cost=0.46 rows=1)
+
+EXPLAIN FORMAT=tree
+SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
+EXPLAIN
+-> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (cost=0.66 rows=2)
+    -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (cost=0.66 rows=2)
+
+DROP TABLE t;

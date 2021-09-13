@@ -4158,7 +4158,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                       {
                         "index": "cola",
                         "ranges": [
-                          "cola = 'f\no'"
+                          "cola = 'f\\no'"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -4181,7 +4181,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                       "index": "cola",
                       "rows": 1,
                       "ranges": [
-                        "cola = 'f\no'"
+                        "cola = 'f\\no'"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,

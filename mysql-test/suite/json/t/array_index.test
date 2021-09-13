@@ -1867,6 +1867,33 @@ WHERE json_overlaps(f2, '["xx", "zz"]') OR json_overlaps(f2, '["zz"]') OR
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#33343948: Multi-valued index ranges are printed as binary
+--echo #
+
+CREATE TABLE t(doc JSON,
+               KEY ((CAST(doc->'$[*].name' AS CHAR(3) ARRAY))),
+               KEY ((CAST(doc->'$[*].date' AS DATE ARRAY))));
+
+INSERT INTO t VALUES (
+'[{"name": "abc", "date": "2021-01-01"}, {"name": "def", "date": "2021-01-02"},
+  {"name": "ghi", "date": "2021-01-03"}, {"name": "jkl", "date": "2021-01-04"}]'
+);
+
+ANALYZE TABLE t;
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE
+SELECT * FROM t
+WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
+
+DROP TABLE t;
+
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be
 # at the very end of the test.
