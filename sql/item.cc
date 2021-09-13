@@ -43,7 +43,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "mysql.h"  // IS_NUM
+#include "myisampack.h"  // mi_int8store
+#include "mysql.h"       // IS_NUM
 #include "mysql_time.h"
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/auth/auth_acls.h"
@@ -9006,6 +9007,12 @@ Item_cache *Item_cache::get_cache(const Item *item) {
 Item_cache *Item_cache::get_cache(const Item *item, const Item_result type) {
   switch (type) {
     case INT_RESULT:
+      /*
+        When it's an item of MYSQL_TYPE_BIT, we need to retain its result
+        as bit format instead of an integer.
+      */
+      if (item->data_type() == MYSQL_TYPE_BIT)
+        return new Item_cache_bit(item->data_type());
       return new Item_cache_int(item->data_type());
     case REAL_RESULT:
       return new Item_cache_real();
@@ -9120,6 +9127,22 @@ longlong Item_cache_int::val_int() {
   assert(fixed == 1);
   if (!has_value()) return 0;
   return value;
+}
+
+String *Item_cache_bit::val_str(String *str) {
+  assert(fixed);
+  if (!has_value()) return nullptr;
+
+  char buff[sizeof(longlong)];
+  mi_int8store(buff, value);
+  uint offset = sizeof(longlong) - string_length();
+
+  // for BIT(N), copy last N bits from buff
+  // (rounded up to an integral number of bytes)
+  str->length(0);
+  if (str->append(buff + offset, string_length())) return nullptr;
+
+  return str;
 }
 
 bool Item_cache_datetime::cache_value_int() {

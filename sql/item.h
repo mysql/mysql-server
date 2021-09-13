@@ -6581,7 +6581,7 @@ class Item_cache : public Item_basic_constant {
   Item *get_example() const { return example; }
 };
 
-class Item_cache_int final : public Item_cache {
+class Item_cache_int : public Item_cache {
  protected:
   longlong value;
 
@@ -6607,6 +6607,27 @@ class Item_cache_int final : public Item_cache {
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   Item_result result_type() const override { return INT_RESULT; }
   bool cache_value() override;
+};
+
+/**
+  Cache class for BIT type expressions. The BIT data type behaves like unsigned
+  integer numbers in all situations, except when formatted as a string, where
+  it is directly interpreted as a byte string, possibly right-extended with
+  zero-bits.
+*/
+class Item_cache_bit final : public Item_cache_int {
+ public:
+  Item_cache_bit(enum_field_types field_type_arg)
+      : Item_cache_int(field_type_arg) {
+    assert(field_type_arg == MYSQL_TYPE_BIT);
+  }
+
+  /**
+    Transform the result Item_cache_int::value in bit format. The process is
+    similar to Field_bit_as_char::store().
+  */
+  String *val_str(String *str) override;
+  uint string_length() { return ((max_length + 7) / 8); }
 };
 
 class Item_cache_real final : public Item_cache {
