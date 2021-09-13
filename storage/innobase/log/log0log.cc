@@ -1135,7 +1135,7 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
-  log.buf.alloc(srv_log_buffer_size);
+  log.buf.alloc(ut::Count{srv_log_buffer_size});
 }
 
 static void log_deallocate_buffer(log_t &log) { log.buf.dealloc(); }
@@ -1145,7 +1145,7 @@ static void log_allocate_write_ahead_buffer(log_t &log) {
   ut_a(srv_log_write_ahead_size <= INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
 
   log.write_ahead_buf_size = srv_log_write_ahead_size;
-  log.write_ahead_buf.alloc(log.write_ahead_buf_size);
+  log.write_ahead_buf.alloc(ut::Count{log.write_ahead_buf_size});
 }
 
 static void log_deallocate_write_ahead_buffer(log_t &log) {
@@ -1153,7 +1153,7 @@ static void log_deallocate_write_ahead_buffer(log_t &log) {
 }
 
 static void log_allocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.alloc(OS_FILE_LOG_BLOCK_SIZE);
+  log.checkpoint_buf.alloc(ut::Count{OS_FILE_LOG_BLOCK_SIZE});
 }
 
 static void log_deallocate_checkpoint_buffer(log_t &log) {
@@ -1239,7 +1239,7 @@ static void log_allocate_file_header_buffers(log_t &log) {
                                                       ut::Count{n_files});
 
   for (uint32_t i = 0; i < n_files; i++) {
-    log.file_header_bufs[i].alloc(LOG_FILE_HDR_SIZE);
+    log.file_header_bufs[i].alloc(ut::Count{LOG_FILE_HDR_SIZE});
   }
 }
 

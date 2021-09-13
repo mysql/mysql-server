@@ -1520,7 +1520,12 @@ inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
                               Args &&... args) {
   auto mem = aligned_alloc_withkey(key, sizeof(T), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
-  new (mem) T(std::forward<Args>(args)...);
+  try {
+    new (mem) T(std::forward<Args>(args)...);
+  } catch (...) {
+    ut::aligned_free(mem);
+    throw;
+  }
   return static_cast<T *>(mem);
 }
 
@@ -1572,98 +1577,148 @@ inline void aligned_delete(T *ptr) noexcept {
   aligned_free(ptr);
 }
 
-/** Dynamically allocates storage for an array of T's at address aligned to
-    the requested alignment. Constructs objects of type T with provided Args.
-    Instruments the memory with given PSI memory key in case PFS memory support
-    is enabled.
+/** Dynamically allocates storage for an array of T's at address aligned to the
+    requested alignment. Constructs objects of type T with provided Args.
+    Arguments that are to be used to construct some respective instance of T
+    shall be wrapped into a std::tuple. See examples down below. Instruments the
+    memory with given PSI memory key in case PFS memory support is enabled.
+
+    To create an array of default-intialized T's, one can use this function
+    template but for convenience purposes one can achieve the same by using
+    the ut::aligned_new_arr_withkey with ut::Count overload.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.
-    @param[in] args Arguments one wishes to pass over to T constructor(s)
+    @param[in] args Tuples of arguments one wishes to pass over to T
+    constructor(s).
     @return Pointer to the first element of allocated storage. Throws
     std::bad_alloc exception if dynamic storage allocation could not be
-    fulfilled.
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
 
     Example 1:
-     int *ptr = aligned_new_arr_withkey<int, 5>(key, 2);
-     ptr[0] ... ptr[4]
+     int *ptr = ut::aligned_new_arr_withkey<int>(key, 32,
+                    std::forward_as_tuple(1),
+                    std::forward_as_tuple(2));
+     assert(ptr[0] == 1);
+     assert(ptr[1] == 2);
 
     Example 2:
-     int *ptr = aligned_new_arr_withkey<int, 5>(key, 2, 1, 2, 3, 4, 5);
-     assert(*ptr[0] == 1);
-     assert(*ptr[1] == 2);
-     ...
-     assert(*ptr[4] == 5);
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::aligned_new_arr_withkey<A>(key, 32,
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple(8, 9));
+     assert(ptr[0]->_x == 0 && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2 && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 4 && ptr[2]->_y == 5);
+     assert(ptr[3]->_x == 6 && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 8 && ptr[4]->_y == 9);
 
     Example 3:
-     struct A { A(int x, int y) : _x(x), _y(y) {} int x, y; }
-     A *ptr =
-       aligned_new_arr_withkey<A, 5>(key, 2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-     assert(ptr[0]->x == 1); assert(ptr[0]->y == 2); assert(ptr[1]->x == 3);
-     assert(ptr[1]->y == 4);
-     ...
-     assert(ptr[4]->x == 9);
-     assert(ptr[4]->y == 10);
+     struct A {
+       A() : _x(10), _y(100) {}
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     A *ptr = ut::aligned_new_arr_withkey<A>(key, 32,
+                std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                std::forward_as_tuple(), std::forward_as_tuple(6, 7),
+                std::forward_as_tuple());
+     assert(ptr[0]->_x == 0  && ptr[0]->_y == 1);
+     assert(ptr[1]->_x == 2  && ptr[1]->_y == 3);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 6  && ptr[3]->_y == 7);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
  */
-template <typename T, size_t Count, typename... Args>
+template <typename T, typename... Args>
 inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
                                   Args &&... args) {
-  static_assert(
-      sizeof...(args) % Count == 0,
-      "Instantiating Count instances of T and invoking their respective "
-      "constructors with possibly different kind and/or different number "
-      "of input arguments is currently not supported.");
-  constexpr auto n_args_per_T = sizeof...(args) / Count;
-  auto tuple = std::make_tuple(args...);
-
-  auto mem = aligned_alloc_withkey(key, sizeof(T) * Count, alignment);
+  auto mem = aligned_alloc_withkey(key, sizeof(T) * sizeof...(args), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
-  ut::detail::Loop<0, Count, T, 0, n_args_per_T, 0, decltype(tuple)>::run(
-      mem, std::forward<decltype(tuple)>(tuple));
+
+  size_t idx = 0;
+  try {
+    (...,
+     detail::construct<T>(mem, sizeof(T) * idx++, std::forward<Args>(args)));
+  } catch (...) {
+    for (size_t offset = (idx - 1) * sizeof(T); offset != 0;
+         offset -= sizeof(T)) {
+      reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(mem) + offset -
+                            sizeof(T))
+          ->~T();
+    }
+    aligned_free(mem);
+    throw;
+  }
   return static_cast<T *>(mem);
 }
 
-/** Dynamically allocates storage for an array of T's at address aligned to
-    the requested alignment. Constructs objects of type T using default
-    constructor. Instruments the memory with given PSI memory key in case PFS
-    memory support is enabled.
+/** Dynamically allocates storage for an array of T's at address aligned to the
+    requested alignment. Constructs objects of type T using default constructor.
+    If T cannot be default-initialized (e.g. default constructor does not
+    exist), then this interace cannot be used for constructing such an array.
+    ut::new_arr_withkey overload with user-provided initialization must be used
+    then. Instruments the memory with given PSI memory key in case PFS memory
+    support is enabled.
 
     @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] alignment Alignment requirement for storage to be allocated.
     @param[in] count Number of T elements in an array.
     @return Pointer to the first element of allocated storage. Throws
     std::bad_alloc exception if dynamic storage allocation could not be
-    fulfilled.
+    fulfilled. Re-throws whatever exception that may have occured during the
+    construction of any instance of T, in which case it automatically destroys
+    successfully constructed objects till that moment (if any), and finally
+    cleans up the raw memory allocated for T instances.
 
     Example 1:
-     int *ptr = aligned_new_arr_withkey<int>(key, 2, 5);
-     assert(*ptr[0] == 0);
-     assert(*ptr[1] == 0);
-     ...
-     assert(*ptr[4] == 0);
+     int *ptr = ut::aligned_new_arr_withkey<int>(key, 32, ut::Count{2});
 
     Example 2:
-     struct A { A) : x(1), y(2) {} int x, y; }
-     A *ptr = aligned_new_arr_withkey<A>(key, 2, 5);
-     assert(ptr[0].x == 1);
-     assert(ptr[0].y == 2);
-     ...
-     assert(ptr[4].x == 1);
-     assert(ptr[4].y == 2);
+     struct A {
+       A() : _x(10), _y(100) {}
+       int _x, _y;
+     };
+     A *ptr = ut::aligned_new_arr_withkey<A>(key, 32, ut::Count{5});
+     assert(ptr[0]->_x == 10 && ptr[0]->_y == 100);
+     assert(ptr[1]->_x == 10 && ptr[1]->_y == 100);
+     assert(ptr[2]->_x == 10 && ptr[2]->_y == 100);
+     assert(ptr[3]->_x == 10 && ptr[3]->_y == 100);
+     assert(ptr[4]->_x == 10 && ptr[4]->_y == 100);
 
     Example 3:
-     struct A { A(int x, int y) : _x(x), _y(y) {} int x, y; }
-     A *ptr = aligned_new_arr_withkey<A>(key, 2, 5);
-     // will not compile, no default constructor
+     struct A {
+       A(int x, int y) : _x(x), _y(y) {}
+       int _x, _y;
+     };
+     // Following cannot compile because A is not default-constructible
+     A *ptr = ut::aligned_new_arr_withkey<A>(key, 32, ut::Count{5});
  */
 template <typename T>
 inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
-                                  size_t count) {
-  auto mem = aligned_alloc_withkey(key, sizeof(T) * count, alignment);
+                                  Count count) {
+  auto mem = aligned_alloc_withkey(key, sizeof(T) * count(), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
-  for (size_t offset = 0; offset < sizeof(T) * count; offset += sizeof(T)) {
-    new (reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(mem) +
-                                  offset)) T();
+
+  size_t offset = 0;
+  try {
+    for (; offset < sizeof(T) * count(); offset += sizeof(T)) {
+      new (reinterpret_cast<uint8_t *>(mem) + offset) T{};
+    }
+  } catch (...) {
+    for (; offset != 0; offset -= sizeof(T)) {
+      reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(mem) + offset -
+                            sizeof(T))
+          ->~T();
+    }
+    aligned_free(mem);
+    throw;
   }
   return static_cast<T *>(mem);
 }
@@ -1704,11 +1759,10 @@ inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
      assert(ptr[4]->x == 9);
      assert(ptr[4]->y == 10);
  */
-template <typename T, size_t Count, typename... Args>
+template <typename T, typename... Args>
 inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
-  return aligned_new_arr_withkey<T, Count>(
-      make_psi_memory_key(PSI_NOT_INSTRUMENTED), alignment,
-      std::forward<Args>(args)...);
+  return aligned_new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                    alignment, std::forward<Args>(args)...);
 }
 
 /** Dynamically allocates storage for an array of T's at address aligned to
@@ -1748,7 +1802,7 @@ inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
      // will not compile, no default constructor
  */
 template <typename T>
-inline T *aligned_new_arr(std::size_t alignment, size_t count) {
+inline T *aligned_new_arr(std::size_t alignment, Count count) {
   return aligned_new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
                                     alignment, count);
 }
@@ -1907,9 +1961,9 @@ class aligned_array_pointer {
 
       @param[in] size Number of T elements in an array.
     */
-  void alloc(size_t size) {
+  void alloc(Count count) {
     ut_ad(ptr == nullptr);
-    ptr = ut::aligned_new_arr<T>(Alignment, size);
+    ptr = ut::aligned_new_arr<T>(Alignment, count);
   }
 
   /** Allocates sufficiently large memory of dynamic storage duration to fit
@@ -1924,10 +1978,10 @@ class aligned_array_pointer {
       @param[in] args Any number and type of arguments that type T can be
       constructed with.
     */
-  template <size_t Size, typename... Args>
+  template <typename... Args>
   void alloc(Args &&... args) {
     ut_ad(ptr == nullptr);
-    ptr = ut::aligned_new_arr<T, Size>(Alignment, args...);
+    ptr = ut::aligned_new_arr<T>(Alignment, std::forward<Args>(args)...);
   }
 
   /** Allocates sufficiently large memory of dynamic storage duration to fit
@@ -1943,9 +1997,9 @@ class aligned_array_pointer {
       @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @param[in] size Number of T elements in an array.
     */
-  void alloc_withkey(PSI_memory_key_t key, size_t size) {
+  void alloc_withkey(PSI_memory_key_t key, Count count) {
     ut_ad(ptr == nullptr);
-    ptr = ut::aligned_new_arr_withkey<T>(key, Alignment, size);
+    ptr = ut::aligned_new_arr_withkey<T>(key, Alignment, count);
   }
 
   /** Allocates sufficiently large memory of dynamic storage duration to fit
@@ -1962,11 +2016,11 @@ class aligned_array_pointer {
       @param[in] args Any number and type of arguments that type T can be
       constructed with.
     */
-  template <size_t Size, typename... Args>
+  template <typename... Args>
   void alloc_withkey(PSI_memory_key_t key, Args &&... args) {
     ut_ad(ptr == nullptr);
-    ptr = ut::aligned_new_arr_withkey<T, Size>(key, Alignment,
-                                               std::forward<Args>(args)...);
+    ptr = ut::aligned_new_arr_withkey<T>(key, Alignment,
+                                         std::forward<Args>(args)...);
   }
 
   /** Invokes destructors of instances of type T, if applicable.
