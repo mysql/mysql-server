@@ -5817,7 +5817,7 @@ update t6 set d=5 where d is NULL	{
             {
               "index": "d",
               "ranges": [
-                "NULL <= d <= NULL"
+                "d = NULL"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
@@ -5840,7 +5840,7 @@ update t6 set d=5 where d is NULL	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "NULL <= d <= NULL"
+              "d = NULL"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,
@@ -5919,7 +5919,7 @@ delete from t6 where d=5	{
             {
               "index": "d",
               "ranges": [
-                "5 <= d <= 5"
+                "d = 5"
               ] /* ranges */,
               "index_dives_for_eq_ranges": true,
               "rowid_ordered": true,
@@ -5938,7 +5938,7 @@ delete from t6 where d=5	{
             "index": "d",
             "rows": 1,
             "ranges": [
-              "5 <= d <= 5"
+              "d = 5"
             ] /* ranges */
           } /* range_access_plan */,
           "rows_for_plan": 1,

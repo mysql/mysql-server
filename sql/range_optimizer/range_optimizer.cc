@@ -1543,6 +1543,14 @@ void append_range(String *out, const KEY_PART_INFO *key_part,
     return;
   }
 
+  if (!Overlaps(flag, NO_MIN_RANGE | NO_MAX_RANGE | NEAR_MIN | NEAR_MAX) &&
+      memcmp(min_key, max_key, key_part->store_length) == 0) {
+    out->append(get_field_name_or_expression(current_thd, key_part->field));
+    out->append(STRING_WITH_LEN(" = "));
+    print_key_value(out, key_part, min_key);
+    return;
+  }
+
   if (!(flag & NO_MIN_RANGE)) {
     print_key_value(out, key_part, min_key);
     if (flag & NEAR_MIN)
