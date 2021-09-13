@@ -1,0 +1,330 @@
+result_format: 2
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+## ndb$tables
+select count(*) from ndb$tables;
+count(*)	40
+explain select count(*) from ndb$tables;
+id	1
+select_type	SIMPLE
+table	NULL
+partitions	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+filtered	NULL
+Extra	Select tables optimized away
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`ndb$tables`
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+count(*)	20
+Select tables optimized away
+
+## config_params
+Select tables optimized away
+
+## blocks
+Select tables optimized away
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+NULL
+
+## The plan for counters
+explain format=json select * from counters;
+EXPLAIN	{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.00"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "c",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
+          "filtered": "0.00",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "2.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "node_id",
+            "block_number",
+            "block_instance",
+            "counter_id",
+            "val"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "b",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 23,
+          "rows_produced_per_join": 0,
+          "filtered": "100.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "4.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "block_number",
+            "block_name"
+          ],
+          "attached_condition": "<if>(is_not_null_compl(b), (`ndbinfo`.`b`.`block_number` = `ndbinfo`.`c`.`block_number`), true)"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`c`.`node_id` AS `node_id`,`ndbinfo`.`b`.`block_name` AS `block_name`,`ndbinfo`.`c`.`block_instance` AS `block_instance`,`ndbinfo`.`c`.`counter_id` AS `counter_id`,(case `ndbinfo`.`c`.`counter_id` when 1 then 'ATTRINFO' when 2 then 'TRANSACTIONS' when 3 then 'COMMITS' when 4 then 'READS' when 5 then 'SIMPLE_READS' when 6 then 'WRITES' when 7 then 'ABORTS' when 8 then 'TABLE_SCANS' when 9 then 'RANGE_SCANS' when 10 then 'OPERATIONS' when 11 then 'READS_RECEIVED' when 12 then 'LOCAL_READS_SENT' when 13 then 'REMOTE_READS_SENT' when 14 then 'READS_NOT_FOUND' when 15 then 'TABLE_SCANS_RECEIVED' when 16 then 'LOCAL_TABLE_SCANS_SENT' when 17 then 'RANGE_SCANS_RECEIVED' when 18 then 'LOCAL_RANGE_SCANS_SENT' when 19 then 'REMOTE_RANGE_SCANS_SENT' when 20 then 'SCAN_BATCHES_RETURNED' when 21 then 'SCAN_ROWS_RETURNED' when 22 then 'PRUNED_RANGE_SCANS_RECEIVED' when 23 then 'CONST_PRUNED_RANGE_SCANS_RECEIVED' when 24 then 'LOCAL_READS' when 25 then 'LOCAL_WRITES' when 26 then 'LQHKEY_OVERLOAD' when 27 then 'LQHKEY_OVERLOAD_TC' when 28 then 'LQHKEY_OVERLOAD_READER' when 29 then 'LQHKEY_OVERLOAD_NODE_PEER' when 30 then 'LQHKEY_OVERLOAD_SUBSCRIBER' when 31 then 'LQHSCAN_SLOWDOWNS' else '<unknown>' end) AS `counter_name`,`ndbinfo`.`c`.`val` AS `val` from `ndbinfo`.`ndb$counters` `c` left join `ndbinfo`.`ndb$blocks` `b` on((`ndbinfo`.`b`.`block_number` = `ndbinfo`.`c`.`block_number`)) where 1
+
+## The plan for memory_per_fragment
+explain format=json select * from memory_per_fragment;
+EXPLAIN	{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "8.00"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "space",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
+          "filtered": "0.00",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "2.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "node_id",
+            "block_instance",
+            "table_id",
+            "fragment_num",
+            "fixed_elem_alloc_bytes",
+            "fixed_elem_free_bytes",
+            "fixed_elem_count",
+            "fixed_elem_size_bytes",
+            "var_elem_alloc_bytes",
+            "var_elem_free_bytes",
+            "var_elem_count",
+            "hash_index_alloc_bytes"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "name",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
+          "filtered": "0.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "4.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "type",
+            "id",
+            "parent_obj_type",
+            "parent_obj_id",
+            "fq_name"
+          ],
+          "attached_condition": "((`ndbinfo`.`name`.`id` = `ndbinfo`.`space`.`table_id`) and (`ndbinfo`.`name`.`type` <= 6))"
+        }
+      },
+      {
+        "table": {
+          "table_name": "parent_name",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 0,
+          "rows_produced_per_join": 0,
+          "filtered": "0.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "6.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "type",
+            "id",
+            "fq_name"
+          ],
+          "attached_condition": "<if>(is_not_null_compl(parent_name), ((`ndbinfo`.`parent_name`.`type` = `ndbinfo`.`name`.`parent_obj_type`) and (`ndbinfo`.`parent_name`.`id` = `ndbinfo`.`name`.`parent_obj_id`)), true)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "types",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 0,
+          "filtered": "10.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.00",
+            "eval_cost": "0.00",
+            "prefix_cost": "8.00",
+            "data_read_per_join": "0"
+          },
+          "used_columns": [
+            "type_id",
+            "type_name"
+          ],
+          "attached_condition": "(`ndbinfo`.`types`.`type_id` = `ndbinfo`.`name`.`type`)"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `ndbinfo`.`name`.`fq_name` AS `fq_name`,`ndbinfo`.`parent_name`.`fq_name` AS `parent_fq_name`,`ndbinfo`.`types`.`type_name` AS `type`,`ndbinfo`.`space`.`table_id` AS `table_id`,`ndbinfo`.`space`.`node_id` AS `node_id`,`ndbinfo`.`space`.`block_instance` AS `block_instance`,`ndbinfo`.`space`.`fragment_num` AS `fragment_num`,`ndbinfo`.`space`.`fixed_elem_alloc_bytes` AS `fixed_elem_alloc_bytes`,`ndbinfo`.`space`.`fixed_elem_free_bytes` AS `fixed_elem_free_bytes`,`ndbinfo`.`space`.`fixed_elem_size_bytes` AS `fixed_elem_size_bytes`,`ndbinfo`.`space`.`fixed_elem_count` AS `fixed_elem_count`,floor((`ndbinfo`.`space`.`fixed_elem_free_bytes` / `ndbinfo`.`space`.`fixed_elem_size_bytes`)) AS `fixed_elem_free_count`,`ndbinfo`.`space`.`var_elem_alloc_bytes` AS `var_elem_alloc_bytes`,`ndbinfo`.`space`.`var_elem_free_bytes` AS `var_elem_free_bytes`,`ndbinfo`.`space`.`var_elem_count` AS `var_elem_count`,`ndbinfo`.`space`.`hash_index_alloc_bytes` AS `hash_index_alloc_bytes` from `ndbinfo`.`ndb$frag_mem_use` `space` join `ndbinfo`.`ndb$dict_obj_info` `name` join `ndbinfo`.`ndb$dict_obj_types` `types` left join `ndbinfo`.`ndb$dict_obj_info` `parent_name` on(((`ndbinfo`.`parent_name`.`type` = `ndbinfo`.`name`.`parent_obj_type`) and (`ndbinfo`.`parent_name`.`id` = `ndbinfo`.`name`.`parent_obj_id`))) where ((`ndbinfo`.`name`.`id` = `ndbinfo`.`space`.`table_id`) and (`ndbinfo`.`types`.`type_id` = `ndbinfo`.`name`.`type`) and (`ndbinfo`.`name`.`type` <= 6))
+
+## Create an all-MyISAM version of memory_per_fragment for comparison
+## and explain the same query
+explain format=json select * from memory_per_fragment;
+EXPLAIN	{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1748.86"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "name",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 3,
+          "filtered": "33.33",
+          "cost_info": {
+            "read_cost": "3.45",
+            "eval_cost": "0.67",
+            "prefix_cost": "4.12",
+            "data_read_per_join": "1K"
+          },
+          "used_columns": [
+            "type",
+            "id",
+            "parent_obj_type",
+            "parent_obj_id",
+            "fq_name"
+          ],
+          "attached_condition": "(`name`.`type` <= 6)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "types",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 6,
+          "filtered": "10.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.14",
+            "eval_cost": "1.33",
+            "prefix_cost": "19.59",
+            "data_read_per_join": "3K"
+          },
+          "used_columns": [
+            "type_id",
+            "type_name"
+          ],
+          "attached_condition": "(`types`.`type_id` = `name`.`type`)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "parent_name",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 66,
+          "filtered": "100.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.18",
+            "eval_cost": "13.33",
+            "prefix_cost": "35.10",
+            "data_read_per_join": "35K"
+          },
+          "used_columns": [
+            "type",
+            "id",
+            "fq_name"
+          ],
+          "attached_condition": "<if>(is_not_null_compl(parent_name), ((`parent_name`.`type` = `name`.`parent_obj_type`) and (`parent_name`.`id` = `name`.`parent_obj_id`)), true)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "space",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 128,
+          "rows_produced_per_join": 853,
+          "filtered": "10.00",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "7.26",
+            "eval_cost": "170.65",
+            "prefix_cost": "1748.86",
+            "data_read_per_join": "86K"
+          },
+          "used_columns": [
+            "node_id",
+            "block_instance",
+            "table_id",
+            "fragment_num",
+            "fixed_elem_alloc_bytes",
+            "fixed_elem_free_bytes",
+            "fixed_elem_count",
+            "fixed_elem_size_bytes",
+            "var_elem_alloc_bytes",
+            "var_elem_free_bytes",
+            "var_elem_count",
+            "hash_index_alloc_bytes"
+          ],
+          "attached_condition": "(`space`.`table_id` = `name`.`id`)"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select `name`.`fq_name` AS `fq_name`,`parent_name`.`fq_name` AS `parent_fq_name`,`types`.`type_name` AS `type`,`space`.`table_id` AS `table_id`,`space`.`node_id` AS `node_id`,`space`.`block_instance` AS `block_instance`,`space`.`fragment_num` AS `fragment_num`,`space`.`fixed_elem_alloc_bytes` AS `fixed_elem_alloc_bytes`,`space`.`fixed_elem_free_bytes` AS `fixed_elem_free_bytes`,`space`.`fixed_elem_size_bytes` AS `fixed_elem_size_bytes`,`space`.`fixed_elem_count` AS `fixed_elem_count`,floor((`space`.`fixed_elem_free_bytes` / `space`.`fixed_elem_size_bytes`)) AS `fixed_elem_free_count`,`space`.`var_elem_alloc_bytes` AS `var_elem_alloc_bytes`,`space`.`var_elem_free_bytes` AS `var_elem_free_bytes`,`space`.`var_elem_count` AS `var_elem_count`,`space`.`hash_index_alloc_bytes` AS `hash_index_alloc_bytes` from `test`.`ndb$frag_mem_use` `space` join `test`.`ndb$dict_obj_info` `name` join `test`.`ndb$dict_obj_types` `types` left join `test`.`ndb$dict_obj_info` `parent_name` on(((`parent_name`.`type` = `name`.`parent_obj_type`) and (`parent_name`.`id` = `name`.`parent_obj_id`))) where ((`space`.`table_id` = `name`.`id`) and (`types`.`type_id` = `name`.`type`) and (`name`.`type` <= 6))
+
+
+## CLEANUP

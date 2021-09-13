@@ -333,6 +333,7 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
   delete[] m_buffer;
 }
 
+// Tables begin here
 
 #include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
@@ -357,6 +358,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
+                                             NO_OF_BLOCK_NAMES,
                                              this);
     if (!tab)
       return NULL;
@@ -374,54 +376,22 @@ public:
 class DictObjTypesTable : public VirtualTable
 {
 public:
-  virtual bool read_row(VirtualTable::Row& w,
-                        Uint32 row_number) const
-  {
-    struct Entry {
+  struct Entry {
      const DictTabInfo::TableType type;
      const char* name;
     };
+    static const int OBJ_TYPES_TABLE_SIZE = 20;
 
-    static const Entry entries[] =
-     {
-       {DictTabInfo::SystemTable, "System table"},
-       {DictTabInfo::UserTable, "User table"},
-       {DictTabInfo::UniqueHashIndex, "Unique hash index"},
-       {DictTabInfo::HashIndex, "Hash index"},
-       {DictTabInfo::UniqueOrderedIndex, "Unique ordered index"},
-       {DictTabInfo::OrderedIndex, "Ordered index"},
-       {DictTabInfo::HashIndexTrigger, "Hash index trigger"},
-       {DictTabInfo::SubscriptionTrigger, "Subscription trigger"},
-       {DictTabInfo::ReadOnlyConstraint, "Read only constraint"},
-       {DictTabInfo::IndexTrigger, "Index trigger"},
-       {DictTabInfo::ReorgTrigger, "Reorganize trigger"},
-       {DictTabInfo::Tablespace, "Tablespace"},
-       {DictTabInfo::LogfileGroup,  "Log file group"},
-       {DictTabInfo::Datafile, "Data file"},
-       {DictTabInfo::Undofile, "Undo file"},
-       {DictTabInfo::HashMap, "Hash map"},
-       {DictTabInfo::ForeignKey, "Foreign key definition"},
-       {DictTabInfo::FKParentTrigger, "Foreign key parent trigger"},
-       {DictTabInfo::FKChildTrigger, "Foreign key child trigger"},
-       {DictTabInfo::SchemaTransaction, "Schema transaction"}
-     };
+public:
+  DictObjTypesTable() { }
 
-    if (row_number >= sizeof(entries) / sizeof(entries[0]))
-    {
-      // No more rows
-      return false;
-    }
-
-    const Entry& e = entries[row_number];
-    w.write_number(e.type);
-    w.write_string(e.name);
-    return true;
-  }
+  bool read_row(VirtualTable::Row&, Uint32 row_number) const;
 
   NdbInfo::Table* get_instance() const
   {
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
+                                             OBJ_TYPES_TABLE_SIZE,
                                              this);
     if (!tab)
       return NULL;
@@ -433,6 +403,43 @@ public:
     return tab;
   }
 };
+
+static const DictObjTypesTable::Entry dictObjTypesEntries[] =
+{
+    {DictTabInfo::SystemTable, "System table"},
+    {DictTabInfo::UserTable, "User table"},
+    {DictTabInfo::UniqueHashIndex, "Unique hash index"},
+    {DictTabInfo::HashIndex, "Hash index"},
+    {DictTabInfo::UniqueOrderedIndex, "Unique ordered index"},
+    {DictTabInfo::OrderedIndex, "Ordered index"},
+    {DictTabInfo::HashIndexTrigger, "Hash index trigger"},
+    {DictTabInfo::SubscriptionTrigger, "Subscription trigger"},
+    {DictTabInfo::ReadOnlyConstraint, "Read only constraint"},
+    {DictTabInfo::IndexTrigger, "Index trigger"},
+    {DictTabInfo::ReorgTrigger, "Reorganize trigger"},
+    {DictTabInfo::Tablespace, "Tablespace"},
+    {DictTabInfo::LogfileGroup,  "Log file group"},
+    {DictTabInfo::Datafile, "Data file"},
+    {DictTabInfo::Undofile, "Undo file"},
+    {DictTabInfo::HashMap, "Hash map"},
+    {DictTabInfo::ForeignKey, "Foreign key definition"},
+    {DictTabInfo::FKParentTrigger, "Foreign key parent trigger"},
+    {DictTabInfo::FKChildTrigger, "Foreign key child trigger"},
+    {DictTabInfo::SchemaTransaction, "Schema transaction"}
+};
+
+bool DictObjTypesTable::read_row(VirtualTable::Row& w, Uint32 row_number) const
+{
+  if (row_number >= OBJ_TYPES_TABLE_SIZE)
+  {
+    return false;
+  }
+
+  const Entry& e = dictObjTypesEntries[row_number];
+  w.write_number(e.type);
+  w.write_string(e.name);
+  return true;
+}
 
 
 #include "mgmapi/mgmapi_config_parameters.h"
@@ -592,6 +599,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_config_params.size(),
                                              this);
     if (!tab)
       return NULL;
@@ -663,6 +671,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,
+                                             m_array_count,
                                              this);
     if (!tab)
       return NULL;

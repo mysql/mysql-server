@@ -68,9 +68,7 @@ public:
   class Table
   {
   public:
-
-
-    Table(const char *name, Uint32 id,
+    Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
           const class VirtualTable* virt = NULL);
     Table(const Table& tab);
     const Table & operator=(const Table& tab);
@@ -79,6 +77,8 @@ public:
     const char * getName() const;
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
+    Uint32 getRowsEstimate() const { return m_rows_estimate; }
+    bool rowCountIsExact() const;
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
@@ -91,6 +91,7 @@ public:
     friend class NdbInfo;
     BaseString m_name;
     Uint32 m_table_id;
+    Uint32 m_rows_estimate;
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };

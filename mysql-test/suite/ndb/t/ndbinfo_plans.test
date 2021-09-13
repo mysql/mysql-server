@@ -1,0 +1,79 @@
+--source include/have_ndb.inc
+
+--vertical_results
+--result_format 2
+
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+
+## ndb$tables
+select count(*) from ndb$tables;
+explain select count(*) from ndb$tables;
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+let $extra= query_get_value(explain select count(*) from dict_obj_types, Extra, 1);
+echo $extra;
+
+## config_params
+let $extra= query_get_value(explain select count(*) from config_params, Extra, 1);
+echo $extra;
+
+## blocks
+let $extra= query_get_value(explain select count(*) from blocks, Extra, 1);
+echo $extra;
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
+echo $extra;
+
+## The plan for counters
+explain format=json select * from counters;
+
+## The plan for memory_per_fragment
+explain format=json select * from memory_per_fragment;
+
+
+## Create an all-MyISAM version of memory_per_fragment for comparison
+## and explain the same query
+--disable_query_log
+--disable_result_log
+use test;
+CREATE TABLE ndb$frag_mem_use engine=myisam
+  as select * from ndbinfo.ndb$frag_mem_use;
+CREATE TABLE ndb$dict_obj_info engine=myisam
+  as select * from ndbinfo.ndb$dict_obj_info limit 14;
+CREATE TABLE ndb$dict_obj_types engine=myisam
+  as select * from ndbinfo.ndb$dict_obj_types;
+
+CREATE VIEW memory_per_fragment AS
+   SELECT name.fq_name, parent_name.fq_name AS parent_fq_name,
+   types.type_name AS type, table_id, node_id, block_instance,
+   fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes,
+   fixed_elem_size_bytes, fixed_elem_count,
+   FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS
+   fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes,
+   var_elem_count, hash_index_alloc_bytes
+   FROM ndb$frag_mem_use AS space
+   JOIN ndb$dict_obj_info AS name
+   ON name.id=space.table_id AND name.type<=6
+   JOIN ndb$dict_obj_types AS types
+   ON name.type=types.type_id
+   LEFT JOIN ndb$dict_obj_info AS parent_name
+   ON name.parent_obj_id=parent_name.id AND
+   name.parent_obj_type=parent_name.type;
+--enable_query_log
+--enable_result_log
+
+explain format=json select * from memory_per_fragment;
+
+
+
+## CLEANUP
+--disable_query_log
+--disable_result_log
+DROP VIEW memory_per_fragment;
+DROP TABLE ndb$frag_mem_use , ndb$dict_obj_info , ndb$dict_obj_types;
+
