@@ -1389,7 +1389,26 @@ class THD : public MDL_context_owner,
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  ulonglong start_utime, utime_after_lock;
+  /**
+    Query start time, expressed in microseconds.
+  */
+  ulonglong start_utime;
+
+ private:
+  /**
+    Time spent waiting for TABLE locks and DATA locks.
+    Expressed in microseconds.
+  */
+  ulonglong m_lock_usec;
+
+ public:
+  ulonglong get_lock_usec() { return m_lock_usec; }
+  void inc_lock_usec(ulonglong usec);
+  void push_lock_usec(ulonglong &top) {
+    top = m_lock_usec;
+    m_lock_usec = 0;
+  }
+  void pop_lock_usec(ulonglong top) { m_lock_usec = top; }
 
   /**
     Type of lock to be used for all DML statements, except INSERT, in cases
@@ -2868,7 +2887,6 @@ class THD : public MDL_context_owner,
     user_time = *t;
     set_time();
   }
-  void set_time_after_lock();
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }

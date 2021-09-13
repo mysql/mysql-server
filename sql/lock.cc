@@ -330,6 +330,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
 
+  ulonglong lock_start_usec = my_micro_time();
+
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info()));
   if (sql_lock->table_count &&
       lock_external(thd, sql_lock->table, sql_lock->table_count)) {
@@ -368,7 +370,9 @@ end:
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
     track_table_access(thd, tables, count);
 
-  thd->set_time_after_lock();
+  ulonglong lock_end_usec = my_micro_time();
+  thd->inc_lock_usec(lock_end_usec - lock_start_usec);
+
   return sql_lock;
 }
 
