@@ -816,28 +816,34 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
 /**
   Returns true if a condition can be pushed down to derived
   table based on some constraints.
-  Hint and/or optimizer switch derived_condition_pushdown must be on.
 
   A condition cannot be pushed down to derived table if any of
   the following holds true:
-  1. If the derived table has UNION - Implementation restriction
-  2. If it has LIMIT - If the derived table has LIMIT,
+  1. Hint and/or optimizer switch DERIVED_CONDITION_PUSHDOWN is off.
+  2. If the derived table has UNION - Implementation restriction.
+  3. If it has LIMIT - If the derived table has LIMIT,
   then the pushed condition would affect the number of rows that
   would be fetched.
-  3. It cannot be an inner table of an outer join - that would lead to more
+  4. It cannot be an inner table of an outer join - that would lead to more
   NULL-complemented rows.
-  4. This cannot be a CTE having derived tables being referenced
+  5. This cannot be a CTE having derived tables being referenced
   multiple times - there is only one temporary table for both references, if
   materialized ("shared materialization").
+  6. If the derived query block has any user variable assignments -
+  would affect the result of evaluating assignments to user variables
+  in SELECT list of the derived table.
 */
 
 bool TABLE_LIST::can_push_condition_to_derived(THD *thd) {
   Query_expression const *unit = derived_query_expression();
   return hint_table_state(thd, this, DERIVED_CONDITION_PUSHDOWN_HINT_ENUM,
-                          OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&
-         !unit->is_union() && !unit->first_query_block()->has_limit() &&
-         !is_inner_table_of_outer_join() &&
-         !(common_table_expr() && common_table_expr()->references.size() >= 2);
+                          OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN) &&  // 1
+         !unit->is_union() &&                                              // 2
+         !unit->first_query_block()->has_limit() &&                        // 3
+         !is_inner_table_of_outer_join() &&                                // 4
+         !(common_table_expr() &&
+           common_table_expr()->references.size() >= 2) &&  // 5
+         (thd->lex->set_var_list.elements == 0);            // 6
 }
 
 /**

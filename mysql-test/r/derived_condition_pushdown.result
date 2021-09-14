@@ -1225,3 +1225,28 @@ DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DROP TABLE t1;
 DROP TABLE t2;
 DROp VIEW v;
+#
+# Bug#33341080: Derived condition pushdown rewrite ignores user variables
+#
+CREATE TABLE t1(f1 INTEGER);
+INSERT INTO t1 VALUES (100),(200),(300),(400),(500);
+SET @rownum_r=0;
+EXPLAIN FORMAT=tree SELECT *
+FROM (SELECT f1, (@rownum_r := @rownum_r + 1) AS r FROM t1) AS dt
+WHERE dt.f1 = 300;
+EXPLAIN
+-> Index lookup on dt using <auto_key0> (f1=300)
+    -> Materialize
+        -> Table scan on t1
+
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SET @rownum_r=0;
+SELECT *
+FROM (SELECT f1, (@rownum_r := @rownum_r + 1) AS r FROM t1) AS dt
+WHERE dt.f1 = 300;
+f1	r
+300	3
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t1;
