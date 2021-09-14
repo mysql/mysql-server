@@ -35,14 +35,14 @@ ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 0 0))', 4326)),
 2
 ) AS area;
 area
-6154785747.34
+6154855102.02
 SELECT
 ROUND(
 ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))', 4326)),
 2
 ) AS area;
 area
-6154785747.34
+6154855102.02
 # Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
