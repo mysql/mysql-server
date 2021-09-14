@@ -285,6 +285,12 @@ Conflicts:      otherproviders(mysql-client)
 This package contains the standard MySQL clients and administration
 tools.
 
+%package        icu-data-files
+Summary:        MySQL packaging of ICU data files
+
+%description    icu-data-files
+This package contains ICU data files needer by MySQL regular expressions.
+
 %package        common
 Summary:        MySQL database common files for server and client libs
 Group:          Applications/Databases
@@ -981,6 +987,13 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/spanish/
 %{_datadir}/mysql-*/swedish/
 %{_datadir}/mysql-*/ukrainian/
+
+%files icu-data-files
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
 
 %files client
 %defattr(-, root, root, -)

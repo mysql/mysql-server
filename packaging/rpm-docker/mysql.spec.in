@@ -478,6 +478,10 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
 
+%dir %attr(755, root, root) %{_libdir}/mysql/private/icudt69l
+%{_libdir}/mysql/private/icudt69l/unames.icu
+%{_libdir}/mysql/private/icudt69l/brkitr
+
 %if 0%{?commercial}
 %if 0%{?with_meb}
 %attr(755, root, root) %{_bindir}/mysqlbackup
