@@ -1721,8 +1721,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     case COM_REGISTER_SLAVE: {
       // TODO: access of protocol_classic should be removed
-      if (!register_slave(thd, thd->get_protocol_classic()->get_raw_packet(),
-                          thd->get_protocol_classic()->get_packet_length()))
+      if (!register_replica(thd, thd->get_protocol_classic()->get_raw_packet(),
+                            thd->get_protocol_classic()->get_packet_length()))
         my_ok(thd);
       break;
     }

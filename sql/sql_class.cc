@@ -1214,7 +1214,7 @@ THD::~THD() {
     but then need to be removed on error scenarios, we call this method
     here
   */
-  unregister_slave(this, true, true);
+  unregister_replica(this, true, true);
 
   main_mem_root.Clear();
 
