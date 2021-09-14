@@ -942,6 +942,47 @@ struct Wait_stats {
   bool any_waits() const { return (wait_loops != 0); }
 };
 
+namespace ib {
+
+/** Allows to monitor an event processing times, allowing to throttle the
+processing to one per THROTTLE_DELAY_SEC. */
+class Throttler {
+ public:
+  Throttler() : m_last_applied_time(0) {}
+
+  /** Checks if the item should be processed or ignored to not process them more
+  frequently than one per THROTTLE_DELAY_SEC. */
+  bool apply() {
+    const auto current_time = std::chrono::steady_clock::now();
+    const auto current_time_in_sec =
+        std::chrono::duration_cast<std::chrono::seconds>(
+            current_time.time_since_epoch())
+            .count();
+    auto last_apply_time = m_last_applied_time.load();
+    if (last_apply_time + THROTTLE_DELAY_SEC <
+        static_cast<uint64_t>(current_time_in_sec)) {
+      if (m_last_applied_time.compare_exchange_strong(last_apply_time,
+                                                      current_time_in_sec)) {
+        return true;
+      }
+      /* Any race condition with other threads would mean someone just changed
+      the `m_last_apply_time` and will print the message. We don't want
+      to retry the operation again. */
+    }
+    return false;
+  }
+
+ private:
+  /* Time when the last item was not throttled. Stored as number of seconds
+  since epoch. */
+  std::atomic<uint64_t> m_last_applied_time;
+
+  /** Throttle all items within that amount seconds from the last non throttled
+  one. */
+  static constexpr uint64_t THROTTLE_DELAY_SEC = 10;
+};
+}  // namespace ib
+
 #include "ut0ut.ic"
 
 #endif /* !ut0ut_h */
