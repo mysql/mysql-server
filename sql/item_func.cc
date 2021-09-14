@@ -4341,8 +4341,9 @@ void udf_handler::cleanup() {
   if (thd->stmt_arena->is_stmt_prepare() && thd->stmt_arena->is_repreparing)
     return;
 
-  if (u_d->func_deinit != nullptr) (*u_d->func_deinit)(&initid);
-
+  if (initid.const_item && u_d->func_deinit != nullptr) {
+    (*u_d->func_deinit)(&initid);
+  }
   DEBUG_SYNC(current_thd, "udf_handler_destroy_sync");
   free_handler();
 }
