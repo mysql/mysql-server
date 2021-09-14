@@ -831,10 +831,8 @@ static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
 SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                       table_map read_tables, table_map current_table,
                       bool remove_jump_scans, Item *cond) {
-  SEL_TREE *tree = nullptr;
   SEL_TREE *ftree = nullptr;
   bool inv = false;
-  Item *value = nullptr;
   DBUG_TRACE;
 
   if (param->has_errors()) return nullptr;
@@ -842,8 +840,8 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
   if (cond->type() == Item::COND_ITEM) {
     List_iterator<Item> li(*((Item_cond *)cond)->argument_list());
 
-    if (((Item_cond *)cond)->functype() == Item_func::COND_AND_FUNC) {
-      tree = nullptr;
+    SEL_TREE *tree = nullptr;
+    if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
       while ((item = li++)) {
         SEL_TREE *new_tree =
@@ -877,7 +875,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
   if (cond->const_item() && !cond->is_expensive()) {
     const SEL_TREE::Type type =
         cond->val_int() ? SEL_TREE::ALWAYS : SEL_TREE::IMPOSSIBLE;
-    tree = new (param->temp_mem_root)
+    SEL_TREE *tree = new (param->temp_mem_root)
         SEL_TREE(type, param->temp_mem_root, param->keys);
 
     if (param->has_errors()) return nullptr;
@@ -926,6 +924,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
         Concerning the code below see the NOTES section in
         the comments for the function get_full_func_mm_tree()
       */
+      SEL_TREE *tree = nullptr;
       for (uint i = 1; i < cond_func->arg_count; i++) {
         Item *const arg = cond_func->arguments()[i];
 
@@ -968,14 +967,16 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     }  // end case Item_func::IN_FUNC
 
     case Item_func::MULT_EQUAL_FUNC: {
-      Item_equal *item_equal = (Item_equal *)cond;
-      if (!(value = item_equal->get_const())) return nullptr;
+      Item_equal *item_equal = down_cast<Item_equal *>(cond);
+      Item *value = item_equal->get_const();
+      if (value == nullptr) return nullptr;
       ref_tables = value->used_tables();
       for (Item_field &field_item : item_equal->get_fields()) {
         Field *field = field_item.field;
         if (!((ref_tables | field_item.table_ref->map()) & param_comp)) {
-          tree = get_mm_parts(thd, param, prev_tables, read_tables, item_equal,
-                              field, Item_func::EQ_FUNC, value);
+          SEL_TREE *tree =
+              get_mm_parts(thd, param, prev_tables, read_tables, item_equal,
+                           field, Item_func::EQ_FUNC, value);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
         }
       }
@@ -991,7 +992,8 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
       if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
         Item_field *field_item = down_cast<Item_field *>(arg_left->real_item());
-        value = cond_func->arg_count > 1 ? cond_func->arguments()[1] : nullptr;
+        Item *value =
+            cond_func->arg_count > 1 ? cond_func->arguments()[1] : nullptr;
         ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                       current_table, remove_jump_scans,
                                       field_item, cond_func, value, inv);
@@ -1019,7 +1021,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
           arg_right->real_item()->type() == Item::FIELD_ITEM) {
         Item_field *field_item =
             down_cast<Item_field *>(arg_right->real_item());
-        value = arg_left;
+        Item *value = arg_left;
         ftree = get_full_func_mm_tree(thd, param, prev_tables, read_tables,
                                       current_table, remove_jump_scans,
                                       field_item, cond_func, value, inv);

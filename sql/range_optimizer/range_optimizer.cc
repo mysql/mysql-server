@@ -488,7 +488,6 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   DBUG_PRINT("enter", ("keys_to_use: %lu  prev_tables: %lu  ",
                        (ulong)keys_to_use.to_ulonglong(), (ulong)prev_tables));
 
-  bool force_skip_scan = false;
   const Cost_model_server *const cost_model = thd->cost_model();
   ha_rows records = table->file->stats.records;
   if (!records) records++; /* purecov: inspected */
@@ -517,344 +516,335 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
       .add("cost", cost_est);
 
   keys_to_use.intersect(table->keys_in_use_for_query);
-  if (!keys_to_use.is_clear_all()) {
-    SEL_TREE *tree = nullptr;
-    KEY_PART *key_parts;
-    KEY *key_info;
-    RANGE_OPT_PARAM param;
+  if (keys_to_use.is_clear_all()) return 0;
 
+  /*
+    Use the 3 multiplier as range optimizer allocates big RANGE_OPT_PARAM
+    structure and may evaluate a subquery expression
+    TODO During the optimization phase we should evaluate only inexpensive
+         single-lookup subqueries.
+  */
+  uchar buff[STACK_BUFF_ALLOC];
+  if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(RANGE_OPT_PARAM),
+                          buff))
+    return 0;  // Fatal error flag is set
+
+  /* set up parameter that is passed to all functions */
+  RANGE_OPT_PARAM param;
+  param.table = table;
+  param.query_block = query_block;
+  param.keys = 0;
+  param.return_mem_root = return_mem_root;
+  param.temp_mem_root = temp_mem_root;
+  param.using_real_indexes = true;
+  param.use_index_statistics = false;
+  /*
+    Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
+    Notice also that OPTIMIZER_SWITCH_INDEX_MERGE disables all
+    index merge sub strategies.
+  */
+  const bool index_merge_allowed =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE);
+  const bool index_merge_union_allowed =
+      index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION);
+  const bool index_merge_sort_union_allowed =
+      index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION);
+  const bool index_merge_intersect_allowed =
+      index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
+
+  temp_mem_root->set_max_capacity(thd->variables.range_optimizer_max_mem_size);
+  temp_mem_root->set_error_for_capacity_exceeded(true);
+  thd->push_internal_handler(&param.error_handler);
+  auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
+
+  // These are being stored in AccessPaths, so they need to be on
+  // return_mem_root.
+  param.real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
+  param.key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
+  param.key_parts = return_mem_root->ArrayAlloc<KEY_PART>(table->s->key_parts);
+  if (param.real_keynr == nullptr || param.key == nullptr ||
+      param.key_parts == nullptr) {
+    return 0;  // Can't use range
+  }
+  KEY_PART *key_parts = param.key_parts;
+
+  {
+    Opt_trace_array trace_idx(trace, "potential_range_indexes",
+                              Opt_trace_context::RANGE_OPTIMIZER);
     /*
-      Use the 3 multiplier as range optimizer allocates big RANGE_OPT_PARAM
-      structure and may evaluate a subquery expression
-      TODO During the optimization phase we should evaluate only inexpensive
-           single-lookup subqueries.
+      Make an array with description of all key parts of all table keys.
+      This is used in get_mm_parts function.
     */
-    uchar buff[STACK_BUFF_ALLOC];
-    if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(RANGE_OPT_PARAM),
-                            buff))
-      return 0;  // Fatal error flag is set
+    KEY *key_info = table->key_info;
+    for (uint idx = 0; idx < table->s->keys; idx++, key_info++) {
+      Opt_trace_object trace_idx_details(trace);
+      trace_idx_details.add_utf8("index", key_info->name);
+      KEY_PART_INFO *key_part_info;
 
-    /* set up parameter that is passed to all functions */
-    param.table = table;
-    param.query_block = query_block;
-    param.keys = 0;
-    param.return_mem_root = return_mem_root;
-    param.temp_mem_root = temp_mem_root;
-    param.using_real_indexes = true;
-    param.use_index_statistics = false;
-    /*
-      Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
-      Notice also that OPTIMIZER_SWITCH_INDEX_MERGE disables all
-      index merge sub strategies.
-    */
-    bool index_merge_allowed =
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE);
-    bool index_merge_union_allowed =
-        index_merge_allowed &&
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION);
-    bool index_merge_sort_union_allowed =
-        index_merge_allowed &&
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION);
-    bool index_merge_intersect_allowed =
-        index_merge_allowed &&
-        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
+      if (!keys_to_use.is_set(idx)) {
+        trace_idx_details.add("usable", false)
+            .add_alnum("cause", "not_applicable");
+        continue;
+      }
 
-    temp_mem_root->set_max_capacity(
-        thd->variables.range_optimizer_max_mem_size);
-    temp_mem_root->set_error_for_capacity_exceeded(true);
-    thd->push_internal_handler(&param.error_handler);
-    auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
+      if (hint_key_state(thd, table->pos_in_table_list, idx, NO_RANGE_HINT_ENUM,
+                         0)) {
+        trace_idx_details.add("usable", false)
+            .add_alnum("cause", "no_range_optimization hint");
+        continue;
+      }
 
-    // These are being stored in AccessPaths, so they need to be on
-    // return_mem_root.
-    param.real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
-    param.key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
-    param.key_parts =
-        return_mem_root->ArrayAlloc<KEY_PART>(table->s->key_parts);
-    if (param.real_keynr == nullptr || param.key == nullptr ||
-        param.key_parts == nullptr) {
-      return 0;  // Can't use range
+      if (key_info->flags & HA_FULLTEXT) {
+        trace_idx_details.add("usable", false).add_alnum("cause", "fulltext");
+        continue;  // ToDo: ft-keys in non-ft ranges, if possible   SerG
+      }
+
+      trace_idx_details.add("usable", true);
+
+      param.key[param.keys] = key_parts;
+      key_part_info = key_info->key_part;
+      Opt_trace_array trace_keypart(trace, "key_parts");
+      for (uint part = 0; part < actual_key_parts(key_info);
+           part++, key_parts++, key_part_info++) {
+        key_parts->key = param.keys;
+        key_parts->part = part;
+        key_parts->length = key_part_info->length;
+        key_parts->store_length = key_part_info->store_length;
+        key_parts->field = key_part_info->field;
+        key_parts->null_bit = key_part_info->null_bit;
+        key_parts->image_type = (part < key_info->user_defined_key_parts &&
+                                 key_info->flags & HA_SPATIAL)
+                                    ? Field::itMBR
+                                    : Field::itRAW;
+        /* Only HA_PART_KEY_SEG is used */
+        key_parts->flag = key_part_info->key_part_flag;
+        trace_keypart.add_utf8(
+            get_field_name_or_expression(thd, key_part_info->field));
+      }
+      param.real_keynr[param.keys++] = idx;
     }
-    key_parts = param.key_parts;
+  }
+  param.key_parts_end = key_parts;
 
+  /* Calculate cost of full index read for the shortest covering index */
+  if (!table->covering_keys.is_clear_all()) {
+    int key_for_use = find_shortest_key(table, &table->covering_keys);
+    // find_shortest_key() should return a valid key:
+    assert(key_for_use != MAX_KEY);
+
+    Cost_estimate key_read_time = param.table->file->index_scan_cost(
+        key_for_use, 1, static_cast<double>(records));
+    key_read_time.add_cpu(
+        cost_model->row_evaluate_cost(static_cast<double>(records)));
+
+    bool chosen = false;
+    if (key_read_time < cost_est) {
+      cost_est = key_read_time;
+      chosen = true;
+    }
+
+    Opt_trace_object trace_cov(trace, "best_covering_index_scan",
+                               Opt_trace_context::RANGE_OPTIMIZER);
+    trace_cov.add_utf8("index", table->key_info[key_for_use].name)
+        .add("cost", key_read_time)
+        .add("chosen", chosen);
+    if (!chosen) trace_cov.add_alnum("cause", "cost");
+  }
+
+  AccessPath *best_path = nullptr;
+  double best_cost = cost_est.total_cost();
+
+  SEL_TREE *tree = nullptr;
+  if (cond) {
     {
-      Opt_trace_array trace_idx(trace, "potential_range_indexes",
-                                Opt_trace_context::RANGE_OPTIMIZER);
+      Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
+      tree = get_mm_tree(thd, &param, prev_tables | INNER_TABLE_BIT,
+                         read_tables | INNER_TABLE_BIT,
+                         table->pos_in_table_list->map(),
+                         /*remove_jump_scans=*/true, cond);
+    }
+    if (tree) {
+      if (tree->type == SEL_TREE::IMPOSSIBLE) {
+        trace_range.add("impossible_range", true);
+        cost_est.reset();
+        cost_est.add_io(static_cast<double>(HA_POS_ERROR));
+        return -1;
+      }
       /*
-        Make an array with description of all key parts of all table keys.
-        This is used in get_mm_parts function.
+        If the tree can't be used for range scans, proceed anyway, as we
+        can construct a group-min-max quick select
       */
-      key_info = table->key_info;
-      for (uint idx = 0; idx < table->s->keys; idx++, key_info++) {
-        Opt_trace_object trace_idx_details(trace);
-        trace_idx_details.add_utf8("index", key_info->name);
-        KEY_PART_INFO *key_part_info;
+      if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER) {
+        trace_range.add("range_scan_possible", false);
+        if (tree->type == SEL_TREE::ALWAYS)
+          trace_range.add_alnum("cause", "condition_always_true");
 
-        if (!keys_to_use.is_set(idx)) {
-          trace_idx_details.add("usable", false)
-              .add_alnum("cause", "not_applicable");
-          continue;
-        }
-
-        if (hint_key_state(thd, table->pos_in_table_list, idx,
-                           NO_RANGE_HINT_ENUM, 0)) {
-          trace_idx_details.add("usable", false)
-              .add_alnum("cause", "no_range_optimization hint");
-          continue;
-        }
-
-        if (key_info->flags & HA_FULLTEXT) {
-          trace_idx_details.add("usable", false).add_alnum("cause", "fulltext");
-          continue;  // ToDo: ft-keys in non-ft ranges, if possible   SerG
-        }
-
-        trace_idx_details.add("usable", true);
-
-        param.key[param.keys] = key_parts;
-        key_part_info = key_info->key_part;
-        Opt_trace_array trace_keypart(trace, "key_parts");
-        for (uint part = 0; part < actual_key_parts(key_info);
-             part++, key_parts++, key_part_info++) {
-          key_parts->key = param.keys;
-          key_parts->part = part;
-          key_parts->length = key_part_info->length;
-          key_parts->store_length = key_part_info->store_length;
-          key_parts->field = key_part_info->field;
-          key_parts->null_bit = key_part_info->null_bit;
-          key_parts->image_type = (part < key_info->user_defined_key_parts &&
-                                   key_info->flags & HA_SPATIAL)
-                                      ? Field::itMBR
-                                      : Field::itRAW;
-          /* Only HA_PART_KEY_SEG is used */
-          key_parts->flag = key_part_info->key_part_flag;
-          trace_keypart.add_utf8(
-              get_field_name_or_expression(thd, key_part_info->field));
-        }
-        param.real_keynr[param.keys++] = idx;
+        tree = nullptr;
       }
     }
-    param.key_parts_end = key_parts;
+  }
 
-    /* Calculate cost of full index read for the shortest covering index */
-    if (!table->covering_keys.is_clear_all()) {
-      int key_for_use = find_shortest_key(table, &table->covering_keys);
-      // find_shortest_key() should return a valid key:
-      assert(key_for_use != MAX_KEY);
-
-      Cost_estimate key_read_time = param.table->file->index_scan_cost(
-          key_for_use, 1, static_cast<double>(records));
-      key_read_time.add_cpu(
-          cost_model->row_evaluate_cost(static_cast<double>(records)));
-
-      bool chosen = false;
-      if (key_read_time < cost_est) {
-        cost_est = key_read_time;
-        chosen = true;
-      }
-
-      Opt_trace_object trace_cov(trace, "best_covering_index_scan",
+  /*
+    Try to construct a GroupIndexSkipScanIterator.
+    Notice that it can be constructed no matter if there is a range tree.
+  */
+  AccessPath *group_path = get_best_group_min_max(
+      thd, &param, tree, interesting_order, skip_records_in_range, best_cost);
+  if (group_path) {
+    DBUG_EXECUTE_IF("force_lis_for_group_by", group_path->cost = 0.0;);
+    param.table->quick_condition_rows =
+        min<double>(group_path->num_output_rows, table->file->stats.records);
+    Opt_trace_object grp_summary(trace, "best_group_range_summary",
                                  Opt_trace_context::RANGE_OPTIMIZER);
-      trace_cov.add_utf8("index", table->key_info[key_for_use].name)
-          .add("cost", key_read_time)
-          .add("chosen", chosen);
-      if (!chosen) trace_cov.add_alnum("cause", "cost");
-    }
+    if (unlikely(trace->is_started()))
+      trace_basic_info(thd, group_path, &param, &grp_summary);
+    if (group_path->cost < best_cost) {
+      grp_summary.add("chosen", true);
+      best_path = group_path;
+      best_cost = best_path->cost;
+    } else
+      grp_summary.add("chosen", false).add_alnum("cause", "cost");
+  }
 
-    AccessPath *best_path = nullptr;
-    double best_cost = cost_est.total_cost();
+  bool force_skip_scan = hint_table_state(thd, param.table->pos_in_table_list,
+                                          SKIP_SCAN_HINT_ENUM, 0);
 
-    if (cond) {
-      {
-        Opt_trace_array trace_setup_cond(trace, "setup_range_conditions");
-        tree = get_mm_tree(thd, &param, prev_tables | INNER_TABLE_BIT,
-                           read_tables | INNER_TABLE_BIT,
-                           table->pos_in_table_list->map(),
-                           /*remove_jump_scans=*/true, cond);
-      }
-      if (tree) {
-        if (tree->type == SEL_TREE::IMPOSSIBLE) {
-          trace_range.add("impossible_range", true);
-          cost_est.reset();
-          cost_est.add_io(static_cast<double>(HA_POS_ERROR));
-          return -1;
-        }
-        /*
-          If the tree can't be used for range scans, proceed anyway, as we
-          can construct a group-min-max quick select
-        */
-        if (tree->type != SEL_TREE::KEY &&
-            tree->type != SEL_TREE::KEY_SMALLER) {
-          trace_range.add("range_scan_possible", false);
-          if (tree->type == SEL_TREE::ALWAYS)
-            trace_range.add_alnum("cause", "condition_always_true");
-
-          tree = nullptr;
-        }
-      }
-    }
-
-    /*
-      Try to construct a GroupIndexSkipScanIterator.
-      Notice that it can be constructed no matter if there is a range tree.
-    */
-    AccessPath *group_path = get_best_group_min_max(
-        thd, &param, tree, interesting_order, skip_records_in_range, best_cost);
-    if (group_path) {
-      DBUG_EXECUTE_IF("force_lis_for_group_by", group_path->cost = 0.0;);
-      param.table->quick_condition_rows =
-          min<double>(group_path->num_output_rows, table->file->stats.records);
-      Opt_trace_object grp_summary(trace, "best_group_range_summary",
-                                   Opt_trace_context::RANGE_OPTIMIZER);
+  if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
+    AccessPath *skip_scan_path =
+        get_best_skip_scan(thd, &param, tree, interesting_order,
+                           skip_records_in_range, force_skip_scan);
+    if (skip_scan_path) {
+      param.table->quick_condition_rows = min<double>(
+          skip_scan_path->num_output_rows, table->file->stats.records);
+      Opt_trace_object summary(trace, "best_skip_scan_summary",
+                               Opt_trace_context::RANGE_OPTIMIZER);
       if (unlikely(trace->is_started()))
-        trace_basic_info(thd, group_path, &param, &grp_summary);
-      if (group_path->cost < best_cost) {
-        grp_summary.add("chosen", true);
-        best_path = group_path;
+        trace_basic_info(thd, skip_scan_path, &param, &summary);
+
+      if (skip_scan_path->cost < best_cost || force_skip_scan) {
+        summary.add("chosen", true);
+        best_path = skip_scan_path;
         best_cost = best_path->cost;
       } else
-        grp_summary.add("chosen", false).add_alnum("cause", "cost");
+        summary.add("chosen", false).add_alnum("cause", "cost");
     }
-
-    force_skip_scan = hint_table_state(thd, param.table->pos_in_table_list,
-                                       SKIP_SCAN_HINT_ENUM, 0);
-
-    if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
-      AccessPath *skip_scan_path =
-          get_best_skip_scan(thd, &param, tree, interesting_order,
-                             skip_records_in_range, force_skip_scan);
-      if (skip_scan_path) {
-        param.table->quick_condition_rows = min<double>(
-            skip_scan_path->num_output_rows, table->file->stats.records);
-        Opt_trace_object summary(trace, "best_skip_scan_summary",
-                                 Opt_trace_context::RANGE_OPTIMIZER);
-        if (unlikely(trace->is_started()))
-          trace_basic_info(thd, skip_scan_path, &param, &summary);
-
-        if (skip_scan_path->cost < best_cost || force_skip_scan) {
-          summary.add("chosen", true);
-          best_path = skip_scan_path;
-          best_cost = best_path->cost;
-        } else
-          summary.add("chosen", false).add_alnum("cause", "cost");
-      }
-    }
-
-    if (tree && (best_path == nullptr || !get_forced_by_hint(best_path))) {
-      /*
-        It is possible to use a range-based quick select (but it might be
-        slower than 'all' table scan).
-      */
-      dbug_print_tree("final_tree", tree, &param);
-
-      MY_BITMAP needed_fields;
-      if (fill_used_fields_bitmap(&param, &needed_fields)) {
-        return 0;
-      }
-
-      {
-        /*
-          Calculate cost of single index range scan and possible
-          intersections of these
-        */
-        Opt_trace_object trace_range_alt(trace, "analyzing_range_alternatives",
-                                         Opt_trace_context::RANGE_OPTIMIZER);
-        AccessPath *range_path = get_key_scans_params(
-            thd, &param, tree, false, true, interesting_order,
-            skip_records_in_range, best_cost, needed_reg);
-
-        /* Get best 'range' plan and prepare data for making other plans */
-        if (range_path) {
-          best_path = range_path;
-          best_cost = best_path->cost;
-        }
-
-        /*
-          Simultaneous key scans and row deletes on several handler
-          objects are not allowed so don't use ROR-intersection for
-          table deletes. Also, ROR-intersection cannot return rows in
-          descending order
-        */
-        if ((thd->lex->sql_command != SQLCOM_DELETE) &&
-            (index_merge_allowed ||
-             hint_table_state(thd, param.table->pos_in_table_list,
-                              INDEX_MERGE_HINT_ENUM, 0)) &&
-            interesting_order != ORDER_DESC) {
-          /*
-            Get best non-covering ROR-intersection plan and prepare data for
-            building covering ROR-intersection.
-          */
-          AccessPath *rori_path = get_best_ror_intersect(
-              thd, &param, table, index_merge_intersect_allowed,
-              interesting_order, tree, &needed_fields, best_cost,
-              /*force_index_merge_result=*/true, /*reuse_handler=*/true);
-          if (rori_path) {
-            best_path = rori_path;
-            best_cost = best_path->cost;
-          }
-        }
-      }
-
-      // Here we calculate cost of union index merge
-      if (!tree->merges.is_empty()) {
-        // Cannot return rows in descending order.
-        if ((index_merge_allowed ||
-             hint_table_state(thd, param.table->pos_in_table_list,
-                              INDEX_MERGE_HINT_ENUM, 0)) &&
-            interesting_order != ORDER_DESC &&
-            param.table->file->stats.records) {
-          /* Try creating index_merge/ROR-union scan. */
-          SEL_IMERGE *imerge;
-          AccessPath *best_conj_path = nullptr, *new_conj_path = nullptr;
-          List_iterator_fast<SEL_IMERGE> it(tree->merges);
-          Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
-                                          Opt_trace_context::RANGE_OPTIMIZER);
-
-          // Buffer for index_merge cost estimates.
-          Unique::Imerge_cost_buf_type imerge_cost_buff;
-          while ((imerge = it++)) {
-            new_conj_path = get_best_disjunct_quick(
-                thd, &param, table, index_merge_union_allowed,
-                index_merge_sort_union_allowed, index_merge_intersect_allowed,
-                interesting_order, skip_records_in_range, &needed_fields,
-                imerge, &imerge_cost_buff, best_cost, needed_reg);
-            if (new_conj_path)
-              param.table->quick_condition_rows =
-                  min<double>(param.table->quick_condition_rows,
-                              new_conj_path->num_output_rows);
-            if (!best_conj_path ||
-                (new_conj_path && new_conj_path->cost < best_conj_path->cost)) {
-              best_conj_path = new_conj_path;
-            }
-          }
-          if (best_conj_path) best_path = best_conj_path;
-        }
-      }
-    }
-
-    /*
-      If we got a read plan, return it, but only if the storage engine supports
-      using indexes for access.
-    */
-    if (best_path &&
-        (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
-      records = best_path->num_output_rows;
-      *path = best_path;
-    }
-
-    if (unlikely(trace->is_started() && best_path)) {
-      Opt_trace_object trace_range_summary(trace,
-                                           "chosen_range_access_summary");
-      {
-        Opt_trace_object trace_range_plan(trace, "range_access_plan");
-        trace_basic_info(thd, best_path, &param, &trace_range_plan);
-      }
-      trace_range_summary.add("rows_for_plan", best_path->num_output_rows)
-          .add("cost_for_plan", best_path->cost)
-          .add("chosen", true);
-    }
-
-    DBUG_EXECUTE("info", print_quick(*path, needed_reg););
   }
+
+  if (tree && (best_path == nullptr || !get_forced_by_hint(best_path))) {
+    /*
+      It is possible to use a range-based quick select (but it might be
+      slower than 'all' table scan).
+    */
+    dbug_print_tree("final_tree", tree, &param);
+
+    MY_BITMAP needed_fields;
+    if (fill_used_fields_bitmap(&param, &needed_fields)) {
+      return 0;
+    }
+
+    {
+      /*
+        Calculate cost of single index range scan and possible
+        intersections of these
+      */
+      Opt_trace_object trace_range_alt(trace, "analyzing_range_alternatives",
+                                       Opt_trace_context::RANGE_OPTIMIZER);
+      AccessPath *range_path = get_key_scans_params(
+          thd, &param, tree, false, true, interesting_order,
+          skip_records_in_range, best_cost, needed_reg);
+
+      /* Get best 'range' plan and prepare data for making other plans */
+      if (range_path) {
+        best_path = range_path;
+        best_cost = best_path->cost;
+      }
+
+      /*
+        Simultaneous key scans and row deletes on several handler
+        objects are not allowed so don't use ROR-intersection for
+        table deletes. Also, ROR-intersection cannot return rows in
+        descending order
+      */
+      if ((thd->lex->sql_command != SQLCOM_DELETE) &&
+          (index_merge_allowed ||
+           hint_table_state(thd, param.table->pos_in_table_list,
+                            INDEX_MERGE_HINT_ENUM, 0)) &&
+          interesting_order != ORDER_DESC) {
+        /*
+          Get best non-covering ROR-intersection plan and prepare data for
+          building covering ROR-intersection.
+        */
+        AccessPath *rori_path = get_best_ror_intersect(
+            thd, &param, table, index_merge_intersect_allowed,
+            interesting_order, tree, &needed_fields, best_cost,
+            /*force_index_merge_result=*/true, /*reuse_handler=*/true);
+        if (rori_path) {
+          best_path = rori_path;
+          best_cost = best_path->cost;
+        }
+      }
+    }
+
+    // Here we calculate cost of union index merge
+    if (!tree->merges.is_empty()) {
+      // Cannot return rows in descending order.
+      if ((index_merge_allowed ||
+           hint_table_state(thd, param.table->pos_in_table_list,
+                            INDEX_MERGE_HINT_ENUM, 0)) &&
+          interesting_order != ORDER_DESC && param.table->file->stats.records) {
+        /* Try creating index_merge/ROR-union scan. */
+        SEL_IMERGE *imerge;
+        AccessPath *best_conj_path = nullptr, *new_conj_path = nullptr;
+        List_iterator_fast<SEL_IMERGE> it(tree->merges);
+        Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
+                                        Opt_trace_context::RANGE_OPTIMIZER);
+
+        // Buffer for index_merge cost estimates.
+        Unique::Imerge_cost_buf_type imerge_cost_buff;
+        while ((imerge = it++)) {
+          new_conj_path = get_best_disjunct_quick(
+              thd, &param, table, index_merge_union_allowed,
+              index_merge_sort_union_allowed, index_merge_intersect_allowed,
+              interesting_order, skip_records_in_range, &needed_fields, imerge,
+              &imerge_cost_buff, best_cost, needed_reg);
+          if (new_conj_path)
+            param.table->quick_condition_rows =
+                min<double>(param.table->quick_condition_rows,
+                            new_conj_path->num_output_rows);
+          if (!best_conj_path ||
+              (new_conj_path && new_conj_path->cost < best_conj_path->cost)) {
+            best_conj_path = new_conj_path;
+          }
+        }
+        if (best_conj_path) best_path = best_conj_path;
+      }
+    }
+  }
+
+  /*
+    If we got a read plan, return it, but only if the storage engine supports
+    using indexes for access.
+  */
+  if (best_path && (table->file->ha_table_flags() & HA_NO_INDEX_ACCESS) == 0) {
+    records = best_path->num_output_rows;
+    *path = best_path;
+  }
+
+  if (unlikely(trace->is_started() && best_path)) {
+    Opt_trace_object trace_range_summary(trace, "chosen_range_access_summary");
+    {
+      Opt_trace_object trace_range_plan(trace, "range_access_plan");
+      trace_basic_info(thd, best_path, &param, &trace_range_plan);
+    }
+    trace_range_summary.add("rows_for_plan", best_path->num_output_rows)
+        .add("cost_for_plan", best_path->cost)
+        .add("chosen", true);
+  }
+
+  DBUG_EXECUTE("info", print_quick(*path, needed_reg););
 
   if (records == 0) {
     return -1;
