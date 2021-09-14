@@ -392,6 +392,11 @@ NdbInfoScanNodes::nextResult()
   DBUG_RETURN(-1);
 }
 
+bool NdbInfoScanNodes::seek(NdbInfoScanOperation::Seek, int)
+{
+  assert(false);
+  return false;
+}
 
 bool
 NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)

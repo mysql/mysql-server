@@ -126,9 +126,61 @@ public:
   */
   virtual int read_row(VirtualScanContext* ctx, Row& row, Uint32 row_number) const = 0;
 
-  virtual ~VirtualTable() = 0;
+  /*
+    key: int32 primary key value
+    returns row number in table
+  */
+  int seek(std::map<int, int>::const_iterator &,
+           const int &key, NdbInfoScanOperation::Seek) const;
+
+ virtual ~VirtualTable() = 0;
+
+protected:
+  std::map<int, int> m_index;
 };
 
+int VirtualTable::seek(std::map<int, int>::const_iterator &iter,
+                       const int &key,
+                       NdbInfoScanOperation::Seek seek) const {
+  switch(seek.mode) {
+    case NdbInfoScanOperation::Seek::Mode::first:
+      iter = m_index.cbegin();
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::last:
+      iter = std::prev(m_index.cend(), 1);
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::next:
+      if(iter == m_index.cend()) return -1;
+      if(++iter == m_index.cend()) return -1;
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::previous:
+      if(iter == m_index.cbegin()) return -1;
+      iter--;
+      return iter->second;
+    case NdbInfoScanOperation::Seek::Mode::value:
+      iter = m_index.lower_bound(key);
+      break;
+  }
+  if(iter == m_index.cend()) return -1;
+
+  /* Check for exact match */
+  if(! (seek.inclusive && (iter->first == key)))
+  {
+    /* Exact match failed. Check for bounded ranges */
+    if(seek.high || seek.low)
+    {
+      if(seek.high && iter->first == key) iter++;
+      else if(seek.low)
+      {
+        if(iter == m_index.cbegin()) return -1; // nothing lower than first rec
+        iter--;
+      }
+    }
+    else return -1; // exact match failed and ranges are not wanted
+  }
+
+  return (iter == m_index.cend()) ? -1 : iter->second;
+}
 
 VirtualTable::~VirtualTable() {}
 
@@ -384,17 +436,33 @@ int NdbInfoScanVirtual::init()
   return NdbInfo::ERR_NoError;
 }
 
+bool NdbInfoScanVirtual::seek(NdbInfoScanOperation::Seek mode, int key) {
+  int r = m_virt->seek(m_index_pos, key, mode);
+  if(r == -1) return false;
+  m_row_counter = r;
+  return true;
+}
+
 NdbInfoScanVirtual::~NdbInfoScanVirtual()
 {
   delete m_ctx;
   delete[] m_buffer;
 }
 
+// Tables begin here
 
 #include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
 {
 public:
+  BlocksTable() {
+    for(int row = 0; row < NO_OF_BLOCKS ; row++)
+    {
+      const BlockName & bn = BlockNames[row];
+      m_index[bn.number] = row;
+    }
+  }
+
   bool start_scan(VirtualScanContext*) const override { return true; }
 
   int read_row(VirtualScanContext*, VirtualTable::Row& w,
@@ -416,6 +484,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
+                                             NO_OF_BLOCK_NAMES,
                                              this);
     if (!tab)
       return NULL;
@@ -432,18 +501,14 @@ public:
 #include "kernel/signaldata/DictTabInfo.hpp"
 class DictObjTypesTable : public VirtualTable
 {
-public:
-  bool start_scan(VirtualScanContext*) const override { return true; }
-
-  int read_row(VirtualScanContext*, VirtualTable::Row& w,
-                Uint32 row_number) const override
-  {
-    struct Entry {
+private:
+  // The compiler will catch if the array size is too small
+  static constexpr int OBJ_TYPES_TABLE_SIZE = 20;
+  struct Entry {
      const DictTabInfo::TableType type;
      const char* name;
     };
-
-    static const Entry entries[] =
+    struct Entry entries[OBJ_TYPES_TABLE_SIZE] =
      {
        {DictTabInfo::SystemTable, "System table"},
        {DictTabInfo::UserTable, "User table"},
@@ -467,7 +532,20 @@ public:
        {DictTabInfo::SchemaTransaction, "Schema transaction"}
      };
 
-    if (row_number >= sizeof(entries) / sizeof(entries[0]))
+public:
+  DictObjTypesTable() {
+    for(int row_count = 0 ; row_count < OBJ_TYPES_TABLE_SIZE ; row_count++)
+    {
+      m_index[entries[row_count].type] = row_count;
+    }
+  }
+
+  bool start_scan(VirtualScanContext*) const override { return true; }
+
+  int read_row(VirtualScanContext*, VirtualTable::Row& w,
+                Uint32 row_number) const override
+  {
+    if (row_number >= OBJ_TYPES_TABLE_SIZE)
     {
       // No more rows
       return 0;
@@ -483,6 +561,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
+                                             OBJ_TYPES_TABLE_SIZE,
                                              this);
     if (!tab)
       return NULL;
@@ -616,6 +695,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_error_messages.size(),
                                              this);
     if (!tab)
       return NULL;
@@ -649,6 +729,7 @@ public:
     ConfigInfo::ParamInfoIter param_iter(m_config_info,
                                          CFG_SECTION_NODE,
                                          NODE_TYPE_DB);
+    int row_count = 0;
 
     while((pinfo= param_iter.next())) {
       if (pinfo->_paramId == 0 || // KEY_INTERNAL
@@ -657,6 +738,8 @@ public:
 
       if (m_config_params.push_back(pinfo) != 0)
         return false;
+
+      m_index[pinfo->_paramId] = row_count++;
     }
     return true;
   }
@@ -792,6 +875,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
+                                             m_config_params.size(),
                                              this);
     if (!tab)
       return NULL;
@@ -838,7 +922,10 @@ public:
     m_table_name(table_name)
   {
     while(m_array[m_array_count].name != 0)
-      m_array_count++;
+    {
+       m_index[m_array[m_array_count].value] = m_array_count;
+       m_array_count++;
+    }
   }
 
   bool start_scan(VirtualScanContext*) const override { return true; }
@@ -865,6 +952,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,
+                                             m_array_count,
                                              this);
     if (!tab)
       return NULL;
@@ -966,6 +1054,7 @@ public:
   {
     NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
                                              NdbInfo::Table::InvalidTableId,
+                                             1,
                                              this);
     if (!tab)
       return NULL;
