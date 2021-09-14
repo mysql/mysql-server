@@ -594,7 +594,7 @@ mkdir debug
            -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
-           -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DSYSTEMD_PID_DIR="/run/mysql" \
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
@@ -638,7 +638,7 @@ mkdir release
            -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
-           -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DSYSTEMD_PID_DIR="/run/mysql" \
            -DWITH_MEB=%{with_meb} \
            -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
