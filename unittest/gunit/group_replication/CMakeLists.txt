@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)
+  RETURN()
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wno-unused-local-typedefs" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
