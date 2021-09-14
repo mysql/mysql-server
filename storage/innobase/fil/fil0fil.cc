@@ -52,6 +52,7 @@ The tablespace memory cache */
 #include "mtr0log.h"
 #include "my_dbug.h"
 #include "ut0new.h"
+#include "ut0ut.h"
 
 #include "clone0api.h"
 #include "os0file.h"
@@ -1570,7 +1571,7 @@ class Fil_system {
   The caller must hold the mutex.
   @param[in]	print_info	if true, prints information why it close a file
   @return true if success, false if should retry later */
-  [[nodiscard]] bool close_file_in_all_LRU(bool print_info);
+  bool close_file_in_all_LRU(bool print_info);
 
   /** Opens all log files and system tablespace data files in
   all shards. */
@@ -1765,6 +1766,11 @@ class Fil_system {
   /** Free the data structures required for recovery. */
   void free_scanned_files() { m_dirs.clear(); }
 
+  /** Throttles info messages when closing files in LRU lists. */
+  bool should_print_close_by_lru_info() {
+    return m_close_by_LRU_info_throttler.apply();
+  }
+
 #ifdef UNIV_HOTBACKUP
   /** Extends all tablespaces to the size stored in the space header.
   During the mysqlbackup --apply-log phase we extended the spaces
@@ -1817,6 +1823,9 @@ class Fil_system {
 
   /** n_open is not allowed to exceed this */
   const size_t m_max_n_open;
+
+  /** Throttles info messages when closing files in LRU lists. */
+  ib::Throttler m_close_by_LRU_info_throttler;
 
   /** Maximum space id in the existing tables, or assigned during
   the time mysqld has been up; at an InnoDB startup we scan the
@@ -2904,8 +2913,10 @@ bool Fil_system::close_file_in_all_LRU(bool print_info) {
     shard->mutex_acquire();
 
     if (print_info) {
-      ib::info(ER_IB_MSG_277, shard->id(),
-               ulonglong{UT_LIST_GET_LEN(shard->m_LRU)});
+      const auto len = ulonglong{UT_LIST_GET_LEN(shard->m_LRU)};
+      if (len > 0) {
+        ib::info(ER_IB_MSG_277, shard->id(), len);
+      }
     }
 
     bool success = shard->close_files_in_LRU(print_info);
@@ -3046,8 +3057,10 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
     /* Reserve an open slot for this shard. So that this
     shard's open file succeeds. */
 
-    while (fil_system->m_max_n_open <= s_n_spaces_in_lru &&
-           !fil_system->close_file_in_all_LRU(i > 1)) {
+    while (fil_system->m_max_n_open <= s_n_spaces_in_lru) {
+      if (!fil_system->close_file_in_all_LRU(false)) {
+        std::this_thread::yield();
+      }
       if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
         start_time = ut_time_monotonic();
 
@@ -3055,6 +3068,9 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
                                 << start_time - begin_time << " seconds"
                                 << ". Configuration only allows for "
                                 << fil_system->m_max_n_open << " open files.";
+        fil_system->close_file_in_all_LRU(
+            fil_system->should_print_close_by_lru_info());
+        break;
       }
     }
 
