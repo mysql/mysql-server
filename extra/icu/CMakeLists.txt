@@ -604,3 +604,30 @@ ENDIF()
 # Utility target to build all ICU libraries
 ADD_CUSTOM_TARGET(icu_all)
 ADD_DEPENDENCIES(icu_all icuuc icui18n icustubdata)
+
+# To build data files on Linux (used for all little-endian platforms)
+#
+# tar xvf icu4c-69_1-src.tgz
+# cd icu
+# mkdir bin-files
+# cd bin-files
+# export CXXFLAGS=-std=c++11
+# ../source/configure --with-data-packaging=files
+# make
+# cd data/out/build
+# tar cvf icudt69l.tar icudt69l/brkitr icudt69l/unames.icu
+#
+# Solaris sparc, same thing, but:
+# tar cvf icudt69b.tar icudt69b/brkitr icudt69b/unames.icu
+#
+# Copy the tarballs, unpack them, and do 'git add'.
+
+INSTALL(DIRECTORY ${ICUDT_DIR}
+  DESTINATION "${INSTALL_PRIV_LIBDIR}"
+  COMPONENT SharedLibraries
+  FILE_PERMISSIONS
+    OWNER_READ
+    OWNER_WRITE
+    GROUP_READ
+    WORLD_READ
+  )

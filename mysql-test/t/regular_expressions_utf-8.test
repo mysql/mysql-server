@@ -1009,15 +1009,8 @@ select regexp_substr( ( _utf32', ,*'), 13946);
 
 # \N{UNICODE CHARACTER NAME}
 
---disable_abort_on_error
---disable_result_log
---disable_warnings
 SELECT 'a' regexp '\\N{latin small letter a}';
 select 'ǅ' regexp '\\N{Latin Capital Letter D with Small Letter Z with Caron}';
-
---enable_warnings
---enable_result_log
---enable_abort_on_error
 
 # \p{UNICODE PROPERTY NAME}
 # \P{UNICODE PROPERTY NAME}

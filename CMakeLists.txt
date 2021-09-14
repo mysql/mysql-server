@@ -1881,6 +1881,22 @@ ELSE()
   ENDIF()
 ENDIF()
 
+IF(WITH_ICU STREQUAL "bundled")
+  IF(IS_ABSOLUTE "${INSTALL_PRIV_LIBDIR}")
+    SET(MYSQL_ICU_DATADIR "${INSTALL_PRIV_LIBDIR}"
+      CACHE PATH "default MySQL ICU data directory")
+  ELSE()
+    SET(MYSQL_ICU_DATADIR "${DEFAULT_MYSQL_HOME}/${INSTALL_PRIV_LIBDIR}"
+      CACHE PATH "default MySQL ICU data directory")
+  ENDIF()
+
+  # Write an explicit symlink in CMAKE_BINARY_DIR, so we can find
+  # the ICU data directory when running in the build sandbox.
+  # See setting of mysql_home in calculate_mysql_home_from_my_progname().
+  FILE(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/extra/icu" ICU_DATA_SOURCE_DIR)
+  FILE(WRITE "${CMAKE_BINARY_DIR}/${ICUDT_DIR}.lnk" "${ICU_DATA_SOURCE_DIR}")
+ENDIF()
+
 # The hypergraph optimizer is default on only for debug builds.
 IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
   SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT ON)

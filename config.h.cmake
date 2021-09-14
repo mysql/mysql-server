@@ -231,6 +231,8 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 #cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
+#cmakedefine MYSQL_ICU_DATADIR "@MYSQL_ICU_DATADIR@"
+#cmakedefine ICUDT_DIR "@ICUDT_DIR@"
 /*
  * Readline
  */

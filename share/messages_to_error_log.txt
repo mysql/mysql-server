@@ -11563,6 +11563,9 @@ ER_WARN_DEPRECATED_CHARSET_OPTION
 ER_WARN_DEPRECATED_COLLATION_OPTION
   eng "%s: '%-.64s' is a collation of the deprecated character set %s. Please consider using %s with an appropriate collation instead."
 
+ER_REGEXP_MISSING_ICU_DATADIR
+  eng "Missing data directory for ICU regular expressions: %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -923,6 +923,7 @@ MySQL clients support the protocol:
 #include <crtdbg.h>
 #include <process.h>
 #endif
+#include "unicode/putil.h"   // u_setDataDirectory()
 #include "unicode/uclean.h"  // u_cleanup()
 
 #include <algorithm>
@@ -5813,6 +5814,107 @@ static int setup_error_log_components() {
   return 0;
 }
 
+#if defined(MYSQL_ICU_DATADIR)
+
+// For "bundled" ICU:
+// Verify that we can find <directory_path>/icudt69l
+//   and                   <directory_path>/icudt69l/unames.icu
+// or <directory_path>/icudt69b on Sparc
+static bool icu_data_directory_is_valid(const char *directory_path) {
+  MY_STAT stat_info;
+  bool directory_exists = mysql_file_stat(key_file_misc, directory_path,
+                                          &stat_info, MYF(0)) != nullptr;
+  if (directory_exists) {
+    char icudt_path[FN_REFLEN];
+    fn_format(icudt_path, ICUDT_DIR, directory_path, "", 0);
+    bool icudt_dir_exists =
+        mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0));
+    if (icudt_dir_exists) {
+      char icunames_path[FN_REFLEN];
+      fn_format(icunames_path, "unames.icu", icudt_path, "", 0);
+      bool icu_unames_exists =
+          mysql_file_stat(key_file_misc, icunames_path, &stat_info, MYF(0));
+      if (icu_unames_exists) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// For "bundled" ICU:
+// Look for icudt69l.lnk in build directory.
+static char *get_icu_data_directory_in_build_dir(char *to) {
+  char icudt_path[FN_REFLEN];
+  fn_format(icudt_path, ICUDT_DIR, mysql_home, ".lnk", 0);
+  MY_STAT stat_info;
+  bool icudt_lnk_exists =
+      mysql_file_stat(key_file_misc, icudt_path, &stat_info, MYF(0)) != nullptr;
+  if (icudt_lnk_exists) {
+    File file = mysql_file_open(key_file_misc, icudt_path, O_RDONLY, 0);
+    if (file != -1) {
+      char icudt_lnk_contents[FN_REFLEN];
+      size_t num_bytes_read =
+          mysql_file_read(file, reinterpret_cast<uchar *>(icudt_lnk_contents),
+                          sizeof(icudt_lnk_contents), 0);
+      mysql_file_close(file, 0);
+      if (num_bytes_read != MY_FILE_ERROR) {
+        icudt_lnk_contents[num_bytes_read] = '\0';
+        memcpy(to, icudt_lnk_contents, num_bytes_read + 1);
+        return to;
+      }
+    }
+  }
+  return nullptr;
+}
+
+// For "bundled" ICU:
+// Look for MYSQL_ICU_DATADIR which depends on INSTALL_PRIV_LIBDIR
+static char *get_icu_data_directory_in_install_dir(char *to) {
+  char buff[FN_REFLEN];
+  const char *mysql_icu_datadir = get_relative_path(MYSQL_ICU_DATADIR);
+  if (test_if_hard_path(mysql_icu_datadir))
+    strmake(buff, mysql_icu_datadir, sizeof(buff) - 1);
+  else
+    strxnmov(buff, sizeof(buff) - 1, mysql_home, mysql_icu_datadir, NullS);
+  convert_dirname(buff, buff, NullS);
+  memcpy(to, buff, sizeof(buff));
+  return to;
+}
+
+// Where to look for data files for "bundled" ICU:
+// Look in environment ICU_DATA.
+// In a build sandbox we expect cmake to write a .lnk file.
+// In an install directory, we look in MYSQL_ICU_DATADIR.
+static void init_icu_data_directory() {
+  // Use environment variable if available.
+  const char *env_icu_data = getenv("ICU_DATA");
+  if (env_icu_data != nullptr) {
+    if (icu_data_directory_is_valid(env_icu_data)) {
+      return;
+    }
+    LogErr(WARNING_LEVEL, ER_REGEXP_MISSING_ICU_DATADIR, env_icu_data);
+    // Continue, looking for ICU in build or install directory.
+  }
+
+  char build_dir_buffer[FN_REFLEN];
+  const char *in_build = get_icu_data_directory_in_build_dir(build_dir_buffer);
+  if (in_build != nullptr && icu_data_directory_is_valid(in_build)) {
+    u_setDataDirectory(in_build);
+    return;
+  }
+  char install_dir_buffer[FN_REFLEN];
+  const char *in_install =
+      get_icu_data_directory_in_install_dir(install_dir_buffer);
+  if (in_install != nullptr && icu_data_directory_is_valid(in_install)) {
+    u_setDataDirectory(in_install);
+    return;
+  }
+  LogErr(WARNING_LEVEL, ER_REGEXP_MISSING_ICU_DATADIR, install_dir_buffer);
+}
+
+#endif  // MYSQL_ICU_DATADIR
+
 static int init_server_components() {
   DBUG_TRACE;
   /*
@@ -6625,6 +6727,10 @@ static int init_server_components() {
   ft_init_stopwords();
 
   init_max_user_conn();
+
+#if defined(MYSQL_ICU_DATADIR)
+  init_icu_data_directory();
+#endif  // MYSQL_ICU_DATADIR
 
   return 0;
 }

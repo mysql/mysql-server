@@ -1189,7 +1189,11 @@ ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 #               handle Unicode Character Names without debug assert
 #
 SELECT 'a' regexp '\\N{latin small letter a}';
+'a' regexp '\\N{latin small letter a}'
+1
 select 'ǅ' regexp '\\N{Latin Capital Letter D with Small Letter Z with Caron}';
+'ǅ' regexp '\\N{Latin Capital Letter D with Small Letter Z with Caron}'
+1
 SELECT 'a' regexp '\\p{alphabetic}';
 'a' regexp '\\p{alphabetic}'
 1

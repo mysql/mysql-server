@@ -28,11 +28,4 @@
 # containing misc. .res and .brk files
 # then bundled ICU will do the same as system ICU.
 
---disable_abort_on_error
---disable_result_log
---disable_warnings
 SELECT "hello hello" regexp '\\X' as yesno;
-
---enable_warnings
---enable_result_log
---enable_abort_on_error
