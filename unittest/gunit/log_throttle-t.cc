@@ -35,7 +35,8 @@ int summary_count = 0;
 char last_query[10];
 
 static bool slow_logger(THD *, const char *query, size_t,
-                        struct System_status_var *) {
+                        struct System_status_var *, bool, ulonglong,
+                        ulonglong) {
   summary_count++;
   strcpy(last_query, query);
   return false;

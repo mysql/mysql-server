@@ -510,7 +510,7 @@ THD::THD(bool enable_plugins)
   // Must be reset to handle error with THD's created for init of mysqld
   lex->thd = nullptr;
   lex->set_current_query_block(nullptr);
-  utime_after_lock = 0L;
+  m_lock_usec = 0L;
   current_linfo = nullptr;
   slave_thread = false;
   memset(&variables, 0, sizeof(variables));
@@ -2903,7 +2903,8 @@ void THD::pop_protocol() {
 }
 
 void THD::set_time() {
-  start_utime = utime_after_lock = my_micro_time();
+  start_utime = my_micro_time();
+  m_lock_usec = 0;
   if (user_time.tv_sec || user_time.tv_usec)
     start_time = user_time;
   else
@@ -2914,22 +2915,23 @@ void THD::set_time() {
 #endif
 }
 
-void THD::set_time_after_lock() {
+void THD::inc_lock_usec(ulonglong lock_usec) {
   /*
     If mysql_lock_tables() is called multiple times,
-    we stick with the first timestamp. This prevents
-    anomalities with things like CREATE INDEX, where
-    otherwise, we'll get the lock timestamp for the
-    data dictionary update.
+    we sum all the lock times here.
+    This is the desired behavior, to know how much
+    time was spent waiting on SQL tables.
+    When Innodb reports additional lock time for DATA locks,
+    it is counted as well.
+    The performance_schema lock time for the current
+    statement is updated accordingly.
   */
-  if (utime_after_lock != start_utime) return;
-  utime_after_lock = my_micro_time();
-  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
-                                (utime_after_lock - start_utime));
+  m_lock_usec += lock_usec;
+  MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, m_lock_usec);
 }
 
 void THD::update_slow_query_status() {
-  if (my_micro_time() > utime_after_lock + variables.long_query_time)
+  if (my_micro_time() > start_utime + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
 }
 

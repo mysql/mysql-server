@@ -2727,7 +2727,8 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   bool err_status = false;
   uint params = m_root_parsing_ctx->context_var_count();
   /* Query start time may be reset in a multi-stmt SP; keep this for later. */
-  ulonglong utime_before_sp_exec = thd->utime_after_lock;
+  ulonglong lock_usec_before_sp_exec;
+  thd->push_lock_usec(lock_usec_before_sp_exec);
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
   sp_rcontext *sp_runtime_ctx_saved = thd->sp_runtime_ctx;
   bool save_enable_slow_log = false;
@@ -2929,7 +2930,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
 
   ::destroy(proc_runtime_ctx);
   thd->sp_runtime_ctx = sp_runtime_ctx_saved;
-  thd->utime_after_lock = utime_before_sp_exec;
+  thd->pop_lock_usec(lock_usec_before_sp_exec);
 
   /*
     If not insided a procedure and a function printing warning

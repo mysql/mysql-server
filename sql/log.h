@@ -334,11 +334,17 @@ class Query_logger {
      @param query_length        The length of the query string.
      @param query_start_status  Pointer to a snapshot of thd->status_var taken
                                 at the start of execution
+     @param aggregate           True if writing log throttle record
+     @param lock_usec           Lock time, in microseconds.
+                                Only used when aggregate is true.
+     @param exec_usec           Execution time, in microseconds.
+                                Only used when aggregate is true.
 
      @return true if error, false otherwise.
   */
   bool slow_log_write(THD *thd, const char *query, size_t query_length,
-                      struct System_status_var *query_start_status);
+                      struct System_status_var *query_start_status,
+                      bool aggregate, ulonglong lock_usec, ulonglong exec_usec);
 
   /**
      Write printf style message to general query log.
@@ -573,6 +579,10 @@ class Log_throttle {
   static const ulong LOG_THROTTLE_WINDOW_SIZE = 60000000;
 };
 
+typedef bool (*log_summary_t)(THD *thd, const char *query, size_t query_length,
+                              struct System_status_var *, bool aggregate,
+                              ulonglong lock_usec, ulonglong exec_usec);
+
 /**
   @class Slow_log_throttle
   @brief Used for rate-limiting the slow query log.
@@ -607,10 +617,9 @@ class Slow_log_throttle : public Log_throttle {
   ulong *rate;
 
   /**
-    The routine we call to actually log a line (i.e. our summary).
-    The signature miraculously coincides with slow_log_print().
+    The routine we call to actually log a line (our summary).
   */
-  bool (*log_summary)(THD *, const char *, size_t, struct System_status_var *);
+  log_summary_t log_summary;
 
   /**
     Slow_log_throttle is shared between THDs.
@@ -637,9 +646,7 @@ class Slow_log_throttle : public Log_throttle {
     @param msg           use this template containing %lu as only non-literal
   */
   Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-                    bool (*logger)(THD *, const char *, size_t,
-                                   struct System_status_var *),
-                    const char *msg);
+                    log_summary_t logger, const char *msg);
 
   /**
     Prepare and print a summary of suppressed lines to log.
