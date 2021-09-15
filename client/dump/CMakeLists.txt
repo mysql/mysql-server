@@ -96,6 +96,15 @@ SET(MYSQLPUMP_LIB_SOURCES
   trigger.cc
   view.cc
 )
+
+# Silence -Werror=unused-result for fwrite().
+IF(MY_COMPILER_IS_GNU)
+  ADD_COMPILE_FLAGS(
+    standard_writer.cc
+    COMPILE_FLAGS "-Wno-unused-result"
+  )
+ENDIF()
+
 ADD_LIBRARY(mysqlpump_lib STATIC ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})

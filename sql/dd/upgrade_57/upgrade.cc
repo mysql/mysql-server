@@ -595,7 +595,7 @@ Upgrade_status::enum_stage Upgrade_status::get() {
 bool Upgrade_status::update(Upgrade_status::enum_stage stage) {
   if (open(O_TRUNC | O_WRONLY)) return true;
 
-  write(stage);
+  if (write(stage)) return true;
 
   if (close()) return true;
 
@@ -610,7 +610,7 @@ Upgrade_status::Upgrade_status()
 bool Upgrade_status::create() {
   if (open(O_TRUNC | O_WRONLY)) return true;
 
-  write(enum_stage::STARTED);
+  if (write(enum_stage::STARTED)) return true;
 
   if (exists() == false || close()) return true;
 
@@ -646,7 +646,12 @@ Upgrade_status::enum_stage Upgrade_status::read() {
 bool Upgrade_status::write(Upgrade_status::enum_stage stage) {
   assert(m_file);
 
-  fwrite(&stage, sizeof(int), 1, m_file);
+  if (fwrite(&stage, sizeof(int), 1, m_file) != 1) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, m_filename.c_str(),
+           ferror(m_file), my_strerror(errbuf, sizeof(errbuf), ferror(m_file)));
+    return true;
+  }
   fflush(m_file);
   return false;
 }

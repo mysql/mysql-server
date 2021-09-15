@@ -2083,7 +2083,11 @@ void ibd2sdi::dump_sdi_rec(uint64_t sdi_type, uint64_t sdi_id, byte *sdi_data,
       d.Accept(writer);
       fprintf(out_stream, "%s", _b.GetString());
     } else {
-      fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1), out_stream);
+      if (fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len - 1),
+                 out_stream) != static_cast<size_t>(sdi_data_len - 1)) {
+        std::cerr << "File write error: " << ferror(out_stream) << std::endl;
+        exit(1);
+      }
     }
   }
 

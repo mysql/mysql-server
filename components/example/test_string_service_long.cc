@@ -34,9 +34,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 // Value must be a multiple of 16 (or TEST_TEXT_LIT_LENGTH)
 #define MAX_BUFFER_LENGTH 4096
 
-#define WRITE_LOG(format, lit_log_text)                   \
-  log_text_len = sprintf(log_text, format, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG(format, lit_log_text)                                 \
+  log_text_len = sprintf(log_text, format, lit_log_text);               \
+  if (fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile) != \
+      static_cast<size_t>(log_text_len))                                \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service

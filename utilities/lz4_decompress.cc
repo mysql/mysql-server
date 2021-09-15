@@ -98,7 +98,13 @@ int main(int argc, char **argv) {
 
       if (bytes_to_write == 0) break;
 
-      fwrite(output_buffer, 1, bytes_to_write, output_file);
+      if (fwrite(output_buffer, 1, bytes_to_write, output_file) !=
+          bytes_to_write) {
+        fprintf(stderr,
+                "lz4_decompress: [Error] Encountered problem during "
+                "writing to buffer.\n");
+        exit(1);
+      }
     }
   }
 

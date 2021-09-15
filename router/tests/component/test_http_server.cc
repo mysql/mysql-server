@@ -875,8 +875,10 @@ INSTANTIATE_TEST_SUITE_P(
 const char kServerCertFile[]{"server-cert.pem"};  // 2048 bit
 const char kServerKeyFile[]{"server-key.pem"};
 const char kServerCertCaFile[]{"cacert.pem"};
+#if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
 static const char kServerCertRsa1024File[]{
     "server-sha1-1024-cert.pem"};  // 1024 bit
+#endif
 
 #ifdef EVENT__HAVE_OPENSSL
 static const char kWrongServerCertCaFile[]{"ca-sha512.pem"};
