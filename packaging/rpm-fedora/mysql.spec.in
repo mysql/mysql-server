@@ -522,7 +522,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
@@ -560,7 +559,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
            -DWITH_NUMA=ON \
