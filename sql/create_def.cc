@@ -322,6 +322,8 @@ void Unique_symbol_map::insert(const std::string &symbol_line) {
       "?_G",         // scalar deleting destructor
       "_VInfreq_?",  // special label (exception handler?) for Intel compiler
       "?_E",         // vector deleting destructor
+      "<lambda_",    // anything that is lambda-related
+      "??$forward",  // std::forward template instantiations
   };
   if (symbol_line.find("External") == std::string::npos) {
     return;
