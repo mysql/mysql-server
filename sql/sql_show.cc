@@ -1263,7 +1263,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     db_access = DB_OP_ACLS;
   else {
     if (sctx->get_active_roles()->size() > 0 && dbname != nullptr) {
-      db_access = sctx->db_acl({dbname, strlen(dbname)});
+      db_access = (sctx->db_acl({dbname, strlen(dbname)}) |
+                   sctx->master_access(dbname ? dbname : ""));
     } else {
       db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
                            sctx->priv_user().str, dbname, false) |
