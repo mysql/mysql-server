@@ -2503,7 +2503,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
           }
           case FIELD_LAST:
           case FIELD_enum_val_count:
-            abort(); /* Impossible */
+            my_abort(); /* Impossible */
         }
         start_pos += count->max_zero_fill;
         DBUG_PRINT("fields", ("---"));

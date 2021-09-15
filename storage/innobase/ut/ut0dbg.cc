@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdlib.h>
 
+#include "my_dbug.h"
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
@@ -81,8 +82,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
       "InnoDB: We intentionally generate a memory trap.\n"
       "InnoDB: Submit a detailed bug report"
       " to http://bugs.mysql.com.\n"
-      "InnoDB: If you get repeated assertion failures"
-      " or crashes, even\n"
+      "InnoDB: If you get repeated assertion failures or crashes, even\n"
       "InnoDB: immediately after the mysqld startup, there may be\n"
       "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
       "InnoDB: " REFMAN
@@ -96,5 +96,5 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   if (assert_callback) {
     assert_callback();
   }
-  abort();
+  my_abort();
 }

@@ -2358,7 +2358,7 @@ static void exec_binlog_error_action_abort(const char *err_string) {
   flush_error_log_messages();
 
   if (thd) thd->send_statement_status();
-  abort();
+  my_abort();
 }
 
 /**

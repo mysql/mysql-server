@@ -340,7 +340,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 
       fprintf(stderr, "Fatal: OpenSSL interface problem (mode=0x%x)", mode);
       fflush(stderr);
-      abort();
+      my_abort();
   }
   if (err) {
     DBUG_PRINT("error", ("Fatal OpenSSL: %s:%d: can't %s OpenSSL lock\n", file,
@@ -348,7 +348,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 
     fprintf(stderr, "Fatal: can't %s OpenSSL lock", what);
     fflush(stderr);
-    abort();
+    my_abort();
   }
 }
 
@@ -362,7 +362,7 @@ static void openssl_lock_function(int mode, int n,
 
     fprintf(stderr, "Fatal: OpenSSL interface problem (n = %d)", n);
     fflush(stderr);
-    abort();
+    my_abort();
   }
   openssl_lock(mode, &openssl_stdlocks[n], file, line);
 }

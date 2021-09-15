@@ -842,7 +842,7 @@ void FindTablesToGetRowidFor(AccessPath *path) {
           ~handled_by_others;
       break;
     default:
-      abort();
+      my_abort();
   }
 }
 

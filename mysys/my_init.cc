@@ -249,6 +249,24 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   my_init_done = false;
 } /* my_end */
 
+/**
+  Pointer to function that handles abort. It is the std's abort() by default.
+*/
+static void (*my_abort_func)() = abort;
+
+[[noreturn]] void my_abort() {
+  my_abort_func();
+  /*
+    We should not reach here, it is required only because my_abort_func() is
+    not [[noreturn]].
+  */
+  abort();
+}
+
+void set_my_abort(void (*new_my_abort_func)()) {
+  my_abort_func = new_my_abort_func;
+}
+
 #ifdef _WIN32
 /*
   my_parameter_handler
