@@ -230,6 +230,26 @@ SET GLOBAL mandatory_roles = @save_mandatory_roles;
 DROP ROLE r1,r2,r3,r4;
 
 
+--echo #
+--echo # Bug #33159353: SHOW CREATE DATABASE fails with a role that has global
+--echo #                level privilege
+--echo #
+CREATE ROLE test_role;
+GRANT SELECT ON *.* TO test_role;
+CREATE USER test_user DEFAULT ROLE test_role;
+
+--echo # connect with test_user
+connect(con1,localhost,test_user,,);
+SELECT current_role(), current_user();
+SHOW GRANTS FOR test_role;
+SHOW GRANTS FOR test_user;
+SHOW CREATE DATABASE mysql;
+--echo # Cleanup
+connection default;
+DROP ROLE test_role;
+DROP USER test_user;
+disconnect con1;
+
 --echo
 --echo # End of 8.0 tests
 --echo
