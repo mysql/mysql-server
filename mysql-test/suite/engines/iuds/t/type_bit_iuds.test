@@ -88,7 +88,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -377,7 +377,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -666,7 +666,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -955,7 +955,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -1244,7 +1244,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -1533,7 +1533,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -1822,7 +1822,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -2111,7 +2111,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -2400,7 +2400,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -2689,7 +2689,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -2978,7 +2978,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -3267,7 +3267,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -3556,7 +3556,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -3845,7 +3845,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -4134,7 +4134,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -4423,7 +4423,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -4712,7 +4712,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -5001,7 +5001,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -5290,7 +5290,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -5579,7 +5579,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -5868,7 +5868,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -6157,7 +6157,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -6446,7 +6446,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -6735,7 +6735,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -7024,7 +7024,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -7313,7 +7313,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -7602,7 +7602,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -7891,7 +7891,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -8180,7 +8180,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -8469,7 +8469,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -8758,7 +8758,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -9047,7 +9047,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -9336,7 +9336,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -9625,7 +9625,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -9914,7 +9914,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -10203,7 +10203,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -10492,7 +10492,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -10781,7 +10781,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -11070,7 +11070,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -11359,7 +11359,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -11648,7 +11648,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -11937,7 +11937,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -12227,7 +12227,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -12517,7 +12517,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -12807,7 +12807,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -13097,7 +13097,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -13387,7 +13387,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -13677,7 +13677,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -13967,7 +13967,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -14257,7 +14257,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -14547,7 +14547,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -14837,7 +14837,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -15127,7 +15127,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -15417,7 +15417,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -15707,7 +15707,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
@@ -15997,7 +15997,7 @@ INSERT INTO t6 VALUES(null,null);
 --sorted_result
 SELECT HEX(c1),HEX(c2) FROM t5;
 --sorted_result
-SELECT count(*) as total_rows, min(c1) as min_value, max(c1) FROM t5;
+SELECT COUNT(*) AS total_rows, HEX(MIN(c1)) AS min_value, HEX(MAX(c1)) FROM t5;
 --sorted_result
 SELECT OCT(c2) FROM t5 WHERE c1 = 68;
 ## Forward index scan, covering ##
