@@ -63,6 +63,8 @@
 #include "unicode/uclean.h"
 #include "unittest/gunit/fake_table.h"
 
+void my_server_abort();
+
 namespace my_testing {
 
 int chars_2_decimal(const char *chars, my_decimal *to) {
@@ -97,6 +99,8 @@ void setup_server_for_unit_tests() {
   test_flags |= TEST_NO_TEMP_TABLES;
   test_flags &= ~TEST_CORE_ON_SIGNAL;
   my_init_signals();
+  // Install server's abort handler to better represent server environment.
+  set_my_abort(my_server_abort);
   randominit(&sql_rand, 0, 0);
   transaction_cache_init();
   delegates_init();
@@ -134,6 +138,8 @@ void teardown_server_for_unit_tests() {
   Global_THD_manager::destroy_instance();
   my_end(0);
   clean_up_mysqld_mutexes();
+  // Restore standard's abort.
+  set_my_abort(abort);
 }
 
 void Server_initializer::set_expected_error(uint val) { expected_error = val; }

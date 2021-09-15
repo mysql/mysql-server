@@ -41,6 +41,18 @@
 #include <stdio.h>
 #endif
 
+/**
+  Calls our own implementation of abort, if specified, or std's abort().
+ */
+[[noreturn]] void my_abort();
+/**
+  Sets a new function to be called on my_abort().
+
+  @param new_my_abort_func pointer to a new my_abort function. It can't be
+  [[noreturn]] as pointers to methods can't have attributes.
+ */
+void set_my_abort(void (*new_my_abort_func)());
+
 #if !defined(NDEBUG)
 
 struct _db_stack_frame_ {
@@ -186,14 +198,14 @@ class AutoDebugTrace {
 #define DBUG_EXPLAIN(buf, len) _db_explain_(0, (buf), (len))
 #define DBUG_EXPLAIN_INITIAL(buf, len) _db_explain_init_((buf), (len))
 #ifndef _WIN32
-#define DBUG_ABORT() (_db_flush_(), abort())
+#define DBUG_ABORT() (_db_flush_(), my_abort())
 #define DBUG_EXIT() (_db_flush_(), exit(2))
 #else
 #include <crtdbg.h>
 
 #define DBUG_ABORT()                                                     \
   (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
-   (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), abort())
+   (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), my_abort())
 #define DBUG_EXIT()                                                      \
   (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
    (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), _exit(2))

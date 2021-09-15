@@ -146,7 +146,7 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       Since there is no ASSERT in non-debug mode, we use abort
       instead.
     */
-    abort();
+    my_abort();
 #endif
     ret = sprintf(buf, "%d:%" PRId64, sidno, gno);
   }

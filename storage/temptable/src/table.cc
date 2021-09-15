@@ -76,7 +76,7 @@ Table::Table(TABLE *mysql_table, Block *shared_block,
         /* field_ptr is inside record[1]. */
       } else {
         /* ptr does not point inside neither record[0] nor record[1]. */
-        abort();
+        my_abort();
       }
     }
   }

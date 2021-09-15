@@ -254,11 +254,11 @@ class Query_result_union_direct final : public Query_result_union {
   bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
                                 uint) override {
     // Should never be called.
-    abort();
+    my_abort();
   }
   bool send_data(THD *, const mem_root_deque<Item *> &) override {
     // Should never be called.
-    abort();
+    my_abort();
   }
   bool optimize() override {
     if (optimized) return false;
@@ -276,7 +276,7 @@ class Query_result_union_direct final : public Query_result_union {
   }
   bool send_eof(THD *) override {
     // Should never be called.
-    abort();
+    my_abort();
   }
   bool flush() override { return false; }
   bool check_simple_query_block() const override {

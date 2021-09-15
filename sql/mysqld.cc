@@ -1006,6 +1006,7 @@ inline void setup_fpu() {
 }
 
 extern "C" void handle_fatal_signal(int sig);
+void my_server_abort();
 
 /* Constants */
 
@@ -7137,6 +7138,11 @@ int mysqld_main(int argc, char **argv)
   keyring_lockable_init();
 
   my_init_signals();
+  /*
+    Install server's my_abort routine to assure my_aborts prints signal info
+    sequentially without sudden termination.
+  */
+  set_my_abort(my_server_abort);
 
   size_t guardize = 0;
 #ifndef _WIN32

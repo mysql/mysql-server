@@ -306,7 +306,7 @@ void my_write_core(int sig) {
 #pragma comment(lib, "dbghelp")
 #endif
 
-static EXCEPTION_POINTERS *exception_ptrs;
+static thread_local EXCEPTION_POINTERS *exception_ptrs;
 
 #define MODULE64_SIZE_WINXP 576
 #define STACKWALK_MAX_FRAMES 64
@@ -410,10 +410,17 @@ void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   STACKFRAME64 frame = {0};
   static char symbol_path[MAX_SYMBOL_PATH];
 
-  if (!exception_ptrs) return;
+  if (exception_ptrs) {
+    /* Copy context, as stackwalking on original will unwind the stack */
+    context = *(exception_ptrs->ContextRecord);
+  } else {
+    /*
+      We are to print stack outside the signal handler, let's just capture the
+      current context.
+    */
+    RtlCaptureContext(&context);
+  }
 
-  /* Copy context, as stackwalking on original will unwind the stack */
-  context = *(exception_ptrs->ContextRecord);
   /*Initialize symbols.*/
   SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS |
                 SYMOPT_DEBUG);

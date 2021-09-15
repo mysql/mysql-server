@@ -561,7 +561,7 @@ void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
       buff[0] = (uchar)pos;
       break;
     default:
-      abort(); /* impossible */
+      my_abort(); /* impossible */
   }
 } /* _mi_kpointer */
 
@@ -638,7 +638,7 @@ my_off_t _mi_rec_pos(MYISAM_SHARE *s, uchar *ptr) {
       if (pos == (my_off_t)(1 << 16) - 1) return HA_OFFSET_ERROR;
       break;
     default:
-      abort(); /* Impossible */
+      my_abort(); /* Impossible */
   }
   return ((s->options & (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD))
               ? pos
@@ -676,7 +676,7 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos) {
       mi_int2store(buff, (uint)pos);
       break;
     default:
-      abort(); /* Impossible */
+      my_abort(); /* Impossible */
   }
 } /* _mi_dpointer */
 
