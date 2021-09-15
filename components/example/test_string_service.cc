@@ -30,9 +30,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MAX_BUFFER_LENGTH 80
 
-#define WRITE_LOG(lit_log_text)   \
-  strcpy(log_text, lit_log_text); \
-  fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile)
+#define WRITE_LOG(lit_log_text)                                             \
+  strcpy(log_text, lit_log_text);                                           \
+  if (fwrite((uchar *)log_text, sizeof(char), strlen(log_text), outfile) != \
+      strlen(log_text))                                                     \
+    return true;
 
 /**
   This file contains a test (example) component, which tests the service
