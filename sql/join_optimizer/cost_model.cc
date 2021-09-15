@@ -213,23 +213,29 @@ void EstimateAggregateCost(AccessPath *path) {
 
 double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
                              const JoinPredicate *edge,
-                             double already_applied_selectivity) {
-  const double outer_rows = left_path->num_output_rows;
-  const double inner_rows = right_path->num_output_rows;
-  const double selectivity = edge->selectivity / already_applied_selectivity;
-  if (edge->expr->type == RelationalExpression::ANTIJOIN) {
-    return outer_rows * (1.0 - selectivity);
-  } else {
-    double num_output_rows = outer_rows * inner_rows * selectivity;
-    if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
-      num_output_rows = std::max(num_output_rows, outer_rows);
-    }
-    if (edge->expr->type == RelationalExpression::SEMIJOIN) {
-      num_output_rows =
-          std::min(num_output_rows, outer_rows / already_applied_selectivity);
-      num_output_rows =
-          std::min(num_output_rows, inner_rows / already_applied_selectivity);
-    }
-    return num_output_rows;
+                             double right_path_already_applied_selectivity) {
+  const double inner_rows =
+      right_path->num_output_rows / right_path_already_applied_selectivity;
+
+  double fanout = inner_rows * edge->selectivity;
+  if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
+    // For outer joins, every outer row produces at least one row (if none
+    // are matching, we get a NULL-complemented row).
+    fanout = std::max(fanout, 1.0);
+  } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
+    // Semi- and antijoin estimation is pretty tricky, since we want isn't
+    // really selectivity; we want the probability that at least one row
+    // is matching, which is something else entirely. However, given that
+    // we only have selectivity to work with, we don't really have anything
+    // better than to estimate it as a normal join and cap the result
+    // at selectivity 1.0 (ie., each outer row generates at most one inner row).
+    fanout = std::min(fanout, 1.0);
+  } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
+    // Antijoin are estimated as simply the opposite of semijoin (see above),
+    // but wrongly estimating 0 rows (or, of course, a negative amount) could be
+    // really bad, so we assume at least 10% coming out as a fudge factor.
+    // It's better to estimate too high than too low here.
+    fanout = std::max(1.0 - fanout, 0.1);
   }
+  return left_path->num_output_rows * fanout;
 }

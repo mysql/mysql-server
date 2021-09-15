@@ -1721,7 +1721,7 @@ void CostingReceiver::ProposeHashJoin(
 
   double num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
-                            /*already_applied_selectivity=*/1.0);
+                            /*right_path_already_applied_selectivity=*/1.0);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
@@ -2047,7 +2047,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
   const AccessPath *inner = join_path.nested_loop_join().inner;
   double inner_rescan_cost = inner->cost - inner->init_once_cost;
 
-  double already_applied_selectivity = 1.0;
+  double right_path_already_applied_selectivity = 1.0;
   join_path.nested_loop_join().equijoin_predicates = OverflowBitset{};
   if (edge->expr->join_conditions_reject_all_rows) {
     // We've already taken out all rows from the right-hand side
@@ -2082,16 +2082,20 @@ void CostingReceiver::ProposeNestedLoopJoin(
       const CachedPropertiesForPredicate &properties =
           edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
+      // Join predicates cannot have been applied as a ref access on the outer
+      // side; that would never make any sense.
+      assert(
+          it == m_graph.sargable_join_predicates.end() ||
+          !IsBitSet(it->second, left_path->applied_sargable_join_predicates()));
+
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
-          (IsBitSet(it->second,
-                    left_path->applied_sargable_join_predicates()) ||
-           IsBitSet(it->second,
-                    right_path->applied_sargable_join_predicates()))) {
+          IsBitSet(it->second,
+                   right_path->applied_sargable_join_predicates())) {
         // This predicate was already applied as a ref access earlier.
         // Make sure not to double-count its selectivity, and also
         // that we don't reapply it if it was subsumed by the ref access.
-        already_applied_selectivity *=
+        right_path_already_applied_selectivity *=
             m_graph.predicates[it->second].selectivity;
         subsumed = IsBitSet(it->second,
                             left_path->subsumed_sargable_join_predicates()) ||
@@ -2133,7 +2137,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // Ignores the row count from filter_path; see above.
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
-                            already_applied_selectivity);
+                            right_path_already_applied_selectivity);
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +

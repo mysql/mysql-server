@@ -1762,6 +1762,36 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   EXPECT_EQ("t2.x", ItemToString(inner_inner->ref().ref->items[0]));
 }
 
+TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
+  double ref_output_rows = 0.0;
+  for (bool has_index : {false, true}) {
+    Query_block *query_block = ParseAndResolve(
+        "SELECT 1 FROM t1 WHERE t1.x NOT IN ( SELECT t2.x FROM t2 )",
+        /*nullable=*/false);
+
+    m_fake_tables["t1"]->file->stats.records = 10000;
+
+    Fake_TABLE *t2 = m_fake_tables["t2"];
+    if (has_index) {
+      t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+    }
+    t2->file->stats.records = 100;
+
+    string trace;
+    AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+    if (!has_index) {
+      ref_output_rows = root->num_output_rows;
+    } else {
+      EXPECT_FLOAT_EQ(ref_output_rows, root->num_output_rows);
+      EXPECT_GE(root->num_output_rows, 500.0);  // Due to the 10% fudge factor.
+    }
+
+    query_block->cleanup(m_thd, /*full=*/true);
+  }
+}
+
 TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM "

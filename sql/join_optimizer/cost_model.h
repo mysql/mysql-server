@@ -100,6 +100,6 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path);
 void EstimateAggregateCost(AccessPath *path);
 double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
                              const JoinPredicate *edge,
-                             double already_applied_selectivity);
+                             double right_path_already_applied_selectivity);
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_
