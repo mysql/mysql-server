@@ -1133,8 +1133,8 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                       {
                         "index": "PRIMARY",
                         "ranges": [
-                          "18 <= pk <= 18",
-                          "192 <= pk <= 192"
+                          "pk = 18",
+                          "pk = 192"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -1157,8 +1157,8 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                       "index": "PRIMARY",
                       "rows": 2,
                       "ranges": [
-                        "18 <= pk <= 18",
-                        "192 <= pk <= 192"
+                        "pk = 18",
+                        "pk = 192"
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 2,

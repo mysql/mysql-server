@@ -1565,7 +1565,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                             {
                                               "index": "a",
                                               "ranges": [
-                                                "1 <= a <= 1"
+                                                "a = 1"
                                               ] /* ranges */,
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": true,
@@ -1580,7 +1580,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                             {
                                               "index": "a_2",
                                               "ranges": [
-                                                "1 <= a <= 1"
+                                                "a = 1"
                                               ] /* ranges */,
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": false,
