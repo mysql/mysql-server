@@ -2432,12 +2432,23 @@ class Codec<message::client::Greeting>
           accu.step(wire::NulTermString(v_.schema()));
         }
 
-        if (shared_caps[classic_protocol::capabilities::pos::plugin_auth]) {
-          accu.step(wire::NulTermString(v_.auth_method_name()));
-        }
-
-        if (shared_caps
+        if (!shared_caps
                 [classic_protocol::capabilities::pos::connect_attributes]) {
+          // special handling for off-spec client/server implimentations.
+          //
+          // 1. older clients may set ::plugin_auth, but
+          //    ::connection_attributes which means nothing follows the
+          //    "auth-method-name" field
+          // 2. auth-method-name is empty, it MAY be skipped.
+          if (shared_caps[classic_protocol::capabilities::pos::plugin_auth] &&
+              !v_.auth_method_name().empty()) {
+            accu.step(wire::NulTermString(v_.auth_method_name()));
+          }
+        } else {
+          if (shared_caps[classic_protocol::capabilities::pos::plugin_auth]) {
+            accu.step(wire::NulTermString(v_.auth_method_name()));
+          }
+
           accu.step(wire::VarString(v_.attributes()));
         }
       }
@@ -2556,7 +2567,13 @@ class Codec<message::client::Greeting>
       stdx::expected<wire::NulTermString, std::error_code> auth_method_res;
       if (shared_capabilities
               [classic_protocol::capabilities::pos::plugin_auth]) {
-        auth_method_res = accu.template step<wire::NulTermString>();
+        if (net::buffer_size(buffers) == accu.result().value()) {
+          // even with plugin_auth set, the server is fine, if no
+          // auth_method_name is sent.
+          auth_method_res = wire::NulTermString{};
+        } else {
+          auth_method_res = accu.template step<wire::NulTermString>();
+        }
       }
       if (!auth_method_res)
         return stdx::make_unexpected(auth_method_res.error());

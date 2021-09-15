@@ -1181,9 +1181,7 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientStmtFetchTest,
 
 // client::Greeting
 
-namespace classic_protocol {
-namespace message {
-namespace client {
+namespace classic_protocol::message::client {
 std::ostream &operator<<(std::ostream &os, const Greeting &v) {
   os << "Greeting: "
      << "\n";
@@ -1195,9 +1193,7 @@ std::ostream &operator<<(std::ostream &os, const Greeting &v) {
 
   return os;
 }
-}  // namespace client
-}  // namespace message
-}  // namespace classic_protocol
+}  // namespace classic_protocol::message::client
 
 using CodecMessageClientGreetingTest =
     CodecTest<classic_protocol::message::client::Greeting>;
@@ -1369,6 +1365,38 @@ const CodecParam<classic_protocol::message::client::Greeting>
                  0x00, 0x00, 0x00, 0x00,  //
                  0x00, 0x00, 0x00         //
              }},
+            {
+                "choma",
+                {
+                    0b1011'1010'0010'0000'1111,  // caps:
+                                                 // long-pass
+                                                 // found-rows
+                                                 // long-flag
+                                                 // connect-with-schema
+                                                 // protocol_41
+                                                 // transactions
+                                                 // secure_connections
+                                                 // plugin_auth (set, but then
+                                                 // not used)
+                    (1 << 24) - 1,               // max-packet-size
+                    0xff,                        // collation
+                    "myroot",                    // user
+                    "\x14\xa5\xed\xe0\xdf\x96\x9d\x5e"
+                    "\xca\xa3\x45\xc3\x93\x55\xfe\x22"
+                    "\x99\x62\xc9\xed",  // authdata
+                    "mysql",             // schema
+                    "",                  // authmethod
+                    {}                   // attributes
+                },                       // client::Greeting
+                0xffffffff,              // server-caps
+                {0x0f, 0xa2, 0x0b, 0x00, 0xff, 0xff, 0xff, 0x00, 0xff, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00, 0x00, 0x6d, 0x79, 0x72, 0x6f, 0x6f, 0x74, 0x00, 0x14,
+                 0x14, 0xa5, 0xed, 0xe0, 0xdf, 0x96, 0x9d, 0x5e, 0xca, 0xa3,
+                 0x45, 0xc3, 0x93, 0x55, 0xfe, 0x22, 0x99, 0x62, 0xc9, 0xed,
+                 0x6d, 0x79, 0x73, 0x71, 0x6c, 0x00}  // bytes
+            },
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1380,9 +1408,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // client::ChangeUser
 
-namespace classic_protocol {
-namespace message {
-namespace client {
+namespace classic_protocol::message::client {
 std::ostream &operator<<(std::ostream &os, const ChangeUser &v) {
   os << "ChangeUser: "
      << "\n";
@@ -1392,9 +1418,7 @@ std::ostream &operator<<(std::ostream &os, const ChangeUser &v) {
 
   return os;
 }
-}  // namespace client
-}  // namespace message
-}  // namespace classic_protocol
+}  // namespace classic_protocol::message::client
 
 using CodecMessageClientChangeUserTest =
     CodecTest<classic_protocol::message::client::ChangeUser>;
