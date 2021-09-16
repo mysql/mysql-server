@@ -936,9 +936,10 @@ bool Query_result_delete::optimize() {
     }
   }
 
-  for (uint i = 0; i < join->primary_tables; i++) {
-    TABLE *const table = join->best_ref[i]->table();
-    const table_map map = join->best_ref[i]->table_ref->map();
+  for (TABLE_LIST *tr = select->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    TABLE *const table = tr->table;
+    const table_map map = tr->map();
     if (!(map & delete_table_map)) continue;
 
     // We are going to delete from this table
@@ -978,12 +979,13 @@ bool Query_result_delete::optimize() {
 
   Unique **tempfile = tempfiles;
   TABLE **table_ptr = tables;
-  for (uint i = 0; i < join->primary_tables; i++) {
-    const table_map map = join->best_ref[i]->table_ref->map();
+  for (TABLE_LIST *tr = select->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    const table_map map = tr->map();
 
     if (!(map & delete_table_map & ~delete_immediate)) continue;
 
-    TABLE *const table = join->best_ref[i]->table();
+    TABLE *const table = tr->table;
     if (!(*tempfile++ = new (thd->mem_root)
               Unique(refpos_order_cmp, (void *)table->file,
                      table->file->ref_length, thd->variables.sortbuff_size)))
@@ -1017,19 +1019,18 @@ void Query_result_delete::cleanup(THD *) {
 bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
   DBUG_TRACE;
 
-  JOIN *const join = unit->first_query_block()->join;
-
   int unique_counter = 0;
 
-  for (uint i = 0; i < join->primary_tables; i++) {
-    const table_map map = join->qep_tab[i].table_ref->map();
+  for (TABLE_LIST *tr = unit->first_query_block()->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    const table_map map = tr->map();
 
     // Check whether this table is being deleted from
     if (!(map & delete_table_map)) continue;
 
     const bool immediate = map & delete_immediate;
 
-    TABLE *const table = join->qep_tab[i].table();
+    TABLE *const table = tr->table;
 
     assert(immediate || table == tables[unique_counter]);
 
