@@ -28,7 +28,7 @@
   Types to make file and socket I/O compatible.
 */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 /* Include common headers.*/
 #include <io.h> /* access(), chmod() */
 #ifdef WIN32_LEAN_AND_MEAN
@@ -48,7 +48,7 @@
 #endif
 
 typedef int File; /* File descriptor */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 typedef int MY_MODE;
 typedef int mode_t;
 typedef int socket_len_t;

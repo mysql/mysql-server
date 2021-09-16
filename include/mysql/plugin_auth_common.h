@@ -110,7 +110,7 @@ authenticated_as when proxy mapping should be done by the server.
   We need HANDLE definition if on Windows. Define WIN32_LEAN_AND_MEAN (if
   not already done) to minimize amount of imported declarations.
 */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -126,7 +126,7 @@ struct MYSQL_PLUGIN_VIO_INFO {
     MYSQL_VIO_MEMORY
   } protocol;
   int socket; /**< it's set, if the protocol is SOCKET or TCP */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
   HANDLE handle; /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
 };
