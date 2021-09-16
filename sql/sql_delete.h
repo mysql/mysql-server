@@ -63,8 +63,6 @@ class Query_result_delete final : public Query_result_interceptor {
   table_map delete_immediate{0};
   // Map of transactional tables to be deleted from
   table_map transactional_table_map{0};
-  /// Map of non-transactional tables to be deleted from
-  table_map non_transactional_table_map{0};
   /// True if the full delete operation is complete
   bool delete_completed{false};
   /// True if some actual delete operation against non-transactional table done

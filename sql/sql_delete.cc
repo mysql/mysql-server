@@ -50,6 +50,7 @@
 #include "sql/iterators/sorting_iterator.h"
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
@@ -883,11 +884,9 @@ bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
     delete_table_count++;
     delete_table_map |= tr->map();
 
-    // Record transactional and non-transactional tables that are deleted from:
+    // Record transactional tables that are deleted from:
     if (tr->table->file->has_transactions())
       transactional_table_map |= tr->map();
-    else
-      non_transactional_table_map |= tr->map();
   }
 
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
@@ -1053,7 +1052,9 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
                                             TRG_ACTION_BEFORE, false))
         return true;
       table->set_deleted_row();
-      if (map & non_transactional_table_map) non_transactional_deleted = true;
+      if (!Overlaps(map, transactional_table_map)) {
+        non_transactional_deleted = true;
+      }
       delete_error = table->file->ha_delete_row(table->record[0]);
       if (delete_error == 0) {
         deleted_rows++;
@@ -1228,8 +1229,9 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
     */
     if (!local_error) {
       deleted_rows++;
-      if (table->pos_in_table_list->map() & non_transactional_table_map)
+      if (!Overlaps(table->pos_in_table_list->map(), transactional_table_map)) {
         non_transactional_deleted = true;
+      }
 
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
@@ -1288,7 +1290,7 @@ bool Query_result_delete::send_eof(THD *thd) {
       if (thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
                             thd->query().length, transactional_table_map != 0,
                             false, false, errcode) &&
-          !non_transactional_table_map) {
+          transactional_table_map == delete_table_map) {
         local_error = 1;  // Log write failed: roll back the SQL statement
       }
     }
