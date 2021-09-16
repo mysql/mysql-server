@@ -4332,8 +4332,9 @@ void udf_handler::cleanup() {
   if (thd->stmt_arena->is_stmt_prepare() && thd->stmt_arena->is_repreparing)
     return;
 
-  if (initid.const_item && u_d->func_deinit != nullptr) {
+  if (m_init_func_called && u_d->func_deinit != nullptr) {
     (*u_d->func_deinit)(&initid);
+    m_init_func_called = false;
   }
   DEBUG_SYNC(current_thd, "udf_handler_destroy_sync");
   free_handler();
@@ -4557,6 +4558,7 @@ bool udf_handler::call_init_func() {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0), u_d->name.str, init_msg_buff);
     return true;
   }
+  m_init_func_called = true;
   return false;
 }
 
