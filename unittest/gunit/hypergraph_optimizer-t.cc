@@ -2049,6 +2049,78 @@ TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
 }
 
+/*
+  Sets up this join graph:
+
+    t1 --- t2
+    | .     |
+    |   .   |
+    |     . |
+    t3 --- t4
+
+  t1-t3-t4 are joined along the x fields, t1-t2-t4 are joined along the y
+  fields. The t1-t4 edge is created only due to multiple equalities, but the
+  optimal plan is to use that edge, so that we can use the index on t4 to
+  resolve both x and y. The crux of the issue is that this edge must then
+  subsume both t1=t4 conditions.
+ */
+TEST_F(HypergraphOptimizerTest, SubsumedSargableInDoubleCycle) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 "
+      "WHERE t1.x = t3.x AND t3.x = t4.x AND t1.y = t2.y AND t2.y = t4.y",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  Fake_TABLE *t4 = m_fake_tables["t4"];
+  t1->file->stats.records = 100;
+  t2->file->stats.records = 100;
+  t3->file->stats.records = 100;
+  t4->file->stats.records = 100;
+  t3->create_index(t3->field[0], nullptr, /*unique=*/false);
+  t4->create_index(t4->field[0], t4->field[1], /*unique=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We should have an index lookup into t4, covering both t1=t4 conditions.
+  bool found_t4_index_lookup = false;
+  WalkAccessPaths(
+      root, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+      [&](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::REF &&
+            strcmp("t4", path->ref().table->alias) == 0) {
+          found_t4_index_lookup = true;
+          EXPECT_EQ(2, path->ref().ref->key_parts);
+          EXPECT_EQ("t1.x", ItemToString(path->ref().ref->items[0]));
+          EXPECT_EQ("t1.y", ItemToString(path->ref().ref->items[1]));
+        }
+        return false;
+      });
+  EXPECT_TRUE(found_t4_index_lookup);
+
+  // And thus, there should be no filter containing both t1 and t4.
+  WalkAccessPaths(root, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&](const AccessPath *path, const JOIN *) {
+                    if (path->type == AccessPath::FILTER) {
+                      const string str = ItemToString(path->filter().condition);
+                      EXPECT_TRUE(str.find("t1") == string::npos ||
+                                  str.find("t4") == string::npos);
+                    }
+                    return false;
+                  });
+}
+
 TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
   // Mark t1.y as a blob, to make sure we need rowids for our sort.
   Mock_field_long t1_x(/*is_unsigned=*/false);

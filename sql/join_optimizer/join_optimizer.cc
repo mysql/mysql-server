@@ -108,6 +108,7 @@ using hypergraph::NodeMap;
 using std::array;
 using std::bitset;
 using std::min;
+using std::pair;
 using std::string;
 using std::swap;
 
@@ -374,11 +375,14 @@ class CostingReceiver {
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
-  bool AlreadyAppliedThroughSargable(
+  bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
       OverflowBitset left_applied_sargable_join_predicates,
       OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
       NodeMap right);
+  inline pair<bool, bool> AlreadyAppliedAsSargable(
+      Item *condition, const AccessPath *left_path,
+      const AccessPath *right_path);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
@@ -1892,19 +1896,25 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     }
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (IsSubset(pred.total_eligibility_set, ready_tables)) {
+      const auto [already_applied_as_sargable, subsumed] =
+          AlreadyAppliedAsSargable(pred.condition, left_path, right_path);
       if (pred.source_multiple_equality_idx == -1 ||
           !IsBitSet(pred.source_multiple_equality_idx,
                     multiple_equality_bitmap)) {
-        filter_predicates.SetBit(pred_idx);
-        FilterCost cost = EstimateFilterCost(m_thd, join_path->num_output_rows,
-                                             pred.contained_subqueries);
-        if (materialize_subqueries) {
-          join_path->cost += cost.cost_if_materialized;
-          materialize_cost += cost.cost_to_materialize;
-        } else {
-          join_path->cost += cost.cost_if_not_materialized;
+        if (!subsumed) {
+          FilterCost cost = EstimateFilterCost(
+              m_thd, join_path->num_output_rows, pred.contained_subqueries);
+          if (materialize_subqueries) {
+            join_path->cost += cost.cost_if_materialized;
+            materialize_cost += cost.cost_to_materialize;
+          } else {
+            join_path->cost += cost.cost_if_not_materialized;
+          }
+          join_path->num_output_rows *= pred.selectivity;
+          if (!already_applied_as_sargable) {
+            filter_predicates.SetBit(pred_idx);
+          }
         }
-        join_path->num_output_rows *= pred.selectivity;
         if (pred.source_multiple_equality_idx != -1) {
           multiple_equality_bitmap |= uint64_t{1}
                                       << pred.source_multiple_equality_idx;
@@ -1955,7 +1965,7 @@ string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   different alternative for this join at some point that is not redundant
   (e.g., in the given example, we'd see the t2=t3 join).
  */
-bool CostingReceiver::AlreadyAppliedThroughSargable(
+bool CostingReceiver::RedundantThroughSargable(
     OverflowBitset redundant_against_sargable_predicates,
     OverflowBitset left_applied_sargable_join_predicates,
     OverflowBitset right_applied_sargable_join_predicates, NodeMap left,
@@ -1980,6 +1990,41 @@ bool CostingReceiver::AlreadyAppliedThroughSargable(
     }
   }
   return false;
+}
+
+/**
+  Whether the given join condition is already applied as a sargable predicate
+  earlier in the tree (presumably on the right side). This is different from
+  RedundantThroughSargable() in that this checks whether we have already applied
+  this exact join condition earlier, while the former checks whether we are
+  trying to apply a different join condition that is redundant against something
+  we've applied earlier.
+
+  The first boolean is whether “condition” is a join condition we've applied
+  earlier (as sargable; so we should not count its selectivity again),
+  and the second argument is whether that sargable also subsumed the entire
+  join condition (so we need not apply it as a filter).
+ */
+pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
+    Item *condition, const AccessPath *left_path [[maybe_unused]],
+    const AccessPath *right_path) {
+  const auto it = m_graph.sargable_join_predicates.find(condition);
+  if (it == m_graph.sargable_join_predicates.end()) {
+    return {false, false};
+  }
+
+  // Join predicates cannot have been applied as a ref access on the outer side;
+  // that would never make any sense.
+  assert(!IsBitSet(it->second, left_path->applied_sargable_join_predicates()));
+
+  const bool applied =
+      IsBitSet(it->second, right_path->applied_sargable_join_predicates());
+  const bool subsumed =
+      IsBitSet(it->second, right_path->subsumed_sargable_join_predicates());
+  if (subsumed) {
+    assert(applied);
+  }
+  return {applied, subsumed};
 }
 
 void CostingReceiver::ProposeNestedLoopJoin(
@@ -2078,30 +2123,19 @@ void CostingReceiver::ProposeNestedLoopJoin(
          join_cond_idx < edge->expr->equijoin_conditions.size();
          ++join_cond_idx) {
       Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
-      const auto it = m_graph.sargable_join_predicates.find(condition);
       const CachedPropertiesForPredicate &properties =
           edge->expr->properties_for_equijoin_conditions[join_cond_idx];
 
-      // Join predicates cannot have been applied as a ref access on the outer
-      // side; that would never make any sense.
-      assert(
-          it == m_graph.sargable_join_predicates.end() ||
-          !IsBitSet(it->second, left_path->applied_sargable_join_predicates()));
-
-      bool subsumed = false;
-      if (it != m_graph.sargable_join_predicates.end() &&
-          IsBitSet(it->second,
-                   right_path->applied_sargable_join_predicates())) {
+      const auto [already_applied_as_sargable, subsumed] =
+          AlreadyAppliedAsSargable(condition, left_path, right_path);
+      if (already_applied_as_sargable) {
         // This predicate was already applied as a ref access earlier.
         // Make sure not to double-count its selectivity, and also
         // that we don't reapply it if it was subsumed by the ref access.
+        const auto it = m_graph.sargable_join_predicates.find(condition);
         right_path_already_applied_selectivity *=
             m_graph.predicates[it->second].selectivity;
-        subsumed = IsBitSet(it->second,
-                            left_path->subsumed_sargable_join_predicates()) ||
-                   IsBitSet(it->second,
-                            right_path->subsumed_sargable_join_predicates());
-      } else if (AlreadyAppliedThroughSargable(
+      } else if (RedundantThroughSargable(
                      properties.redundant_against_sargable_predicates,
                      left_path->applied_sargable_join_predicates(),
                      right_path->applied_sargable_join_predicates(), left,
@@ -3845,7 +3879,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
           });
 
       // Cache information about what sargable conditions this join condition
-      // would be redundant against, for AlreadyAppliedThroughSargable().
+      // would be redundant against, for RedundantThroughSargable().
       // But doon't deduplicate against ourselves (in case we're sargable).
       MutableOverflowBitset redundant(thd->mem_root, graph->predicates.size());
       for (unsigned sargable_pred_idx = graph->num_where_predicates;
