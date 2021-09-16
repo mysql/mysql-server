@@ -202,7 +202,7 @@ block_name	NDBCNTR
 
 explain format=tree select * from blocks where block_number in (250,251);
 EXPLAIN	-> Filter: (ndb$blocks.block_number in (250,251))  (cost=1.41 rows=2)
-    -> Index range scan on ndb$blocks using PRIMARY over (250 <= block_number <= 250) OR (251 <= block_number <= 251)  (cost=1.41 rows=2)
+    -> Index range scan on ndb$blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (cost=1.41 rows=2)
 
 explain format=tree select * from blocks order by block_number;
 EXPLAIN	-> Index scan on ndb$blocks using PRIMARY  (cost=3.40 rows=29)
