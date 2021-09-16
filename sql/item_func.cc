@@ -1245,22 +1245,18 @@ static void gc_subst_overlaps_contains(Item **func, Item **vals,
 
   @param arg  List of indexed GC field
 
-  @return this item on successful execution, nullptr on error
+  @return this item
 
-  @details This function transforms a search condition. It doesn't change
+  @details This function transforms the WHERE condition. It doesn't change
   'this' item but rather changes its arguments. It takes list of GC fields
   and checks whether arguments of 'this' item matches them and index over
   the GC field isn't disabled with hints. If so, it replaces
-  the argument with newly created Item_field which uses the matched GC field.
-  The following predicates' arguments could be transformed:
-  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC, JSON_OVERLAPS
+  the argument with newly created Item_field which uses the matched GC
+  field. Following functions' arguments could be transformed:
+  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC
     - Left _or_ right argument if the opposite argument is a constant.
   - IN_FUNC, BETWEEN
     - Left argument if all other arguments are constant and of the same type.
-  - MEMBER OF
-    - Right argument if left argument is constant.
-  - JSON_CONTAINS
-    - First argument if the second argument is constant.
 
   After transformation comparators are updated to take into account the new
   field.
@@ -1281,12 +1277,11 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       // Check if we can substitute a function with a GC. The
       // predicate must be on the form <expr> OP <constant> or
       // <constant> OP <expr>.
-      if (args[0]->can_be_substituted_for_gc() &&
-          args[1]->const_for_execution()) {
+      if (args[0]->can_be_substituted_for_gc() && args[1]->const_item()) {
         func = args;
         val = args[1];
       } else if (args[1]->can_be_substituted_for_gc() &&
-                 args[0]->const_for_execution()) {
+                 args[0]->const_item()) {
         func = args + 1;
         val = args[0];
       } else {
@@ -1307,7 +1302,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       Item_result type = args[1]->result_type();
       if (!std::all_of(args + 1, args + arg_count,
                        [type](const Item *item_arg) {
-                         return item_arg->const_for_execution() &&
+                         return item_arg->const_item() &&
                                 item_arg->result_type() == type;
                        })) {
         break;
@@ -1345,10 +1340,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
       if (!args[0]->can_be_substituted_for_gc(/*array=*/true) ||  // 1
           !args[1]->const_for_execution())                        // 2
         break;
-      if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr)) {  // 3
-        return nullptr;
-      }
-      if (args[1]->null_value ||
+      if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr) ||  // 3
+          args[1]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 4
         break;
       gc_subst_overlaps_contains(args, args + 1, vals_wr, gc_fields);
@@ -1379,10 +1372,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
 
       Json_wrapper vals_wr;
       String str;
-      if (get_json_wrapper(args, vals, &str, func_name(), &vals_wr)) {  // 3
-        return nullptr;
-      }
-      if (args[vals]->null_value ||
+      if (get_json_wrapper(args, vals, &str, func_name(), &vals_wr) ||  // 3
+          args[vals]->null_value ||
           vals_wr.type() == enum_json_type::J_OBJECT)  // 4
         break;
       gc_subst_overlaps_contains(func, args + vals, vals_wr, gc_fields);
