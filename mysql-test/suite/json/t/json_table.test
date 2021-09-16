@@ -1514,3 +1514,15 @@ SELECT HEX(a) FROM JSON_TABLE(
 --error ER_DUP_FIELDNAME
 SELECT * FROM
   JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
+
+--echo #
+--echo # Bug#33351497: JSON_TABLE function report duplicate column name
+--echo #
+
+# Used to compare only the first 64 bytes of the column names and
+# incorrectly report duplicate column name.
+
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+  测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;

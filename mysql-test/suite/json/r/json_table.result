@@ -2182,3 +2182,12 @@ HEX(a)
 SELECT * FROM
 JSON_TABLE('{}', '$' COLUMNS (o FOR ORDINALITY, O FOR ORDINALITY)) jt;
 ERROR 42S21: Duplicate column name 'o'
+#
+# Bug#33351497: JSON_TABLE function report duplicate column name
+#
+SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
+) AS jt;
+测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb
+1	2
