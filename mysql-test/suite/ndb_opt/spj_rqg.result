@@ -1374,7 +1374,7 @@ EXPLAIN
         -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))  ()
             -> Nested loop left join  ()
                 -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)  ()
-                -> Index range scan on table2s using PRIMARY over (6 <= col_int <= 6) OR (7 <= col_int <= 7), with pushed condition: (table2s.col_int in (6,6,7))  ()
+                -> Index range scan on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))  ()
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
