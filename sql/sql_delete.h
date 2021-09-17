@@ -65,8 +65,6 @@ class Query_result_delete final : public Query_result_interceptor {
   table_map transactional_table_map{0};
   /// True if the full delete operation is complete
   bool delete_completed{false};
-  /// True if some actual delete operation against non-transactional table done
-  bool non_transactional_deleted{false};
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.

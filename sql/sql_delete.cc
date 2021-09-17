@@ -1008,7 +1008,6 @@ void Query_result_delete::cleanup(THD *) {
   tempfiles = nullptr;
   tables = nullptr;
   // Reset state and statistics members:
-  non_transactional_deleted = false;
   error_handled = false;
   delete_error = 0;
   found_rows = 0;
@@ -1052,9 +1051,6 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
                                             TRG_ACTION_BEFORE, false))
         return true;
       table->set_deleted_row();
-      if (!Overlaps(map, transactional_table_map)) {
-        non_transactional_deleted = true;
-      }
       delete_error = table->file->ha_delete_row(table->record[0]);
       if (delete_error == 0) {
         deleted_rows++;
@@ -1120,7 +1116,8 @@ void Query_result_delete::abort_result_set(THD *thd) {
     The same if all tables are transactional, regardless of where we are.
     In all other cases do attempt deletes ...
   */
-  if (!delete_completed && non_transactional_deleted) {
+  if (!delete_completed && thd->get_transaction()->has_modified_non_trans_table(
+                               Transaction_ctx::STMT)) {
     // Execute the recorded do_deletes() and write info into the error log
     delete_error = 1;
     send_eof(thd);
@@ -1229,9 +1226,6 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
     */
     if (!local_error) {
       deleted_rows++;
-      if (!Overlaps(table->pos_in_table_list->map(), transactional_table_map)) {
-        non_transactional_deleted = true;
-      }
 
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
