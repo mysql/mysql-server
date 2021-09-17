@@ -883,15 +883,11 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     return tree;
   }
 
-  table_map ref_tables = 0;
-  table_map param_comp = ~(prev_tables | read_tables | current_table);
-  if (cond->type() != Item::FUNC_ITEM) {  // Should be a field
-    ref_tables = cond->used_tables();
-    if ((ref_tables & current_table) ||
-        (ref_tables & ~(prev_tables | read_tables)))
-      return nullptr;
-    return new (param->temp_mem_root)
-        SEL_TREE(SEL_TREE::MAYBE, param->temp_mem_root, param->keys);
+  // This used to be a guard against predicates like “WHERE x;”. But these are
+  // now always rewritten to “x <> 0”, so it does not trigger there.
+  // However, it is still relevant for subselects.
+  if (cond->type() != Item::FUNC_ITEM) {
+    return nullptr;
   }
 
   Item_func *cond_func = (Item_func *)cond;
@@ -970,9 +966,10 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
       Item_equal *item_equal = down_cast<Item_equal *>(cond);
       Item *value = item_equal->get_const();
       if (value == nullptr) return nullptr;
-      ref_tables = value->used_tables();
+      table_map ref_tables = value->used_tables();
       for (Item_field &field_item : item_equal->get_fields()) {
         Field *field = field_item.field;
+        table_map param_comp = ~(prev_tables | read_tables | current_table);
         if (!((ref_tables | field_item.table_ref->map()) & param_comp)) {
           SEL_TREE *tree =
               get_mm_parts(thd, param, prev_tables, read_tables, item_equal,

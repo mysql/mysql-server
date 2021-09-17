@@ -509,14 +509,6 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
     return tree1;
   if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
     return tree2;
-  if (tree1->type == SEL_TREE::MAYBE) {
-    if (tree2->type == SEL_TREE::KEY) tree2->type = SEL_TREE::KEY_SMALLER;
-    return tree2;
-  }
-  if (tree2->type == SEL_TREE::MAYBE) {
-    tree1->type = SEL_TREE::KEY_SMALLER;
-    return tree1;
-  }
 
   dbug_print_tree("tree1", tree1, param);
   dbug_print_tree("tree2", tree2, param);
@@ -588,7 +580,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
   Remove the trees that are not suitable for record retrieval.
   SYNOPSIS
     param  Range analysis parameter
-    tree   Tree to be processed, tree->type is KEY or KEY_SMALLER
+    tree   Tree to be processed, tree->type is KEY
 
   DESCRIPTION
     This function walks through tree->keys[] and removes the SEL_ARG* trees
@@ -664,8 +656,6 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
     return tree2;
   if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
     return tree1;
-  if (tree1->type == SEL_TREE::MAYBE) return tree1;  // Can't use this
-  if (tree2->type == SEL_TREE::MAYBE) return tree2;
 
   /*
     It is possible that a tree contains both

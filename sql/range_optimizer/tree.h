@@ -881,14 +881,8 @@ class SEL_TREE {
 
     KEY: There are range predicates that can be used on at least one
       index.
-
-    KEY_SMALLER: There are range predicates that can be used on at
-      least one index. In addition, there are predicates that cannot
-      be directly utilized by range access on key parts in the same
-      index. These unused predicates makes it probable that the row
-      estimate for range access on this index is too pessimistic.
   */
-  enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
+  enum Type { IMPOSSIBLE, ALWAYS, KEY } type;
 
   SEL_TREE(enum Type type_arg, MEM_ROOT *root, size_t num_keys)
       : type(type_arg), keys(root, num_keys), n_ror_scans(0) {}

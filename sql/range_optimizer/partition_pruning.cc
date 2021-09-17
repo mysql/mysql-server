@@ -330,8 +330,7 @@ bool prune_partitions(THD *thd, TABLE *table, Query_block *query_block,
     goto end;
   }
 
-  if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
-    goto all_used;
+  if (tree->type != SEL_TREE::KEY) goto all_used;
 
   if (tree->merges.is_empty()) {
     /* Range analysis has produced a single list of intervals. */

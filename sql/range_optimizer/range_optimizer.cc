@@ -239,9 +239,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
     if (sel_trees_can_be_ored(*tree, new_tree, param)) {
       *tree = tree_or(param, remove_jump_scans, *tree, new_tree);
       if (!*tree) return 1;
-      if (((*tree)->type == SEL_TREE::MAYBE) ||
-          ((*tree)->type == SEL_TREE::ALWAYS))
-        return 1;
+      if ((*tree)->type == SEL_TREE::ALWAYS) return 1;
       /* SEL_TREE::IMPOSSIBLE is impossible here */
       return 0;
     }
@@ -691,7 +689,7 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
         If the tree can't be used for range scans, proceed anyway, as we
         can construct a group-min-max quick select
       */
-      if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER) {
+      if (tree->type != SEL_TREE::KEY) {
         trace_range.add("range_scan_possible", false);
         if (tree->type == SEL_TREE::ALWAYS)
           trace_range.add_alnum("cause", "condition_always_true");
@@ -1794,15 +1792,6 @@ void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
       out->append(" is ALWAYS");
     } else
       DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
-    return;
-  }
-
-  if (tree->type == SEL_TREE::MAYBE) {
-    if (out) {
-      out->append(tree_name);
-      out->append(" is MAYBE");
-    } else
-      DBUG_PRINT("info", ("sel_tree: %s is MAYBE", tree_name));
     return;
   }
 
