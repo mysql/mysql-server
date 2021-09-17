@@ -24,13 +24,14 @@
 
 #include "sql/sql_delete.h"
 
+#include <assert.h>
 #include <limits.h>
-
 #include <atomic>
 #include <memory>
 #include <utility>
 
 #include "lex_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -45,32 +46,28 @@
 #include "sql/filesort.h"          // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
-#include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/row_iterator.h"
-#include "sql/iterators/sorting_iterator.h"
-#include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
-#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
 #include "sql/opt_explain.h"  // Modification_plan
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // Opt_trace_object
+#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/path_helpers.h"
-#include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_base.h"  // update_non_unique_table_error
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // optimize_cond, substitute_gc
 #include "sql/sql_resolver.h"   // setup_order
 #include "sql/sql_select.h"
@@ -80,7 +77,6 @@
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"  // Unique
@@ -744,7 +740,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
       propagate_nullability(&select->top_join_list, false);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result = new (thd->mem_root) Query_result_delete();
+    result = new (thd->mem_root) Query_result_delete(thd);
     if (result == nullptr) return true; /* purecov: inspected */
 
     // The former is for the pre-iterator executor; the latter is for the
@@ -871,6 +867,11 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
                        static_cast<const uchar *>(b));
 }
 
+Query_result_delete::Query_result_delete(THD *thd)
+    : Query_result_interceptor(),
+      tempfiles(thd->mem_root),
+      tables(thd->mem_root) {}
+
 bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
                                   Query_expression *u) {
   DBUG_TRACE;
@@ -914,13 +915,6 @@ bool Query_result_delete::optimize() {
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
     return true;
-
-  if (!(tempfiles =
-            (Unique **)sql_calloc(sizeof(Unique *) * delete_table_count)))
-    return true; /* purecov: inspected */
-
-  if (!(tables = (TABLE **)sql_calloc(sizeof(TABLE *) * delete_table_count)))
-    return true; /* purecov: inspected */
 
   bool delete_while_scanning = true;
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
@@ -976,8 +970,6 @@ bool Query_result_delete::optimize() {
 
   // Set up a Unique object for each table whose delete operation is deferred:
 
-  Unique **tempfile = tempfiles;
-  TABLE **table_ptr = tables;
   for (TABLE_LIST *tr = select->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
     const table_map map = tr->map();
@@ -985,11 +977,13 @@ bool Query_result_delete::optimize() {
     if (!(map & delete_table_map & ~delete_immediate)) continue;
 
     TABLE *const table = tr->table;
-    if (!(*tempfile++ = new (thd->mem_root)
-              Unique(refpos_order_cmp, (void *)table->file,
-                     table->file->ref_length, thd->variables.sortbuff_size)))
+    auto tempfile = make_unique_destroy_only<Unique>(
+        thd->mem_root, refpos_order_cmp, table->file, table->file->ref_length,
+        thd->variables.sortbuff_size);
+    if (tempfile == nullptr || tempfiles.push_back(move(tempfile)) ||
+        tables.push_back(table)) {
       return true; /* purecov: inspected */
-    *(table_ptr++) = table;
+    }
   }
 
   assert(!thd->is_error());
@@ -1002,11 +996,8 @@ void Query_result_delete::cleanup(THD *) {
   if (delete_table_count == 0) return;
 
   // Remove optimize structs for this operation.
-  for (uint counter = 0; counter < delete_table_count; counter++) {
-    if (tempfiles && tempfiles[counter]) destroy(tempfiles[counter]);
-  }
-  tempfiles = nullptr;
-  tables = nullptr;
+  tempfiles.clear();
+  tables.clear();
   // Reset state and statistics members:
   error_handled = false;
   delete_error = 0;
@@ -1036,7 +1027,8 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
       If not doing immediate deletion, increment unique_counter and assign
       "tempfile" here, so that it is available when and if it is needed.
     */
-    Unique *const tempfile = immediate ? nullptr : tempfiles[unique_counter++];
+    Unique *const tempfile =
+        immediate ? nullptr : tempfiles[unique_counter++].get();
 
     // Check if using outer join and no row found, or row is already deleted
     if (table->has_null_row() || table->has_deleted_row()) continue;
@@ -1153,10 +1145,8 @@ int Query_result_delete::do_deletes(THD *thd) {
   delete_completed = true;  // Mark operation as complete
   if (found_rows == 0) return 0;
 
-  for (uint counter = 0; counter < delete_table_count; counter++) {
+  for (uint counter = 0; counter < tables.size(); counter++) {
     TABLE *const table = tables[counter];
-    if (table == nullptr) break;
-
     if (tempfiles[counter]->get(table)) return 1;
 
     int local_error = do_table_deletes(thd, table);

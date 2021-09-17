@@ -23,32 +23,33 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
-#include <stddef.h>
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_base.h"  // ha_rows
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
+#include "sql/mem_root_array.h"
 #include "sql/query_result.h"  // Query_result_interceptor
 #include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
+#include "sql/uniques.h"
 
 class Item;
 class Query_expression;
 class Select_lex_visitor;
 class THD;
-class Unique;
 struct TABLE;
 struct TABLE_LIST;
 template <class T>
-class List;
+class mem_root_deque;
 template <typename T>
 class SQL_I_List;
 
 class Query_result_delete final : public Query_result_interceptor {
   /// Pointers to temporary files used for delayed deletion of rows
-  Unique **tempfiles{nullptr};
+  Mem_root_array<unique_ptr_destroy_only<Unique>> tempfiles;
   /// Pointers to table objects matching tempfiles
-  TABLE **tables{nullptr};
+  Mem_root_array<TABLE *> tables;
   /// Number of tables being deleted from
   uint delete_table_count{0};
   /// Number of rows produced by the join
@@ -72,7 +73,7 @@ class Query_result_delete final : public Query_result_interceptor {
   bool error_handled{false};
 
  public:
-  Query_result_delete() : Query_result_interceptor() {}
+  explicit Query_result_delete(THD *thd);
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
