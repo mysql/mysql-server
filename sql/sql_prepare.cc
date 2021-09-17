@@ -1068,6 +1068,9 @@ static bool mysql_test_set_fields(Prepared_statement *stmt, TABLE_LIST *tables,
   DBUG_TRACE;
   assert(stmt->m_arena.is_stmt_prepare());
 
+  thd->lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
     return true; /* purecov: inspected */

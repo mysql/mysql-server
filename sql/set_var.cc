@@ -841,6 +841,9 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   LEX *lex = thd->lex;
   set_var_base *var;
   if (!thd->lex->unit->is_prepared()) {
+    lex->using_hypergraph_optimizer =
+        thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     while ((var = it++)) {
       if ((error = var->resolve(thd))) goto err;

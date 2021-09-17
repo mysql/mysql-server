@@ -417,9 +417,12 @@ class CostingReceiver {
 /// engine, will use a default set of permissive flags suitable for
 /// non-secondary engine use.
 SecondaryEngineFlags EngineFlags(const THD *thd) {
-  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
-  if (secondary_engine != nullptr) {
-    return secondary_engine->secondary_engine_flags;
+  if (thd->lex->m_sql_cmd != nullptr) {
+    const handlerton *secondary_engine =
+        thd->lex->m_sql_cmd->secondary_engine();
+    if (secondary_engine != nullptr) {
+      return secondary_engine->secondary_engine_flags;
+    }
   }
 
   return MakeSecondaryEngineFlags(
@@ -430,6 +433,9 @@ SecondaryEngineFlags EngineFlags(const THD *thd) {
 /// Gets the secondary storage engine cost modification function, if any.
 secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
     const THD *thd) {
+  if (thd->lex->m_sql_cmd == nullptr) {
+    return nullptr;
+  }
   const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
   if (secondary_engine == nullptr) {
     return nullptr;
@@ -2681,7 +2687,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 }
 
 bool CheckSupportedQuery(THD *thd) {
-  if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
+  if (thd->lex->m_sql_cmd != nullptr &&
+      thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
       !Overlaps(EngineFlags(thd),
                 MakeSecondaryEngineFlags(
                     SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
