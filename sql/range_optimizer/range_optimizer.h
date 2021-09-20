@@ -46,6 +46,7 @@
 class Item;
 class Opt_trace_context;
 class Query_block;
+class RANGE_OPT_PARAM;
 class THD;
 struct MY_BITMAP;
 struct TABLE;
@@ -169,6 +170,11 @@ class QUICK_RANGE {
 
 using Quick_ranges = Mem_root_array<QUICK_RANGE *>;
 using Quick_ranges_array = Mem_root_array<Quick_ranges *>;
+
+bool setup_range_optimizer_param(THD *thd, MEM_ROOT *return_mem_root,
+                                 MEM_ROOT *temp_mem_root, Key_map keys_to_use,
+                                 TABLE *table, Query_block *query_block,
+                                 RANGE_OPT_PARAM *param);
 
 int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                       MEM_ROOT *temp_mem_root, Key_map keys_to_use,

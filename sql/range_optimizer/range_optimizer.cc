@@ -375,6 +375,93 @@ static int fill_used_fields_bitmap(RANGE_OPT_PARAM *param,
   return 0;
 }
 
+bool setup_range_optimizer_param(THD *thd, MEM_ROOT *return_mem_root,
+                                 MEM_ROOT *temp_mem_root, Key_map keys_to_use,
+                                 TABLE *table, Query_block *query_block,
+                                 RANGE_OPT_PARAM *param) {
+  param->table = table;
+  param->query_block = query_block;
+  param->keys = 0;
+  param->return_mem_root = return_mem_root;
+  param->temp_mem_root = temp_mem_root;
+  param->using_real_indexes = true;
+  param->use_index_statistics = false;
+
+  temp_mem_root->set_max_capacity(thd->variables.range_optimizer_max_mem_size);
+  temp_mem_root->set_error_for_capacity_exceeded(true);
+
+  // These are being stored in AccessPaths, so they need to be on
+  // return_mem_root.
+  param->real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
+  param->key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
+  param->key_parts = return_mem_root->ArrayAlloc<KEY_PART>(table->s->key_parts);
+  if (param->real_keynr == nullptr || param->key == nullptr ||
+      param->key_parts == nullptr) {
+    return true;  // Can't use range
+  }
+  KEY_PART *key_parts = param->key_parts;
+
+  Opt_trace_context *const trace = &thd->opt_trace;
+  {
+    Opt_trace_array trace_idx(trace, "potential_range_indexes",
+                              Opt_trace_context::RANGE_OPTIMIZER);
+    /*
+      Make an array with description of all key parts of all table keys.
+      This is used in get_mm_parts function.
+    */
+    KEY *key_info = table->key_info;
+    for (uint idx = 0; idx < table->s->keys; idx++, key_info++) {
+      Opt_trace_object trace_idx_details(trace);
+      trace_idx_details.add_utf8("index", key_info->name);
+      KEY_PART_INFO *key_part_info;
+
+      if (!keys_to_use.is_set(idx)) {
+        trace_idx_details.add("usable", false)
+            .add_alnum("cause", "not_applicable");
+        continue;
+      }
+
+      if (hint_key_state(thd, table->pos_in_table_list, idx, NO_RANGE_HINT_ENUM,
+                         0)) {
+        trace_idx_details.add("usable", false)
+            .add_alnum("cause", "no_range_optimization hint");
+        continue;
+      }
+
+      if (key_info->flags & HA_FULLTEXT) {
+        trace_idx_details.add("usable", false).add_alnum("cause", "fulltext");
+        continue;  // ToDo: ft-keys in non-ft ranges, if possible   SerG
+      }
+
+      trace_idx_details.add("usable", true);
+
+      param->key[param->keys] = key_parts;
+      key_part_info = key_info->key_part;
+      Opt_trace_array trace_keypart(trace, "key_parts");
+      for (uint part = 0; part < actual_key_parts(key_info);
+           part++, key_parts++, key_part_info++) {
+        key_parts->key = param->keys;
+        key_parts->part = part;
+        key_parts->length = key_part_info->length;
+        key_parts->store_length = key_part_info->store_length;
+        key_parts->field = key_part_info->field;
+        key_parts->null_bit = key_part_info->null_bit;
+        key_parts->image_type = (part < key_info->user_defined_key_parts &&
+                                 key_info->flags & HA_SPATIAL)
+                                    ? Field::itMBR
+                                    : Field::itRAW;
+        /* Only HA_PART_KEY_SEG is used */
+        key_parts->flag = key_part_info->key_part_flag;
+        trace_keypart.add_utf8(
+            get_field_name_or_expression(thd, key_part_info->field));
+      }
+      param->real_keynr[param->keys++] = idx;
+    }
+  }
+  param->key_parts_end = key_parts;
+  return false;
+}
+
 /*
   Test if a key can be used in different ranges, and create the QUICK
   access method (range, index merge etc) that is estimated to be
@@ -526,18 +613,19 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   */
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(RANGE_OPT_PARAM),
-                          buff))
+                          buff)) {
     return 0;  // Fatal error flag is set
+  }
 
   /* set up parameter that is passed to all functions */
   RANGE_OPT_PARAM param;
-  param.table = table;
-  param.query_block = query_block;
-  param.keys = 0;
-  param.return_mem_root = return_mem_root;
-  param.temp_mem_root = temp_mem_root;
-  param.using_real_indexes = true;
-  param.use_index_statistics = false;
+  if (setup_range_optimizer_param(thd, return_mem_root, temp_mem_root,
+                                  keys_to_use, table, query_block, &param)) {
+    return 0;
+  }
+  thd->push_internal_handler(&param.error_handler);
+  auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
+
   /*
     Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
     Notice also that OPTIMIZER_SWITCH_INDEX_MERGE disables all
@@ -554,80 +642,6 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
   const bool index_merge_intersect_allowed =
       index_merge_allowed &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
-
-  temp_mem_root->set_max_capacity(thd->variables.range_optimizer_max_mem_size);
-  temp_mem_root->set_error_for_capacity_exceeded(true);
-  thd->push_internal_handler(&param.error_handler);
-  auto cleanup = create_scope_guard([thd] { thd->pop_internal_handler(); });
-
-  // These are being stored in AccessPaths, so they need to be on
-  // return_mem_root.
-  param.real_keynr = return_mem_root->ArrayAlloc<uint>(table->s->keys);
-  param.key = return_mem_root->ArrayAlloc<KEY_PART *>(table->s->keys);
-  param.key_parts = return_mem_root->ArrayAlloc<KEY_PART>(table->s->key_parts);
-  if (param.real_keynr == nullptr || param.key == nullptr ||
-      param.key_parts == nullptr) {
-    return 0;  // Can't use range
-  }
-  KEY_PART *key_parts = param.key_parts;
-
-  {
-    Opt_trace_array trace_idx(trace, "potential_range_indexes",
-                              Opt_trace_context::RANGE_OPTIMIZER);
-    /*
-      Make an array with description of all key parts of all table keys.
-      This is used in get_mm_parts function.
-    */
-    KEY *key_info = table->key_info;
-    for (uint idx = 0; idx < table->s->keys; idx++, key_info++) {
-      Opt_trace_object trace_idx_details(trace);
-      trace_idx_details.add_utf8("index", key_info->name);
-      KEY_PART_INFO *key_part_info;
-
-      if (!keys_to_use.is_set(idx)) {
-        trace_idx_details.add("usable", false)
-            .add_alnum("cause", "not_applicable");
-        continue;
-      }
-
-      if (hint_key_state(thd, table->pos_in_table_list, idx, NO_RANGE_HINT_ENUM,
-                         0)) {
-        trace_idx_details.add("usable", false)
-            .add_alnum("cause", "no_range_optimization hint");
-        continue;
-      }
-
-      if (key_info->flags & HA_FULLTEXT) {
-        trace_idx_details.add("usable", false).add_alnum("cause", "fulltext");
-        continue;  // ToDo: ft-keys in non-ft ranges, if possible   SerG
-      }
-
-      trace_idx_details.add("usable", true);
-
-      param.key[param.keys] = key_parts;
-      key_part_info = key_info->key_part;
-      Opt_trace_array trace_keypart(trace, "key_parts");
-      for (uint part = 0; part < actual_key_parts(key_info);
-           part++, key_parts++, key_part_info++) {
-        key_parts->key = param.keys;
-        key_parts->part = part;
-        key_parts->length = key_part_info->length;
-        key_parts->store_length = key_part_info->store_length;
-        key_parts->field = key_part_info->field;
-        key_parts->null_bit = key_part_info->null_bit;
-        key_parts->image_type = (part < key_info->user_defined_key_parts &&
-                                 key_info->flags & HA_SPATIAL)
-                                    ? Field::itMBR
-                                    : Field::itRAW;
-        /* Only HA_PART_KEY_SEG is used */
-        key_parts->flag = key_part_info->key_part_flag;
-        trace_keypart.add_utf8(
-            get_field_name_or_expression(thd, key_part_info->field));
-      }
-      param.real_keynr[param.keys++] = idx;
-    }
-  }
-  param.key_parts_end = key_parts;
 
   /* Calculate cost of full index read for the shortest covering index */
   if (!table->covering_keys.is_clear_all()) {
