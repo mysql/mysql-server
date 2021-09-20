@@ -150,11 +150,10 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
                                       sizeof(m_record_layout.record_specs[0]));
 
   const NdbDictionary::Index *primary = dict->getIndexGlobal("PRIMARY", *table);
-  /* There is a test case where primary == nullptr because NDB has been
-     configured with __at_restart_skip_indexes, and presumably there are also
-     real-world data corruption situations where the table is available but
-     the index is not. Do not handle those conditions here. They are detected
-     later, when isInitialized() returns false.
+  /* NDB can be started with __at_restart_skip_indexes as a one-time recovery
+     measure in case of corruption. In this case, primary == nullptr.
+     Do not handle that condition here; it is detected later by testing
+     isInitialized().
   */
   if (primary) {
     m_ordered_index_rec =
@@ -219,11 +218,12 @@ const NdbError &Ndb_sql_metadata_api::initializeSnapshotLock(Ndb *ndb) {
     err = &ndb->getNdbError();
     if (tx != nullptr) {
       const NdbOperation *read_op =
-          tx->readTuple(keyNdbRecord(), row, noteNdbRecord(), row,
+          tx->readTuple(keyNdbRecord(), key, noteNdbRecord(), row,
                         NdbOperation::LM_CommittedRead);
       tx->execute(NoCommit);
 
-      if (read_op->getNdbError().code == 626) {  // row not found
+      assert(read_op);
+      if (read_op && (read_op->getNdbError().code == 626)) {  // row not found
         writeSnapshotLockRow(tx);
         tx->execute(Commit);
       }
@@ -264,7 +264,8 @@ const NdbError &Ndb_sql_metadata_api::acquireSnapshotLock(Ndb *ndb,
           tx->readTuple(keyNdbRecord(), key, noteNdbRecord(), row,
                         NdbOperation::LM_Exclusive);
       tx->execute(NoCommit);
-      if (read_op->getNdbError().code == 626) {
+      assert(read_op);
+      if (read_op && (read_op->getNdbError().code == 626)) {
         /* Someone has deleted the lock row, maybe using ndb_delete_all.
            Reinitialize the lock row and retry.
         */
