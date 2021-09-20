@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test if the commit order queue continues
+# to work properly when the commit sequence ticket number reaches it's max
+# value (2^64 - 1) and wraps around.
+#
+# ==== Requirements ====
+#
+# R1. When the commit order sequence ticket reaches 2^64 it should wrap
+#     around and values 0 and 1 should be skipped.
+#
+# ==== Implementation ====
+#
+# 1. Setup a debug point that initializes the commit order sequence ticket
+#    generator to 2^64 - 2
+# 2. Execute 5 transactions on the source that are bound to be executed
+#    together on the replica.
+# 3. Enforce that the fifth transaction executed on the source is the third
+#    to be executed on the replica (the one that will make the commit order
+#    sequence ticket generator to wrap around).
+# 4. Ensure that applier finishes applying properly, without stopping.
+#
+# ==== References ====
+#
+# BUG#32891221 SLAVE HANGS WITH SLAVE_PRESERVE_COMMIT_ORDER ON
+#
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_type_logical_clock.inc
+--let $rpl_gtid_utils = 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+let $sysvars_to_save = [
+  "GLOBAL.replica_preserve_commit_order"
+];
+--source include/save_sysvars.inc
+SET @@GLOBAL.replica_preserve_commit_order = 1;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t (a INT PRIMARY KEY);
+--source include/sync_slave_sql_with_master.inc
+
+# Debug point that will set the replica commit order ticket sequence number
+# to MAX_ULLONG minus 2, meaning, after executing 2 transactions, the
+# sequence generator should wrap around
+--let $debug_point = commit_order_queue_seq_wrap_around
+--source include/add_debug_point.inc
+
+# Execute 5 transactions so that we ensure that the sequence generator will
+# wrap around with the previously set debug point.
+let $transactions_to_exec = [
+  "INSERT INTO t VALUES (1)",
+  "INSERT INTO t VALUES (2)",
+  "INSERT INTO t VALUES (3)",
+  "INSERT INTO t VALUES (4)",
+  "INSERT INTO t VALUES (5)"
+];
+# Make the 5th transaction to run before the first transaction that will
+# wrap around (the 3rd) and wait on the commit order queue. This will
+# ensure that both special values 0 and 1 will be skipped because otherwise
+# the 5th transaction will be waiting on the commit order indefinitely.
+--let $replica_execution_order = [ 1, 2, 5, 3, 4 ]
+--source include/rpl_mta_apply_in_order.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+--source include/restore_sysvars.inc
+--source include/start_slave.inc
+
+--let $debug_point = commit_order_queue_seq_wrap_around
+--source include/remove_debug_point.inc
+--source include/rpl_end.inc
