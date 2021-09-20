@@ -3715,10 +3715,7 @@ class Ndb_schema_event_handler {
                                        schema->version),
                 NDB_SCHEMA_OBJECT::release);
         if (!ndb_schema_object) {
-          // There is no NDB_SCHEMA_OBJECT waiting for this schema operation
-          // Unexpected since the client who started this schema op
-          // is always in same node as coordinator
-          ndbcluster::ndbrequire(false);
+          ndb_log_info("Coordinator received a stale schema event");
           return 0;
         }
         ndb_schema_object->coordinator_received_schema_op();
@@ -4208,6 +4205,11 @@ class Ndb_schema_event_handler {
     // take the GSL properly
     assert(!m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
+    // Sleep here will make other mysql server in same cluster setup to create
+    // the schema result table in NDB before this mysql server. This also makes
+    // the create table in the connection thread to acquire GSL before the
+    // Binlog thread
+    DBUG_EXECUTE_IF("ndb_bi_sleep_before_gsl", sleep(1););
     // Protect the setup with GSL(Global Schema Lock)
     Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
     if (global_schema_lock_guard.lock()) {
