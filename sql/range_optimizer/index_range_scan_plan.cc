@@ -60,13 +60,12 @@ using std::min;
 static bool is_key_scan_ror(RANGE_OPT_PARAM *param, uint keynr, uint nparts);
 static bool eq_ranges_exceeds_limit(const SEL_ROOT *keypart, uint *count,
                                     uint limit);
-static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
-                           KEY_PART *key, SEL_ARG *key_tree,
-                           uchar *const base_min_key, uchar *min_key,
-                           uint min_key_flag, uchar *const base_max_key,
-                           uchar *max_key, uint max_key_flag, uint *desc_flag,
-                           uint num_key_parts, uint *used_key_parts,
-                           Quick_ranges *ranges);
+static bool get_ranges_from_tree_given_base(
+    MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
+    SEL_ROOT *key_tree, uchar *const base_min_key, uchar *min_key,
+    uint min_key_flag, uchar *const base_max_key, uchar *max_key,
+    uint max_key_flag, bool first_keypart_is_asc, uint num_key_parts,
+    uint *used_key_parts, Quick_ranges *ranges);
 
 /* MRR range sequence, SEL_ARG* implementation: stack entry */
 struct RANGE_SEQ_ENTRY {
@@ -777,11 +776,13 @@ bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
   if (key_tree->type != SEL_ROOT::Type::KEY_RANGE) {
     return false;
   }
+  const bool first_keypart_is_asc = key_tree->root->is_ascending;
   uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
   uchar max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
-  return get_quick_keys(return_mem_root, &table->key_info[keyno], key,
-                        key_tree->root, min_key, min_key, 0, max_key, max_key,
-                        0, nullptr, num_key_parts, used_key_parts, ranges);
+  return get_ranges_from_tree_given_base(
+      return_mem_root, &table->key_info[keyno], key, key_tree, min_key, min_key,
+      0, max_key, max_key, 0, first_keypart_is_asc, num_key_parts,
+      used_key_parts, ranges);
 }
 
 void trace_basic_info_index_range_scan(THD *thd, const AccessPath *path,
@@ -1005,11 +1006,18 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   return false;
 }
 
+// TODO(sgunders): This becomes a bit simpler with C++20's string_view
+// constructors.
+static inline std::basic_string_view<uchar> make_string_view(const uchar *start,
+                                                             const uchar *end) {
+  return {start, static_cast<size_t>(end - start)};
+}
+
 /**
   Generate key values for range select from given sel_arg tree
 
   SYNOPSIS
-    get_quick_keys()
+    get_ranges_from_tree_given_base()
 
   @param return_mem_root MEM_ROOT to use for allocating the data
   @param key            Generate key values for this key
@@ -1020,7 +1028,7 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   @param base_max_key   Start of max key buffer
   @param max_key        Current append place in max key buffer
   @param max_key_flag   Max key's flags
-  @param desc_flag      Desc flag of the first keypart
+  @param first_keypart_is_asc  Whether first keypart is ascending or not
   @param num_key_parts  Number of key parts that should be used for
                         creating ranges
   @param ranges         The ranges to scan
@@ -1032,96 +1040,107 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
     false   Ok
 */
 
-static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
-                           KEY_PART *key, SEL_ARG *key_tree,
-                           uchar *const base_min_key, uchar *min_key,
-                           uint min_key_flag, uchar *const base_max_key,
-                           uchar *max_key, uint max_key_flag, uint *desc_flag,
-                           uint num_key_parts, uint *used_key_parts,
-                           Quick_ranges *ranges) {
-  QUICK_RANGE *range;
-  uint flag = 0;
-  int min_part = key_tree->part - 1,  // # of keypart values in min_key buffer
-      max_part = key_tree->part - 1;  // # of keypart values in max_key buffer
+static bool get_ranges_from_tree_given_base(
+    MEM_ROOT *return_mem_root, const KEY *table_key, KEY_PART *key,
+    SEL_ROOT *key_tree, uchar *const base_min_key, uchar *min_key,
+    uint min_key_flag, uchar *const base_max_key, uchar *max_key,
+    uint max_key_flag, bool first_keypart_is_asc, uint num_key_parts,
+    uint *used_key_parts, Quick_ranges *ranges) {
+  const uint part = key_tree->root->part;
+  const bool asc = key_tree->root->is_ascending;
 
-  const bool asc = key_tree->is_ascending;
-  SEL_ARG *cur_key_tree = asc ? key_tree->left : key_tree->right;
-  if (cur_key_tree != null_element)
-    if (get_quick_keys(return_mem_root, table_key, key, cur_key_tree,
-                       base_min_key, min_key, min_key_flag, base_max_key,
-                       max_key, max_key_flag, desc_flag, num_key_parts,
-                       used_key_parts, ranges))
-      return true;
-  uchar *tmp_min_key = min_key, *tmp_max_key = max_key;
-  key_tree->store_min_max_values(key[key_tree->part].store_length, &tmp_min_key,
-                                 min_key_flag, &tmp_max_key, max_key_flag,
-                                 &min_part, &max_part);
-  if (!asc) flag |= DESC_FLAG;
+  for (SEL_ARG *node = asc ? key_tree->root->first() : key_tree->root->last();
+       node != nullptr && node != null_element;
+       node = asc ? node->next : node->prev) {
+    int min_part = part - 1,  // # of keypart values in min_key buffer
+        max_part = part - 1;  // # of keypart values in max_key buffer
+    uchar *tmp_min_key = min_key, *tmp_max_key = max_key;
+    node->store_min_max_values(key[part].store_length, &tmp_min_key,
+                               min_key_flag, &tmp_max_key, max_key_flag,
+                               &min_part, &max_part);
 
-  // Stop processing key values if this is the last key part that needs to be
-  // looked into.
-  if ((num_key_parts > 1) && key_tree->next_key_part &&
-      key_tree->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
-      key_tree->next_key_part->root->part ==
-          key_tree->part + 1) {  // const key as prefix
-    if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
-        memcmp(min_key, max_key, (uint)(tmp_max_key - max_key)) == 0 &&
-        key_tree->min_flag == 0 && key_tree->max_flag == 0) {
-      if (get_quick_keys(return_mem_root, table_key, key,
-                         key_tree->next_key_part->root, base_min_key,
-                         tmp_min_key, min_key_flag | key_tree->get_min_flag(),
-                         base_max_key, tmp_max_key,
-                         max_key_flag | key_tree->get_max_flag(),
-                         (desc_flag ? desc_flag : &flag), num_key_parts - 1,
-                         used_key_parts, ranges))
-        return true;
-      goto end;  // Ugly, but efficient
-    }
-    {
-      uint tmp_min_flag = key_tree->get_min_flag();
-      uint tmp_max_flag = key_tree->get_max_flag();
-      key_tree->store_next_min_max_keys(key, &tmp_min_key, &tmp_min_flag,
-                                        &tmp_max_key, &tmp_max_flag, &min_part,
-                                        &max_part);
-      flag |= tmp_min_flag | tmp_max_flag;
-    }
-  } else {
-    if (asc)
-      flag = (key_tree->min_flag & GEOM_FLAG)
-                 ? key_tree->min_flag
-                 : key_tree->min_flag | key_tree->max_flag;
-    else {
+    uint flag;
+
+    // See if we have a range tree for the next keypart.
+    if (num_key_parts > 1 && node->next_key_part != nullptr &&
+        node->next_key_part->type == SEL_ROOT::Type::KEY_RANGE &&
+        node->next_key_part->root->part == part + 1) {
+      if (node->min_flag == 0 && node->max_flag == 0 &&
+          make_string_view(min_key, tmp_min_key) ==
+              make_string_view(max_key, tmp_max_key)) {
+        // This range was an equality predicate, and we have more
+        // keyparts to scan, so use its range as a base for ranges on
+        // the next keypart(s). E.g. if we have (a = 3) on this keypart,
+        // and (b < 1 OR b >= 5) on the next one (connected to a = 3),
+        // we can use that predicate to build ranges (3,-inf) <= (a,b) < (3,1)
+        // and (3,5) <= (a,b) <= (3,+inf). And if so, we don't add a range for
+        // (a=3) in itself (which is what the rest of the function is doing),
+        // so skip to the next range after processing this one.
+        if (get_ranges_from_tree_given_base(
+                return_mem_root, table_key, key, node->next_key_part,
+                base_min_key, tmp_min_key, min_key_flag | node->get_min_flag(),
+                base_max_key, tmp_max_key, max_key_flag | node->get_max_flag(),
+                first_keypart_is_asc, num_key_parts - 1, used_key_parts,
+                ranges)) {
+          return true;
+        }
+        continue;
+      }
+
+      // We have more keyparts, but we didn't have an equality range.
+      // This means we're essentially dropping predicates on those,
+      // keyparts, since we cannot express them using simple ranges.
+      // However, we can do a last-ditch effort to at least cut off
+      // part of the ranges whenever possible.
+      //
+      // E.g. if we have a >= 3 and the next keypart is on b, we would
+      // normally have a range a >= 3 (set up by the call to
+      // store_min_max_values() above) with the key not extended to b;
+      // effectively, the same as (a,b) >= (3,-inf). However, we can look
+      // through the range tree for b and limit our sub-range to the smallest
+      // value it could have. So e.g. for (a >= 3) AND (b IN (4, 9, 10)),
+      // we would start scan over (a,b) >= (3,4) instead. (Sometimes, this would
+      // include adjusting min/max flags.) We work similarly for the upper end
+      // of the range.
+      uint tmp_min_flag = node->get_min_flag();
+      uint tmp_max_flag = node->get_max_flag();
+      node->store_next_min_max_keys(key, &tmp_min_key, &tmp_min_flag,
+                                    &tmp_max_key, &tmp_max_flag, &min_part,
+                                    &max_part);
+      flag = tmp_min_flag | tmp_max_flag;
+    } else if (node->min_flag & GEOM_FLAG) {
+      assert(asc);
+      flag = node->min_flag;
+    } else if (asc) {
+      flag = node->min_flag | node->max_flag;
+    } else {
       // Invert flags for DESC keypart
-      flag |= invert_min_flag(key_tree->min_flag) |
-              invert_max_flag(key_tree->max_flag);
+      flag = invert_min_flag(node->min_flag) | invert_max_flag(node->max_flag);
     }
-  }
 
-  /*
-    Ensure that some part of min_key and max_key are used.  If not,
-    regard this as no lower/upper range
-  */
-  if ((flag & GEOM_FLAG) == 0) {
-    if (tmp_min_key != base_min_key)
-      flag &= ~NO_MIN_RANGE;
-    else
-      flag |= NO_MIN_RANGE;
-    if (tmp_max_key != base_max_key)
-      flag &= ~NO_MAX_RANGE;
-    else
-      flag |= NO_MAX_RANGE;
-  }
-  if ((flag & ~DESC_FLAG) == 0) {
-    uint length = (uint)(tmp_min_key - base_min_key);
-    if (length == (uint)(tmp_max_key - base_max_key) &&
-        !memcmp(base_min_key, base_max_key, length)) {
+    /*
+      Ensure that some part of min_key and max_key are used.  If not,
+      regard this as no lower/upper range
+    */
+    if ((flag & GEOM_FLAG) == 0) {
+      if (tmp_min_key != base_min_key)
+        flag &= ~NO_MIN_RANGE;
+      else
+        flag |= NO_MIN_RANGE;
+      if (tmp_max_key != base_max_key)
+        flag &= ~NO_MAX_RANGE;
+      else
+        flag |= NO_MAX_RANGE;
+    }
+    if (flag == 0 && make_string_view(base_min_key, tmp_min_key) ==
+                         make_string_view(base_max_key, tmp_max_key)) {
       flag |= EQ_RANGE;
       /*
         Note that keys which are extended with PK parts have no
         HA_NOSAME flag. So we can use user_defined_key_parts.
       */
       if ((table_key->flags & HA_NOSAME) &&
-          key_tree->part == table_key->user_defined_key_parts - 1) {
+          part == table_key->user_defined_key_parts - 1) {
         if ((table_key->flags & HA_NULL_PART_KEY) &&
             null_part_in_key(key, base_min_key,
                              (uint)(tmp_min_key - base_min_key)))
@@ -1130,33 +1149,30 @@ static bool get_quick_keys(MEM_ROOT *return_mem_root, const KEY *table_key,
           flag |= UNIQUE_RANGE;
       }
     }
+
+    /*
+      Set DESC flag. We need this flag set according to the first keypart.
+      Depending on it, key values will be scanned either forward or backward,
+      preserving the order or records in the index along multiple ranges.
+    */
+    if (!first_keypart_is_asc) {
+      flag |= DESC_FLAG;
+    }
+
+    /* Get range for retrieving rows in RowIterator::Read() */
+    QUICK_RANGE *range = new (return_mem_root)
+        QUICK_RANGE(base_min_key, (uint)(tmp_min_key - base_min_key),
+                    min_part >= 0 ? make_keypart_map(min_part) : 0,
+                    base_max_key, (uint)(tmp_max_key - base_max_key),
+                    max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
+                    node->rkey_func_flag);
+    if (range == nullptr) {
+      return true;  // out of memory
+    }
+
+    *used_key_parts = std::max(*used_key_parts, part + 1);
+    if (ranges->push_back(range)) return true;
   }
-  /*
-    Set DESC flag. We need this flag set according to the first keypart.
-    Depending on it, key values will be scanned either forward or backward,
-    preserving the order or records in the index along multiple ranges.
-  */
-  if (desc_flag) flag = (flag & ~DESC_FLAG) | *desc_flag;
-
-  /* Get range for retrieving rows in RowIterator::Read() */
-  if (!(range = new (return_mem_root)
-            QUICK_RANGE(base_min_key, (uint)(tmp_min_key - base_min_key),
-                        min_part >= 0 ? make_keypart_map(min_part) : 0,
-                        base_max_key, (uint)(tmp_max_key - base_max_key),
-                        max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
-                        key_tree->rkey_func_flag)))
-    return true;  // out of memory
-
-  *used_key_parts = std::max(*used_key_parts, uint(key_tree->part + 1));
-  if (ranges->push_back(range)) return true;
-
-end:
-  cur_key_tree = asc ? key_tree->right : key_tree->left;
-  if (cur_key_tree != null_element)
-    return get_quick_keys(return_mem_root, table_key, key, cur_key_tree,
-                          base_min_key, min_key, min_key_flag, base_max_key,
-                          max_key, max_key_flag, desc_flag, num_key_parts,
-                          used_key_parts, ranges);
   return false;
 }
 
