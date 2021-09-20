@@ -561,80 +561,83 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     return true;
   }
 
-  if (!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) &&
-      !tl->is_recursive_reference()) {
-    // Propose index scan (for getting interesting orderings).
-    // We only consider those that are more interesting than a table scan;
-    // for the others, we don't even need to create the access path and go
-    // through the tournament.
-    for (const ActiveIndexInfo &order_info : *m_active_indexes) {
-      if (order_info.table != table) {
+  if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) ||
+      tl->is_recursive_reference()) {
+    // We can't use any indexes, so end here.
+    return false;
+  }
+
+  // Propose index scan (for getting interesting orderings).
+  // We only consider those that are more interesting than a table scan;
+  // for the others, we don't even need to create the access path and go
+  // through the tournament.
+  for (const ActiveIndexInfo &order_info : *m_active_indexes) {
+    if (order_info.table != table) {
+      continue;
+    }
+
+    const int forward_order =
+        m_orderings->RemapOrderingIndex(order_info.forward_order);
+    const int reverse_order =
+        m_orderings->RemapOrderingIndex(order_info.reverse_order);
+    for (bool reverse : {false, true}) {
+      if (reverse && reverse_order == 0) {
         continue;
       }
-
-      const int forward_order =
-          m_orderings->RemapOrderingIndex(order_info.forward_order);
-      const int reverse_order =
-          m_orderings->RemapOrderingIndex(order_info.reverse_order);
-      for (bool reverse : {false, true}) {
-        if (reverse && reverse_order == 0) {
-          continue;
-        }
-        const int order = reverse ? reverse_order : forward_order;
-        if (order != 0) {
-          if (ProposeIndexScan(table, node_idx, order_info.key_idx, reverse,
-                               order)) {
-            return true;
-          }
-        }
-
-        // Propose ref access using only sargable predicates that reference no
-        // other table.
-        if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
-                             /*allowed_parameter_tables=*/0, order)) {
+      const int order = reverse ? reverse_order : forward_order;
+      if (order != 0) {
+        if (ProposeIndexScan(table, node_idx, order_info.key_idx, reverse,
+                             order)) {
           return true;
         }
+      }
 
-        // Propose ref access using all sargable predicates that also refer to
-        // other tables (e.g. t1.x = t2.x). Such access paths can only be used
-        // on the inner side of a nested loop join, where all the other
-        // referenced tables are among the outer tables of the join. Such path
-        // is called a parameterized path.
-        //
-        // Since indexes can have multiple parts, the access path can also end
-        // up being parameterized on multiple outer tables. However, since
-        // parameterized paths are less flexible in joining than
-        // non-parameterized ones, it can be advantageous to not use all parts
-        // of the index; it's impossible to say locally. Thus, we enumerate all
-        // possible subsets of table parameters that may be useful, to make sure
-        // we don't miss any such paths.
-        table_map want_parameter_tables = 0;
-        for (unsigned pred_idx = 0;
-             pred_idx < m_graph.nodes[node_idx].sargable_predicates.size();
-             ++pred_idx) {
-          const SargablePredicate &sp =
-              m_graph.nodes[node_idx].sargable_predicates[pred_idx];
-          if (sp.field->table == table &&
-              sp.field->part_of_key.is_set(order_info.key_idx) &&
-              !Overlaps(sp.other_side->used_tables(),
-                        PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
-            want_parameter_tables |= sp.other_side->used_tables();
-          }
+      // Propose ref access using only sargable predicates that reference no
+      // other table.
+      if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+                           /*allowed_parameter_tables=*/0, order)) {
+        return true;
+      }
+
+      // Propose ref access using all sargable predicates that also refer to
+      // other tables (e.g. t1.x = t2.x). Such access paths can only be used
+      // on the inner side of a nested loop join, where all the other
+      // referenced tables are among the outer tables of the join. Such path
+      // is called a parameterized path.
+      //
+      // Since indexes can have multiple parts, the access path can also end
+      // up being parameterized on multiple outer tables. However, since
+      // parameterized paths are less flexible in joining than
+      // non-parameterized ones, it can be advantageous to not use all parts
+      // of the index; it's impossible to say locally. Thus, we enumerate all
+      // possible subsets of table parameters that may be useful, to make sure
+      // we don't miss any such paths.
+      table_map want_parameter_tables = 0;
+      for (unsigned pred_idx = 0;
+           pred_idx < m_graph.nodes[node_idx].sargable_predicates.size();
+           ++pred_idx) {
+        const SargablePredicate &sp =
+            m_graph.nodes[node_idx].sargable_predicates[pred_idx];
+        if (sp.field->table == table &&
+            sp.field->part_of_key.is_set(order_info.key_idx) &&
+            !Overlaps(sp.other_side->used_tables(),
+                      PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
+          want_parameter_tables |= sp.other_side->used_tables();
         }
-        for (table_map allowed_parameter_tables :
-             NonzeroSubsetsOf(want_parameter_tables)) {
-          if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
-                               allowed_parameter_tables, order)) {
-            return true;
-          }
+      }
+      for (table_map allowed_parameter_tables :
+           NonzeroSubsetsOf(want_parameter_tables)) {
+        if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+                             allowed_parameter_tables, order)) {
+          return true;
         }
       }
     }
+  }
 
-    if (tl->is_fulltext_searched()) {
-      if (ProposeAllFullTextIndexScans(table, node_idx)) {
-        return true;
-      }
+  if (tl->is_fulltext_searched()) {
+    if (ProposeAllFullTextIndexScans(table, node_idx)) {
+      return true;
     }
   }
 
