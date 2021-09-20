@@ -981,10 +981,15 @@ const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
   // storage engine.
   const LEX_CSTRING *secondary_engine = nullptr;
   const TABLE_LIST *tl = lex->query_tables;
-  // For INSERT INTO SELECT statements, the table to insert into does not have
-  // to have a secondary engine. This table is always first in the list.
-  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr) {
+    // If table from TABLE_LIST is either view or derived table then
+    // do not perform INSERT AS SELECT.
+    if (tl->is_view_or_derived()) return nullptr;
+    // For INSERT INTO SELECT statements, the table to insert into does not have
+    // to have a secondary engine. This table is always first in the list.
     tl = tl->next_global;
+  }
   for (; tl != nullptr; tl = tl->next_global) {
     // Schema tables are not available in secondary engines.
     if (tl->schema_table != nullptr) return nullptr;
