@@ -1530,6 +1530,15 @@ void print_key_value(String *out, const KEY_PART_INFO *key_part,
   }
 }
 
+static bool range_is_equality(const uchar *min_key, const uchar *max_key,
+                              unsigned store_length, bool is_nullable) {
+  if (is_nullable && *min_key && *max_key) {
+    // Both keys are NULL, so don't check the rest; they could be uninitialized.
+    return true;
+  }
+  return memcmp(min_key, max_key, store_length) == 0;
+}
+
 /**
   Append range info for a key part to a string
 
@@ -1570,7 +1579,8 @@ void append_range(String *out, const KEY_PART_INFO *key_part,
   }
 
   if (!Overlaps(flag, NO_MIN_RANGE | NO_MAX_RANGE | NEAR_MIN | NEAR_MAX) &&
-      memcmp(min_key, max_key, key_part->store_length) == 0) {
+      range_is_equality(min_key, max_key, key_part->store_length,
+                        key_part->field->is_nullable())) {
     out->append(get_field_name_or_expression(current_thd, key_part->field));
     out->append(STRING_WITH_LEN(" = "));
     print_key_value(out, key_part, min_key);
