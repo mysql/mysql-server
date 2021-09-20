@@ -372,6 +372,9 @@ int IndexRangeScanIterator::Read() {
     }
   }
   if (result == 0) {
+    if (m_examined_rows != nullptr) {
+      ++*m_examined_rows;
+    }
     return 0;
   }
   return HandleError(result);
