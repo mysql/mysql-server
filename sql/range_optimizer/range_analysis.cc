@@ -838,35 +838,27 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
   if (param->has_errors()) return nullptr;
 
   if (cond->type() == Item::COND_ITEM) {
-    List_iterator<Item> li(*((Item_cond *)cond)->argument_list());
+    Item_func::Functype functype = down_cast<Item_cond *>(cond)->functype();
 
     SEL_TREE *tree = nullptr;
-    if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
-      Item *item;
-      while ((item = li++)) {
-        SEL_TREE *new_tree =
-            get_mm_tree(thd, param, prev_tables, read_tables, current_table,
-                        remove_jump_scans, item);
-        if (param->has_errors()) return nullptr;
+    bool first = true;
+    for (Item &item : *down_cast<Item_cond *>(cond)->argument_list()) {
+      SEL_TREE *new_tree = get_mm_tree(thd, param, prev_tables, read_tables,
+                                       current_table, remove_jump_scans, &item);
+      if (param->has_errors()) return nullptr;
+      if (first) {
+        tree = new_tree;
+        first = false;
+        continue;
+      }
+      if (functype == Item_func::COND_AND_FUNC) {
         tree = tree_and(param, tree, new_tree);
         dbug_print_tree("after_and", tree, param);
         if (tree && tree->type == SEL_TREE::IMPOSSIBLE) break;
-      }
-    } else {  // Item OR
-      tree = get_mm_tree(thd, param, prev_tables, read_tables, current_table,
-                         remove_jump_scans, li++);
-      if (param->has_errors()) return nullptr;
-      if (tree) {
-        Item *item;
-        while ((item = li++)) {
-          SEL_TREE *new_tree =
-              get_mm_tree(thd, param, prev_tables, read_tables, current_table,
-                          remove_jump_scans, item);
-          if (new_tree == nullptr || param->has_errors()) return nullptr;
-          tree = tree_or(param, remove_jump_scans, tree, new_tree);
-          dbug_print_tree("after_or", tree, param);
-          if (tree == nullptr || tree->type == SEL_TREE::ALWAYS) break;
-        }
+      } else {  // OR.
+        tree = tree_or(param, remove_jump_scans, tree, new_tree);
+        dbug_print_tree("after_or", tree, param);
+        if (tree == nullptr || tree->type == SEL_TREE::ALWAYS) break;
       }
     }
     dbug_print_tree("tree_returned", tree, param);
