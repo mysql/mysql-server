@@ -31,7 +31,7 @@
 # on systems we can trust.
 # On Windows we use the Windows subsystem for Linux and gcc and sed
 # installed in it, if available.
-IF(LINUX)
+IF(LINUX AND MY_COMPILER_IS_GNU)
   SET(RUN_ABI_CHECK 1)
 ELSEIF(WIN32)
   FIND_PROGRAM(WSL_EXECUTABLE wsl HINTS C:/Windows/Sysnative)
