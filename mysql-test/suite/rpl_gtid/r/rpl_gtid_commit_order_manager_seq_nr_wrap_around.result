@@ -1,0 +1,92 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/save_sysvars.inc [
+"GLOBAL.replica_preserve_commit_order"
+]
+SET @@GLOBAL.replica_preserve_commit_order = 1;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Adding debug point 'commit_order_queue_seq_wrap_around' to @@GLOBAL.debug
+include/only_with_option.inc [GLOBAL.gtid_mode = 'ON']
+[connection slave]
+include/stop_slave.inc
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+Executing transaction 1 on source
+INSERT INTO t VALUES (1);
+Executing transaction 2 on source
+INSERT INTO t VALUES (2);
+Executing transaction 3 on source
+INSERT INTO t VALUES (3);
+Executing transaction 4 on source
+INSERT INTO t VALUES (4);
+Executing transaction 5 on source
+INSERT INTO t VALUES (5);
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+[connection slave]
+include/save_sysvars.inc [
+"GLOBAL.replica_parallel_workers"
+]
+SET @@GLOBAL.replica_parallel_workers = 5;
+Taking ownership of transaction 1 GTID on replica
+SET GTID_NEXT = 'GTID';
+Taking ownership of transaction 2 GTID on replica
+SET GTID_NEXT = 'GTID';
+Taking ownership of transaction 3 GTID on replica
+SET GTID_NEXT = 'GTID';
+Taking ownership of transaction 4 GTID on replica
+SET GTID_NEXT = 'GTID';
+Taking ownership of transaction 5 GTID on replica
+SET GTID_NEXT = 'GTID';
+[connection slave]
+include/start_slave.inc
+include/wait_condition.inc [ Workers waiting: 5 ]
+Unblocking transaction 1
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Workers waiting: 4 ]
+Unblocking transaction 2
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Workers waiting: 3 ]
+Unblocking transaction 5
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/wait_condition.inc [ Wait for 'Waiting for preceding transaction to commit' ]
+include/wait_condition.inc [ Workers waiting: 2 ]
+Unblocking transaction 3
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+include/wait_condition.inc [ Workers waiting: 1 ]
+Unblocking transaction 4
+ROLLBACK;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/wait_condition.inc [ Wait for 'Waiting for an event from Coordinator' ]
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+include/restore_sysvars.inc
+include/start_slave.inc
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/restore_sysvars.inc
+include/start_slave.inc
+# Removing debug point 'commit_order_queue_seq_wrap_around' from @@GLOBAL.debug
+include/rpl_end.inc
