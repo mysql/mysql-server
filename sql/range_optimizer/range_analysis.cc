@@ -85,7 +85,8 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
                               Item_func::Functype type, Item *value);
 static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
-                             Item_func::Functype type, Item *value);
+                             Item_func::Functype type, Item *value,
+                             bool *inexact);
 static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
                                        table_map prev_tables,
                                        table_map read_tables,
@@ -822,12 +823,22 @@ static SEL_TREE *get_full_func_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
   after row retrieval.
 
   @see SEL_TREE::keys and SEL_TREE::merges for details of how single
-  and multi-index range access alternatives are stored.j
+  and multi-index range access alternatives are stored.
 
   remove_jump_scans: Aggressively remove "scans" that do not have
   conditions on first keyparts. Such scans are usable when doing partition
   pruning but not regular range optimization.
-*/
+
+
+  A return value of nullptr from get_mm_tree() means that this condition
+  could not be represented by a range. Normally, this means that the best
+  thing to do is to keep that condition entirely out of the range optimization,
+  since ANDing it with other conditions (in tree_and()) would make the entire
+  tree inexact and no predicates subsumable (see SEL_TREE::inexact). However,
+  the old join optimizer does not care, and always just gives in the entire
+  condition (with different parts ANDed together) in one go, since it never
+  subsumes anything anyway.
+ */
 SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                       table_map read_tables, table_map current_table,
                       bool remove_jump_scans, Item *cond) {
@@ -1088,7 +1099,7 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
         return nullptr;  // OOM
       if (!value || !(value->used_tables() & ~read_tables)) {
         sel_root = get_mm_leaf(thd, param, cond_func, key_part->field, key_part,
-                               type, value);
+                               type, value, &tree->inexact);
         if (!sel_root) continue;
         if (sel_root->type == SEL_ROOT::Type::IMPOSSIBLE) {
           tree->type = SEL_TREE::IMPOSSIBLE;
@@ -1136,7 +1147,8 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
   @param [out] impossible_cond_cause Set to a descriptive string if an
                                     impossible condition is found.
   @param memroot                    Memroot for creation of new SEL_ARG.
-  @param query_block                 Query block the field is part of
+  @param query_block                Query block the field is part of
+  @param inexact                    Set to true on lossy conversion
 
   @retval false  if saving went fine and it makes sense to continue
                  optimizing for this predicate.
@@ -1145,12 +1157,10 @@ static SEL_TREE *get_mm_parts(THD *thd, RANGE_OPT_PARAM *param,
                  pointer if always true, SEL_ARG with type IMPOSSIBLE
                  if always false.
 */
-static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
-                                             const Item_func::Functype comp_op,
-                                             Field *field,
-                                             const char **impossible_cond_cause,
-                                             MEM_ROOT *memroot,
-                                             Query_block *query_block) {
+static bool save_value_and_handle_conversion(
+    SEL_ROOT **tree, Item *value, const Item_func::Functype comp_op,
+    Field *field, const char **impossible_cond_cause, MEM_ROOT *memroot,
+    Query_block *query_block, bool *inexact) {
   // A SEL_ARG should not have been created for this predicate yet.
   assert(*tree == nullptr);
 
@@ -1200,9 +1210,11 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
   thd->variables.sql_mode = orig_sql_mode;
 
   switch (err) {
-    case TYPE_OK:
     case TYPE_NOTE_TRUNCATED:
     case TYPE_WARN_TRUNCATED:
+      *inexact = true;
+      [[fallthrough]];
+    case TYPE_OK:
       return false;
     case TYPE_WARN_INVALID_STRING:
       /*
@@ -1218,6 +1230,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
         predicate is always true and let evaluate_join_record() decide
         the outcome.
       */
+      *inexact = true;
       return true;
     case TYPE_ERR_BAD_VALUE:
       /*
@@ -1230,6 +1243,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
         range predicate is always true instead of always false and let
         evaluate_join_record() decide the outcome.
       */
+      *inexact = true;
       return true;
     case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
       // Checking NULL value on a field that cannot contain NULL.
@@ -1352,7 +1366,8 @@ impossible_cond:
 
 static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
-                             Item_func::Functype type, Item *value) {
+                             Item_func::Functype type, Item *value,
+                             bool *inexact) {
   const size_t null_bytes = field->is_nullable() ? 1 : 0;
   bool optimize_range;
   SEL_ROOT *tree = nullptr;
@@ -1496,6 +1511,12 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
     if (like_error)  // Can't optimize with LIKE
       goto end;
 
+    // LIKE is tricky to get 100% exact, especially with Unicode collations
+    // (which can have contractions etc.), and will frequently be a bit too
+    // broad. To be safe, we currently always set that LIKE range scans are
+    // inexact and must be rechecked by means of a filter afterwards.
+    *inexact = true;
+
     if (offset != null_bytes)  // BLOB or VARCHAR
     {
       int2store(min_str + null_bytes, static_cast<uint16>(min_length));
@@ -1526,11 +1547,14 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                                                : Field::GEOM_GEOMETRY;
     if (field->type() == MYSQL_TYPE_GEOMETRY) {
       down_cast<Field_geom *>(field)->geom_type = Field::GEOM_GEOMETRY;
+
+      // R-tree queries are based on bounds, and must be rechecked.
+      *inexact = true;
     }
 
     bool always_true_or_false = save_value_and_handle_conversion(
         &tree, value, type, field, &impossible_cond_cause, alloc,
-        param->query_block);
+        param->query_block, inexact);
 
     if (field->type() == MYSQL_TYPE_GEOMETRY &&
         save_geom_type != Field::GEOM_GEOMETRY) {

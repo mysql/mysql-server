@@ -887,6 +887,37 @@ class SEL_TREE {
   */
   enum Type { IMPOSSIBLE, ALWAYS, KEY } type;
 
+  /**
+    Whether this SEL_TREE is an inexact (too broad) representation of the
+    predicates it is based on; that is, if it does not necessarily subsume
+    all of them. Note that a nullptr return from get_mm_tree() (which means
+    “could not generate a tree from this predicate”) is by definition inexact.
+
+    There are two main ways a SEL_TREE can become inexact:
+
+      - The predicate references fields not contained in any indexes tracked
+        by the SEL_TREE.
+      - The predicate could be of a form that is not representable as a range.
+        E.g., x > 30 is a range, x mod 2 = 1 is not (although it could
+        in theory be converted to a large amount of disjunct ranges).
+
+    If a SEL_TREE is inexact, the predicates must be rechecked after the
+    range scan, using a filter. (Note that it is never too narrow, only ever
+    exact or too broad.) The old join optimizer always does this, no matter
+    what the inexact flag is set to.
+
+    Note that additional checks are needed to subsume a predicate even if
+    inexact == false. In particular, SEL_TREE contains information for all
+    indexes over a table, but if a regular range scan is chosen, it can use
+    only one index. So one must then go through all predicates to see if they
+    refer to fields not contained in the given index. Furthermore, range scans
+    on composite (multi-part) indexes can drop predicates on the later keyparts
+    (making predicates on those keyparts inexact), since range scans only
+    support inequalities on the last keypart in any given range. This check
+    must be done in get_ranges_from_tree().
+   */
+  bool inexact = false;
+
   SEL_TREE(enum Type type_arg, MEM_ROOT *root, size_t num_keys)
       : type(type_arg), keys(root, num_keys), n_ror_scans(0) {}
   SEL_TREE(MEM_ROOT *root, size_t num_keys)

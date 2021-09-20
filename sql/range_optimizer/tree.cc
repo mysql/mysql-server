@@ -504,12 +504,32 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
 
   if (param->has_errors()) return nullptr;
 
-  if (!tree1) return tree2;
-  if (!tree2) return tree1;
-  if (tree1->type == SEL_TREE::IMPOSSIBLE || tree2->type == SEL_TREE::ALWAYS)
-    return tree1;
-  if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
+  if (tree1 == nullptr) {
+    if (tree2 != nullptr) {
+      tree2->inexact = true;
+    }
     return tree2;
+  }
+  if (tree2 == nullptr) {
+    if (tree1 != nullptr) {
+      tree1->inexact = true;
+    }
+    return tree1;
+  }
+  if (tree1->type == SEL_TREE::IMPOSSIBLE) {
+    return tree1;
+  }
+  if (tree2->type == SEL_TREE::IMPOSSIBLE) {
+    return tree2;
+  }
+  if (tree2->type == SEL_TREE::ALWAYS) {
+    tree1->inexact |= tree2->inexact;
+    return tree1;
+  }
+  if (tree1->type == SEL_TREE::ALWAYS) {
+    tree2->inexact |= tree1->inexact;
+    return tree2;
+  }
 
   dbug_print_tree("tree1", tree1, param);
   dbug_print_tree("tree2", tree2, param);
@@ -542,6 +562,7 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
     }
   }
   tree1->keys_map = result_keys;
+  tree1->inexact |= tree2->inexact;
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
@@ -653,6 +674,7 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
   if (param->has_errors()) return nullptr;
 
   if (!tree1 || !tree2) return nullptr;
+  tree1->inexact = tree2->inexact = tree1->inexact | tree2->inexact;
   if (tree1->type == SEL_TREE::IMPOSSIBLE || tree2->type == SEL_TREE::ALWAYS)
     return tree2;
   if (tree2->type == SEL_TREE::IMPOSSIBLE || tree1->type == SEL_TREE::ALWAYS)
