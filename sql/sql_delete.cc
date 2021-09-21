@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <sys/types.h>
 #include <atomic>
 #include <memory>
 #include <utility>
@@ -33,9 +34,11 @@
 #include "lex_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
@@ -56,6 +59,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/query_result.h"
 #include "sql/range_optimizer/partition_pruning.h"
 #include "sql/range_optimizer/path_helpers.h"
 #include "sql/range_optimizer/range_optimizer.h"
@@ -85,6 +89,59 @@ class COND_EQUAL;
 class Item_exists_subselect;
 class Opt_trace_context;
 class Select_lex_visitor;
+
+namespace {
+
+class Query_result_delete final : public Query_result_interceptor {
+  /// Pointers to temporary files used for delayed deletion of rows
+  Mem_root_array<unique_ptr_destroy_only<Unique>> tempfiles;
+  /// Pointers to table objects matching tempfiles
+  Mem_root_array<TABLE *> tables;
+  /// Number of rows produced by the join
+  ha_rows found_rows{0};
+  /// Number of rows deleted
+  ha_rows deleted_rows{0};
+  /// Handler error status for the operation.
+  int delete_error{0};
+  /// Map of all tables to delete rows from
+  table_map delete_table_map{0};
+  /// Map of tables to delete from immediately
+  table_map delete_immediate{0};
+  // Map of transactional tables to be deleted from
+  table_map transactional_table_map{0};
+  /// True if the full delete operation is complete
+  bool delete_completed{false};
+  /*
+     error handling (rollback and binlogging) can happen in send_eof()
+     so that afterward send_error() needs to find out that.
+  */
+  bool error_handled{false};
+
+ public:
+  explicit Query_result_delete(THD *thd)
+      : Query_result_interceptor(),
+        tempfiles(thd->mem_root),
+        tables(thd->mem_root) {}
+  bool need_explain_interceptor() const override { return true; }
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               Query_expression *u) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+  void send_error(THD *thd, uint errcode, const char *err) override;
+  bool optimize() override;
+  bool start_execution(THD *) override {
+    delete_completed = false;
+    return false;
+  }
+  int do_deletes(THD *thd);
+  int do_table_deletes(THD *thd, TABLE *table);
+  bool send_eof(THD *thd) override;
+  inline ha_rows num_deleted() { return deleted_rows; }
+  void abort_result_set(THD *thd) override;
+  void cleanup(THD *thd) override;
+  bool immediate_update(TABLE_LIST *t) const override;
+};
+
+}  // namespace
 
 bool Sql_cmd_delete::precheck(THD *thd) {
   DBUG_TRACE;
@@ -867,10 +924,7 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
                        static_cast<const uchar *>(b));
 }
 
-Query_result_delete::Query_result_delete(THD *thd)
-    : Query_result_interceptor(),
-      tempfiles(thd->mem_root),
-      tables(thd->mem_root) {}
+namespace {
 
 bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
                                   Query_expression *u) {
@@ -1286,6 +1340,8 @@ bool Query_result_delete::send_eof(THD *thd) {
 bool Query_result_delete::immediate_update(TABLE_LIST *t) const {
   return t->map() & delete_immediate;
 }
+
+}  // namespace
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);

@@ -23,73 +23,14 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
-#include <sys/types.h>
-
-#include "my_alloc.h"
-#include "my_base.h"  // ha_rows
 #include "my_sqlcommand.h"
-#include "my_table_map.h"
-#include "sql/mem_root_array.h"
-#include "sql/query_result.h"  // Query_result_interceptor
-#include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
-#include "sql/uniques.h"
+#include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
 
-class Item;
-class Query_expression;
 class Select_lex_visitor;
 class THD;
-struct TABLE;
 struct TABLE_LIST;
-template <class T>
-class mem_root_deque;
 template <typename T>
 class SQL_I_List;
-
-class Query_result_delete final : public Query_result_interceptor {
-  /// Pointers to temporary files used for delayed deletion of rows
-  Mem_root_array<unique_ptr_destroy_only<Unique>> tempfiles;
-  /// Pointers to table objects matching tempfiles
-  Mem_root_array<TABLE *> tables;
-  /// Number of rows produced by the join
-  ha_rows found_rows{0};
-  /// Number of rows deleted
-  ha_rows deleted_rows{0};
-  /// Handler error status for the operation.
-  int delete_error{0};
-  /// Map of all tables to delete rows from
-  table_map delete_table_map{0};
-  /// Map of tables to delete from immediately
-  table_map delete_immediate{0};
-  // Map of transactional tables to be deleted from
-  table_map transactional_table_map{0};
-  /// True if the full delete operation is complete
-  bool delete_completed{false};
-  /*
-     error handling (rollback and binlogging) can happen in send_eof()
-     so that afterward send_error() needs to find out that.
-  */
-  bool error_handled{false};
-
- public:
-  explicit Query_result_delete(THD *thd);
-  bool need_explain_interceptor() const override { return true; }
-  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               Query_expression *u) override;
-  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
-  void send_error(THD *thd, uint errcode, const char *err) override;
-  bool optimize() override;
-  bool start_execution(THD *) override {
-    delete_completed = false;
-    return false;
-  }
-  int do_deletes(THD *thd);
-  int do_table_deletes(THD *thd, TABLE *table);
-  bool send_eof(THD *thd) override;
-  inline ha_rows num_deleted() { return deleted_rows; }
-  void abort_result_set(THD *thd) override;
-  void cleanup(THD *thd) override;
-  bool immediate_update(TABLE_LIST *t) const override;
-};
 
 class Sql_cmd_delete final : public Sql_cmd_dml {
  public:
