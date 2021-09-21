@@ -12912,9 +12912,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
   Ndb_table_stats table_stats;
   if (!do_read_stat) {
     // Just use the cached stats from NDB_SHARE without reading from NDB
-    mysql_mutex_lock(&m_share->mutex);
-    table_stats = m_share->cached_table_stats;
-    mysql_mutex_unlock(&m_share->mutex);
+    table_stats = m_share->cached_stats.get_table_stats();
   } else {
     // Count number of table stat fetches
     thd_ndb->m_fetch_table_stats++;
@@ -12935,9 +12933,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
     }
 
     // Update cached stats in NDB_SHARE with fresh data
-    mysql_mutex_lock(&m_share->mutex);
-    m_share->cached_table_stats = table_stats;
-    mysql_mutex_unlock(&m_share->mutex);
+    m_share->cached_stats.save_table_stats(table_stats);
   }
 
   int active_rows = 0;  // Active uncommitted rows

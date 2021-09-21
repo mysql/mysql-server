@@ -195,7 +195,7 @@ void Thd_ndb::Trans_tables::update_cached_stats_with_committed() {
   for (auto &key_and_value : m_map) {
     NDB_SHARE *share = key_and_value.first;
     Stats &stat = key_and_value.second;
-    share->update_cached_row_count(stat.uncommitted_rows);
+    share->cached_stats.add_changed_rows(stat.uncommitted_rows);
     stat.uncommitted_rows = 0;
   }
   dbug_print(true);
