@@ -1177,13 +1177,13 @@ SET SQL_MODE=DEFAULT;
 # Bug #33290245 Item_func_st_distance_sphere::val_real():
 #               Assertion `is_nullable()' failed.
 select ( _utf32', ,*') regexp 13946;
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 select regexp_instr( ( _utf32', ,*'), 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 select regexp_replace( ( _utf32', ,*'), 13946, 42);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 select regexp_substr( ( _utf32', ,*'), 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 #
 # Bug #33326003 regexp::check_icu_status,
 #               handle Unicode Character Names without debug assert

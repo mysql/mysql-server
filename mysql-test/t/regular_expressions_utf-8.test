@@ -980,12 +980,16 @@ SET SQL_MODE=DEFAULT;
 --echo # Bug #33290245 Item_func_st_distance_sphere::val_real():
 --echo #               Assertion `is_nullable()' failed.
 
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 select ( _utf32', ,*') regexp 13946;
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 select regexp_instr( ( _utf32', ,*'), 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 select regexp_replace( ( _utf32', ,*'), 13946, 42);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 select regexp_substr( ( _utf32', ,*'), 13946);
 
