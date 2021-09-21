@@ -48,7 +48,6 @@ struct plugin_local_variables {
   std::atomic<bool> plugin_is_stopping;
   std::atomic<bool> group_replication_running;
   std::atomic<bool> group_replication_cloning;
-  std::atomic<bool> error_state_due_to_error_during_autorejoin;
 
   bool force_members_running;
   uint gr_lower_case_table_names;
@@ -91,7 +90,6 @@ struct plugin_local_variables {
     plugin_is_stopping = false;
     group_replication_running = false;
     group_replication_cloning = false;
-    error_state_due_to_error_during_autorejoin = false;
 
     force_members_running = false;
     gr_lower_case_table_names = 0;

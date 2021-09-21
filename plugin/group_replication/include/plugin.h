@@ -247,8 +247,6 @@ int get_flow_control_hold_percent_var();
 int get_flow_control_release_percent_var();
 ulong get_components_stop_timeout_var();
 ulong get_communication_stack_var();
-void set_error_state_due_to_error_during_autorejoin();
-bool get_error_state_due_to_error_during_autorejoin();
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

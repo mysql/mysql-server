@@ -325,14 +325,6 @@ ulong get_components_stop_timeout_var() {
 
 ulong get_communication_stack_var() { return ov.communication_stack_var; }
 
-void set_error_state_due_to_error_during_autorejoin() {
-  lv.error_state_due_to_error_during_autorejoin = true;
-}
-
-bool get_error_state_due_to_error_during_autorejoin() {
-  return lv.error_state_due_to_error_during_autorejoin;
-}
-
 bool is_autorejoin_enabled() { return ov.autorejoin_tries_var > 0U; }
 
 uint get_number_of_autorejoin_tries() { return ov.autorejoin_tries_var; }
@@ -631,9 +623,6 @@ int plugin_group_replication_start(char **error_message) {
   check_deprecated_variables();
 
   assert(transactions_latch->empty());
-
-  // Reset previous ERROR state causes.
-  lv.error_state_due_to_error_during_autorejoin = false;
 
   // Reset the single-leader latch flag
   lv.allow_single_leader_latch.first = false;
@@ -1849,7 +1838,6 @@ bool attempt_rejoin() {
         }
       } else {
         ret = false;
-        lv.error_state_due_to_error_during_autorejoin = false;
       }
     }
   }

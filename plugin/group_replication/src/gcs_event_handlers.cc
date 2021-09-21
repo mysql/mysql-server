@@ -868,16 +868,31 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     gcs_module->notify_of_view_change_end();
 
     /**
-     On the joining list there can be 2 types of members: online/recovering
-     members coming from old views where this member was not present and new
-     joining members that still have their status as offline.
+     On the joining list there can be 3 types of members:
+      1) ONLINE/RECOVERING members coming from old views where this member
+         was not present;
+      2) new joining members that still have their status as OFFLINE;
+      3) old members that were expelled and did auto-rejoin, that have
+         their status as ERROR.
 
-     As so, for offline members, their state is changed to member_in_recovery
-     after member compatibility with group is checked.
+     As so, for members with state OFFLINE and ERROR, their state is changed
+     to RECOVERING after member compatibility with group is checked.
     */
+#if !defined(NDEBUG)
+    if (autorejoin_module->is_autorejoin_ongoing()) {
+      assert(local_member_info->get_recovery_status() ==
+             Group_member_info::MEMBER_ERROR);
+    } else {
+      assert(local_member_info->get_recovery_status() ==
+             Group_member_info::MEMBER_OFFLINE);
+    }
+#endif
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
+    update_member_status(
+        new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
+        Group_member_info::MEMBER_ERROR, Group_member_info::MEMBER_END);
 
     /** Is an election running while I'm joining?*/
     primary_election_handler->set_election_running(
@@ -1025,15 +1040,23 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
   else if (number_of_joining_members > 0 ||
            (number_of_joining_members == 0 && number_of_leaving_members == 0)) {
     /**
-     On the joining list there can be 2 types of members: online/recovering
-     members coming from old views where this member was not present and new
-     joining members that still have their status as offline.
+     On the joining list there can be 3 types of members:
+      1) ONLINE/RECOVERING members coming from old views where this member
+         was not present;
+      2) new joining members that still have their status as OFFLINE;
+      3) old members that were expelled and did auto-rejoin, that have
+         their status as ERROR.
 
-     As so, for offline members, their state is changed to member_in_recovery.
+     As so, for members with state OFFLINE and ERROR, their state is changed
+     to RECOVERING after member compatibility with group is checked.
     */
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
+    update_member_status(
+        new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
+        Group_member_info::MEMBER_ERROR, Group_member_info::MEMBER_END);
+
     /**
      If not a joining member, all members should record on their own binlogs a
      marking event that identifies the frontier between the data the joining
@@ -1299,23 +1322,6 @@ sending:
   delete get_system_variable;
 
   std::vector<uchar> data;
-
-  /*
-    When a member is auto-rejoining, it starts in the ERROR state. Normally
-    the member would only change to the RECOVERY state when it was OFFLINE,
-    but we want the member to be in ERROR state when an auto-rejoin occurs,
-    so we force the change from ERROR to RECOVERY when the member is
-    undergoing an auto-rejoin procedure.
-    We do that change on the data exchange just before the view install, so
-    that when all members do receive the view on which this member joins
-    all do see the correct RECOVERY state.
-  */
-  if (autorejoin_module->is_autorejoin_ongoing() &&
-      !get_error_state_due_to_error_during_autorejoin()) {
-    group_member_mgr->update_member_status(
-        local_member_info->get_uuid(), Group_member_info::MEMBER_IN_RECOVERY,
-        m_notification_ctx);
-  }
 
   // alert joiners that an action or election is running
   local_member_info->set_is_group_action_running(
