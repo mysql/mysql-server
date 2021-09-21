@@ -50,8 +50,6 @@ class Query_result_delete final : public Query_result_interceptor {
   Mem_root_array<unique_ptr_destroy_only<Unique>> tempfiles;
   /// Pointers to table objects matching tempfiles
   Mem_root_array<TABLE *> tables;
-  /// Number of tables being deleted from
-  uint delete_table_count{0};
   /// Number of rows produced by the join
   ha_rows found_rows{0};
   /// Number of rows deleted

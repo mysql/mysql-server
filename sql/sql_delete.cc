@@ -881,8 +881,6 @@ bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
        tr = tr->next_leaf) {
     if (!tr->is_deleted()) continue;
 
-    // Count number of tables deleted from
-    delete_table_count++;
     delete_table_map |= tr->map();
 
     // Record transactional tables that are deleted from:
@@ -992,9 +990,6 @@ bool Query_result_delete::optimize() {
 }
 
 void Query_result_delete::cleanup(THD *) {
-  // Cleanup only needed if result object has been prepared
-  if (delete_table_count == 0) return;
-
   // Remove optimize structs for this operation.
   tempfiles.clear();
   tables.clear();
