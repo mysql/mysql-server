@@ -1,10 +1,10 @@
 #
 # Collection of test cases to verify that the hypergraph optimizer is used
 #
+SET optimizer_trace='enabled=on';
 #
 # Bug #33296454: Use the hypergraph optimizer for SET statements
 #
-SET optimizer_trace='enabled=on';
 CREATE TABLE t(x INT);
 INSERT INTO t VALUES (1), (2), (3);
 SET @x = (SELECT COUNT(*) FROM t);
@@ -117,6 +117,61 @@ SELECT @x;
 3
 # Clean up for Bug #33296454
 DROP TABLE t;
+# Bug #33296454 done
+#
+# Bug #33296504: Use the hypergraph optimizer for subqueries in INSERT statements
+#
+CREATE TABLE t1(x INT);
+CREATE TABLE t2(x INT);
+INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM t2));
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
+SELECT x FROM t1;
+x
+0
+TRUNCATE t1;
+INSERT INTO t1 VALUES (1 + (SELECT COUNT(*) FROM t2));
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
+SELECT x FROM t1;
+x
+1
+TRUNCATE t1;
+INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM t2 WHERE x <= 2));
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
+SELECT x FROM t1;
+x
+2
+TRUNCATE t1;
+TRUNCATE t2;
+CREATE TABLE t3(x INT PRIMARY KEY);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 VALUES (1) ON DUPLICATE KEY UPDATE x = (SELECT COUNT(*) FROM t1);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
+SELECT x FROM t3;
+x
+0
+TRUNCATE t3;
+SET optimizer_switch = 'hypergraph_optimizer=off';
+INSERT INTO t1 VALUES ((SELECT COUNT(*) FROM t2));
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+0
+# Clean up for Bug #33296504
+DROP TABLE t1, t2, t3;
+# Bug #33296504 done
+# Clean up for test file using_hypergraph_optimizer
 SET optimizer_trace='enabled=off';
 SET optimizer_switch=default;
-# Bug #33296454 done

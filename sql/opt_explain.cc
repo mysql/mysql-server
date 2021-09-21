@@ -1818,10 +1818,11 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
 }
 
 /**
-  EXPLAIN handling for single-table UPDATE and DELETE queries
+  EXPLAIN handling for single-table INSERT VALUES, UPDATE, and DELETE queries
 
-  Send to the client a QEP data set for single-table EXPLAIN UPDATE/DELETE
-  queries. As far as single-table UPDATE/DELETE are implemented without
+  Send to the client a QEP data set for single-table
+  EXPLAIN INSERT VALUES/UPDATE/DELETE queries.
+  As far as single-table INSERT VALUES/UPDATE/DELETE are implemented without
   the regular JOIN tree, we can't reuse explain_query_expression() directly,
   thus we deal with this single table in a special way and then call
   explain_query_expression() for subqueries (if any).
@@ -1845,6 +1846,12 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   if (explain_thd->lex->explain_format->is_tree()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
     return ExplainIterator(explain_thd, query_thd, nullptr);
+  }
+
+  if (query_thd->lex->using_hypergraph_optimizer) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "EXPLAIN with non-tree formats");
+    return true;
   }
 
   /**
