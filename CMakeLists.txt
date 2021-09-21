@@ -260,6 +260,14 @@ IF(NOT LINUX_RHEL AND MY_HOST_SYSTEM_NAME MATCHES "Linux")
       ELSEIF(MY_OS_RELEASE MATCHES "18.04")
         SET(LINUX_UBUNTU_18_04 1)
       ENDIF()
+      # /etc/os-release contains a line like
+      # VERSION_ID="20.04"
+      # Match the numeric value, including the dot, ignore the rest:
+      STRING(REGEX MATCH
+        "VERSION_ID=\"([0-9\\.]+).*" UNUSED ${MY_OS_RELEASE})
+      IF(CMAKE_MATCH_1)
+        SET(LINUX_UBUNTU_VERSION_ID ${CMAKE_MATCH_1})
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()
@@ -1550,6 +1558,15 @@ SET(SYSTEM_LIBRARIES
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
 OPTION(WITH_SYSTEM_LIBS
   "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" ${WITH_SYSTEM_LIBS_DEFAULT})
+
+# undefined symbol: _Z15fido_assert_newv which is fido_assert_new()
+# /usr/include/fido.h is missing 'extern "C"'
+# but even if we fix that, tests will fail.
+IF(LINUX_UBUNTU)
+  IF(LINUX_UBUNTU_VERSION_ID VERSION_LESS "21.04")
+    LIST(REMOVE_ITEM SYSTEM_LIBRARIES FIDO)
+  ENDIF()
+ENDIF()
 
 GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)
 UNSET(COMMAND_LINE_VARS)
