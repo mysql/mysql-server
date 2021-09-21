@@ -375,8 +375,8 @@ static bool InitializeChunkFiles(size_t estimated_rows_produced_by_join,
                                  bool include_match_flag_for_probe,
                                  Mem_root_array<ChunkPair> *chunk_pairs) {
   constexpr double kReductionFactor = 0.9;
-  const size_t reduced_rows_in_hash_table =
-      std::max<size_t>(1, rows_in_hash_table * kReductionFactor);
+  const double reduced_rows_in_hash_table =
+      std::max<double>(1, rows_in_hash_table * kReductionFactor);
 
   // Avoid underflow, since the hash table may contain more rows than the
   // estimate from the planner.

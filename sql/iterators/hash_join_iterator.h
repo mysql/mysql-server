@@ -338,6 +338,8 @@ class HashJoinIterator final : public RowIterator {
     // them.
   }
 
+  int ChunkCount() { return m_chunk_files_on_disk.size(); }
+
  private:
   /// Read all rows from the build input and store the rows into the in-memory
   /// hash table. If the hash table goes full, the rest of the rows are written
