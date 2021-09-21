@@ -2378,6 +2378,7 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_CREATE_RESOURCE_GROUP:
     case SQLCOM_ALTER_RESOURCE_GROUP:
     case SQLCOM_DROP_RESOURCE_GROUP:
+    case SQLCOM_ALTER_TABLESPACE:
       flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     default:
