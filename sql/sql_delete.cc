@@ -132,13 +132,14 @@ class Query_result_delete final : public Query_result_interceptor {
     delete_completed = false;
     return false;
   }
-  int do_deletes(THD *thd);
-  int do_table_deletes(THD *thd, TABLE *table);
   bool send_eof(THD *thd) override;
-  inline ha_rows num_deleted() { return deleted_rows; }
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
   bool immediate_update(TABLE_LIST *t) const override;
+
+ private:
+  int do_deletes(THD *thd);
+  int do_table_deletes(THD *thd, TABLE *table);
 };
 
 }  // namespace
