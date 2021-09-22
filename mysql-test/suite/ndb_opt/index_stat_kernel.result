@@ -5,7 +5,6 @@ PRIMARY KEY USING HASH (a),
 INDEX (b)
 ) ENGINE NDB;
 Check if the stats have been automatically created
-SELECT CASE COUNT(*) WHEN 0 THEN 'NO' ELSE 'YES' END AS stats_created FROM index_stats;
 stats_created
 YES
 Insert rows to trigger automatic update of stats

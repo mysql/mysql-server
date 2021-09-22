@@ -72,7 +72,7 @@ BaseString NdbInfo::mysql_table_name(const char* table_name) const
 bool NdbInfo::load_hardcoded_tables(void)
 {
   {
-    Table tabs("tables", 0);
+    Table tabs("tables", 0, 0, true);
     if (!tabs.addColumn(Column("table_id", 0, Column::Number)) ||
         !tabs.addColumn(Column("table_name", 1, Column::String)) ||
         !tabs.addColumn(Column("comment", 2, Column::String)) ||
@@ -87,7 +87,7 @@ bool NdbInfo::load_hardcoded_tables(void)
   }
 
   {
-    Table cols("columns", 1);
+    Table cols("columns", 1, 0, true);
     if (!cols.addColumn(Column("table_id", 0, Column::Number)) ||
         !cols.addColumn(Column("column_id", 1, Column::Number)) ||
         !cols.addColumn(Column("column_name", 2, Column::String)) ||
@@ -172,9 +172,9 @@ bool NdbInfo::load_ndbinfo_tables(void)
 
       default:
         BaseString hash_key = mysql_table_name(tableName);
-        if (!m_tables.insert(hash_key.c_str(),
-                             Table(tableName, tableId, est_rows, nullptr)))
-        {
+        if (!m_tables.insert(
+                hash_key.c_str(),
+                Table(tableName, tableId, est_rows, false, nullptr))) {
           DBUG_PRINT("error", ("Failed to insert Table('%s', %u)",
                      tableName, tableId));
           releaseScanOperation(scanOp);
@@ -340,7 +340,7 @@ int NdbInfo::createScanOperation(const Table* table,
   {
     // The table is a virtual table which does not exist in the data nodes,
     // instead it returns hardcoded values or dynamic information about the
-    // cluster whcih it retrives using NdbApi functions. Use the special
+    // cluster which it retrieves using NdbApi functions. Use the special
     // NdbInfoScanVirtual implementation
     NdbInfoScanVirtual *virtual_scan =
         new NdbInfoScanVirtual(m_connection, table, table->m_virt);
@@ -516,10 +516,11 @@ NdbInfo::Column::Column(const NdbInfo::Column & col) :
 // Table
 
 NdbInfo::Table::Table(const char *name, Uint32 id, Uint32 est_rows,
-                      const VirtualTable* virt) :
+                      bool exact_row_count, const VirtualTable* virt) :
   m_name(name),
   m_table_id(id),
   m_rows_estimate(est_rows),
+  m_exact_row_count(exact_row_count),
   m_virt(virt)
 {
 }
@@ -528,6 +529,7 @@ NdbInfo::Table::Table(const NdbInfo::Table& tab) :
   m_name(tab.m_name),
   m_table_id(tab.m_table_id),
   m_rows_estimate(tab.m_rows_estimate),
+  m_exact_row_count(tab.m_exact_row_count),
   m_virt(tab.m_virt)
 {
   DBUG_ENTER("Table(const Table&");
@@ -602,17 +604,6 @@ const NdbInfo::Column* NdbInfo::Table::getColumn(const char * name) const
 const VirtualTable* NdbInfo::Table::getVirtualTable() const
 {
   return m_virt;
-}
-
-bool NdbInfo::Table::rowCountIsExact() const
-{
-  // Hard-coded tables have exact row counts
-  if(m_table_id < NUM_HARDCODED_TABLES) return true;
-
-  // Virtual tables have exact row counts
-  if(m_virt) return true;
-
-  return false;
 }
 
 bool NdbInfo::load_virtual_tables(void)

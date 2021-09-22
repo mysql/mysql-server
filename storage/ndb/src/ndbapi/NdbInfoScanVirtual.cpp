@@ -112,7 +112,7 @@ public:
   /*
      Start reading of row(s) from the virtual table
   */
-  virtual bool start_scan(VirtualScanContext* ctx) const  = 0;
+  virtual bool start_scan(VirtualScanContext* ctx) const = 0;
 
   /*
     Read one row from the virtual table
@@ -354,7 +354,28 @@ class VirtualScanContext {
   }
   NdbTransaction *getTrans() { return m_trans; }
 
+  bool scanTable(const NdbRecord *result_record,
+                 NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
+                 const unsigned char *result_mask = 0,
+                 const NdbScanOperation::ScanOptions *options = 0,
+                 Uint32 sizeOfOptions = 0) {
+    assert(m_trans != nullptr);
+    m_scan_op = m_trans->scanTable(result_record, lock_mode, result_mask,
+                                   options, sizeOfOptions);
+    if (!m_scan_op) return false;
+    if (m_trans->execute(NdbTransaction::NoCommit) != 0) return false;
+    return true;
+  }
+  NdbScanOperation *getScanOp() { return m_scan_op; }
+
+  const NdbRecord *createRecord(NdbDictionary::RecordSpecification *recordSpec,
+                                Uint32 length, Uint32 elemSize) {
+    return m_ndb->getDictionary()->createRecord(m_ndbtab, recordSpec, length,
+                                                elemSize);
+  }
+
   ~VirtualScanContext() {
+    if (m_scan_op) m_scan_op->close();
     if (m_trans) m_ndb->closeTransaction(m_trans);
     if (m_ndbtab) m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, 0);
     delete m_ndb;
@@ -365,6 +386,7 @@ class VirtualScanContext {
   Ndb *m_ndb{nullptr};
   const NdbDictionary::Table *m_ndbtab{nullptr};
   NdbTransaction *m_trans{nullptr};
+  NdbScanOperation *m_scan_op{nullptr};
 };
 
 int NdbInfoScanVirtual::execute()
@@ -485,6 +507,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("blocks",
                                              NdbInfo::Table::InvalidTableId,
                                              NO_OF_BLOCK_NAMES,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -562,6 +585,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
                                              NdbInfo::Table::InvalidTableId,
                                              OBJ_TYPES_TABLE_SIZE,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -696,6 +720,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
                                              NdbInfo::Table::InvalidTableId,
                                              m_error_messages.size(),
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -876,6 +901,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("config_params",
                                              NdbInfo::Table::InvalidTableId,
                                              m_config_params.size(),
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -953,6 +979,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
                                              NdbInfo::Table::InvalidTableId,
                                              m_array_count,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -1055,6 +1082,7 @@ public:
     NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
                                              NdbInfo::Table::InvalidTableId,
                                              1,
+                                             true,
                                              this);
     if (!tab)
       return NULL;
@@ -1066,6 +1094,98 @@ public:
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("row_id", 2,
                                         NdbInfo::Column::Number64)))
+      return NULL;
+    return tab;
+  }
+};
+
+class IndexStatsTable : public VirtualTable {
+  struct IndexStatRow {
+    Uint32 index_id;
+    Uint32 index_version;
+    Uint32 sample_version;
+  };
+
+public:
+  bool start_scan(VirtualScanContext *ctx) const override {
+    DBUG_TRACE;
+    if (!ctx->create_ndb("mysql")) return false;
+    if (!ctx->openTable("ndb_index_stat_head")) return false;
+    if (!ctx->startTrans()) return false;
+    const NdbDictionary::Table *const ndbtab = ctx->getTable();
+    const NdbDictionary::Column *const index_id_col =
+        ndbtab->getColumn("index_id");
+    const NdbDictionary::Column *const index_version_col =
+        ndbtab->getColumn("index_version");
+    const NdbDictionary::Column *const sample_version_col =
+        ndbtab->getColumn("sample_version");
+
+    // Set up record specification for the 3 columns
+    NdbDictionary::RecordSpecification record_spec[3];
+    record_spec[0].column = index_id_col;
+    record_spec[0].offset = offsetof(IndexStatRow, index_id);
+    record_spec[0].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[0].nullbit_bit_in_byte = 0;
+
+    record_spec[1].column = index_version_col;
+    record_spec[1].offset = offsetof(IndexStatRow, index_version);
+    record_spec[1].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[1].nullbit_bit_in_byte = 0;
+
+    record_spec[2].column = sample_version_col;
+    record_spec[2].offset = offsetof(IndexStatRow, sample_version);
+    record_spec[2].nullbit_byte_offset = 0;  // Not nullable
+    record_spec[2].nullbit_bit_in_byte = 0;
+    const NdbRecord *result_record =
+        ctx->createRecord(record_spec, 3, sizeof(record_spec[0]));
+    if (!result_record) return false;
+
+    // Set up attribute mask to scan only the 3 columns of interest
+    const unsigned char attr_mask = ((1 << index_id_col->getColumnNo()) |
+                                     (1 << index_version_col->getColumnNo()) |
+                                     (1 << sample_version_col->getColumnNo()));
+    if (!ctx->scanTable(result_record, NdbOperation::LM_Read, &attr_mask)) {
+      return false;
+    }
+    return true;
+  }
+
+  int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
+               Uint32 row_number) const override {
+    IndexStatRow *row_data;
+    const int scan_next_result =
+        ctx->getScanOp()->nextResult((const char **)&row_data, true, false);
+    if (scan_next_result == 0) {
+      // Row found
+      w.write_number(row_data->index_id);
+      w.write_number(row_data->index_version);
+      w.write_number(row_data->sample_version);
+      return 1;
+    }
+    if (scan_next_result == 1) {
+      // No more rows
+      return 0;
+    }
+    // Error
+    return NdbInfo::ERR_ClusterFailure;
+  }
+
+  NdbInfo::Table* get_instance() const override {
+    NdbInfo::Table *tab = new NdbInfo::Table("index_stats",
+                                             NdbInfo::Table::InvalidTableId,
+                                             64, // Hard-coded estimate
+                                             false,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("index_id", 0,
+                                        NdbInfo::Column::Number)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("index_version", 1,
+                                        NdbInfo::Column::Number)))
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("sample_version", 2,
+                                        NdbInfo::Column::Number)))
       return NULL;
     return tab;
   }
@@ -1155,6 +1275,15 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
       return false;
 
     if (list.push_back(backupIdTable->get_instance()) != 0)
+      return false;
+  }
+
+  {
+    IndexStatsTable *indexStatTable = new IndexStatsTable;
+    if (!indexStatTable)
+      return false;
+
+    if (list.push_back(indexStatTable->get_instance()) != 0)
       return false;
   }
 

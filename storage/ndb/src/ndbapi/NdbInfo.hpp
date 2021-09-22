@@ -70,6 +70,7 @@ public:
   {
   public:
     Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
+          bool exact_row_count = false,
           const class VirtualTable* virt = nullptr);
     Table(const Table& tab);
     const Table & operator=(const Table& tab) = delete;
@@ -79,7 +80,7 @@ public:
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
     Uint32 getRowsEstimate() const { return m_rows_estimate; }
-    bool rowCountIsExact() const;
+    bool rowCountIsExact() const { return m_exact_row_count; }
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
@@ -93,6 +94,7 @@ public:
     const BaseString m_name;
     Uint32 m_table_id;
     Uint32 m_rows_estimate;
+    bool m_exact_row_count;
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };
