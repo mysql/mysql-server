@@ -4887,7 +4887,20 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     else
     {
       jamDebug();
-      ndbrequire(refToMain(TBRef) == DBLQH);
+      /*
+       * LQHKEYREQ signals to query threads should use virtual block V_QUERY
+       * not address DBQLQH directly.
+       *
+       * The receiver will select an appropriate DBLQH or DBQLQH instance.
+       *
+       * All node versions (>=8.0.23) supporting virtual query blocks also
+       * support fragmented LQHKEYREQ and should not end up in this else
+       * branch.
+       *
+       * Only DBSPJ and DBLQH are intended receivers for LQHKEYREQ signals to
+       * old nodes (<8.0.18) not supporting fragmented LQHKEYREQ.
+       */
+      ndbrequire(refToMain(TBRef) == DBLQH || refToMain(TBRef) == DBSPJ);
       sendSignal(TBRef, GSN_LQHKEYREQ, signal,
                  nextPos + LqhKeyReq::FixedSignalLength, JBB,
                  &handle);
