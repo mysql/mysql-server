@@ -2060,11 +2060,6 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
           explain = "-> Update " + FindUpdatedTables(join) + "\n";
           base_level = 1;
           break;
-        case SQLCOM_DELETE_MULTI:
-        case SQLCOM_DELETE:
-          explain = "-> Delete from " + FindUpdatedTables(join) + "\n";
-          base_level = 1;
-          break;
         case SQLCOM_INSERT_SELECT:
         case SQLCOM_INSERT:
           explain = string("-> Insert into ") +

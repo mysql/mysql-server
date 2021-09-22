@@ -34,7 +34,7 @@ CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)
+-> Delete from t1 (immediate), t2 (buffered)  (cost=0.70 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
@@ -808,14 +808,14 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
 EXPLAIN
--> Delete from t1 (immediate), t2 (buffered)
+-> Delete from t1 (immediate), t2 (buffered)  (cost=0.70 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
 
 EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
 EXPLAIN
--> Delete from t1 (buffered), t1bis (buffered)
+-> Delete from t1 (buffered), t1bis (buffered)  (cost=0.70 rows=1)
     -> Nested loop inner join  (cost=0.70 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
         -> Table scan on t1bis  (cost=0.35 rows=1)

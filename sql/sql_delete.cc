@@ -135,7 +135,6 @@ class Query_result_delete final : public Query_result_interceptor {
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
-  bool immediate_update(TABLE_LIST *t) const override;
 
  private:
   int do_deletes(THD *thd);
@@ -1311,10 +1310,6 @@ bool Query_result_delete::send_eof(THD *thd) {
   return thd->is_error();
 }
 
-bool Query_result_delete::immediate_update(TABLE_LIST *t) const {
-  return t->map() & delete_immediate;
-}
-
 }  // namespace
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {
@@ -1325,8 +1320,6 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
   // The hypergraph optimizer determines the immediate delete tables during
   // planning, not after planning.
   assert(!join->thd->lex->using_hypergraph_optimizer);
-
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   for (TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
@@ -1349,9 +1342,19 @@ table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
       2. deleting from the first non-const table
   */
   table_map candidate_tables = join->const_table_map;  // 1
-  if (join->primary_tables > join->const_tables)
-    candidate_tables |=
-        join->best_ref[join->const_tables]->table_ref->map();  // 2
+  if (join->primary_tables > join->const_tables) {
+    // Can be called in different stages after the join order has been
+    // determined, so look into QEP_TAB or JOIN_TAB depending on which is
+    // available in the current stage.
+    const TABLE_LIST *first_non_const;
+    if (join->qep_tab != nullptr) {
+      first_non_const = join->qep_tab[join->const_tables].table_ref;
+    } else {
+      ASSERT_BEST_REF_IN_JOIN_ORDER(join);
+      first_non_const = join->best_ref[join->const_tables]->table_ref;
+    }
+    candidate_tables |= first_non_const->map();  // 2
+  }
 
   return delete_tables & candidate_tables;
 }

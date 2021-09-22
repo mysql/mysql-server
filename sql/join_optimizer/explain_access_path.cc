@@ -1000,6 +1000,26 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
           path->cache_invalidator().name + ")");
       children.push_back({path->cache_invalidator().child});
       break;
+    case AccessPath::DELETE_ROWS: {
+      string tables;
+      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
+           t = t->next_leaf) {
+        if (Overlaps(t->map(), path->delete_rows().tables_to_delete_from)) {
+          if (!tables.empty()) {
+            tables.append(", ");
+          }
+          tables.append(t->alias);
+          if (Overlaps(t->map(), path->delete_rows().immediate_tables)) {
+            tables.append(" (immediate)");
+          } else {
+            tables.append(" (buffered)");
+          }
+        }
+      }
+      description.push_back(string("Delete from ") + tables);
+      children.push_back({path->delete_rows().child});
+      break;
+    }
   }
   if (path->num_output_rows >= 0.0) {
     double first_row_cost;

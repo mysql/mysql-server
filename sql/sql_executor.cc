@@ -96,6 +96,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_delete.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -1441,6 +1442,9 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
         break;
       case AccessPath::LIMIT_OFFSET:
         bottom_of_table_path->limit_offset().child = path;
+        break;
+      case AccessPath::DELETE_ROWS:
+        bottom_of_table_path->delete_rows().child = path;
         break;
 
       // It's a bit odd to have STREAM and MATERIALIZE nodes
@@ -2830,11 +2834,41 @@ static AccessPath *ConnectJoins(
   return path;
 }
 
+static table_map get_delete_target_tables(const JOIN *join) {
+  table_map delete_tables = 0;
+
+  for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    if (tr->is_deleted()) {
+      delete_tables |= tr->map();
+    }
+  }
+
+  return delete_tables;
+}
+
+static AccessPath *attach_access_path_for_delete(const JOIN *join,
+                                                 AccessPath *path) {
+  // If this is the top-level query block of a multi-table DELETE statement,
+  // wrap the path in a DELETE_ROWS path.
+  if (join->thd->lex->m_sql_cmd != nullptr &&
+      join->thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
+      join->query_block->outer_query_block() == nullptr) {
+    const table_map delete_tables = get_delete_target_tables(join);
+    return NewDeleteRowsAccessPath(
+        join->thd, path, delete_tables,
+        GetImmediateDeleteTables(join, delete_tables));
+  }
+
+  return path;
+}
+
 void JOIN::create_access_paths() {
   assert(m_root_access_path == nullptr);
 
   AccessPath *path = create_root_access_path_for_join();
   path = attach_access_paths_for_having_and_limit(path);
+  path = attach_access_path_for_delete(this, path);
 
   m_root_access_path = path;
 }

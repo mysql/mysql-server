@@ -81,6 +81,18 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
   return path;
 }
 
+AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map delete_tables,
+                                    table_map immediate_tables) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::DELETE_ROWS;
+  CopyBasicProperties(*child, path);
+  path->delete_rows().child = child;
+  path->delete_rows().tables_to_delete_from = delete_tables;
+  path->delete_rows().immediate_tables = immediate_tables;
+  return path;
+}
+
 static AccessPath *FindSingleAccessPathOfType(AccessPath *path,
                                               AccessPath::Type type) {
   AccessPath *found_path = nullptr;
@@ -893,6 +905,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       iterator = NewIterator<CacheInvalidatorIterator>(thd, mem_root,
                                                        move(child), param.name);
       break;
+    }
+    case AccessPath::DELETE_ROWS: {
+      // TODO(khatlen): There is no iterator type for DELETE_ROWS yet. The logic
+      // for deleting the rows lives in Query_result_delete, but much of it
+      // could just as well have been in a delete iterator. For now, just create
+      // the iterator for the child.
+      return CreateIteratorFromAccessPath(thd, path->delete_rows().child, join,
+                                          eligible_for_batch_mode);
     }
   }
 

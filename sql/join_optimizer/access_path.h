@@ -235,7 +235,10 @@ struct AccessPath {
     REMOVE_DUPLICATES,
     REMOVE_DUPLICATES_ON_INDEX,
     ALTERNATIVE,
-    CACHE_INVALIDATOR
+    CACHE_INVALIDATOR,
+
+    // Access paths that modify tables.
+    DELETE_ROWS,
   } type;
 
   /// Whether this access path counts as one that scans a base table,
@@ -745,6 +748,14 @@ struct AccessPath {
     assert(type == CACHE_INVALIDATOR);
     return u.cache_invalidator;
   }
+  auto &delete_rows() {
+    assert(type == DELETE_ROWS);
+    return u.delete_rows;
+  }
+  const auto &delete_rows() const {
+    assert(type == DELETE_ROWS);
+    return u.delete_rows;
+  }
 
  private:
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
@@ -1084,6 +1095,11 @@ struct AccessPath {
       AccessPath *child;
       const char *name;
     } cache_invalidator;
+    struct {
+      AccessPath *child;
+      table_map tables_to_delete_from;
+      table_map immediate_tables;
+    } delete_rows;
   } u;
 };
 static_assert(std::is_trivially_destructible<AccessPath>::value,
@@ -1573,6 +1589,10 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
   path->cache_invalidator().name = name;
   return path;
 }
+
+AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map delete_tables,
+                                    table_map immediate_tables);
 
 void FindTablesToGetRowidFor(AccessPath *path);
 
