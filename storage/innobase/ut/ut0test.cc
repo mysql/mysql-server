@@ -719,7 +719,7 @@ int ib_interpreter_check(THD *thd, SYS_VAR *var, void *save,
 
   const char *cmd = value->val_str(value, buff, &len);
 
-  int ret = ib::interpreter_run(cmd);
+  int ret = ib::interpreter_run(cmd ? cmd : "");
 
   TLOG("ib_interpreter_check() is returning: " << ret);
   *static_cast<const char **>(save) = cmd;
