@@ -1907,6 +1907,9 @@ DROP TABLE t;
 
 SET sql_mode=default;
 
+# Hypergraph optimizer has different warnings.
+--disable_warnings
+
 SELECT 1.0 div (@a:='xx');
 
 SELECT 1.0 div (@a:='1xx');
@@ -1959,6 +1962,8 @@ CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=CONCAT('m');
 
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 CREATE TEMPORARY TABLE tt1 AS SELECT * FROM t1 WHERE b=COALESCE('m');
+
+--enable_warnings
 
 CREATE TABLE t2 (a char(10), b varchar(10));
 INSERT INTO t2 VALUES('x1 y ', 'x1 y ');
