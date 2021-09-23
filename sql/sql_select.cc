@@ -1711,6 +1711,7 @@ void JOIN::destroy() {
     for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table != nullptr) {
+        table->set_keyread(false);
         table->sorting_iterator = nullptr;
         table->duplicate_removal_iterator = nullptr;
       }
