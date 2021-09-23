@@ -1,0 +1,145 @@
+result_format: 2
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+## ndb$tables
+select count(*) from ndb$tables;
+count(*)	40
+explain select count(*) from ndb$tables;
+id	1
+select_type	SIMPLE
+table	NULL
+partitions	NULL
+type	NULL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	NULL
+filtered	NULL
+Extra	Select tables optimized away
+Warnings:
+Level	Note
+Code	1003
+Message	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`ndb$tables`
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+count(*)	20
+Select tables optimized away
+
+## config_params
+Select tables optimized away
+
+## blocks
+Select tables optimized away
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+NULL
+
+## Information schema reveals row counts as seen by optimizer
+## (but filter out cpu-related tables where results are not predictable)
+set ndbinfo_show_hidden=1;
+SELECT table_name, table_rows, avg_row_length
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+table_name	table_rows	avg_row_length
+ndb$acc_operations	15	64
+ndb$blocks	23	20
+ndb$columns	445	44
+ndb$config_nodes	34	28
+ndb$config_params	152	120
+ndb$config_values	288	24
+ndb$counters	104	24
+ndb$dblqh_tcconnect_state	25	52
+ndb$dbtc_apiconnect_state	25	52
+ndb$dict_obj_info	43	40
+ndb$dict_obj_types	20	20
+ndb$disk_write_speed_aggregate	8	120
+ndb$disk_write_speed_base	488	48
+ndb$diskpagebuffer	10	64
+ndb$error_messages	768	52
+ndb$frag_locks	344	96
+ndb$frag_mem_use	344	100
+ndb$frag_operations	344	192
+ndb$logbuffers	8	40
+ndb$logspaces	8	40
+ndb$membership	2	88
+ndb$nodes	2	24
+ndb$operations	10	48
+ndb$pools	320	76
+ndb$processes	34	68
+ndb$resources	18	28
+ndb$restart_info	2	100
+ndb$stored_tables	43	80
+ndb$table_distribution_status	43	52
+ndb$table_distribution_status_all	86	52
+ndb$table_fragments	344	60
+ndb$table_fragments_all	344	60
+ndb$table_replicas	344	64
+ndb$table_replicas_all	344	64
+ndb$tables	40	40
+ndb$tc_time_track_stats	128	104
+ndb$test	8000	24
+ndb$threadblocks	124	16
+ndb$threads	26	40
+ndb$threadstat	22	144
+ndb$transactions	5	44
+ndb$transporters	32	64
+
+## List the tables where estimated size equals actual size.
+CALL populate_sizes();
+SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+count(*)
+22
+SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+table_name
+ndb$blocks
+ndb$columns
+ndb$config_nodes
+ndb$config_params
+ndb$config_values
+ndb$dblqh_tcconnect_state
+ndb$dbtc_apiconnect_state
+ndb$dict_obj_types
+ndb$disk_write_speed_aggregate
+ndb$disk_write_speed_base
+ndb$diskpagebuffer
+ndb$error_messages
+ndb$logbuffers
+ndb$logspaces
+ndb$membership
+ndb$nodes
+ndb$resources
+ndb$tables
+ndb$test
+ndb$threads
+ndb$threadstat
+ndb$transporters
+
+## List tables with row estimate of zero
+SELECT table_name from rowcounts WHERE est_rows = 0;
+table_name
+
+DROP TEMPORARY TABLE rowcounts;
+DROP PROCEDURE populate_sizes;
+
+## The plan for counters
+explain select * from counters;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	c	NULL	ALL	NULL	NULL	NULL	NULL	104	100.00	NULL
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	23	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `ndbinfo`.`c`.`node_id` AS `node_id`,`ndbinfo`.`b`.`block_name` AS `block_name`,`ndbinfo`.`c`.`block_instance` AS `block_instance`,`ndbinfo`.`c`.`counter_id` AS `counter_id`,(case `ndbinfo`.`c`.`counter_id` when 1 then 'ATTRINFO' when 2 then 'TRANSACTIONS' when 3 then 'COMMITS' when 4 then 'READS' when 5 then 'SIMPLE_READS' when 6 then 'WRITES' when 7 then 'ABORTS' when 8 then 'TABLE_SCANS' when 9 then 'RANGE_SCANS' when 10 then 'OPERATIONS' when 11 then 'READS_RECEIVED' when 12 then 'LOCAL_READS_SENT' when 13 then 'REMOTE_READS_SENT' when 14 then 'READS_NOT_FOUND' when 15 then 'TABLE_SCANS_RECEIVED' when 16 then 'LOCAL_TABLE_SCANS_SENT' when 17 then 'RANGE_SCANS_RECEIVED' when 18 then 'LOCAL_RANGE_SCANS_SENT' when 19 then 'REMOTE_RANGE_SCANS_SENT' when 20 then 'SCAN_BATCHES_RETURNED' when 21 then 'SCAN_ROWS_RETURNED' when 22 then 'PRUNED_RANGE_SCANS_RECEIVED' when 23 then 'CONST_PRUNED_RANGE_SCANS_RECEIVED' when 24 then 'LOCAL_READS' when 25 then 'LOCAL_WRITES' when 26 then 'LQHKEY_OVERLOAD' when 27 then 'LQHKEY_OVERLOAD_TC' when 28 then 'LQHKEY_OVERLOAD_READER' when 29 then 'LQHKEY_OVERLOAD_NODE_PEER' when 30 then 'LQHKEY_OVERLOAD_SUBSCRIBER' when 31 then 'LQHSCAN_SLOWDOWNS' else '<unknown>' end) AS `counter_name`,`ndbinfo`.`c`.`val` AS `val` from `ndbinfo`.`ndb$counters` `c` left join `ndbinfo`.`ndb$blocks` `b` on((`ndbinfo`.`b`.`block_number` = `ndbinfo`.`c`.`block_number`)) where 1
+
+## The plan for memory_per_fragment
+explain select * from memory_per_fragment;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	name	NULL	ALL	NULL	NULL	NULL	NULL	43	33.33	Using where
+1	SIMPLE	types	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	space	NULL	ALL	NULL	NULL	NULL	NULL	344	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	parent_name	NULL	ALL	NULL	NULL	NULL	NULL	43	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `ndbinfo`.`name`.`fq_name` AS `fq_name`,`ndbinfo`.`parent_name`.`fq_name` AS `parent_fq_name`,`ndbinfo`.`types`.`type_name` AS `type`,`ndbinfo`.`space`.`table_id` AS `table_id`,`ndbinfo`.`space`.`node_id` AS `node_id`,`ndbinfo`.`space`.`block_instance` AS `block_instance`,`ndbinfo`.`space`.`fragment_num` AS `fragment_num`,`ndbinfo`.`space`.`fixed_elem_alloc_bytes` AS `fixed_elem_alloc_bytes`,`ndbinfo`.`space`.`fixed_elem_free_bytes` AS `fixed_elem_free_bytes`,`ndbinfo`.`space`.`fixed_elem_size_bytes` AS `fixed_elem_size_bytes`,`ndbinfo`.`space`.`fixed_elem_count` AS `fixed_elem_count`,floor((`ndbinfo`.`space`.`fixed_elem_free_bytes` / `ndbinfo`.`space`.`fixed_elem_size_bytes`)) AS `fixed_elem_free_count`,`ndbinfo`.`space`.`var_elem_alloc_bytes` AS `var_elem_alloc_bytes`,`ndbinfo`.`space`.`var_elem_free_bytes` AS `var_elem_free_bytes`,`ndbinfo`.`space`.`var_elem_count` AS `var_elem_count`,`ndbinfo`.`space`.`hash_index_alloc_bytes` AS `hash_index_alloc_bytes` from `ndbinfo`.`ndb$frag_mem_use` `space` join `ndbinfo`.`ndb$dict_obj_info` `name` join `ndbinfo`.`ndb$dict_obj_types` `types` left join `ndbinfo`.`ndb$dict_obj_info` `parent_name` on(((`ndbinfo`.`parent_name`.`type` = `ndbinfo`.`name`.`parent_obj_type`) and (`ndbinfo`.`parent_name`.`id` = `ndbinfo`.`name`.`parent_obj_id`))) where ((`ndbinfo`.`space`.`table_id` = `ndbinfo`.`name`.`id`) and (`ndbinfo`.`types`.`type_id` = `ndbinfo`.`name`.`type`) and (`ndbinfo`.`name`.`type` <= 6))

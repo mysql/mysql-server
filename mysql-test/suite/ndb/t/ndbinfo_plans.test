@@ -1,0 +1,93 @@
+--source include/have_ndb.inc
+
+--vertical_results
+--result_format 2
+
+use ndbinfo;
+## Look for "Extra: Select tables optimized away" in the following
+## ``EXPLAIN SELECT COUNT(*)'' from compiled-in ndbinfo tables
+##
+
+## ndb$tables
+select count(*) from ndb$tables;
+explain select count(*) from ndb$tables;
+
+## dict_obj_types
+select count(*) from dict_obj_types;
+let $extra= query_get_value(explain select count(*) from dict_obj_types, Extra, 1);
+echo $extra;
+
+## config_params
+let $extra= query_get_value(explain select count(*) from config_params, Extra, 1);
+echo $extra;
+
+## blocks
+let $extra= query_get_value(explain select count(*) from blocks, Extra, 1);
+echo $extra;
+
+## `EXPLAIN SELECT COUNT(*)'' from a normal ndbinfo table. Extra will be NULL.
+let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
+echo $extra;
+
+## Information schema reveals row counts as seen by optimizer
+## (but filter out cpu-related tables where results are not predictable)
+set ndbinfo_show_hidden=1;
+--horizontal_results
+SELECT table_name, table_rows, avg_row_length
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+
+--disable_query_log
+CREATE TEMPORARY TABLE rowcounts
+  SELECT table_name, table_rows as est_rows, 0 as actual_rows
+  FROM information_schema.tables
+  WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
+  AND table_name not like '%cpu%';
+
+##
+## Compare estimated sizes of ndbinfo tables to actual size.
+--delimiter |;
+CREATE PROCEDURE populate_sizes()
+  BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE name varchar(64);
+    DECLARE cur CURSOR FOR SELECT table_name from rowcounts;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    PREPARE stmt1 FROM "UPDATE rowcounts SET actual_rows=? where table_name=?";
+    open cur;
+    read_loop: LOOP
+      IF done then
+        LEAVE read_loop;
+      END IF;
+      FETCH cur into name;
+      SET @name = name;
+      SET @sql = concat("select count(*) FROM ", name, " INTO @actual");
+      PREPARE stmt2 FROM @sql;
+      EXECUTE stmt2;
+      DEALLOCATE PREPARE stmt2;
+      EXECUTE stmt1 USING @actual, @name;
+    END LOOP;
+    DEALLOCATE PREPARE stmt1;
+    CLOSE cur;
+END|;
+--delimiter ;
+--enable_query_log
+
+## List the tables where estimated size equals actual size.
+CALL populate_sizes();
+SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
+SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+
+## List tables with row estimate of zero
+SELECT table_name from rowcounts WHERE est_rows = 0;
+
+DROP TEMPORARY TABLE rowcounts;
+DROP PROCEDURE populate_sizes;
+
+## The plan for counters
+explain select * from counters;
+
+## The plan for memory_per_fragment
+explain select * from memory_per_fragment;
