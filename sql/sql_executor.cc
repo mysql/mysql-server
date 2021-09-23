@@ -2855,9 +2855,10 @@ static AccessPath *attach_access_path_for_delete(const JOIN *join,
       join->thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
       join->query_block->outer_query_block() == nullptr) {
     const table_map delete_tables = get_delete_target_tables(join);
-    return NewDeleteRowsAccessPath(
-        join->thd, path, delete_tables,
-        GetImmediateDeleteTables(join, delete_tables));
+    path =
+        NewDeleteRowsAccessPath(join->thd, path, delete_tables,
+                                GetImmediateDeleteTables(join, delete_tables));
+    EstimateDeleteRowsCost(path);
   }
 
   return path;

@@ -84,9 +84,9 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
 AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
                                     table_map delete_tables,
                                     table_map immediate_tables) {
+  assert(IsSubset(immediate_tables, delete_tables));
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::DELETE_ROWS;
-  CopyBasicProperties(*child, path);
   path->delete_rows().child = child;
   path->delete_rows().tables_to_delete_from = delete_tables;
   path->delete_rows().immediate_tables = immediate_tables;

@@ -211,6 +211,23 @@ void EstimateAggregateCost(AccessPath *path) {
   path->ordering_state = child->ordering_state;
 }
 
+void EstimateDeleteRowsCost(AccessPath *path) {
+  const auto &param = path->delete_rows();
+  const AccessPath *child = param.child;
+
+  path->num_output_rows = child->num_output_rows;
+  path->init_once_cost = child->init_once_cost;
+  path->init_cost = child->init_cost;
+
+  // Include the cost of building the temporary tables for the non-immediate
+  // (buffered) deletes in the cost estimate.
+  const table_map buffered_tables =
+      param.tables_to_delete_from & ~param.immediate_tables;
+  path->cost = child->cost + kMaterializeOneRowCost *
+                                 PopulationCount(buffered_tables) *
+                                 child->num_output_rows;
+}
+
 double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
                              const JoinPredicate *edge,
                              double right_path_already_applied_selectivity) {
