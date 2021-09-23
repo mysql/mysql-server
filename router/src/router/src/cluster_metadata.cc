@@ -46,6 +46,9 @@ using mysql_harness::get_from_map;
 using mysql_harness::logging::LogLevel;
 
 static constexpr const std::string_view kClusterSet{"clusterset"};
+static constexpr const std::string_view kCreateClusterUrl{
+    "https://dev.mysql.com/doc/mysql-shell/en/"
+    "deploying-new-production-cluster.html"};
 
 namespace mysqlrouter {
 
@@ -464,10 +467,8 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
           "' to contain the metadata of MySQL InnoDB Cluster, but the schema "
           "does not exist.\n" +
           "Checking version of the metadata schema failed with: " + e.what() +
-          "\n\n" +
-          "See "
-          "https://dev.mysql.com/doc/refman/en/"
-          "mysql-innodb-cluster-creating.html for instructions on setting up a "
+          "\n\n" + "See " + std::string(kCreateClusterUrl) +
+          " for instructions on setting up a "
           "MySQL Server to act as an InnoDB Cluster Metadata server\n");
     } else {
       throw;
@@ -546,9 +547,8 @@ void ClusterMetadata::require_metadata_is_ok() {
   if (cluster_count == 0) {
     throw std::runtime_error(
         "Expected the metadata server to contain configuration for one "
-        "cluster, found none.\n\nSee "
-        "https://dev.mysql.com/doc/refman/8.0/en/"
-        "mysql-innodb-cluster-creating.html about how to create a cluster.");
+        "cluster, found none.\n\nSee " +
+        std::string(kCreateClusterUrl) + " about how to create a cluster.");
   } else if (cluster_count != 1) {
     throw std::runtime_error(
         "The metadata server contains configuration for more than 1 Cluster: " +
@@ -575,9 +575,9 @@ void ClusterMetadataGR::require_cluster_is_ok() {
       throw std::runtime_error(
           std::string("Expected MySQL Server '") + mysql_->get_address() +
           "' to have Group Replication running.\n" +
-          "Checking metadata state failed with: " + e.what() + "\n\n" +
-          "See https://dev.mysql.com/doc/refman/en/"
-          "mysql-innodb-cluster-creating.html for instructions on setting up a "
+          "Checking metadata state failed with: " + e.what() + "\n\n" + "See " +
+          std::string(kCreateClusterUrl) +
+          " for instructions on setting up a "
           "MySQL Server to act as an InnoDB Cluster Metadata server\n");
     } else {
       throw;
