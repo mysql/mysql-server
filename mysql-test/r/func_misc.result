@@ -97,7 +97,7 @@ create table t1 as select uuid(), length(uuid());
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `uuid()` varchar(36) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `uuid()` varchar(36) CHARACTER SET utf8mb3 NOT NULL DEFAULT '',
   `length(uuid())` int NOT NULL DEFAULT '0'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

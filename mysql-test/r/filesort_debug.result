@@ -167,7 +167,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  `@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT @a:=@b:=@x:=makedate(a,a) FROM t1;
@@ -178,7 +178,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `@a:=@b:=@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+  `@a:=@b:=@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;

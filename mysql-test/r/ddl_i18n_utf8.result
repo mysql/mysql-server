@@ -27,15 +27,15 @@ CREATE VIEW v3 AS SELECT _koi8r'‘≈”‘'|
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8	utf8_general_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8mb3	utf8_general_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
@@ -81,15 +81,15 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8	utf8_general_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8mb3	utf8_general_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
@@ -140,15 +140,15 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `c1`,`t1`.`–∫–æ–ª` AS `c2` from `t1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'‘≈”‘' AS `c1`	utf8mb3	utf8_general_ci
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8	utf8_general_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'‘≈”‘' AS `—Ç–µ—Å—Ç`	utf8mb3	utf8_general_ci
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|

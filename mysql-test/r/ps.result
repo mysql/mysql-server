@@ -1770,7 +1770,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
-mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
 deallocate prepare stmt;
 set @@character_set_server= @old_character_set_server;
@@ -2926,7 +2926,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2934,7 +2934,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `c` char(100) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

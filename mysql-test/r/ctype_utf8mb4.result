@@ -2217,7 +2217,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
-  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
@@ -2314,7 +2314,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
   `utf8mb4` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `utf8mb3` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `utf8mb3` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL,
   `concat(utf8mb4,utf8mb3)` varchar(20) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t3;
@@ -2368,7 +2368,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `p` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `p` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `subject` (`subject`(250))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3
 INSERT INTO t1(subject) VALUES ('abcd');

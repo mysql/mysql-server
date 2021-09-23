@@ -564,11 +564,11 @@ NULL
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8_general_ci
 set names latin2;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 View	Create View	character_set_client	collation_connection
-CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8	utf8_general_ci
+CHARACTER_SETS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`CHARACTER_SETS` AS select `cs`.`name` AS `CHARACTER_SET_NAME`,`col`.`name` AS `DEFAULT_COLLATE_NAME`,`cs`.`comment` AS `DESCRIPTION`,`cs`.`mb_max_length` AS `MAXLEN` from (`mysql`.`character_sets` `cs` join `mysql`.`collations` `col` on((`cs`.`default_collation_id` = `col`.`id`)))	utf8mb3	utf8_general_ci
 set names latin1;
 create table t1 select * from information_schema.CHARACTER_SETS
 where CHARACTER_SET_NAME like "latin1" order by character_set_name;
@@ -1037,7 +1037,7 @@ drop procedure p1;
 drop procedure p2;
 show create database information_schema;
 Database	Create Database
-information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
+information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8mb3 */ /*!80016 DEFAULT ENCRYPTION='N' */
 create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
 CHARACTER_MAXIMUM_LENGTH
@@ -2294,9 +2294,9 @@ AND t.table_name = 't1' limit 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `TABLE_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `COLUMN_NAME` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci DEFAULT NULL
+  `TABLE_SCHEMA` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_bin NOT NULL,
+  `TABLE_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_bin NOT NULL,
+  `COLUMN_NAME` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_tolower_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 DROP VIEW v1;

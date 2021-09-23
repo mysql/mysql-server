@@ -1219,7 +1219,8 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     protocol->store_string(buffer.ptr(), buffer.length(),
                            table_list->view_creation_ctx->get_client_cs());
 
-    protocol->store(table_list->view_creation_ctx->get_client_cs()->csname,
+    protocol->store(replace_utf8_utf8mb3(
+                        table_list->view_creation_ctx->get_client_cs()->csname),
                     system_charset_info);
 
     protocol->store(table_list->view_creation_ctx->get_connection_cl()->name,
@@ -1327,7 +1328,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (create.default_table_charset) {
     buffer.append(STRING_WITH_LEN(" /*!40100"));
     buffer.append(STRING_WITH_LEN(" DEFAULT CHARACTER SET "));
-    buffer.append(create.default_table_charset->csname);
+    buffer.append(replace_utf8_utf8mb3(create.default_table_charset->csname));
     if (!(create.default_table_charset->state & MY_CS_PRIMARY) ||
         create.default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       buffer.append(STRING_WITH_LEN(" COLLATE "));
@@ -1979,7 +1980,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (field->charset() != share->table_charset ||
           column_has_explicit_collation) {
         packet->append(STRING_WITH_LEN(" CHARACTER SET "));
-        packet->append(field->charset()->csname);
+        packet->append(replace_utf8_utf8mb3(field->charset()->csname));
       }
       /*
         For string types dump collation name only if
@@ -5278,7 +5279,7 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
     char buf[3];
 
     output_str->append("_");
-    output_str->append(cs->csname);
+    output_str->append(replace_utf8_utf8mb3(cs->csname));
     output_str->append(" ");
     output_str->append("0x");
     len = input_str->length();

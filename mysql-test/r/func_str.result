@@ -5018,7 +5018,7 @@ CREATE TABLE t2 AS SELECT quote('a');
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `quote('a')` varchar(4) CHARACTER SET utf8 DEFAULT NULL
+  `quote('a')` varchar(4) CHARACTER SET utf8mb3 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8mb4;
 CREATE TABLE t3 AS SELECT quote('a');
