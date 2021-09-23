@@ -68,9 +68,6 @@ void leave_group_on_failure::leave(
     group_member_mgr->update(&to_update);
   }
 
-  if (autorejoin_module->is_autorejoin_ongoing()) {
-    set_error_state_due_to_error_during_autorejoin();
-  }
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
                                          Group_member_info::MEMBER_ERROR,
                                          *notification_context);
