@@ -93,9 +93,9 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use too small buffer, value is 7 bytes long (utf8mb4). */
+    /* Use too small buffer, value is 8 bytes long ("utf8mb4\0"). */
     char var2[7];
-    len = sizeof(var2) - 1;
+    len = sizeof(var2);
     pvar = &var2[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
@@ -107,10 +107,10 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
       WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
 
-    /* Use smallest buffer that can hold the value, value is 7 bytes long
-     * (utf8mb4). */
+    /* Use smallest buffer that can hold the value, value is 8 bytes long
+     * ("utf8mb4\0"). */
     char var3[8];
-    len = sizeof(var3) - 1;
+    len = sizeof(var3);
     pvar = &var3[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
