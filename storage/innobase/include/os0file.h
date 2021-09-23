@@ -255,6 +255,8 @@ static const ulint OS_FILE_AIO_INTERRUPTED = 79;
 static const ulint OS_FILE_OPERATION_ABORTED = 80;
 static const ulint OS_FILE_ACCESS_VIOLATION = 81;
 static const ulint OS_FILE_NAME_TOO_LONG = 82;
+static const ulint OS_FILE_TOO_MANY_OPENED = 83;
+
 static const ulint OS_FILE_ERROR_MAX = 100;
 /** @} */
 

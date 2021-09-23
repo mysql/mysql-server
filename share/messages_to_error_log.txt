@@ -6353,22 +6353,22 @@ ER_IB_MSG_272
 ER_IB_MSG_273
   eng "Can't read encryption key from file %s!"
 
-ER_IB_MSG_274
+OBSOLETE_ER_IB_MSG_274
   eng "Cannot close file %s, because n_pending_flushes %zu"
 
-ER_IB_MSG_275
+OBSOLETE_ER_IB_MSG_275
   eng "Cannot close file %s, because modification count %lld != flush count %lld"
 
-ER_IB_MSG_276
+OBSOLETE_ER_IB_MSG_276
   eng "Cannot close file %s, because it is in use"
 
-ER_IB_MSG_277
+OBSOLETE_ER_IB_MSG_277
   eng "Open file list len in shard %zu is %llu"
 
 ER_IB_MSG_278
   eng "Tablespace %s, waiting for IO to stop for %lld seconds"
 
-ER_IB_MSG_279
+OBSOLETE_ER_IB_MSG_279
   eng "%s"
 
 ER_IB_MSG_280
@@ -6389,7 +6389,7 @@ ER_IB_MSG_284
 ER_IB_MSG_285
   eng "Max tablespace id is too high, %lu"
 
-ER_IB_MSG_286
+ER_IB_WARN_ACCESSING_NONEXISTINC_SPACE
   eng "Trying to access missing tablespace %lu"
 
 ER_IB_MSG_287
@@ -6512,7 +6512,7 @@ ER_IB_MSG_325
 ER_IB_MSG_326
   eng "%s"
 
-ER_IB_MSG_327
+OBSOLETE_ER_IB_MSG_327
   eng "%s"
 
 ER_IB_MSG_328
@@ -11565,6 +11565,12 @@ ER_WARN_DEPRECATED_COLLATION_OPTION
 
 ER_REGEXP_MISSING_ICU_DATADIR
   eng "Missing data directory for ICU regular expressions: %s."
+
+ER_IB_WARN_MANY_NON_LRU_FILES_OPENED
+  eng "More than 90%% of files opened out of the innodb_open_files limit are files that are not easy to close. The performance of system may degrade. Consider increasing value of the innodb_open_files system variable. There are %zu such files opened out of the total limit for all files opened of %zu."
+
+ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME
+  eng "Trying to open a file for %lld seconds. Configuration only allows for %zu open files. Consider setting innobase_open_files higher."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

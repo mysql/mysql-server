@@ -29,6 +29,8 @@ The tablespace memory cache */
 
 #include "my_config.h"
 
+#include "detail/fil/open_files_limit.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -52,7 +54,6 @@ The tablespace memory cache */
 #include "mtr0log.h"
 #include "my_dbug.h"
 #include "ut0new.h"
-#include "ut0ut.h"
 
 #include "clone0api.h"
 #include "os0file.h"
@@ -244,7 +245,7 @@ extending the file when more space is needed for the tablespace.
 Non system tablespaces contain only a single file.
 
 A block's position in the tablespace is specified with a 32-bit unsigned
-integer. The files in the list  are thought to be catenated, and the block
+integer. The files in the list are thought to be catenated, and the block
 corresponding to an address n is the nth block in the catenated file (where
 the first block is named the 0th block, and the incomplete block fragments
 at the end of files are not taken into account). A tablespace can be extended
@@ -256,13 +257,14 @@ To have fast access to a tablespace or a log file, we put the data structures
 to a hash table. Each tablespace and log file is given an unique 32-bit
 identifier, its tablespace ID.
 
-Some operating systems do not support many open files at the same time,
-Therefore, we put the open files in an LRU-list. If we need to open another
-file, we may close the file at the end of the LRU-list. When an I/O-operation
-is pending on a file, the file cannot be closed. We take the file nodes with
-pending I/O-operations out of the LRU-list and keep a count of pending
-operations. When an operation completes, we decrement the count and return
-the file to the LRU-list if the count drops to zero.
+Some operating systems do not support many open files at the same time, or have
+a limit set for user or process. Therefore, we put the open files that can be
+easily closed in an LRU-list. If we need to open another file, we may close the
+file at the end of the LRU-list. When an I/O-operation is pending on a file, the
+file cannot be closed - we take the file nodes with pending I/O-operations out
+of the LRU-list and keep a count of pending operations for each such file node.
+When an operation completes, we decrement the count and return the file to the
+LRU-list if the count drops to zero.
 
 The data structure (Fil_shard) that keeps track of the tablespace ID to
 fil_space_t* mapping are hashed on the tablespace ID. The tablespace name to
@@ -284,7 +286,7 @@ Fil_path MySQL_undo_path;
 /** The undo path is different from any other known directory. */
 bool MySQL_undo_path_is_unique;
 
-/** Common InnoDB file extentions */
+/** Common InnoDB file extensions */
 const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu", ".dblwr"};
 
 /** The number of fsyncs done to the log */
@@ -350,15 +352,13 @@ static const size_t UNDO_SHARDS_START = REDO_SHARD - UNDO_SHARDS;
 /** Maximum number of shards supported. */
 static const size_t MAX_SHARDS = 1;
 
-/** The redo log is in its own shard. */
-static const size_t REDO_SHARD = 0;
+/** The redo log is not in a separate shard for MEB. We set it to invalid value.
+ */
+static const size_t REDO_SHARD = std::numeric_limits<size_t>::max();
 
 /** The UNDO logs have their own shards (4). */
 static const size_t UNDO_SHARDS_START = 0;
 #endif /* !UNIV_HOTBACKUP */
-
-/** Sentinel for empty open slot. */
-static const size_t EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
 
 /** We want to store the line number from where it was called. */
 #define mutex_acquire() acquire(__LINE__)
@@ -382,7 +382,7 @@ struct Char_Ptr_Compare {
   }
 };
 
-/** Tablespace files disovered during startup. */
+/** Tablespace files discovered during startup. */
 class Tablespace_files {
  public:
   using Names = std::vector<std::string, ut::allocator<std::string>>;
@@ -607,7 +607,7 @@ class Tablespace_dirs {
   }
 
  private:
-  /** Print the duplicate filenames for a tablespce ID to the log
+  /** Print the duplicate filenames for a tablespace ID to the log
   @param[in]	duplicates	Duplicate tablespace IDs*/
   void print_duplicates(const Space_id_set &duplicates);
 
@@ -638,7 +638,7 @@ class Tablespace_dirs {
   @param[in]	end		End of slice
   @param[in]	thread_id	Thread ID
   @param[in,out]	mutex		Mutex protecting the global state
-  @param[in,out]	unique		To check for duplciates
+  @param[in,out]	unique		To check for duplicates
   @param[in,out]	duplicates	Duplicate space IDs found */
   void duplicate_check(const Const_iter &start, const Const_iter &end,
                        size_t thread_id, std::mutex *mutex,
@@ -652,14 +652,20 @@ class Tablespace_dirs {
   std::atomic_size_t m_checked;
 };
 
-/** Determine if user has explicitly disabled fsync(). */
+/** Determine if space flushing should be disabled, for example when user has
+explicitly disabled fsync(). */
+static inline bool fil_disable_space_flushing(const fil_space_t *space) {
 #ifndef _WIN32
-#define fil_buffering_disabled(s)         \
-  ((s)->purpose == FIL_TYPE_TABLESPACE && \
-   srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)
-#else /* _WIN32 */
-#define fil_buffering_disabled(s) (0)
-#endif /* _WIN32 */
+  if (space->purpose == FIL_TYPE_TABLESPACE &&
+      srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC) {
+    return true;
+  }
+#endif /* !_WIN32 */
+  if (space->purpose == FIL_TYPE_TEMPORARY) {
+    return true;
+  }
+  return false;
+}
 
 class Fil_shard {
   using File_list = UT_LIST_BASE_NODE_T(fil_node_t, LRU);
@@ -713,10 +719,12 @@ class Fil_shard {
   @param[in,out]  space  tablespace to release */
   void space_release(fil_space_t *space);
 
-  /** Fetch the fil_space_t instance that maps to space_id.
+  /** Fetch the fil_space_t instance that maps to space_id. Does not look
+  through system reserved spaces.
   @param[in]	space_id	Tablespace ID to lookup
   @return tablespace instance or nullptr if not found. */
-  [[nodiscard]] fil_space_t *get_space_by_id(space_id_t space_id) const {
+  [[nodiscard]] fil_space_t *get_space_by_id_from_map(
+      space_id_t space_id) const {
     ut_ad(m_id == REDO_SHARD || mutex_owned());
 
     auto it = m_spaces.find(space_id);
@@ -726,9 +734,16 @@ class Fil_shard {
     }
 
     ut_ad(it->second->magic_n == FIL_SPACE_MAGIC_N);
+    ut_ad(space_id == dict_sys_t::s_log_space_first_id ||
+          fsp_is_system_temporary(space_id) || it->second->files.size() == 1);
 
     return it->second;
   }
+
+  /** Fetch the fil_space_t instance that maps to space_id.
+  @param[in]	space_id	Tablespace ID to lookup
+  @return tablespace instance or nullptr if not found. */
+  fil_space_t *get_space_by_id(space_id_t space_id) const;
 
   /** Fetch the fil_space_t instance that maps to the name.
   @param[in]	name		Tablespace name to lookup
@@ -749,10 +764,8 @@ class Fil_shard {
 
   /** Tries to close a file in the shard LRU list.
   The caller must hold the Fil_shard::m_mutex.
-  @param[in] print_info		if true, prints information
-                                  why it cannot close a file
   @return true if success, false if should retry later */
-  [[nodiscard]] bool close_files_in_LRU(bool print_info);
+  [[nodiscard]] bool close_files_in_LRU();
 
   /** Remove the file node from the LRU list.
   @param[in,out]	file		File for the tablespace */
@@ -760,7 +773,7 @@ class Fil_shard {
 
   /** Add the file node to the LRU list if required.
   @param[in,out]	file		File for the tablespace */
-  void file_opened(fil_node_t *file);
+  void add_to_lru_if_needed(fil_node_t *file);
 
   /** Open all the system files.
   @param[in]	max_n_open	Maximum number of open files allowed
@@ -768,9 +781,8 @@ class Fil_shard {
   void open_system_tablespaces(size_t max_n_open, size_t *n_open);
 
   /** Close a tablespace file.
-  @param[in,out]	file		Tablespace file to close
-  @param[in]	LRU_close	true if called from LRU close */
-  void close_file(fil_node_t *file, bool LRU_close);
+  @param[in,out]	file		Tablespace file to close */
+  void close_file(fil_node_t *file);
 
   /** Close a tablespace file based on tablespace ID.
   @param[in]	space_id	Tablespace ID
@@ -845,7 +857,8 @@ class Fil_shard {
     m_deleted_spaces.push_back({space->id, space});
 
     space_detach(space);
-    ut_a(space->files.front().n_pending == 0);
+    ut_a(space->files.size() == 1);
+    ut_a(space->files.front().n_pending_ios == 0);
 
     mutex_release();
   }
@@ -863,7 +876,8 @@ class Fil_shard {
       auto space = it->second;
 
       if (space->has_no_references()) {
-        ut_a(space->files.front().n_pending == 0);
+        ut_a(space->files.size() == 1);
+        ut_a(space->files.front().n_pending_ios == 0);
 
         space_free_low(space);
 
@@ -948,24 +962,12 @@ class Fil_shard {
   @param[in]	type		Marks the file as modified type == WRITE */
   void complete_io(fil_node_t *file, const IORequest &type);
 
-  /** Prepares a file for I/O. Opens the file if it is closed.
-  Updates the pending I/O's field in the file and the system
-  appropriately. Takes the file off the LRU list if it is in
-  the LRU list.
+  /** Prepares a file for I/O. Opens the file if it is closed. Updates the
+  pending I/O's field in the file and the system appropriately. Takes the file
+  off the LRU list if it is in the LRU list.
   @param[in]	file		Tablespace file for IO
-  @param[in]	extend		true if file is being extended
   @return false if the file can't be opened, otherwise true */
-  [[nodiscard]] bool prepare_file_for_io(fil_node_t *file, bool extend);
-
-  /** Reserves the mutex and tries to make sure we can
-  open at least one file while holding it. This should be called
-  before calling prepare_file_for_io(), because that function
-  may need to open a file.
-  @param[in]	space_id	Tablespace ID
-  @param[out]	space		Tablespace instance
-  @return true if a slot was reserved. */
-  [[nodiscard]] bool mutex_acquire_and_get_space(space_id_t space_id,
-                                                 fil_space_t *&space);
+  [[nodiscard]] bool prepare_file_for_io(fil_node_t *file);
 
   /** Remap the tablespace to the new name.
   @param[in]	space		Tablespace instance, with old name.
@@ -996,9 +998,8 @@ class Fil_shard {
   /** Open a file of a tablespace.
   The caller must own the shard mutex.
   @param[in,out]	file		Tablespace file
-  @param[in]	extend		true if the file is being extended
   @return false if the file can't be opened, otherwise true */
-  [[nodiscard]] bool open_file(fil_node_t *file, bool extend);
+  [[nodiscard]] bool open_file(fil_node_t *file);
 
   /** Checks if all the file nodes in a space are flushed. The caller must hold
   the fil_system mutex.
@@ -1088,6 +1089,7 @@ class Fil_shard {
   [[nodiscard]] bool space_check_exists(space_id_t space_id, const char *name,
                                         bool print_err, bool adjust_space);
 
+#if !(defined(_WIN32) && defined(WIN_ASYNC_IO))
   /** Read or write log file data synchronously.
   @param[in]	type		IO context
   @param[in]	page_id		page id
@@ -1106,6 +1108,7 @@ class Fil_shard {
                                    const page_id_t &page_id,
                                    const page_size_t &page_size,
                                    ulint byte_offset, ulint len, void *buf);
+#endif
 
   /** Read or write data. This operation could be asynchronous (aio).
   @param[in]	type		IO context
@@ -1189,20 +1192,6 @@ class Fil_shard {
   There must not be any pending I/O's or flushes on the files.
   @param[in,out]	space		tablespace */
   static void space_free_low(fil_space_t *&space);
-
-  /** Wait for an empty slot to reserve for opening a file.
-  @return true on success. */
-  [[nodiscard]] static bool reserve_open_slot(size_t shard_id);
-
-  /** Release the slot reserved for opening a file.
-  @param[in]	shard_id	ID of shard releasing the slot */
-  static void release_open_slot(size_t shard_id);
-
-  /** We are going to do a rename file and want to stop new I/O
-  for a while.
-  @param[in]	space		Tablespace for which we want to
-                                  wait for IO to stop */
-  static void wait_for_io_to_stop(const fil_space_t *space);
 
  private:
   /** We keep log files and system tablespace files always open; this is
@@ -1300,31 +1289,20 @@ class Fil_shard {
   Deleted_spaces m_deleted_spaces;
 #endif /* !UNIV_HOTBACKUP */
 
-  /** Base node for the LRU list of the most recently used open
-  files with no pending I/O's; if we start an I/O on the file,
-  we first remove it from this list, and return it to the start
-  of the list when the I/O ends; log files and the system
-  tablespace are not put to this list: they are opened after
-  the startup, and kept open until shutdown */
-
+  /** Base node for the LRU list of the most recently used open files with no
+  pending I/O's; if we start an I/O on the file, we first remove it from this
+  list, and return it to the start of the list when the I/O ends; log files and
+  the system tablespace are not put to this list: they are opened after the
+  startup, and kept open until shutdown */
   File_list m_LRU;
 
-  /** Base node for the list of those tablespaces whose files
-  contain unflushed writes; those spaces have at least one file
-  where modification_counter > flush_counter */
-
+  /** Base node for the list of those tablespaces whose files contain unflushed
+  writes; those spaces have at least one file where modification_counter >
+  flush_counter */
   Space_list m_unflushed_spaces;
 
   /** When we write to a file we increment this by one */
-
   int64_t m_modification_counter;
-
-  /** Number of files currently open */
-  static std::atomic_size_t s_n_spaces_in_lru;
-
-  /** ID of shard that has reserved the open slot. */
-
-  static std::atomic_size_t s_open_slot;
 
   /** Mutex protecting this shard. */
 #ifndef UNIV_HOTBACKUP
@@ -1548,7 +1526,7 @@ class Fil_system {
     m_max_assigned_id = space->id;
   }
 
-  /** Update the maximim known space ID if it's smaller than max_id.
+  /** Update the maximum known space ID if it's smaller than max_id.
   @param[in]	space_id		Value to set if it's greater */
   void update_maximum_space_id(space_id_t space_id) {
     mutex_acquire_all();
@@ -1567,19 +1545,26 @@ class Fil_system {
   @return true if assigned, false if not */
   [[nodiscard]] bool assign_new_space_id(space_id_t *space_id);
 
+  /** Allows other threads to advance work while we wait for I/Os to complete.
+   */
+  void wait_while_ios_in_progress() const {
+#ifndef UNIV_HOTBACKUP
+    /* Wake the I/O-handler threads to make sure pending I/Os are
+    performed. */
+    os_aio_simulated_wake_handler_threads();
+#endif /* !UNIV_HOTBACKUP */
+    /* Give CPU to other threads that keep files opened. */
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
   /** Tries to close a file in all the LRU lists.
   The caller must hold the mutex.
-  @param[in]	print_info	if true, prints information why it close a file
   @return true if success, false if should retry later */
-  bool close_file_in_all_LRU(bool print_info);
+  [[nodiscard]] bool close_file_in_all_LRU();
 
   /** Opens all log files and system tablespace data files in
   all shards. */
   void open_all_system_tablespaces();
-
-  /** Close all open files in a shard
-  @param[in,out]	shard		Close files of this shard */
-  void close_files_in_a_shard(Fil_shard *shard);
 
   /** Close all open files. */
   void close_all_files();
@@ -1587,6 +1572,27 @@ class Fil_system {
   /** Close all the log files in all shards.
   @param[in]	free_all	If set then free all instances */
   void close_all_log_files(bool free_all);
+
+  /** Returns maximum number of allowed non-LRU files opened for a specified
+  open files limit. */
+  static size_t get_limit_for_non_lru_files(size_t open_files_limit);
+
+  /** Returns minimum open files limit to be set to allow the specified number
+  of non-LRU files opened. This is inverse function for the
+  get_limit_for_non_lru_files. */
+  size_t get_minimum_limit_for_open_files(
+      size_t n_files_not_belonging_in_lru) const;
+
+  /** Changes the maximum opened files limit.
+  @param[in,out] new_max_open_files New value for the open files limit. If the
+  limit cannot be changed, the value is changed to a minimum value recommended.
+  If there are any concurrent calls to set_open_files_limit in progress, setting
+  the limit will fail and the new_max_open_files will be set to 0.
+  @return true if the new limit was set. */
+  bool set_open_files_limit(size_t &new_max_open_files);
+
+  /** Returns maximum number of allowed opened files. */
+  size_t get_open_files_limit() const { return m_open_files_limit.get_limit(); }
 
   /** Iterate through all persistent tablespace files
   (FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
@@ -1766,11 +1772,6 @@ class Fil_system {
   /** Free the data structures required for recovery. */
   void free_scanned_files() { m_dirs.clear(); }
 
-  /** Throttles info messages when closing files in LRU lists. */
-  bool should_print_close_by_lru_info() {
-    return m_close_by_LRU_info_throttler.apply();
-  }
-
 #ifdef UNIV_HOTBACKUP
   /** Extends all tablespaces to the size stored in the space header.
   During the mysqlbackup --apply-log phase we extended the spaces
@@ -1821,11 +1822,7 @@ class Fil_system {
   /** Fil_shards managed */
   Fil_shards m_shards;
 
-  /** n_open is not allowed to exceed this */
-  const size_t m_max_n_open;
-
-  /** Throttles info messages when closing files in LRU lists. */
-  ib::Throttler m_close_by_LRU_info_throttler;
+  fil::detail::Open_files_limit m_open_files_limit;
 
   /** Maximum space id in the existing tables, or assigned during
   the time mysqld has been up; at an InnoDB startup we scan the
@@ -1847,6 +1844,25 @@ class Fil_system {
   /** Old file paths during 5.7 upgrade. */
   std::vector<std::string> m_old_paths;
 
+  /** Next index (modulo number of shards) to try to close a file from the LRU
+  list to distribute closures evenly between the shards. */
+  std::atomic_size_t m_next_shard_to_close_from_LRU{};
+
+  /** Current number of files that are not belonging in LRU. This includes redo
+  and temporary tablespaces, but not files that were temporarily removed from
+  the LRU for I/O. */
+  std::atomic_size_t m_n_files_not_belonging_in_lru{};
+
+  /** Throttles messages about high files not belonging in LRU count, the
+  warning ER_IB_WARN_MANY_NON_LRU_FILES_OPENED. */
+  ib::Throttler m_MANY_NON_LRU_FILES_OPENED_throttler{};
+  /** Throttles messages about long waiting for opened files limit, the warning
+  ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME. */
+  ib::Throttler m_TRYING_TO_OPEN_FILE_FOR_LONG_TIME_throttler{};
+  /** Throttles messages about accessing space that was already removed, the
+  warning ACCESSING_NONEXISTINC_SPACE. */
+  ib::Throttler m_ACCESSING_NONEXISTINC_SPACE_throttler{};
+
   // Disable copying
   Fil_system(Fil_system &&) = delete;
   Fil_system(const Fil_system &) = delete;
@@ -1858,13 +1874,6 @@ class Fil_system {
 /** The tablespace memory cache. This variable is nullptr before the module is
 initialized. */
 static Fil_system *fil_system = nullptr;
-
-/** Number of files currently in LRU. Unlike m_LRU, this
-can be accessed without acquiring the shard mutex. */
-std::atomic_size_t Fil_shard::s_n_spaces_in_lru;
-
-/** Slot reserved for opening a file. */
-std::atomic_size_t Fil_shard::s_open_slot;
 
 #ifdef UNIV_HOTBACKUP
 static ulint srv_data_read;
@@ -1948,7 +1957,7 @@ void Fil_shard::validate() const {
     auto space = elem.second;
 
     for (const auto &file : space->files) {
-      ut_a(file.is_open || !file.n_pending);
+      ut_a(file.is_open || !file.n_pending_ios);
 
       if (file.is_open) {
         ++n_open;
@@ -1964,7 +1973,7 @@ void Fil_shard::validate() const {
 
   for (auto file : m_LRU) {
     ut_a(file->is_open);
-    ut_a(file->n_pending == 0);
+    ut_a(file->n_pending_ios == 0);
     ut_a(fil_system->space_belongs_in_LRU(file->space));
   }
 
@@ -1990,12 +1999,9 @@ bool fil_validate() { return fil_system->validate(); }
 @param[in]	max_open	Maximum number of open files */
 Fil_system::Fil_system(size_t n_shards, size_t max_open)
     : m_shards(),
-      m_max_n_open(max_open),
+      m_open_files_limit(max_open),
       m_max_assigned_id(),
       m_space_id_reuse_warned() {
-  ut_ad(Fil_shard::s_open_slot == 0);
-  Fil_shard::s_open_slot = EMPTY_OPEN_SLOT;
-
   for (size_t i = 0; i < n_shards; ++i) {
     auto shard = ut::new_withkey<Fil_shard>(UT_NEW_THIS_FILE_PSI_KEY, i);
 
@@ -2005,10 +2011,6 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
 
 /** Destructor */
 Fil_system::~Fil_system() {
-  ut_ad(Fil_shard::s_open_slot == EMPTY_OPEN_SLOT);
-
-  Fil_shard::s_open_slot = 0;
-
   for (auto shard : m_shards) {
     ut::delete_(shard);
   }
@@ -2021,13 +2023,14 @@ Fil_system::~Fil_system() {
 @return true if the file belongs to fil_system->m_LRU mutex. */
 bool Fil_system::space_belongs_in_LRU(const fil_space_t *space) {
   switch (space->purpose) {
-    case FIL_TYPE_TEMPORARY:
     case FIL_TYPE_LOG:
       return false;
 
     case FIL_TYPE_TABLESPACE:
-      return fsp_is_ibd_tablespace(space->id);
+      return !fsp_is_system_tablespace(space->id) &&
+             !fsp_is_undo_tablespace(space->id);
 
+    case FIL_TYPE_TEMPORARY:
     case FIL_TYPE_IMPORT:
       return true;
   }
@@ -2046,21 +2049,6 @@ Fil_shard::Fil_shard(size_t shard_id)
       m_unflushed_spaces(),
       m_modification_counter() {
   mutex_create(LATCH_ID_FIL_SHARD, &m_mutex);
-}
-
-/** Wait for an empty slot to reserve for opening a file.
-@return true on success. */
-bool Fil_shard::reserve_open_slot(size_t shard_id) {
-  size_t expected = EMPTY_OPEN_SLOT;
-
-  return s_open_slot.compare_exchange_weak(expected, shard_id);
-}
-
-void Fil_shard::release_open_slot(size_t shard_id) {
-  size_t expected = shard_id;
-
-  while (!s_open_slot.compare_exchange_weak(expected, EMPTY_OPEN_SLOT)) {
-  };
 }
 
 /** Map the space ID and name to the tablespace instance.
@@ -2083,23 +2071,12 @@ void Fil_shard::space_add(fil_space_t *space) {
   }
 }
 
-/** Add the file node to the LRU list if required.
-@param[in,out]	file		File for the tablespace */
-void Fil_shard::file_opened(fil_node_t *file) {
+void Fil_shard::add_to_lru_if_needed(fil_node_t *file) {
   ut_ad(m_id == REDO_SHARD || mutex_owned());
 
   if (Fil_system::space_belongs_in_LRU(file->space)) {
-    /* Put the file to the LRU list */
     UT_LIST_ADD_FIRST(m_LRU, file);
-
-    /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
-    the thread owns the mutex. */
-    s_n_spaces_in_lru++;
   }
-
-  file->is_open = true;
-
-  fil_n_files_open++;
 }
 
 /** Remove the file node from the LRU list.
@@ -2108,16 +2085,9 @@ void Fil_shard::remove_from_LRU(fil_node_t *file) {
   ut_ad(mutex_owned());
 
   if (Fil_system::space_belongs_in_LRU(file->space)) {
-    ut_ad(mutex_owned());
-
-    ut_a(UT_LIST_GET_LEN(m_LRU) > 0);
-
     /* The file is in the LRU list, remove it */
+    ut_ad(ut_list_exists(m_LRU, file));
     UT_LIST_REMOVE(m_LRU, file);
-
-    /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
-    the thread owns the mutex. */
-    s_n_spaces_in_lru--;
   }
 }
 
@@ -2136,7 +2106,7 @@ bool Fil_shard::close_file(space_id_t space_id) {
   }
 
   for (auto &file : space->files) {
-    while (file.in_use > 0) {
+    while (file.is_open && !file.can_be_closed()) {
       mutex_release();
 
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -2145,7 +2115,7 @@ bool Fil_shard::close_file(space_id_t space_id) {
     }
 
     if (file.is_open) {
-      close_file(&file, false);
+      close_file(&file);
     }
   }
 
@@ -2364,8 +2334,8 @@ bool Fil_shard::space_is_flushed(const fil_space_t *space) {
   ut_ad(mutex_owned());
 
   for (const auto &file : space->files) {
-    if (file.modification_counter > file.flush_counter) {
-      ut_ad(!fil_buffering_disabled(space));
+    if (!file.is_flushed()) {
+      ut_ad(!fil_disable_space_flushing(space));
       return false;
     }
   }
@@ -2513,16 +2483,10 @@ char *fil_node_create(const char *name, page_no_t size, fil_space_t *space,
   return file == nullptr ? nullptr : file->name;
 }
 
-/** First we open the file in the normal mode, no async I/O here, for
-simplicity. Then do some checks, and close the file again.  NOTE that we
-could not use the simple file read function os_file_read() in Windows
-to read from a file opened for async I/O!
-@param[in,out]	file		Get the size of this file
-@param[in]	read_only_mode	true if read only mode set
-@return DB_SUCCESS or error */
 dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   bool success;
   fil_space_t *space = file->space;
+  ut_ad(m_id == REDO_SHARD || mutex_owned());
 
   do {
     ut_a(!file->is_open);
@@ -2533,13 +2497,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
     if (!success) {
       /* The following call prints an error message */
-      ulint err = os_file_get_last_error(true);
-
-      if (err == EMFILE + 100) {
-        if (close_files_in_LRU(true)) {
-          continue;
-        }
-      }
+      os_file_get_last_error(true);
 
       ib::warn(ER_IB_MSG_268) << "Cannot open '" << file->name
                               << "'."
@@ -2744,43 +2702,297 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   return DB_SUCCESS;
 }
 
-/** Open a file of a tablespace.
-The caller must own the shard mutex.
-@param[in,out]	file		Tablespace file
-@param[in]	extend		true if the file is being extended
-@return false if the file can't be opened, otherwise true */
-bool Fil_shard::open_file(fil_node_t *file, bool extend) {
+size_t Fil_system::get_limit_for_non_lru_files(size_t open_files_limit) {
+  /* Leave at least 10% of the limit for the LRU files, to not make system too
+  inefficient in an edge case there is a lot of non-LRU files causing LRU
+  ones to be constantly closed and opened. The absolute minimum would be a
+  single slot for LRU files, but it may be very inefficient. Let's make two the
+  hard limit. */
+  const size_t minimum_limit_left_for_lru_files =
+      std::max(2LL, std::llround(0.1 * open_files_limit));
+  return open_files_limit - minimum_limit_left_for_lru_files;
+}
+
+size_t Fil_system::get_minimum_limit_for_open_files(
+    size_t n_files_not_belonging_in_lru) const {
+  size_t result = 0;
+  /* Start with the most significant bit and iterate till last one. */
+  for (size_t current_bit = ~(std::numeric_limits<size_t>::max() >> 1);
+       current_bit; current_bit >>= 1) {
+    if (get_limit_for_non_lru_files(result + current_bit - 1) <
+        n_files_not_belonging_in_lru) {
+      result += current_bit;
+    }
+  }
+
+  return result;
+}
+
+bool Fil_shard::open_file(fil_node_t *file) {
   bool success;
   fil_space_t *space = file->space;
 
   ut_ad(m_id == REDO_SHARD || mutex_owned());
 
-  ut_a(!file->is_open);
-  ut_a(file->n_pending == 0);
+  /* This method is not straightforward. The description is included in comments
+  to different parts of this function. They are best read one after another
+  in order. */
 
-  while (file->in_use > 0) {
-    /* We increment the reference count when extending
-    the file. */
-    if (file->in_use == 1 && extend) {
-      break;
+  ut_a(!file->is_open);
+  ut_a(file->n_pending_ios == 0);
+
+  const auto start_time = std::chrono::steady_clock::now();
+
+  /* This method first assures we can open a file. This comes down to assuring a
+  correct state under locks is present and that opening of this file will not
+  exceed any limits. Currently we have two limits for open files:
+  - maximum number of opened files - fil_system->m_open_files_limit,
+  - maximum number of opened files that can't be closed on request, i.e. are not
+  part of open files LRU list.
+
+  We can ignore the latter iff the file will be part of the LRU.
+  For each limit we need to comply with, we need to bump the current number of
+  files within the limit. If the bump succeeds (results in a current number not
+  larger than the limit value), we have a right to open a file.
+
+  When all rights are acquired the `Fil_shard::open_file` opens the file and
+  returns true. The file opened will naturally count against the limits. After
+  this happens, the current values of files for the limits are decreased only in
+  `Fil_shard::close_file`. */
+
+  /* We remember if we have already acquired right to open the file against the
+  total open files limit. */
+  bool have_right_for_open = false;
+  /* As well as the right to open the file against limit for files that do not
+  take part in LRU algorithm. If the file takes part in LRU algorithm, this
+  is never true. */
+  bool have_right_for_open_non_lru = false;
+
+  /* To acquire a right against a limit, we use this helper function. It
+  atomically tries to bump the value of supplied reference to a current value
+  as long as it is below the limit set. Returns true if the right to open is
+  acquired. */
+  const auto acquire_right = [](std::atomic<size_t> &counter,
+                                size_t limit) -> bool {
+    auto current_count = counter.load();
+    while (limit > current_count) {
+      if (counter.compare_exchange_weak(current_count, current_count + 1)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /* At any point we can decide to release any rights that we have acquired so
+  far. This will make us unable to open the file now. The
+  `Fil_shard::open_file()` when returning `false` must assure no rights are
+  left unreleased - this helper function helps to assure that. */
+  const auto release_rights = [&]() {
+    if (have_right_for_open) {
+      fil_n_files_open.fetch_sub(1);
+      have_right_for_open = false;
+    }
+    if (have_right_for_open_non_lru) {
+      ut_ad(fil_system->m_n_files_not_belonging_in_lru.load() > 0);
+      fil_system->m_n_files_not_belonging_in_lru.fetch_sub(1);
+      have_right_for_open_non_lru = false;
+    }
+  };
+
+  /* Helper function: In case of repeated errors, we will delay printing of
+  any messages to log by PRINT_INTERVAL_SECS after the method processing
+  starts and then print one message per PRINT_INTERVAL_SECS. */
+  const auto should_print_message =
+      [&start_time](ib::Throttler &throttler) -> bool {
+    const auto current_time = std::chrono::steady_clock::now();
+    if (current_time - start_time >=
+        std::chrono::seconds(PRINT_INTERVAL_SECS)) {
+      return throttler.apply();
+    }
+    return false;
+  };
+  /* If this is `false`, the file to open will count against the limit for
+  opened files not taking part in the LRU algorithm. We will need to acquire
+  a right to open it. */
+  const bool belongs_to_lru = Fil_system::space_belongs_in_LRU(file->space);
+
+  /* We remember the current limit for opened files. If it changes while we are
+  acquiring the rights, we must ensure we have not caused it to be bumped higher
+  than the new limit. This double checking works together with double checking
+  in the `Fil_system::set_open_files_limit` to ensure no race conditions are
+  possible to leave number of opened files over the limit even in an event of
+  changing the limit in parallel.
+
+  The non-LRU files limit can only change when the main limit for open files is
+  changed, so we monitor only the main one. */
+  auto last_open_file_limit = fil_system->get_open_files_limit();
+
+  /* This is the main loop. It tries to assure all conditions required to open
+  the file or causes `open_file` to exit if the file is already opened in
+  different thread.
+
+  At this point, start of each loop and upon exit of the loop (either with
+  `break` or `return`) the shard's mutex is owned by this thread. However, it
+  may be released and re-acquired in meantime, for a while, inside this loop. If
+  we decide to release the mutex, we must execute the loop from begin after
+  re-acquiring it.
+
+  The following is the list of conditions we must fulfill to allow file to be
+  opened:
+  1. At any point, if the file becomes open, we just return success. Must be
+  done under the mutex.
+
+  2. At any point, if the space becomes deleted, we just return failure. Must be
+  done under the mutex.
+
+  3. If the file is locked with `space->prevent_file_open`, then release any
+  rights against the limits acquired so far, and wait till the "lock" is
+  released. The check must be done under the mutex. But the waiting must be
+  executed only when we don't own the mutex - it is required by other thread to
+  release the "lock".
+
+  4. Reserve a right within the non-LRU opened files limit. This is conditional
+  - required only if the file is supposed to not be placed in the opened files
+  LRU. This is lock-free.
+
+  5. Reserve a right within the fil_system->get_open_files_limit(),
+  unconditionally.
+
+  6. Check if the limit value for the opened files have not changed. If it did,
+  we just release all rights and retry from the beginning.
+
+  7. Only then we can proceed with actually opening the file. */
+  for (;;) {
+    /* 1. If the file becomes open, we just return success. We own the mutex,
+    may have some rights already acquired. */
+    ut_ad(m_id == REDO_SHARD || mutex_owned());
+    if (file->is_open) {
+      release_rights();
+      return true;
     }
 
-    mutex_release();
+    /* 2. If the space becomes deleted, we just return failure. We own the
+    mutex unless it is a redo shard, may have some rights already acquired. */
+    if (m_id != REDO_SHARD && space->is_deleted()) {
+      release_rights();
+      return false;
+    }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    /* 3. If the file is locked with `space->prevent_file_open`. */
+    if (space->prevent_file_open) {
+      /* Someone wants to rename the file. We can't have it opened now.
+      Give CPU to other thread that renames the file.  Release any
+      rights and the mutex before we go to sleep - we will not need it and
+      someone else will be able to get these or use the mutex to change the
+      `space->prevent_file_open`. */
+      assert(m_id != REDO_SHARD);
+      mutex_release();
+      release_rights();
 
-    mutex_acquire();
+      if (should_print_message(
+              space->m_prevent_file_open_wait_message_throttler)) {
+        ib::warn(ER_IB_MSG_278, space->name,
+                 (long long)std::chrono::duration_cast<std::chrono::seconds>(
+                     std::chrono::steady_clock::now() - start_time)
+                     .count());
+      }
+
+#ifndef UNIV_HOTBACKUP
+      /* Wake the I/O handler threads to make sure pending I/O's are performed
+       */
+      os_aio_simulated_wake_handler_threads();
+
+#endif /* UNIV_HOTBACKUP */
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+      mutex_acquire();
+      continue;
+    }
+    /* 4. We try to acquire required right for non-LRU file, if it is not taking
+    part in the LRU algorithm. */
+    if (!(belongs_to_lru || have_right_for_open_non_lru)) {
+      have_right_for_open_non_lru =
+          acquire_right(fil_system->m_n_files_not_belonging_in_lru,
+                        Fil_system::get_limit_for_non_lru_files(
+                            fil_system->get_open_files_limit()));
+      if (!have_right_for_open_non_lru) {
+        if (m_id != REDO_SHARD) {
+          mutex_release();
+        }
+        if (should_print_message(
+                fil_system->m_MANY_NON_LRU_FILES_OPENED_throttler)) {
+          ib::warn(ER_IB_WARN_MANY_NON_LRU_FILES_OPENED,
+                   fil_system->m_n_files_not_belonging_in_lru.load(),
+                   fil_system->get_open_files_limit());
+        }
+        /* Give CPU to other threads that keep files opened. */
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (m_id != REDO_SHARD) {
+          mutex_acquire();
+        }
+        continue;
+      }
+    }
+
+    /* 5. We try to acquire required right to open file. */
+    if (!have_right_for_open) {
+      have_right_for_open =
+          acquire_right(fil_n_files_open, fil_system->get_open_files_limit());
+      if (!have_right_for_open) {
+        if (m_id != REDO_SHARD) {
+          mutex_release();
+        }
+
+        if (should_print_message(
+                fil_system->m_TRYING_TO_OPEN_FILE_FOR_LONG_TIME_throttler)) {
+          ib::warn warning(
+              ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME,
+              static_cast<long long>(
+                  std::chrono::duration_cast<std::chrono::seconds>(
+                      std::chrono::steady_clock::now() - start_time)
+                      .count()),
+              fil_system->get_open_files_limit());
+        }
+
+        /* Flush tablespaces so that we can close modified files in the LRU
+        list. */
+        auto type = to_int(FIL_TYPE_TABLESPACE);
+
+        fil_system->flush_file_spaces(type);
+
+        if (!fil_system->close_file_in_all_LRU()) {
+          fil_system->wait_while_ios_in_progress();
+        }
+        if (m_id != REDO_SHARD) {
+          mutex_acquire();
+        }
+        continue;
+      }
+    }
+
+    /* 6. Re-check the open files limit value. This is working in tandem with
+    double checking the limits in the `set_open_files_limit()`. Either this
+    thread or one executing `set_open_files_limit()` will spot the limit is
+    exceeded and rollback to a correct state: either restore limit or release
+    rights. */
+    if (last_open_file_limit != fil_system->get_open_files_limit()) {
+      release_rights();
+      last_open_file_limit = fil_system->get_open_files_limit();
+      continue;
+    }
+    /* 7. If we have all required rights, and checked under the mutex the
+    file is not open and can be opened, proceed to opening the file. The file
+    must be opened before we release the mutex again. */
+    break;
   }
 
-  if (file->is_open) {
-    return true;
-  }
-
-  /* Since we might have released shard mutex temporarily above, the space
-  could have been deleted. */
-  if (m_id != REDO_SHARD && space->is_deleted()) {
-    return false;
-  }
+  /* We have fulfilled all requirements to actually open the file. */
+  ut_ad(m_id == REDO_SHARD || mutex_owned());
+  ut_ad(!file->is_open);
+  ut_ad(!space->prevent_file_open);
+  ut_ad(belongs_to_lru || have_right_for_open_non_lru);
+  ut_ad(have_right_for_open);
 
   bool read_only_mode;
 
@@ -2794,18 +3006,20 @@ bool Fil_shard::open_file(fil_node_t *file, bool extend) {
        srv_startup_is_before_trx_rollback_phase
 #endif /* !UNIV_HOTBACKUP */
        )) {
-
     /* We don't know the file size yet. */
     dberr_t err = get_file_size(file, read_only_mode);
 
     if (err != DB_SUCCESS) {
+      /* Release the rights acquired as we failed to open it in the end.
+       */
+      release_rights();
       return false;
     }
   }
 
   /* Open the file for reading and writing, in Windows normally in the
-  unbuffered async I/O mode, though global variables may make
-  os_file_create() to fall back to the normal file I/O mode. */
+  unbuffered async I/O mode, though global variables may make os_file_create()
+  to fall back to the normal file I/O mode. */
 
   if (space->purpose == FIL_TYPE_LOG) {
     file->handle =
@@ -2822,28 +3036,24 @@ bool Fil_shard::open_file(fil_node_t *file, bool extend) {
   }
 
   if (success) {
+    add_to_lru_if_needed(file);
     /* The file is ready for IO. */
-    file_opened(file);
+    file->is_open = true;
+  } else {
+    /* Release the rights acquired as we failed to open it in the end. */
+    release_rights();
   }
 
+  /* We exit with the mutex acquired. The file is assured to remain open only as
+  long as the mutex is held. Calls, like to `prepare_file_for_io()` are
+  required to continue to use the file with the mutex released. */
   return success;
 }
 
-/** Close a tablespace file.
-@param[in,out]	file		Tablespace file to close
-@param[in]	LRU_close	true if called from LRU close */
-void Fil_shard::close_file(fil_node_t *file, bool LRU_close) {
+void Fil_shard::close_file(fil_node_t *file) {
   ut_ad(mutex_owned());
 
-  ut_a(file->is_open);
-  ut_a(file->in_use == 0);
-  ut_a(file->n_pending == 0);
-  ut_a(file->n_pending_flushes == 0);
-
-#ifndef UNIV_HOTBACKUP
-  ut_a(file->modification_counter == file->flush_counter ||
-       file->space->purpose == FIL_TYPE_TEMPORARY || srv_fast_shutdown == 2);
-#endif /* !UNIV_HOTBACKUP */
+  ut_a(file->can_be_closed());
 
   bool ret = os_file_close(file->handle);
 
@@ -2853,73 +3063,47 @@ void Fil_shard::close_file(fil_node_t *file, bool LRU_close) {
 
   file->is_open = false;
 
-  ut_a(fil_n_files_open > 0);
+  auto old_files_open_count = fil_n_files_open.fetch_sub(1);
+  ut_a(old_files_open_count > 0);
 
-  fil_n_files_open--;
+  if (!Fil_system::space_belongs_in_LRU(file->space)) {
+    ut_ad(fil_system->m_n_files_not_belonging_in_lru.load() > 0);
+
+    fil_system->m_n_files_not_belonging_in_lru.fetch_sub(1);
+  }
 
   remove_from_LRU(file);
 }
 
-/** Tries to close a file in the shard LRU list.
-The caller must hold the Fil_shard::m_mutex.
-@param[in] print_info		if true, prints information
-                                why it cannot close a file
-@return true if success, false if should retry later */
-bool Fil_shard::close_files_in_LRU(bool print_info) {
+bool Fil_shard::close_files_in_LRU() {
+  ut_ad(m_id != REDO_SHARD);
   ut_ad(mutex_owned());
 
   for (auto file = UT_LIST_GET_LAST(m_LRU); file != nullptr;
        file = UT_LIST_GET_PREV(LRU, file)) {
-    if (file->modification_counter == file->flush_counter &&
-        file->n_pending_flushes == 0 && file->in_use == 0) {
-      close_file(file, true);
+    if (file->can_be_closed()) {
+      close_file(file);
 
       return true;
-    }
-
-    if (!print_info) {
-      continue;
-    }
-
-    if (file->n_pending_flushes > 0) {
-      ib::info(ER_IB_MSG_274, file->name, file->n_pending_flushes);
-    }
-
-    /* Prior to sharding the counters were under a global
-    mutex. Now they are spread across the shards. Therefore
-    it is normal for the modification counter to be out of
-    sync with the flush counter for files that are in differnet
-    shards. */
-
-    if (file->modification_counter != file->flush_counter) {
-      ib::info(ER_IB_MSG_275, file->name, longlong{file->modification_counter},
-               longlong{file->flush_counter});
-    }
-
-    if (file->in_use > 0) {
-      ib::info(ER_IB_MSG_276, file->name);
     }
   }
 
   return false;
 }
 
-/** Tries to close a file in all the LRU lists.
-The caller must hold the mutex.
-@param[in]	print_info	if true, prints information why it close a file
-@return true if success, false if should retry later */
-bool Fil_system::close_file_in_all_LRU(bool print_info) {
-  for (auto shard : m_shards) {
+bool Fil_system::close_file_in_all_LRU() {
+  const auto n_shards = m_shards.size();
+  const auto index = m_next_shard_to_close_from_LRU++;
+  for (size_t i = 0; i < n_shards; ++i) {
+    auto shard = m_shards[(index + i) % n_shards];
+    if (shard->id() == REDO_SHARD) {
+      /* Redo shard don't ever have any spaces on LRU. It is not guarded by a
+      mutex so we can't continue the execution of the for block. */
+      continue;
+    }
     shard->mutex_acquire();
 
-    if (print_info) {
-      const auto len = ulonglong{UT_LIST_GET_LEN(shard->m_LRU)};
-      if (len > 0) {
-        ib::info(ER_IB_MSG_277, shard->id(), len);
-      }
-    }
-
-    bool success = shard->close_files_in_LRU(print_info);
+    bool success = shard->close_files_in_LRU();
 
     shard->mutex_release();
 
@@ -2931,48 +3115,9 @@ bool Fil_system::close_file_in_all_LRU(bool print_info) {
   return false;
 }
 
-/** We are going to do a rename file and want to stop new I/O for a while.
-@param[in]	space		Tablespace for which we want to wait for IO
-                                to stop */
-void Fil_shard::wait_for_io_to_stop(const fil_space_t *space) {
-  /* Note: We are reading the value of space->stop_ios without the
-  cover of the Fil_shard::mutex. We incremented the in_use counter
-  before waiting for IO to stop. */
+fil_space_t *Fil_shard::get_space_by_id(space_id_t space_id) const {
+  ut_ad(m_id == REDO_SHARD || mutex_owned());
 
-  auto begin_time = ut_time_monotonic();
-  auto start_time = begin_time;
-
-  /* Spam the log after every minute. Ignore any race here. */
-
-  while (space->stop_ios) {
-    if ((ut_time_monotonic() - start_time) >= PRINT_INTERVAL_SECS) {
-      start_time = ut_time_monotonic();
-
-      ib::warn(ER_IB_MSG_278, space->name,
-               (long long)(ut_time_monotonic() - begin_time));
-    }
-
-#ifndef UNIV_HOTBACKUP
-
-    /* Wake the I/O handler threads to make sure
-    pending I/O's are performed */
-    os_aio_simulated_wake_handler_threads();
-
-#endif /* UNIV_HOTBACKUP */
-
-    /* Give the IO threads some time to work. */
-    std::this_thread::yield();
-  }
-}
-
-/** We keep log files and system tablespace files always open; this is
-important in preventing deadlocks in this module, as a page read
-completion often performs another read from the insert buffer. The
-insert buffer is in tablespace TRX_SYS_SPACE, and we cannot end up
-waiting in this function.
-@param[in]	space_id	Tablespace ID to look up
-@return tablespace instance */
-fil_space_t *Fil_shard::get_reserved_space(space_id_t space_id) {
   if (space_id == TRX_SYS_SPACE) {
     return fil_space_t::s_sys_space;
 
@@ -2981,115 +3126,7 @@ fil_space_t *Fil_shard::get_reserved_space(space_id_t space_id) {
     return fil_space_t::s_redo_space;
   }
 
-  return get_space_by_id(space_id);
-}
-
-/** Reserves the mutex and tries to make sure we can open at least
-one file while holding it. This should be called before calling
-prepare_file_for_io(), because that function may need to open a file.
-@param[in]	space_id	Tablespace ID
-@param[out]	space		Tablespace instance
-@return true if a slot was reserved. */
-bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
-                                            fil_space_t *&space) {
-  mutex_acquire();
-
-  if (space_id == TRX_SYS_SPACE || dict_sys_t::is_reserved(space_id)) {
-    space = get_reserved_space(space_id);
-
-    return false;
-  }
-
-  space = get_space_by_id(space_id);
-
-  if (space == nullptr) {
-    /* Caller handles the case of a missing tablespce. */
-    return false;
-  }
-
-  ut_ad(space->files.size() == 1);
-
-  auto is_open = space->files.front().is_open;
-
-  if (is_open) {
-    /* Ensure that the file is not closed behind our back. */
-    ++space->files.front().in_use;
-  }
-
-  mutex_release();
-
-  if (is_open) {
-    wait_for_io_to_stop(space);
-
-    mutex_acquire();
-
-    /* We are guaranteed that this file cannot be closed
-    because we now own the mutex. */
-
-    ut_ad(space->files.front().in_use > 0);
-    --space->files.front().in_use;
-
-    return false;
-  }
-
-  /* The number of open file descriptors is a shared resource, in
-  order to guarantee that we don't over commit, we use a ticket system
-  to reserve a slot/ticket to open a file. This slot/ticket should
-  be released after the file is opened. */
-
-  while (!reserve_open_slot(m_id)) {
-    std::this_thread::yield();
-  }
-
-  auto begin_time = ut_time_monotonic();
-  auto start_time = begin_time;
-
-  for (size_t i = 0; i < 3; ++i) {
-    /* Flush tablespaces so that we can close modified
-    files in the LRU list */
-
-    auto type = to_int(FIL_TYPE_TABLESPACE);
-
-    fil_system->flush_file_spaces(type);
-
-    std::this_thread::yield();
-
-    /* Reserve an open slot for this shard. So that this
-    shard's open file succeeds. */
-
-    while (fil_system->m_max_n_open <= s_n_spaces_in_lru) {
-      if (!fil_system->close_file_in_all_LRU(false)) {
-        std::this_thread::yield();
-      }
-      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
-        start_time = ut_time_monotonic();
-
-        ib::warn(ER_IB_MSG_279) << "Trying to close a file for "
-                                << start_time - begin_time << " seconds"
-                                << ". Configuration only allows for "
-                                << fil_system->m_max_n_open << " open files.";
-        fil_system->close_file_in_all_LRU(
-            fil_system->should_print_close_by_lru_info());
-        break;
-      }
-    }
-
-    if (fil_system->m_max_n_open > s_n_spaces_in_lru) {
-      break;
-    }
-
-#ifndef UNIV_HOTBACKUP
-    /* Wake the I/O-handler threads to make sure pending I/Os are
-    performed */
-    os_aio_simulated_wake_handler_threads();
-
-    std::this_thread::yield();
-#endif /* !UNIV_HOTBACKUP */
-  }
-
-  mutex_acquire();
-
-  return true;
+  return get_space_by_id_from_map(space_id);
 }
 
 /** Prepare to free a file. Remove from the unflushed list if there
@@ -3113,19 +3150,19 @@ void Fil_shard::prepare_to_free_file(fil_node_t *file) {
 void Fil_shard::file_close_to_free(fil_node_t *file, fil_space_t *space) {
   ut_ad(mutex_owned());
   ut_a(file->magic_n == FIL_NODE_MAGIC_N);
-  ut_a(file->n_pending == 0);
-  ut_a(file->in_use == 0);
+  ut_a(file->n_pending_ios == 0);
+  ut_a(!file->is_being_extended);
   ut_a(file->space == space);
 
   if (file->is_open) {
     /* We fool the assertion in Fil_system::close_file() to think
     there are no unflushed modifications in the file */
 
-    file->modification_counter = file->flush_counter;
+    file->set_flushed();
 
     os_event_set(file->sync_event);
 
-    if (fil_buffering_disabled(space)) {
+    if (fil_disable_space_flushing(space)) {
       ut_ad(!space->is_in_unflushed_spaces);
       ut_ad(space_is_flushed(space));
 
@@ -3133,11 +3170,7 @@ void Fil_shard::file_close_to_free(fil_node_t *file, fil_space_t *space) {
       prepare_to_free_file(file);
     }
 
-    /* TODO: set second parameter to true, so to release
-    fil_system mutex before logging tablespace name and id.
-    To go around Bug#26271853 - POTENTIAL DEADLOCK BETWEEN
-    FIL_SYSTEM MUTEX AND LOG MUTEX */
-    close_file(file, true);
+    close_file(file);
   }
 }
 
@@ -3147,7 +3180,7 @@ void Fil_shard::space_detach(fil_space_t *space) {
   m_names.erase(space->name);
 
   if (space->is_in_unflushed_spaces) {
-    ut_ad(!fil_buffering_disabled(space));
+    ut_ad(!fil_disable_space_flushing(space));
 
     space->is_in_unflushed_spaces = false;
 
@@ -3475,15 +3508,9 @@ fil_space_t *Fil_shard::space_load(space_id_t space_id) {
 
       ut_a(space_id != TRX_SYS_SPACE);
 
-      mutex_release();
-
-      auto slot = mutex_acquire_and_get_space(space_id, space);
+      space = get_space_by_id(space_id);
 
       if (space == nullptr) {
-        if (slot) {
-          release_open_slot(m_id);
-        }
-
         return nullptr;
       }
 
@@ -3495,14 +3522,7 @@ fil_space_t *Fil_shard::space_load(space_id_t space_id) {
         /* It must be a single-table tablespace and
         we have not opened the file yet; the following
         calls will open it and update the size fields */
-
-        bool success = prepare_file_for_io(file, false);
-
-        if (slot) {
-          release_open_slot(m_id);
-        }
-
-        if (!success) {
+        if (!prepare_file_for_io(file)) {
           /* The single-table tablespace can't be opened,
           because the ibd file is missing. */
 
@@ -3622,7 +3642,7 @@ bool Fil_shard::space_open(space_id_t space_id) {
   fil_space_t *space = get_space_by_id(space_id);
 
   for (auto &file : space->files) {
-    if (!file.is_open && !open_file(&file, false)) {
+    if (!file.is_open && !open_file(&file)) {
       return false;
     }
   }
@@ -3693,6 +3713,82 @@ void fil_init(ulint max_n_open) {
                                            max_n_open);
 }
 
+bool fil_open_files_limit_update(size_t &new_max_open_files) {
+  return fil_system->set_open_files_limit(new_max_open_files);
+}
+
+bool Fil_system::set_open_files_limit(size_t &new_max_open_files) {
+  const auto start_time = std::chrono::steady_clock::now();
+  {
+    const auto current_minimum_limit_for_open_files =
+        get_minimum_limit_for_open_files(m_n_files_not_belonging_in_lru);
+
+    if (new_max_open_files < current_minimum_limit_for_open_files) {
+      /* Use the same value that was used for the check, to not mislead user
+      with other value than was used in calculations. */
+      new_max_open_files = current_minimum_limit_for_open_files;
+      return false;
+    }
+  }
+  /* We impose our new limit to not allow new file openings to cross new limits
+  (including non-LRU limit). */
+  if (!m_open_files_limit.set_desired_limit(new_max_open_files)) {
+    new_max_open_files = 0;
+    return false;
+  }
+
+  /* We read the m_n_files_not_belonging_in_lru again after the
+  m_open_files_limit write is issued. */
+  const auto current_minimum_limit_for_open_files =
+      get_minimum_limit_for_open_files(m_n_files_not_belonging_in_lru);
+
+  if (new_max_open_files < current_minimum_limit_for_open_files) {
+    /* The limit was already exceeded while we were setting the
+    m_open_files_limit.get_limit(). We rollback from the limit change. There is
+    a counterpart check in the `Fil_shard::open_file` to rollback the limit
+    reservation if this case is encountered there. */
+    m_open_files_limit.revert_desired_limit();
+
+    /* Use the same value that was used for the check, to not mislead user with
+    other value than was used in calculations. */
+    new_max_open_files = current_minimum_limit_for_open_files;
+    return false;
+  }
+
+  const auto set_new_limit_timeout = std::chrono::seconds(5);
+
+  for (;;) {
+    auto current_n_files_open = fil_n_files_open.load();
+    if ((size_t)new_max_open_files >= current_n_files_open) {
+      break;
+    }
+    if (std::chrono::steady_clock::now() - start_time > set_new_limit_timeout) {
+      /* Timeout, let's rollback the limit change and recommend a new limit. */
+      m_open_files_limit.revert_desired_limit();
+
+      /* Use the same value that was used for the check, to not mislead user
+      with other value than was used in calculations. */
+      new_max_open_files = current_n_files_open;
+      return false;
+    }
+    fil_system->flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+
+    if (fil_system->close_file_in_all_LRU()) {
+      /* We closed some file, loop again to re-evaluate situation. */
+      continue;
+    }
+    wait_while_ios_in_progress();
+  }
+
+#ifndef UNIV_HOTBACKUP
+  /* Set the new limit in system variable. */
+  innobase_set_open_files_limit(new_max_open_files);
+  m_open_files_limit.commit_desired_limit();
+#endif
+
+  return true;
+}
+
 /** Open all the system files.
 @param[in]	max_n_open	Maximum number of open files allowed
 @param[in,out]	n_open		Current number of open files */
@@ -3708,12 +3804,10 @@ void Fil_shard::open_system_tablespaces(size_t max_n_open, size_t *n_open) {
 
     for (auto &file : space->files) {
       if (!file.is_open) {
-        if (!open_file(&file, false)) {
-          /* This func is called during server's
-          startup. If some file of log or system
-          tablespace is missing, the server
-          can't start successfully. So we should
-          assert for it. */
+        if (!open_file(&file)) {
+          /* This func is called during server's startup. If some file of log
+          or system tablespace is missing, the server can't start
+          successfully. So we should assert for it. */
           ut_a(0);
         }
 
@@ -3734,7 +3828,7 @@ void Fil_system::open_all_system_tablespaces() {
   size_t n_open = 0;
 
   for (auto shard : m_shards) {
-    shard->open_system_tablespaces(m_max_n_open, &n_open);
+    shard->open_system_tablespaces(get_open_files_limit(), &n_open);
   }
 }
 
@@ -3799,7 +3893,7 @@ void Fil_shard::close_all_files() {
 
     for (auto &file : space->files) {
       if (file.is_open) {
-        close_file(&file, false);
+        close_file(&file);
       }
     }
 
@@ -3825,7 +3919,7 @@ void Fil_shard::close_all_files() {
 
     for (auto &file : space->files) {
       if (file.is_open) {
-        close_file(&file, false);
+        close_file(&file);
       }
     }
 
@@ -3900,7 +3994,7 @@ void Fil_shard::close_log_files(bool free_all) {
 
     for (auto &file : space->files) {
       if (file.is_open) {
-        close_file(&file, false);
+        close_file(&file);
       }
     }
 
@@ -4046,8 +4140,8 @@ fil_space_t *Fil_system::space_acquire(space_id_t space_id, bool silent) {
   fil_space_t *space = shard->get_space_by_id(space_id);
 
   if (space == nullptr) {
-    if (!silent) {
-      ib::warn(ER_IB_MSG_286, ulong{space_id});
+    if (!silent && m_ACCESSING_NONEXISTINC_SPACE_throttler.apply()) {
+      ib::warn(ER_IB_WARN_ACCESSING_NONEXISTINC_SPACE, ulong{space_id});
     }
   } else if (!shard->space_acquire(space)) {
     space = nullptr;
@@ -4141,10 +4235,10 @@ ulint Fil_shard::check_pending_io(const fil_space_t *space,
        space->id == dict_sys_t::s_log_space_first_id ||
        space->files.size() == 1);
 
-  if (space->n_pending_flushes > 0 || file.n_pending > 0) {
+  if (space->n_pending_flushes > 0 || file.n_pending_ios > 0) {
     if (count > 1000) {
       ib::warn(ER_IB_MSG_288, space->name, ulong{space->n_pending_flushes},
-               size_t{file.n_pending});
+               size_t{file.n_pending_ios});
     }
 
     return count + 1;
@@ -4205,6 +4299,7 @@ dberr_t Fil_shard::wait_for_pending_operations(space_id_t space_id,
       return DB_TABLESPACE_NOT_FOUND;
     }
 
+    ut_a(sp->files.size() == 1);
     const fil_node_t &file = sp->files.front();
 
     count = check_pending_io(sp, file, count);
@@ -4639,10 +4734,11 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     space->set_deleted();
 
 #ifndef UNIV_HOTBACKUP
+    ut_a(space->files.size() == 1);
     auto &file = space->files.front();
 
     /* Wait for any pending writes. */
-    while (file.n_pending > 0 || file.in_use > 0) {
+    while (file.n_pending_ios > 0 || file.is_being_extended) {
       /* Release and reacquire the mutex because we want the IO to complete. */
       mutex_release();
 
@@ -4656,7 +4752,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
     space_detach(space);
 
-    ut_a(space->files.front().n_pending == 0);
+    ut_a(space->files.size() == 1);
+    ut_a(space->files.front().n_pending_ios == 0);
     space_remove_from_lookup_maps(space_id);
 
     mutex_release();
@@ -4730,7 +4827,12 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
 
   auto &file = space->files.front();
 
-  ut_ad(file.is_open);
+  if (!file.is_open) {
+    if (!open_file(&file)) {
+      mutex_release();
+      return false;
+    }
+  }
 
   space->size = file.size = size_in_pages;
 
@@ -5189,7 +5291,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
       return DB_ERROR;
 
-    } else if (space->stop_ios) {
+    } else if (space->prevent_file_open) {
       /* Some other thread has stopped the IO. We need to
        wait for the other thread to complete its operation. */
       mutex_release();
@@ -5237,15 +5339,15 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     not initialized. */
 
     if (write_ddl_log && log_ddl != nullptr) {
-      /* Write ddl log when space->stop_ios is true
+      /* Write ddl log when space->prevent_file_open is true
       can cause deadlock:
       a. buffer flush thread waits for rename thread to set
-         stop_ios to false;
+         prevent_file_open to false;
       b. rename thread waits for buffer flush thread to flush
          a page and release page lock. The page is ready for
          flush in double write buffer. */
 
-      ut_ad(!space->stop_ios);
+      ut_ad(!space->prevent_file_open);
 
       file = &space->files.front();
 
@@ -5280,48 +5382,41 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     file. For the closing we have to wait until there
     are no pending I/O's or flushes on the file. */
 
-    space->stop_ios = true;
+    space->prevent_file_open = true;
 
     file = &space->files.front();
 
-    if (file->n_pending > 0 || file->n_pending_flushes > 0 ||
-        file->in_use > 0) {
+    if (file->n_pending_ios > 0 || file->n_pending_flushes > 0 ||
+        file->is_being_extended) {
       /* There are pending I/O's or flushes or the
       file is currently being extended, sleep for
       a while and retry */
 
       retry = true;
 
-      space->stop_ios = false;
+      space->prevent_file_open = false;
 
-    } else if (file->modification_counter > file->flush_counter) {
+    } else if (!file->is_flushed()) {
       /* Flush the space */
 
       retry = flush = true;
 
-      space->stop_ios = false;
+      space->prevent_file_open = false;
 
     } else if (file->is_open) {
-      close_file(file, false);
+      close_file(file);
     }
 
     if (!retry) {
-      ut_ad(space->stop_ios);
-      /* Ensure that any file open call is blocked till rename operation is
-      over. "space->stop_ios" variable which is set only here and used to
-      check and wait in "mutex_acquire_and_get_space" (only when file is already
-      opened) doesn't prevent the file being opened concurrently afterwards.
-      "file->in_use" in fact seems sufficient to protect the rename operation
-      and "space->stop_ios" should be possible to remove in future. */
-      ut_ad(!file->is_open);
-      ut_ad(file->in_use == 0);
-      ++file->in_use;
-
-      mutex_release();
-      break;
+      ut_ad(space->prevent_file_open);
     }
 
     mutex_release();
+
+    if (!retry) {
+      break;
+    }
+
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     if (flush) {
@@ -5333,8 +5428,6 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     }
   }
 
-  ut_ad(space->stop_ios);
-
 #ifndef UNIV_HOTBACKUP
   /* Make sure we re not holding shard mutex. */
   ut_ad(!mutex_owned());
@@ -5342,8 +5435,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
   if (notifier.failed()) {
     mutex_acquire();
-    space->stop_ios = false;
-    --file->in_use;
+    space->prevent_file_open = false;
     mutex_release();
 
     return DB_ERROR;
@@ -5378,6 +5470,8 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != nullptr);
 
   mutex_acquire();
+
+  ut_ad(space->prevent_file_open);
 
   /* We already checked these. */
   ut_ad(space == get_space_by_name(old_space_name));
@@ -5415,9 +5509,8 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     old_space_name = new_space_name;
   }
 
-  ut_ad(space->stop_ios);
-  space->stop_ios = false;
-  --file->in_use;
+  ut_ad(space->prevent_file_open);
+  space->prevent_file_open = false;
 
   mutex_release();
 
@@ -5770,6 +5863,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 #ifndef UNIV_HOTBACKUP
   /* Temporary tablespace creation need not be redo logged */
   if (err == DB_SUCCESS && type != FIL_TYPE_TEMPORARY) {
+    ut_a(space->files.size() == 1);
     const auto &file = space->files.front();
 
     mtr_t mtr;
@@ -6018,6 +6112,7 @@ bool fil_space_read_name_and_filepath(space_id_t space_id, char **name,
   if (space != nullptr) {
     *name = mem_strdup(space->name);
 
+    ut_a(space->files.size() == 1);
     *filepath = mem_strdup(space->files.front().name);
 
     success = true;
@@ -6558,8 +6653,6 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 #endif /* !UNIV_HOTBACKUP */
 
   fil_node_t *file;
-  bool slot;
-  size_t phy_page_size;
   bool success = true;
 
 #ifdef UNIV_HOTBACKUP
@@ -6567,7 +6660,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 #endif /* UNIV_HOTBACKUP */
 
   for (;;) {
-    slot = mutex_acquire_and_get_space(space->id, space);
+    mutex_acquire();
+    space = get_space_by_id(space->id);
 
     /* Note:If the file is being opened for the first time then
     we don't have the file physical size. There is no guarantee
@@ -6577,41 +6671,18 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
       /* Space already big enough */
       mutex_release();
 
-      if (slot) {
-        release_open_slot(m_id);
-      }
-
       return true;
     }
 
     file = &space->files.back();
 
-    page_size_t page_size(space->flags);
-
-    phy_page_size = page_size.physical();
-
-#ifdef UNIV_HOTBACKUP
-    prev_size = space->size;
-
-    ib::trace_1() << "Extending space id : " << space->id
-                  << ", space name : " << space->name
-                  << ", space size : " << space->size
-                  << " pages, page size : " << phy_page_size
-                  << ", to size : " << size;
-#endif /* UNIV_HOTBACKUP */
-
-    if (file->in_use == 0) {
+    if (!file->is_being_extended) {
       /* Mark this file as undergoing extension. This flag
-      is used by other threads to wait for the extension
-      operation to finish or wait for open to complete. */
+      is used to synchronize threads to execute space extension in order. */
 
-      ++file->in_use;
+      file->is_being_extended = true;
 
       break;
-    }
-
-    if (slot) {
-      release_open_slot(m_id);
     }
 
     /* Another thread is currently using the file. Wait
@@ -6628,16 +6699,10 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
   }
 
-  bool opened = prepare_file_for_io(file, true);
-
-  if (slot) {
-    release_open_slot(m_id);
-  }
-
-  if (!opened) {
+  if (!prepare_file_for_io(file)) {
     /* The tablespace data file, such as .ibd file, is missing */
-    ut_a(file->in_use > 0);
-    --file->in_use;
+    ut_a(file->is_being_extended);
+    file->is_being_extended = false;
 
     mutex_release();
 
@@ -6646,9 +6711,22 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
   ut_a(file->is_open);
 
+  const page_size_t page_size(space->flags);
+  const size_t phy_page_size = page_size.physical();
+
+#ifdef UNIV_HOTBACKUP
+  prev_size = space->size;
+
+  ib::trace_1() << "Extending space id : " << space->id
+                << ", space name : " << space->name
+                << ", space size : " << space->size
+                << " pages, page size : " << phy_page_size
+                << ", to size : " << size;
+#endif /* UNIV_HOTBACKUP */
+
   if (size <= space->size) {
-    ut_a(file->in_use > 0);
-    --file->in_use;
+    ut_a(file->is_being_extended);
+    file->is_being_extended = false;
 
     complete_io(file, IORequestRead);
 
@@ -6817,8 +6895,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
   file->size += pages_added;
   space->size += pages_added;
 
-  ut_a(file->in_use > 0);
-  --file->in_use;
+  ut_a(file->is_being_extended);
+  file->is_being_extended = false;
 
   complete_io(file, IORequestWrite);
 
@@ -7484,48 +7562,30 @@ ulint fil_space_get_n_reserved_extents(space_id_t space_id) {
 
 /*============================ FILE I/O ================================*/
 
-bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
+bool Fil_shard::prepare_file_for_io(fil_node_t *file) {
   ut_ad(mutex_owned());
 
   fil_space_t *space = file->space;
-
-  if (s_n_spaces_in_lru > fil_system->m_max_n_open + 5) {
-    static ulint prev_time;
-    auto curr_time = ut_time_monotonic();
-
-    /* Spam the log after every minute. Ignore any race here. */
-
-    if ((curr_time - prev_time) > 60) {
-      ib::warn(ER_IB_MSG_327)
-          << "Open files " << s_n_spaces_in_lru.load() << " exceeds the limit "
-          << fil_system->m_max_n_open;
-
-      prev_time = curr_time;
-    }
-  }
 
   if (space->is_deleted()) {
     return false;
   }
 
   if (!file->is_open) {
-    ut_a(file->n_pending == 0);
+    ut_a(file->n_pending_ios == 0);
 
-    if (!open_file(file, extend)) {
+    if (!open_file(file)) {
       return false;
     }
   }
-
-  if (file->n_pending == 0 && Fil_system::space_belongs_in_LRU(space)) {
-    /* The file is in the LRU list, remove it */
-
-    ut_a(UT_LIST_GET_LEN(m_LRU) > 0);
-
-    UT_LIST_REMOVE(m_LRU, file);
-    s_n_spaces_in_lru--;
+  if (file->n_pending_ios == 0) {
+    remove_from_LRU(file);
   }
 
-  ++file->n_pending;
+  ++file->n_pending_ios;
+
+  /* The file can't be in the LRU list. */
+  ut_ad(!ut_list_exists(m_LRU, file));
 
   return true;
 }
@@ -7534,6 +7594,7 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
 @param[in,out]	space		Tablespace to add */
 void Fil_shard::add_to_unflushed_list(fil_space_t *space) {
   ut_ad(m_id == REDO_SHARD || mutex_owned());
+  ut_a(space->purpose != FIL_TYPE_TEMPORARY);
 
   if (!space->is_in_unflushed_spaces) {
     space->is_in_unflushed_spaces = true;
@@ -7551,30 +7612,29 @@ void Fil_shard::write_completed(fil_node_t *file) {
 
   file->modification_counter = m_modification_counter;
 
-  if (fil_buffering_disabled(file->space)) {
-    /* We don't need to keep track of unflushed
-    changes as user has explicitly disabled
-    buffering. */
+  if (fil_disable_space_flushing(file->space)) {
+    /* We don't need to keep track of not flushed changes as either:
+    - user has explicitly disabled buffering,
+    - or it is FIL_TYPE_TEMPORARY space and we don't ever flush these. */
     ut_ad(!file->space->is_in_unflushed_spaces);
 
-    file->flush_counter = file->modification_counter;
+    file->set_flushed();
 
   } else {
     add_to_unflushed_list(file->space);
   }
 }
 
-/** Updates the data structures when an I/O operation
-finishes. Updates the pending I/O's field in the file
-appropriately.
+/** Updates the data structures when an I/O operation finishes. Updates the
+pending I/O's field in the file appropriately.
 @param[in]	file		Tablespace file
 @param[in]	type		Marks the file as modified type == WRITE */
 void Fil_shard::complete_io(fil_node_t *file, const IORequest &type) {
   ut_ad(m_id == REDO_SHARD || mutex_owned());
 
-  ut_a(file->n_pending > 0);
+  ut_a(file->n_pending_ios > 0);
 
-  --file->n_pending;
+  --file->n_pending_ios;
 
   ut_ad(type.validate());
 
@@ -7584,10 +7644,9 @@ void Fil_shard::complete_io(fil_node_t *file, const IORequest &type) {
     write_completed(file);
   }
 
-  if (file->n_pending == 0 && Fil_system::space_belongs_in_LRU(file->space)) {
+  if (file->n_pending_ios == 0) {
     /* The file must be put back to the LRU list */
-    UT_LIST_ADD_FIRST(m_LRU, file);
-    s_n_spaces_in_lru++;
+    add_to_lru_if_needed(file);
   }
 }
 
@@ -7702,6 +7761,7 @@ dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
   return (file == nullptr) ? DB_ERROR : DB_SUCCESS;
 }
 
+#if !(defined(_WIN32) && defined(WIN_ASYNC_IO))
 /** Read or write log file data synchronously.
 @param[in]	type		IO context
 @param[in]	page_id		page id
@@ -7727,6 +7787,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   ut_ad(fil_validate_skip());
   ut_ad(byte_offset < UNIV_PAGE_SIZE);
   ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
+  ut_ad(m_id == REDO_SHARD);
 
 #ifndef UNIV_HOTBACKUP
   if (req_type.is_read()) {
@@ -7764,9 +7825,9 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   req_type.block_size(file->block_size);
 
   if (!file->is_open) {
-    ut_a(file->n_pending == 0);
+    ut_a(file->n_pending_ios == 0);
 
-    bool success = open_file(file, false);
+    bool success = open_file(file);
 
     ut_a(success);
   }
@@ -7794,6 +7855,7 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
 
   return err;
 }
+#endif
 
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                          const page_id_t &page_id, const page_size_t &page_size,
@@ -7861,20 +7923,16 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* Reserve the mutex and make sure that we can open at
   least one file while holding it, if the file is not already open */
 
-  fil_space_t *space;
   auto bpage = static_cast<buf_page_t *>(message);
 
-  bool slot = mutex_acquire_and_get_space(page_id.space(), space);
+  mutex_acquire();
+  auto space = get_space_by_id(page_id.space());
 
   /* If we are deleting a tablespace we don't allow async read
   operations on that. However, we do allow write operations and
   sync read operations. */
   if (space == nullptr ||
       (req_type.is_read() && !sync && space->stop_new_ops)) {
-    if (slot) {
-      release_open_slot(m_id);
-    }
-
 #ifndef UNIV_HOTBACKUP
     const auto is_page_stale = bpage != nullptr && bpage->is_stale();
 #endif /* !UNIV_HOTBACKUP */
@@ -7922,9 +7980,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     ut_a(bpage->get_space()->id == page_id.space());
 
     if (req_type.is_write() && bpage->is_stale()) {
-      if (slot) {
-        release_open_slot(m_id);
-      }
       mutex_release();
       return DB_PAGE_IS_STALE;
     }
@@ -7940,10 +7995,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     ut_ad(err == DB_ERROR);
 
     if (req_type.ignore_missing()) {
-      if (slot) {
-        release_open_slot(m_id);
-      }
-
       mutex_release();
 
       return DB_ERROR;
@@ -7952,10 +8003,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 #ifndef UNIV_HOTBACKUP
     if (req_type.is_write() && bpage != nullptr && bpage->is_stale()) {
       ut_a(bpage->get_space()->id == page_id.space());
-
-      if (slot) {
-        release_open_slot(m_id);
-      }
 
       mutex_release();
       return DB_PAGE_IS_STALE;
@@ -7968,13 +8015,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                                    req_type.is_read());
   }
 
-  bool opened = prepare_file_for_io(file, false);
-
-  if (slot) {
-    release_open_slot(m_id);
-  }
-
-  if (!opened) {
+  if (!prepare_file_for_io(file)) {
 #ifndef UNIV_HOTBACKUP
     if (space->is_deleted()) {
       mutex_release();
@@ -8126,6 +8167,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   return err;
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Read or write redo log data (synchronous buffered IO).
 @param[in]	type		IO context
 @param[in]	page_id		where to read or write
@@ -8152,7 +8194,6 @@ dberr_t fil_redo_io(const IORequest &type, const page_id_t &page_id,
 #endif /* _WIN32  || WIN_ASYNC_IO*/
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Waits for an AIO operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
 into segments (see os0file.cc for more info). The thread specifies which
@@ -8246,6 +8287,8 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
     static_cast<buf_page_t *>(message)->release_io_responsibility();
   }
 #endif
+  /* For redo IO the fil_redo_io must be used. */
+  ut_ad(shard->id() != REDO_SHARD);
 
   auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
                                 len, buf, message);
@@ -8376,9 +8419,9 @@ void Fil_shard::space_flush(space_id_t space_id) {
     return;
   }
 
-  bool fbd = fil_buffering_disabled(space);
+  const bool disable_flush = fil_disable_space_flushing(space);
 
-  if (fbd) {
+  if (disable_flush) {
     /* No need to flush. User has explicitly disabled
     buffering. However, flush should be called if the file
     size changes to keep OЅ metadata in sync. */
@@ -8389,7 +8432,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
     bool no_flush = true;
     for (const auto &file : space->files) {
 #ifdef UNIV_DEBUG
-      ut_ad(file.modification_counter == file.flush_counter);
+      ut_ad(file.is_flushed());
 #endif /* UNIV_DEBUG */
       if (file.flush_size != file.size) {
         /* Found at least one file whose size has changed */
@@ -8416,7 +8459,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
     /* Skip flushing if the file size has not changed since
     last flush was done and the flush mode is O_DIRECT_NO_FSYNC */
-    if (fbd && (file.flush_size == file.size)) {
+    if (disable_flush && (file.flush_size == file.size)) {
       ut_ad(old_mod_counter <= file.flush_counter);
       continue;
     }
@@ -8428,7 +8471,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
     on every write operation.
     For other flush modes, if the flush_counter is same or ahead of
     the mod_counter, skip the flush. */
-    if (!fbd && (old_mod_counter <= file.flush_counter)) {
+    if (!disable_flush && (old_mod_counter <= file.flush_counter)) {
       continue;
     }
 
@@ -9022,7 +9065,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   /* Allocate a page to read in the tablespace header, so that we
   can determine the page size and zip size (if it is compressed).
   We allocate an extra page in case it is a compressed table. One
-  page is to ensure alignement. */
+  page is to ensure alignment. */
 
   byte *page = static_cast<byte *>(
       ut::aligned_alloc(2 * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
@@ -10846,8 +10889,8 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
 
   size_t phy_page_size = page_size.physical();
 
-  /* No one should be using this file. */
-  ut_a(file->in_use == 0);
+  /* No one else should be extending this file. */
+  ut_a(!file->is_being_extended);
 
   ut_a(offset > 0);
   os_offset_t initial_fsize = os_file_get_size(file->handle);
@@ -11301,7 +11344,7 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
   /* In order to replay the rename, the following must hold:
   1. The new name is not already used.
   2. A tablespace exists with the old name.
-  3. The space ID for that tablepace matches this log entry.
+  3. The space ID for that tablespace matches this log entry.
   This will prevent unintended renames during recovery. */
 
   space_id_t space_id = page_id.space();
@@ -11502,13 +11545,6 @@ void Fil_system::rename_partition_files(bool revert) {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Check for duplicate tablespace IDs.
-@param[in]	start		Start of slice
-@param[in]	end		End of slice
-@param[in]	thread_id	Thread ID
-@param[in,out]	mutex		Mutex protecting the global state
-@param[in,out]	unique		To check for duplciates
-@param[in,out]	duplicates	Duplicate space IDs found */
 void Tablespace_dirs::duplicate_check(const Const_iter &start,
                                       const Const_iter &end, size_t thread_id,
                                       std::mutex *mutex, Space_id_set *unique,

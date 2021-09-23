@@ -3607,9 +3607,9 @@ bool meb_read_log_encryption(IORequest &encryption_request,
     /* encryption info was not given as a parameter, read it from the
        header of "ib_logfile0" */
 
-    err = fil_redo_io(IORequestLogRead, page_id, univ_page_size,
-                      LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-                      OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
+    err = fil_io(IORequestLogRead, true, page_id, univ_page_size,
+                 LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                 OS_FILE_LOG_BLOCK_SIZE, log_block_buf, nullptr);
     ut_a(err == DB_SUCCESS);
   }
 

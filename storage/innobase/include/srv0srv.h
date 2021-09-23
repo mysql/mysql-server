@@ -643,7 +643,12 @@ to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong srv_innodb_stats_method;
 
-extern ulint srv_max_n_open_files;
+/** Returns current value of the "innodb_open_files" configuration variable. */
+long innobase_get_open_files_limit();
+/** Sets new value of the "innodb_open_files" configuration variable to present
+to users.
+@param[in] new_limit new limit to be set. */
+void innobase_set_open_files_limit(long new_limit);
 
 extern ulong srv_n_page_cleaners;
 

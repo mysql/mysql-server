@@ -9667,6 +9667,9 @@ ER_REGEXP_MISSING_FILE
 ER_WARN_DEPRECATED_COLLATION
   eng "'%-.64s' is a collation of the deprecated character set %s. Please consider using %s with an appropriate collation instead."
 
+ER_CONCURRENT_PROCEDURE_USAGE
+  eng "The %s was called when there was already another concurrent call to this procedure. No action was taken. Wait for other calls to %s to finish before retrying."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

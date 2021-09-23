@@ -1996,7 +1996,7 @@ dberr_t srv_start(bool create_new_db) {
 
   os_create_block_cache();
 
-  fil_init(srv_max_n_open_files);
+  fil_init(innobase_get_open_files_limit());
 
   /* This is the default directory for IBD and IBU files. Put it first
   in the list of known directories. */
@@ -2465,7 +2465,7 @@ files_checked:
 
   } else {
     /* Load the reserved boundaries of the legacy dblwr buffer, this is
-    requird to check for stray reads and writes trying to access this
+    required to check for stray reads and writes trying to access this
     reserved region in the sys tablespace.
     FIXME: Try and remove this requirement. */
     err = dblwr::v1::init();

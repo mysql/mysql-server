@@ -50,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "os0file.h"
 #include "os0thread-create.h"
 #include "sess0sess.h"
+#include "srv0dynamic_procedures.h"
 #include "srv0srv.h"
 #include "sync0sync.h"
 #include "ut0mutex.h"
@@ -477,8 +478,6 @@ static Queue<Block> redo_log_archive_queue{};
 /* Forward declarations */
 static void redo_log_archive_consumer();
 static bool terminate_consumer(bool rapid);
-static void unregister_udfs();
-static bool register_udfs();
 
 /* Function to check conditions. */
 static bool consumer_is_running() { return redo_log_archive_consume_running; }
@@ -540,6 +539,66 @@ bool register_privilege(const char *priv_name) {
   return failed;
 }
 
+bool innodb_redo_log_archive_start_init(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args, char *message);
+void innodb_redo_log_archive_start_deinit(UDF_INIT *initid [[maybe_unused]]);
+long long innodb_redo_log_archive_start(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args,
+                                        unsigned char *null_value
+                                        [[maybe_unused]],
+                                        unsigned char *error [[maybe_unused]]);
+bool innodb_redo_log_archive_stop_init(UDF_INIT *initid [[maybe_unused]],
+                                       UDF_ARGS *args, char *message);
+void innodb_redo_log_archive_stop_deinit(UDF_INIT *initid [[maybe_unused]]);
+long long innodb_redo_log_archive_stop(UDF_INIT *initid [[maybe_unused]],
+                                       UDF_ARGS *args [[maybe_unused]],
+                                       unsigned char *null_value
+                                       [[maybe_unused]],
+                                       unsigned char *error [[maybe_unused]]);
+bool innodb_redo_log_archive_flush_init(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args, char *message);
+
+void innodb_redo_log_archive_flush_deinit(UDF_INIT *initid [[maybe_unused]]);
+long long innodb_redo_log_archive_flush(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args [[maybe_unused]],
+                                        unsigned char *null_value
+                                        [[maybe_unused]],
+                                        unsigned char *error [[maybe_unused]]);
+bool innodb_redo_log_sharp_checkpoint_init([[maybe_unused]] UDF_INIT *initid,
+                                           UDF_ARGS *args, char *message);
+void innodb_redo_log_sharp_checkpoint_deinit([[maybe_unused]] UDF_INIT *initid);
+long long innodb_redo_log_sharp_checkpoint(
+    [[maybe_unused]] UDF_INIT *initid, [[maybe_unused]] UDF_ARGS *args,
+    [[maybe_unused]] unsigned char *null_value,
+    [[maybe_unused]] unsigned char *error);
+
+/**
+This component's UDFs.mysql
+*/
+class Dynamic_procedures : public srv::Dynamic_procedures {
+ protected:
+  std::vector<srv::dynamic_procedure_data_t> get_procedures() const override {
+    return {
+        {"innodb_redo_log_archive_start", innodb_redo_log_archive_start,
+         innodb_redo_log_archive_start_init,
+         innodb_redo_log_archive_start_deinit},
+        {"innodb_redo_log_archive_stop", innodb_redo_log_archive_stop,
+         innodb_redo_log_archive_stop_init,
+         innodb_redo_log_archive_stop_deinit},
+        {"innodb_redo_log_archive_flush", innodb_redo_log_archive_flush,
+         innodb_redo_log_archive_flush_init,
+         innodb_redo_log_archive_flush_deinit},
+        {"innodb_redo_log_sharp_checkpoint", innodb_redo_log_sharp_checkpoint,
+         innodb_redo_log_sharp_checkpoint_init,
+         innodb_redo_log_sharp_checkpoint_deinit}};
+  }
+  std::string get_module_name() const override {
+    return "innodb_redo_log_archive";
+  }
+};
+
+Dynamic_procedures s_dynamic_procedures;
+
 /**
   Initialize redo log archiving.
   To be called when the InnoDB handlerton is initialized.
@@ -566,7 +625,7 @@ void redo_log_archive_init() {
   bool failed = false;
   if (register_privilege(innodb_redo_log_archive_privilege)) {
     failed = true;
-  } else if (register_udfs()) {
+  } else if (!s_dynamic_procedures.register_procedures()) {
     failed = true;
   }
   mutex_exit(&redo_log_archive_admin_mutex);
@@ -581,7 +640,7 @@ void redo_log_archive_init() {
 
   NOTE: This function must be called under the redo_log_archive_admin_mutex!
 
-  @param[in]      force         whether to drop resorces even if
+  @param[in]      force         whether to drop resources even if
                                 consumer cannot be stopped
   @return         status
     @retval       false         success
@@ -589,7 +648,7 @@ void redo_log_archive_init() {
 */
 static bool drop_remnants(bool force) {
   DBUG_TRACE;
-  /* Do not start if a comsumer is still lurking around. */
+  /* Do not start if a consumer is still lurking around. */
   if (redo_log_archive_consume_running) {
     /* purecov: begin inspected */
     if (!redo_log_archive_recorded_error.empty()) {
@@ -636,7 +695,7 @@ void redo_log_archive_deinit() {
     /* Do not acquire the logwriter mutex at this late stage. */
     redo_log_archive_produce_blocks = false;
     /* Unregister the UDFs. */
-    unregister_udfs();
+    s_dynamic_procedures.unregister();
     mutex_enter(&redo_log_archive_admin_mutex);
     if (redo_log_archive_active) {
       /* purecov: begin inspected */ /* Only needed at shutdown. */
@@ -2131,144 +2190,4 @@ long long innodb_redo_log_sharp_checkpoint(
   log_make_latest_checkpoint(*log_sys);
   return 0;
 }
-
-/**
-  Type and data for tracking registered UDFs.
-*/
-struct udf_data_t {
-  const std::string m_name;
-  const Item_result m_return_type;
-  const Udf_func_any m_func;
-  const Udf_func_init m_init_func;
-  const Udf_func_deinit m_deinit_func;
-  udf_data_t(const std::string &name, const Item_result return_type,
-             const Udf_func_any func, const Udf_func_init init_func,
-             const Udf_func_deinit deinit_func)
-      : m_name(name),
-        m_return_type(return_type),
-        m_func(func),
-        m_init_func(init_func),
-        m_deinit_func(deinit_func) {}
-};
-
-/**
-  This component's UDFs.
-*/
-static udf_data_t component_udfs[] = {
-    {"innodb_redo_log_archive_start", INT_RESULT,
-     reinterpret_cast<Udf_func_any>(innodb_redo_log_archive_start),
-     reinterpret_cast<Udf_func_init>(innodb_redo_log_archive_start_init),
-     reinterpret_cast<Udf_func_deinit>(innodb_redo_log_archive_start_deinit)},
-    {"innodb_redo_log_archive_stop", INT_RESULT,
-     reinterpret_cast<Udf_func_any>(innodb_redo_log_archive_stop),
-     reinterpret_cast<Udf_func_init>(innodb_redo_log_archive_stop_init),
-     reinterpret_cast<Udf_func_deinit>(innodb_redo_log_archive_stop_deinit)},
-    {"innodb_redo_log_archive_flush", INT_RESULT,
-     reinterpret_cast<Udf_func_any>(innodb_redo_log_archive_flush),
-     reinterpret_cast<Udf_func_init>(innodb_redo_log_archive_flush_init),
-     reinterpret_cast<Udf_func_deinit>(innodb_redo_log_archive_flush_deinit)},
-    {"innodb_redo_log_sharp_checkpoint", INT_RESULT,
-     reinterpret_cast<Udf_func_any>(innodb_redo_log_sharp_checkpoint),
-     reinterpret_cast<Udf_func_init>(innodb_redo_log_sharp_checkpoint_init),
-     reinterpret_cast<Udf_func_deinit>(
-         innodb_redo_log_sharp_checkpoint_deinit)}};
-
-/**
-  Unregister UDF(s)
-*/
-static void unregister_udfs() {
-  SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  if (plugin_registry == nullptr) {
-    /* purecov: begin inspected */
-    LogErr(
-        WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-        (LOGMSGPFX + "mysql_plugin_registry_acquire() returns NULL").c_str());
-    return;
-    /* purecov: end */
-  }
-
-  /*
-    Open a new block so that udf_registrar is automatically destroyed
-    before we release the plugin_registry.
-  */
-  {
-    my_service<SERVICE_TYPE(udf_registration)> udf_registrar("udf_registration",
-                                                             plugin_registry);
-    if (udf_registrar.is_valid()) {
-      for (udf_data_t udf : component_udfs) {
-        const char *name = udf.m_name.c_str();
-        int was_present = 0;
-        if (udf_registrar->udf_unregister(name, &was_present) && was_present) {
-          /* purecov: begin inspected */ /* Only needed if unregister fails. */
-          LogErr(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-                 (LOGMSGPFX + "Cannot unregister UDF '" + name + "'").c_str());
-          /* purecov: end */
-        }
-      }
-    } else {
-      LogErr(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-             (LOGMSGPFX + "Cannot get valid udf_registration service").c_str());
-    }
-  } /* end of udf_registrar block */
-  mysql_plugin_registry_release(plugin_registry);
-}
-
-/**
-  Register UDF(s).
-
-  This does first try to unregister any functions, that might be left over
-  from an earlier use of the component.
-
-  @return       status
-    @retval     false           success
-    @retval     true            failure
-*/
-static bool register_udfs() {
-  /* Try to unregister potentially left over functions from last run. */
-  unregister_udfs();
-
-  SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  if (plugin_registry == nullptr) {
-    /* purecov: begin inspected */
-    LogErr(
-        ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-        (LOGMSGPFX + "mysql_plugin_registry_acquire() returns NULL").c_str());
-    return true;
-    /* purecov: end */
-  }
-
-  bool failed = false;
-  /*
-    Open a new block so that udf_registrar is automatically destroyed
-    before we release the plugin_registry.
-  */
-  {
-    my_service<SERVICE_TYPE(udf_registration)> udf_registrar("udf_registration",
-                                                             plugin_registry);
-    if (udf_registrar.is_valid()) {
-      for (udf_data_t udf : component_udfs) {
-        const char *name = udf.m_name.c_str();
-        if (udf_registrar->udf_register(name, udf.m_return_type, udf.m_func,
-                                        udf.m_init_func, udf.m_deinit_func)) {
-          /* purecov: begin inspected */ /* Only needed if register fails. */
-          LogErr(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-                 (LOGMSGPFX + "Cannot register UDF '" + name + "'").c_str());
-          failed = true;
-          break;
-          /* purecov: end */
-        }
-      }
-    } else {
-      LogErr(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-             (LOGMSGPFX + "Cannot get valid udf_registration service").c_str());
-      failed = true;
-    }
-  } /* end of udf_registrar block */
-  mysql_plugin_registry_release(plugin_registry);
-  if (failed) {
-    unregister_udfs();
-  }
-  return failed;
-}
-
 } /* namespace meb */

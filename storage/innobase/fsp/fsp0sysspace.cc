@@ -875,7 +875,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     }
   }
 
-  /* Close the curent handles, add space and file info to the
+  /* Close the current handles, add space and file info to the
   fil_system cache and the Data Dictionary, and re-open them
   in file_system cache so that they stay open until shutdown. */
   ulint node_counter = 0;

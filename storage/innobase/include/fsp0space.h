@@ -153,11 +153,6 @@ class Tablespace {
     return (sum);
   }
 
-  /** Open or Create the data files if they do not exist.
-  @param[in]	is_temp	whether this is a temporary tablespace
-  @return DB_SUCCESS or error code */
-  [[nodiscard]] dberr_t open_or_create(bool is_temp);
-
   /** Delete all the data files. */
   void delete_files();
 

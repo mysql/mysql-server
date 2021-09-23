@@ -2775,7 +2775,7 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   int err = errno;
 
   if (err == 0) {
-    return (0);
+    return 0;
   }
 
   if (report_all_errors ||
@@ -2811,31 +2811,33 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   switch (err) {
     case ENOSPC:
-      return (OS_FILE_DISK_FULL);
+      return OS_FILE_DISK_FULL;
     case ENOENT:
-      return (OS_FILE_NOT_FOUND);
+      return OS_FILE_NOT_FOUND;
     case EEXIST:
-      return (OS_FILE_ALREADY_EXISTS);
+      return OS_FILE_ALREADY_EXISTS;
     case EXDEV:
     case ENOTDIR:
     case EISDIR:
-      return (OS_FILE_PATH_ERROR);
+      return OS_FILE_PATH_ERROR;
     case EAGAIN:
       if (srv_use_native_aio) {
-        return (OS_FILE_AIO_RESOURCES_RESERVED);
+        return OS_FILE_AIO_RESOURCES_RESERVED;
       }
       break;
     case EINTR:
       if (srv_use_native_aio) {
-        return (OS_FILE_AIO_INTERRUPTED);
+        return OS_FILE_AIO_INTERRUPTED;
       }
       break;
     case EACCES:
-      return (OS_FILE_ACCESS_VIOLATION);
+      return OS_FILE_ACCESS_VIOLATION;
     case ENAMETOOLONG:
-      return (OS_FILE_NAME_TOO_LONG);
+      return OS_FILE_NAME_TOO_LONG;
+    case EMFILE:
+      return OS_FILE_TOO_MANY_OPENED;
   }
-  return (OS_FILE_ERROR_MAX + err);
+  return OS_FILE_ERROR_MAX + err;
 }
 
 /** Wrapper to fsync(2)/fdatasync(2) that retries the call on some errors.
@@ -3949,7 +3951,7 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   ulint err = (ulint)GetLastError();
 
   if (err == ERROR_SUCCESS) {
-    return (0);
+    return 0;
   }
 
   if (report_all_errors || (!on_error_silent && err != ERROR_DISK_FULL &&
@@ -4004,25 +4006,29 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   }
 
   if (err == ERROR_FILE_NOT_FOUND) {
-    return (OS_FILE_NOT_FOUND);
+    return OS_FILE_NOT_FOUND;
   } else if (err == ERROR_PATH_NOT_FOUND) {
-    return (OS_FILE_NAME_TOO_LONG);
+    return OS_FILE_NAME_TOO_LONG;
   } else if (err == ERROR_DISK_FULL) {
-    return (OS_FILE_DISK_FULL);
+    return OS_FILE_DISK_FULL;
   } else if (err == ERROR_FILE_EXISTS) {
-    return (OS_FILE_ALREADY_EXISTS);
+    return OS_FILE_ALREADY_EXISTS;
   } else if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION) {
-    return (OS_FILE_SHARING_VIOLATION);
+    return OS_FILE_SHARING_VIOLATION;
   } else if (err == ERROR_WORKING_SET_QUOTA ||
              err == ERROR_NO_SYSTEM_RESOURCES) {
-    return (OS_FILE_INSUFFICIENT_RESOURCE);
+    return OS_FILE_INSUFFICIENT_RESOURCE;
   } else if (err == ERROR_OPERATION_ABORTED) {
-    return (OS_FILE_OPERATION_ABORTED);
+    return OS_FILE_OPERATION_ABORTED;
   } else if (err == ERROR_ACCESS_DENIED) {
-    return (OS_FILE_ACCESS_VIOLATION);
+    return OS_FILE_ACCESS_VIOLATION;
+  } else if (err ==
+
+             ERROR_TOO_MANY_OPEN_FILES) {
+    return OS_FILE_TOO_MANY_OPENED;
   }
 
-  return (OS_FILE_ERROR_MAX + err);
+  return OS_FILE_ERROR_MAX + err;
 }
 
 /** NOTE! Use the corresponding macro os_file_create_simple(), not directly

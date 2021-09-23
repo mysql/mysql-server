@@ -51,6 +51,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
+extern ulong srv_fast_shutdown;
+
 /** Maximum number of tablespaces to be scanned by a thread while scanning
 for available tablespaces during server startup. This is a hard maximum.
 If the number of files to be scanned is more than
@@ -157,6 +159,27 @@ struct fil_space_t;
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
+  /** Returns true if the file can be closed. */
+  bool can_be_closed() const {
+    ut_ad(is_open);
+    /* We need to wait for the pending extension and I/Os to finish. */
+    if (n_pending_ios != 0) {
+      return false;
+    }
+    if (is_being_extended) {
+      return false;
+    }
+    /* The file must be flushed, unless we are in very fast shutdown process. */
+    return srv_fast_shutdown == 2 || is_flushed();
+  }
+  /** Returns true if the file is flushed. */
+  bool is_flushed() const {
+    ut_ad(modification_counter >= flush_counter);
+    return modification_counter == flush_counter;
+  }
+  /** Sets file to flushed state. */
+  void set_flushed() { flush_counter = modification_counter; }
+
   using List_node = UT_LIST_NODE_T(fil_node_t);
 
   /** tablespace containing this file */
@@ -195,14 +218,14 @@ struct fil_node_t {
   /** maximum size of the file in database pages */
   page_no_t max_size;
 
-  /** count of pending i/o's; is_open must be true if nonzero */
-  size_t n_pending;
+  /** count of pending I/O's; is_open must be true if nonzero */
+  size_t n_pending_ios;
 
   /** count of pending flushes; is_open must be true if nonzero */
   size_t n_pending_flushes;
 
-  /** e.g., when a file is being extended or just opened. */
-  size_t in_use;
+  /** Set to true when a file is being extended. */
+  bool is_being_extended;
 
   /** number of writes to the file since the system was started */
   int64_t modification_counter;
@@ -414,8 +437,13 @@ struct fil_space_t {
 
  public:
   /** true if we want to rename the .ibd file of tablespace and
-  want to stop temporarily posting of new i/o requests on the file */
-  bool stop_ios{};
+  want to temporarily prevent other threads from opening the file that is being
+  renamed.  */
+  bool prevent_file_open{};
+
+  /** Throttles writing to log a message about long waiting for file to perform
+  rename. */
+  ib::Throttler m_prevent_file_open_wait_message_throttler;
 
   /** We set this true when we start deleting a single-table
   tablespace.  When this is set following new ops are not allowed:
@@ -1443,6 +1471,12 @@ The tablespace must be cached in the memory cache.
 @param[in]	max_n_open	Maximum number of open files */
 void fil_init(ulint max_n_open);
 
+/** Changes the maximum opened files limit.
+@param[in, out] new_max_open_files New value for the open files limit. If the
+limit cannot be changed, the value is changed to a minimum value recommended.
+@return true if the new limit was set. */
+bool fil_open_files_limit_update(size_t &new_max_open_files);
+
 /** Initializes the tablespace memory cache. */
 void fil_close();
 
@@ -1719,6 +1753,7 @@ number should be zero.
 @return the number of reserved extents */
 [[nodiscard]] ulint fil_space_get_n_reserved_extents(space_id_t space_id);
 
+#ifndef UNIV_HOTBACKUP
 /** Read or write redo log data (synchronous buffered IO).
 @param[in]	type		IO context
 @param[in]	page_id		where to read or write
@@ -1732,6 +1767,7 @@ number should be zero.
                                   const page_id_t &page_id,
                                   const page_size_t &page_size,
                                   ulint byte_offset, ulint len, void *buf);
+#endif
 
 /** Read or write data from a file.
 @param[in]	type		IO context

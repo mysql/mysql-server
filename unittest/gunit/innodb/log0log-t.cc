@@ -114,6 +114,8 @@ constexpr int LOG_TEST_N_STEPS = 20;
 
 fil_space_t *log_space;
 
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+
 static bool log_test_general_init() {
   ut_new_boot_safe();
 
@@ -165,6 +167,9 @@ static bool log_test_general_init() {
 
   const size_t max_n_open_files = 1000;
 
+  /* Below function will initialize the srv_registry variable which is
+  required for the mysql_plugin_registry_acquire() */
+  minimal_chassis_init(&srv_registry, NULL);
   fil_init(max_n_open_files);
 
   log_space = fil_space_create(
@@ -179,8 +184,6 @@ static bool log_test_general_init() {
   ut_ad(fil_validate());
   return (true);
 }
-
-extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 
 static bool log_test_init() {
   if (!log_test_general_init()) {
@@ -257,11 +260,7 @@ static bool log_test_init() {
 
   log_start(log, 1, lsn, lsn);
 
-  /* Below function will initialize the srv_registry variable which is
-  required for the mysql_plugin_registry_acquire() */
-  minimal_chassis_init(&srv_registry, NULL);
   log_start_background_threads(log);
-  minimal_chassis_deinit(srv_registry, NULL);
 
   srv_is_being_started = false;
   return (true);
@@ -538,6 +537,8 @@ static void log_test_general_close() {
   fil_close_all_files();
 
   fil_close();
+
+  minimal_chassis_deinit(srv_registry, NULL);
 
   os_thread_close();
 

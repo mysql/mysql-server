@@ -4758,7 +4758,6 @@ static int innodb_init_params() {
     }
   }
 
-  srv_max_n_open_files = (ulint)innobase_open_files;
   srv_innodb_status = (ibool)innobase_create_status_file;
 
   /* Round up ddl:fts_parser_threads to nearest power of 2 number */
@@ -4908,6 +4907,11 @@ static int innodb_init_params() {
   srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 
   return 0;
+}
+
+long innobase_get_open_files_limit() { return innobase_open_files; }
+void innobase_set_open_files_limit(long new_limit) {
+  innobase_open_files = new_limit;
 }
 
 /** Perform post-commit/rollback cleanup after DDL statement
