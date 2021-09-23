@@ -1932,14 +1932,18 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
 {
   Uint32 length;
   const char *data_string;
-  Uint32 data[25];
+  Uint32 data[MAX_EVENT_LENGTH];
 
   args.get("length", &length);
+  assert(length < MAX_EVENT_LENGTH);
   args.get("data", &data_string);
 
   BaseString tmp(data_string);
   Vector<BaseString> item;
   tmp.split(item, " ");
+  if (length > MAX_EVENT_LENGTH)
+    // Data is going to be truncated
+    length = MAX_EVENT_LENGTH;
   for (int i = 0; (Uint32) i < length ; i++)
   {
     sscanf(item[i].c_str(), "%u", data+i);
