@@ -43,7 +43,7 @@ struct MEM_ROOT;
 bool get_ranges_from_tree(MEM_ROOT *return_mem_root, TABLE *table,
                           KEY_PART *key, uint keyno, SEL_ROOT *key_tree,
                           uint num_key_parts, unsigned *used_key_parts,
-                          Quick_ranges *ranges);
+                          unsigned *num_exact_key_parts, Quick_ranges *ranges);
 
 /*
   Get best "range" table read plan for given SEL_TREE, also update some info

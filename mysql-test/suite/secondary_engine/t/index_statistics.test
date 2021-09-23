@@ -1,10 +1,6 @@
 # Test that a secondary engine can use statistics from indexes in the
 # primary engine.
 
-# Using index dives for estimating selectivity is not yet supported by
-# the hypergraph join optimizer.
---source include/not_hypergraph.inc
-
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log
@@ -107,6 +103,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
 --echo # Indexes should only be used during optimization. Verify that the
 --echo # execution plan for this query does not use DYNAMIC RANGE access.
 --echo # (No occurrence of "Range checked for each record" in the plan.)
+--skip_if_hypergraph  # Different query plan (still does not use any indexes).
 --replace_regex /cost=[0-9.]*/cost=X/
 EXPLAIN FORMAT=TREE SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
 

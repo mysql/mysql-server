@@ -170,9 +170,11 @@ static ROR_SCAN_INFO *make_ror_scan(const RANGE_OPT_PARAM *param, int idx,
       param->table->file->index_scan_cost(ror_scan->keynr, 1, rows);
 
   Quick_ranges ranges(param->return_mem_root);
+  unsigned num_exact_key_parts_unused;
   if (get_ranges_from_tree(param->return_mem_root, param->table,
                            param->key[idx], param->real_keynr[idx], sel_root,
-                           MAX_REF_PARTS, &ror_scan->used_key_parts, &ranges)) {
+                           MAX_REF_PARTS, &ror_scan->used_key_parts,
+                           &num_exact_key_parts_unused, &ranges)) {
     return nullptr;
   }
   ror_scan->ranges = {&ranges[0], ranges.size()};

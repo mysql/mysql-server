@@ -26,6 +26,7 @@
 #include <initializer_list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -73,11 +74,13 @@
 #include "unittest/gunit/test_utils.h"
 
 using hypergraph::NodeMap;
+using std::string_view;
 using std::unordered_map;
 using std::vector;
 using testing::_;
 using testing::Pair;
 using testing::Return;
+using namespace std::literals;  // For operator""sv.
 
 static AccessPath *FindBestQueryPlanAndFinalize(THD *thd,
                                                 Query_block *query_block,
@@ -3510,6 +3513,177 @@ TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
   // Just verify that we indeed have a join under there.
   // (It is needed to get the zero row flags set on t2 and t3.)
   EXPECT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->zero_rows().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
+  Query_block *query_block = ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3",
+                                             /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+
+  // Mark the index as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, root->type);
+  EXPECT_EQ(0, root->index_range_scan().index);
+  // HA_MRR_SUPPORT_SORTED and HA_MRR_USE_DEFAULT_IMPL are added by the handler,
+  // not by the optimizer.
+  EXPECT_EQ(
+      HA_MRR_SUPPORT_SORTED | HA_MRR_USE_DEFAULT_IMPL | HA_MRR_NO_ASSOCIATION,
+      root->index_range_scan().mrr_flags);
+  ASSERT_EQ(1, root->index_range_scan().num_ranges);
+  EXPECT_EQ(NO_MIN_RANGE | NEAR_MAX, root->index_range_scan().ranges[0]->flag);
+  string_view max_key{
+      pointer_cast<char *>(root->index_range_scan().ranges[0]->max_key),
+      root->index_range_scan().ranges[0]->max_length};
+  EXPECT_EQ("\x03\x00\x00\x00"sv, max_key);
+  EXPECT_FALSE(root->index_range_scan().reverse);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ComplexMultipartRangeScan) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 "
+      "WHERE (t1.x < 3 OR t1.x = 5) AND SQRT(t1.x) > 3 AND t1.y >= 15",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/false);
+
+  // Mark the index as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // sqrt(t1.x) > 3 isn't doable as a range scan (since we never do algebraic
+  // rewrites). The other predicate on t1.x is subsumed, and should not be part
+  // of the filter. (t1.x < 3 AND t1.y >= 15) is not representable as a range
+  // scan (it gets truncated to just t1.x < 3 for the range), and thus,
+  // t1.y >= 15 should also not be subsumed.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((sqrt(t1.x) > 3) and (t1.y >= 15))",
+            ItemToString(root->filter().condition));
+
+  AccessPath *range_scan = root->filter().child;
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, range_scan->type);
+  EXPECT_EQ(0, range_scan->index_range_scan().index);
+  // HA_MRR_SUPPORT_SORTED and HA_MRR_USE_DEFAULT_IMPL are added by the handler,
+  // not by the optimizer.
+  EXPECT_EQ(
+      HA_MRR_SUPPORT_SORTED | HA_MRR_USE_DEFAULT_IMPL | HA_MRR_NO_ASSOCIATION,
+      range_scan->index_range_scan().mrr_flags);
+  ASSERT_EQ(2, range_scan->index_range_scan().num_ranges);
+
+  // t1.x < 3 (same as previous test).
+  EXPECT_EQ(NO_MIN_RANGE | NEAR_MAX,
+            range_scan->index_range_scan().ranges[0]->flag);
+  string_view max_key_0{
+      pointer_cast<char *>(range_scan->index_range_scan().ranges[0]->max_key),
+      range_scan->index_range_scan().ranges[0]->max_length};
+  EXPECT_EQ("\x03\x00\x00\x00"sv, max_key_0);
+
+  // t1.x = 5 AND t1.y >= 15 (represented as (x,y) >= (5,15) and (x) <= (5));
+  // even though we couldn't fit t1.y >= 15 into the last keypart, it should be
+  // included here.
+  EXPECT_EQ(0, range_scan->index_range_scan().ranges[1]->flag);
+  string_view min_key_1{
+      pointer_cast<char *>(range_scan->index_range_scan().ranges[1]->min_key),
+      range_scan->index_range_scan().ranges[1]->min_length};
+  string_view max_key_1{
+      pointer_cast<char *>(range_scan->index_range_scan().ranges[1]->max_key),
+      range_scan->index_range_scan().ranges[1]->max_length};
+  EXPECT_EQ("\x05\x00\x00\x00\x0f\x00\x00\x00"sv, min_key_1);
+  EXPECT_EQ("\x05\x00\x00\x00"sv, max_key_1);
+
+  // It would have been nice to verify here that the filter had a lower
+  // output row count than the range scan, due to sqrt(x) > 3 not being
+  // part of the range scan. However, the returned selectivity for such
+  // estimates is always 1.0, so it's not really visible. Instead, we simply
+  // check that both are reasonably sane.
+  EXPECT_GT(range_scan->num_output_rows, 0.0);
+  EXPECT_GE(root->num_output_rows, range_scan->num_output_rows);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, RangeScanWithReverseOrdering) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3 ORDER BY t1.x DESC",
+                      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+
+  // Mark the index as supporting range scans _and_ ordering.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(
+          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, root->type);
+  EXPECT_EQ(0, root->index_range_scan().index);
+  // We need sorted output, in reverse.
+  // HA_MRR_SUPPORT_SORTED and HA_MRR_USE_DEFAULT_IMPL are added by the handler,
+  // not by the optimizer.
+  EXPECT_EQ(HA_MRR_SUPPORT_SORTED | HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED |
+                HA_MRR_NO_ASSOCIATION,
+            root->index_range_scan().mrr_flags);
+  EXPECT_TRUE(root->index_range_scan().reverse);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3 AND t1.x > 5",
+                      /*nullable=*/false);
+
+  // We need an index, or we would never analyze ranges on t1.x.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::ZERO_ROWS, root->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->zero_rows().child->type);
+  EXPECT_STREQ("t1", root->zero_rows().child->table_scan().table->alias);
 
   query_block->cleanup(m_thd, /*full=*/true);
 }

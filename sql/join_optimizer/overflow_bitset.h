@@ -147,9 +147,13 @@ class OverflowBitset {
 
   friend bool Overlaps(OverflowBitset a, OverflowBitset b);
   friend bool OverlapsOverflow(OverflowBitset a, OverflowBitset b);
+  friend bool IsSubset(OverflowBitset a, OverflowBitset b);
+  friend bool IsSubsetOverflow(OverflowBitset a, OverflowBitset b);
   friend bool IsBitSet(int bit_num, OverflowBitset x);
   friend bool IsBitSetOverflow(int bit_num, OverflowBitset x);
   friend bool IsEmpty(OverflowBitset x);
+  friend int PopulationCount(OverflowBitset x);
+  friend int PopulationCountOverflow(OverflowBitset x);
   template <size_t N, class Combine>
   friend class OverflowBitsetBitsIn;
   friend class MutableOverflowBitset;
@@ -210,11 +214,27 @@ class MutableOverflowBitset : private OverflowBitset {
     }
   }
 
+  inline void ClearBit(int bit_num) {
+    // TODO: Consider a more specialized version here if it starts
+    // showing up in the profiles.
+    ClearBits(bit_num, bit_num + 1);
+  }
+
   inline MutableOverflowBitset Clone(MEM_ROOT *mem_root) const {
     return OverflowBitset::Clone(mem_root);
   }
 
  private:
+  friend bool IsBitSet(int bit_num, const MutableOverflowBitset &x);
+  friend bool Overlaps(OverflowBitset a, const MutableOverflowBitset &b);
+  friend bool Overlaps(const MutableOverflowBitset &a,
+                       const MutableOverflowBitset &b);
+  friend bool Overlaps(const MutableOverflowBitset &a, OverflowBitset b);
+  friend bool IsSubset(OverflowBitset a, const MutableOverflowBitset &b);
+  friend bool IsSubset(const MutableOverflowBitset &a,
+                       const MutableOverflowBitset &b);
+  friend bool IsSubset(const MutableOverflowBitset &a, OverflowBitset b);
+  friend bool IsEmpty(const MutableOverflowBitset &x);
   void SetBitOverflow(int bit_num);
   void ClearBitsOverflow(int begin_bit_num, int end_bit_num);
 
@@ -463,6 +483,30 @@ inline bool Overlaps(OverflowBitset a, OverflowBitset b) {
   }
 }
 
+inline bool Overlaps(OverflowBitset a, const MutableOverflowBitset &b) {
+  return Overlaps(a, static_cast<const OverflowBitset &>(b));
+}
+
+inline bool Overlaps(const MutableOverflowBitset &a,
+                     const MutableOverflowBitset &b) {
+  return Overlaps(static_cast<const OverflowBitset &>(a),
+                  static_cast<const OverflowBitset &>(b));
+}
+
+inline bool Overlaps(const MutableOverflowBitset &a, OverflowBitset b) {
+  return Overlaps(static_cast<const OverflowBitset &>(a), b);
+}
+
+inline bool IsSubset(OverflowBitset a, OverflowBitset b) {
+  assert(a.is_inline() == b.is_inline());
+  assert(a.capacity() == b.capacity());
+  if (a.is_inline()) {
+    return IsSubset(a.m_bits, b.m_bits);
+  } else {
+    return IsSubsetOverflow(a, b);
+  }
+}
+
 inline bool IsBitSet(int bit_num, OverflowBitset x) {
   assert(bit_num >= 0);
   assert(static_cast<size_t>(bit_num) < x.capacity());
@@ -474,7 +518,25 @@ inline bool IsBitSet(int bit_num, OverflowBitset x) {
   }
 }
 
-// This is used only to guard a few asserts, so it's better that it's
+inline bool IsBitSet(int bit_num, const MutableOverflowBitset &x) {
+  return IsBitSet(bit_num, static_cast<const OverflowBitset &>(x));
+}
+
+inline bool IsSubset(OverflowBitset a, const MutableOverflowBitset &b) {
+  return IsSubset(a, static_cast<const OverflowBitset &>(b));
+}
+
+inline bool IsSubset(const MutableOverflowBitset &a,
+                     const MutableOverflowBitset &b) {
+  return IsSubset(static_cast<const OverflowBitset &>(a),
+                  static_cast<const OverflowBitset &>(b));
+}
+
+inline bool IsSubset(const MutableOverflowBitset &a, OverflowBitset b) {
+  return IsSubset(static_cast<const OverflowBitset &>(a), b);
+}
+
+// This is mostly used to guard a few asserts, so it's better that it's
 // completely visible, so that the compiler can remove it totally
 // in optimized mode.
 inline bool IsEmpty(OverflowBitset x) {
@@ -487,6 +549,18 @@ inline bool IsEmpty(OverflowBitset x) {
       }
     }
     return true;
+  }
+}
+
+inline bool IsEmpty(const MutableOverflowBitset &x) {
+  return IsEmpty(static_cast<const OverflowBitset &>(x));
+}
+
+inline int PopulationCount(OverflowBitset x) {
+  if (x.is_inline()) {
+    return PopulationCount(x.m_bits) - 1;
+  } else {
+    return PopulationCountOverflow(x);
   }
 }
 

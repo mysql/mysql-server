@@ -1321,6 +1321,10 @@ class Field {
      sort keys based off of Items, not Fields.
   */
   virtual size_t make_sort_key(uchar *buff, size_t length) const = 0;
+  /**
+    Whether this field can be used for index range scans when in
+    the given keypart of the given index.
+   */
   virtual bool optimize_range(uint idx, uint part) const;
   /*
     This should be true for fields which, when compared with constant

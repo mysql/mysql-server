@@ -50,6 +50,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"
 #include "sql/field.h"
 #include "sql/filesort.h"
 #include "sql/handler.h"
@@ -77,7 +78,10 @@
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/query_options.h"
+#include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/range_analysis.h"
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/tree.h"
 #include "sql/sql_array.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -106,6 +110,7 @@ using hypergraph::Node;
 using hypergraph::NodeMap;
 using std::array;
 using std::bitset;
+using std::find_if;
 using std::min;
 using std::optional;
 using std::pair;
@@ -340,6 +345,12 @@ class CostingReceiver {
   /// allocating many of (like joins) should be candidates.
   MEM_ROOT m_overflow_bitset_mem_root;
 
+  /// A special MEM_ROOT for temporary data for the range optimizer.
+  /// It can be discarded immediately after we've decided on the range scans
+  /// for a given table (but we reuse its memory as long as there are more
+  /// tables left to scan).
+  MEM_ROOT m_range_optimizer_mem_root;
+
   /// For trace use only.
   std::string PrintSet(NodeMap x) {
     std::string ret = "{";
@@ -359,13 +370,20 @@ class CostingReceiver {
     return Overlaps(m_engine_flags, MakeSecondaryEngineFlags(flag));
   }
 
+  bool FindIndexRangeScans(int node_idx, bool *impossible,
+                           double *num_output_rows_after_filter);
+
   void TraceAccessPaths(NodeMap nodes);
   void ProposeAccessPathForBaseTable(int node_idx,
+                                     double force_num_output_rows_after_filter,
                                      const char *description_for_trace,
                                      AccessPath *path);
   void ProposeAccessPathForIndex(int node_idx,
                                  OverflowBitset applied_predicates,
                                  OverflowBitset subsumed_predicates,
+                                 double force_num_output_rows_after_filter,
+                                 bool pushed_any_join_conditions,
+                                 bool pushed_any_nonjoin_conditions,
                                  const char *description_for_trace,
                                  AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
@@ -374,12 +392,14 @@ class CostingReceiver {
                                       AccessPath *path,
                                       const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
+                        double force_num_output_rows_after_filter,
                         bool is_recursive_reference);
-  bool ProposeIndexScan(TABLE *table, int node_idx, unsigned key_idx,
-                        bool reverse, int ordering_idx);
+  bool ProposeIndexScan(TABLE *table, int node_idx,
+                        double force_num_output_rows_after_filter,
+                        unsigned key_idx, bool reverse, int ordering_idx);
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
-                        bool reverse, table_map allowed_parameter_tables,
-                        int ordering_idx);
+                        double force_num_output_rows_after_filter, bool reverse,
+                        table_map allowed_parameter_tables, int ordering_idx);
   bool RedundantThroughSargable(
       OverflowBitset redundant_against_sargable_predicates,
       OverflowBitset left_applied_sargable_join_predicates,
@@ -557,13 +577,81 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   TABLE *table = m_graph.nodes[node_idx].table;
   TABLE_LIST *tl = table->pos_in_table_list;
 
-  if (ProposeTableScan(table, node_idx, tl->is_recursive_reference())) {
+  if (m_trace != nullptr) {
+    *m_trace += StringPrintf("\nFound node %s [rows=%llu]\n",
+                             m_graph.nodes[node_idx].table->alias,
+                             table->file->stats.records);
+  }
+
+  // We run the range optimizer before anything else, because we can use
+  // its estimates to adjust predicate selectivity, giving us consistent
+  // row count estimation between the access paths. (It is also usually
+  // more precise for complex range conditions than our default estimates.
+  // This is also the reason why we run it even if HA_NO_INDEX_ACCESS is set.)
+  double range_optimizer_row_estimate = -1.0;
+  {
+    auto cleanup_mem_root = create_scope_guard([this, node_idx] {
+      if (node_idx == 0) {
+        // We won't be calling the range optimizer anymore, so we don't need
+        // to keep its temporary allocations around. Note that FoundSingleNode()
+        // counts down from N-1 to 0, not up.
+        m_range_optimizer_mem_root.Clear();
+      } else {
+        m_range_optimizer_mem_root.ClearForReuse();
+      }
+    });
+    if (!tl->is_recursive_reference()) {
+      // Note that true error returns in itself is not enough to fail the query;
+      // the range optimizer could be out of RAM easily enough, which is
+      // nonfatal. That just means we won't be using it for this table.
+      bool impossible = false;
+      if (FindIndexRangeScans(node_idx, &impossible,
+                              &range_optimizer_row_estimate) &&
+          m_thd->is_error()) {
+        return true;
+      }
+      if (impossible) {
+        AccessPath *table_path =
+            NewTableScanAccessPath(m_thd, table, /*count_examined_rows=*/false);
+        AccessPath *zero_path = NewZeroRowsAccessPath(
+            m_thd, table_path, "Impossible WHERE condition");
+        zero_path->num_output_rows_before_filter = 0.0;
+        zero_path->cost_before_filter = 0.0;
+
+        // We need to get the set of functional dependencies right,
+        // even though we don't need to actually apply any filters.
+        FunctionalDependencySet new_fd_set;
+        ApplyPredicatesForBaseTable(
+            node_idx,
+            /*applied_predicates=*/
+            MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
+            /*subsumed_predicates=*/
+            MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
+            /*materialize_subqueries=*/false, zero_path, &new_fd_set);
+        zero_path->filter_predicates = OverflowBitset();
+        zero_path->ordering_state =
+            m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
+        ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,
+                                       /*obsolete_orderings=*/0, zero_path, "");
+        if (m_trace != nullptr) {
+          TraceAccessPaths(TableBitmap(node_idx));
+        }
+        return false;
+      }
+    }
+  }
+
+  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate,
+                       tl->is_recursive_reference())) {
     return true;
   }
 
   if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) ||
       tl->is_recursive_reference()) {
     // We can't use any indexes, so end here.
+    if (m_trace != nullptr) {
+      TraceAccessPaths(TableBitmap(node_idx));
+    }
     return false;
   }
 
@@ -586,15 +674,16 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       }
       const int order = reverse ? reverse_order : forward_order;
       if (order != 0) {
-        if (ProposeIndexScan(table, node_idx, order_info.key_idx, reverse,
-                             order)) {
+        if (ProposeIndexScan(table, node_idx, range_optimizer_row_estimate,
+                             order_info.key_idx, reverse, order)) {
           return true;
         }
       }
 
       // Propose ref access using only sargable predicates that reference no
       // other table.
-      if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+      if (ProposeRefAccess(table, node_idx, order_info.key_idx,
+                           range_optimizer_row_estimate, reverse,
                            /*allowed_parameter_tables=*/0, order)) {
         return true;
       }
@@ -627,7 +716,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
       }
       for (table_map allowed_parameter_tables :
            NonzeroSubsetsOf(want_parameter_tables)) {
-        if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+        if (ProposeRefAccess(table, node_idx, order_info.key_idx,
+                             range_optimizer_row_estimate, reverse,
                              allowed_parameter_tables, order)) {
           return true;
         }
@@ -644,6 +734,495 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   if (m_trace != nullptr) {
     TraceAccessPaths(TableBitmap(node_idx));
   }
+  return false;
+}
+
+// Figure out which predicates we have that are not applied/subsumed
+// by scanning this specific index; we already did a check earlier,
+// but that was on predicates applied by scanning _any_ index.
+// The difference is those that
+//
+//   a) Use a field that's not part of this index.
+//   b) Use a field that our index is only partial for; these are still
+//      counted as applied for selectivity purposes (which is possibly
+//      overcounting), but need to be rechecked (ie., not subsumed).
+//   c) Use a field where we've been told by get_ranges_from_tree()
+//      that it had to set up a range that was nonexact (because it was
+//      part of a predicate that had a non-equality condition on an
+//      earlier keypart). These are handled as for b).
+//
+// We use this information to build up sets of which fields an
+// applied or subsumed predicate is allowed to reference,
+// then check each predicate against those lists.
+void FindAppliedAndSubsumedPredicatesForRangeScan(
+    THD *thd, KEY *key, unsigned used_key_parts, unsigned num_exact_key_parts,
+    TABLE *table, OverflowBitset tree_applied_predicates,
+    OverflowBitset tree_subsumed_predicates, const JoinHypergraph &graph,
+    OverflowBitset *applied_predicates_out,
+    OverflowBitset *subsumed_predicates_out) {
+  MutableOverflowBitset applied_fields{thd->mem_root, table->s->fields};
+  MutableOverflowBitset subsumed_fields{thd->mem_root, table->s->fields};
+  MutableOverflowBitset applied_predicates(thd->mem_root,
+                                           graph.predicates.size());
+  MutableOverflowBitset subsumed_predicates(thd->mem_root,
+                                            graph.predicates.size());
+  for (unsigned keypart_idx = 0; keypart_idx < used_key_parts; ++keypart_idx) {
+    const KEY_PART_INFO &keyinfo = key->key_part[keypart_idx];
+    applied_fields.SetBit(keyinfo.field->field_index());
+    if (keypart_idx < num_exact_key_parts &&
+        !Overlaps(keyinfo.key_part_flag, HA_PART_KEY_SEG)) {
+      subsumed_fields.SetBit(keyinfo.field->field_index());
+    }
+  }
+  for (int predicate_idx : BitsSetIn(tree_applied_predicates)) {
+    Item *condition = graph.predicates[predicate_idx].condition;
+    bool any_not_applied =
+        WalkItem(condition, enum_walk::POSTFIX, [&applied_fields](Item *item) {
+          return item->type() == Item::FIELD_ITEM &&
+                 !IsBitSet(down_cast<Item_field *>(item)->field->field_index(),
+                           applied_fields);
+        });
+    if (any_not_applied) {
+      continue;
+    }
+    applied_predicates.SetBit(predicate_idx);
+    if (IsBitSet(predicate_idx, tree_subsumed_predicates)) {
+      bool any_not_subsumed = WalkItem(
+          condition, enum_walk::POSTFIX, [&subsumed_fields](Item *item) {
+            return item->type() == Item::FIELD_ITEM &&
+                   !IsBitSet(
+                       down_cast<Item_field *>(item)->field->field_index(),
+                       subsumed_fields);
+          });
+      if (!any_not_subsumed) {
+        subsumed_predicates.SetBit(predicate_idx);
+      }
+    }
+  }
+  *applied_predicates_out = std::move(applied_predicates);
+  *subsumed_predicates_out = std::move(subsumed_predicates);
+}
+
+struct PossibleRangeScan {
+  unsigned idx;
+  unsigned mrr_flags;
+  unsigned mrr_buf_size;
+  unsigned used_key_parts;
+  double cost;
+  ha_rows num_rows;
+  bool is_ror_scan;
+  bool is_imerge_scan;
+  OverflowBitset applied_predicates;
+  OverflowBitset subsumed_predicates;
+  Quick_ranges ranges;
+};
+
+bool CollectPossibleRangeScans(
+    THD *thd, SEL_TREE *tree, RANGE_OPT_PARAM *param,
+    OverflowBitset tree_applied_predicates,
+    OverflowBitset tree_subsumed_predicates, const JoinHypergraph &graph,
+    Mem_root_array<PossibleRangeScan> *possible_scans) {
+  for (unsigned idx = 0; idx < param->keys; idx++) {
+    SEL_ROOT *root = tree->keys[idx];
+    if (root == nullptr || root->type == SEL_ROOT::Type::MAYBE_KEY ||
+        root->root->maybe_flag) {
+      continue;
+    }
+
+    const uint keynr = param->real_keynr[idx];
+    const bool covering_index = param->table->covering_keys.is_set(keynr);
+    unsigned mrr_flags, buf_size;
+    Cost_estimate cost;
+    bool is_ror_scan, is_imerge_scan;
+
+    // NOTE: We give in ORDER_NOT_RELEVANT now, but will re-run with
+    // ORDER_ASC/ORDER_DESC when actually proposing the index, if that
+    // yields an interesting order.
+    ha_rows num_rows = check_quick_select(
+        thd, param, idx, covering_index, root, /*update_tbl_stats=*/true,
+        ORDER_NOT_RELEVANT, /*skip_records_in_range=*/false, &mrr_flags,
+        &buf_size, &cost, &is_ror_scan, &is_imerge_scan);
+    if (num_rows == HA_POS_ERROR) {
+      continue;
+    }
+
+    // TODO(sgunders): See if we could have had a pre-filtering mechanism
+    // that allowed us to skip extracting these ranges if the path would
+    // obviously too high cost. As it is, it's a bit hard to just propose
+    // the path and see if it came in, since we need e.g. num_exact_key_parts
+    // as an output from this call, and that in turn affects filter cost.
+    Quick_ranges ranges(param->return_mem_root);
+    unsigned used_key_parts, num_exact_key_parts;
+    if (get_ranges_from_tree(param->return_mem_root, param->table,
+                             param->key[idx], keynr, root, MAX_REF_PARTS,
+                             &used_key_parts, &num_exact_key_parts, &ranges)) {
+      return true;
+    }
+
+    KEY *key = &param->table->key_info[keynr];
+
+    PossibleRangeScan scan;
+    scan.idx = idx;
+    scan.mrr_flags = mrr_flags;
+    scan.mrr_buf_size = buf_size;
+    scan.used_key_parts = used_key_parts;
+    scan.cost = cost.total_cost();
+    scan.num_rows = num_rows;
+    scan.is_ror_scan = is_ror_scan;
+    scan.is_imerge_scan = is_imerge_scan;
+    scan.ranges = std::move(ranges);
+    FindAppliedAndSubsumedPredicatesForRangeScan(
+        thd, key, used_key_parts, num_exact_key_parts, param->table,
+        tree_applied_predicates, tree_subsumed_predicates, graph,
+        &scan.applied_predicates, &scan.subsumed_predicates);
+    possible_scans->push_back(std::move(scan));
+  }
+  return false;
+}
+
+/**
+  Based on estimates for all the different range scans (which cover different
+  but potentially overlapping combinations of predicates), try to find an
+  estimate for the number of rows scanning the given table, with all predicates
+  applied.
+
+  The #1 priority here is to get a single estimate for all (non-parameterized)
+  scans over this table (including non-range scans), that we can reuse for all
+  access paths. This makes sure they are fairly compared on cost (and ordering)
+  alone; different estimates would be nonsensical, and cause those where we
+  happen to have lower estimates to get preferred as they are joined higher up
+  in the tree. Obviously, however, it is also attractive to get an estimate that
+  is as good as possible. We only really care about the total selectivity of all
+  predicates; we don't care to adjust each individual selectivity.
+
+  [Mar07] describes an unbiased estimator that is exactly what we want,
+  and [Hav20] demonstrates an efficient calculation method (up to about 20–25
+  possible predicates) of this estimator. Long-term, implementing this would be
+  our best choice. However, the implementation is not entirely trivial:
+
+   - If the selectivity estimates are not consistent (e.g. S(a AND b) <
+     S(a)S(b)), the algorithm will fail to converge. Extra steps are needed to
+     correct for this.
+   - The efficient algorithm (in [Hav20]) requires a linear algebra library
+     (for performant matrix multiplication and Cholesky decomposition).
+   - If we have a _lot_ of estimates, even the efficient algorithm fails to
+     converge in time (just the answers require 2^n space), and we would need
+     additional logic to partition the problem.
+
+  Thus, for the time being, we use an ad-hoc algorithm instead. The estimate
+  will not be as good, but it will hopefully be on the pessimistic side
+  (overestimating the number of rows). It goes as follows:
+
+    1. Pick the most-covering index (ie., the range scan that applies
+       the most number of predicates) that does not cover any predicates we've
+       already accounted for. If there are multiple ones, choose the least
+       selective.
+    2. Multiply in its selectivity, and mark all the predicates it covers
+       as accounted for. Repeat #1 and #2 for as long as possible.
+    3. For any remaining predicates, multiply by their existing estimate
+       (ie., the one not coming from the range optimizer).
+
+  The hope is that in #1, we will usually prefer using selectivity information
+  from indexes with more keyparts; e.g., it's better to use an index on (a,b)
+  than on (a) alone, since it will take into account the correlation between
+  predicates on a and predicates on b.
+
+
+  [Mar07]: Markl et al: “Consistent Selectivity Estimation Via Maximum Entropy”
+  [Hav20]: Havenstein et al: “Fast Entropy Maximization for Selectivity
+     Estimation of Conjunctive Predicates on CPUs and GPUs”
+ */
+double EstimateOutputRowsFromRangeTree(
+    THD *thd, const RANGE_OPT_PARAM &param, ha_rows total_rows,
+    const Mem_root_array<PossibleRangeScan> &possible_scans,
+    const JoinHypergraph &graph, OverflowBitset predicates, string *trace) {
+  MutableOverflowBitset remaining_predicates = predicates.Clone(thd->mem_root);
+  double selectivity = 1.0;
+  while (!IsEmpty(remaining_predicates)) {
+    const PossibleRangeScan *best_scan = nullptr;
+    int best_cover_size = 0;         // Just a cache, for convenience.
+    double best_selectivity = -1.0;  // Same.
+
+    for (const PossibleRangeScan &scan : possible_scans) {
+      if (IsEmpty(scan.applied_predicates) ||
+          !IsSubset(scan.applied_predicates, remaining_predicates)) {
+        continue;
+      }
+      int cover_size = PopulationCount(scan.applied_predicates);
+      // NOTE: The min() is because total_rows may be outdated,
+      // and we wouldn't want to have selectivities above 1.0.
+      double scan_selectivity =
+          min(scan.num_rows / static_cast<double>(total_rows), 1.0);
+      if (cover_size > best_cover_size ||
+          (cover_size == best_cover_size &&
+           scan_selectivity > best_selectivity)) {
+        best_scan = &scan;
+        best_cover_size = cover_size;
+        best_selectivity = scan_selectivity;
+      }
+    }
+
+    if (best_scan == nullptr) {
+      // Couldn't use any more range scans (possibly because all have
+      // been used).
+      break;
+    }
+
+    selectivity *= best_selectivity;
+
+    // Mark these predicates as being dealt with.
+    for (int predicate_idx : BitsSetIn(best_scan->applied_predicates)) {
+      remaining_predicates.ClearBit(predicate_idx);
+    }
+
+    if (trace != nullptr) {
+      const unsigned keynr = param.real_keynr[best_scan->idx];
+      KEY *key = &param.table->key_info[keynr];
+      *trace += StringPrintf(
+          " - using selectivity %.3f (%llu rows) from range scan on index %s "
+          "to cover ",
+          best_selectivity, best_scan->num_rows, key->name);
+      bool first = true;
+      for (int predicate_idx : BitsSetIn(best_scan->applied_predicates)) {
+        if (!first) {
+          *trace += " AND ";
+        }
+        first = false;
+        *trace +=
+            "(" + ItemToString(graph.predicates[predicate_idx].condition) + ")";
+      }
+      *trace += "\n";
+    }
+  }
+
+  // Cover any remaining predicates by single-predicate estimates.
+  for (int predicate_idx : BitsSetIn(std::move(remaining_predicates))) {
+    if (trace != nullptr) {
+      *trace += StringPrintf(
+          " - using existing selectivity %.3f from outside range scan "
+          "to cover %s\n",
+          graph.predicates[predicate_idx].selectivity,
+          ItemToString(graph.predicates[predicate_idx].condition).c_str());
+    }
+    selectivity *= graph.predicates[predicate_idx].selectivity;
+  }
+  return total_rows * selectivity;
+}
+
+bool CostingReceiver::FindIndexRangeScans(
+    int node_idx, bool *impossible, double *num_output_rows_after_filter) {
+  *impossible = false;
+  *num_output_rows_after_filter = -1.0;
+  TABLE *table = m_graph.nodes[node_idx].table;
+
+  RANGE_OPT_PARAM param;
+  if (setup_range_optimizer_param(
+          m_thd, m_thd->mem_root, &m_range_optimizer_mem_root,
+          table->keys_in_use_for_query, table, m_query_block, &param)) {
+    return true;
+  }
+  m_thd->push_internal_handler(&param.error_handler);
+  auto cleanup =
+      create_scope_guard([thd{m_thd}] { thd->pop_internal_handler(); });
+
+  // For each predicate touching this table only, try to include it into our
+  // tree of ranges if we can.
+  MutableOverflowBitset all_predicates{m_thd->mem_root,
+                                       m_graph.predicates.size()};
+  MutableOverflowBitset tree_applied_predicates{m_thd->mem_root,
+                                                m_graph.predicates.size()};
+  MutableOverflowBitset tree_subsumed_predicates{m_thd->mem_root,
+                                                 m_graph.predicates.size()};
+  const NodeMap my_map = TableBitmap(node_idx);
+  SEL_TREE *tree = nullptr;
+  for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
+    if (m_graph.predicates[i].total_eligibility_set != my_map) {
+      // Only base predicates are eligible for being pushed into range scans.
+      continue;
+    }
+    all_predicates.SetBit(i);
+
+    SEL_TREE *new_tree = get_mm_tree(
+        m_thd, &param, INNER_TABLE_BIT, INNER_TABLE_BIT,
+        table->pos_in_table_list->map(),
+        /*remove_jump_scans=*/true, m_graph.predicates[i].condition);
+    if (param.has_errors()) {
+      // Probably out of RAM; give up using the range optimizer.
+      return true;
+    }
+    if (new_tree == nullptr || new_tree->type == SEL_TREE::ALWAYS) {
+      // Nothing in this predicate could be used as range scans for any of
+      // the indexes on this table. Skip the predicate for our purposes;
+      // we'll be applying it as a normal one later.
+      continue;
+    }
+    tree_applied_predicates.SetBit(i);
+    if (new_tree->inexact) {
+      // The predicate was converted into a range scan, but there was some part
+      // of it that couldn't be completely represented. We need to note that
+      // it was converted (which we did by setting its bit in
+      // applied_range_predicates), so that we don't double-count its
+      // selectivity, but we also need to re-apply it as a filter afterwards,
+      // so we cannot set it in subsumed_range_predicates.
+      // Of course, we don't know the selectivity of the non-applied parts
+      // of the predicate, but it's OK to overcount rows (much better than to
+      // undercount them).
+    } else {
+      // The predicate was completely represented as a range scan for at least
+      // one index. This means we can mark it as subsumed for now, but note that
+      // if we end up choosing some index that doesn't include the field as a
+      // keypart, or one where (some of) its ranges have to be skipped, we could
+      // revert this decision. See SEL_TREE::inexact and get_ranges_from_tree().
+      tree_subsumed_predicates.SetBit(i);
+    }
+    if (tree == nullptr) {
+      tree = new_tree;
+    } else {
+      tree = tree_and(&param, tree, new_tree);
+      if (param.has_errors()) {
+        // Probably out of RAM; give up using the range optimizer.
+        return true;
+      }
+    }
+    if (tree->type == SEL_TREE::IMPOSSIBLE) {
+      *impossible = true;
+      return false;
+    }
+  }
+  if (tree == nullptr) {
+    // There were no range predicates on this table.
+    return false;
+  }
+  assert(tree->type == SEL_TREE::KEY);
+
+  Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
+  if (CollectPossibleRangeScans(
+          m_thd, tree, &param, std::move(tree_applied_predicates),
+          std::move(tree_subsumed_predicates), m_graph, &possible_scans)) {
+    return true;
+  }
+  *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
+      m_thd, param, table->file->stats.records, possible_scans, m_graph,
+      std::move(all_predicates), m_trace);
+  if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+    // We only wanted to use the index for estimation, and now we've done that.
+    return false;
+  }
+
+  for (PossibleRangeScan &scan : possible_scans) {
+    const uint keynr = param.real_keynr[scan.idx];
+    KEY *key = &param.table->key_info[keynr];
+
+    AccessPath path;
+    path.type = AccessPath::INDEX_RANGE_SCAN;
+    path.init_cost = 0.0;
+    path.cost = path.cost_before_filter = scan.cost;
+    path.num_output_rows_before_filter = scan.num_rows;
+    path.index_range_scan().index = keynr;
+    path.index_range_scan().num_used_key_parts = scan.used_key_parts;
+    path.index_range_scan().used_key_part = param.key[scan.idx];
+    path.index_range_scan().ranges = &scan.ranges[0];
+    path.index_range_scan().num_ranges = scan.ranges.size();
+    path.index_range_scan().mrr_flags = scan.mrr_flags;
+    path.index_range_scan().mrr_buf_size = scan.mrr_buf_size;
+    path.index_range_scan().can_be_used_for_ror =
+        tree->ror_scans_map.is_set(scan.idx);
+    path.index_range_scan().need_rows_in_rowid_order = false;
+    path.index_range_scan().can_be_used_for_imerge = scan.is_imerge_scan;
+    path.index_range_scan().reuse_handler = false;
+    path.index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
+
+    bool contains_subqueries = false;  // Filled on the first iteration below.
+
+    // First propose the unordered scan, optionally with sorting afterwards.
+    for (bool materialize_subqueries : {false, true}) {
+      AccessPath new_path = path;
+      FunctionalDependencySet new_fd_set;
+      ApplyPredicatesForBaseTable(
+          node_idx, scan.applied_predicates, scan.subsumed_predicates,
+          materialize_subqueries, &new_path, &new_fd_set);
+
+      // Override the number of estimated rows, so that all paths get the same.
+      new_path.num_output_rows = *num_output_rows_after_filter;
+
+      string description_for_trace = string(key->name) + " range";
+      ProposeAccessPathWithOrderings(
+          TableBitmap(node_idx), new_fd_set,
+          /*obsolete_orderings=*/0, &new_path,
+          materialize_subqueries ? "mat. subq" : description_for_trace.c_str());
+
+      if (!materialize_subqueries) {
+        contains_subqueries =
+            Overlaps(path.filter_predicates, m_graph.materializable_predicates);
+        if (!contains_subqueries) {
+          // Nothing to try to materialize.
+          break;
+        }
+      }
+    }
+
+    // Now the ordered scans, if they are interesting.
+    for (enum_order order_direction : {ORDER_ASC, ORDER_DESC}) {
+      const auto it =
+          find_if(m_active_indexes->begin(), m_active_indexes->end(),
+                  [table, keynr](const ActiveIndexInfo &info) {
+                    return info.table == table &&
+                           info.key_idx == static_cast<int>(keynr);
+                  });
+      assert(it != m_active_indexes->end());
+      const int ordering_idx = m_orderings->RemapOrderingIndex(
+          order_direction == ORDER_ASC ? it->forward_order : it->reverse_order);
+      if (ordering_idx == 0) {
+        // Not an interesting order.
+        continue;
+      }
+
+      // Rerun cost estimation, since sorting may have a cost.
+      const bool covering_index = param.table->covering_keys.is_set(keynr);
+      bool is_ror_scan, is_imerge_scan;
+      Cost_estimate cost;
+      ha_rows num_rows [[maybe_unused]] = check_quick_select(
+          m_thd, &param, scan.idx, covering_index, tree->keys[scan.idx],
+          /*update_tbl_stats=*/true, order_direction,
+          /*skip_records_in_range=*/false, &path.index_range_scan().mrr_flags,
+          &path.index_range_scan().mrr_buf_size, &cost, &is_ror_scan,
+          &is_imerge_scan);
+      // NOTE: num_rows may be different from scan.num_rows, if the statistics
+      // changed in the meantime. If so, we keep the old estimate, in order to
+      // get consistent values.
+      path.cost = path.cost_before_filter = cost.total_cost();
+      path.index_range_scan().can_be_used_for_imerge = is_imerge_scan;
+      path.ordering_state = m_orderings->SetOrder(ordering_idx);
+      path.index_range_scan().reverse = (order_direction == ORDER_DESC);
+
+      for (bool materialize_subqueries : {false, true}) {
+        AccessPath new_path = path;
+        FunctionalDependencySet new_fd_set;
+        ApplyPredicatesForBaseTable(
+            node_idx, scan.applied_predicates, scan.subsumed_predicates,
+            materialize_subqueries, &new_path, &new_fd_set);
+
+        // Override the number of estimated rows, so that all paths get the
+        // same.
+        new_path.num_output_rows = *num_output_rows_after_filter;
+
+        string description_for_trace = string(key->name) + " ordered range";
+        auto access_path_it = m_access_paths.find(TableBitmap(node_idx));
+        assert(access_path_it != m_access_paths.end());
+        ProposeAccessPath(&new_path, &access_path_it->second.paths,
+                          /*obsolete_orderings=*/0,
+                          materialize_subqueries
+                              ? "mat. subq"
+                              : description_for_trace.c_str());
+
+        if (!contains_subqueries) {
+          // Nothing to try to materialize.
+          break;
+        }
+      }
+    }
+  }
+
   return false;
 }
 
@@ -687,10 +1266,10 @@ bool ContainsSubqueries(Item *item_arg) {
   });
 }
 
-bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
-                                       unsigned key_idx, bool reverse,
-                                       table_map allowed_parameter_tables,
-                                       int ordering_idx) {
+bool CostingReceiver::ProposeRefAccess(
+    TABLE *table, int node_idx, unsigned key_idx,
+    double force_num_output_rows_after_filter, bool reverse,
+    table_map allowed_parameter_tables, int ordering_idx) {
   KEY *key = &table->key_info[key_idx];
 
   if (key->flags & HA_FULLTEXT) {
@@ -836,6 +1415,8 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
   }
 
   double num_output_rows = table->file->stats.records;
+  bool pushed_any_join_conditions = false;
+  bool pushed_any_nonjoin_conditions = false;
 
   MutableOverflowBitset applied_predicates{m_thd->mem_root,
                                            m_graph.predicates.size()};
@@ -846,6 +1427,13 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                                          keyparts, matched_keyparts);
     if (keypart_idx == -1) {
       continue;
+    }
+
+    if (IsSubset(m_graph.predicates[i].condition->used_tables(),
+                 table->pos_in_table_list->map())) {
+      pushed_any_nonjoin_conditions = true;
+    } else {
+      pushed_any_join_conditions = true;
     }
 
     if (m_graph.predicates[i].was_join_condition) {
@@ -935,14 +1523,18 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
-  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
-                            std::move(subsumed_predicates), key->name, &path);
+  ProposeAccessPathForIndex(
+      node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
+      force_num_output_rows_after_filter, pushed_any_join_conditions,
+      pushed_any_nonjoin_conditions, key->name, &path);
   return false;
 }
 
 void CostingReceiver::ProposeAccessPathForIndex(
     int node_idx, OverflowBitset applied_predicates,
-    OverflowBitset subsumed_predicates, const char *description_for_trace,
+    OverflowBitset subsumed_predicates,
+    double force_num_output_rows_after_filter, bool pushed_any_join_conditions,
+    bool pushed_any_nonjoin_conditions, const char *description_for_trace,
     AccessPath *path) {
   MutableOverflowBitset applied_sargable_join_predicates_tmp =
       applied_predicates.Clone(m_thd->mem_root);
@@ -962,6 +1554,36 @@ void CostingReceiver::ProposeAccessPathForIndex(
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
                                 path, &new_fd_set);
+
+    if (force_num_output_rows_after_filter >= 0.0) {
+      // The range optimizer has given us an estimate for the number of
+      // rows after all filters have been applied, that we should be
+      // consistent with. However, that is only filters; not join conditions.
+      // Ideally, we should have had a new estimate (using maximum entropy;
+      // see EstimateOutputRowsFromRangeTree()) that includes the
+      // join conditions we have pushed down to the index. But we don't
+      // have that at the moment, and there are edge cases that can be
+      // tricky. We deal with the two simple cases, and simply leave the
+      // complicated one alone, hoping that the cost discrepancy will
+      // favor the ref access case anyway.
+      if (!pushed_any_join_conditions && pushed_any_nonjoin_conditions) {
+        // Completely regular; the fact that we pushed some of them down
+        // into an index changed nothing.
+        path->num_output_rows = force_num_output_rows_after_filter;
+      } else if (pushed_any_join_conditions && !pushed_any_nonjoin_conditions) {
+        // The join conditions we apply are completely independent of the
+        // filters, so we make our usual independence assumption.
+        const double selectivity =
+            force_num_output_rows_after_filter /
+            m_graph.nodes[node_idx].table->file->stats.records;
+        path->num_output_rows =
+            path->num_output_rows_before_filter * selectivity;
+      } else {
+        // Either we pushed no filters at all, or we have a complicated
+        // situation that we're just leaving alone.
+      }
+    }
+
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     path->applied_sargable_join_predicates() = OverflowBitset::Or(
@@ -981,8 +1603,9 @@ void CostingReceiver::ProposeAccessPathForIndex(
   }
 }
 
-bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
-                                       bool is_recursive_reference) {
+bool CostingReceiver::ProposeTableScan(
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
+    bool is_recursive_reference) {
   AccessPath path;
   if (is_recursive_reference) {
     path.type = AccessPath::FOLLOW_TAIL;
@@ -1014,17 +1637,6 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
   path.cost_before_filter = path.cost = cost;
-
-  if (m_trace != nullptr) {
-    *m_trace +=
-        StringPrintf("\nFound node %s [rows=%.0f]\n",
-                     m_graph.nodes[node_idx].table->alias, num_output_rows);
-    for (int pred_idx : BitsSetIn(path.filter_predicates)) {
-      *m_trace += StringPrintf(
-          " - applied predicate %s\n",
-          ItemToString(m_graph.predicates[pred_idx].condition).c_str());
-    }
-  }
 
   // See if this is an information schema table that must be filled in before
   // we scan.
@@ -1121,14 +1733,14 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   }
   assert(path.cost >= 0.0);
 
-  ProposeAccessPathForBaseTable(node_idx,
+  ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
                                 /*description_for_trace=*/"", &path);
   return false;
 }
 
-bool CostingReceiver::ProposeIndexScan(TABLE *table, int node_idx,
-                                       unsigned key_idx, bool reverse,
-                                       int ordering_idx) {
+bool CostingReceiver::ProposeIndexScan(
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
+    unsigned key_idx, bool reverse, int ordering_idx) {
   AccessPath path;
   path.type = AccessPath::INDEX_SCAN;
   path.index_scan().table = table;
@@ -1170,7 +1782,8 @@ bool CostingReceiver::ProposeIndexScan(TABLE *table, int node_idx,
   path.init_cost = path.init_once_cost = 0.0;
   path.cost_before_filter = path.cost = cost;
 
-  ProposeAccessPathForBaseTable(node_idx, table->key_info[key_idx].name, &path);
+  ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
+                                table->key_info[key_idx].name, &path);
   return false;
 }
 
@@ -1427,14 +2040,19 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
 
+  // TODO(sgunders): See if we should reuse the range optimizer estimate here.
   ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
                             std::move(subsumed_predicates),
+                            /*force_num_output_rows_after_filter=*/-1.0,
+                            /*pushed_any_join_conditions=*/false,
+                            /*pushed_any_nonjoin_conditions=*/false,
                             table->key_info[key_idx].name, path);
   return false;
 }
 
 void CostingReceiver::ProposeAccessPathForBaseTable(
-    int node_idx, const char *description_for_trace, AccessPath *path) {
+    int node_idx, double force_num_output_rows_after_filter,
+    const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(
@@ -1446,6 +2064,9 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
         materialize_subqueries, path, &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
+    if (force_num_output_rows_after_filter >= 0.0) {
+      path->num_output_rows = force_num_output_rows_after_filter;
+    }
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set, /*obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);

@@ -957,10 +957,11 @@ AccessPath *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
       /* Prepare for a IndexRangeScanIterator to be used for group prefix
        * retrieval.
        */
-      unsigned used_key_parts_unused;
+      unsigned used_key_parts_unused, num_exact_key_parts_unused;
       if (get_ranges_from_tree(return_mem_root, table, used_key_part, keyno,
                                index_tree, group_key_parts,
-                               &used_key_parts_unused, &prefix_ranges)) {
+                               &used_key_parts_unused,
+                               &num_exact_key_parts_unused, &prefix_ranges)) {
         return nullptr;
       }
       // Opens the ranges if there are more conditions in
