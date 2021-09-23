@@ -1995,3 +1995,20 @@ SELECT
   WHERE NOT EXISTS (SELECT 9) OR empty_subq.a = t2.a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33383388: ASSERT: `!IsBitSet(it->second, left_path->applied_sargable_join_predicates())'
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER, KEY (b) );
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1;
+
+SELECT 1
+FROM
+  t1
+  JOIN (t1 AS t2 LEFT JOIN t1 AS t3 ON t2.b = t3.b) ON (t2.b = t3.b OR t1.a = 125)
+WHERE
+  t1.a = 143;
+
+DROP TABLE t1;

@@ -2013,13 +2013,14 @@ pair<bool, bool> CostingReceiver::AlreadyAppliedAsSargable(
     return {false, false};
   }
 
-  // Join predicates cannot have been applied as a ref access on the outer side;
-  // that would never make any sense.
-  assert(!IsBitSet(it->second, left_path->applied_sargable_join_predicates()));
-
+  // NOTE: It is rare that join predicates already have been applied as
+  // ref access on the outer side, but not impossible if conditions are
+  // duplicated; see e.g. bug #33383388.
   const bool applied =
+      IsBitSet(it->second, left_path->applied_sargable_join_predicates()) ||
       IsBitSet(it->second, right_path->applied_sargable_join_predicates());
   const bool subsumed =
+      IsBitSet(it->second, left_path->subsumed_sargable_join_predicates()) ||
       IsBitSet(it->second, right_path->subsumed_sargable_join_predicates());
   if (subsumed) {
     assert(applied);
