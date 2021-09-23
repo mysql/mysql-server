@@ -24,8 +24,10 @@
 #define SQL_DELETE_INCLUDED
 
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
 
+class JOIN;
 class Select_lex_visitor;
 class THD;
 struct TABLE_LIST;
@@ -64,5 +66,11 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
   */
   SQL_I_List<TABLE_LIST> *delete_tables;
 };
+
+/// Find out which of the delete target tables can be deleted from immediately
+/// while scanning. This is used by the old optimizer *after* the plan has been
+/// created. The hypergraph optimizer does not use this function, as it makes
+/// the decision about immediate delete *during* planning, not after planning.
+table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables);
 
 #endif /* SQL_DELETE_INCLUDED */

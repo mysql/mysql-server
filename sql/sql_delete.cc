@@ -963,24 +963,9 @@ bool Query_result_delete::optimize() {
   JOIN *const join = select->join;
   THD *thd = join->thd;
 
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
     return true;
-
-  bool delete_while_scanning = true;
-  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
-    if (!tr->is_deleted()) continue;
-    if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
-      /*
-        If the table being deleted from is also referenced in the query,
-        defer delete so that the delete doesn't interfer with reading of this
-        table.
-      */
-      delete_while_scanning = false;
-    }
-  }
 
   for (TABLE_LIST *tr = select->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
@@ -1006,20 +991,8 @@ bool Query_result_delete::optimize() {
     table->mark_columns_needed_for_delete(thd);
     if (thd->is_error()) return true;
   }
-  /*
-    In some cases, rows may be deleted from the first table(s) in the join order
-    while performing the join operation when "delete_while_scanning" is true and
-      1. deleting from one of the const tables, or
-      2. deleting from the first non-const table
-  */
-  table_map possible_tables = join->const_table_map;  // 1
-  if (join->primary_tables > join->const_tables)
-    possible_tables |=
-        join->best_ref[join->const_tables]->table_ref->map();  // 2
-  if (delete_while_scanning)
-    delete_immediate = delete_table_map & possible_tables;
-  else
-    delete_immediate = 0;
+
+  delete_immediate = GetImmediateDeleteTables(join, delete_table_map);
 
   // Set up a Unique object for each table whose delete operation is deferred:
 
@@ -1346,4 +1319,39 @@ bool Query_result_delete::immediate_update(TABLE_LIST *t) const {
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {
   return thd->lex->unit->accept(visitor);
+}
+
+table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
+  // The hypergraph optimizer determines the immediate delete tables during
+  // planning, not after planning.
+  assert(!join->thd->lex->using_hypergraph_optimizer);
+
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
+
+  for (TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
+       tr = tr->next_leaf) {
+    if (!tr->is_deleted()) continue;
+
+    if (unique_table(tr, join->tables_list, false) != nullptr) {
+      /*
+        If the table being deleted from is also referenced in the query,
+        defer delete so that the delete doesn't interfer with reading of this
+        table.
+      */
+      return 0;
+    }
+  }
+
+  /*
+    In some cases, rows may be deleted from the first table(s) in the join order
+    while performing the join operation when "delete_while_scanning" is true and
+      1. deleting from one of the const tables, or
+      2. deleting from the first non-const table
+  */
+  table_map candidate_tables = join->const_table_map;  // 1
+  if (join->primary_tables > join->const_tables)
+    candidate_tables |=
+        join->best_ref[join->const_tables]->table_ref->map();  // 2
+
+  return delete_tables & candidate_tables;
 }
