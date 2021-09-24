@@ -1637,7 +1637,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
   // There shouldn't be EQ_REF, since we only have a partial match.
   ASSERT_EQ(AccessPath::REF, root->type);
   EXPECT_EQ(0, root->ref().ref->key);
-  EXPECT_EQ(8, root->ref().ref->key_length);
+  EXPECT_EQ(5, root->ref().ref->key_length);
   EXPECT_EQ(1, root->ref().ref->key_parts);
   EXPECT_FLOAT_EQ(10.0, root->num_output_rows);
 }
@@ -1676,7 +1676,7 @@ TEST_F(HypergraphOptimizerTest, MultiPartPredicatePushdownToRef) {
   // Both should be pushed, and we should now use the unique index.
   ASSERT_EQ(AccessPath::EQ_REF, root->type);
   EXPECT_EQ(0, root->eq_ref().ref->key);
-  EXPECT_EQ(16, root->eq_ref().ref->key_length);
+  EXPECT_EQ(10, root->eq_ref().ref->key_length);
   EXPECT_EQ(2, root->eq_ref().ref->key_parts);
 }
 

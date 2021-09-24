@@ -270,12 +270,12 @@ class Fake_TABLE : public TABLE {
     key->table = this;
     key->flags = key->actual_flags = key_flags;
     key->actual_key_parts = key->user_defined_key_parts = 1;
-    key->key_part[0].field = column1;
-    key->key_part[0].store_length = 8;
+    key->key_part[0].init_from_field(column1);
+    ++s->key_parts;
     if (column2 != nullptr) {
       key->actual_key_parts = key->user_defined_key_parts = 2;
-      key->key_part[1].field = column2;
-      key->key_part[1].store_length = 8;
+      key->key_part[1].init_from_field(column2);
+      ++s->key_parts;
     }
     key->name = "unittest_index";
 
