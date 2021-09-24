@@ -593,7 +593,9 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
   dict_index_t *index = table->first_index();
   if (!dict_table_is_sdi(table->id) && fil_space_get(index->space) == nullptr) {
 #ifndef UNIV_HOTBACKUP
-    my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
+    if (!dict_table_is_discarded(table)) {
+      my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
+    }
 #else  /* !UNIV_HOTBACKUP */
     ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_170)
         << "table space is missing: " << table->name.m_name;
@@ -832,13 +834,10 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
     }
 
-    /* Set new table id for dd columns when it's importing
-    tablespace. */
-    if (!discard) {
-      for (auto dd_column : *table_def->columns()) {
-        dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
-                                         table->id);
-      }
+    /* Set new table id for dd columns */
+    for (auto dd_column : *table_def->columns()) {
+      dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                       table->id);
     }
 
     /* Set 'discard' attribute in dd::Table::se_private_data. */
