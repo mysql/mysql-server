@@ -468,8 +468,7 @@ bool plugin_get_group_members(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks) {
   char *channel_name = applier_module_channel_name;
 
-  return get_group_members_info(index, callbacks, group_member_mgr, gcs_module,
-                                channel_name);
+  return get_group_members_info(index, callbacks, channel_name);
 }
 
 /*
@@ -493,8 +492,7 @@ bool plugin_get_group_member_stats(
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks) {
   char *channel_name = applier_module_channel_name;
 
-  return get_group_member_stats(index, callbacks, group_member_mgr,
-                                applier_module, gcs_module, channel_name);
+  return get_group_member_stats(index, callbacks, channel_name);
 }
 
 int plugin_group_replication_start(char **error_message) {
