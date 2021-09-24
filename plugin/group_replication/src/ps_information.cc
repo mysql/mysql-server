@@ -31,8 +31,7 @@ using std::string;
 
 bool get_group_members_info(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks,
-    Group_member_info_manager_interface *group_member_manager,
-    Gcs_operations *gcs_module, char *channel_name) {
+    char *channel_name) {
   if (channel_name != nullptr) {
     callbacks.set_channel_name(callbacks.context, *channel_name,
                                strlen(channel_name));
@@ -42,7 +41,7 @@ bool get_group_members_info(
    This case means that the plugin has never been initialized...
    and one would not be able to extract information
    */
-  if (group_member_manager == nullptr) {
+  if (group_member_mgr == nullptr) {
     const char *member_state = Group_member_info::get_member_status_string(
         Group_member_info::MEMBER_OFFLINE);
     callbacks.set_member_state(callbacks.context, *member_state,
@@ -50,7 +49,7 @@ bool get_group_members_info(
     return false;
   }
 
-  size_t number_of_members = group_member_manager->get_number_of_members();
+  size_t number_of_members = group_member_mgr->get_number_of_members();
   if (index >= number_of_members) {
     /* purecov: begin inspected */
     if (index != 0) {
@@ -69,10 +68,10 @@ bool get_group_members_info(
   if (local_member_info != nullptr &&
       local_member_info->get_recovery_status() ==
           Group_member_info::MEMBER_OFFLINE) {
-    member_info = group_member_manager->get_group_member_info(
-        local_member_info->get_uuid());
+    member_info =
+        group_member_mgr->get_group_member_info(local_member_info->get_uuid());
   } else {
-    member_info = group_member_manager->get_group_member_info_by_index(index);
+    member_info = group_member_mgr->get_group_member_info_by_index(index);
   }
 
   if (member_info == nullptr)  // The requested member is not managed...
@@ -139,8 +138,6 @@ bool get_group_members_info(
 
 bool get_group_member_stats(
     uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks,
-    Group_member_info_manager_interface *group_member_manager,
-    Applier_module *applier_module, Gcs_operations *gcs_module,
     char *channel_name) {
   if (channel_name != nullptr) {
     callbacks.set_channel_name(callbacks.context, *channel_name,
@@ -151,7 +148,7 @@ bool get_group_member_stats(
    This case means that the plugin has never been initialized...
    and one would not be able to extract information
    */
-  if (group_member_manager == nullptr) {
+  if (group_member_mgr == nullptr) {
     return false;
   }
 
@@ -164,10 +161,10 @@ bool get_group_member_stats(
   if (local_member_info != nullptr &&
       local_member_info->get_recovery_status() ==
           Group_member_info::MEMBER_OFFLINE) {
-    member_info = group_member_manager->get_group_member_info(
-        local_member_info->get_uuid());
+    member_info =
+        group_member_mgr->get_group_member_info(local_member_info->get_uuid());
   } else {
-    member_info = group_member_manager->get_group_member_info_by_index(index);
+    member_info = group_member_mgr->get_group_member_info_by_index(index);
   }
 
   if (member_info == nullptr)  // The requested member is not managed...
