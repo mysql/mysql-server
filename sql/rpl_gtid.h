@@ -3083,12 +3083,15 @@ class Gtid_state {
     @param sidno Sidno to wait for.
     @param[in] abstime The absolute point in time when the wait times
     out and stops, or NULL to wait indefinitely.
+    @param[in] update_thd_status when true updates the stage info with
+    the new wait condition, when false keeps the current stage info.
 
     @retval false Success.
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
   */
-  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime);
+  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime,
+                      bool update_thd_status = true);
   /**
     This is only a shorthand for wait_for_sidno, which contains
     additional debug printouts and assertions for the case when the
@@ -3103,12 +3106,15 @@ class Gtid_state {
     @param gtid_set Gtid_set to wait for.
     @param[in] timeout The maximum number of milliseconds that the
     function should wait, or 0 to wait indefinitely.
+    @param[in] update_thd_status when true updates the stage info with
+    the new wait condition, when false keeps the current stage info.
 
     @retval false Success.
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
    */
-  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout);
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout,
+                         bool update_thd_status = true);
 #endif  // ifdef MYSQL_SERVER
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at

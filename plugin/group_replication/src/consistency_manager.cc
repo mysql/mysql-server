@@ -666,10 +666,22 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     /* purecov: end */
   }
 
-  DBUG_PRINT("info", ("waiting for channel_wait_until_apply_queue_applied()"));
+  std::string applier_retrieved_gtids;
+  Replication_thread_api applier_channel("group_replication_applier");
+  if (applier_channel.get_retrieved_gtid_set(applier_retrieved_gtids)) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_SET_EXTRACT_ERROR);
+    return ER_GRP_TRX_CONSISTENCY_BEFORE;
+  }
 
-  if (channel_wait_until_apply_queue_applied("group_replication_applier",
-                                             timeout) < 0) {
+  DBUG_PRINT("info", ("waiting for wait_for_gtid_set_committed()"));
+
+  /*
+    We want to keep the current thd stage info of
+    "Executing hook on transaction begin.", thence we disable
+    `update_thd_status`.
+  */
+  if (wait_for_gtid_set_committed(applier_retrieved_gtids.c_str(), timeout,
+                                  false /* update_thd_status */)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED,
                  thread_id);

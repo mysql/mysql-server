@@ -551,6 +551,40 @@ bool is_gtid_committed(const Gtid &gtid) {
   return result;
 }
 
+bool wait_for_gtid_set_committed(const char *gtid_set_text, double timeout,
+                                 bool update_thd_status) {
+  THD *thd = current_thd;
+  assert(!thd->slave_thread);
+  Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
+
+  global_sid_lock->rdlock();
+
+  if (wait_for_gtid_set.add_gtid_text(gtid_set_text) != RETURN_STATUS_OK) {
+    global_sid_lock->unlock();
+    return true;
+  }
+
+  /*
+    If the current session owns a GTID that is part of the waiting
+    set then that GTID will not reach GTID_EXECUTED while the session
+    is waiting.
+  */
+  if (thd->owned_gtid.sidno > 0 &&
+      wait_for_gtid_set.contains_gtid(thd->owned_gtid)) {
+    global_sid_lock->unlock();
+    return true;
+  }
+
+  gtid_state->begin_gtid_wait();
+  bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout,
+                                              update_thd_status);
+  gtid_state->end_gtid_wait();
+
+  global_sid_lock->unlock();
+
+  return result;
+}
+
 unsigned long get_replica_max_allowed_packet() {
   return replica_max_allowed_packet;
 }
