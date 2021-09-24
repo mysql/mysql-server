@@ -528,6 +528,10 @@ ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 
+# Also, with printing of a reverse-scan iterator.
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
+
 #
 # EXPLAIN ANALYZE on an IndexMergeIterator. Also demonstrates printing of
 # scanning over clustered primary keys. (The filter is redundant.)

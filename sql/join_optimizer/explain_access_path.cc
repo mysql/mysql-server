@@ -623,6 +623,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
                    table->alias + " using " + key_info->name + " over ";
       ret += PrintRanges(param.ranges, param.num_ranges, key_info->key_part,
                          /*single_part_only=*/false);
+      if (path->index_range_scan().reverse) {
+        ret += " (reverse)";
+      }
       if (table->file->pushed_idx_cond != nullptr) {
         ret += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
