@@ -190,8 +190,12 @@
   performance_schema tables changed in MySQL 8.0.28
   - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
     added CPU_TIME, SUM_CPU_TIME columns.
+
+  80029:
+  - Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
+    Use 'utf8mb3' rather than 'utf8' alias for for character set names.
 */
 
-static const uint PFS_DD_VERSION = 80028;
+static const uint PFS_DD_VERSION = 80029;
 
 #endif /* PFS_DD_VERSION_H */

@@ -131,7 +131,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT schema_name, default_character_set_name
 FROM information_schema.schemata WHERE schema_name = 'db_datadict';
 SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME
-db_datadict	utf8
+db_datadict	utf8mb3
 ALTER SCHEMA db_datadict CHARACTER SET 'latin1';
 SELECT schema_name, default_collation_name FROM information_schema.schemata
 WHERE schema_name = 'db_datadict';

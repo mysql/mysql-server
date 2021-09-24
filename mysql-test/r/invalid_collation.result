@@ -14,7 +14,7 @@ character_sets_dir	MYSQL_TEST_DIR/std_data/
 # Show new collation available in the new character sets dir:
 SHOW COLLATION LIKE 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
-utf8_phone_ci	utf8	352			8	PAD SPACE
+utf8_phone_ci	utf8mb3	352			8	PAD SPACE
 #
 # Create two tables using the new collation:
 CREATE TABLE t1 (i INTEGER, a VARCHAR(10) COLLATE utf8_phone_ci) COLLATE utf8_phone_ci;

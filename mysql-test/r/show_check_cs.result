@@ -705,12 +705,11 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 ----------------------------------------------------------------
 SHOW CHARACTER SET LIKE 'utf8';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	4	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	13	N	4097	0	33
-def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	15	N	20485	0	33
-def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	1	N	36897	0	63
+def	information_schema	cs	CHARACTER_SETS	Charset	Charset	253	192	0	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Description	Description	253	6144	0	N	4097	0	33
+def	information_schema	col	CHARACTER_SETS	Default collation	Default collation	253	192	0	N	20485	0	33
+def	information_schema	cs	CHARACTER_SETS	Maxlen	Maxlen	3	10	0	N	36897	0	63
 Charset	Description	Default collation	Maxlen
-utf8	UTF-8 Unicode	utf8_general_ci	3
 ----------------------------------------------------------------
 SHOW COLLATION LIKE 'latin1_bin';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr

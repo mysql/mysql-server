@@ -314,7 +314,7 @@ character_octet_length, character_set_name
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 TABLE_NAME	COLUMN_NAME	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME
-t1_my_tablex	first_col	10	30	utf8
+t1_my_tablex	first_col	10	30	utf8mb3
 SELECT table_name, column_name, column_comment
 FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';

@@ -132,7 +132,7 @@ bool Character_sets::populate(THD *thd) const {
 
       // The character set is stored on the same id as its primary collation
       new_charset->set_id(cs->number);
-      new_charset->set_name(cs->csname);
+      new_charset->set_name(replace_utf8_utf8mb3(cs->csname));
       new_charset->set_default_collation_id(cs->number);
       new_charset->set_mb_max_length(cs->mbmaxlen);
       new_charset->set_comment(cs->comment ? cs->comment : "");
