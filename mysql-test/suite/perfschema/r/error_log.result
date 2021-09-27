@@ -135,8 +135,6 @@ Note	MY-011332	Server
 Note	MY-012487	InnoDB
 Note	MY-012488	InnoDB
 Note	MY-010303	Server
-Warning	MY-013746	Server
-Warning	MY-013746	Server
 Warning	MY-010068	Server
 Note	MY-010310	Server
 Note	MY-010310	Server
@@ -159,8 +157,6 @@ ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.
 System	MY-013577	InnoDB	InnoDB initialization has ended.
-Warning	MY-013746	Server	A deprecated TLS version TLSv1 is enabled for channel mysql_main
-Warning	MY-013746	Server	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main
 
 # FR-1.4.1 Show the log-error-verbosity applies
 # We passed --log-error-verbosity=3 at start-up. Show that we have Notes.

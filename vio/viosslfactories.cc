@@ -546,19 +546,17 @@ long process_tls_version(const char *tls_version) {
   char *token, *lasts = nullptr;
 
 #ifdef HAVE_TLSv13
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
-                                         "TLSv1.3"};
-  const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
-  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
-                               SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
+  const char *tls_version_name_list[] = {"TLSv1.2", "TLSv1.3"};
+  const char ctx_flag_default[] = "TLSv1.2,TLSv1.3";
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
-                      SSL_OP_NO_TLSv1_3;
+                      SSL_OP_NO_TLSv1_3 | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #else
-  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
-  const char ctx_flag_default[] = "TLSv1,TLSv1.1,TLSv1.2";
-  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1,
-                               SSL_OP_NO_TLSv1_2};
-  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+  const char *tls_version_name_list[] = {"TLSv1.2"};
+  const char ctx_flag_default[] = "TLSv1.2";
+  const long tls_ctx_list[] = {SSL_OP_NO_TLSv1_2};
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 #endif /* HAVE_TLSv13 */
   const unsigned int tls_versions_count = array_elements(tls_version_name_list);
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
@@ -598,7 +596,8 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const long ssl_ctx_flags, const char *server_host [[maybe_unused]]) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
-  long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  long ssl_ctx_options =
+      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   int ret_set_cipherlist = 0;
   std::string cipher_list;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
