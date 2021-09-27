@@ -75,6 +75,7 @@ Plugin_table table_esms_by_thread_by_event_name::m_table_def(
     "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
     "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
     "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_CPU_TIME BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",

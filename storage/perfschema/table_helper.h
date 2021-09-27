@@ -876,6 +876,11 @@ struct PFS_statement_stat_row {
   ulonglong m_sort_scan;
   ulonglong m_no_index_used;
   ulonglong m_no_good_index_used;
+  /**
+    CPU TIME.
+    Expressed in DISPLAY units (picoseconds).
+  */
+  ulonglong m_cpu_time;
 
   /** Build a row from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_statement_stat *stat) {
@@ -901,6 +906,7 @@ struct PFS_statement_stat_row {
       m_sort_scan = stat->m_sort_scan;
       m_no_index_used = stat->m_no_index_used;
       m_no_good_index_used = stat->m_no_good_index_used;
+      m_cpu_time = stat->m_cpu_time * NANOSEC_TO_PICOSEC;
     } else {
       m_timer1_row.reset();
 
@@ -923,6 +929,7 @@ struct PFS_statement_stat_row {
       m_sort_scan = 0;
       m_no_index_used = 0;
       m_no_good_index_used = 0;
+      m_cpu_time = 0;
     }
   }
 

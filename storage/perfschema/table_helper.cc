@@ -1034,6 +1034,9 @@ void PFS_statement_stat_row::set_field(uint index, Field *f) {
     case 23: /* SUM_NO_GOOD_INDEX_USED */
       set_field_ulonglong(f, m_no_good_index_used);
       break;
+    case 24: /* SUM_CPU_TIME */
+      set_field_ulonglong(f, m_cpu_time);
+      break;
     default:
       assert(false);
       break;

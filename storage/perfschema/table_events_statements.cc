@@ -93,6 +93,7 @@ Plugin_table table_events_statements_current::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -164,6 +165,7 @@ Plugin_table table_events_statements_history::m_table_def(
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
     "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -234,7 +236,8 @@ Plugin_table table_events_statements_history_long::m_table_def(
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
-    "  STATEMENT_ID BIGINT unsigned\n",
+    "  STATEMENT_ID BIGINT unsigned,\n"
+    "  CPU_TIME BIGINT unsigned not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -364,6 +367,7 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_sort_scan = statement->m_sort_scan;
   m_row.m_no_index_used = statement->m_no_index_used;
   m_row.m_no_good_index_used = statement->m_no_good_index_used;
+  m_row.m_cpu_time = statement->m_cpu_time * NANOSEC_TO_PICOSEC;
 
   /* Copy the digest storage. */
   digest->copy(&statement->m_digest_storage);
@@ -626,6 +630,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
           } else {
             f->set_null();
           }
+          break;
+        case 42: /* CPU_TIME */
+          set_field_ulonglong(f, m_row.m_cpu_time);
           break;
         default:
           assert(false);

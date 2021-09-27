@@ -161,6 +161,8 @@ struct row_events_statements {
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
+  /** Column CPU_TIME. */
+  ulonglong m_cpu_time;
 
   /** Column STATEMENT_ID. */
   ulonglong m_statement_id;

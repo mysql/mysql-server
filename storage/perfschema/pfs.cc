@@ -5990,6 +5990,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
       pfs->m_sort_scan = 0;
       pfs->m_no_index_used = 0;
       pfs->m_no_good_index_used = 0;
+      pfs->m_cpu_time = 0;
       pfs->m_digest_storage.reset();
 
       /* New stages will have this statement as parent */
@@ -6085,6 +6086,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
   state->m_sort_scan = 0;
   state->m_no_index_used = 0;
   state->m_no_good_index_used = 0;
+  state->m_cpu_time_start = 0;
 
   state->m_digest = nullptr;
   state->m_cs_number = static_cast<const CHARSET_INFO *>(charset)->number;
@@ -6156,10 +6158,13 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
 
   uint flags = state->m_flags;
   ulonglong timer_start = 0;
+  ulonglong cpu_time_start = 0;
 
   if (flags & STATE_FLAG_TIMED) {
     timer_start = get_statement_timer();
+    cpu_time_start = get_thread_cpu_timer();
     state->m_timer_start = timer_start;
+    state->m_cpu_time_start = cpu_time_start;
   }
 
   static_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN, "");
@@ -6371,12 +6376,16 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       reinterpret_cast<PFS_statement_class *>(state->m_class);
   assert(klass != nullptr);
 
+  ulonglong cpu_time_end;
   ulonglong timer_end = 0;
+  ulonglong cpu_time = 0;
   ulonglong wait_time = 0;
   uint flags = state->m_flags;
 
   if (flags & STATE_FLAG_TIMED) {
+    cpu_time_end = get_thread_cpu_timer();
     timer_end = get_statement_timer();
+    cpu_time = cpu_time_end - state->m_cpu_time_start;
     wait_time = timer_end - state->m_timer_start;
   }
 
@@ -6444,6 +6453,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       }
 
       pfs->m_timer_end = timer_end;
+      pfs->m_cpu_time = cpu_time;
       pfs->m_end_event_id = thread->m_event_id;
 
       pfs_program = reinterpret_cast<PFS_program *>(state->m_parent_sp_share);
@@ -6488,6 +6498,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   if (flags & STATE_FLAG_TIMED) {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
     stat->aggregate_value(wait_time);
+    stat->m_cpu_time += cpu_time;
   } else {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (counted) */
     stat->aggregate_counted();
@@ -6515,6 +6526,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
 
     if (flags & STATE_FLAG_TIMED) {
       digest_stat->m_stat.aggregate_value(wait_time);
+      digest_stat->m_stat.m_cpu_time += cpu_time;
 
       /* Update the digest sample if it's a new maximum. */
       if (wait_time > digest_stat->get_sample_timer_wait()) {
@@ -6605,6 +6617,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     if (sub_stmt_stat != nullptr) {
       if (flags & STATE_FLAG_TIMED) {
         sub_stmt_stat->aggregate_value(wait_time);
+        sub_stmt_stat->m_cpu_time += cpu_time;
       } else {
         sub_stmt_stat->aggregate_counted();
       }
@@ -6647,6 +6660,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       if (prepared_stmt_stat != nullptr) {
         if (flags & STATE_FLAG_TIMED) {
           prepared_stmt_stat->aggregate_value(wait_time);
+          prepared_stmt_stat->m_cpu_time += cpu_time;
         } else {
           prepared_stmt_stat->aggregate_counted();
         }

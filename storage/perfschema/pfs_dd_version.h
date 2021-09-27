@@ -185,8 +185,13 @@
   - BUG#104643 Defaults in performance schema tables incompatible with sql_mode
     fixed TIMESTAMP columns (removed default 0)
     fixed DOUBLE columns (removed sign)
+
+  80028:
+  performance_schema tables changed in MySQL 8.0.28
+  - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
+    added CPU_TIME, SUM_CPU_TIME columns.
 */
 
-static const uint PFS_DD_VERSION = 80027;
+static const uint PFS_DD_VERSION = 80028;
 
 #endif /* PFS_DD_VERSION_H */

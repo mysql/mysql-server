@@ -8,7 +8,7 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-4
+5
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
