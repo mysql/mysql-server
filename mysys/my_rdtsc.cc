@@ -327,8 +327,8 @@ ulonglong my_timer_thread_cpu(void) {
       /*
         GetThreadTimes() return a number expressed in 100 nanosecs units.
       */
-      result = ((user.dwHighDateTime + system.dwHighDateTime)
-                << 32 + (user.dwLowDateTime + system.dwLowDateTime)) *
+      result = (((user.dwHighDateTime + system.dwHighDateTime) << 32) +
+                (user.dwLowDateTime + system.dwLowDateTime)) *
                100;
     } else {
       result = 0;
