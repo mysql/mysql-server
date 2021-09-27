@@ -78,7 +78,8 @@
 #include "libbinlogevents/include/debug_vars.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_bitmap.h"  // MY_BITMAP
+#include "mutex_lock.h"  // MUTEX_LOCK
+#include "my_bitmap.h"   // MY_BITMAP
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
@@ -6638,14 +6639,18 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
   /// @todo: consider to propagate an error out of the function
   if (thd->killed == THD::NOT_KILLED) (void)mta_checkpoint_routine(rli, false);
 
-  while (!rli->workers.empty()) {
-    Slave_worker *w = rli->workers.back();
-    // Free the current submode object
-    delete w->current_mts_submode;
-    w->current_mts_submode = nullptr;
-    rli->workers.pop_back();
-    delete w;
+  {
+    MUTEX_LOCK(lock, &rli->data_lock);
+    while (!rli->workers.empty()) {
+      Slave_worker *w = rli->workers.back();
+      // Free the current submode object
+      delete w->current_mts_submode;
+      w->current_mts_submode = nullptr;
+      rli->workers.pop_back();
+      delete w;
+    }
   }
+
   struct timespec stats_end;
   set_timespec_nsec(&stats_end, 0);
 

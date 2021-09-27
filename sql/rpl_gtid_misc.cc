@@ -276,7 +276,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            uint *gtid_length_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
-                                           ulonglong *start_time_arg) {
+                                           ulonglong *start_time_arg) const {
   assert(sid_map);
   assert(gtid_arg);
   assert(gtid_length_arg);
@@ -315,7 +315,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg,
-                                           ulonglong *end_time_arg) {
+                                           ulonglong *end_time_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
@@ -328,7 +328,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
     ulonglong *start_time_arg, uint *last_transient_errno_arg,
     char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(last_transient_errno_arg);
   assert(last_transient_errmsg_arg);
   assert(last_transient_errmsg_length_arg);
@@ -358,7 +358,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *start_time_arg, ulonglong *end_time_arg,
     uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
     uint *last_transient_errmsg_length_arg,
-    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(end_time_arg);
 
   *end_time_arg = is_info_set ? end_time / 10 : 0;
