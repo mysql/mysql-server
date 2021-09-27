@@ -1037,7 +1037,6 @@ bool test_server_count_transactions() {
   unsigned long size = 0;
   bool error = service->get_ongoing_server_transactions(&ids, &size);
   assert(!error);
-  fprintf(stderr, "[DEBUG:] Counting transactions! %lu \n", size);
 
   assert(size == 3);
 

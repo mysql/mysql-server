@@ -1196,7 +1196,7 @@ struct Trx_monitoring_info {
   void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
-                        ulonglong *start_time_arg);
+                        ulonglong *start_time_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1216,7 +1216,8 @@ struct Trx_monitoring_info {
   void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
-                        ulonglong *start_time_arg, ulonglong *end_time_arg);
+                        ulonglong *start_time_arg,
+                        ulonglong *end_time_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1245,7 +1246,7 @@ struct Trx_monitoring_info {
       ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
       ulonglong *start_time_arg, uint *last_transient_errno_arg,
       char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
-      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg);
+      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const;
 
   /**
     Copies this transaction monitoring information to the output parameters
@@ -1281,7 +1282,7 @@ struct Trx_monitoring_info {
                         char *last_transient_errmsg_arg,
                         uint *last_transient_errmsg_length_arg,
                         ulonglong *last_transient_timestamp_arg,
-                        ulong *retries_count_arg);
+                        ulong *retries_count_arg) const;
 };
 
 /**
