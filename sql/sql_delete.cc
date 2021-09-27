@@ -97,8 +97,8 @@ class Query_result_delete final : public Query_result_interceptor {
   Mem_root_array<unique_ptr_destroy_only<Unique>> tempfiles;
   /// Pointers to table objects matching tempfiles
   Mem_root_array<TABLE *> tables;
-  /// Number of rows produced by the join
-  ha_rows found_rows{0};
+  /// True if at least one row has been buffered for delayed deletion.
+  bool has_buffered_rows{false};
   /// Number of rows deleted
   ha_rows deleted_rows{0};
   /// Handler error status for the operation.
@@ -1023,7 +1023,7 @@ void Query_result_delete::cleanup(THD *) {
   // Reset state and statistics members:
   error_handled = false;
   delete_error = 0;
-  found_rows = 0;
+  has_buffered_rows = false;
   deleted_rows = 0;
 }
 
@@ -1056,7 +1056,6 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
     if (table->has_null_row() || table->has_deleted_row()) continue;
 
     table->file->position(table->record[0]);
-    found_rows++;
 
     if (immediate) {
       // Rows from this table can be deleted immediately
@@ -1096,6 +1095,7 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
       }
     } else {
       // Save deletes in a Unique object, to be carried out later.
+      has_buffered_rows = true;
       delete_error = tempfile->unique_add((char *)table->file->ref);
       if (delete_error != 0) {
         /* purecov: begin inspected */
@@ -1165,7 +1165,7 @@ int Query_result_delete::do_deletes(THD *thd) {
   assert(!delete_completed);
 
   delete_completed = true;  // Mark operation as complete
-  if (found_rows == 0) return 0;
+  if (!has_buffered_rows) return 0;
 
   for (uint counter = 0; counter < tables.size(); counter++) {
     TABLE *const table = tables[counter];
