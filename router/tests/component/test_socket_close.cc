@@ -169,7 +169,7 @@ class SocketCloseTest : public RouterComponentTest {
 
     result += "destinations=";
     for (size_t i = 0; i < destinations.size(); ++i) {
-      result += "127.0.0.1:" + std::to_string(destinations[i]);
+      result += "localhost:" + std::to_string(destinations[i]);
       if (i != destinations.size() - 1) {
         result += ",";
       }
@@ -1303,6 +1303,106 @@ INSTANTIATE_TEST_SUITE_P(
                                              "non_existent_nodes_ar_v2",
                                              ClusterType::RS_V2)),
     get_test_description);
+
+struct SharedQuarantineSocketCloseParam {
+  std::string strategy;
+  bool is_socket_closed;
+};
+
+class SharedQuarantineSocketClose
+    : public SocketCloseTest,
+      public ::testing::WithParamInterface<SharedQuarantineSocketCloseParam> {};
+
+TEST_P(SharedQuarantineSocketClose, cross_plugin_socket_shutdown) {
+  setup_cluster(1, "metadata_dynamic_nodes_v2_gr.js");
+  const auto bind_port_r1 = port_pool_.get_next_available();
+  const auto bind_port_r2 = port_pool_.get_next_available();
+  const std::string routing_section{
+      mysql_harness::ConfigBuilder::build_section(
+          "routing:R1",
+          {{"bind_port", std::to_string(bind_port_r1)},
+           {"routing_strategy", "round-robin"},
+           {"destinations", "127.0.0.1:" + std::to_string(node_ports[0])},
+           {"protocol", "classic"}}) +
+      mysql_harness::ConfigBuilder::build_section(
+          "routing:R2",
+          {{"bind_port", std::to_string(bind_port_r2)},
+           {"routing_strategy", GetParam().strategy},
+           {"destinations", "127.0.0.1:" + std::to_string(node_ports[0])},
+           {"protocol", "classic"}})};
+
+  SCOPED_TRACE("// launch the router with static routing configuration");
+  launch_router("", routing_section, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/5s);
+
+  SCOPED_TRACE("// both routing plugins are working fine");
+  ASSERT_NO_THROW(
+      try_connection("127.0.0.1", bind_port_r1, router_user, router_password));
+  ASSERT_NO_THROW(
+      try_connection("127.0.0.1", bind_port_r2, router_user, router_password));
+
+  SCOPED_TRACE("// kill the server");
+  EXPECT_NO_THROW(cluster_nodes[0]->send_clean_shutdown_event());
+  EXPECT_NO_THROW(cluster_nodes[0]->wait_for_exit());
+
+  SCOPED_TRACE(
+      "// establishing a connection to first routing plugin will add the node "
+      "to a quarantine");
+  ASSERT_ANY_THROW(
+      try_connection("127.0.0.1", bind_port_r1, router_user, router_password));
+  SCOPED_TRACE("// first routing plugin has closed the socket");
+  EXPECT_TRUE(wait_for_port_available(bind_port_r1, 120s));
+  SCOPED_TRACE(
+      "// second routing plugin has closed socket even though there were no "
+      "incoming connections (unless it is using first-available policy)");
+  EXPECT_EQ(GetParam().is_socket_closed,
+            wait_for_port_available(bind_port_r2, 1s));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SharedQuarantineSocketCloseTest, SharedQuarantineSocketClose,
+    ::testing::Values(SharedQuarantineSocketCloseParam{"round-robin", true},
+                      SharedQuarantineSocketCloseParam{"next-available", true},
+                      SharedQuarantineSocketCloseParam{"first-available",
+                                                       false}));
+
+class SharedQuarantineSocketCloseWithFallback : public SocketCloseTest {};
+
+TEST_F(SharedQuarantineSocketCloseWithFallback,
+       cross_plugin_socket_close_with_fallback) {
+  SCOPED_TRACE("// launch cluster with 2 nodes, 1 RW/1 RO");
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(2, "metadata_dynamic_nodes_v2_gr.js"));
+
+  const auto bind_port_r1 = port_pool_.get_next_available();
+  const auto bind_port_r2 = port_pool_.get_next_available();
+  const auto bind_port_r3 = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(node_ports, ClusterType::GR_V2);
+  std::string routing_section = get_metadata_cache_routing_section(
+      bind_port_r1, "PRIMARY", "round-robin", "", "r1");
+  routing_section += get_metadata_cache_routing_section(
+      bind_port_r2, "SECONDARY", "round-robin-with-fallback", "", "r2");
+  routing_section +=
+      get_static_routing_section(bind_port_r3, {node_ports[1]}, "round-robin");
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS);
+
+  SCOPED_TRACE("// kill the RO server");
+  EXPECT_NO_THROW(cluster_nodes[1]->send_clean_shutdown_event());
+  EXPECT_NO_THROW(cluster_nodes[1]->wait_for_exit());
+
+  SCOPED_TRACE(
+      "// establishing a connection to static routing plugin will add the node "
+      "to a quarantine");
+  ASSERT_ANY_THROW(
+      try_connection("127.0.0.1", bind_port_r3, router_user, router_password));
+  SCOPED_TRACE("// static routing plugin has closed the socket");
+  EXPECT_TRUE(wait_for_port_available(bind_port_r3, 120s));
+
+  SCOPED_TRACE("// fallback is possible, do not close the RO socket");
+  EXPECT_FALSE(wait_for_port_available(bind_port_r2, 1s));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

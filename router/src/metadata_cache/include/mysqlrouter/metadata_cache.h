@@ -336,6 +336,23 @@ class METADATA_API AcceptorUpdateHandlerInterface {
 };
 
 /**
+ * Abstract class that provides interface for listener on metadata refresh.
+ */
+class METADATA_API MetadataRefreshListenerInterface {
+ public:
+  /**
+   * Callback that is going to be used on each metadata refresh.
+   *
+   * @param[in] instances_changed Informs if the instances returned by the
+   *            metadata refresh has changed since last md refresh.
+   * @param[in] instances List of new instances available after md refresh.
+   */
+  virtual void on_md_refresh(const bool instances_changed,
+                             const LookupResult &instances) = 0;
+
+  virtual ~MetadataRefreshListenerInterface() = default;
+};
+/**
  * @brief Abstract class that provides interface for adding and removing
  *        observers on cluster status changes.
  *
@@ -491,21 +508,6 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    */
   virtual LookupResult get_cluster_nodes() = 0;
 
-  /** @brief Update the status of the instance
-   *
-   * Called when an instance from a cluster cannot be reached for one reason
-   * or another. When an instance becomes unreachable, an emergency mode is set
-   * (the rate of refresh of the metadata cache increases to once per second)
-   * and lasts until disabled after a suitable change in the metadata cache is
-   * discovered.
-   *
-   * @param instance_id - the mysql_server_uuid that identifies the server
-   * instance
-   * @param status - the status of the instance
-   */
-  virtual void mark_instance_reachability(const std::string &instance_id,
-                                          InstanceStatus status) = 0;
-
   /** @brief Wait until there's a primary member in the cluster
    *
    * To be called when the primary member of a single-primary cluster is down
@@ -554,6 +556,23 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    */
   virtual void remove_acceptor_handler_listener(
       AcceptorUpdateHandlerInterface *listener) = 0;
+
+  /**
+   * Register observer that is notified when the metadata refresh is triggered.
+   *
+   * @param listener Observer object that is notified on metadata refresh.
+   */
+  virtual void add_md_refresh_listener(
+      MetadataRefreshListenerInterface *listener) = 0;
+
+  /**
+   * @brief Unregister observer previously registered with
+   * add_md_refresh_listener()
+   *
+   * @param listener Observer object that should be unregistered.
+   */
+  virtual void remove_md_refresh_listener(
+      MetadataRefreshListenerInterface *listener) = 0;
 
   /** @brief Get authentication data (password hash and privileges) for the
    *  given user.
@@ -651,9 +670,6 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
 
   LookupResult get_cluster_nodes() override;
 
-  void mark_instance_reachability(const std::string &instance_id,
-                                  InstanceStatus status) override;
-
   bool wait_primary_failover(const std::string &primary_server_uuid,
                              const std::chrono::seconds &timeout) override;
 
@@ -666,6 +682,12 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
 
   void remove_acceptor_handler_listener(
       AcceptorUpdateHandlerInterface *listener) override;
+
+  void add_md_refresh_listener(
+      MetadataRefreshListenerInterface *listener) override;
+
+  void remove_md_refresh_listener(
+      MetadataRefreshListenerInterface *listener) override;
 
   RefreshStatus get_refresh_status() override;
 

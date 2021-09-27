@@ -27,12 +27,15 @@
 #include <stdexcept>
 #include <string>
 
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 
+#include "destination.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
-#include "test/helpers.h"         // init_test_logger
+#include "tcp_address.h"
+#include "test/helpers.h"  // init_test_logger
 
 using metadata_cache::InstanceStatus;
 using metadata_cache::LookupResult;
@@ -91,6 +94,10 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
                void(metadata_cache::AcceptorUpdateHandlerInterface *));
   MOCK_METHOD1(remove_acceptor_handler_listener,
                void(metadata_cache::AcceptorUpdateHandlerInterface *));
+  MOCK_METHOD1(add_md_refresh_listener,
+               void(metadata_cache::MetadataRefreshListenerInterface *));
+  MOCK_METHOD1(remove_md_refresh_listener,
+               void(metadata_cache::MetadataRefreshListenerInterface *));
 
   MOCK_METHOD0(enable_fetch_auth_metadata, void());
   MOCK_METHOD0(force_cache_update, void());
@@ -101,8 +108,6 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       std::pair<bool, std::pair<std::string, rapidjson::Document>>(
           const std::string &));
 
-  MOCK_METHOD2(mark_instance_reachability,
-               void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover,
                bool(const std::string &, const std::chrono::seconds &));
 
@@ -1107,8 +1112,12 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
     ASSERT_THAT(
         nodes,
         ::testing::ElementsAre(
-            instances[0].host + ":" + std::to_string(instances[0].port),
-            instances[1].host + ":" + std::to_string(instances[1].port)));
+            ::testing::Field(&AvailableDestination::address,
+                             mysql_harness::TCPAddress{instances[0].host,
+                                                       instances[0].port}),
+            ::testing::Field(&AvailableDestination::address,
+                             mysql_harness::TCPAddress{instances[1].host,
+                                                       instances[1].port})));
 
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
@@ -1154,9 +1163,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
     // no secondaries and we are role=SECONDARY
     // by default we allow existing connections to the primary so it should
     // be in the allowed nodes
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[0].host + ":" +
-                                       std::to_string(instances[0].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[0].host, instances[0].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
@@ -1200,9 +1211,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
     // one secondary and we are role=SECONDARY
     // we have disconnect_on_promoted_to_primary=yes configured so primary is
     // not allowed
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[1].host + ":" +
-                                       std::to_string(instances[1].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[1].host, instances[1].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
@@ -1252,9 +1265,11 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
     // one secondary and we are role=SECONDARY
     // disconnect_on_promoted_to_primary=yes overrides previous value in
     // configuration so primary is not allowed
-    ASSERT_THAT(nodes,
-                ::testing::ElementsAre(instances[1].host + ":" +
-                                       std::to_string(instances[1].port)));
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(::testing::Field(
+            &AvailableDestination::address,
+            mysql_harness::TCPAddress{instances[1].host, instances[1].port})));
     ASSERT_TRUE(disconnect);
     ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;

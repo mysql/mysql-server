@@ -405,7 +405,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
         client_connect_timeout, config.net_buffer_length,
-        config.thread_stack_size, config.source_ssl_mode,
+        config.source_ssl_mode,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
         config.dest_ssl_mode,
@@ -418,7 +418,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     } catch (const URIError &) {
       r->set_destinations_from_csv(config.destinations);
     }
-    MySQLRoutingComponent::get_instance().init(section->key, r);
+    MySQLRoutingComponent::get_instance().init(
+        section->key, r, env, config.unreachable_destination_refresh_interval);
     r->start(env);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -438,6 +439,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
+  MySQLRoutingComponent::get_instance().deinit();
   // release all that may still be taken
   io_context_work_guards.clear();
 }

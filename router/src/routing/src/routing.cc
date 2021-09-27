@@ -51,6 +51,7 @@ namespace routing {
 const int kDefaultWaitTimeout = 0;     // 0 = no timeout used
 const int kDefaultMaxConnections = 0;  // 0 = no limit per route is the default
 const std::chrono::seconds kDefaultDestinationConnectionTimeout{1};
+const std::chrono::seconds kDefaultUnreachableDestinationRefreshInterval{1};
 const std::string kDefaultBindAddress = "127.0.0.1";
 const unsigned int kDefaultNetBufferLength =
     16384;  // Default defined in latest MySQL Server

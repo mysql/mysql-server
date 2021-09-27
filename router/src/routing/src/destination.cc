@@ -72,6 +72,31 @@ void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
   stop_router_socket_acceptor_callback_ = nullptr;
 }
 
+void DestinationNodesStateNotifier::register_md_refresh_callback(
+    const MetadataRefreshCallback &callback) {
+  std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
+  md_refresh_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_md_refresh_callback() {
+  std::lock_guard<std::mutex> lock(md_refresh_callback_mtx_);
+  md_refresh_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_query_quarantined_destinations(
+    const QueryQuarantinedDestinationsCallback &callback) {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::
+    unregister_query_quarantined_destinations() {
+  std::lock_guard<std::mutex> lock(
+      query_quarantined_destinations_callback_mtx_);
+  query_quarantined_destinations_callback_ = nullptr;
+}
+
 // class RouteDestination
 
 void RouteDestination::add(const TCPAddress dest) {

@@ -109,21 +109,6 @@ class METADATA_API MetadataCache
    */
   metadata_cache::cluster_nodes_list_t get_cluster_nodes();
 
-  /** @brief Update the status of the instance
-   *
-   * Called when an instance from a cluster cannot be reached for one reason
-   * or another. When an instance becomes unreachable, an emergency mode is set
-   * (the rate of refresh of the metadata cache increases to once per second if
-   * currently lower) and lasts until disabled after a suitable change in the
-   * metadata cache is discovered.
-   *
-   * @param instance_id - the mysql_server_uuid that identifies the server
-   * instance
-   * @param status - the status of the instance
-   */
-  void mark_instance_reachability(const std::string &instance_id,
-                                  metadata_cache::InstanceStatus status);
-
   /** Wait until cluster PRIMARY changes.
    *
    * wait until a change of the PRIMARY is noticed
@@ -194,6 +179,23 @@ class METADATA_API MetadataCache
   void remove_acceptor_handler_listener(
       metadata_cache::AcceptorUpdateHandlerInterface *listener);
 
+  /**
+   * @brief Register observer that is notified on each metadata refresh event.
+   *
+   * @param listener Observer object that is notified on md refresh.
+   */
+  void add_md_refresh_listener(
+      metadata_cache::MetadataRefreshListenerInterface *listener);
+
+  /**
+   * @brief Unregister observer previously registered with
+   * add_md_refresh_listener()
+   *
+   * @param listener Observer object that should be unregistered.
+   */
+  void remove_md_refresh_listener(
+      metadata_cache::MetadataRefreshListenerInterface *listener);
+
   metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
     return stats_([](auto const &stats)
                       -> metadata_cache::MetadataCacheAPIBase::RefreshStatus {
@@ -256,6 +258,16 @@ class METADATA_API MetadataCache
    * be handled when calling on_instances_changed).
    */
   void on_handle_sockets_acceptors();
+
+  /**
+   * Called on each metadata refresh.
+   *
+   * @param[in] cluster_nodes_changed Information whether there was a change
+   *            in instances reported by metadata refresh.
+   * @param[in] cluster_nodes Instances available after metadata refresh.
+   */
+  void on_md_refresh(const bool cluster_nodes_changed,
+                     const metadata_cache::cluster_nodes_list_t &cluster_nodes);
 
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
@@ -330,8 +342,6 @@ class METADATA_API MetadataCache
   // is consistent with the use of the server list.
   std::mutex metadata_servers_mutex_;
 
-  std::atomic<bool> has_unreachable_nodes{false};
-
   // Flag used to terminate the refresh thread.
   std::atomic<bool> terminated_{false};
 
@@ -346,13 +356,14 @@ class METADATA_API MetadataCache
   std::mutex refresh_completed_mtx_;
 
   std::mutex cluster_instances_change_callbacks_mtx_;
-
   std::mutex acceptor_handler_callbacks_mtx_;
+  std::mutex md_refresh_callbacks_mtx_;
 
   std::set<metadata_cache::ClusterStateListenerInterface *> state_listeners_;
-
   std::set<metadata_cache::AcceptorUpdateHandlerInterface *>
       acceptor_update_listeners_;
+  std::set<metadata_cache::MetadataRefreshListenerInterface *>
+      md_refresh_listeners_;
 
   struct Stats {
     std::chrono::system_clock::time_point last_refresh_failed;

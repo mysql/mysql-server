@@ -195,13 +195,6 @@ LookupResult MetadataCacheAPI::get_cluster_nodes() {
   return LookupResult(g_metadata_cache->get_cluster_nodes());
 }
 
-void MetadataCacheAPI::mark_instance_reachability(
-    const std::string &instance_id, InstanceStatus status) {
-  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-
-  g_metadata_cache->mark_instance_reachability(instance_id, status);
-}
-
 bool MetadataCacheAPI::wait_primary_failover(
     const std::string &primary_server_uuid,
     const std::chrono::seconds &timeout) {
@@ -244,6 +237,24 @@ void MetadataCacheAPI::remove_acceptor_handler_listener(
   // remove_acceptor_handler_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
   g_metadata_cache->remove_acceptor_handler_listener(listener);
+}
+
+void MetadataCacheAPI::add_md_refresh_listener(
+    MetadataRefreshListenerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // add_md_refresh_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->add_md_refresh_listener(listener);
+}
+
+void MetadataCacheAPI::remove_md_refresh_listener(
+    MetadataRefreshListenerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // remove_md_refresh_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->remove_md_refresh_listener(listener);
 }
 
 MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {

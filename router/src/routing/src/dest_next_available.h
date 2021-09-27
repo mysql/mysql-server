@@ -44,11 +44,6 @@ class DestNextAvailable final : public RouteDestination {
     }
   }
 
-  void stop_listening_router_socket() {
-    if (stop_router_socket_acceptor_callback_)
-      stop_router_socket_acceptor_callback_();
-  }
-
  private:
   size_t valid_ndx_{};
 };

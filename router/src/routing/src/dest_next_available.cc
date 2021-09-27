@@ -41,10 +41,6 @@ class StateTrackingDestination : public Destination {
     if (ec != std::error_code{}) {
       // mark the current ndx as invalid
       balancer_->mark_ndx_invalid(ndx_);
-
-      if (balancer_->valid_ndx() >= balancer_->destinations().size()) {
-        balancer_->stop_listening_router_socket();
-      }
     }
   }
 

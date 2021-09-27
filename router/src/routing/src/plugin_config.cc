@@ -549,7 +549,15 @@ RoutingPluginConfig::RoutingPluginConfig(
       dest_ssl_crl_dir{get_option_string(
           section, mysql_harness::ConfigOption("server_ssl_crlpath"sv, ""sv))},
       dest_ssl_curves{get_option_string(
-          section, mysql_harness::ConfigOption("server_ssl_curves"sv, ""sv))} {
+          section, mysql_harness::ConfigOption("server_ssl_curves"sv, ""sv))},
+      unreachable_destination_refresh_interval{get_uint_option<uint32_t>(
+          section,
+          mysql_harness::ConfigOption(
+              "unreachable_destination_refresh_interval"sv,
+              std::to_string(
+                  routing::kDefaultUnreachableDestinationRefreshInterval
+                      .count())),
+          1, 65535)} {
   using namespace std::string_literals;
 
   // either bind_address or socket needs to be set, or both

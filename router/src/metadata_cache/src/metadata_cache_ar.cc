@@ -63,6 +63,8 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
     }
   }
 
+  on_md_refresh(changed, cluster_data_.members);
+
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
@@ -78,10 +80,6 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
         log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                  mi.xport, to_string(mi.mode).c_str(),
                  get_hidden_info(mi).c_str());
-
-        if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-          has_unreachable_nodes = false;
-        }
       }
     }
 

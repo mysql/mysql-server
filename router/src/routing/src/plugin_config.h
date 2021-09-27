@@ -87,6 +87,8 @@ class ROUTING_EXPORT RoutingPluginConfig {
       dest_ssl_crl_file;  //!< CRL file used to check revoked certificates
   const std::string dest_ssl_crl_dir;  //!< directory of CRL files
   const std::string dest_ssl_curves;   //!< allowed TLS curves
+
+  const std::chrono::seconds unreachable_destination_refresh_interval;
 };
 
 #endif  // PLUGIN_CONFIG_ROUTING_INCLUDED

@@ -68,6 +68,7 @@
 #include "mysql_router_thread.h"
 #include "mysql_routing_base.h"
 #include "mysqlrouter/routing.h"
+#include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
@@ -135,7 +136,6 @@ class MySQLRouting : public MySQLRoutingBase {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param thread_stack_size memory in kilobytes allocated for thread's stack
    * @param client_ssl_mode SSL mode of the client side
    * @param client_ssl_ctx SSL context of the client side
    * @param server_ssl_mode SSL mode of the serer side
@@ -155,7 +155,6 @@ class MySQLRouting : public MySQLRoutingBase {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       SslMode client_ssl_mode = SslMode::kDisabled,
       TlsServerContext *client_ssl_ctx = nullptr,
       SslMode server_ssl_mode = SslMode::kDisabled,
@@ -260,7 +259,7 @@ class MySQLRouting : public MySQLRoutingBase {
   /**
    * Stop accepting new connections on a listening socket.
    */
-  void stop_socket_acceptors();
+  void stop_socket_acceptors(const mysql_harness::PluginFuncEnv *env) override;
 
   /**
    * Check if we are accepting connections on a routing socket.
@@ -269,15 +268,88 @@ class MySQLRouting : public MySQLRoutingBase {
    */
   bool is_accepting_connections() const override;
 
- private:
   /**
    * Start accepting new connections on a listening socket
    *
    * @returns std::error_code on errors.
    */
   stdx::expected<void, std::error_code> start_accepting_connections(
-      const mysql_harness::PluginFuncEnv *env);
+      const mysql_harness::PluginFuncEnv *env) override;
 
+  /**
+   * Register a callback that can to be used to add a destination candidate
+   * to the quarantine.
+   *
+   * @param[in] clb Callback called to quarantine a destination.
+   */
+  void register_shared_quarantine_update_callback(
+      SharedQuarantineUpdateCallback clb) override;
+
+  /**
+   * Register a callback that can be used to check if the given destination
+   * candidate is currently quarantined.
+   *
+   * @param[in] clb Callback called to check if the destination is quarantined.
+   */
+  void register_shared_quarantine_query_callback(
+      SharedQuarantineQueryCallback clb) override;
+
+  /**
+   * Register a callback that can be used to clear the unreachable destination
+   * candidates quarantine.
+   *
+   * @param[in] clb Callback called to remove all destinations from quarantine.
+   */
+  void register_shared_quarantine_clear_callback(
+      SharedQuarantineClearCallback clb) override;
+
+  /**
+   * Register a callback used for refreshing the quarantined destinations when
+   * there are possible changes in the destination candidates set.
+   *
+   * @param[in] clb Callback called on metadata refresh.
+   */
+  void register_shared_quarantine_md_nodes_refresh_callback(
+      SharedQuarantineRefreshCallback clb) override;
+
+  /**
+   * Unregister all of the destination candidates quarantine callbacks.
+   */
+  void unregister_shared_quarantine_callbacks() override;
+
+  /**
+   * Add destination candidate to quarantine.
+   *
+   * @param[in] dest Destination candidate that will be quarantined.
+   */
+  void add_destination_to_shared_quarantine(mysql_harness::TCPAddress dest);
+
+  /**
+   * Check if the given destination candidate is currently quarantined.
+   *
+   * @param[in] dest Destination candidate.
+   * @return true if the destination candidate is quarantined, false otherwise.
+   */
+  bool is_destination_quarantined(mysql_harness::TCPAddress dest);
+
+  /**
+   * Clear destination candidates quarantine.
+   */
+  void clear_shared_quarantine();
+
+  /**
+   * Refresh the quarantined destination candidates on metadata refresh.
+   *
+   * @param[in] nodes_changed_on_md_refresh Information if the destination
+   *            candidates have been updated.
+   * @param[in] available_destinations List of destination candidates that are
+   *            available after metadata refresh.
+   */
+  void refresh_md_nodes_in_shared_quarantine(
+      const bool nodes_changed_on_md_refresh,
+      const AllowedNodes &available_nodes);
+
+ private:
   /**
    * Get listening socket detail information used for the logging purposes.
    */
@@ -364,6 +436,17 @@ class MySQLRouting : public MySQLRoutingBase {
 
   /** Information if the routing plugging is still running. */
   std::atomic<bool> routing_stopped_{false};
+
+  /**
+   * Callbacks for communicating with quarantined destination candidates
+   * instance.
+   */
+  struct SharedQuarantineHandler {
+    SharedQuarantineUpdateCallback update_callback_;
+    SharedQuarantineQueryCallback query_callback_;
+    SharedQuarantineClearCallback clear_callback_;
+    SharedQuarantineRefreshCallback refresh_callback_;
+  } shared_quarantine_handler_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);

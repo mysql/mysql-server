@@ -119,8 +119,42 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
-void MySQLRoutingComponent::init(const std::string &name,
-                                 std::shared_ptr<MySQLRoutingBase> srv) {
+void MySQLRoutingComponent::deinit() {
+  routing_common_unreachable_destinations_.clear_quarantine();
+  for (auto &route : routes_) {
+    if (auto routing_plugin = route.second.lock()) {
+      routing_plugin->unregister_shared_quarantine_callbacks();
+    }
+  }
+}
+
+void MySQLRoutingComponent::init(
+    const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
+    mysql_harness::PluginFuncEnv *env,
+    std::chrono::seconds quarantine_refresh_interval) {
+  srv->register_shared_quarantine_update_callback(
+      [&](mysql_harness::TCPAddress addr) {
+        routing_common_unreachable_destinations_
+            .add_destination_candidate_to_quarantine(std::move(addr));
+      });
+  srv->register_shared_quarantine_query_callback(
+      [&](mysql_harness::TCPAddress addr) {
+        return routing_common_unreachable_destinations_.is_quarantined(
+            std::move(addr));
+      });
+  srv->register_shared_quarantine_clear_callback(
+      [&]() { routing_common_unreachable_destinations_.clear_quarantine(); });
+  srv->register_shared_quarantine_md_nodes_refresh_callback(
+      [&](MySQLRoutingBase *routing_plugin,
+          const bool nodes_changed_on_md_refresh,
+          const AllowedNodes &available_destinations) {
+        routing_common_unreachable_destinations_.refresh_quarantine(
+            routing_plugin, nodes_changed_on_md_refresh,
+            available_destinations);
+      });
+
+  routing_common_unreachable_destinations_.init(
+      srv.get(), env, std::move(quarantine_refresh_interval));
   std::lock_guard<std::mutex> lock(routes_mu_);
 
   routes_.emplace(name, std::move(srv));

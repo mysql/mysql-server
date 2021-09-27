@@ -31,6 +31,7 @@
 #include <gtest/gtest_prod.h>  // FRIEND_TEST
 
 #include "common.h"
+#include "context.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/poll.h"
@@ -456,7 +457,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   mysql_harness::ScopeGuard guard([&]() {
     env.clear_running();  // shut down MySQLRouting
-    routing.stop_socket_acceptors();
+    routing.stop_socket_acceptors(&env);
     server.stop();
     thd.join();
   });

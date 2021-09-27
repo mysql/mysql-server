@@ -107,14 +107,14 @@ MySQLRouting::MySQLRouting(
     int max_connections, std::chrono::milliseconds destination_connect_timeout,
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
-    unsigned int net_buffer_length, size_t thread_stack_size,
-    SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
-    SslMode server_ssl_mode, DestinationTlsContext *dest_ssl_ctx)
+    unsigned int net_buffer_length, SslMode client_ssl_mode,
+    TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
+    DestinationTlsContext *dest_ssl_ctx)
     : context_(protocol, route_name, net_buffer_length,
                destination_connect_timeout, client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
-               max_connect_errors, thread_stack_size, client_ssl_mode,
-               client_ssl_ctx, server_ssl_mode, dest_ssl_ctx),
+               max_connect_errors, client_ssl_mode, client_ssl_ctx,
+               server_ssl_mode, dest_ssl_ctx),
       io_ctx_{io_ctx},
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
@@ -341,11 +341,13 @@ class Connector : public ConnectorBase {
 
   using server_protocol_type = net::ip::tcp;
 
-  Connector(MySQLRouting *r, client_socket_type client_sock,
+  Connector(MySQLRouting *r, const mysql_harness::PluginFuncEnv *env,
+            client_socket_type client_sock,
             client_endpoint_type client_endpoint,
             SocketContainer<client_protocol_type> &client_sock_container,
             SocketContainer<server_protocol_type> &server_sock_container)
       : r_{r},
+        env_{env},
         client_sock_{client_sock_container.push_back(std::move(client_sock))},
         client_endpoint_{std::move(client_endpoint)},
         client_sock_container_{client_sock_container},
@@ -651,13 +653,36 @@ class Connector : public ConnectorBase {
       auto &destination = *destinations_it_;
       // report back the connect status to the destination
       destination->connect_status(last_ec_);
+      if (last_ec_ != std::error_code{}) {
+        log_debug("[%s] fd=%d add destination '%s:%d' to quarantine",
+                  r_->get_context().get_name().c_str(),
+                  client_sock_.native_handle(), destination->hostname().c_str(),
+                  destination->port());
+        r_->add_destination_to_shared_quarantine(
+            {destination->hostname(), destination->port()});
+      }
 
       return State::NEXT_DESTINATION;
     }
   }
 
   State next_destination() {
-    std::advance(destinations_it_, 1);
+    bool is_quarantined{false};
+    do {
+      std::advance(destinations_it_, 1);
+      const auto &destination = *destinations_it_;
+      if (destinations_it_ != std::end(destinations_)) {
+        is_quarantined =
+            r_->is_destination_quarantined({destinations_it_->get()->hostname(),
+                                            destinations_it_->get()->port()});
+        if (is_quarantined) {
+          log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
+                    r_->get_context().get_name().c_str(),
+                    client_sock_.native_handle(),
+                    destination->hostname().c_str(), destination->port());
+        }
+      }
+    } while (destinations_it_ != destinations_.end() && is_quarantined);
 
     if (destinations_it_ != destinations_.end()) {
       // next destination
@@ -669,7 +694,11 @@ class Connector : public ConnectorBase {
         destinations_ = std::move(refresh_res.value());
         return State::INIT_DESTINATION;
       } else {
+        log_debug("[%s] fd=%d no destinations available",
+                  r_->get_context().get_name().c_str(),
+                  client_sock_.native_handle());
         // we couldn't connect to any of the destinations. Give up.
+        r_->stop_socket_acceptors(env_);
         return State::ERROR;
       }
     }
@@ -680,7 +709,16 @@ class Connector : public ConnectorBase {
     destinations_it_ = destinations_.begin();
 
     if (destinations_it_ != destinations_.end()) {
-      return State::RESOLVE;
+      const auto &destination = *destinations_it_;
+      const auto is_quarantined = r_->is_destination_quarantined(
+          {destination->hostname(), destination->port()});
+      if (is_quarantined) {
+        log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
+                  r_->get_context().get_name().c_str(),
+                  client_sock_.native_handle(), destination->hostname().c_str(),
+                  destination->port());
+      }
+      return is_quarantined ? State::NEXT_DESTINATION : State::RESOLVE;
     } else {
       // no backends
       log_warning("%d: no connectable destinations :(", __LINE__);
@@ -750,6 +788,7 @@ class Connector : public ConnectorBase {
   friend std::ostream &operator<<(std::ostream &os,
                                   Connector<ClientProtocol>::State &state);
   MySQLRouting *r_;
+  const mysql_harness::PluginFuncEnv *env_;
   client_socket_type &client_sock_;
   client_endpoint_type client_endpoint_;
   SocketContainer<client_protocol_type> &client_sock_container_;
@@ -1012,8 +1051,8 @@ class Acceptor {
               }
             } else {
               Connector<client_protocol_type>(
-                  r_, std::move(sock), client_endpoint, client_sock_container_,
-                  server_sock_container_)
+                  r_, env_, std::move(sock), client_endpoint,
+                  client_sock_container_, server_sock_container_)
                   .async_run();
             }
           }
@@ -1102,12 +1141,21 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   destination_->register_start_router_socket_acceptor(
       [&]() { return start_accepting_connections(env); });
   destination_->register_stop_router_socket_acceptor(
-      [&]() { stop_socket_acceptors(); });
+      [&]() { stop_socket_acceptors(env); });
+  destination_->register_query_quarantined_destinations(
+      [&](const mysql_harness::TCPAddress &addr) {
+        return is_destination_quarantined(addr);
+      });
+  destination_->register_md_refresh_callback(
+      [&](const bool nodes_changed_on_md_refresh, const AllowedNodes &nodes) {
+        refresh_md_nodes_in_shared_quarantine(nodes_changed_on_md_refresh,
+                                              nodes);
+      });
 
   // make sure to stop the acceptors in case of possible exceptions, otherwise
   // we can deadlock the process
   mysql_harness::ScopeGuard stop_acceptors_guard(
-      [&]() { stop_socket_acceptors(); });
+      [&]() { stop_socket_acceptors(env); });
 
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
@@ -1150,7 +1198,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 
     if (!is_running(env)) return;
     if (service_tcp_.is_open() && new_connection_nodes.empty()) {
-      stop_socket_acceptors();
+      stop_socket_acceptors(env);
     } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
       if (!start_accepting_connections(env)) {
         // We could not start acceptor (e.g. the port is used by other app)
@@ -1170,15 +1218,18 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
         allowed_nodes_list_iterator_);
     destination_->unregister_start_router_socket_acceptor();
     destination_->unregister_stop_router_socket_acceptor();
+    destination_->unregister_query_quarantined_destinations();
+    destination_->unregister_md_refresh_callback();
   });
 
   // wait for the signal to shutdown.
   mysql_harness::wait_for_stop(env, 0);
   routing_stopped_ = true;
+  clear_shared_quarantine();
 
   stop_acceptors_guard.dismiss();
   // routing is no longer running, lets close listening socket
-  stop_socket_acceptors();
+  stop_socket_acceptors(env);
 
   // close client sockets which aren't connected to a backend yet
   tcp_connector_container_.disconnect_all();
@@ -1262,7 +1313,14 @@ stdx::expected<void, std::error_code> MySQLRouting::start_accepting_connections(
   return {};
 }
 
-void MySQLRouting::stop_socket_acceptors() {
+void MySQLRouting::stop_socket_acceptors(
+    const mysql_harness::PluginFuncEnv *env) {
+  // When using a static routing with first-available policy we are never
+  // supposed to shut down the accepting socket
+  if (is_running(env) && is_destination_standalone_ &&
+      routing_strategy_ == routing::RoutingStrategy::kFirstAvailable)
+    return;
+
   log_info("Stop accepting connections for routing %s listening on %s",
            context_.get_name().c_str(), get_port_str().c_str());
   // 1. close and wait for acceptors to close
@@ -1507,15 +1565,14 @@ routing::RoutingStrategy get_default_routing_strategy(
 
 std::unique_ptr<RouteDestination> create_standalone_destination(
     net::io_context &io_ctx, const routing::RoutingStrategy strategy,
-    const Protocol::Type protocol, size_t thread_stack_size) {
+    const Protocol::Type protocol) {
   switch (strategy) {
     case RoutingStrategy::kFirstAvailable:
       return std::make_unique<DestFirstAvailable>(io_ctx, protocol);
     case RoutingStrategy::kNextAvailable:
       return std::make_unique<DestNextAvailable>(io_ctx, protocol);
     case RoutingStrategy::kRoundRobin:
-      return std::make_unique<DestRoundRobin>(io_ctx, protocol,
-                                              thread_stack_size);
+      return std::make_unique<DestRoundRobin>(io_ctx, protocol);
     case RoutingStrategy::kUndefined:
     case RoutingStrategy::kRoundRobinWithFallback:;  // unsupported, fall
                                                      // through
@@ -1537,9 +1594,8 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   }
 
   is_destination_standalone_ = true;
-  destination_ = create_standalone_destination(
-      io_ctx_, routing_strategy_, context_.get_protocol(),
-      context_.get_thread_stack_size());
+  destination_ = create_standalone_destination(io_ctx_, routing_strategy_,
+                                               context_.get_protocol());
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
@@ -1622,4 +1678,56 @@ bool MySQLRouting::is_accepting_connections() const {
     }
     return false;
   });
+}
+
+void MySQLRouting::register_shared_quarantine_update_callback(
+    SharedQuarantineUpdateCallback clb) {
+  shared_quarantine_handler_.update_callback_ = std::move(clb);
+}
+
+void MySQLRouting::register_shared_quarantine_query_callback(
+    SharedQuarantineQueryCallback clb) {
+  shared_quarantine_handler_.query_callback_ = std::move(clb);
+}
+
+void MySQLRouting::register_shared_quarantine_clear_callback(
+    SharedQuarantineClearCallback clb) {
+  shared_quarantine_handler_.clear_callback_ = std::move(clb);
+}
+
+void MySQLRouting::register_shared_quarantine_md_nodes_refresh_callback(
+    SharedQuarantineRefreshCallback clb) {
+  shared_quarantine_handler_.refresh_callback_ = std::move(clb);
+}
+
+void MySQLRouting::add_destination_to_shared_quarantine(
+    mysql_harness::TCPAddress dest) {
+  if (shared_quarantine_handler_.update_callback_)
+    shared_quarantine_handler_.update_callback_(std::move(dest));
+}
+
+bool MySQLRouting::is_destination_quarantined(mysql_harness::TCPAddress dest) {
+  return shared_quarantine_handler_.query_callback_
+             ? shared_quarantine_handler_.query_callback_(std::move(dest))
+             : false;
+}
+
+void MySQLRouting::clear_shared_quarantine() {
+  if (shared_quarantine_handler_.clear_callback_)
+    shared_quarantine_handler_.clear_callback_();
+}
+
+void MySQLRouting::refresh_md_nodes_in_shared_quarantine(
+    const bool nodes_changed_on_md_refresh,
+    const AllowedNodes &available_nodes) {
+  if (shared_quarantine_handler_.refresh_callback_)
+    shared_quarantine_handler_.refresh_callback_(
+        this, nodes_changed_on_md_refresh, available_nodes);
+}
+
+void MySQLRouting::unregister_shared_quarantine_callbacks() {
+  shared_quarantine_handler_.refresh_callback_ = nullptr;
+  shared_quarantine_handler_.clear_callback_ = nullptr;
+  shared_quarantine_handler_.query_callback_ = nullptr;
+  shared_quarantine_handler_.update_callback_ = nullptr;
 }

@@ -134,9 +134,6 @@ void MetadataCache::refresh_thread() {
     }
 
     auto ttl_left = ttl_config_.ttl;
-    // wait for up to TTL until next refresh, unless cluster loses an
-    // online (primary or secondary) server - in that case, "emergency mode" is
-    // enabled and we refresh every 1s until "emergency mode" is called off.
     while (ttl_left > 0ms) {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
@@ -177,9 +174,7 @@ void MetadataCache::refresh_thread() {
       }
 
       {
-        if (has_unreachable_nodes)
-          break;  // we're in "emergency mode", don't wait until TTL expires
-
+        std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
         // if the metadata is not consistent refresh it at a higher rate (if the
         // ttl>1s) until it becomes consistent again
         if (cluster_data_.md_discrepancy) {
@@ -389,6 +384,15 @@ void MetadataCache::on_handle_sockets_acceptors() {
   }
 }
 
+void MetadataCache::on_md_refresh(
+    const bool cluster_nodes_changed,
+    const metadata_cache::cluster_nodes_list_t &cluster_nodes) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  for (auto &each : md_refresh_listeners_) {
+    each->on_md_refresh(cluster_nodes_changed, cluster_nodes);
+  }
+}
+
 void MetadataCache::on_refresh_requested() {
   {
     std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
@@ -398,52 +402,6 @@ void MetadataCache::on_refresh_requested() {
 }
 
 void MetadataCache::on_refresh_completed() { refresh_completed_.notify_one(); }
-
-void MetadataCache::mark_instance_reachability(
-    const std::string &instance_id, metadata_cache::InstanceStatus status) {
-  // If the status is that the primary or secondary instance is physically
-  // unreachable, we enable "emergency mode" (temporarily increase the refresh
-  // rate to 1/s if currently lower) until the GR routing table
-  // reflects this reality (or at least that is the the intent; in practice
-  // this mechanism is buggy - see Metadata Cache module documentation in
-  // Doxygen, section "Emergency mode")
-
-  std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  metadata_cache::ManagedInstance *instance = nullptr;
-  for (auto &inst : cluster_data_.members) {
-    if (inst.mysql_server_uuid == instance_id) {
-      instance = &inst;
-      break;
-    }
-  }
-
-  // If the instance got marked as invalid we want to trigger metadata-cache
-  // update ASAP to aviod keeping try to route to that instance
-  if (instance) {
-    switch (status) {
-      case metadata_cache::InstanceStatus::Reachable:
-        break;
-      case metadata_cache::InstanceStatus::InvalidHost:
-        log_warning(
-            "Instance '%s:%i' [%s] of cluster '%s' is invalid. Increasing "
-            "metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            target_cluster_.c_str());
-        has_unreachable_nodes = true;
-        break;
-      case metadata_cache::InstanceStatus::Unreachable:
-        log_warning(
-            "Instance '%s:%i' [%s] of cluster '%s' is unreachable. "
-            "Increasing metadata cache refresh frequency.",
-            instance->host.c_str(), instance->port, instance_id.c_str(),
-            target_cluster_.c_str());
-        has_unreachable_nodes = true;
-        break;
-      case metadata_cache::InstanceStatus::Unusable:
-        break;
-    }
-  }
-}
 
 /**
  * check if primary has changed.
@@ -523,6 +481,18 @@ void MetadataCache::remove_acceptor_handler_listener(
     metadata_cache::AcceptorUpdateHandlerInterface *listener) {
   std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
   acceptor_update_listeners_.erase(listener);
+}
+
+void MetadataCache::add_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.insert(listener);
+}
+
+void MetadataCache::remove_md_refresh_listener(
+    metadata_cache::MetadataRefreshListenerInterface *listener) {
+  std::lock_guard<std::mutex> lock(md_refresh_callbacks_mtx_);
+  md_refresh_listeners_.erase(listener);
 }
 
 void MetadataCache::check_auth_metadata_timers() const {

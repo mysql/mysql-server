@@ -62,8 +62,8 @@ class MySQLRoutingContext {
                       mysql_harness::TCPAddress bind_address,
                       mysql_harness::Path bind_named_socket,
                       unsigned long long max_connect_errors,
-                      size_t thread_stack_size, SslMode client_ssl_mode,
-                      TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
+                      SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
+                      SslMode server_ssl_mode,
                       DestinationTlsContext *dest_tls_context)
       : protocol_(protocol),
         name_(std::move(name)),
@@ -72,7 +72,6 @@ class MySQLRoutingContext {
         client_connect_timeout_(client_connect_timeout),
         bind_address_(std::move(bind_address)),
         bind_named_socket_(std::move(bind_named_socket)),
-        thread_stack_size_(thread_stack_size),
         client_ssl_mode_{client_ssl_mode},
         client_ssl_ctx_{client_ssl_ctx},
         server_ssl_mode_{server_ssl_mode},
@@ -146,8 +145,6 @@ class MySQLRoutingContext {
     return bind_named_socket_;
   }
 
-  size_t get_thread_stack_size() const { return thread_stack_size_; }
-
   SslMode source_ssl_mode() const noexcept { return client_ssl_mode_; }
   SslMode dest_ssl_mode() const noexcept { return server_ssl_mode_; }
 
@@ -197,9 +194,6 @@ class MySQLRoutingContext {
 
   /** @brief Path to named socket for setting up named socket service */
   const mysql_harness::Path bind_named_socket_;
-
-  /** @brief memory in kilobytes allocated for thread's stack */
-  size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 
   mutable std::mutex mutex_conn_errors_;
 
