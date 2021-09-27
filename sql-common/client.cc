@@ -5981,7 +5981,14 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_CONNECT;
   }
 
-  status = ctx->state_function(ctx);
+  /*
+    Continue to loop When different state returns STATE_MACHINE_CONTINUE, which
+    means more work has to be done immediately and should not return to the
+    caller.
+  */
+  do {
+    status = ctx->state_function(ctx);
+  } while (status == STATE_MACHINE_CONTINUE);
 
   if (status == STATE_MACHINE_DONE) {
     my_free(ASYNC_DATA(mysql)->connect_context);
@@ -5999,6 +6006,11 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
       mysql_close_free_options(mysql);
     return NET_ASYNC_ERROR;
   }
+  /*
+    State machine returned STATE_MACHINE_WOULD_BLOCK, thus expecting caller to
+    call this function again to continue with state machine once pending IO is
+    completed.
+  */
   return NET_ASYNC_NOT_READY;
 }
 /**
@@ -6410,7 +6422,8 @@ static mysql_state_machine_status csm_wait_connect(mysql_async_connect *ctx) {
     timeout possible can be used to peek if connect() completed.
 
     If vio_io_wait() returns 0,
-    the socket never became writable and we'll return to caller.
+    the socket never became writable or there is timeout and we'll return
+    to caller.
     Otherwise, if vio_io_wait() returns 1, then one of two conditions
     exist:
 
@@ -6418,36 +6431,39 @@ static mysql_state_machine_status csm_wait_connect(mysql_async_connect *ctx) {
     2. The connection was set up successfully: getsockopt() will
        return 0 as an error.
   */
-  if (vio_io_wait(vio, VIO_IO_EVENT_CONNECT, timeout_ms) == 1) {
-    int error;
-    IF_WIN(int, socklen_t) optlen = sizeof(error);
-    IF_WIN(char, void) *optval = (IF_WIN(char, void) *)&error;
 
-    /*
-      At this point, we know that something happened on the socket.
-      But this does not means that everything is alright. The connect
-      might have failed. We need to retrieve the error code from the
-      socket layer. We must return success only if we are sure that
-      it was really a success. Otherwise we might prevent the caller
-      from trying another address to connect to.
-    */
-    DBUG_PRINT("info", ("Connect to '%s' completed", ctx->host));
-    ctx->state_function = csm_complete_connect;
-    if (!(ret = mysql_socket_getsockopt(vio->mysql_socket, SOL_SOCKET, SO_ERROR,
-                                        optval, &optlen))) {
+  int io_wait_ret = vio_io_wait(vio, VIO_IO_EVENT_CONNECT, timeout_ms);
+  if (io_wait_ret == 0) return STATE_MACHINE_WOULD_BLOCK;
+  if (io_wait_ret == -1) return STATE_MACHINE_FAILED;
+
+  int error;
+  IF_WIN(int, socklen_t) optlen = sizeof(error);
+  IF_WIN(char, void) *optval = (IF_WIN(char, void) *)&error;
+
+  /*
+    At this point, we know that something happened on the socket.
+    But this does not means that everything is alright. The connect
+    might have failed. We need to retrieve the error code from the
+    socket layer. We must return success only if we are sure that
+    it was really a success. Otherwise we might prevent the caller
+    from trying another address to connect to.
+  */
+  DBUG_PRINT("info", ("Connect to '%s' completed", ctx->host));
+  ctx->state_function = csm_complete_connect;
+  if (!(ret = mysql_socket_getsockopt(vio->mysql_socket, SOL_SOCKET, SO_ERROR,
+                                      optval, &optlen))) {
 #ifdef _WIN32
-      WSASetLastError(error);
+    WSASetLastError(error);
 #else
-      errno = error;
+    errno = error;
 #endif
-      if (error != 0) {
-        DBUG_PRINT("error",
-                   ("Got error %d on connect to '%s'", error, ctx->host));
-        set_mysql_extended_error(
-            ctx->mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-            ER_CLIENT(CR_CONN_HOST_ERROR), ctx->host, ctx->port, error);
-        return STATE_MACHINE_FAILED;
-      }
+    if (error != 0) {
+      DBUG_PRINT("error",
+                 ("Got error %d on connect to '%s'", error, ctx->host));
+      set_mysql_extended_error(ctx->mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
+                               ER_CLIENT(CR_CONN_HOST_ERROR), ctx->host,
+                               ctx->port, error);
+      return STATE_MACHINE_FAILED;
     }
   }
   return STATE_MACHINE_CONTINUE;
