@@ -1173,6 +1173,9 @@ struct sync_allowed_latches : public sync_check_functor_t {
   sync_allowed_latches(const latch_level_t *from, const latch_level_t *to)
       : m_result(), m_latches(from, to) {}
 
+  /** Default constructor.  The list of allowed latches is empty. */
+  sync_allowed_latches() : m_result(), m_latches() {}
+
   /** Check whether the given latch_t violates the latch constraint.
   This object maintains a list of allowed latch levels, and if the given
   latch belongs to a latch level that is not there in the allowed list,

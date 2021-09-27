@@ -630,10 +630,15 @@ void dict_table_wait_for_bg_threads_to_exit(
     dict_table_t *table, /* in: table */
     ulint delay);        /* in: time in microseconds to wait between
                          checks of bg_threads. */
-/** Look up an index.
+
+/** Look up an index among already opened tables. Does not attempt to open
+tables that are not available in the dictionary cache.  This behaviour is fine
+for information schema's scenarios - use dd_table_open_on_id() if you need
+to access index meta-data reliably.
 @param[in]	id	index identifier
 @return index or NULL if not found */
 [[nodiscard]] const dict_index_t *dict_index_find(const index_id_t &id);
+
 /** Make room in the table cache by evicting an unused table. The unused table
  should not be part of FK relationship and currently not used in any user
  transaction. There is no guarantee that it will remove a table.

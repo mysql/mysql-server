@@ -1427,9 +1427,6 @@ static const dict_index_t *dict_table_find_index_on_id(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Look up an index.
-@param[in]	id	index identifier
-@return index or NULL if not found */
 const dict_index_t *dict_index_find(const index_id_t &id) {
   ut_ad(dict_sys_mutex_own());
 

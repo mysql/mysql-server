@@ -180,7 +180,8 @@ struct purge_node_t {
   @param[in]    page_id     the page_id of the first page of the LOB. */
   void add_lob_page(dict_index_t *index, const page_id_t &page_id);
 
-  /** Free the LOB first pages at end of purge batch. */
+  /** Free the LOB first pages at end of purge batch. Since this function
+  acquires shared MDL table locks, the caller should not hold any latches. */
   void free_lob_pages();
 
   /** Check if undo records of given table_id is there in this purge node.

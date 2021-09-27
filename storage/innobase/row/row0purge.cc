@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_base.h"
 #include "srv0mon.h"
 #include "srv0start.h"
+#include "sync0types.h"
 #include "table.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -1351,7 +1352,18 @@ void purge_node_t::add_lob_page(dict_index_t *index, const page_id_t &page_id) {
 }
 
 void purge_node_t::free_lob_pages() {
+#ifdef UNIV_DEBUG
+  {
+    /** Ensure that the caller does not hold any latches. */
+    sync_allowed_latches check;
+    ut_ad(!sync_check_iterate(check));
+    mtr_t::check_my_thread_mtrs_are_not_latching();
+  }
+#endif
+
   mtr_t local_mtr;
+
+  THD *thd = current_thd;
 
   for (const auto &tup : m_lob_pages) {
     const index_id_t index_id = std::get<0>(tup);
@@ -1359,18 +1371,24 @@ void purge_node_t::free_lob_pages() {
     const table_id_t table_id = std::get<2>(tup);
     const space_id_t space_id = page_id.space();
 
-    dict_sys_mutex_enter();
-    const dict_index_t *idx = dict_index_find(index_id);
+    MDL_ticket *mdl{};
+    dict_table_t *table = dd_table_open_on_id(table_id, thd, &mdl, false, true);
 
-    if (idx == nullptr || idx->space != space_id || idx->page == FIL_NULL ||
+    if (table == nullptr) {
+      continue;
+    }
+
+    const dict_index_t *idx = table->first_index();
+
+    if (idx == nullptr || idx->id != index_id.m_index_id ||
+        idx->space != space_id || idx->page == FIL_NULL ||
         idx->table->id != table_id) {
-      dict_sys_mutex_exit();
+      dd_table_close(table, thd, &mdl, false);
       continue;
     }
 
     dict_index_t *index = const_cast<dict_index_t *>(idx);
     const page_size_t page_size = dict_table_page_size(index->table);
-    dict_sys_mutex_exit();
 
     fil_space_t *space = fil_space_acquire_silent(space_id);
 
@@ -1390,6 +1408,7 @@ void purge_node_t::free_lob_pages() {
 
       fil_space_release(space);
     }
+    dd_table_close(table, thd, &mdl, false);
   }
 
   m_lob_pages.clear();
