@@ -361,10 +361,6 @@ INSERT INTO global_suppressions VALUES
  */
  ("Manifest file '.*' is not read-only. For better security, please make sure that the file is read-only."),
 
- /* TLS v1.0 and v1.1 deprecated */
- ("A deprecated TLS version TLSv1 is enabled for channel"),
- ("A deprecated TLS version TLSv1.1 is enabled for channel"),
-
  ("THE_LAST_SUPPRESSION");
 
 

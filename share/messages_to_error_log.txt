@@ -11307,10 +11307,10 @@ ER_GRP_RPL_MEMBER_ACTION_DISABLED
 ER_GRP_RPL_MEMBER_ACTIONS_RESET
   eng "Member actions configuration was reset."
 
-ER_DEPRECATED_TLS_VERSION_SESSION
+OBSOLETE_ER_DEPRECATED_TLS_VERSION_SESSION
   eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
 
-ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
+OBSOLETE_ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
   eng "A deprecated TLS version %s is enabled for channel %s"
 
 ER_FIREWALL_DEPRECATED_USER_PROFILE

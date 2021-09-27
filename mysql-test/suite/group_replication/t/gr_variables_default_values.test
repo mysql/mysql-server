@@ -366,8 +366,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_recovery_tls_version
---let $assert_text= Default group_replication_recovery_tls_version is "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"
+--let $assert_text= Default group_replication_recovery_tls_version is "TLSv1.2,TLSv1.3"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_tls_version]" = "TLSv1.2,TLSv1.3"
 --source include/assert.inc
 
 # group_replication_recovery_tls_ciphersuites

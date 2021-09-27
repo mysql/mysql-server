@@ -4387,9 +4387,9 @@ static MYSQL_SYSVAR_STR(
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
         PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
     "A list of permissible versions to use for TLS encryption.",
-    check_recovery_ssl_option,        /* check func*/
-    update_recovery_ssl_option,       /* update func*/
-    "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3"); /* default*/
+    check_recovery_ssl_option,  /* check func*/
+    update_recovery_ssl_option, /* update func*/
+    "TLSv1.2,TLSv1.3");         /* default*/
 
 static MYSQL_SYSVAR_STR(
     recovery_tls_ciphersuites,        /* name */

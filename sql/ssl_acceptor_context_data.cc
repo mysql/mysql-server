@@ -33,8 +33,6 @@
 #include "mysql/components/services/log_builtins.h" /* LogErr */
 #include "mysqld_error.h"                           /* Error/Warning macros */
 
-#include "sql/current_thd.h"
-#include "sql/sql_error.h"
 #include "sql/ssl_acceptor_context_data.h"
 
 /* Helpers */
@@ -121,20 +119,6 @@ Ssl_acceptor_context_property_type &operator++(
   return property_type;
 }
 
-static void push_deprecated_tls_option_no_replacement(THD *thd,
-                                                      const char *tls_version,
-                                                      const char *channel) {
-  if (thd != nullptr)
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING,
-        ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI,
-        ER_THD(thd, ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI),
-        tls_version, channel);
-  else
-    LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL,
-           tls_version, channel);
-}
-
 Ssl_acceptor_context_data::Ssl_acceptor_context_data(
     std::string channel, bool use_ssl_arg, Ssl_init_callback *callbacks,
     bool report_ssl_error /* = true */,
@@ -150,13 +134,6 @@ Ssl_acceptor_context_data::Ssl_acceptor_context_data(
 
   if (use_ssl_arg) {
     long tls_version = process_tls_version(current_version_.c_str());
-
-    if (!(tls_version & SSL_OP_NO_TLSv1))
-      push_deprecated_tls_option_no_replacement(current_thd, "TLSv1",
-                                                channel_.c_str());
-    if (!(tls_version & SSL_OP_NO_TLSv1_1))
-      push_deprecated_tls_option_no_replacement(current_thd, "TLSv1.1",
-                                                channel_.c_str());
 
     ssl_acceptor_fd_ = new_VioSSLAcceptorFd(
         current_key_.c_str(), current_cert_.c_str(), current_ca_.c_str(),

@@ -164,8 +164,6 @@ terminology_use_previous
 terminology_use_previous
 tls_ciphersuites
 tls_ciphersuites
-tls_version
-tls_version
 use_secondary_engine
 drop table t1;
 drop table t2;

@@ -40,9 +40,6 @@ The following options may be given as the first argument:
  --admin-ssl-crlpath=name 
  --admin-ssl-key=name 
  --admin-tls-ciphersuites=name 
- --admin-tls-version=name 
- TLS version for --admin-port, permitted values are TLSv1,
- TLSv1.1, TLSv1.2, TLSv1.3
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -1546,8 +1543,6 @@ The following options may be given as the first argument:
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --tls-ciphersuites=name 
- --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
- TLSv1.2, TLSv1.3
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
  storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table

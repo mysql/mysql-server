@@ -18,9 +18,6 @@ SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/cacert.pem';
 SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/server-cert.pem';
 SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/server-key.pem';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 TRUNCATE TABLE cipher_data.p;
 TRUNCATE TABLE cipher_data.a;
 TRUNCATE TABLE cipher_data.d;
@@ -109,27 +106,18 @@ Variable_name	Value
 Ssl_cipher	DHE-RSA-AES128-SHA
 SET @@global.ssl_cipher = 'DHE-RSA-CAMELLIA256-SHA';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Expecting connection success with cipher: DHE-RSA-CAMELLIA256-SHA
 mysql: [Warning] Using a password on the command line interface can be insecure.
 Variable_name	Value
 Ssl_cipher	DHE-RSA-CAMELLIA256-SHA
 SET @@global.ssl_cipher = 'DHE-RSA-CAMELLIA128-SHA';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Expecting connection success with cipher: DHE-RSA-CAMELLIA128-SHA
 mysql: [Warning] Using a password on the command line interface can be insecure.
 Variable_name	Value
 Ssl_cipher	DHE-RSA-CAMELLIA128-SHA
 SET @@global.ssl_cipher = NULL;
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Expecting connection failure wiith cipher: DHE-RSA-DES-CBC3-SHA
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 2026 (HY000): SSL connection error
@@ -188,9 +176,6 @@ SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/cacert.pem';
 SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-cert.pem';
 SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/ecdh_rsa_certs/server-key.pem';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 TRUNCATE TABLE cipher_data.p;
 TRUNCATE TABLE cipher_data.a;
 TRUNCATE TABLE cipher_data.d;
@@ -243,9 +228,6 @@ SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/cacert.pem';
 SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/server-cert.pem';
 SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/ecdh_dsa_certs/server-key.pem';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Expecting connection success with cipher: ECDHE-ECDSA-AES256-GCM-SHA384
 mysql: [Warning] Using a password on the command line interface can be insecure.
 Variable_name	Value
@@ -285,9 +267,6 @@ SET @@global.ssl_ca='MYSQL_TEST_DIR/std_data/ecdsa_certs/cacert.pem';
 SET @@global.ssl_cert='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-cert.pem';
 SET @@global.ssl_key='MYSQL_TEST_DIR/std_data/ecdsa_certs/server-key.pem';
 ALTER INSTANCE RELOAD TLS;
-Warnings:
-Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
-Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # Expecting connection success with cipher: ECDHE-ECDSA-AES256-GCM-SHA384
 mysql: [Warning] Using a password on the command line interface can be insecure.
 Variable_name	Value
