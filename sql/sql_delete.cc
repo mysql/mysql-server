@@ -137,7 +137,7 @@ class Query_result_delete final : public Query_result_interceptor {
   void cleanup(THD *thd) override;
 
  private:
-  int do_deletes(THD *thd);
+  bool do_deletes(THD *thd);
   int do_table_deletes(THD *thd, TABLE *table);
 };
 
@@ -1156,31 +1156,27 @@ void Query_result_delete::abort_result_set(THD *thd) {
 /**
   Do delete from other tables.
 
-  @retval 0 ok
-  @retval 1 error
+  @return true on error
 */
 
-int Query_result_delete::do_deletes(THD *thd) {
+bool Query_result_delete::do_deletes(THD *thd) {
   DBUG_TRACE;
   assert(!delete_completed);
 
   delete_completed = true;  // Mark operation as complete
-  if (!has_buffered_rows) return 0;
+  if (!has_buffered_rows) return false;
 
   for (uint counter = 0; counter < tables.size(); counter++) {
     TABLE *const table = tables[counter];
-    if (tempfiles[counter]->get(table)) return 1;
+    if (tempfiles[counter]->get(table)) return true;
 
     int local_error = do_table_deletes(thd, table);
 
-    if (thd->killed && !local_error) return 1;
+    if (thd->killed && !local_error) return true;
 
-    if (local_error == -1)  // End of file
-      local_error = 0;
-
-    if (local_error) return local_error;
+    if (local_error != 0 && local_error != -1) return true;
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -1273,22 +1269,22 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
 */
 
 bool Query_result_delete::send_eof(THD *thd) {
-  THD::killed_state killed_status = THD::NOT_KILLED;
   THD_STAGE_INFO(thd, stage_deleting_from_reference_tables);
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
-  int local_error = do_deletes(thd);  // returns 0 if success
+  bool local_error = do_deletes(thd);
 
   /* compute a total error to know if something failed */
   local_error = local_error || delete_error;
-  killed_status = (local_error == 0) ? THD::NOT_KILLED : thd->killed.load();
+  const THD::killed_state killed_status =
+      !local_error ? THD::NOT_KILLED : thd->killed.load();
   /* reset used flags */
 
-  if ((local_error == 0) ||
+  if (!local_error ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
     if (mysql_bin_log.is_open()) {
       int errcode = 0;
-      if (local_error == 0)
+      if (!local_error)
         thd->clear_error();
       else
         errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
@@ -1297,11 +1293,11 @@ bool Query_result_delete::send_eof(THD *thd) {
                             thd->query().length, transactional_table_map != 0,
                             false, false, errcode) &&
           transactional_table_map == delete_table_map) {
-        local_error = 1;  // Log write failed: roll back the SQL statement
+        local_error = true;  // Log write failed: roll back the SQL statement
       }
     }
   }
-  if (local_error != 0)
+  if (local_error)
     error_handled = true;  // to force early leave from ::send_error()
 
   if (!local_error && !thd->is_error()) {
