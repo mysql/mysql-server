@@ -578,4 +578,14 @@ CREATE TABLE t(x INTEGER);
 INSERT INTO t VALUES (1), (2), (3);
 ANALYZE TABLE t;
 EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+
+# Demonstrates EXPLAIN ANALYZE on a DELETE statement.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
+# Should EXPLAIN ANALYZE DELETE actually delete rows? Currently, it
+# does not. (And EXPLAIN ANALYZE UPDATE/INSERT don't modify the table
+# either.)
+--sorted_result
+SELECT * FROM t;
+
 DROP TABLE t;

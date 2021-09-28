@@ -959,4 +959,17 @@ EXPLAIN
 -> Delete from t (buffered)  (cost=0.00..0.00 rows=0)
     -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
+EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
+EXPLAIN
+-> Delete from t1 (buffered)  (cost=3.10 rows=9) (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Nested loop inner join  (cost=2.20 rows=9) (actual time=N.NNN..N.NNN rows=2 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Filter: (t1.x = (t2.x + 1))  (cost=0.35 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=3)
+            -> Table scan on t2  (cost=0.35 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=3)
+
+SELECT * FROM t;
+x
+1
+2
+3
 DROP TABLE t;

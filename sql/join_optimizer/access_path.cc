@@ -27,6 +27,7 @@
 #include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/bka_iterator.h"
 #include "sql/iterators/composite_iterators.h"
+#include "sql/iterators/delete_rows_iterator.h"
 #include "sql/iterators/hash_join_iterator.h"
 #include "sql/iterators/ref_row_iterators.h"
 #include "sql/iterators/sorting_iterator.h"
@@ -907,12 +908,13 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       break;
     }
     case AccessPath::DELETE_ROWS: {
-      // TODO(khatlen): There is no iterator type for DELETE_ROWS yet. The logic
-      // for deleting the rows lives in Query_result_delete, but much of it
-      // could just as well have been in a delete iterator. For now, just create
-      // the iterator for the child.
-      return CreateIteratorFromAccessPath(thd, path->delete_rows().child, join,
-                                          eligible_for_batch_mode);
+      const auto &param = path->delete_rows();
+      unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
+          thd, path->delete_rows().child, join, eligible_for_batch_mode);
+      iterator = NewIterator<DeleteRowsIterator>(
+          thd, mem_root, move(child), join, param.tables_to_delete_from,
+          param.immediate_tables);
+      break;
     }
   }
 
