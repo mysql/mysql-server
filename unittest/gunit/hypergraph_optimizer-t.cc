@@ -1658,8 +1658,8 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
       /*nullable=*/true);
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
-  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/true);
 
   // Build multiple equalities from the WHERE condition.
   COND_EQUAL *cond_equal = nullptr;
@@ -1668,7 +1668,6 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
                              &query_block->cond_value));
 
   // The logical plan should be t1/t2/t3, with index lookups on t2 and t3.
-  // should not be.
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t2"]->file->stats.records = 10000;
   m_fake_tables["t3"]->file->stats.records = 1000000;
@@ -1696,8 +1695,8 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
   EXPECT_EQ(JoinType::INNER, inner->nested_loop_join().join_type);
 
   // We have two index lookups; t2 and t3. We don't care about the order.
-  ASSERT_EQ(AccessPath::REF, inner->nested_loop_join().outer->type);
-  ASSERT_EQ(AccessPath::REF, inner->nested_loop_join().inner->type);
+  ASSERT_EQ(AccessPath::EQ_REF, inner->nested_loop_join().outer->type);
+  ASSERT_EQ(AccessPath::EQ_REF, inner->nested_loop_join().inner->type);
 }
 
 TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
@@ -1722,6 +1721,22 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   m_fake_tables["t2"]->file->stats.records = 100000000;
   m_fake_tables["t3"]->file->stats.records = 1000000;
   m_fake_tables["t4"]->file->stats.records = 10000;
+
+  // Incentivize ref access on t1, just to get the plan we want.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                               SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        if (path->type == AccessPath::REF &&
+            strcmp(path->ref().table->alias, "t1") == 0) {
+          path->cost *= 0.01;
+          path->init_cost *= 0.01;
+          path->cost_before_filter *= 0.01;
+        }
+        return false;
+      };
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);

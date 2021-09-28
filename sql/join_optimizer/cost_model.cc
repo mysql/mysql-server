@@ -66,11 +66,22 @@ double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
   // cost model is tuned better for this case.
   const double hacked_num_output_rows = ceil(num_output_rows);
 
-  const double table_scan_cost = table->file->table_scan_cost().total_cost();
-  const double worst_seeks = find_worst_seeks(
-      table->cost_model(), hacked_num_output_rows, table_scan_cost);
+  // We call find_cost_for_ref(), which is the same cost model used
+  // in the old join optimizer, but without the “worst_seek” cap,
+  // which gives ref access with high row counts an artificially low cost.
+  // Removing this cap hurts us a bit if the buffer pool gets filled
+  // with useful data _while running this query_, but it is just a really
+  // bad idea overall, that makes the join optimizer prefer such plans
+  // by a mile. The original comment says that it's there to prevent
+  // choosing table scan too often, but table scans are not a problem
+  // if we hash join on them. (They can be dangerous with nested-loop
+  // joins, though!)
+  //
+  // TODO(sgunders): This is still a very primitive, and rather odd,
+  // cost model. In particular, why don't we ask the storage engine for
+  // the cost of scanning non-covering secondary indexes?
   return find_cost_for_ref(thd, table, key_idx, hacked_num_output_rows,
-                           worst_seeks);
+                           /*worst_seeks=*/DBL_MAX);
 }
 
 void EstimateSortCost(AccessPath *path, ha_rows limit_rows) {

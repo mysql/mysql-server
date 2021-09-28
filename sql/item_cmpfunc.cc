@@ -2567,6 +2567,13 @@ float Item_func_lt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // 0 < MATCH(...) is the same as just MATCH(...), so reuse its selectivity.
+  if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
+      args[0]->const_item() && args[0]->val_real() == 0.0) {
+    return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -2603,6 +2610,13 @@ float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // MATCH(...) > 0 is the same as just MATCH(...), so reuse its selectivity.
+  if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
+      args[1]->const_item() && args[1]->val_real() == 0.0) {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
