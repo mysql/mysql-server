@@ -1542,11 +1542,12 @@ int WindowIterator::Read() {
   SwitchSlice(m_join, m_input_slice);
 
   int err = m_source->Read();
+
+  SwitchSlice(m_join, m_output_slice);
+
   if (err != 0) {
     return err;
   }
-
-  SwitchSlice(m_join, m_output_slice);
 
   if (copy_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) return 1;
 
