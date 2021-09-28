@@ -1626,6 +1626,16 @@ AND OUTR . col_varchar_key IS NULL
 HAVING x <= 3
 ORDER BY OUTR . pk , OUTR . pk;
 
+
+--echo #
+--echo # Bug#104108 CUMULATIVE FREQUENCY MAY GROW OVER 1.0 DUE TO FLOAT ERRORS
+--echo #
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS WHERE table_name = 't2' and column_name = 'col_datetime';
+
 DROP TABLE t1, t2;
 SET @@SESSION.sql_mode=DEFAULT;
 

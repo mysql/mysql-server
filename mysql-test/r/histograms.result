@@ -2043,6 +2043,17 @@ AND OUTR . col_varchar_key IS NULL
 HAVING x <= 3
 ORDER BY OUTR . pk , OUTR . pk;
 x
+#
+# Bug#104108 CUMULATIVE FREQUENCY MAY GROW OVER 1.0 DUE TO FLOAT ERRORS
+#
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON col_datetime WITH 100 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'col_datetime'.
+SELECT schema_name, table_name, column_name,
+JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS WHERE table_name = 't2' and column_name = 'col_datetime';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t2	col_datetime	{"buckets": [["1900-01-01 00:00:00.000000", 0.3], ["2001-01-20 12:47:23.000000", 0.35], ["2001-07-25 08:40:24.000000", 0.4], ["2001-10-22 11:13:24.000000", 0.45], ["2002-08-25 20:35:06.000000", 0.5], ["2002-12-08 11:34:58.000000", 0.55], ["2003-03-12 02:00:34.000000", 0.6], ["2003-12-04 11:14:26.000000", 0.65], ["2005-08-15 00:00:00.000000", 0.7], ["2006-09-11 18:25:21.000000", 0.75], ["2007-04-10 12:16:04.000000", 0.8], ["2008-05-16 08:09:06.000000", 0.85], ["2008-07-02 00:00:00.000000", 0.9], ["2009-06-07 13:48:58.000000", 0.95], ["2009-11-07 00:00:00.000000", 1.0]], "data-type": "datetime", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 100}
 DROP TABLE t1, t2;
 SET @@SESSION.sql_mode=DEFAULT;
 #

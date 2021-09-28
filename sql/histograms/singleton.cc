@@ -117,7 +117,7 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
       value_map.get_num_null_values() / static_cast<double>(total_count);
 
   // Create buckets with relative frequency, and not absolute frequency.
-  double cumulative_frequency = 0.0;
+  ha_rows cumulative_sum = 0;
 
   /*
     Since we are using a std::map with Mem_root_allocator, we are forced to wrap
@@ -126,8 +126,9 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
   */
   try {
     for (const auto &node : value_map) {
-      const double frequency = node.second / static_cast<double>(total_count);
-      cumulative_frequency += frequency;
+      cumulative_sum += node.second;
+      const double cumulative_frequency =
+          cumulative_sum / static_cast<double>(total_count);
 
       m_buckets.emplace(node.first, cumulative_frequency);
     }
