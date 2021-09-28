@@ -2829,13 +2829,11 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
   }
 
   /* Set new table id of the first partition to dd::Column::se_private_data */
-  if (!discard) {
-    table = m_part_share->get_table_part(0);
+  table = m_part_share->get_table_part(0);
 
-    for (auto dd_column : *table_def->columns()) {
-      dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
-                                       table->id);
-    }
+  for (auto dd_column : *table_def->columns()) {
+    dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                     table->id);
   }
 
   return error;
