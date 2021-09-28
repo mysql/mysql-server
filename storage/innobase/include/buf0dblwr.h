@@ -172,10 +172,8 @@ then writes the page to the datafile.
 
 /** Obtain the encrypted frame and store it in bpage->m_io_frame
 @param[in,out]  bpage  the buffer page containing the unencrypted frame.
-@param[out]     len    the encrypted data length.
 @return the memory block containing the compressed + encrypted frame. */
-[[nodiscard]] file::Block *get_encrypted_frame(buf_page_t *bpage,
-                                               uint32_t &len) noexcept;
+[[nodiscard]] file::Block *get_encrypted_frame(buf_page_t *bpage) noexcept;
 
 /** Updates the double write buffer when a write request is completed.
 @param[in] bpage               Block that has just been writtent to disk.

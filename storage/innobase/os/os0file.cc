@@ -368,9 +368,6 @@ struct Slot {
   ulint n_bytes{0};
 #endif /* WIN_ASYNC_IO */
 
-  /** Length of the block before it was compressed */
-  uint32 original_len{0};
-
   /** Buffer block for compressed pages or encrypted pages */
   file::Block *buf_block{nullptr};
 
@@ -1037,14 +1034,14 @@ class AIOHandler {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf,
-                                nullptr, slot->original_len, slot->offset,
-                                slot->len));
+                                nullptr, slot->type.get_original_size(),
+                                slot->offset, slot->len));
   }
 
  private:
   /** Check whether the page was encrypted.
   @param[in]	slot		The slot that contains the IO request
-  @return true if it was an encyrpted page */
+  @return true if it was an encrypted page */
   static bool is_encrypted_page(const Slot *slot) {
     return (Encryption::is_encrypted_page(slot->buf));
   }
@@ -1196,13 +1193,13 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
   dberr_t err;
 
   ut_ad(slot->type.is_read());
-  ut_ad(slot->original_len > slot->len);
+  ut_ad(slot->type.get_original_size() > slot->len);
 
   if (is_compressed_page(slot)) {
     if (can_decompress(slot)) {
       ut_a(slot->offset > 0);
 
-      slot->len = slot->original_len;
+      slot->len = slot->type.get_original_size();
 #ifdef _WIN32
       slot->n_bytes = static_cast<DWORD>(n_bytes);
 #else
@@ -1221,7 +1218,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
              (slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE)) {
     ut_a(slot->offset > 0);
 
-    slot->len = slot->original_len;
+    slot->len = slot->type.get_original_size();
 #ifdef _WIN32
     slot->n_bytes = static_cast<DWORD>(n_bytes);
 #else
@@ -1260,7 +1257,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
 
   /* Compressed writes can be smaller than the original length.
   Therefore they can be processed without further IO. */
-  if (n_bytes == slot->original_len ||
+  if (n_bytes == slot->type.get_original_size() ||
       (slot->type.is_write() && slot->type.is_compressed() &&
        slot->len == static_cast<ulint>(slot->n_bytes))) {
     if ((slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE) ||
@@ -1268,7 +1265,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       ut_a(slot->offset > 0);
 
       if (slot->type.is_read()) {
-        slot->len = slot->original_len;
+        slot->len = slot->type.get_original_size();
       }
 
       /* The punch hole has been done on collect() */
@@ -1297,7 +1294,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
     }
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
     /* It *must* be a partial read. */
-    ut_ad(slot->len < slot->original_len);
+    ut_ad(slot->len < slot->type.get_original_size());
 
     /* Has to be a read request, if it is less than
     the original length. */
@@ -1989,9 +1986,9 @@ file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n) {
   return (block);
 }
 
-file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n) {
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n) {
   byte *encrypted_page;
-  ulint encrypted_len = *n;
+  ulint encrypted_len = n;
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
 
@@ -2002,14 +1999,14 @@ file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n) {
 
   encrypted_page = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
 
-  buf_ptr = encryption.encrypt(type, reinterpret_cast<byte *>(buf), *n,
+  buf_ptr = encryption.encrypt(type, reinterpret_cast<byte *>(buf), n,
                                encrypted_page, &encrypted_len);
+  block->m_size = encrypted_len;
 
   bool encrypted = buf_ptr != buf;
 
   if (encrypted) {
     buf = buf_ptr;
-    *n = encrypted_len;
   }
 
   return (block);
@@ -2023,35 +2020,35 @@ file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n) {
                                 offset
 @return pointer to the encrypted log blocks */
 static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
-                                        byte *&scratch, ulint *n) {
+                                        byte *&scratch, ulint n) {
   byte *encrypted_log;
-  ulint encrypted_len = *n;
+  ulint encrypted_len = n;
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
 
   ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
-  ut_ad(*n % OS_FILE_LOG_BLOCK_SIZE == 0);
+  ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-  if (*n <= BUFFER_BLOCK_SIZE - os_io_ptr_align) {
+  if (n <= BUFFER_BLOCK_SIZE - os_io_ptr_align) {
     block = os_alloc_block();
     buf_ptr = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
     scratch = nullptr;
   } else {
-    buf_ptr = static_cast<byte *>(ut::aligned_alloc(*n, os_io_ptr_align));
+    buf_ptr = static_cast<byte *>(ut::aligned_alloc(n, os_io_ptr_align));
     scratch = buf_ptr;
   }
 
   encrypted_log = buf_ptr;
 
-  encrypted_log = encryption.encrypt_log(type, reinterpret_cast<byte *>(buf),
-                                         *n, encrypted_log, &encrypted_len);
+  encrypted_log = encryption.encrypt_log(type, reinterpret_cast<byte *>(buf), n,
+                                         encrypted_log, &encrypted_len);
+  block->m_size = encrypted_len;
 
   bool encrypted = encrypted_log != buf;
 
   if (encrypted) {
     buf = encrypted_log;
-    *n = encrypted_len;
   }
 
   return (block);
@@ -2185,7 +2182,7 @@ class LinuxAIOHandler {
   /** Slot array */
   AIO *m_array;
 
-  /** Number of slots inthe local segment */
+  /** Number of slots in the local segment */
   ulint m_n_slots;
 
   /** The local segment to check */
@@ -2205,8 +2202,9 @@ dberr_t LinuxAIOHandler::resubmit(Slot *slot) {
 
   ut_ad(m_array->is_mutex_owned());
 
-  ut_ad(n_bytes < slot->original_len);
-  ut_ad(static_cast<ulint>(slot->n_bytes) < slot->original_len - n_bytes);
+  ut_ad(n_bytes < slot->type.get_original_size());
+  ut_ad(static_cast<ulint>(slot->n_bytes) <
+        slot->type.get_original_size() - n_bytes);
   /* Partial read or write scenario */
   ut_ad(slot->len >= static_cast<ulint>(slot->n_bytes));
 #endif /* UNIV_DEBUG */
@@ -2368,6 +2366,11 @@ void LinuxAIOHandler::collect() {
       /* We have not overstepped to next segment. */
       ut_a(slot->pos < end_pos);
 
+      /** If write of the page is compressed (compression is enabled, it is not
+      the first page, it is not a redolog, not a doublewrite buffer) and punch
+      holes are enabled, call AIOHandler::io_complete to check if hole punching
+      is needed.
+      Keep in sync with os_aio_windows_handler(). */
       if (slot->offset > 0 && !slot->skip_punch_hole &&
           slot->type.is_compression_enabled() && !slot->type.is_log() &&
           slot->type.is_write() && slot->type.is_compressed() &&
@@ -3776,34 +3779,6 @@ ssize_t SyncFileIO::execute(Slot *slot) {
   return (ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
 
-/** Check if the file system supports sparse files.
-@param[in]	 name		File name
-@return true if the file system supports sparse files */
-static bool os_is_sparse_file_supported_win32(const char *filename) {
-  char volname[MAX_PATH];
-  BOOL result = GetVolumePathName(filename, volname, MAX_PATH);
-
-  if (!result) {
-    ib::error(ER_IB_MSG_785)
-        << "os_is_sparse_file_supported: "
-        << "Failed to get the volume path name for: " << filename
-        << "- OS error number " << GetLastError();
-
-    return false;
-  }
-
-  DWORD flags;
-
-  result = GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags,
-                                NULL, MAX_PATH);
-
-  if (!result) {
-    return false;
-  }
-
-  return (flags & FILE_SUPPORTS_SPARSE_FILES) ? true : false;
-}
-
 /** Free storage space associated with a section of the file.
 @param[in]	fh		Open file handle
 @param[in]	page_size	Tablespace page size
@@ -4145,9 +4120,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 
       DWORD temp;
 
-      /* This is a best effort use case, if it fails then
-      we will find out when we try and punch the hole. */
-
+      /* This is a best effort use case, if it fails then we will find out when
+      we try and punch the hole. */
       DeviceIoControl(file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &temp, NULL);
     }
 
@@ -4469,6 +4443,14 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
                            NULL);  // No template file
 
   *success = (file.m_file != INVALID_HANDLE_VALUE);
+
+  if (*success) {
+    DWORD temp;
+    /* This is a best effort use case, if it fails then we will find out when
+    we try and punch the hole. */
+    DeviceIoControl(file.m_file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &temp,
+                    NULL);
+  }
 
   return (file);
 }
@@ -5037,7 +5019,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       written to the dblwr file and the data file. During importing an
       encrypted tablespace, we reach here. */
       if (e_block == nullptr) {
-        block = os_file_encrypt_page(type, buf, &n);
+        block = os_file_encrypt_page(type, buf, n);
       } else {
         block = const_cast<file::Block *>(e_block);
       }
@@ -5048,7 +5030,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
     } else {
       /* Skip encrypt log file header */
       if (offset >= LOG_FILE_HDR_SIZE) {
-        block = os_file_encrypt_log(type, buf, encrypt_log_buf, &n);
+        block = os_file_encrypt_log(type, buf, encrypt_log_buf, n);
       }
     }
   }
@@ -5969,9 +5951,6 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh) {
   Transparent Page Compression is still being tested. */
   DBUG_EXECUTE_IF("ignore_punch_hole", return (true););
 
-#ifdef _WIN32
-  return (os_is_sparse_file_supported_win32(path));
-#else
   dberr_t err;
 
   /* We don't know the FS block size, use the sector size. The FS
@@ -5979,7 +5958,6 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh) {
   err = os_file_punch_hole(fh.m_file, 0, UNIV_PAGE_SIZE);
 
   return (err == DB_SUCCESS);
-#endif /* _WIN32 */
 }
 
 dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
@@ -6806,7 +6784,17 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   slot->ptr = slot->buf;
   slot->offset = offset;
   slot->err = DB_SUCCESS;
-  slot->original_len = static_cast<uint32>(len);
+  if (type.is_read()) {
+    /* The original size must not be specified for reads. */
+    ut_ad(!slot->type.get_original_size());
+    slot->type.set_original_size(static_cast<uint32_t>(len));
+  } else if (type.is_write()) {
+    /* The original size may be supplied by user in case the punch hole is
+    requested, otherwise use the IO length specified. */
+    if (slot->type.get_original_size() == 0) {
+      slot->type.set_original_size(static_cast<uint32_t>(len));
+    }
+  }
   slot->io_already_done = false;
   slot->buf_block = nullptr;
   slot->encrypt_log_buf = nullptr;
@@ -6846,8 +6834,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   or low compression rate. */
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
       (type.is_encrypted() || e_block != nullptr)) {
-    ulint encrypted_len = slot->len;
-    file::Block *encrypted_block;
+    file::Block *encrypted_block = nullptr;
     byte *encrypt_log_buf;
 
     release();
@@ -6855,7 +6842,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     void *src_buf = slot->buf;
     if (!type.is_log()) {
       if (e_block == nullptr) {
-        encrypted_block = os_file_encrypt_page(type, src_buf, &encrypted_len);
+        encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
       } else {
         encrypted_block = const_cast<file::Block *>(e_block);
       }
@@ -6868,8 +6855,9 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     } else {
       /* Skip encrypt log file header */
       if (offset >= LOG_FILE_HDR_SIZE) {
+        ut_ad(e_block == nullptr);
         encrypted_block =
-            os_file_encrypt_log(type, src_buf, encrypt_log_buf, &encrypted_len);
+            os_file_encrypt_log(type, src_buf, encrypt_log_buf, slot->len);
 
         if (slot->buf_block != nullptr) {
           os_free_block(slot->buf_block);
@@ -6889,11 +6877,13 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 
     slot->ptr = slot->buf;
 
+    if (encrypted_block != nullptr) {
 #ifdef _WIN32
-    slot->len = static_cast<DWORD>(encrypted_len);
+      slot->len = static_cast<DWORD>(encrypted_block->m_size);
 #else
-    slot->len = static_cast<ulint>(encrypted_len);
+      slot->len = static_cast<ulint>(encrypted_block->m_size);
 #endif /* _WIN32 */
+    }
 
     acquire();
   }
@@ -7199,6 +7189,19 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
   }
 
   if (err == DB_SUCCESS) {
+    /** If write of the page is compressed (compression is enabled, it is not
+    the first page, it is not a redolog, not a doublewrite buffer) and punch
+    holes are enabled, call AIOHandler::io_complete to check if hole punching is
+    needed.
+    Keep in sync with LinuxAIOHandler::collect(). */
+    if (slot->offset > 0 && !slot->skip_punch_hole &&
+        slot->type.is_compression_enabled() && !slot->type.is_log() &&
+        slot->type.is_write() && slot->type.is_compressed() &&
+        slot->type.punch_hole() && !slot->type.is_dblwr()) {
+      slot->err = AIOHandler::io_complete(slot);
+    } else {
+      slot->err = DB_SUCCESS;
+    }
     err = AIOHandler::post_io_processing(slot);
   }
 

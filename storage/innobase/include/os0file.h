@@ -95,6 +95,9 @@ struct Block {
 
   /** Pointer to the memory block. */
   byte *m_ptr;
+  /** Size of the data in memory block. This may be not UNIV_PAGE_SIZE if the
+  data was compressed before encryption. */
+  size_t m_size;
   /** This padding is needed to avoid false sharing. TBD: of what exactly? We
   can't use alignas because std::vector<Block> uses std::allocator which in
   C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
@@ -437,6 +440,14 @@ class IORequest {
     m_block_size = static_cast<uint32_t>(block_size);
   }
 
+  /** Returns original size of the IO to make. If one was not specified, then 0
+  is returned. */
+  uint32_t get_original_size() const { return m_original_size; }
+
+  void set_original_size(uint32_t original_size) {
+    m_original_size = original_size;
+  }
+
   /** Clear all compression related flags */
   void clear_compressed() {
     clear_punch_hole();
@@ -621,6 +632,12 @@ class IORequest {
 
   /** The length of data in encrypted block. */
   uint32_t m_elen{};
+
+  /** Length of the original IO size.
+  For reads it is an expected uncompressed length.
+  For writes it is a length up to which the write is to be extended with a punch
+  hole, if supported. */
+  uint32_t m_original_size{};
 };
 
 /** @} */
@@ -1192,7 +1209,8 @@ an asynchronous I/O operation.
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]	n		how many bytes to read or write; this
+must not cross a file boundary; in AIO this must be a block size multiple
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
                                 identify a completed AIO operation); ignored
@@ -1640,18 +1658,17 @@ Requests an asynchronous i/o operation.
 @param[in]	type		IO request context
 @param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
-                                string
+string
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
+@param[in]	n		how many bytes to read or write; this
+must not cross a file boundary; in AIO this must be a block size multiple
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in,out]	m1		Message for the AIO handler, (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
+identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @param[in,out]	m2		message for the AIO handler (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
+identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
@@ -1903,10 +1920,10 @@ inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
 /** Encrypt a page content when write it to disk.
 @param[in]	type		IO flags
 @param[out]	buf		buffer to read or write
-@param[in,out]	n		number of bytes to read/write, starting from
+@param[in]	n		number of bytes to read/write, starting from
                                 offset
 @return pointer to the encrypted page */
-file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n);
 
 /** Allocate the buffer for IO on a transparently compressed table.
 @param[in]	type		IO flags

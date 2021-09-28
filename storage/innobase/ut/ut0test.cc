@@ -303,10 +303,10 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   const os_offset_t offset = page_no * page_size.physical();
 
   /* When the space file is currently open we are not able to write to it
-   * directly on Windows. We must use the currently opened handle. Moreover,
-   * on Windows a file opened for the AIO access must be accessed only by AIO
-   * methods. The AIO requires that the i/o buffer be aligned to OS block size
-   * and also its size divisible by OS block size. */
+  directly on Windows. We must use the currently opened handle. Moreover,
+  on Windows a file opened for the AIO access must be accessed only by AIO
+  methods. The AIO requires that the i/o buffer be aligned to OS block size
+  and also its size divisible by OS block size. */
 
   IORequest read_io_type(IORequest::READ);
   const dberr_t err =
@@ -317,13 +317,13 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
     TLOG("Could not read page_id=" << page_id << ", page_type=" << page_type
                                    << ", err=" << err);
     /* Since we do not pass encryption information in IORequest, if page is
-     * encrypted on disk, it cannot be decrypted by i/o layer. But the encrypted
-     * data will be available in the provided buffer. */
+    encrypted on disk, it cannot be decrypted by i/o layer. But the encrypted
+    data will be available in the provided buffer. */
 
     if (err == DB_IO_DECRYPT_FAIL) {
       /* We expect this only for encrypted pages.  For this function, this error
-       * is OK because we will only read one header field and the header is not
-       * encrypted. */
+      is OK because we will only read one header field and the header is not
+      encrypted. */
       ut_ad(Encryption::is_encrypted_page(buf.data()));
     } else {
       return RET_FAIL;
@@ -458,11 +458,11 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   const os_offset_t offset = page_no * page_size_bytes;
 
   /* When the space file is currently open we are not able to write to it
-   * directly on Windows. We must use the currently opened handle. Moreover,
-   * on Windows a file opened for the AIO access must be accessed only by AIO
-   * methods. The AIO requires the operations to be aligned and with size
-   * divisible by OS block size, so we first read block of the first page, to
-   * corrupt it and write back. */
+  directly on Windows. We must use the currently opened handle. Moreover,
+  on Windows a file opened for the AIO access must be accessed only by AIO
+  methods. The AIO requires the operations to be aligned and with size
+  divisible by OS block size, so we first read block of the first page, to
+  corrupt it and write back. */
 
   byte *buf = mem;
   IORequest read_io_type(IORequest::READ);
@@ -475,7 +475,7 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
 
     if (err == DB_IO_DECRYPT_FAIL) {
       /* We expect this only for encrypted pages. Since this function doesn't
-       * actually read (or use) the contents, this error is OK. */
+      actually read (or use) the contents, this error is OK. */
       ut_ad(Encryption::is_encrypted_page(buf));
     } else {
       return RET_FAIL;

@@ -1115,18 +1115,13 @@ class Fil_shard {
   @param[in]	sync		whether synchronous aio is desired
   @param[in]	page_id		page id
   @param[in]	page_size	page size
-  @param[in]	byte_offset	remainder of offset in bytes; in AIO
-                                  this must be divisible by the OS
-                                  block size
-  @param[in]	len		how many bytes to read or write;
-                                  this must not cross a file boundary;
-                                  in AIO this must be a block size
-                                  multiple
-  @param[in,out]	buf		buffer where to store read data
-                                  or from where to write; in AIO
-                                  this must be appropriately aligned
-  @param[in]	message		message for AIO handler if !sync,
-                                  else ignored
+  @param[in]	byte_offset	remainder of offset in bytes; in AIO this must
+  be divisible by the OS block size
+  @param[in]	len		how many bytes to read or write; this
+  must not cross a file boundary; in AIO this must be a block size multiple
+  @param[in,out]	buf		buffer where to store read data or from
+  where to write; in AIO this must be appropriately aligned
+  @param[in]	message		message for AIO handler if !sync, else ignored
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
@@ -7880,6 +7875,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   auto aio_mode = get_AIO_mode(req_type, sync);
 
   if (req_type.is_read()) {
+    ut_ad(type.get_original_size() == 0);
     srv_stats.data_read.add(len);
 
     if (aio_mode == AIO_mode::NORMAL && !recv_no_ibuf_operations &&
@@ -8092,9 +8088,12 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   offset += byte_offset;
 
   ut_a(file->size - page_no >=
-       (byte_offset + len + (page_size.physical() - 1)) / page_size.physical());
+       (byte_offset +
+        std::max(static_cast<uint32_t>(len), type.get_original_size()) +
+        (page_size.physical() - 1)) /
+           page_size.physical());
 
-  ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+  ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 
   /* Don't compress the log, page 0 of all tablespaces, tables compressed with
@@ -8259,23 +8258,6 @@ void fil_aio_wait(ulint segment) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Read or write data from a file.
-@param[in]	type		IO context
-@param[in]	sync		If true then do synchronous IO
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	byte_offset	remainder of offset in bytes; in aio this
-                                must be divisible by the OS block size
-@param[in]	len		how many bytes to read or write; this must
-                                not cross a file boundary; in AIO this must
-                                be a block size multiple
-@param[in,out]	buf		buffer where to store read data or from where
-                                to write; in AIO this must be appropriately
-                                aligned
-@param[in]	message		message for AIO handler if !sync, else ignored
-@return error code
-@retval DB_SUCCESS on success
-@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                const page_size_t &page_size, ulint byte_offset, ulint len,
                void *buf, void *message) {
