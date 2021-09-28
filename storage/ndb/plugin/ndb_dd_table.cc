@@ -249,8 +249,6 @@ bool ndb_dd_table_check_column_varbinary(const dd::Table *table_def,
   if (!col_def) {
     return false;
   }
-  DBUG_PRINT("info", ("type: %d, collation_id: %llu", col_def->type(),
-                      col_def->collation_id()));
 
   // Constant corresponding to number of my_charset_bin
   constexpr dd::Object_id BINARY_COLLATION_ID = 63;
