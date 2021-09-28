@@ -187,6 +187,15 @@ class ProcessWrapper {
 
   using OutputResponder = std::function<std::string(const std::string &)>;
 
+  void wait_for_sync_point_result(stdx::expected<void, std::error_code> v) {
+    wait_for_sync_point_result_ = std::move(v);
+  }
+
+  [[nodiscard]] stdx::expected<void, std::error_code>
+  wait_for_sync_point_result() const {
+    return wait_for_sync_point_result_;
+  }
+
  private:
   ProcessWrapper(
       const std::string &app_cmd, const std::vector<std::string> &args,
@@ -236,6 +245,8 @@ class ProcessWrapper {
   mutable std::mutex output_mtx_;
 
   friend class ProcessManager;
+
+  stdx::expected<void, std::error_code> wait_for_sync_point_result_{};
 };  // class ProcessWrapper
 
 #endif  // _PROCESS_WRAPPER_H_
