@@ -123,7 +123,7 @@ bool fetch_referenced_tables_from_ndb_dictionary(
 
   Ndb_table_guard tab_guard(ndb, schema_name, table_name);
   const NdbDictionary::Table *table = tab_guard.get_table();
-  if (table == NULL) {
+  if (table == nullptr) {
     DBUG_PRINT("error",
                ("Unable to load table '%s.%s' from NDB. Error : %s",
                 schema_name, table_name, tab_guard.getNdbError().message));

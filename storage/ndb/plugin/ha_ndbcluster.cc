@@ -541,7 +541,7 @@ static int check_slave_state(THD *thd) {
                                  Ndb_apply_status_table::TABLE_NAME.c_str());
 
         const NDBTAB *ndbtab = ndbtab_g.get_table();
-        if (unlikely(ndbtab == NULL)) {
+        if (unlikely(ndbtab == nullptr)) {
           ndb_error = ndbtab_g.getNdbError();
           break;
         }
@@ -8984,7 +8984,7 @@ static bool adjusted_frag_count(Ndb *ndb, uint requested_frags,
     Ndb_table_guard ndbtab_g(ndb, "sys", "SYSTAB_0");
     const NdbDictionary::Table *tab = ndbtab_g.get_table();
     if (tab) {
-      no_replicas = ndbtab_g.get_table()->getReplicaCount();
+      no_replicas = tab->getReplicaCount();
 
       /**
        * Guess #threads
@@ -9353,7 +9353,9 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
 
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
     Ndb_table_guard ndbtab_g(ndb, dbname, tabname);
-    if (!ndbtab_g.get_table()) ERR_RETURN(ndbtab_g.getNdbError());
+    if (!ndbtab_g.get_table()) {
+      ERR_RETURN(ndbtab_g.getNdbError());
+    }
 
     /* save the foreign key information in fk_list */
     if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
@@ -16142,7 +16144,9 @@ static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
 
   Ndb_table_guard ndbtab_g(ndb, db_name.str, table_name.str);
   const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
-  if (ndbtab == nullptr) ERR_RETURN(ndbtab_g.getNdbError());
+  if (ndbtab == nullptr) {
+    ERR_RETURN(ndbtab_g.getNdbError());
+  }
 
   Uint32 id;
   if (ndbtab->getTablespace(&id)) {
