@@ -27,6 +27,8 @@
 
 #include <string>
 
+#include "mysql/harness/filesystem.h"
+
 class TempDirectory {
  public:
   explicit TempDirectory(const std::string &prefix = "router")
