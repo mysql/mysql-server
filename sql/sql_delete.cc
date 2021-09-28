@@ -51,6 +51,7 @@
 #include "sql/item.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
@@ -141,6 +142,44 @@ class Query_result_delete final : public Query_result_interceptor {
   bool do_deletes(THD *thd);
   int do_table_deletes(THD *thd, TABLE *table);
 };
+
+bool DeleteCurrentRowAndProcessTriggers(THD *thd, TABLE *table,
+                                        bool invoke_before_triggers,
+                                        bool invoke_after_triggers,
+                                        ha_rows *deleted_rows) {
+  if (invoke_before_triggers) {
+    if (table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_BEFORE,
+                                          /*old_row_is_record1=*/false)) {
+      return true;
+    }
+  }
+
+  if (const int delete_error = table->file->ha_delete_row(table->record[0]);
+      delete_error != 0) {
+    myf error_flags = MYF(0);
+    if (table->file->is_fatal_error(delete_error)) {
+      error_flags |= ME_FATALERROR;
+    }
+    table->file->print_error(delete_error, error_flags);
+
+    // The IGNORE option may have downgraded the error from ha_delete_row
+    // to a warning, so we need to check the error flag in the THD.
+    return thd->is_error();
+  }
+
+  ++*deleted_rows;
+
+  if (invoke_after_triggers) {
+    if (table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
+                                          TRG_ACTION_AFTER,
+                                          /*old_row_is_record1=*/false)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 }  // namespace
 
@@ -598,39 +637,14 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       }
 
       assert(!thd->is_error());
-      if (has_before_triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, false)) {
+
+      if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
+                                             has_after_triggers,
+                                             &deleted_rows)) {
         error = 1;
         break;
       }
 
-      if ((error = table->file->ha_delete_row(table->record[0]))) {
-        if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
-
-        table->file->print_error(error, error_flags);
-        /*
-          In < 4.0.14 we set the error number to 0 here, but that
-          was not sensible, because then MySQL would not roll back the
-          failed DELETE, and also wrote it to the binlog. For MyISAM
-          tables a DELETE probably never should fail (?), but for
-          InnoDB it can fail in a FOREIGN KEY error or an
-          out-of-tablespace error.
-        */
-        if (thd->is_error())  // Could be downgraded to warning by IGNORE
-        {
-          error = 1;
-          break;
-        }
-      }
-
-      deleted_rows++;
-      if (has_after_triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_AFTER, false)) {
-        error = 1;
-        break;
-      }
       if (!--limit && using_limit) {
         error = -1;
         break;
@@ -1060,32 +1074,18 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
 
     if (immediate) {
       // Rows from this table can be deleted immediately
-      if (table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_BEFORE, false))
-        return true;
+      const ha_rows last_deleted = deleted_rows;
       table->set_deleted_row();
-      const int delete_error = table->file->ha_delete_row(table->record[0]);
-      if (delete_error == 0) {
-        deleted_rows++;
-        if (!table->file->has_transactions())
-          thd->get_transaction()->mark_modified_non_trans_table(
-              Transaction_ctx::STMT);
-        if (table->triggers &&
-            table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                              TRG_ACTION_AFTER, false))
-          return true;
-      } else {
-        myf error_flags = MYF(0);
-        if (table->file->is_fatal_error(delete_error))
-          error_flags |= ME_FATALERROR;
-        table->file->print_error(delete_error, error_flags);
-
-        /*
-          If IGNORE option is used errors caused by ha_delete_row will
-          be downgraded to warnings and don't have to stop the iteration.
-        */
-        if (thd->is_error()) return true;
+      if (DeleteCurrentRowAndProcessTriggers(
+              thd, table, /*invoke_before_triggers=*/table->triggers != nullptr,
+              /*invoke_after_triggers=*/table->triggers != nullptr,
+              &deleted_rows)) {
+        return true;
+      }
+      if (last_deleted != deleted_rows &&
+          !Overlaps(map, transactional_table_map)) {
+        thd->get_transaction()->mark_modified_non_trans_table(
+            Transaction_ctx::STMT);
       }
     } else {
       // Save deletes in a Unique object, to be carried out later.
@@ -1187,7 +1187,6 @@ bool Query_result_delete::do_deletes(THD *thd) {
 int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
   myf error_flags = MYF(0); /**< Flag for fatal errors */
   int local_error = 0;
-  ha_rows last_deleted = deleted_rows;
   DBUG_TRACE;
   /*
     Ignore any rows not found in reference tables as they may already have
@@ -1197,42 +1196,15 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
       init_table_iterator(thd, table, /*ignore_not_found_rows=*/true,
                           /*count_examined_rows=*/false);
   if (iterator == nullptr) return 1;
-  bool will_batch = !table->file->start_bulk_delete();
+  const bool will_batch = !table->file->start_bulk_delete();
+  const ha_rows last_deleted = deleted_rows;
   while (!(local_error = iterator->Read()) && !thd->killed) {
-    if (table->triggers &&
-        table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                          TRG_ACTION_BEFORE, false)) {
+    if (DeleteCurrentRowAndProcessTriggers(
+            thd, table, /*invoke_before_triggers=*/table->triggers != nullptr,
+            /*invoke_after_triggers=*/table->triggers != nullptr,
+            &deleted_rows)) {
       local_error = 1;
       break;
-    }
-
-    local_error = table->file->ha_delete_row(table->record[0]);
-    if (local_error) {
-      if (table->file->is_fatal_error(local_error))
-        error_flags |= ME_FATALERROR;
-
-      table->file->print_error(local_error, error_flags);
-      /*
-        If IGNORE option is used errors caused by ha_delete_row will
-        be downgraded to warnings and don't have to stop the iteration.
-      */
-      if (thd->is_error()) break;
-    }
-
-    /*
-      Increase the reported number of deleted rows only if no error occurred
-      during ha_delete_row.
-      Also, don't execute the AFTER trigger if the row operation failed.
-    */
-    if (!local_error) {
-      deleted_rows++;
-
-      if (table->triggers &&
-          table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
-                                            TRG_ACTION_AFTER, false)) {
-        local_error = 1;
-        break;
-      }
     }
   }
   if (will_batch) {
