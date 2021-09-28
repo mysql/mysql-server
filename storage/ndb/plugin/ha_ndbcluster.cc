@@ -12222,21 +12222,31 @@ static int connect_callback() {
   return 0;
 }
 
-bool ndbcluster_is_connected(uint max_wait_sec) {
-  mysql_mutex_lock(&ndbcluster_mutex);
-  bool connected =
-      !(!g_ndb_status.cluster_node_id && ndbcluster_hton->slot != ~(uint)0);
+/**
+  @brief Check if there are any live data nodes in cluster with the given
+  cluster connection
 
-  if (!connected) {
-    /* ndb not connected yet */
-    struct timespec abstime;
-    set_timespec(&abstime, max_wait_sec);
-    mysql_cond_timedwait(&ndbcluster_cond, &ndbcluster_mutex, &abstime);
-    connected =
-        !(!g_ndb_status.cluster_node_id && ndbcluster_hton->slot != ~(uint)0);
+  @param connection         Cluster conneciton that needs to be checked.
+  @param max_wait_sec       Maximum time to wait for the conenction to get
+  ready
+
+  @return true if a live data node is found within the given time
+*/
+bool ndbcluster_is_ready(Ndb_cluster_connection *connection,
+                         uint max_wait_sec) {
+  uint count = 0;
+
+  while ((count < (max_wait_sec * 10)) && (connection->get_no_ready() <= 0)) {
+    count++;
+    ndb_milli_sleep(100);
   }
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return connected;
+  if (count < (max_wait_sec * 10)) {
+    // Found a alive data node in cluster
+    return true;
+  }
+
+  // timeout occured
+  return false;
 }
 
 Ndb_index_stat_thread ndb_index_stat_thread;
@@ -12325,7 +12335,7 @@ static bool upgrade_migrate_privilege_tables() {
   Function installed as server hook that runs after DD upgrades.
 */
 static int ndb_dd_upgrade_hook(void *) {
-  if (!ndbcluster_is_connected(opt_ndb_wait_connected)) {
+  if (!ndbcluster_is_ready(g_ndb_cluster_connection, opt_ndb_wait_connected)) {
     ndb_log_error("Timeout waiting to connect to cluster.");
     return 1;
   }

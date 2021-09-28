@@ -35,6 +35,7 @@ int ndbcluster_connect(int (*connect_callback)(void), ulong wait_connected,
                        uint data_node_neighbour);
 
 bool ndbcluster_is_connected(uint max_wait_sec);
+bool ndbcluster_is_ready(Ndb_cluster_connection *connection, uint max_wait_sec);
 void ndbcluster_disconnect(void);
 
 Ndb_cluster_connection *ndb_get_cluster_connection();

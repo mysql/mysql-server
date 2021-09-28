@@ -7140,7 +7140,8 @@ restart_cluster_failure:
 
     assert(m_apply_status_share == nullptr);
 
-    while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb)) {
+    while (!ndbcluster_is_ready(thd_ndb->connection, 1) ||
+           !binlog_setup.setup(thd_ndb)) {
       // Failed to complete binlog_setup, remove all existing event
       // operations from potential partial setup
       remove_all_event_operations(s_ndb, i_ndb);

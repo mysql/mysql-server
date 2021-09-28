@@ -2137,7 +2137,7 @@ void Ndb_index_stat_thread::do_run() {
   /*
     Wait for cluster to start
   */
-  while (!ndbcluster_is_connected(1)) {
+  while (!ndbcluster_is_ready(g_ndb_cluster_connection, 1)) {
     /* ndb not connected yet */
     if (is_stop_requested()) {
       /* Terminated with a stop_request */
