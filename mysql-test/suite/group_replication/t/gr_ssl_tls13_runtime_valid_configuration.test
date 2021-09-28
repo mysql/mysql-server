@@ -8,9 +8,9 @@
 #    Verify that it is possible to join a node which has TLS version 1.3
 #    and lower versions to a group which doesn't have this version.
 #    No --tls-ciphersuites
-#    server1: --tls-version='TLSv1,TLSv1.1,TLSv1.2'
-#    server2: --tls-version='TLSv1,TLSv1.1,TLSv1.2'
-#    server3: --tls-version='TLSv1,TLSv1.1,TLSv1.2,TLSv1.3'
+#    server1: --tls-version='TLSv1.2'
+#    server2: --tls-version='TLSv1.2'
+#    server3: --tls-version='TLSv1.2,TLSv1.3'
 #    Outcome: group will work.
 # 2. 2 members group with OpenSSL 1.1.1
 #    Verify that it is possible to start group replication when :
@@ -35,7 +35,7 @@
 #         therefore TLS v1.3 is supported
 #      * SLL cipher of the node is incompatible with the group, therefore
 #         TLS versions lower than 1.3 are not supported
-#    --tls-version='TLSv1,TLSv1.1,TLSv1.2,TLSv1.3'
+#    --tls-version='TLSv1.2,TLSv1.3'
 #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
 #    server1: --ssl-cipher='AES256-SHA:AES256-SHA256'
 #    server2: --tls-ciphersuites='TLS_AES_256_GCM_SHA384:TLS_AES_128_CCM_SHA256'
@@ -114,30 +114,30 @@ SET SESSION sql_log_bin= 1;
 --echo #    Verify that it is possible to join a node which has TLS version 1.3
 --echo #    and lower versions to a group which doesn't have this version.
 --echo #    No --tls-ciphersuites
---echo #    server1: --tls-version='TLSv1,TLSv1.1,TLSv1.2'
---echo #    server2: --tls-version='TLSv1,TLSv1.1,TLSv1.2'
---echo #    server3: --tls-version='TLSv1,TLSv1.1,TLSv1.2,TLSv1.3'
+--echo #    server1: --tls-version='TLSv1.2'
+--echo #    server2: --tls-version='TLSv1.2'
+--echo #    server3: --tls-version='TLSv1.2,TLSv1.3'
 --echo #    Outcome: group will work.
 
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2';
+SET @@GLOBAL.tls_version= 'TLSv1.2';
 ALTER INSTANCE RELOAD TLS;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2';
+SET @@GLOBAL.tls_version= 'TLSv1.2';
 ALTER INSTANCE RELOAD TLS;
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 --source include/start_group_replication.inc
 
@@ -278,7 +278,7 @@ ALTER INSTANCE RELOAD TLS;
 --echo #         therefore TLS v1.3 is supported
 --echo #      * SLL cipher of the node is incompatible with the group, therefore
 --echo #         TLS versions lower than 1.3 are not supported
---echo #    --tls-version='TLSv1,TLSv1.1,TLSv1.2,TLSv1.3'
+--echo #    --tls-version='TLSv1.2,TLSv1.3'
 --echo #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
 --echo #    server1: --ssl-cipher='AES256-SHA:AES256-SHA256'
 --echo #    server2: --tls-ciphersuites='TLS_AES_256_GCM_SHA384:TLS_AES_128_CCM_SHA256'
@@ -290,7 +290,7 @@ ALTER INSTANCE RELOAD TLS;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.ssl_cipher= 'AES256-SHA:AES256-SHA256';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
@@ -299,7 +299,7 @@ ALTER INSTANCE RELOAD TLS;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.ssl_cipher= 'CAMELLIA256-SHA';
 SET @@GLOBAL.tls_ciphersuites  ='TLS_AES_256_GCM_SHA384:TLS_AES_128_CCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
@@ -308,7 +308,7 @@ ALTER INSTANCE RELOAD TLS;
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.tls_version= 'TLSv1,TLSv1.1,TLSv1.2,TLSv1.3';
+SET @@GLOBAL.tls_version= 'TLSv1.2,TLSv1.3';
 SET @@GLOBAL.ssl_cipher = 'CAMELLIA128-SHA';
 SET @@GLOBAL.tls_ciphersuites = 'TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
