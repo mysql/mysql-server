@@ -971,12 +971,18 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
            replace_placeholders("@certdir@/crl-client-cert.pem", config),
            replace_placeholders("@certdir@/crl-client-key.pem", config));
 
-       sess.set_ssl_options(SSL_MODE_REQUIRED, "TLSv1.1",
-                            "",  //
-                            "",  //
-                            "",  //
-                            "",  //
-                            "");
+       // TLSv1.1 may be forbidden in libmysqlclient.
+       try {
+         sess.set_ssl_options(SSL_MODE_REQUIRED, "TLSv1.1",
+                              "",  //
+                              "",  //
+                              "",  //
+                              "",  //
+                              "");
+       } catch (const std::exception &e) {
+         // Error setting TLS_VERSION option for MySQL connection
+         GTEST_SKIP() << e.what();
+       }
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
