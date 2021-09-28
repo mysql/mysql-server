@@ -182,28 +182,6 @@ static inline bool pfs_os_file_close_func(pfs_os_file_t file,
 }
 
 #ifndef UNIV_HOTBACKUP
-/** NOTE! Please use the corresponding macro os_aio(), not directly this
-function!
-Performance schema wrapper function of os_aio() which requests
-an asynchronous i/o operation.
-@param[in]	type		IO request context
-@param[in]	aio_mode	IO mode
-@param[in]	name		Name of the file or path as NUL terminated
-                                string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in,out]	m1		Message for the AIO handler, (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
-@param[in,out]	m2		message for the AIO handler (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is OS_AIO_SYNC
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-@return DB_SUCCESS if request was queued successfully, false if fail */
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                                       const char *name, pfs_os_file_t file,
                                       void *buf, os_offset_t offset, ulint n,
