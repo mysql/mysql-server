@@ -111,6 +111,10 @@ class Query_result_delete final : public Query_result_interceptor {
   table_map delete_immediate{0};
   // Map of transactional tables to be deleted from
   table_map transactional_table_map{0};
+  /// Map of tables with before triggers.
+  table_map tables_with_before_triggers{0};
+  /// Map of tables with after triggers.
+  table_map tables_with_after_triggers{0};
   /// True if the full delete operation is complete
   bool delete_completed{false};
   /*
@@ -955,6 +959,18 @@ bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
     // Record transactional tables that are deleted from:
     if (tr->table->file->has_transactions())
       transactional_table_map |= tr->map();
+
+    // Record which tables have delete triggers that need to be fired.
+    if (tr->table->triggers != nullptr) {
+      if (tr->table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                            TRG_ACTION_BEFORE)) {
+        tables_with_before_triggers |= tr->map();
+      }
+      if (tr->table->triggers->has_triggers(TRG_EVENT_DELETE,
+                                            TRG_ACTION_AFTER)) {
+        tables_with_after_triggers |= tr->map();
+      }
+    }
   }
 
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
@@ -1077,9 +1093,8 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
       const ha_rows last_deleted = deleted_rows;
       table->set_deleted_row();
       if (DeleteCurrentRowAndProcessTriggers(
-              thd, table, /*invoke_before_triggers=*/table->triggers != nullptr,
-              /*invoke_after_triggers=*/table->triggers != nullptr,
-              &deleted_rows)) {
+              thd, table, Overlaps(map, tables_with_before_triggers),
+              Overlaps(map, tables_with_after_triggers), &deleted_rows)) {
         return true;
       }
       if (last_deleted != deleted_rows &&
@@ -1196,13 +1211,17 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
       init_table_iterator(thd, table, /*ignore_not_found_rows=*/true,
                           /*count_examined_rows=*/false);
   if (iterator == nullptr) return 1;
+
+  const uint tableno = table->pos_in_table_list->tableno();
+  const bool has_before_triggers =
+      IsBitSet(tableno, tables_with_before_triggers);
+  const bool has_after_triggers = IsBitSet(tableno, tables_with_after_triggers);
+
   const bool will_batch = !table->file->start_bulk_delete();
   const ha_rows last_deleted = deleted_rows;
   while (!(local_error = iterator->Read()) && !thd->killed) {
-    if (DeleteCurrentRowAndProcessTriggers(
-            thd, table, /*invoke_before_triggers=*/table->triggers != nullptr,
-            /*invoke_after_triggers=*/table->triggers != nullptr,
-            &deleted_rows)) {
+    if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
+                                           has_after_triggers, &deleted_rows)) {
       local_error = 1;
       break;
     }
@@ -1217,9 +1236,11 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
       table->file->print_error(local_error, error_flags);
     }
   }
-  if (last_deleted != deleted_rows && !table->file->has_transactions())
+  if (last_deleted != deleted_rows &&
+      !IsBitSet(tableno, transactional_table_map)) {
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
+  }
 
   return local_error;
 }
