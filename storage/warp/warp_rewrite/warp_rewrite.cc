@@ -979,10 +979,6 @@ static int warp_rewrite_query_notify(
   if(tokens.size() == 0) {
 	 return 0;
   }
-
-  if(strtolower(tokens[0]) == "drop") {
-    return 0;
-  }
   
   if (event_parse->event_subclass != MYSQL_AUDIT_PARSE_POSTPARSE) {
 
@@ -997,7 +993,7 @@ static int warp_rewrite_query_notify(
       return 0;
     }
 
-    if(strtolower(tokens[0]) == "create" && 
+    if( (strtolower(tokens[0]) == "create" || strtolower(tokens[0]) == "drop") && 
        strtolower(tokens[1]) == "materialized" && 
        strtolower(tokens[2]) == "view" && 
        strtolower(tokens[3]) == "log" && 
@@ -1013,10 +1009,34 @@ static int warp_rewrite_query_notify(
       } else{
         mvlog_table = "'" + tokens[5] + "'";
       }
+      std::string proc_name = "create_mvlog";
+      if(strtolower(tokens[0]) == "drop") {
+        proc_name = "drop_mvlog";
+      }
       
-      sqlstr = "CALL leapdb.create_mvlog(" + mvlog_db + ", " + escape_for_call(mvlog_table) + ");";
+      sqlstr = "CALL leapdb." + proc_name + "(" + mvlog_db + ", " + escape_for_call(mvlog_table) + ");";
       
+    } else if( (strtolower(tokens[0]) == "drop") &&
+               (strtolower(tokens[1]) == "materialized") &&
+               (strtolower(tokens[2]) == "view")
+      ) {
+      std::string mvlog_db = "database()";
+      std::string mvlog_table = "";
+      const char* dot_pos = NULL;
+      if( (dot_pos = strstr(tokens[3].c_str(),".")) != NULL ) {
+        mvlog_db = "'" + tokens[3].substr(0, dot_pos - tokens[3].c_str() ) + "'";
+        mvlog_table.assign(dot_pos+1);
+        mvlog_table = "'" + mvlog_table + "'";
+      } else{
+        mvlog_table = "'" + tokens[3] + "'";
+      }
+      
+      sqlstr = "CALL leapdb.drop(leapdb.get_id(" + mvlog_db + ", " + escape_for_call(mvlog_table) + "));";
+
     } else {
+      if(strtolower(tokens[0]) == "drop") {
+        return 0;
+      }
       // HANDLE CREATE TABLE STATEMENTS WITH REMOTE QUERIES
       if(strstr(event_parse->query.str, "^@") != NULL || 
         (strtolower(tokens[0]) == "create" && (strtolower(tokens[1]) == "temporary" || strtolower(tokens[1]) == "table")) ||
