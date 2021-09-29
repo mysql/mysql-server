@@ -807,7 +807,7 @@ inline bool operator==(const StmtPrepare &a, const StmtPrepare &b) {
 class StmtParamAppendData {
  public:
   /**
-   * construct a ResetStmt message.
+   * construct an append-data-to-parameter message.
    *
    * @param statement_id statement-id to close
    * @param param_id parameter-id to append data to
