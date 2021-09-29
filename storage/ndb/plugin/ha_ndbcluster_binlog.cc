@@ -1141,6 +1141,9 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
                       "the co-ordinator",
                       op_name.c_str());
       ndb_log_warning("Schema dist client detected timeout");
+      // Delay the execution of client thread so that the Coordinator
+      // will receive the schema event when the schema object is valid
+      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(2););
       return false;
     }
 
@@ -3703,6 +3706,10 @@ class Ndb_schema_event_handler {
         return 0;
       }
 
+      // Delay the execution of the Binlog thread, until the client thread
+      // detects the schema distribution timeout
+      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(7););
+
       if (schema->node_id == own_nodeid()) {
         // This is the Coordinator who hear about this schema operation for
         // the first time. Save the list of current subscribers as participants
@@ -3714,11 +3721,13 @@ class Ndb_schema_event_handler {
                 NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
                                        schema->version),
                 NDB_SCHEMA_OBJECT::release);
-        if (!ndb_schema_object) {
+        if (!ndb_schema_object ||
+            !ndb_schema_object->set_coordinator_received_schema_op()) {
+          // Schema dict client already detected the schema distribution
+          // timeout for this event. So, its a stale event dont not process
           ndb_log_info("Coordinator received a stale schema event");
           return 0;
         }
-        ndb_schema_object->coordinator_received_schema_op();
         std::unordered_set<uint32> subscribers;
         m_schema_dist_data.get_subscriber_list(subscribers);
         ndb_schema_object->register_participants(subscribers);
