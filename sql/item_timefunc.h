@@ -1658,6 +1658,7 @@ class Item_func_last_day final : public Item_date_func {
     set_nullable(true);
   }
   const char *func_name() const override { return "last_day"; }
+  enum Functype functype() const override { return LAST_DAY_FUNC; }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
