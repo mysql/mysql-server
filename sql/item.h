@@ -2847,7 +2847,7 @@ class Item : public Parse_tree_node {
     derived table. Used in determining if a condition can be pushed
     down to derived table.
   */
-  virtual bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) {
+  virtual bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) {
     // A generic item cannot be pushed down unless constant.
     return !const_item();
   }
@@ -3557,7 +3557,7 @@ class Item_sp_variable : public Item {
     // ZEROFILL attribute.
     return this_item()->send(protocol, str);
   }
-  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
     // It is ok to push down a condition like "column > SP_variable"
     return false;
   }
@@ -4231,7 +4231,7 @@ class Item_field : public Item_ident {
   bool check_column_privileges(uchar *arg) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   void bind_fields() override;
-  bool check_column_from_derived_table(uchar *arg) override;
+  bool is_valid_for_pushdown(uchar *arg) override;
   bool check_column_in_window_functions(uchar *arg) override;
   bool check_column_in_group_by(uchar *arg) override;
   Item *replace_with_derived_expr(uchar *arg) override;
@@ -4761,19 +4761,20 @@ class Item_param final : public Item, private Settable_routine_parameter {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
-  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
-    // It is ok to push down a condition like "column > PS_parameter"
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
+    // It is ok to push down a condition like "column > PS_parameter".
     return false;
   }
 
  private:
   Send_field *m_out_param_info{nullptr};
   /**
-    If a query expression's text QT, containing a parameter, is internally
-    duplicated and parsed twice (@see reparse_common_table_expression), the
-    first parsing will create an Item_param I, and the re-parsing, which
-    parses a forged "(QT)" parse-this-CTE type of statement, will create an
-    Item_param J. J should not exist:
+    If a query expression's text QT or text of a condition (CT) that is pushed
+    down to a derived table, containing a parameter, is internally duplicated
+    and parsed twice (@see reparse_common_table_expression, parse_expression),
+    the first parsing will create an Item_param I, and the re-parsing, which
+    parses a forged "(QT)" parse-this-CTE type of statement or parses a
+    forged condition "(CT)", will create an Item_param J. J should not exist:
     - from the point of view of logging: it is not in the original query so it
     should not be substituted in the query written to logs (in insert_params()
     if with_log is true).
@@ -5778,8 +5779,8 @@ class Item_ref : public Item_ident {
   Item_result cast_to_int_type() const override {
     return (*ref)->cast_to_int_type();
   }
-  bool check_column_from_derived_table(uchar *arg) override {
-    return (*ref)->check_column_from_derived_table(arg);
+  bool is_valid_for_pushdown(uchar *arg) override {
+    return (*ref)->is_valid_for_pushdown(arg);
   }
   bool check_column_in_window_functions(uchar *arg) override {
     return (*ref)->check_column_in_window_functions(arg);
@@ -5802,11 +5803,10 @@ class Item_view_ref final : public Item_ref {
   Item_view_ref(Name_resolution_context *context_arg, Item **item,
                 const char *db_name_arg, const char *alias_name_arg,
                 const char *table_name_arg, const char *field_name_arg,
-                TABLE_LIST *tl, Name_resolution_context *merged_derived_context)
+                TABLE_LIST *tl)
       : Item_ref(context_arg, item, db_name_arg, alias_name_arg,
                  field_name_arg),
-        first_inner_table(nullptr),
-        m_merged_derived_context(merged_derived_context) {
+        first_inner_table(nullptr) {
     if (tl->is_view()) {
       m_orig_db_name = db_name_arg;
       m_orig_table_name = table_name_arg;
@@ -5910,11 +5910,6 @@ class Item_view_ref final : public Item_ref {
     then this field points to the first leaf table of the view, otherwise NULL.
   */
   TABLE_LIST *first_inner_table;
-  /**
-    Original Context of the underlying field in case of a merged derived
-    table.
-  */
-  Name_resolution_context *m_merged_derived_context;
 };
 
 /*
@@ -6452,6 +6447,10 @@ class Item_trigger_field final : public Item_field,
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
+    return true;
+  }
+
+  bool is_valid_for_pushdown(uchar *args [[maybe_unused]]) override {
     return true;
   }
 

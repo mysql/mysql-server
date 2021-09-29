@@ -697,9 +697,7 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
-  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
-    return false;
-  }
+  bool is_valid_for_pushdown(uchar *arg) override;
   bool check_column_in_window_functions(uchar *arg) override;
   bool check_column_in_group_by(uchar *arg) override;
 

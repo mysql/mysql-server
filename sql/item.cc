@@ -73,7 +73,8 @@
 #include "sql/sp_rcontext.h"  // sp_rcontext
 #include "sql/sql_base.h"     // view_ref_found
 #include "sql/sql_bitmap.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_class.h"    // THD
+#include "sql/sql_derived.h"  // Condition_pushdown
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -893,18 +894,19 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
   return false;
 }
 
-bool Item_field::check_column_from_derived_table(uchar *arg) {
-  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  if (field->table == tl->table) {
+bool Item_field::is_valid_for_pushdown(uchar *arg) {
+  Condition_pushdown::Derived_table_info *dti =
+      pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
+  TABLE_LIST *derived_table = dti->m_derived_table;
+  if (table_ref == derived_table) {
+    assert(field->table == derived_table->table);
     // If the expression in the derived table for this column has a subquery
-    // or contains parameters or has non-deterministic result, condition is
+    // or has non-deterministic result or is a trigger field, condition is
     // not pushed down.
     // Expressions having subqueries need a more complicated replacement
     // strategy than the one that currently exists when the condition is
     // moved to derived table.
-    // Expression having parameters when cloned as part of replacement have
-    // problems to locate the original "?" and therefore will not be able to
-    // get the value.  TODO: Lift these two limitations.
+    // TODO: Lift this limitation.
     // Any condition with expressions having non-deterministic result in the
     // underlying derived table should not be pushed.
     // For ex:
@@ -912,10 +914,27 @@ bool Item_field::check_column_from_derived_table(uchar *arg) {
     // Here a > 0.5 if pushed down would result in rand() getting evaluated
     // twice because the query would then be
     // select * from (select rand() as a from t1 where rand() > 0.5) which
-    // is not correct. See also Item_func::check_column_from_derived_table
-    Item *item = tl->get_derived_expr(field->field_index());
-    return (item->has_subquery() ||
-            (item->used_tables() & (INNER_TABLE_BIT | RAND_TABLE_BIT)));
+    // is not correct.
+    // Trigger fields need complicated resolving when we clone a condition
+    // having them.
+    Query_expression *derived_query_expression =
+        derived_table->derived_query_expression();
+    for (Query_block *qb = derived_query_expression->first_query_block();
+         qb != nullptr; qb = qb->next_query_block()) {
+      Item *item = qb->get_derived_expr(field->field_index());
+      bool has_trigger_field = false;
+      WalkItem(item, enum_walk::PREFIX, [&has_trigger_field](Item *inner_item) {
+        if (inner_item->type() == Item::TRIGGER_FIELD_ITEM) {
+          has_trigger_field = true;
+          return true;
+        }
+        return false;
+      });
+      if (item->has_subquery() || item->is_non_deterministic() ||
+          has_trigger_field)
+        return true;
+    }
+    return false;
   }
   return true;
 }
@@ -935,14 +954,13 @@ bool Item_field::check_column_from_derived_table(uchar *arg) {
 */
 
 bool Item_field::check_column_in_window_functions(uchar *arg) {
-  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  // Find the expression corresponding to this column in derived table and use
-  // that to find in window functions of the derived table.
-  Query_block *select = tl->derived_query_expression()->first_query_block();
-  Item *item = tl->get_derived_expr(field->field_index());
-
+  Query_block *query_block = pointer_cast<Query_block *>(arg);
+  // Find the expression corresponding to this column in derived table's
+  // query block and use that to find in window functions of that
+  // query block.
+  Item *item = query_block->get_derived_expr(field->field_index());
   bool ret = true;
-  List_iterator<Window> li(select->m_windows);
+  List_iterator<Window> li(query_block->m_windows);
   for (Window *w = li++; w != nullptr; w = li++) {
     ret = true;
     for (ORDER *o = w->first_partition_by(); o != nullptr; o = o->next) {
@@ -970,55 +988,63 @@ bool Item_field::check_column_in_window_functions(uchar *arg) {
   true otherwise.
 */
 bool Item_field::check_column_in_group_by(uchar *arg) {
-  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  // Find the expression correspondiing to this column in derived table and
-  // use that to find in GROUP BY of the derived table.
-  Query_block *select = tl->derived_query_expression()->first_query_block();
-  Item *item = tl->get_derived_expr(field->field_index());
-
-  for (ORDER *group = select->group_list.first; group; group = group->next) {
+  Query_block *query_block = pointer_cast<Query_block *>(arg);
+  // Find the expression corresponding to this column in the derived
+  // table's query block and use that to find in GROUP BY of that
+  // query block.
+  Item *item = query_block->get_derived_expr(field->field_index());
+  for (ORDER *group = query_block->group_list.first; group;
+       group = group->next) {
     if (*group->item == item || item->eq(*group->item, false)) return false;
   }
   return true;
 }
 
 Item *Item_field::replace_with_derived_expr(uchar *arg) {
-  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  Condition_pushdown::Derived_table_info *dti =
+      pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
+
   // This column's table reference should be same as the derived table from
   // where the replacement is retrieved. If not, it is presumed that the
   // column has already been replaced with derived table expression (Maybe
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
-  return (dt == table_ref)
-             ? dt->get_clone_for_derived_expr(
-                   current_thd, dt->get_derived_expr(field->field_index()),
-                   &dt->derived_query_expression()
-                        ->first_query_block()
-                        ->context)
-             : this;
+  TABLE_LIST *derived_table = dti->m_derived_table;
+  if (derived_table != table_ref) return this;
+  Query_block *query_block = dti->m_derived_query_block;
+  return query_block->clone_expression(
+      current_thd, query_block->get_derived_expr(field->field_index()),
+      (derived_table->is_system_view ||
+       (derived_table->referencing_view &&
+        derived_table->referencing_view->is_system_view)));
 }
 
 Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
-  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  Condition_pushdown::Derived_table_info *dti =
+      pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
+
   // This column's table reference should be same as the derived table from
   // where the replacement is retrieved. If not, it is presumed that the
   // column has already been replaced with derived table expression (Maybe
   // there was an earlier reference to the same column in the condition that
   // is being pushed down). There is no need to do anything in such a case.
-  if (dt != table_ref) return this;
-  Query_block *select = dt->derived_query_expression()->first_query_block();
+  TABLE_LIST *derived_table = dti->m_derived_table;
+  if (derived_table != table_ref) return this;
+  Query_block *query_block = dti->m_derived_query_block;
+
   // Get the expression in the derived table and find the right ref item to
   // point to.
-  Item *select_item = dt->get_derived_expr(field->field_index());
+  Item *select_item = query_block->get_derived_expr(field->field_index());
   Item *new_ref = nullptr;
   if (select_item) {
     uint counter = 0;
     enum_resolution_type resolution;
-    if (find_item_in_list(current_thd, select_item, select->get_fields_list(),
-                          &counter, REPORT_EXCEPT_NOT_FOUND, &resolution)) {
-      Item **replace_item = &select->base_ref_items[counter];
-      new_ref = new Item_ref(&select->context, replace_item, nullptr, nullptr,
-                             (*replace_item)->item_name.ptr(),
+    if (find_item_in_list(current_thd, select_item,
+                          query_block->get_fields_list(), &counter,
+                          REPORT_EXCEPT_NOT_FOUND, &resolution)) {
+      Item **replace_item = &query_block->base_ref_items[counter];
+      new_ref = new Item_ref(&query_block->context, replace_item, nullptr,
+                             nullptr, (*replace_item)->item_name.ptr(),
                              resolution == RESOLVED_AGAINST_ALIAS);
     }
   }
@@ -3557,6 +3583,22 @@ bool Item_param::itemize(Parse_context *pc, Item **res) {
       }
     }
     assert(false); /* purecov: inspected */
+  }
+  if (!lex->reparse_derived_table_params_at.empty()) {
+    // This parameter is a clone, find the Item_param which corresponds
+    // to it in the original statement - its "master".
+    List_iterator_fast<Item_param> it(lex->param_list);
+    Item_param *master;
+    auto master_pos = lex->reparse_derived_table_params_at.begin();
+    while ((master = it++)) {
+      if (*master_pos == master->pos_in_query) {
+        lex->reparse_derived_table_params_at.erase(master_pos);
+        // Register it against its master
+        pos_in_query = master->pos_in_query;
+        return master->add_clone(this);
+      }
+    }
+    assert(false);
   }
 
   return false;
@@ -8610,10 +8652,12 @@ Item *Item_view_ref::replace_item_view_ref(uchar *arg) {
 }
 
 Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
-  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  Condition_pushdown::Derived_table_info *dti =
+      pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
+
   // Replace the view ref with a clone to the referenced item.
   // We use a different context to resolve the clone from that of
-  // the derived table conetext.
+  // the derived table context.
   // For Ex:
   // SELECT * FROM
   // (SELECT f1 FROM (SELECT f1 FROM t1 GROUP BY f1) AS dt1) AS dt2
@@ -8626,9 +8670,11 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
   // Since the query block having dt2 is merged with the outer query
   // block, the context to resolve the field will be different than
   // the derived table context (dt1).
-  Name_resolution_context *context_to_use =
-      m_merged_derived_context ? m_merged_derived_context : context;
-  return dt->get_clone_for_derived_expr(current_thd, *ref, context_to_use);
+  return dti->m_derived_query_block->outer_query_block()->clone_expression(
+      current_thd, *ref,
+      (dti->m_derived_table->is_system_view ||
+       (dti->m_derived_table->referencing_view &&
+        dti->m_derived_table->referencing_view->is_system_view)));
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {

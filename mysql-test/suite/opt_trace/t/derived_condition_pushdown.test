@@ -32,7 +32,12 @@ SELECT * FROM
   (SELECT f1+10 AS f1, f2+10 AS f2 FROM t1) AS dt0) AS dt1,
  (SELECT f1, f2 FROM t1) AS dt2) AS dt3
 WHERE g > 26 and g+f1 > 31;
+SELECT trace FROM information_schema.optimizer_trace;
 
+SELECT * FROM
+(SELECT f1, SUM(f1) OVER() AS f2 FROM t1 GROUP BY f1 UNION
+ SELECT f1, f1+10 FROM t1
+) as dt1 WHERE f1 > 26 and f2 > 31;
 SELECT trace FROM information_schema.optimizer_trace;
 
 set optimizer_switch=default;

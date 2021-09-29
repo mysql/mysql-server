@@ -75,6 +75,7 @@ class Query_result_union : public Query_result_interceptor {
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
   friend bool TABLE_LIST::optimize_derived(THD *thd);
   const ha_rows *row_count() const override { return &m_rows_in_table; }
+  uint get_hidden_field_count() { return tmp_table_param.hidden_field_count; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

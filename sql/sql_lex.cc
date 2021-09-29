@@ -3715,6 +3715,22 @@ bool Query_expression::set_limit(THD *thd, Query_block *provider) {
 }
 
 /**
+  Checks if this query expression has limit defined. For a query expression
+  with set operation it checks if any of the query blocks has limit defined.
+
+  @returns true if the query expression has limit.
+  false otherwise.
+*/
+bool Query_expression::has_any_limit() const {
+  if (global_parameters()->has_limit()) return true;
+  if (is_union()) {
+    for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
+      if (qb->has_limit()) return true;
+  }
+  return false;
+}
+
+/**
   Decide if a temporary table is needed for the UNION.
 
   @retval true  A temporary table is needed.

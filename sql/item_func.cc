@@ -125,6 +125,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_cmd.h"
+#include "sql/sql_derived.h"  // Condition_pushdown
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
 #include "sql/sql_executor.h"
@@ -977,7 +978,15 @@ const Item_field *Item_func::contributes_to_filter(
   return (found_comparable ? usable_field : nullptr);
 }
 
-bool Item_func::check_column_in_window_functions(uchar *arg) {
+bool Item_func::is_valid_for_pushdown(uchar *arg) {
+  Condition_pushdown::Derived_table_info *dti =
+      pointer_cast<Condition_pushdown::Derived_table_info *>(arg);
+  // We cannot push conditions that are not deterministic to a
+  // derived table having set operations.
+  return (dti->is_set_operation() && is_non_deterministic());
+}
+
+bool Item_func::check_column_in_window_functions(uchar *arg [[maybe_unused]]) {
   // Pushing conditions having non-deterministic results must be done with
   // care, or it may result in eliminating rows which would have
   // otherwise contributed to aggregations.
@@ -991,18 +1000,12 @@ bool Item_func::check_column_in_window_functions(uchar *arg) {
   // past the last operation done in the derived table's
   // materialization. Therefore, if there are window functions we cannot push
   // to HAVING, and if there is GROUP BY we cannot push to WHERE.
-  // See also Item_field::check_column_from_derived_table.
-  if (!is_non_deterministic()) return false;
-  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  Query_block *select = tl->derived_query_expression()->first_query_block();
-  return !select->m_windows.is_empty();
+  // See also Item_field::is_valid_for_pushdown().
+  return is_non_deterministic();
 }
 
-bool Item_func::check_column_in_group_by(uchar *arg) {
-  if (!is_non_deterministic()) return false;
-  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
-  Query_block *select = tl->derived_query_expression()->first_query_block();
-  return select->is_grouped();
+bool Item_func::check_column_in_group_by(uchar *arg [[maybe_unused]]) {
+  return is_non_deterministic();
 }
 
 bool is_function_of_type(const Item *item, Item_func::Functype type) {

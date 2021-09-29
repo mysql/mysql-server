@@ -1168,7 +1168,7 @@ class Item_func_reject_if : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "reject_if"; }
   /// Redefine to avoid pushing into derived table
-  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
+  bool is_valid_for_pushdown(uchar *arg [[maybe_unused]]) override {
     return true;
   }
   float get_filtering_effect(THD *thd, table_map filter_for_table,

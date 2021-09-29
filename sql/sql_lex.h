@@ -1007,6 +1007,7 @@ class Query_expression {
   bool change_query_result(THD *thd, Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
   bool set_limit(THD *thd, Query_block *provider);
+  bool has_any_limit() const;
 
   inline bool is_union() const;
   bool union_needs_tmp_table(LEX *lex);
@@ -1829,6 +1830,12 @@ class Query_block {
   bool field_list_is_empty() const;
 
   void remove_hidden_fields();
+  /// Creates a clone for the given expression by re-parsing the
+  /// expression. Used in condition pushdown to derived tables.
+  Item *clone_expression(THD *thd, Item *item, bool is_system_view);
+  /// Returns an expression from the select list of the query block
+  /// using the field's index in a derived table.
+  Item *get_derived_expr(uint expr_index);
 
   // ************************************************
   // * Members (most of these should not be public) *
@@ -3867,6 +3874,12 @@ struct LEX : public Query_tables_list {
     table, this will be set to true.
   */
   bool reparse_derived_table_condition{false};
+  /**
+    If currently re-parsing a condition that is being pushed down to a
+    derived table, this has the positions of all the parameters that are
+    part of that condition in the original statement. Otherwise it is empty.
+  */
+  std::vector<uint> reparse_derived_table_params_at;
 
   enum SSL_type ssl_type; /* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -4561,7 +4574,8 @@ class Common_table_expr_parser_state : public Parser_state {
 };
 
 /**
-  Parser state for Derived table select expressions
+  Parser state for Derived table's condition parser.
+  (Used in condition pushdown to derived tables)
 */
 class Derived_expr_parser_state : public Parser_state {
  public:

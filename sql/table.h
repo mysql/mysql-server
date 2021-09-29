@@ -3173,13 +3173,9 @@ struct TABLE_LIST {
   /// Check if we can push outer where condition to this derived table
   bool can_push_condition_to_derived(THD *thd);
 
-  /// Get derived table expression
-  Item *get_derived_expr(uint expr_index);
-
-  /// Get cloned item for a derived table column. This creates the clone
-  /// and resolves it in the context provided.
-  Item *get_clone_for_derived_expr(THD *thd, Item *item,
-                                   Name_resolution_context *context);
+  /// Return the number of hidden fields added for the temporary table
+  /// created for this derived table.
+  uint get_hidden_field_count_for_derived() const;
 
   /// Clean up the query expression for a materialized derived table
   void cleanup_derived(THD *thd);
@@ -3595,12 +3591,6 @@ struct TABLE_LIST {
   ulonglong algorithm{0};
   ulonglong view_suid{0};   ///< view is suid (true by default)
   ulonglong with_check{0};  ///< WITH CHECK OPTION
-  /**
-    Context that is used to resolve a merged derived table's
-    fields. Needed when a field from a merged derived table
-    is cloned. Used during condition pushdown to derived tables.
-  */
-  Name_resolution_context *m_merged_derived_context{nullptr};
 
  private:
   /// The view algorithm that is actually used, if this is a view.
