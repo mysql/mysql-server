@@ -1,0 +1,58 @@
+--source include/have_debug.inc
+--source include/have_ndb.inc
+
+# The test case intend to reproduce the below race condition between the Binlog thread & Client thread
+# 1. Binlog thread: Gets drop table event for ndb_schema_result from NDB and calls check_setup_schema_dist().
+# (Meanwhile another Mysqld in the cluster setup creates the ndb_schema_result in NDB)
+# 2. Client thread: Takes GSL, creates a user table and initiates the schema distribution.
+# 3. Client thread: waits for co-ordinator in Binlog thread to signal the results of schema distribution.
+# 4. Binlog thread: waits on GSL to complete check_setup_schema_dist() but it will not get it as GSL is already acquired by client thread.
+# 5. Client thread: schema distribution  will not be success because binlog thread is busy waiting for GSL
+# 6. Client thread: schema distribution timeout expire and he GSL is released by Client thread
+# 7. Binlog thread: Acquires GSL, completes the check_setup_schema_dist() and gets the stale event that client thread initiated at step 3
+
+
+set GLOBAL debug="+d,ndb_bi_sleep_before_gsl";
+
+--exec $NDB_DROP_TABLE -d mysql ndb_schema_result
+
+call mtr.add_suppression("Schema dist client detected timeout");
+# With out ndb_schema_result table, create table will fail.
+# So, retry create table in a loop untill the mysqld in connection 2 creates the
+# ndb_schema_result in NDB.
+--disable_query_log
+--disable_result_log
+let $counter = 50;
+let $success = 0;
+while (!$success)
+{
+  --disable_abort_on_error
+  CREATE TABLE t1 (a int primary key) engine = NDB;
+  INSERT INTO t1 VALUES(1);
+  --enable_abort_on_error
+  if (!$mysql_errno)
+  {
+    let $success = 1;
+  }
+  # else
+  if ($mysql_errno)
+  {
+    if (!$counter)
+    {
+      die Timeout while waiting for table ndb_schema_result to create;
+    }
+    dec $counter;
+    --sleep 0.1
+  }
+}
+--enable_query_log
+--enable_result_log
+
+set GLOBAL debug="-d,ndb_bi_sleep_before_gsl";
+DROP TABLE t1;
+
+--let $assert_text= Verify if Coordinator recived the stale event.
+--let $assert_select= Coordinator received a stale schema event
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_count= 1
+--source include/assert_grep.inc

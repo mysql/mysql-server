@@ -1138,6 +1138,9 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
                       "Schema events for '%s' - not received by coordinator",
                       op_name.c_str());
       ndb_log_warning("Schema dist client detected timeout");
+      // Delay the execution of client thread so that the Coordinator
+      // will receive the schema event when the schema object is valid
+      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(2););
       return false;
     }
 
@@ -3696,6 +3699,10 @@ class Ndb_schema_event_handler {
         return 0;
       }
 
+      // Delay the execution of the Binlog thread, until the client thread
+      // detects the schema distribution timeout
+      DBUG_EXECUTE_IF("ndb_stale_event_with_schema_obj", sleep(7););
+
       if (schema->node_id == own_nodeid()) {
         // This is the Coordinator who hear about this schema operation for
         // the first time. Save the list of current subscribers as participants
@@ -3707,14 +3714,13 @@ class Ndb_schema_event_handler {
                 NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
                                        schema->version),
                 NDB_SCHEMA_OBJECT::release);
-        if (!ndb_schema_object) {
-          // There is no NDB_SCHEMA_OBJECT waiting for this schema operation
-          // Unexpected since the client who started this schema op
-          // is always in same node as coordinator
-          ndbcluster::ndbrequire(false);
+        if (!ndb_schema_object ||
+            !ndb_schema_object->set_coordinator_received_schema_op()) {
+          // Schema dict client already detected the schema distribution
+          // timeout for this event. So, its a stale event dont not process
+          ndb_log_info("Coordinator received a stale schema event");
           return 0;
         }
-        ndb_schema_object->coordinator_received_schema_op();
         std::unordered_set<uint32> subscribers;
         m_schema_dist_data.get_subscriber_list(subscribers);
         ndb_schema_object->register_participants(subscribers);
@@ -4201,6 +4207,11 @@ class Ndb_schema_event_handler {
     // take the GSL properly
     assert(!m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
 
+    // Sleep here will make other mysql server in same cluster setup to create
+    // the schema result table in NDB before this mysql server. This also makes
+    // the create table in the connection thread to acquire GSL before the
+    // Binlog thread
+    DBUG_EXECUTE_IF("ndb_bi_sleep_before_gsl", sleep(1););
     // Protect the setup with GSL(Global Schema Lock)
     Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
     if (global_schema_lock_guard.lock()) {

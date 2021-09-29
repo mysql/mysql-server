@@ -51,5 +51,34 @@ set global debug="-d,ndb_schema_op_start_timeout";
 --let $assert_count= 1
 --source include/assert_grep.inc
 
+
+--echo #
+--echo # Test to simulate the case when client thread
+--echo # detects timeout, but before freeing the schema object
+--echo # Coordinator receives the schema event
+--echo #
+
+
+set global debug="+d,ndb_stale_event_with_schema_obj";
+
+call mtr.add_suppression("Schema dist client detected timeout");
+call mtr.add_suppression("Failed to distribute");
+--echo # Execute any DDL on table t1
+ALTER TABLE t1 ADD i INT;
+
+set global debug="-d,ndb_stale_event_with_schema_obj";
+
+--let $assert_text= Verify if ndb_schema_dist_timeout triggered by schema distribution client.
+--let $assert_select= Schema dist client detected timeout
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--let $assert_text= Verify if Coordinator detects the stale event and return without processing.
+--let $assert_select= Coordinator received a stale schema event
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 # Cleanup
 DROP TABLE t1;
