@@ -254,6 +254,20 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     COMPONENT ${ARG_COMPONENT}
     OPTIONAL)
 
+  # mysqld-debug and debug/group_replication.so both need cleanup of RPATH.
+  # We could/should *generate* these files, but since it only affects two
+  # binaries, we hard-code them for simplicity.
+
+  # NOTE: scripts should work for 'make install' and 'make package'.
+  IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+    IF(${target} STREQUAL "mysqld")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove.cmake)
+    ENDIF()
+    IF(${target} STREQUAL "group_replication")
+      INSTALL(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/rpath_remove_gr.cmake)
+    ENDIF()
+  ENDIF()
+
   # For windows, install .pdb files for .exe and .dll files.
   IF(MSVC AND NOT target_type STREQUAL "STATIC_LIBRARY")
     GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
@@ -295,7 +309,7 @@ ENDFUNCTION()
 
 
 # On Unix: add to RPATH of an executable when it is installed.
-# Use 'chrpath' to inspect results.
+# Use 'chrpath' or 'patchelf --print-rpath' to inspect results.
 # For Solaris, use 'elfdump -d'
 MACRO(ADD_INSTALL_RPATH TARGET VALUE)
   GET_TARGET_PROPERTY(CURRENT_RPATH_${TARGET} ${TARGET} INSTALL_RPATH)

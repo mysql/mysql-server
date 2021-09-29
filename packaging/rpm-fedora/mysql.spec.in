@@ -74,12 +74,14 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libaio-devel
+BuildRequires:  libfido2-devel
 BuildRequires:  mecab-devel
 BuildRequires:  multilib-rpm-config
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
+BuildRequires:  patchelf
 BuildRequires:  perl
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
@@ -122,7 +124,7 @@ BuildRequires:  zlib-devel
 BuildRequires: /usr/bin/pathfix.py
 %endif
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libfido2.*
+%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -511,6 +513,7 @@ mkdir debug
            -DMYSQL_MAINTAINER_MODE=0 \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
@@ -548,6 +551,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
@@ -577,6 +581,9 @@ mkdir release
 
 %install
 MBD=$RPM_BUILD_DIR/%{src_dir}
+
+# Ignore absolute RPATH followed by $ORIGIN in mysqld.
+export QA_RPATHS=0x0008
 
 # Ensure that needed directories exists
 install -d -m 0751 %{buildroot}/var/lib/mysql
@@ -949,7 +956,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos_client.so
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 
 %files test
