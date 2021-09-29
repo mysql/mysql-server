@@ -5,6 +5,13 @@
 # with both above 2 privileges can change the limit of sysvar innodb_open_files
 # without both privileges can can change the limit of sysvar innodb_open_files
 # ******************************************************************************
+
+# This test requires a small amount of not easily closeable InnoDB files. The
+# UNDO tablespaces are such not easily closeable files, so we limit runs to ones
+# that use the default amount of such.
+--source include/have_innodb_default_undo_tablespaces.inc
+
+
 SET @start_global_value = @@GLOBAL.innodb_open_files;
 SELECT @start_global_value;
 
