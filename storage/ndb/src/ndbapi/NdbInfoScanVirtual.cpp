@@ -368,13 +368,18 @@ class VirtualScanContext {
   }
   NdbScanOperation *getScanOp() { return m_scan_op; }
 
-  const NdbRecord *createRecord(NdbDictionary::RecordSpecification *recordSpec,
-                                Uint32 length, Uint32 elemSize) {
-    return m_ndb->getDictionary()->createRecord(m_ndbtab, recordSpec, length,
-                                                elemSize);
+  bool createRecord(NdbDictionary::RecordSpecification *recordSpec,
+                    Uint32 length, Uint32 elemSize) {
+    assert(m_record == nullptr);  // Only one record supported for now
+    m_record = m_ndb->getDictionary()->createRecord(m_ndbtab, recordSpec,
+                                                    length, elemSize);
+    return (m_record != nullptr);
   }
 
+  const NdbRecord *getRecord() { return m_record; }
+
   ~VirtualScanContext() {
+    if (m_record) m_ndb->getDictionary()->releaseRecord(m_record);
     if (m_scan_op) m_scan_op->close();
     if (m_trans) m_ndb->closeTransaction(m_trans);
     if (m_ndbtab) m_ndb->getDictionary()->removeTableGlobal(*m_ndbtab, 0);
@@ -387,6 +392,7 @@ class VirtualScanContext {
   const NdbDictionary::Table *m_ndbtab{nullptr};
   NdbTransaction *m_trans{nullptr};
   NdbScanOperation *m_scan_op{nullptr};
+  NdbRecord* m_record{nullptr};
 };
 
 int NdbInfoScanVirtual::execute()
@@ -1136,22 +1142,22 @@ public:
     record_spec[2].offset = offsetof(IndexStatRow, sample_version);
     record_spec[2].nullbit_byte_offset = 0;  // Not nullable
     record_spec[2].nullbit_bit_in_byte = 0;
-    const NdbRecord *result_record =
-        ctx->createRecord(record_spec, 3, sizeof(record_spec[0]));
-    if (!result_record) return false;
+    if (!ctx->createRecord(record_spec, 3, sizeof(record_spec[0]))) {
+      return false;
+    }
 
     // Set up attribute mask to scan only the 3 columns of interest
     const unsigned char attr_mask = ((1 << index_id_col->getColumnNo()) |
                                      (1 << index_version_col->getColumnNo()) |
                                      (1 << sample_version_col->getColumnNo()));
-    if (!ctx->scanTable(result_record, NdbOperation::LM_Read, &attr_mask)) {
+    if (!ctx->scanTable(ctx->getRecord(), NdbOperation::LM_Read, &attr_mask)) {
       return false;
     }
     return true;
   }
 
   int read_row(VirtualScanContext *ctx, VirtualTable::Row &w,
-               Uint32 row_number) const override {
+               Uint32) const override {
     IndexStatRow *row_data;
     const int scan_next_result =
         ctx->getScanOp()->nextResult((const char **)&row_data, true, false);
