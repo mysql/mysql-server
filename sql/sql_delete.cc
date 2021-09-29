@@ -144,7 +144,7 @@ class Query_result_delete final : public Query_result_interceptor {
 
  private:
   bool do_deletes(THD *thd);
-  int do_table_deletes(THD *thd, TABLE *table);
+  bool do_table_deletes(THD *thd, TABLE *table);
 };
 
 bool DeleteCurrentRowAndProcessTriggers(THD *thd, TABLE *table,
@@ -1177,11 +1177,9 @@ bool Query_result_delete::do_deletes(THD *thd) {
     TABLE *const table = tables[counter];
     if (tempfiles[counter]->get(table)) return true;
 
-    int local_error = do_table_deletes(thd, table);
-
-    if (thd->killed && !local_error) return true;
-
-    if (local_error != 0 && local_error != -1) return true;
+    if (do_table_deletes(thd, table) || thd->killed) {
+      return true;
+    }
   }
   return false;
 }
@@ -1193,16 +1191,11 @@ bool Query_result_delete::do_deletes(THD *thd) {
    @param thd   Thread handle.
    @param table The table from which to delete.
 
-   @return Status code
-
-   @retval  0 All ok.
-   @retval  1 Triggers or handler reported error.
-   @retval -1 End of file from handler.
+   @return true on error
 */
-int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
-  myf error_flags = MYF(0); /**< Flag for fatal errors */
-  int local_error = 0;
+bool Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
   DBUG_TRACE;
+
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling
@@ -1210,7 +1203,7 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
   unique_ptr_destroy_only<RowIterator> iterator =
       init_table_iterator(thd, table, /*ignore_not_found_rows=*/true,
                           /*count_examined_rows=*/false);
-  if (iterator == nullptr) return 1;
+  if (iterator == nullptr) return true;
 
   const uint tableno = table->pos_in_table_list->tableno();
   const bool has_before_triggers =
@@ -1219,21 +1212,34 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
 
   const bool will_batch = !table->file->start_bulk_delete();
   const ha_rows last_deleted = deleted_rows;
-  while (!(local_error = iterator->Read()) && !thd->killed) {
-    if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
-                                           has_after_triggers, &deleted_rows)) {
-      local_error = 1;
+
+  bool local_error = false;
+  while (!thd->killed) {
+    const int read_error = iterator->Read();
+    if (read_error == 0) {
+      if (DeleteCurrentRowAndProcessTriggers(thd, table, has_before_triggers,
+                                             has_after_triggers,
+                                             &deleted_rows)) {
+        local_error = true;
+        break;
+      }
+    } else if (read_error == -1) {
+      break;  // EOF
+    } else {
+      local_error = true;
       break;
     }
   }
-  if (will_batch) {
-    int tmp_error = table->file->end_bulk_delete();
-    if (tmp_error && !local_error) {
-      local_error = tmp_error;
-      if (table->file->is_fatal_error(local_error))
-        error_flags |= ME_FATALERROR;
 
-      table->file->print_error(local_error, error_flags);
+  if (will_batch) {
+    const int bulk_error = table->file->end_bulk_delete();
+    if (bulk_error != 0 && !local_error) {
+      local_error = true;
+      myf error_flags = MYF(0);
+      if (table->file->is_fatal_error(bulk_error)) {
+        error_flags |= ME_FATALERROR;
+      }
+      table->file->print_error(bulk_error, error_flags);
     }
   }
   if (last_deleted != deleted_rows &&
