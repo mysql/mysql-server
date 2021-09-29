@@ -1306,11 +1306,29 @@ TYPED_TEST_P(aligned_new_delete_fundamental_types_arr, fundamental_types) {
   constexpr size_t n_elements = 10;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               ut::make_psi_memory_key(pfs_key), alignment, 0,
-                               1, 2, 3, 4, 5, 6, 7, 8, 9)
-                         : ut::aligned_new_arr<type, n_elements>(
-                               alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type>(
+                               ut::make_psi_memory_key(pfs_key), alignment,
+                               std::forward_as_tuple((type)0),
+                               std::forward_as_tuple((type)1),
+                               std::forward_as_tuple((type)2),
+                               std::forward_as_tuple((type)3),
+                               std::forward_as_tuple((type)4),
+                               std::forward_as_tuple((type)5),
+                               std::forward_as_tuple((type)6),
+                               std::forward_as_tuple((type)7),
+                               std::forward_as_tuple((type)8),
+                               std::forward_as_tuple((type)9))
+                         : ut::aligned_new_arr<type>(
+                               alignment, std::forward_as_tuple((type)0),
+                               std::forward_as_tuple((type)1),
+                               std::forward_as_tuple((type)2),
+                               std::forward_as_tuple((type)3),
+                               std::forward_as_tuple((type)4),
+                               std::forward_as_tuple((type)5),
+                               std::forward_as_tuple((type)6),
+                               std::forward_as_tuple((type)7),
+                               std::forward_as_tuple((type)8),
+                               std::forward_as_tuple((type)9));
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
     for (size_t elem = 0; elem < n_elements; elem++) {
@@ -1334,11 +1352,17 @@ TYPED_TEST_P(aligned_new_delete_pod_types_arr, pod_types) {
   constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               ut::make_psi_memory_key(pfs_key), alignment, 0,
-                               1, 2, 3, 4, 5, 6, 7, 8, 9)
-                         : ut::aligned_new_arr<type, n_elements>(
-                               alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    type *ptr =
+        with_pfs
+            ? ut::aligned_new_arr_withkey<type>(
+                  ut::make_psi_memory_key(pfs_key), alignment,
+                  std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+                  std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+                  std::forward_as_tuple(8, 9))
+            : ut::aligned_new_arr<type>(
+                  alignment, std::forward_as_tuple(0, 1),
+                  std::forward_as_tuple(2, 3), std::forward_as_tuple(4, 5),
+                  std::forward_as_tuple(6, 7), std::forward_as_tuple(8, 9));
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1360,18 +1384,22 @@ TYPED_TEST_SUITE_P(aligned_new_delete_non_pod_types_arr);
 TYPED_TEST_P(aligned_new_delete_non_pod_types_arr, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
-  constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               ut::make_psi_memory_key(pfs_key), alignment, 1,
-                               2, std::string("a"), 3, 4, std::string("b"), 5,
-                               6, std::string("c"), 7, 8, std::string("d"), 9,
-                               10, std::string("e"))
-                         : ut::aligned_new_arr<type, n_elements>(
-                               alignment, 1, 2, std::string("a"), 3, 4,
-                               std::string("b"), 5, 6, std::string("c"), 7, 8,
-                               std::string("d"), 9, 10, std::string("e"));
+    type *ptr =
+        with_pfs ? ut::aligned_new_arr_withkey<type>(
+                       ut::make_psi_memory_key(pfs_key), alignment,
+                       std::forward_as_tuple(1, 2, std::string("a")),
+                       std::forward_as_tuple(3, 4, std::string("b")),
+                       std::forward_as_tuple(5, 6, std::string("c")),
+                       std::forward_as_tuple(7, 8, std::string("d")),
+                       std::forward_as_tuple(9, 10, std::string("e")))
+                 : ut::aligned_new_arr<type>(
+                       alignment, std::forward_as_tuple(1, 2, std::string("a")),
+                       std::forward_as_tuple(3, 4, std::string("b")),
+                       std::forward_as_tuple(5, 6, std::string("c")),
+                       std::forward_as_tuple(7, 8, std::string("d")),
+                       std::forward_as_tuple(9, 10, std::string("e")));
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1424,8 +1452,9 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_fundamental_types_arr,
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr =
         with_pfs ? ut::aligned_new_arr_withkey<type>(
-                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
-                 : ut::aligned_new_arr<type>(alignment, n_elements);
+                       ut::make_psi_memory_key(pfs_key), alignment,
+                       ut::Count{n_elements})
+                 : ut::aligned_new_arr<type>(alignment, ut::Count{n_elements});
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1456,8 +1485,9 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_pod_types_arr,
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr =
         with_pfs ? ut::aligned_new_arr_withkey<type>(
-                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
-                 : ut::aligned_new_arr<type>(alignment, n_elements);
+                       ut::make_psi_memory_key(pfs_key), alignment,
+                       ut::Count{n_elements})
+                 : ut::aligned_new_arr<type>(alignment, ut::Count{n_elements});
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1489,8 +1519,9 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_non_pod_types_arr,
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr =
         with_pfs ? ut::aligned_new_arr_withkey<type>(
-                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
-                 : ut::aligned_new_arr<type>(alignment, n_elements);
+                       ut::make_psi_memory_key(pfs_key), alignment,
+                       ut::Count{n_elements})
+                 : ut::aligned_new_arr<type>(alignment, ut::Count{n_elements});
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1521,7 +1552,6 @@ TEST(aligned_new_delete, unique_ptr_demo) {
 }
 
 TEST(aligned_new_delete_arr, unique_ptr_demo) {
-  constexpr auto n_elements = 5;
   constexpr auto alignment = 4 * 1024;
   struct Aligned_int_arr_deleter {
     void operator()(int *p) {
@@ -1530,7 +1560,10 @@ TEST(aligned_new_delete_arr, unique_ptr_demo) {
     }
   };
   std::unique_ptr<int, Aligned_int_arr_deleter> ptr(
-      ut::aligned_new_arr<int, n_elements>(alignment, 1, 2, 3, 4, 5),
+      ut::aligned_new_arr<int>(
+          alignment, std::forward_as_tuple(1), std::forward_as_tuple(2),
+          std::forward_as_tuple(3), std::forward_as_tuple(4),
+          std::forward_as_tuple(5)),
       Aligned_int_arr_deleter{});
 }
 
@@ -1539,7 +1572,7 @@ TEST(aligned_new_delete_arr, distance_between_elements_in_arr) {
   constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = ut::aligned_new_arr<type>(alignment, n_elements);
+    type *ptr = ut::aligned_new_arr<type>(alignment, ut::Count{n_elements});
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -1551,6 +1584,154 @@ TEST(aligned_new_delete_arr, distance_between_elements_in_arr) {
     }
     ut::aligned_delete_arr(ptr);
   }
+}
+
+TEST(
+    ut0new_aligned_new_delete_arr,
+    destructors_of_successfully_instantiated_trivially_constructible_elements_are_invoked_when_one_of_the_element_constructors_throws) {
+  static int n_constructors = 0;
+  static int n_destructors = 0;
+
+  struct Type_that_may_throw {
+    Type_that_may_throw() {
+      n_constructors++;
+      if (n_constructors % 4 == 0) {
+        throw std::runtime_error("cannot construct");
+      }
+    }
+    ~Type_that_may_throw() { ++n_destructors; }
+  };
+
+  bool exception_thrown_and_caught = false;
+  try {
+    auto ptr = ut::aligned_new_arr_withkey<Type_that_may_throw>(
+        ut::make_psi_memory_key(pfs_key), 2 * alignof(std::max_align_t),
+        ut::Count(7));
+    ASSERT_FALSE(ptr);
+  } catch (std::runtime_error &) {
+    exception_thrown_and_caught = true;
+  }
+  EXPECT_TRUE(exception_thrown_and_caught);
+  EXPECT_EQ(n_constructors, 4);
+  EXPECT_EQ(n_destructors, 3);
+}
+
+TEST(
+    ut0new_aligned_new_delete_arr,
+    destructors_of_successfully_instantiated_non_trivially_constructible_elements_are_invoked_when_one_of_the_element_constructors_throws) {
+  static int n_constructors = 0;
+  static int n_destructors = 0;
+
+  struct Type_that_may_throw {
+    Type_that_may_throw(int x, int y) : _x(x), _y(y) {
+      n_constructors++;
+      if (n_constructors % 4 == 0) {
+        throw std::runtime_error("cannot construct");
+      }
+    }
+    ~Type_that_may_throw() { ++n_destructors; }
+    int _x, _y;
+  };
+
+  bool exception_thrown_and_caught = false;
+  try {
+    auto ptr = ut::aligned_new_arr_withkey<Type_that_may_throw>(
+        ut::make_psi_memory_key(pfs_key), 2 * alignof(std::max_align_t),
+        std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+        std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+        std::forward_as_tuple(8, 9));
+    ASSERT_FALSE(ptr);
+  } catch (std::runtime_error &) {
+    exception_thrown_and_caught = true;
+  }
+  EXPECT_TRUE(exception_thrown_and_caught);
+  EXPECT_EQ(n_constructors, 4);
+  EXPECT_EQ(n_destructors, 3);
+}
+
+TEST(
+    ut0new_aligned_new_delete_arr,
+    no_destructors_are_invoked_when_first_trivially_constructible_element_constructor_throws) {
+  static int n_constructors = 0;
+  static int n_destructors = 0;
+
+  struct Type_that_always_throws {
+    Type_that_always_throws() {
+      n_constructors++;
+      throw std::runtime_error("cannot construct");
+    }
+    ~Type_that_always_throws() { ++n_destructors; }
+  };
+
+  bool exception_thrown_and_caught = false;
+  try {
+    auto ptr = ut::aligned_new_arr_withkey<Type_that_always_throws>(
+        ut::make_psi_memory_key(pfs_key), 2 * alignof(std::max_align_t),
+        ut::Count(7));
+    ASSERT_FALSE(ptr);
+  } catch (std::runtime_error &) {
+    exception_thrown_and_caught = true;
+  }
+  EXPECT_TRUE(exception_thrown_and_caught);
+  EXPECT_EQ(n_constructors, 1);
+  EXPECT_EQ(n_destructors, 0);
+}
+
+TEST(
+    ut0new_aligned_new_delete_arr,
+    no_destructors_are_invoked_when_first_non_trivially_constructible_element_constructor_throws) {
+  static int n_constructors = 0;
+  static int n_destructors = 0;
+
+  struct Type_that_always_throws {
+    Type_that_always_throws(int x, int y) : _x(x), _y(y) {
+      n_constructors++;
+      throw std::runtime_error("cannot construct");
+    }
+    ~Type_that_always_throws() { ++n_destructors; }
+    int _x, _y;
+  };
+
+  bool exception_thrown_and_caught = false;
+  try {
+    auto ptr = ut::aligned_new_arr_withkey<Type_that_always_throws>(
+        ut::make_psi_memory_key(pfs_key), 2 * alignof(std::max_align_t),
+        std::forward_as_tuple(0, 1), std::forward_as_tuple(2, 3),
+        std::forward_as_tuple(4, 5), std::forward_as_tuple(6, 7),
+        std::forward_as_tuple(8, 9));
+    ASSERT_FALSE(ptr);
+  } catch (std::runtime_error &) {
+    exception_thrown_and_caught = true;
+  }
+  EXPECT_TRUE(exception_thrown_and_caught);
+  EXPECT_EQ(n_constructors, 1);
+  EXPECT_EQ(n_destructors, 0);
+}
+
+TEST(ut0new_aligned_new_delete,
+     no_destructor_is_invoked_when_no_object_is_successfully_constructed) {
+  static int n_constructors = 0;
+  static int n_destructors = 0;
+
+  struct Type_that_always_throws {
+    Type_that_always_throws() {
+      n_constructors++;
+      throw std::runtime_error("cannot construct");
+    }
+    ~Type_that_always_throws() { ++n_destructors; }
+  };
+
+  bool exception_thrown_and_caught = false;
+  try {
+    auto ptr = ut::aligned_new_withkey<Type_that_always_throws>(
+        ut::make_psi_memory_key(pfs_key), 2 * alignof(std::max_align_t));
+    ASSERT_FALSE(ptr);
+  } catch (std::runtime_error &) {
+    exception_thrown_and_caught = true;
+  }
+  EXPECT_TRUE(exception_thrown_and_caught);
+  EXPECT_EQ(n_constructors, 1);
+  EXPECT_EQ(n_destructors, 0);
 }
 
 TEST(aligned_pointer, access_data_through_implicit_conversion_operator) {
@@ -1569,7 +1750,7 @@ TEST(aligned_array_pointer, access_data_through_subscript_operator) {
   constexpr auto n_elements = 5;
   constexpr auto alignment = 4 * 1024;
   ut::aligned_array_pointer<Default_constructible_pod, alignment> ptr;
-  ptr.alloc(n_elements);
+  ptr.alloc(ut::Count{n_elements});
 
   EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
   for (size_t elem = 0; elem < n_elements; elem++) {
@@ -1581,12 +1762,13 @@ TEST(aligned_array_pointer, access_data_through_subscript_operator) {
 }
 
 TEST(aligned_array_pointer, initialize_an_array_of_non_pod_types) {
-  constexpr auto n_elements = 5;
   constexpr auto alignment = 4 * 1024;
   ut::aligned_array_pointer<Non_pod_type, alignment> ptr;
-  ptr.alloc<n_elements>(1, 2, std::string("a"), 3, 4, std::string("b"), 5, 6,
-                        std::string("c"), 7, 8, std::string("d"), 9, 10,
-                        std::string("e"));
+  ptr.alloc(std::forward_as_tuple(1, 2, std::string("a")),
+            std::forward_as_tuple(3, 4, std::string("b")),
+            std::forward_as_tuple(5, 6, std::string("c")),
+            std::forward_as_tuple(7, 8, std::string("d")),
+            std::forward_as_tuple(9, 10, std::string("e")));
 
   EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
 
@@ -1617,7 +1799,7 @@ TEST(aligned_array_pointer, distance_between_elements_in_arr) {
   constexpr auto n_elements = 5;
   constexpr auto alignment = 4 * 1024;
   ut::aligned_array_pointer<Default_constructible_pod, alignment> ptr;
-  ptr.alloc(n_elements);
+  ptr.alloc(ut::Count{n_elements});
 
   EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(&ptr[0]) % alignment == 0);
 

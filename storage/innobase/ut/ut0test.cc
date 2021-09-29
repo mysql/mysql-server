@@ -442,7 +442,7 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   const auto buf_size =
       ut_uint64_align_up(prefix_length, OS_FILE_LOG_BLOCK_SIZE);
 
-  mem.alloc(buf_size);
+  mem.alloc(ut::Count(buf_size));
   const page_id_t page_id{space_id, page_no};
   fil_space_t *space = fil_space_get(space_id);
 
