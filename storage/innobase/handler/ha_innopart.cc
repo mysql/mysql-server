@@ -1151,6 +1151,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   }
 
   m_sql_stat_start_parts.init(m_bitset, UT_BITS_IN_BYTES(m_tot_parts));
+  m_reuse_mysql_template = false;
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
@@ -1361,6 +1362,7 @@ void ha_innopart::update_partition(uint part_id) {
   m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
   if (m_prebuilt->sql_stat_start == 0) {
     m_sql_stat_start_parts.set(part_id, false);
+    m_reuse_mysql_template = true;
   }
   m_last_part = part_id;
 }
@@ -3969,6 +3971,7 @@ int ha_innopart::start_stmt(THD *thd, thr_lock_type lock_type) {
   } else {
     m_sql_stat_start_parts.reset();
   }
+  m_reuse_mysql_template = false;
   return (error);
 }
 
@@ -4092,6 +4095,7 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
   } else {
     m_sql_stat_start_parts.reset();
   }
+  m_reuse_mysql_template = false;
   return (error);
 }
 

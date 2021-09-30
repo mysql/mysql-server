@@ -645,6 +645,9 @@ class ha_innopart : public ha_innobase,
   /** New partitions during ADD/REORG/... PARTITION. */
   Altered_partitions *m_new_partitions;
 
+  /** Can reuse the template for the previous partition. */
+  bool m_reuse_mysql_template;
+
   /** Clear used ins_nodes and upd_nodes. */
   void clear_ins_upd_nodes();
 
@@ -1146,5 +1149,9 @@ class ha_innopart : public ha_innobase,
   @param[in]	is_analyze	True if called from "::analyze()".
   @return	HA_ERR_* error code or 0. */
   int info_low(uint flag, bool is_analyze) override;
+
+  bool can_reuse_mysql_template() const override {
+    return m_reuse_mysql_template;
+  }
 };
 #endif /* ha_innopart_h */
