@@ -7704,15 +7704,17 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
                                  m_right_extractor->max_char_length())) {
   m_store_full_sort_key = true;
 
-  if (join_condition->compare_type() == STRING_RESULT ||
-      join_condition->compare_type() == ROW_RESULT) {
+  if ((join_condition->compare_type() == STRING_RESULT ||
+       join_condition->compare_type() == ROW_RESULT) &&
+      !current_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
     const CHARSET_INFO *cs = join_condition->compare_collation();
     if (cs->coll->strnxfrmlen(cs, cs->mbmaxlen * m_max_character_length) >
         1024) {
       // This field can potentially get very long keys; it is better to
       // just store the hash, and then re-check the condition afterwards.
       // The value of 1024 is fairly arbitrary, and may be changed in the
-      // future.
+      // future. We don't do this for secondary engines; how they wish
+      // to do their hash joins will be an internal implementation detail.
       m_store_full_sort_key = false;
     }
   }
