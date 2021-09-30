@@ -92,7 +92,7 @@ monitor_id to "enum monitor_id_value" structure in srv0mon.h file. */
 
 static monitor_info_t innodb_counter_info[] = {
     /* A dummy item to mark the module start, this is
-    to accomodate the default value (0) set for the
+    to accommodate the default value (0) set for the
     global variables with the control system. */
     {"module_start", "module_start", "module_start", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_DEFAULT_START},
@@ -443,7 +443,7 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of times a wait happens due to sync flushing", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_SYNC_WAITS},
 
-    /* Cumulative counter for flush batches for adaptive flushing  */
+    /* Cumulative counter for flush batches for adaptive flushing */
     {"buffer_flush_adaptive_total_pages", "buffer",
      "Total pages flushed as part of adaptive flushing", MONITOR_SET_OWNER,
      MONITOR_FLUSH_ADAPTIVE_COUNT, MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE},
@@ -743,7 +743,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_MODULE_TRX},
 
     {"trx_rw_commits", "transaction",
-     "Number of read-write transactions  committed", MONITOR_NONE,
+     "Number of read-write transactions committed", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_TRX_RW_COMMIT},
 
     {"trx_ro_commits", "transaction",
@@ -942,7 +942,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_LOG_FULL_BLOCK_WRITES},
 
     {"log_partial_block_writes", "log",
-     "Number of log writes for partial (incompleted) log blocks", MONITOR_NONE,
+     "Number of log writes for partial (incomplete) log blocks", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LOG_PARTIAL_BLOCK_WRITES},
 
     {"log_padded", "log", "Bytes of log padded for log write ahead",
@@ -1074,7 +1074,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_INDEX_DISCARD},
 
     /* ========== Counters for Adaptive Hash Index ========== */
-    {"module_adaptive_hash", "adaptive_hash_index", "Adpative Hash Index",
+    {"module_adaptive_hash", "adaptive_hash_index", "Adaptive Hash Index",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_MODULE_ADAPTIVE_HASH},
 
     {"adaptive_hash_searches", "adaptive_hash_index",
@@ -1154,7 +1154,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_DELETE},
 
     {"ibuf_merges_discard_delete", "change_buffer",
-     "Number of purge merged  operations discarded",
+     "Number of purge merged operations discarded",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_IBUF_MERGE_DISCARD_PURGE},
 
@@ -2005,7 +2005,7 @@ void srv_mon_process_existing_counter(
       counter has not yet been set to off in the bitmap
       table for normal turn off. We need to check the
       count status (on/off) to avoid reset the value
-      for an already off conte */
+      for an already off counter */
       if (MONITOR_IS_ON(monitor_id)) {
         srv_mon_process_existing_counter(monitor_id, MONITOR_GET_VALUE);
         MONITOR_SAVE_LAST(monitor_id);
