@@ -3116,6 +3116,33 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   FindConditionsUsedTables(thd, root);
   MakeHashJoinConditions(thd, root);
 
+  // One could argue this is a strange place to inject casts into the SELECT
+  // list, since it has nothing to do with the construction of the hypergraph
+  // itself. However, putting it here allows us to easily reach it in the unit
+  // test, and since we just added casts to the join conditions (in
+  // CanonicalizeJoinConditions), it should at least be fairly easy to find one
+  // from the other, and it's nice to have all canonicalization done before we
+  // start optimizing (this should really have been done in the prepare phase,
+  // as deciding data types should be part of resolving). For the old join
+  // optimizer, we do this after the join optimizer has finished, in
+  // sql_optimizer.cc.
+
+  // Traverse the expressions and inject cast nodes to compatible data types,
+  // if needed.
+  for (Item *item : *query_block->join->fields) {
+    item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+
+  // Also GROUP BY expressions and HAVING, to be consistent everywhere.
+  for (ORDER *ord = join->group_list.order; ord != nullptr; ord = ord->next) {
+    (*ord->item)
+        ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+  if (join->having_cond != nullptr) {
+    join->having_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                            nullptr);
+  }
+
   if (trace != nullptr) {
     *trace += StringPrintf(
         "\nAfter pushdown; remaining WHERE conditions are %s, "

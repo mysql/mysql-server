@@ -23,12 +23,17 @@
 #ifndef MOCK_FIELD_DATETIME_H
 #define MOCK_FIELD_DATETIME_H
 
+#include <memory>
+
 #include "sql/field.h"
 #include "unittest/gunit/fake_table.h"
 
 class Mock_field_datetime : public Field_datetime {
+  std::unique_ptr<Fake_TABLE> fake_table;
+
   void initialize() {
-    table = new Fake_TABLE(this);
+    fake_table.reset(new Fake_TABLE(this));
+    table = fake_table.get();
     ptr = table->record[0];
     // Make it possible to write into this field
     bitmap_set_bit(table->write_set, 0);
@@ -36,7 +41,6 @@ class Mock_field_datetime : public Field_datetime {
 
  public:
   Mock_field_datetime() : Field_datetime("") { initialize(); }
-  ~Mock_field_datetime() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif  // MOCK_FIELD_DATETIME_H

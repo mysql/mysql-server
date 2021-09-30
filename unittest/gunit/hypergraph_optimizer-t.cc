@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/field.h"
 #include "sql/filesort.h"
 #include "sql/handler.h"
@@ -67,6 +68,7 @@
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"
+#include "unittest/gunit/mock_field_datetime.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
 
@@ -1858,6 +1860,24 @@ TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
                     }
                     return false;
                   });
+}
+
+TEST_F(HypergraphOptimizerTest, InsertCastsInSelectExpressions) {
+  Mock_field_datetime t1_x;
+  Mock_field_long t1_y(/*unsigned=*/false);
+  t1_x.field_name = "x";
+  t1_y.field_name = "y";
+
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t1_x, &t1_y);
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x = t1.y FROM t1", /*nullable=*/true);
+  FindBestQueryPlanAndFinalize(m_thd, query_block, /*trace=*/nullptr);
+  ASSERT_EQ(1, query_block->join->fields->size());
+  EXPECT_EQ("(cast(t1.x as double) = cast(t1.y as double))",
+            ItemToString((*query_block->join->fields)[0]));
 }
 
 static string PrintSargablePredicate(const SargablePredicate &sp,
