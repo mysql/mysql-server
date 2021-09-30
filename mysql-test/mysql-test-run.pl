@@ -919,7 +919,7 @@ sub run_test_server ($$$) {
   my ($server, $tests, $childs) = @_;
 
   my $num_failed_test   = 0; # Number of tests failed so far
-  my $num_saved_cores   = 0; # Number of core files saved in vardir/log/ so far.
+  my %saved_cores_paths;     # Paths of core files found in vardir/log/ so far
   my $num_saved_datadir = 0; # Number of datadirs saved in vardir/log/ so far.
 
   # Scheduler variables
@@ -1021,6 +1021,12 @@ sub run_test_server ($$$) {
                       if (($core_name =~ /^core/ and $core_name !~ /\.gz$/) or
                           (IS_WINDOWS and $core_name =~ /\.dmp$/)) {
                         # Ending with .dmp
+
+                        if (exists $saved_cores_paths{$core_file}) {
+                          mtr_report(" - found '$core_name' again, keeping it");
+                          return;
+                        }
+                        my $num_saved_cores = %saved_cores_paths;
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 
@@ -1039,8 +1045,8 @@ sub run_test_server ($$$) {
                           unlink("$core_file");
                         } else {
                           mtr_compress_file($core_file) unless @opt_cases;
+                          $saved_cores_paths{$core_file} = 1;
                         }
-                        ++$num_saved_cores;
                       }
                     }
                   },
