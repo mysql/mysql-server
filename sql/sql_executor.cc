@@ -2847,17 +2847,16 @@ static table_map get_delete_target_tables(const JOIN *join) {
   return delete_tables;
 }
 
-static AccessPath *attach_access_path_for_delete(const JOIN *join,
-                                                 AccessPath *path) {
+AccessPath *JOIN::attach_access_path_for_delete(AccessPath *path) {
   // If this is the top-level query block of a multi-table DELETE statement,
   // wrap the path in a DELETE_ROWS path.
-  if (join->thd->lex->m_sql_cmd != nullptr &&
-      join->thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
-      join->query_block->outer_query_block() == nullptr) {
-    const table_map delete_tables = get_delete_target_tables(join);
+  if (thd->lex->m_sql_cmd != nullptr &&
+      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
+      query_block->outer_query_block() == nullptr) {
+    const table_map delete_tables = get_delete_target_tables(this);
     path =
-        NewDeleteRowsAccessPath(join->thd, path, delete_tables,
-                                GetImmediateDeleteTables(join, delete_tables));
+        NewDeleteRowsAccessPath(thd, path, delete_tables,
+                                GetImmediateDeleteTables(this, delete_tables));
     EstimateDeleteRowsCost(path);
   }
 
@@ -2869,7 +2868,7 @@ void JOIN::create_access_paths() {
 
   AccessPath *path = create_root_access_path_for_join();
   path = attach_access_paths_for_having_and_limit(path);
-  path = attach_access_path_for_delete(this, path);
+  path = attach_access_path_for_delete(path);
 
   m_root_access_path = path;
 }

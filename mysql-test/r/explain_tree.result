@@ -946,3 +946,17 @@ EXPLAIN
     -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (cost=0.66 rows=2)
 
 DROP TABLE t;
+#
+# Bug#33364732: Preliminary fixes for WL#14673
+#
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+EXPLAIN
+-> Delete from t (buffered)  (cost=0.00..0.00 rows=0)
+    -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+
+DROP TABLE t;

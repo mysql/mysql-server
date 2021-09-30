@@ -567,3 +567,15 @@ EXPLAIN FORMAT=tree SELECT * FROM t WHERE a > 'abc' AND a < 'ghi';
 EXPLAIN FORMAT=tree
 SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
 DROP TABLE t;
+
+--echo #
+--echo # Bug#33364732: Preliminary fixes for WL#14673
+--echo #
+
+# Demonstrates printing of DELETE with an impossible WHERE clause.
+
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+ANALYZE TABLE t;
+EXPLAIN FORMAT=TREE DELETE t FROM t WHERE 0=1;
+DROP TABLE t;
