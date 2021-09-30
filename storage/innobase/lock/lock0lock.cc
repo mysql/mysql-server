@@ -2038,9 +2038,7 @@ static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
 
   using LockDescriptorEx = std::pair<trx_schedule_weight_t, lock_t *>;
   /* Preallocate for 4 lists with 32 locks. */
-  std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap(
-      mem_heap_create((sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) * 32),
-      mem_heap_free);
+  MEM_HEAP_NEW(heap, (sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) * 32);
 
   RecID rec_id{in_lock, heap_no};
   Locks<lock_t *> low_priority_light{heap.get()};
@@ -4516,7 +4514,6 @@ void lock_print_info_summary(FILE *file) {
 }
 
 /** Functor to print not-started transaction from the mysql_trx_list. */
-
 struct PrintNotStarted {
   PrintNotStarted(FILE *file) : m_file(file) {}
 
@@ -4541,7 +4538,6 @@ struct PrintNotStarted {
 
 /** Iterate over a transaction's locks. Keeping track of the
 iterator using an ordinal value. */
-
 class TrxLockIterator {
  public:
   TrxLockIterator() { rewind(); }

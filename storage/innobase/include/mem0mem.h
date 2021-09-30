@@ -469,18 +469,15 @@ struct Scoped_heap {
   using Type = mem_heap_t;
 
   /** Default constructor. */
-  Scoped_heap() : m_ptr(nullptr, &mem_heap_free) {}
+  Scoped_heap() : m_ptr(nullptr) {}
 
-  /** Debug constructor.
-  @param[in] n                  Initial size of the heap to allocate. */
-#ifdef UNIV_DEBUG
-  /**
+  /** Constructs heap with a free space of specified size.
+  @param[in] n                  Initial size of the heap to allocate.
   @param[in] file               File name from where called.
   @param[in] line               Line number if filenane from where called. */
-#endif /* UNIV_DEBUG */
   Scoped_heap(size_t n IF_DEBUG(, const char *file, int line)) noexcept
-      : m_ptr(mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC),
-              &Scoped_heap::free) {}
+      : m_ptr(
+            mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC)) {}
 
   /** Destructor. */
   ~Scoped_heap() = default;
@@ -522,17 +519,12 @@ struct Scoped_heap {
   }
 
  private:
-  /** Free the heap.
-  @param[in,out] p              Heap to free. */
-  static void free(mem_heap_t *p) {
-    if (p != nullptr) {
-      mem_heap_free(p);
-    }
-  }
+  /** A functor with no state to be used for mem_heap destruction. */
+  struct mem_heap_free_functor {
+    void operator()(mem_heap_t *heap) { mem_heap_free(heap); }
+  };
 
- private:
-  using Free = std::function<decltype(Scoped_heap::free)>;
-  using Ptr = std::unique_ptr<Type, Free>;
+  using Ptr = std::unique_ptr<Type, mem_heap_free_functor>;
 
   /** Heap to use. */
   Ptr m_ptr{};
