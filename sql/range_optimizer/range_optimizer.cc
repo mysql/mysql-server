@@ -177,28 +177,10 @@ void range_optimizer_free() { delete null_element; }
       (x_1||...||x_N) || t = (x_1||...||x_N||t), where x_i, t are SEL_TREEs
 
   RETURN
-     0 - OK
-    -1 - Out of memory.
+    true on OOM.
 */
 
-int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
-  if (trees_next == trees_end) {
-    const int realloc_ratio = 2; /* Double size for next round */
-    uint old_elements = static_cast<uint>(trees_end - trees);
-    uint new_elements = old_elements * realloc_ratio;
-    SEL_TREE **new_trees =
-        param->temp_mem_root->ArrayAlloc<SEL_TREE *>(new_elements);
-    if (new_trees == nullptr) {
-      return -1;
-    }
-    memcpy(new_trees, trees, old_elements * sizeof(*trees));
-    trees = new_trees;
-    trees_next = trees + old_elements;
-    trees_end = trees + old_elements * realloc_ratio;
-  }
-  *(trees_next++) = tree;
-  return 0;
-}
+bool SEL_IMERGE::or_sel_tree(SEL_TREE *tree) { return trees.push_back(tree); }
 
 /*
   Perform OR operation on this SEL_IMERGE and supplied SEL_TREE new_tree,
@@ -235,19 +217,22 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
                                         bool remove_jump_scans,
                                         SEL_TREE *new_tree) {
   DBUG_TRACE;
-  for (SEL_TREE **tree = trees; tree != trees_next; tree++) {
-    if (sel_trees_can_be_ored(*tree, new_tree, param)) {
-      *tree = tree_or(param, remove_jump_scans, *tree, new_tree);
-      if (!*tree) return 1;
-      if ((*tree)->type == SEL_TREE::ALWAYS) return 1;
+  for (SEL_TREE *&tree : trees) {
+    if (sel_trees_can_be_ored(tree, new_tree, param)) {
+      tree = tree_or(param, remove_jump_scans, tree, new_tree);
+      if (tree == nullptr) return 1;
+      if (tree->type == SEL_TREE::ALWAYS) return 1;
       /* SEL_TREE::IMPOSSIBLE is impossible here */
       return 0;
     }
   }
 
   /* New tree cannot be combined with any of existing trees. */
-  const int ret = or_sel_tree(param, new_tree);
-  return ret;
+  if (or_sel_tree(new_tree)) {
+    return -1;
+  } else {
+    return 0;
+  }
 }
 
 /*
@@ -263,37 +248,17 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
 int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
                                           bool remove_jump_scans,
                                           SEL_IMERGE *imerge) {
-  for (SEL_TREE **tree = imerge->trees; tree != imerge->trees_next; tree++) {
-    if (or_sel_tree_with_checks(param, remove_jump_scans, *tree)) return 1;
+  for (SEL_TREE *tree : imerge->trees) {
+    int ret = or_sel_tree_with_checks(param, remove_jump_scans, tree);
+    if (ret != 0) {
+      return ret;
+    }
   }
   return 0;
 }
 
-SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param) {
-  uint elements = static_cast<uint>(arg->trees_end - arg->trees);
-  if (elements > PREALLOCED_TREES) {
-    if (!(trees = param->temp_mem_root->ArrayAlloc<SEL_TREE *>(elements)))
-      goto mem_err;
-  } else
-    trees = &trees_prealloced[0];
-
-  trees_next = trees;
-  trees_end = trees + elements;
-
-  for (SEL_TREE **tree = trees, **arg_tree = arg->trees; tree < trees_end;
-       tree++, arg_tree++) {
-    if (!(*tree = new (param->temp_mem_root) SEL_TREE(*arg_tree, param)) ||
-        param->has_errors())
-      goto mem_err;
-  }
-
-  return;
-
-mem_err:
-  trees = &trees_prealloced[0];
-  trees_next = trees;
-  trees_end = trees;
-}
+SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param)
+    : trees(param->temp_mem_root, arg->trees) {}
 
 void trace_quick_description(const AccessPath *path, Opt_trace_context *trace) {
   Opt_trace_object range_trace(trace, "range_details");
@@ -808,19 +773,17 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                             INDEX_MERGE_HINT_ENUM, 0)) &&
           interesting_order != ORDER_DESC && param.table->file->stats.records) {
         /* Try creating index_merge/ROR-union scan. */
-        SEL_IMERGE *imerge;
         AccessPath *best_conj_path = nullptr, *new_conj_path = nullptr;
-        List_iterator_fast<SEL_IMERGE> it(tree->merges);
         Opt_trace_array trace_idx_merge(trace, "analyzing_index_merge_union",
                                         Opt_trace_context::RANGE_OPTIMIZER);
 
         // Buffer for index_merge cost estimates.
         Unique::Imerge_cost_buf_type imerge_cost_buff;
-        while ((imerge = it++)) {
+        for (SEL_IMERGE &imerge : tree->merges) {
           new_conj_path = get_best_disjunct_quick(
               thd, &param, table, index_merge_union_allowed,
               index_merge_sort_union_allowed, index_merge_intersect_allowed,
-              interesting_order, skip_records_in_range, &needed_fields, imerge,
+              interesting_order, skip_records_in_range, &needed_fields, &imerge,
               &imerge_cost_buff, best_cost, needed_reg);
           if (new_conj_path)
             param.table->quick_condition_rows =
@@ -887,8 +850,8 @@ static AccessPath *get_ror_union_path(
     Opt_trace_array trace_analyze_ror(trace, "analyzing_roworder_scans");
     AccessPath **cur_child = range_scans;
     AccessPath **cur_roru_plan = &roru_read_plans[0];
-    for (SEL_TREE **ptree = imerge->trees; ptree != imerge->trees_next;
-         ptree++, cur_child++, cur_roru_plan++) {
+    for (auto tree_it = imerge->trees.begin(); tree_it != imerge->trees.end();
+         tree_it++, cur_child++, cur_roru_plan++) {
       Opt_trace_object path(trace);
       if (unlikely(trace->is_started()))
         trace_basic_info(thd, *cur_child, param, &path);
@@ -916,7 +879,7 @@ static AccessPath *get_ror_union_path(
       AccessPath *prev_plan = *cur_child;
       if (!(*cur_roru_plan = get_best_ror_intersect(
                 thd, param, table, index_merge_intersect_allowed,
-                interesting_order, *ptree, needed_fields, scan_cost,
+                interesting_order, *tree_it, needed_fields, scan_cost,
                 /*force_index_merge_result=*/false, /*reuse_handler=*/false))) {
         if (child_param.can_be_used_for_ror)
           *cur_roru_plan = prev_plan;
@@ -1096,7 +1059,7 @@ static AccessPath *get_best_disjunct_quick(
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
-  uint n_child_scans = imerge->trees_next - imerge->trees;
+  uint n_child_scans = imerge->trees.size();
   AccessPath **range_scans =
       param->return_mem_root->ArrayAlloc<AccessPath *>(n_child_scans);
   if (range_scans == nullptr) {
@@ -1113,15 +1076,15 @@ static AccessPath *get_best_disjunct_quick(
     AccessPath **cpk_scan = nullptr;
     bool all_scans_rors = true;
     bool imerge_too_expensive = false;
-    AccessPath **cur_child;
-    SEL_TREE **ptree;
-    for (ptree = imerge->trees, cur_child = range_scans;
-         ptree != imerge->trees_next; ptree++, cur_child++) {
-      DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
-                                          "tree in SEL_IMERGE"););
+    AccessPath **cur_child = range_scans;
+    for (auto tree_it = imerge->trees.begin(); tree_it != imerge->trees.end();
+         ++tree_it, cur_child++) {
+      DBUG_EXECUTE("info",
+                   print_sel_tree(param, *tree_it, &(*tree_it)->keys_map,
+                                  "tree in SEL_IMERGE"););
       Opt_trace_object trace_idx(trace);
       if (!(*cur_child = get_key_scans_params(
-                thd, param, *ptree, true, false, interesting_order,
+                thd, param, *tree_it, true, false, interesting_order,
                 skip_records_in_range, read_cost, needed_reg))) {
         /*
           One of index scans in this index_merge is more expensive than entire
@@ -1145,7 +1108,7 @@ static AccessPath *get_best_disjunct_quick(
       }
 
       imerge_cost += (*cur_child)->cost;
-      all_scans_ror_able &= ((*ptree)->n_ror_scans > 0);
+      all_scans_ror_able &= ((*tree_it)->n_ror_scans > 0);
       all_scans_rors &= child_param.can_be_used_for_ror;
       const bool pk_is_clustered = table->file->primary_key_is_clustered();
       if (pk_is_clustered && child_param.index == table->s->primary_key) {
@@ -1814,8 +1777,8 @@ void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
         out->append(" ---\n");
       } else
         DBUG_PRINT("info", ("sel_tree: --- alternative %d ---", i));
-      for (SEL_TREE **current = el->trees; current != el->trees_next; current++)
-        print_tree(out, "  merge_tree", *current, param, print_full);
+      for (SEL_TREE *current : el->trees)
+        print_tree(out, "  merge_tree", current, param, print_full);
     }
   }
 

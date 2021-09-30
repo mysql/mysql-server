@@ -125,22 +125,14 @@ int index_next_different(bool is_index_scan, handler *file,
 */
 
 class SEL_IMERGE {
-  enum { PREALLOCED_TREES = 10 };
-
  public:
-  SEL_TREE *trees_prealloced[PREALLOCED_TREES];
-  SEL_TREE **trees;      /* trees used to do index_merge   */
-  SEL_TREE **trees_next; /* last of these trees            */
-  SEL_TREE **trees_end;  /* end of allocated space         */
+  Mem_root_array<SEL_TREE *> trees;
 
   SEL_ARG ***best_keys; /* best keys to read in SEL_TREEs */
 
-  SEL_IMERGE()
-      : trees(&trees_prealloced[0]),
-        trees_next(trees),
-        trees_end(trees + PREALLOCED_TREES) {}
+  SEL_IMERGE(MEM_ROOT *mem_root) : trees(mem_root) {}
   SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param);
-  int or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree);
+  bool or_sel_tree(SEL_TREE *tree);
   int or_sel_tree_with_checks(RANGE_OPT_PARAM *param, bool remove_jump_scans,
                               SEL_TREE *new_tree);
   int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, bool remove_jump_scans,

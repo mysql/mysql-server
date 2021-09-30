@@ -360,9 +360,7 @@ void OptRangeTest::check_use_count(SEL_TREE *tree) {
     List_iterator<SEL_IMERGE> it(tree->merges);
     SEL_IMERGE *merge = it++;
 
-    for (SEL_TREE **current = merge->trees; current != merge->trees_next;
-         current++)
-      check_use_count(*current);
+    for (SEL_TREE *current : merge->trees) check_use_count(current);
   }
 }
 

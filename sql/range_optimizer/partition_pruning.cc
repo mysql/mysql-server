@@ -581,7 +581,7 @@ static int find_used_partitions_imerge_list(THD *thd, PART_PRUNE_PARAM *ppar,
 static int find_used_partitions_imerge(THD *thd, PART_PRUNE_PARAM *ppar,
                                        SEL_IMERGE *imerge) {
   int res = 0;
-  for (SEL_TREE **ptree = imerge->trees; ptree < imerge->trees_next; ptree++) {
+  for (SEL_TREE *ptree : imerge->trees) {
     ppar->arg_stack_end = ppar->arg_stack;
     ppar->cur_part_fields = 0;
     ppar->cur_subpart_fields = 0;
@@ -591,7 +591,7 @@ static int find_used_partitions_imerge(THD *thd, PART_PRUNE_PARAM *ppar,
     ppar->cur_min_flag = ppar->cur_max_flag = 0;
 
     init_all_partitions_iterator(ppar->part_info, &ppar->part_iter);
-    SEL_ROOT *key_tree = (*ptree)->keys[0];
+    SEL_ROOT *key_tree = ptree->keys[0];
     if (!key_tree || (-1 == (res |= find_used_partitions(thd, ppar, key_tree))))
       return -1;
   }

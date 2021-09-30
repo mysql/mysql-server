@@ -192,7 +192,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param)
   List_iterator<SEL_IMERGE> it(arg->merges);
   for (SEL_IMERGE *el = it++; el; el = it++) {
     SEL_IMERGE *merge = new (param->temp_mem_root) SEL_IMERGE(el, param);
-    if (!merge || merge->trees == merge->trees_next || param->has_errors()) {
+    if (!merge || merge->trees.empty() || param->has_errors()) {
       merges.clear();
       return;
     }
@@ -727,10 +727,10 @@ SEL_TREE *tree_or(RANGE_OPT_PARAM *param, bool remove_jump_scans,
       /* both trees are "range" trees, produce new index merge structure */
       if (!(result = new (param->temp_mem_root)
                 SEL_TREE(param->temp_mem_root, param->keys)) ||
-          !(merge = new (param->temp_mem_root) SEL_IMERGE()) ||
-          (result->merges.push_back(merge)) ||
-          (merge->or_sel_tree(param, tree1)) ||
-          (merge->or_sel_tree(param, tree2)))
+          !(merge =
+                new (param->temp_mem_root) SEL_IMERGE(param->temp_mem_root)) ||
+          result->merges.push_back(merge) || merge->or_sel_tree(tree1) ||
+          merge->or_sel_tree(tree2))
         result = nullptr;
       else
         result->type = tree1->type;
