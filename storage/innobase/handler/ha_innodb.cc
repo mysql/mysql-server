@@ -8250,6 +8250,11 @@ void ha_innobase::build_template(bool whole_row) {
         UT_NEW_THIS_FILE_PSI_KEY, n_fields * sizeof(mysql_row_templ_t));
   }
 
+#ifdef UNIV_DEBUG
+  /* zero-filling for compare contents for debug */
+  memset(m_prebuilt->mysql_template, 0, n_fields * sizeof(mysql_row_templ_t));
+#endif /* UNIV_DEBUG */
+
   m_prebuilt->template_type =
       whole_row ? ROW_MYSQL_WHOLE_ROW : ROW_MYSQL_REC_FIELDS;
   m_prebuilt->null_bitmap_len = table->s->null_bytes;
@@ -10007,9 +10012,24 @@ int ha_innobase::index_read(
   /* Note that if the index for which the search template is built is not
   necessarily m_prebuilt->index, but can also be the clustered index */
 
-  if (m_prebuilt->sql_stat_start) {
+  if (m_prebuilt->sql_stat_start && !can_reuse_mysql_template()) {
     build_template(false);
   }
+
+#ifdef UNIV_DEBUG
+  if (m_prebuilt->sql_stat_start && can_reuse_mysql_template()) {
+    /* confirm mysql_template contents are same */
+    const auto n_template_save = m_prebuilt->n_template;
+    mysql_row_templ_t *mysql_template_save = m_prebuilt->mysql_template;
+    m_prebuilt->mysql_template = nullptr;
+    build_template(false);
+    ut_a(m_prebuilt->n_template == n_template_save);
+    ut_a(!memcmp(m_prebuilt->mysql_template, mysql_template_save,
+                 m_prebuilt->n_template * sizeof(mysql_row_templ_t)));
+    ut::free(m_prebuilt->mysql_template);
+    m_prebuilt->mysql_template = mysql_template_save;
+  }
+#endif /* UNIV_DEBUG */
 
   if (key_ptr != nullptr) {
     /* Convert the search key value to InnoDB format into

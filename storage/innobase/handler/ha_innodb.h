@@ -642,6 +642,10 @@ class ha_innobase : public handler {
   */
   void mv_key_capacity(uint *num_keys, size_t *keys_length) const override;
 
+  /** Can reuse the template. Mainly used for partition.
+  @retval       true Can reuse the mysql_template */
+  virtual bool can_reuse_mysql_template() const { return false; }
+
   /** The multi range read session object */
   DsMrr_impl m_ds_mrr;
 
