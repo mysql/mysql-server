@@ -4651,8 +4651,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-  std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap_ptr(
-      mem_heap_create(1024), mem_heap_free);
+  MEM_HEAP_NEW(heap_ptr, 1024);
   mem_heap_t *heap = heap_ptr.get();
 
   rec = btr_cur_get_rec(cursor);
