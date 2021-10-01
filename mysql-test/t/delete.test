@@ -135,6 +135,37 @@ analyze table t11,t12,t2;
 select * from t11;
 drop table t11, t12, t2;
 
+--echo # sql_safe_updates mode with single-table DELETE.
+
+CREATE TABLE t (a INTEGER);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
+
+SET sql_safe_updates = ON;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t ORDER BY a;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t WHERE a = 6;
+# OK because of LIMIT.
+DELETE FROM t ORDER BY a LIMIT 1;
+
+ALTER TABLE t ADD KEY k (a);
+
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+DELETE FROM t ORDER BY a;
+# OK because the WHERE clause uses a key.
+DELETE FROM t WHERE a = 6;
+# OK because of LIMIT.
+DELETE FROM t ORDER BY a LIMIT 1;
+
+SELECT * FROM t ORDER BY a;
+
+SET sql_safe_updates = DEFAULT;
+DROP TABLE t;
+
 --echo # sql_safe_updates mode with multi-table DELETE
 
 CREATE TABLE t1(a INTEGER PRIMARY KEY);

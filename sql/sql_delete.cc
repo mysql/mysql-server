@@ -53,6 +53,7 @@
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
@@ -101,7 +102,6 @@ class Query_result_delete final : public Query_result_interceptor {
     assert(false);  // DELETE does not return any data.
     return false;
   }
-  bool optimize() override;
   bool send_eof(THD *thd) override {
     my_ok(thd, thd->get_row_count_func());
     return false;
@@ -943,35 +943,48 @@ DeleteRowsIterator::DeleteRowsIterator(
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
 }
 
-namespace {
+/// Performs some extra checks if the sql_safe_updates option is enabled, and
+/// raises an error (and returns true) if the statement is likely to delete a
+/// large number of rows. Specifically, it raises an error if there is a full
+/// table scan or full index scan of one of the tables deleted from, and there
+/// is no LIMIT clause.
+static bool CheckSqlSafeUpdate(THD *thd, const JOIN *join) {
+  if (!Overlaps(thd->variables.option_bits, OPTION_SAFE_UPDATES)) {
+    return false;
+  }
 
-/**
-  Optimize for deletion from one or more tables in a multi-table DELETE
+  if (join->query_block->has_limit()) {
+    return false;
+  }
 
-  Function is called when the join order has been determined.
-*/
+  bool full_scan = false;
+  WalkAccessPaths(
+      join->root_access_path(), join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&full_scan](const AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::TABLE_SCAN) {
+          full_scan |= path->table_scan().table->pos_in_table_list->updating;
+        } else if (path->type == AccessPath::INDEX_SCAN) {
+          full_scan |= path->index_scan().table->pos_in_table_list->updating;
+        }
+        return full_scan;
+      });
 
-bool Query_result_delete::optimize() {
-  DBUG_TRACE;
-
-  Query_block *const select = unit->first_query_block();
-
-  JOIN *const join = select->join;
-  THD *thd = join->thd;
-
-  // TODO(khatlen): Move this check into DeleteRowsIterator::Init(). Currently,
-  // error_if_full_join() must be called when the JOIN_TABs are still available,
-  // which is not the case when the iterators have been created.
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      error_if_full_join(join))
+  if (full_scan) {
+    // Append the first warning (if any) to the error message. The warning may
+    // give the user a hint as to why index access couldn't be chosen.
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+             thd->get_stmt_da()->get_first_condition_message());
     return true;
+  }
 
   return false;
 }
 
-}  // namespace
-
 bool DeleteRowsIterator::Init() {
+  if (CheckSqlSafeUpdate(thd(), m_join)) {
+    return true;
+  }
+
   if (m_source->Init()) {
     return true;
   }
