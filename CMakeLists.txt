@@ -771,6 +771,7 @@ INCLUDE(rapidjson)
 INCLUDE(fprofile)
 INCLUDE(gloves)
 INCLUDE(fido2)
+INCLUDE(win_jemalloc)
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -1692,6 +1693,11 @@ MYSQL_CHECK_SASL_DLLS()
 # Add LDAP library
 MYSQL_CHECK_LDAP()
 MYSQL_CHECK_LDAP_DLLS()
+
+# Add Windows specific jemalloc DLL
+IF(WIN32)
+  MYSQL_CHECK_WIN_JEMALLOC()
+ENDIF()
 
 # Custom versions of LDAP / SASL / SSL.
 IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)

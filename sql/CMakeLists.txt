@@ -1225,6 +1225,10 @@ ENDIF()
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
 
+IF(TARGET copy_jemalloc_dll)
+  ADD_DEPENDENCIES(mysqld copy_jemalloc_dll)
+ENDIF()
+
 # See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
 # and the rename is a no-op. If it is called 'mysqld' we rename it.
 INSTALL_DEBUG_TARGET(mysqld
