@@ -416,4 +416,57 @@ RESET PERSIST;
 --echo # Restart server with all defaults
 --source include/restart_mysqld.inc
 
-SELECT 'END OF TEST';
+--echo #
+--echo # Bug #33417357: RESET PERSIST THROWS SYNTAX ERROR WITH COMPONENT SYSTEM VARIABLES
+--echo #
+
+--echo #
+--echo # 1. test MyISAM Multiple Key Cache variables:
+--echo #
+
+SET PERSIST default.key_buffer_size = 1024*1024;
+# Add reload tests after fixing a separate bug#33420306 "SET PERSIST fails with 2-component names of MyISAM Multiple Key Caches"
+RESET PERSIST default.key_buffer_size;
+SET GLOBAL default.key_buffer_size = DEFAULT;
+
+--echo #
+--echo # 2. test component-registered variable names:
+--echo #
+
+# int_sys_var.str_sys_var is duplicated in component_test_sys_var_service, this is expected.
+call mtr.add_suppression("Duplicate variable name 'test_component.int_sys_var'");
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+SET PERSIST test_component.str_sys_var = 'test';
+
+--source include/restart_mysqld.inc
+
+--echo # Should return "test":
+SELECT @@global.test_component.str_sys_var;
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+call mtr.add_suppression("Currently unknown variable 'test_component.str_sys_var' was read from the persisted config file");
+--source include/restart_mysqld.inc
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@global.test_component.str_sys_var;
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # Should return "test":
+SELECT @@global.test_component.str_sys_var;
+
+RESET PERSIST test_component.str_sys_var;
+
+--echo # Should return "test":
+SELECT @@global.test_component.str_sys_var;
+
+--source include/restart_mysqld.inc
+
+--echo # Should return NULL:
+SELECT @@global.test_component.str_sys_var;
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # END OF TEST

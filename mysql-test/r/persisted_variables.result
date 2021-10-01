@@ -443,6 +443,49 @@ ON_PERMISSIVE
 RESET PERSIST;
 # Restart server with all defaults
 # restart
-SELECT 'END OF TEST';
-END OF TEST
-END OF TEST
+#
+# Bug #33417357: RESET PERSIST THROWS SYNTAX ERROR WITH COMPONENT SYSTEM VARIABLES
+#
+#
+# 1. test MyISAM Multiple Key Cache variables:
+#
+SET PERSIST default.key_buffer_size = 1024*1024;
+Warnings:
+Warning	1287	default.key_buffer_size syntax is deprecated and will be removed in a future release
+RESET PERSIST default.key_buffer_size;
+SET GLOBAL default.key_buffer_size = DEFAULT;
+Warnings:
+Warning	1287	default.key_buffer_size syntax is deprecated and will be removed in a future release
+#
+# 2. test component-registered variable names:
+#
+call mtr.add_suppression("Duplicate variable name 'test_component.int_sys_var'");
+INSTALL COMPONENT "file://component_test_sys_var_service";
+SET PERSIST test_component.str_sys_var = 'test';
+# restart
+# Should return "test":
+SELECT @@global.test_component.str_sys_var;
+@@global.test_component.str_sys_var
+test
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+call mtr.add_suppression("Currently unknown variable 'test_component.str_sys_var' was read from the persisted config file");
+# restart
+SELECT @@global.test_component.str_sys_var;
+ERROR HY000: Unknown system variable 'test_component.str_sys_var'
+INSTALL COMPONENT "file://component_test_sys_var_service";
+# Should return "test":
+SELECT @@global.test_component.str_sys_var;
+@@global.test_component.str_sys_var
+test
+RESET PERSIST test_component.str_sys_var;
+# Should return "test":
+SELECT @@global.test_component.str_sys_var;
+@@global.test_component.str_sys_var
+test
+# restart
+# Should return NULL:
+SELECT @@global.test_component.str_sys_var;
+@@global.test_component.str_sys_var
+NULL
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+# END OF TEST

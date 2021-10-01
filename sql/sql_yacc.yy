@@ -1453,6 +1453,7 @@ void warn_about_deprecated_binary(THD *thd)
         schema
         engine_or_all
         opt_binlog_in
+        persisted_variable_ident
 
 %type <lex_cstr>
         key_cache_name
@@ -14184,11 +14185,33 @@ opt_if_exists_ident:
             lex->drop_if_exists= false;
             lex->name= NULL_STR;
           }
-        | if_exists ident
+        | if_exists persisted_variable_ident
           {
             LEX *lex=Lex;
             lex->drop_if_exists= $1;
             lex->name= $2;
+          }
+        ;
+
+persisted_variable_ident:
+          ident
+        | ident '.' ident
+          {
+            const LEX_STRING prefix = $1;
+            const LEX_STRING suffix = $3;
+            $$.length = prefix.length + 1 + suffix.length + 1;
+            $$.str = static_cast<char *>(YYTHD->alloc($$.length));
+            if ($$.str == nullptr) YYABORT;  // OOM
+            strxnmov($$.str, $$.length, prefix.str, ".", suffix.str, nullptr);
+          }
+        | DEFAULT_SYM '.' ident
+          {
+            const LEX_CSTRING prefix{STRING_WITH_LEN("default")};
+            const LEX_STRING suffix = $3;
+            $$.length = prefix.length + 1 + suffix.length + 1;
+            $$.str = static_cast<char *>(YYTHD->alloc($$.length));
+            if ($$.str == nullptr) YYABORT;  // OOM
+            strxnmov($$.str, $$.length, prefix.str, ".", suffix.str, nullptr);
           }
         ;
 

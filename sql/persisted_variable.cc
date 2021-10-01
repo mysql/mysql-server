@@ -446,18 +446,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
         }
       }
 
-      /* structured variables may have basename if specified */
-      if (setvar->m_var_tracker.is_keycache_var()) {
-        std::string_view cache_name = setvar->m_var_tracker.get_keycache_name();
-        if (!cache_name.empty()) {
-          tmp_var.key.clear();
-          tmp_var.key.append(cache_name).append(".").append(name);
-        } else {
-          tmp_var.key = string(name);
-        }
-      } else {
-        tmp_var.key = string(name);
-      }
+      tmp_var.key = string(name);
       tmp_var.value = var_value;
       tmp_var.is_null = is_null;
 
