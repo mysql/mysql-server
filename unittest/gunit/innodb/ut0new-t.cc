@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 #include <stddef.h>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -2105,5 +2106,732 @@ TEST(ut0new_allocator, throws_bad_array_new_length_when_max_size_is_exceeded) {
   EXPECT_TRUE(threw);
   EXPECT_FALSE(ptr);
 }
+
+// make_unique - fundamental types
+template <typename T>
+class ut0new_make_unique_ptr_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_fundamental_types);
+TYPED_TEST_P(ut0new_make_unique_ptr_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key), 1)
+                 : ut::make_unique<type>(1);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(*ptr, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_ptr_fundamental_types,
+                               all_fundamental_types);
+
+// make_unique - pod types
+template <typename T>
+class ut0new_make_unique_ptr_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_pod_types);
+TYPED_TEST_P(ut0new_make_unique_ptr_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs
+                 ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key), 2, 5)
+                 : ut::make_unique<type>(2, 5);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_ptr_pod_types,
+                               all_pod_types);
+
+// make_unique - default constructible pod types
+template <typename T>
+class ut0new_make_unique_ptr_default_constructible_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_default_constructible_pod_types);
+TYPED_TEST_P(ut0new_make_unique_ptr_default_constructible_pod_types,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key))
+                      : ut::make_unique<type>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_ptr_default_constructible_pod_types,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_ptr_default_constructible_pod_types,
+    all_default_constructible_pod_types);
+
+// make_unique - non-pod types
+template <typename T>
+class ut0new_make_unique_ptr_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_non_pod_types);
+TYPED_TEST_P(ut0new_make_unique_ptr_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key),
+                                              2, 5, std::string("non-pod"))
+                      : ut::make_unique<type>(2, 5, std::string("non-pod"));
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+  EXPECT_EQ(ptr->sum->result, 7);
+  EXPECT_EQ(ptr->s, std::string("non-pod"));
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_ptr_non_pod_types,
+                               all_non_pod_types);
+
+// make_unique - default constructible non-pod types
+template <typename T>
+class ut0new_make_unique_ptr_default_constructible_non_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_default_constructible_non_pod_types);
+TYPED_TEST_P(ut0new_make_unique_ptr_default_constructible_non_pod_types,
+             default_constructible_non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs ? ut::make_unique<type>(ut::make_psi_memory_key(pfs_key))
+                      : ut::make_unique<type>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_ptr_default_constructible_non_pod_types,
+    default_constructible_non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_ptr_default_constructible_non_pod_types,
+    all_default_constructible_non_pod_types);
+
+// make_unique - array specialization for fundamental types
+template <typename T>
+class ut0new_make_unique_ptr_fundamental_types_arr : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_fundamental_types_arr);
+TYPED_TEST_P(ut0new_make_unique_ptr_fundamental_types_arr, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_unique<type[]>(ut::make_psi_memory_key(pfs_key), 3)
+                 : ut::make_unique<type[]>(3);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0], type{});
+  EXPECT_EQ(ptr[1], type{});
+  EXPECT_EQ(ptr[2], type{});
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_fundamental_types_arr,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_ptr_fundamental_types_arr,
+                               all_fundamental_types);
+
+// make_unique - array specialization for default_constructible POD types
+template <typename T>
+class ut0new_make_unique_ptr_default_constructible_pod_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_ptr_default_constructible_pod_types_arr);
+TYPED_TEST_P(ut0new_make_unique_ptr_default_constructible_pod_types_arr,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs
+                 ? ut::make_unique<type[]>(ut::make_psi_memory_key(pfs_key), 3)
+                 : ut::make_unique<type[]>(3);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0].x, 0);
+  EXPECT_EQ(ptr[0].y, 1);
+  EXPECT_EQ(ptr[1].x, 0);
+  EXPECT_EQ(ptr[1].y, 1);
+  EXPECT_EQ(ptr[2].x, 0);
+  EXPECT_EQ(ptr[2].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_ptr_default_constructible_pod_types_arr,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_ptr_default_constructible_pod_types_arr,
+    all_default_constructible_pod_types);
+
+// make_unique_aligned - fundamental types
+template <typename T>
+class ut0new_make_unique_aligned_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_fundamental_types);
+TYPED_TEST_P(ut0new_make_unique_aligned_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 1)
+                      : ut::make_unique_aligned<type>(alignment, 1);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(*ptr, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_aligned_fundamental_types,
+                               all_fundamental_types);
+
+// make_unique_aligned - pod types
+template <typename T>
+class ut0new_make_unique_aligned_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_pod_types);
+TYPED_TEST_P(ut0new_make_unique_aligned_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5)
+                      : ut::make_unique_aligned<type>(alignment, 2, 5);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_aligned_pod_types,
+                               all_pod_types);
+
+// make_unique_aligned - default constructible pod types
+template <typename T>
+class ut0new_make_unique_aligned_default_constructible_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_default_constructible_pod_types);
+TYPED_TEST_P(ut0new_make_unique_aligned_default_constructible_pod_types,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment)
+                      : ut::make_unique_aligned<type>(alignment);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_aligned_default_constructible_pod_types,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_aligned_default_constructible_pod_types,
+    all_default_constructible_pod_types);
+
+// make_unique_aligned - non-pod types
+template <typename T>
+class ut0new_make_unique_aligned_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_non_pod_types);
+TYPED_TEST_P(ut0new_make_unique_aligned_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
+                            std::string("non-pod"))
+                      : ut::make_unique_aligned<type>(alignment, 2, 5,
+                                                      std::string("non-pod"));
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+  EXPECT_EQ(ptr->sum->result, 7);
+  EXPECT_EQ(ptr->s, std::string("non-pod"));
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_unique_aligned_non_pod_types,
+                               all_non_pod_types);
+
+// make_unique_aligned - default constructible non-pod types
+template <typename T>
+class ut0new_make_unique_aligned_default_constructible_non_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_make_unique_aligned_default_constructible_non_pod_types);
+TYPED_TEST_P(ut0new_make_unique_aligned_default_constructible_non_pod_types,
+             default_constructible_non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment)
+                      : ut::make_unique_aligned<type>(alignment);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_aligned_default_constructible_non_pod_types,
+    default_constructible_non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_aligned_default_constructible_non_pod_types,
+    all_default_constructible_non_pod_types);
+
+// make_unique_aligned - array specialization for fundamental types
+template <typename T>
+class ut0new_make_unique_aligned_fundamental_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_fundamental_types_arr);
+TYPED_TEST_P(ut0new_make_unique_aligned_fundamental_types_arr,
+             fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type[]>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 3)
+                      : ut::make_unique_aligned<type[]>(alignment, 3);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr[0], type{});
+  EXPECT_EQ(ptr[1], type{});
+  EXPECT_EQ(ptr[2], type{});
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_unique_aligned_fundamental_types_arr,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My,
+                               ut0new_make_unique_aligned_fundamental_types_arr,
+                               all_fundamental_types);
+
+// make_unique_aligned - array specialization for default_constructible POD
+// types
+template <typename T>
+class ut0new_make_unique_aligned_default_constructible_pod_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_make_unique_aligned_default_constructible_pod_types_arr);
+TYPED_TEST_P(ut0new_make_unique_aligned_default_constructible_pod_types_arr,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_unique_aligned<type[]>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 3)
+                      : ut::make_unique_aligned<type[]>(alignment, 3);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr[0].x, 0);
+  EXPECT_EQ(ptr[0].y, 1);
+  EXPECT_EQ(ptr[1].x, 0);
+  EXPECT_EQ(ptr[1].y, 1);
+  EXPECT_EQ(ptr[2].x, 0);
+  EXPECT_EQ(ptr[2].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_unique_aligned_default_constructible_pod_types_arr,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_unique_aligned_default_constructible_pod_types_arr,
+    all_default_constructible_pod_types);
+
+// make_shared - fundamental types
+template <typename T>
+class ut0new_make_shared_ptr_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_fundamental_types);
+TYPED_TEST_P(ut0new_make_shared_ptr_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key), 1)
+                 : ut::make_shared<type>(1);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(*ptr, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_ptr_fundamental_types,
+                               all_fundamental_types);
+
+// make_shared - pod types
+template <typename T>
+class ut0new_make_shared_ptr_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_pod_types);
+TYPED_TEST_P(ut0new_make_shared_ptr_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs
+                 ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key), 2, 5)
+                 : ut::make_shared<type>(2, 5);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_ptr_pod_types,
+                               all_pod_types);
+
+// make_shared - default constructible pod types
+template <typename T>
+class ut0new_make_shared_ptr_default_constructible_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_default_constructible_pod_types);
+TYPED_TEST_P(ut0new_make_shared_ptr_default_constructible_pod_types,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key))
+                      : ut::make_shared<type>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_default_constructible_pod_types,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_ptr_default_constructible_pod_types,
+    all_default_constructible_pod_types);
+
+// make_shared - non-pod types
+template <typename T>
+class ut0new_make_shared_ptr_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_non_pod_types);
+TYPED_TEST_P(ut0new_make_shared_ptr_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key),
+                                              2, 5, std::string("non-pod"))
+                      : ut::make_shared<type>(2, 5, std::string("non-pod"));
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+  EXPECT_EQ(ptr->sum->result, 7);
+  EXPECT_EQ(ptr->s, std::string("non-pod"));
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_ptr_non_pod_types,
+                               all_non_pod_types);
+
+// make_shared - default constructible non-pod types
+template <typename T>
+class ut0new_make_shared_ptr_default_constructible_non_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_default_constructible_non_pod_types);
+TYPED_TEST_P(ut0new_make_shared_ptr_default_constructible_non_pod_types,
+             default_constructible_non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+
+  auto ptr = with_pfs ? ut::make_shared<type>(ut::make_psi_memory_key(pfs_key))
+                      : ut::make_shared<type>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_default_constructible_non_pod_types,
+    default_constructible_non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_ptr_default_constructible_non_pod_types,
+    all_default_constructible_non_pod_types);
+
+// TODO macOS build of clang on PB2 currently exhibits a bug in which
+// std::shared_ptr with array types is not usable.
+//
+// For example,
+//   std::shared_ptr<int[]> ptr(new int[3]);
+//   ptr[0]; ptr[1]; ptr[2];
+//
+// will give the following error:
+//   type 'std::__1::shared_ptr<int []>' does not provide a subscript operator
+//
+// This can be worked around by reinterpreting it as pointer to int:
+//   ((int*)ptr.get())[0];
+//   ((int*)ptr.get())[1];
+//   ((int*)ptr.get())[2];
+//
+// But this leads to another issue:
+//   no matching constructor for initialization of 'std::shared_ptr<int[]>'
+//
+// Interestingly enough, issue is _not_ reproducible on Linux build of clang
+// (Fedora) which implied that there's something wrong with the Apple deployment
+// of clang. And indeed, issue is reproducible only if code is compiled with
+// libc++, an alternative (and default to Apple) implementation of C++ standard
+// library. clang on Linux OTOH is using libstdc++ by default and libstdc++ does
+// not suffer from this problem. So this is a bug in libc++ implementation.
+//
+// For now I am disabling std::shared_ptr-with-arrays subset of unit-tests from
+// running on PB2 macOS jobs so that the build is not broken and so that the
+// other unit-tests keep running. If and when this becomes a real issue (when
+// somebody actually tries to use this approach in production code), a
+// workaround will be needed to be found. It looks like
+//   std::shared_ptr<std::array<int, 3>> p(new std::array<int, 3>{});
+// will do or FWIW ut::make_shared version of it.
+#if !defined(__APPLE__)
+// make_shared - array specialization for fundamental types
+template <typename T>
+class ut0new_make_shared_ptr_fundamental_types_arr : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_fundamental_types_arr);
+TYPED_TEST_P(ut0new_make_shared_ptr_fundamental_types_arr, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_shared<type[]>(ut::make_psi_memory_key(pfs_key), 3)
+                 : ut::make_shared<type[]>(3);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0], type{});
+  EXPECT_EQ(ptr[1], type{});
+  EXPECT_EQ(ptr[2], type{});
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_fundamental_types_arr,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_ptr_fundamental_types_arr,
+                               all_fundamental_types);
+
+// make_shared - bounded array specialization for fundamental types
+template <typename T>
+class ut0new_make_shared_ptr_fundamental_types_bounded_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_fundamental_types_bounded_arr);
+TYPED_TEST_P(ut0new_make_shared_ptr_fundamental_types_bounded_arr,
+             fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_shared<type[3]>(ut::make_psi_memory_key(pfs_key))
+                 : ut::make_shared<type[3]>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0], type{});
+  EXPECT_EQ(ptr[1], type{});
+  EXPECT_EQ(ptr[2], type{});
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_fundamental_types_bounded_arr, fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_ptr_fundamental_types_bounded_arr,
+    all_fundamental_types);
+
+// make_shared - array specialization for default_constructible POD types
+template <typename T>
+class ut0new_make_shared_ptr_default_constructible_pod_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_ptr_default_constructible_pod_types_arr);
+TYPED_TEST_P(ut0new_make_shared_ptr_default_constructible_pod_types_arr,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_shared<type[]>(ut::make_psi_memory_key(pfs_key), 3)
+                 : ut::make_shared<type[]>(3);
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0].x, 0);
+  EXPECT_EQ(ptr[0].y, 1);
+  EXPECT_EQ(ptr[1].x, 0);
+  EXPECT_EQ(ptr[1].y, 1);
+  EXPECT_EQ(ptr[2].x, 0);
+  EXPECT_EQ(ptr[2].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_default_constructible_pod_types_arr,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_ptr_default_constructible_pod_types_arr,
+    all_default_constructible_pod_types);
+
+// make_shared - bounded array specialization for default_constructible POD
+// types
+template <typename T>
+class ut0new_make_shared_ptr_default_constructible_pod_types_bounded_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_default_constructible_pod_types_bounded_arr);
+TYPED_TEST_P(ut0new_make_shared_ptr_default_constructible_pod_types_bounded_arr,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto ptr = with_pfs
+                 ? ut::make_shared<type[3]>(ut::make_psi_memory_key(pfs_key))
+                 : ut::make_shared<type[3]>();
+  EXPECT_TRUE(ptr_is_suitably_aligned(ptr.get()));
+  EXPECT_EQ(ptr[0].x, 0);
+  EXPECT_EQ(ptr[0].y, 1);
+  EXPECT_EQ(ptr[1].x, 0);
+  EXPECT_EQ(ptr[1].y, 1);
+  EXPECT_EQ(ptr[2].x, 0);
+  EXPECT_EQ(ptr[2].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_ptr_default_constructible_pod_types_bounded_arr,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_ptr_default_constructible_pod_types_bounded_arr,
+    all_default_constructible_pod_types);
+#endif
+
+// make_shared_aligned - fundamental types
+template <typename T>
+class ut0new_make_shared_aligned_fundamental_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_fundamental_types);
+TYPED_TEST_P(ut0new_make_shared_aligned_fundamental_types, fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 1)
+                      : ut::make_shared_aligned<type>(alignment, 1);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(*ptr, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_fundamental_types,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_aligned_fundamental_types,
+                               all_fundamental_types);
+
+// make_shared_aligned - pod types
+template <typename T>
+class ut0new_make_shared_aligned_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_pod_types);
+TYPED_TEST_P(ut0new_make_shared_aligned_pod_types, pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5)
+                      : ut::make_shared_aligned<type>(alignment, 2, 5);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_pod_types, pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_aligned_pod_types,
+                               all_pod_types);
+
+// make_shared_aligned - default constructible pod types
+template <typename T>
+class ut0new_make_shared_aligned_default_constructible_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_default_constructible_pod_types);
+TYPED_TEST_P(ut0new_make_shared_aligned_default_constructible_pod_types,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment)
+                      : ut::make_shared_aligned<type>(alignment);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_aligned_default_constructible_pod_types,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_aligned_default_constructible_pod_types,
+    all_default_constructible_pod_types);
+
+// make_shared_aligned - non-pod types
+template <typename T>
+class ut0new_make_shared_aligned_non_pod_types : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_non_pod_types);
+TYPED_TEST_P(ut0new_make_shared_aligned_non_pod_types, non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 2, 5,
+                            std::string("non-pod"))
+                      : ut::make_shared_aligned<type>(alignment, 2, 5,
+                                                      std::string("non-pod"));
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 2);
+  EXPECT_EQ(ptr->y, 5);
+  EXPECT_EQ(ptr->sum->result, 7);
+  EXPECT_EQ(ptr->s, std::string("non-pod"));
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_non_pod_types,
+                            non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My, ut0new_make_shared_aligned_non_pod_types,
+                               all_non_pod_types);
+
+// make_shared_aligned - default constructible non-pod types
+template <typename T>
+class ut0new_make_shared_aligned_default_constructible_non_pod_types
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_make_shared_aligned_default_constructible_non_pod_types);
+TYPED_TEST_P(ut0new_make_shared_aligned_default_constructible_non_pod_types,
+             default_constructible_non_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type>(
+                            ut::make_psi_memory_key(pfs_key), alignment)
+                      : ut::make_shared_aligned<type>(alignment);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr->x, 0);
+  EXPECT_EQ(ptr->y, 1);
+  EXPECT_EQ(ptr->s, std::string("non-pod-string"));
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_aligned_default_constructible_non_pod_types,
+    default_constructible_non_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_aligned_default_constructible_non_pod_types,
+    all_default_constructible_non_pod_types);
+
+// TODO macOS build of clang on PB2 currently exhibits a bug in which
+// std::shared_ptr with array types is not usable. Please see above for more in
+// depth explanation.
+#if !defined(__APPLE__)
+// make_shared_aligned - array specialization for fundamental types
+template <typename T>
+class ut0new_make_shared_aligned_fundamental_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_fundamental_types_arr);
+TYPED_TEST_P(ut0new_make_shared_aligned_fundamental_types_arr,
+             fundamental_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type[]>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 3)
+                      : ut::make_shared_aligned<type[]>(alignment, 3);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr[0], type{});
+  EXPECT_EQ(ptr[1], type{});
+  EXPECT_EQ(ptr[2], type{});
+}
+REGISTER_TYPED_TEST_SUITE_P(ut0new_make_shared_aligned_fundamental_types_arr,
+                            fundamental_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(My,
+                               ut0new_make_shared_aligned_fundamental_types_arr,
+                               all_fundamental_types);
+
+// make_shared_aligned - array specialization for default_constructible POD
+// types
+template <typename T>
+class ut0new_make_shared_aligned_default_constructible_pod_types_arr
+    : public ::testing::Test {};
+TYPED_TEST_SUITE_P(
+    ut0new_make_shared_aligned_default_constructible_pod_types_arr);
+TYPED_TEST_P(ut0new_make_shared_aligned_default_constructible_pod_types_arr,
+             default_constructible_pod_types) {
+  using type = typename TypeParam::type;
+  auto with_pfs = TypeParam::with_pfs;
+  auto alignment = 4 * alignof(std::max_align_t);
+  auto ptr = with_pfs ? ut::make_shared_aligned<type[]>(
+                            ut::make_psi_memory_key(pfs_key), alignment, 3)
+                      : ut::make_shared_aligned<type[]>(alignment, 3);
+  EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr.get()) % alignment == 0);
+  EXPECT_EQ(ptr[0].x, 0);
+  EXPECT_EQ(ptr[0].y, 1);
+  EXPECT_EQ(ptr[1].x, 0);
+  EXPECT_EQ(ptr[1].y, 1);
+  EXPECT_EQ(ptr[2].x, 0);
+  EXPECT_EQ(ptr[2].y, 1);
+}
+REGISTER_TYPED_TEST_SUITE_P(
+    ut0new_make_shared_aligned_default_constructible_pod_types_arr,
+    default_constructible_pod_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(
+    My, ut0new_make_shared_aligned_default_constructible_pod_types_arr,
+    all_default_constructible_pod_types);
+#endif
 
 }  // namespace innodb_ut0new_unittest
