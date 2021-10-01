@@ -419,6 +419,7 @@ class ProcessManager {
                                 const std::string &content);
 
   static const Path &get_origin() { return origin_dir_; }
+  static const Path &get_plugin_dir() { return plugin_dir_; }
 
   const Path &get_mysqlrouter_exec() const { return mysqlrouter_exec_; }
 

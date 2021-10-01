@@ -41,8 +41,8 @@
 #include "mysql_session.h"
 #include "mysqlxclient/xsession.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "router_test_helpers.h"
-#include "socket_operations.h"  // socket_t
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
@@ -115,10 +115,20 @@ TEST_F(RouterRoutingTest, RoutingOk) {
       "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 }
 
+struct ConnectTimeoutTestParam {
+  std::chrono::seconds expected_connect_timeout;
+  std::string config_file_timeout;
+  std::vector<std::string> command_line_params;
+};
+
+class RouterRoutingConnectTimeoutTest
+    : public RouterRoutingTest,
+      public ::testing::WithParamInterface<ConnectTimeoutTestParam> {};
+
 /**
  * check connect-timeout is honored.
  */
-TEST_F(RouterRoutingTest, ConnectTimeout) {
+TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
   const auto router_port = port_pool_.get_next_available();
 
   const auto router_connect_timeout = 1s;
@@ -133,19 +143,31 @@ TEST_F(RouterRoutingTest, ConnectTimeout) {
   // if there is no DNS or no network, the test may fail.
 
   SCOPED_TRACE("// build router config with connect_timeout=" +
-               std::to_string(router_connect_timeout.count()));
+               GetParam().config_file_timeout);
+
+  std::vector<std::pair<std::string, std::string>> routing_section_options{
+      {"bind_port", std::to_string(router_port)},
+      {"mode", "read-write"},
+      {"destinations", "example.org:81"}};
+
+  if (!GetParam().config_file_timeout.empty()) {
+    routing_section_options.emplace_back("connect_timeout",
+                                         GetParam().config_file_timeout);
+  }
+
   const auto routing_section = mysql_harness::ConfigBuilder::build_section(
-      "routing:timeout",
-      {{"bind_port", std::to_string(router_port)},
-       {"mode", "read-write"},
-       {"connect_timeout", std::to_string(router_connect_timeout.count())},
-       {"destinations", "example.org:81"}});
+      "routing:timeout", routing_section_options);
 
   std::string conf_file =
       create_config_file(get_test_temp_dir_name(), routing_section);
 
+  std::vector<std::string> cmdline = {{"-c", conf_file}};
+
+  cmdline.insert(cmdline.end(), GetParam().command_line_params.begin(),
+                 GetParam().command_line_params.end());
+
   // launch the router with simple static routing configuration
-  /*auto &router_static =*/launch_router({"-c", conf_file});
+  /*auto &router_static =*/launch_router(cmdline);
 
   SCOPED_TRACE("// connect and trigger a timeout in the router");
   mysqlrouter::MySQLSession sess;
@@ -170,9 +192,17 @@ TEST_F(RouterRoutingTest, ConnectTimeout) {
   const auto end = clock_type::now();
 
   // check the wait was long enough, but not too long.
-  EXPECT_GE(end - start, router_connect_timeout);
-  EXPECT_LT(end - start, router_connect_timeout + 5s);
+  EXPECT_GE(end - start, GetParam().expected_connect_timeout);
+  EXPECT_LT(end - start, GetParam().expected_connect_timeout + 5s);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ConnectTimeout, RouterRoutingConnectTimeoutTest,
+    ::testing::Values(ConnectTimeoutTestParam{1s, "1", {}},
+                      ConnectTimeoutTestParam{
+                          1s, "1", {"--DEFAULT.connect_timeout=10"}},
+                      ConnectTimeoutTestParam{
+                          1s, "10", {"--routing:timeout.connect_timeout=1"}}));
 
 /**
  * check connect-timeout doesn't block shutdown.
@@ -915,65 +945,6 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   EXPECT_THROW_LIKE(
       client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
       std::exception, "Too many connection errors");
-}
-
-static stdx::expected<mysql_harness::socket_t, std::error_code> connect_to_host(
-    uint16_t port) {
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
-
-  const auto addrinfo_res = net::impl::resolver::getaddrinfo(
-      "127.0.0.1", std::to_string(port).c_str(), &hints);
-  if (!addrinfo_res)
-    throw std::system_error(addrinfo_res.error(), "getaddrinfo() failed: ");
-
-  const auto *ainfo = addrinfo_res.value().get();
-
-  const auto socket_res = net::impl::socket::socket(
-      ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-  if (!socket_res) return socket_res;
-
-  const auto connect_res = net::impl::socket::connect(
-      socket_res.value(), ainfo->ai_addr, ainfo->ai_addrlen);
-  if (!connect_res) {
-    return stdx::make_unexpected(connect_res.error());
-  }
-
-  // return the fd
-  return socket_res.value();
-}
-
-static void read_until_error(int sock) {
-  std::array<char, 1024> buf;
-  while (true) {
-    const auto read_res = net::impl::socket::read(sock, buf.data(), buf.size());
-    if (!read_res || read_res.value() == 0) return;
-  }
-}
-
-static void make_bad_connection(uint16_t port) {
-  // TCP-level connection phase
-  auto connection_res = connect_to_host(port);
-  ASSERT_TRUE(connection_res);
-
-  auto sock = connection_res.value();
-
-  // MySQL protocol handshake phase
-  // To simplify code, instead of alternating between reading and writing
-  // protocol packets, we write a lot of garbage upfront, and then read
-  // whatever Router sends back. Router will read what we wrote in chunks,
-  // inbetween its writes, thinking they're replies to its handshake packets.
-  // Eventually it will finish the handshake with error and disconnect.
-  std::vector<char> bogus_data(1024, 0);
-  const auto write_res =
-      net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
-  if (!write_res) throw std::system_error(write_res.error(), "write() failed");
-  read_until_error(sock);  // error triggered by Router disconnecting
-
-  net::impl::socket::close(sock);
 }
 
 /**

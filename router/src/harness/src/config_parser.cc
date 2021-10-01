@@ -100,7 +100,7 @@ void ConfigSection::update(const ConfigSection &other) {
   auto old_defaults = defaults_;
 #endif
 
-  if (other.name != name || other.key != key) {
+  if (other.name != name || lower(other.key) != lower(key)) {
     ostringstream buffer;
     buffer << "Trying to update section " << name << ":" << key
            << " using section " << other.name << ":" << other.key;
@@ -208,9 +208,12 @@ void ConfigSection::add(const std::string &option, const std::string &value) {
   if (!ret.second) throw bad_option("Option '" + option + "' already defined");
 }
 
-Config::Config(unsigned int flags) noexcept
+Config::Config(unsigned int flags, const ConfigOverwrites &config_overwrites)
     : defaults_(std::make_shared<ConfigSection>("default", "", nullptr)),
-      flags_(flags) {}
+      flags_(flags),
+      config_overwrites_(config_overwrites) {
+  apply_overwrites();
+}
 
 void Config::copy_guts(const Config &source) noexcept {
   reserved_ = source.reserved_;
@@ -255,7 +258,12 @@ ConfigSection &Config::get(const std::string &section, const std::string &key) {
   if (!(flags_ & allow_keys))
     throw bad_section("Key '" + key + "' used but keys are not allowed");
 
-  SectionMap::iterator sec = sections_.find(make_pair(section, key));
+  const std::string key_lc = lower(key);
+  SectionMap::iterator sec = std::find_if(
+      sections_.begin(), sections_.end(), [&section, &key_lc](const auto &v) {
+        return v.first.first == section && lower(v.first.second) == key_lc;
+      });
+
   if (sec == sections_.end())
     throw bad_section("Section '" + section + "' with key '" + key +
                       "' does not exist");
@@ -324,6 +332,8 @@ void Config::read(const Path &path) {
       buffer << "is not a directory or a file";
     throw std::runtime_error(buffer.str());
   }
+
+  apply_overwrites();
 }
 
 // throws std::invalid_argument, std::runtime_error, syntax_error, ...
@@ -338,10 +348,13 @@ void Config::read(const Path &path, const std::string &pattern) {
           entry);  // throws std::runtime_error, syntax_error
   }
   update(new_config);
+  apply_overwrites();
 }
 
 void Config::read(std::istream &input) {
   do_read_stream(input);  // throws syntax_error, maybe bad_section
+
+  apply_overwrites();
 }
 
 void Config::do_read_file(const Path &path) {
@@ -484,7 +497,14 @@ void Config::update(const Config &other) {
 
   for (const auto &section : other.sections_) {
     const SectionKey &key = section.first;
-    SectionMap::iterator iter = sections_.find(key);
+
+    const std::string label_lc = lower(key.second);
+    auto iter = std::find_if(sections_.begin(), sections_.end(),
+                             [&key, &label_lc](const auto &v) {
+                               return v.first.first == key.first &&
+                                      lower(v.first.second) == label_lc;
+                             });
+
     if (iter == sections_.end())
       sections_.emplace(key, ConfigSection(section.second, defaults_));
     else
@@ -492,6 +512,8 @@ void Config::update(const Config &other) {
   }
 
   defaults_->update(*other.defaults_.get());
+
+  apply_overwrites();
 
   // Post-condition is that the default section pointers after the
   // update all refer to the default section for this configuration
@@ -508,6 +530,30 @@ Config::ConstSectionList Config::sections() const {
   decltype(sections()) result;
   for (auto &section : sections_) result.push_back(&section.second);
   return result;
+}
+
+void Config::apply_overwrites() {
+  for (const auto &section_overwrites : config_overwrites_) {
+    SectionKey section_key = section_overwrites.first;
+
+    if (section_key.first == "DEFAULT") {
+      for (const auto &section_overwrite : section_overwrites.second) {
+        set_default(section_overwrite.first, section_overwrite.second);
+      }
+      break;
+    }
+
+    ConfigSection *section;
+    try {
+      section = &get(section_key.first, section_key.second);
+    } catch (const bad_section &) {
+      section = &add(section_key.first, section_key.second);
+    }
+
+    for (const auto &section_overwrite : section_overwrites.second) {
+      section->set(section_overwrite.first, section_overwrite.second);
+    }
+  }
 }
 
 }  // namespace mysql_harness

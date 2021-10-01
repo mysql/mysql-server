@@ -132,7 +132,9 @@ std::string MySQLRouter::find_full_path(const std::string &argv0) {
   throw std::logic_error("Could not find own installation directory");
 }
 
-static inline void set_signal_handlers() {
+namespace {
+
+inline void set_signal_handlers() {
 #ifndef _WIN32
   // until we have proper signal handling we need at least
   // mask out broken pipe to prevent terminating the router
@@ -144,8 +146,8 @@ static inline void set_signal_handlers() {
 
 // Check if the value is valid regular filename and if it is add to the vector,
 // if it is not throw an exception
-static void check_and_add_conf(std::vector<std::string> &configs,
-                               const std::string &value) {
+void check_and_add_conf(std::vector<std::string> &configs,
+                        const std::string &value) {
   mysql_harness::Path cfg_file_path;
   try {
     cfg_file_path = mysql_harness::Path(value);
@@ -166,6 +168,32 @@ static void check_and_add_conf(std::vector<std::string> &configs,
         value.c_str(), mysqlrouter::to_string(cfg_file_path.type()).c_str()));
   }
 }
+
+void check_config_overwrites(const CmdArgHandler::ConfigOverwrites &overwrites,
+                             bool is_bootstrap) {
+  for (const auto &overwrite : overwrites) {
+    const std::string &section = overwrite.first.first;
+    const std::string &key = overwrite.first.second;
+    if (section == "DEFAULT" && !key.empty()) {
+      throw std::runtime_error("Invalid argument '--" + section + ":" + key +
+                               "'. Key not allowed on DEFAULT section");
+    }
+
+    if (!is_bootstrap) continue;
+    // only --logger.level config overwrite is allowed currently for bootstrap
+    for (const auto &option : overwrite.second) {
+      const std::string name = section + "." + option.first;
+      if (name != "logger.level") {
+        throw std::runtime_error(
+            "Invalid argument '--" + name +
+            "'. Only '--logger.level' configuration option can be "
+            "set with a command line parameter when bootstrapping.");
+      }
+    }
+  }
+}
+
+}  // namespace
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
@@ -237,7 +265,11 @@ void MySQLRouter::init(const std::vector<std::string> &arguments) {
     return;
   }
 
-  if (!bootstrap_uri_.empty()) {
+  const bool is_bootstrap = !bootstrap_uri_.empty();
+  check_config_overwrites(arg_handler_.get_config_overwrites(),
+                          is_bootstrap);  // throws std::runtime_error
+
+  if (is_bootstrap) {
 #ifndef _WIN32
     // If the user does the bootstrap with superuser (uid==0) but did not
     // provide
@@ -266,19 +298,20 @@ void MySQLRouter::init(const std::vector<std::string> &arguments) {
     // extra configuration for bootstrap is not supported
     auto config_files_res =
         ConfigFilePathValidator({}, config_files_, {}).validate();
-
+    std::vector<std::string> config_files;
     if (config_files_res && !config_files_res.value().empty()) {
-      auto config_files = std::move(config_files_res.value());
-      DIM::instance().reset_Config();  // simplifies unit tests
-      DIM::instance().set_Config(
-          [this, &config_files]() { return make_config({}, config_files); },
-          std::default_delete<mysql_harness::LoaderConfig>());
-      mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
-
-      // reinit logger (right now the logger is configured to log to STDERR,
-      // here we re-configure it with settings from config file)
-      init_main_logger(config, true);  // true = raw logging mode
+      config_files = std::move(config_files_res.value());
     }
+
+    DIM::instance().reset_Config();  // simplifies unit tests
+    DIM::instance().set_Config(
+        [this, &config_files]() { return make_config({}, config_files); },
+        std::default_delete<mysql_harness::LoaderConfig>());
+    mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
+
+    // reinit logger (right now the logger is configured to log to STDERR,
+    // here we re-configure it with settings from config file)
+    init_main_logger(config, true);  // true = raw logging mode
 
     bootstrap(
         bootstrap_uri_);  // throws MySQLSession::Error, std::runtime_error,
@@ -525,7 +558,8 @@ mysql_harness::LoaderConfig *MySQLRouter::make_config(
     // LoaderConfig ctor throws bad_option (std::runtime_error)
     std::unique_ptr<mysql_harness::LoaderConfig> config(
         new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
-                                        mysql_harness::Config::allow_keys));
+                                        mysql_harness::Config::allow_keys,
+                                        arg_handler_.get_config_overwrites()));
 
     // throws std::invalid_argument, std::runtime_error, syntax_error, ...
     for (const auto &config_file : config_files) {

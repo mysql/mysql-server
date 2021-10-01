@@ -66,4 +66,6 @@ bool wait_connection_dropped(
 
 size_t count_str_occurences(const std::string &s, const std::string &needle);
 
+void make_bad_connection(uint16_t port);
+
 #endif  // _ROUTER_COMPONENT_TESTUTILS_H_

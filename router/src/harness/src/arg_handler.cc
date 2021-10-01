@@ -98,8 +98,15 @@ bool CmdArgHandler::is_valid_option_name(const string &name) const noexcept {
   }
 
   // Handle tokens like --help or --with-sauce
-  return regex_pattern_matches(name, "^--[A-Za-z][A-Za-z_-]*[A-Za-z]$");
+  return regex_pattern_matches(
+      name, "^--[A-Za-z][0-9A-Za-z._-]*(:[0-9A-Za-z._-]*)?[0-9A-Za-z]$");
 }
+
+namespace {
+bool is_valid_option_value(const string &value) {
+  return value.find_first_of("\n") == std::string::npos;
+}
+}  // namespace
 
 void CmdArgHandler::process(const vector<string> &arguments) {
   rest_arguments_.clear();
@@ -129,6 +136,57 @@ void CmdArgHandler::process(const vector<string> &arguments) {
         throw std::invalid_argument("invalid argument '" + *part + "'.");
       }
       rest_arguments_.push_back(*part);
+      continue;
+    }
+
+    const auto dot_pos = argpart.find_first_of('.');
+    if (dot_pos != std::string::npos) {
+      if (!got_value) {
+        auto next_part_it = std::next(part);
+        if (next_part_it == args_end) {
+          throw std::invalid_argument("option '" + argpart +
+                                      "' expects a value, got nothing");
+        } else if (next_part_it->empty()) {
+          // accept and ignore
+          ++part;
+        } else if (next_part_it->at(0) == '-') {
+          throw std::invalid_argument("option '" + argpart +
+                                      "' expects a value, got nothing");
+        } else {
+          // accept
+          value = *next_part_it;
+          ++part;
+        }
+      }
+
+      if (!is_valid_option_value(value)) {
+        throw std::invalid_argument("invalid value '" + value +
+                                    "' for option '" + argpart + "'");
+      }
+
+      std::string section_str = argpart.substr(2, dot_pos - 2);  // skip "--"
+      // split A:B into pair<A,B> or A into pair<A,"">
+      std::pair<std::string, std::string> section_id;
+      const auto colon_pos = section_str.find_first_of(':');
+
+      if (colon_pos != std::string::npos) {
+        section_id.first = section_str.substr(0, colon_pos);
+        section_id.second = section_str.substr(colon_pos + 1);
+      } else {
+        section_id.first = section_str;
+      }
+
+      std::transform(section_id.first.begin(), section_id.first.end(),
+                     section_id.first.begin(), ::tolower);
+
+      if (section_id.first == "default") {
+        std::transform(section_id.first.begin(), section_id.first.end(),
+                       section_id.first.begin(), ::toupper);
+      }
+
+      const std::string arg_key = argpart.substr(dot_pos + 1);
+      auto &section_overwrites = config_overwrites_[section_id];
+      section_overwrites[arg_key] = value;
       continue;
     }
 

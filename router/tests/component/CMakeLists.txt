@@ -42,6 +42,7 @@ FOREACH(test_file
     test_clusterset.cc
     test_component_test_framework.cc
     test_config.cc
+    test_config_overwrites.cc
     test_gr_notifications.cc
     test_http_server.cc
     test_logging.cc

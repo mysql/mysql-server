@@ -35,6 +35,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -418,11 +419,22 @@ class HARNESS_EXPORT CmdArgHandler {
   /** @brief Whether to ignore unknown arguments **/
   bool ignore_unknown_arguments;
 
+  /** @brief The key is a section identificator (section name and optional
+   * section key), the value is a map of all the overrides for a given section
+   * (option/value pairs) **/
+  using ConfigOverwrites = std::map<std::pair<std::string, std::string>,
+                                    std::map<std::string, std::string>>;
+  const ConfigOverwrites &get_config_overwrites() const noexcept {
+    return config_overwrites_;
+  }
+
  private:
   /** @brief Vector with registered options **/
   std::vector<CmdOption> options_;
   /** @brief Vector with arguments as strings not processed as options **/
   std::vector<std::string> rest_arguments_;
+  /** @brief Keeps configuration options overwrites **/
+  ConfigOverwrites config_overwrites_;
 };
 
 #endif  // HARNESS_ARG_HANDLER_INCLUDED

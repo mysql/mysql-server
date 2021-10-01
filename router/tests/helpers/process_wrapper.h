@@ -183,6 +183,8 @@ class ProcessWrapper {
     logging_file_ = logging_file;
   }
 
+  bool output_contains(const std::string &str, bool regex = false) const;
+
  private:
   ProcessWrapper(
       const std::string &app_cmd, const std::vector<std::string> &args,
@@ -193,8 +195,6 @@ class ProcessWrapper {
   }
 
  protected:
-  bool output_contains(const std::string &str, bool regex = false) const;
-
   /** @brief read() output from child until timeout expires, optionally
    * autoresponding to prompts
    *
