@@ -11578,6 +11578,9 @@ ER_GLOBAL_CONN_LIMIT
 ER_CONN_LIMIT
   eng "Connection closed. Connection memory limit %llu bytes exceeded. Consumed %llu bytes."
 
+ER_WARN_AUDIT_LOG_DISABLED
+  eng "Audit Log is disabled. Enable it with audit_log_disable = false."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
