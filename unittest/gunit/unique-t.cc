@@ -51,13 +51,8 @@ TEST_F(UniqueCostTest, GetUseCost) {
   // Set up the optimizer cost model
   Fake_Cost_model_table cost_model_table;
 
-  size_t unique_calc_buff_size =
-      Unique::get_cost_calc_buff_size(num_keys, key_size, MIN_SORT_MEMORY);
-  void *rawmem = thd()->mem_root->Alloc(unique_calc_buff_size * sizeof(uint));
-  Bounds_checked_array<uint> cost_buff = Bounds_checked_array<uint>(
-      static_cast<uint *>(rawmem), unique_calc_buff_size);
   const double dup_removal_cost = Unique::get_use_cost(
-      cost_buff, num_keys, key_size, MIN_SORT_MEMORY, &cost_model_table);
+      num_keys, key_size, MIN_SORT_MEMORY, &cost_model_table);
   EXPECT_GT(dup_removal_cost, 0.0);
 }
 

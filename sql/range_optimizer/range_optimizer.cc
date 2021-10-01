@@ -149,8 +149,7 @@ static AccessPath *get_best_disjunct_quick(
     THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_union_allowed, bool index_merge_sort_union_allowed,
     bool index_merge_intersect_allowed, bool skip_records_in_range,
-    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff, const double cost_est,
+    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge, const double cost_est,
     Key_map *needed_reg);
 #ifndef NDEBUG
 static void print_quick(AccessPath *path, const Key_map *needed_reg);
@@ -778,13 +777,12 @@ int test_quick_select(THD *thd, MEM_ROOT *return_mem_root,
                                         Opt_trace_context::RANGE_OPTIMIZER);
 
         // Buffer for index_merge cost estimates.
-        Unique::Imerge_cost_buf_type imerge_cost_buff;
         for (SEL_IMERGE &imerge : tree->merges) {
           new_conj_path = get_best_disjunct_quick(
               thd, &param, table, index_merge_union_allowed,
               index_merge_sort_union_allowed, index_merge_intersect_allowed,
-              skip_records_in_range, &needed_fields, &imerge, &imerge_cost_buff,
-              best_cost, needed_reg);
+              skip_records_in_range, &needed_fields, &imerge, best_cost,
+              needed_reg);
           if (new_conj_path)
             param.table->quick_condition_rows =
                 min<double>(param.table->quick_condition_rows,
@@ -1039,8 +1037,7 @@ static AccessPath *get_best_disjunct_quick(
     THD *thd, RANGE_OPT_PARAM *param, TABLE *table,
     bool index_merge_union_allowed, bool index_merge_sort_union_allowed,
     bool index_merge_intersect_allowed, bool skip_records_in_range,
-    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge,
-    Unique::Imerge_cost_buf_type *imerge_cost_buff, const double cost_est,
+    const MY_BITMAP *needed_fields, SEL_IMERGE *imerge, const double cost_est,
     Key_map *needed_reg) {
   double imerge_cost = 0.0;
   ha_rows cpk_scan_records = 0;
@@ -1187,17 +1184,8 @@ static AccessPath *get_best_disjunct_quick(
         .add_alnum("cause", "cost");
   } else {
     /* Add Unique operations cost */
-    size_t unique_calc_buff_size = Unique::get_cost_calc_buff_size(
-        non_cpk_scan_records, table->file->ref_length,
-        thd->variables.sortbuff_size);
-    if (imerge_cost_buff->size() < unique_calc_buff_size) {
-      *imerge_cost_buff = Unique::Imerge_cost_buf_type::Alloc(
-          param->temp_mem_root, unique_calc_buff_size);
-      if (imerge_cost_buff->array() == nullptr) return nullptr;
-    }
-
     const double dup_removal_cost = Unique::get_use_cost(
-        *imerge_cost_buff, (uint)non_cpk_scan_records, table->file->ref_length,
+        (uint)non_cpk_scan_records, table->file->ref_length,
         thd->variables.sortbuff_size, cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
