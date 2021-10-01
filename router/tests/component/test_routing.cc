@@ -131,7 +131,6 @@ class RouterRoutingConnectTimeoutTest
 TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
   const auto router_port = port_pool_.get_next_available();
 
-  const auto router_connect_timeout = 1s;
   const auto client_connect_timeout = 10s;
 
   // the test requires a address:port which is not responding to SYN packets:
