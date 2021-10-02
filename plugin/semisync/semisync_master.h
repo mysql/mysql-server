@@ -669,7 +669,7 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
   /* Enable the object to enable semi-sync replication inside the master. */
   int enableMaster();
 
-  /* Enable the object to enable semi-sync replication inside the master. */
+  /* Disable the object to disable semi-sync replication inside the master. */
   int disableMaster();
 
   /* Add a semi-sync replication slave */
