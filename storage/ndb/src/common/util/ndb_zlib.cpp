@@ -28,14 +28,23 @@
 
 #include "zlib.h"
 
+#ifndef REQUIRE
+#define REQUIRE(r) do { if (unlikely(!(r))) { \
+  fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); \
+  require((r)); \
+} } while (0)
+#endif
+
 #define RETURN(rv) return(rv)
-//define RETURN(rv) abort()
+//#define RETURN(rv) REQUIRE(rv)
 
 ndb_zlib::ndb_zlib()
 : mem_begin(nullptr),
   mem_top(nullptr),
   mem_end(nullptr),
-  m_op_mode(NO_OP)
+  m_op_mode(NO_OP),
+  pkcs_padded(false),
+  padding(0)
 {
   file.zalloc = Z_NULL;
   file.zfree = Z_NULL;
@@ -45,6 +54,14 @@ ndb_zlib::ndb_zlib()
 ndb_zlib::~ndb_zlib()
 {
   require(mem_begin == mem_top);
+}
+
+void ndb_zlib::reset()
+{
+  m_op_mode = NO_OP;
+  pkcs_padded = false;
+  padding = 0;
+  padding_left = 0;
 }
 
 int ndb_zlib::set_memory(void* mem, size_t size)
@@ -84,9 +101,9 @@ void *ndb_zlib::alloc(void *opaque, unsigned items, unsigned size)
 void ndb_zlib::free(void *opaque, void *address)
 {
   ndb_zlib *ths = static_cast<ndb_zlib *>(opaque);
-  if (ths->mem_begin > address || ths->mem_end <= address) abort();
-  // Require free to free last allocated first
-  if (ths->mem_top <= address) abort();
+  REQUIRE(ths->mem_begin <= address);
+  REQUIRE(address < ths->mem_top);
+  REQUIRE(address < ths->mem_end);
   ths->mem_top = (byte *)address;
 }
 
@@ -94,6 +111,10 @@ int ndb_zlib::deflate_init()
 {
   assert(m_op_mode == NO_OP);
   if (m_op_mode != NO_OP)
+    return -1;
+
+  assert(padding == 0);
+  if (padding != 0)
     return -1;
 
   int err = ::deflateInit2(&file, level, method, zlib_windowBits, memLevel, strategy);
@@ -108,8 +129,7 @@ int ndb_zlib::deflate_init()
       return -1;
       break;
     default:
-      abort();
-      return -1;
+      RETURN(-1);
   }
 }
 
@@ -117,13 +137,14 @@ int ndb_zlib::deflate_end()
 {
   if (m_op_mode != DEFLATE)
     RETURN(-1);
-
   int err = ::deflateEnd(&file);
   switch (err)
   {
     case Z_OK:
       require(mem_top == mem_begin);
       m_op_mode = NO_OP;
+      if (padding != 0)
+        RETURN(-1);
       return 0;
     case Z_DATA_ERROR:
     case Z_STREAM_ERROR:
@@ -138,6 +159,9 @@ int ndb_zlib::inflate_init()
 {
   assert(m_op_mode == NO_OP);
   if (m_op_mode != NO_OP)
+    return -1;
+  assert(padding == 0);
+  if (padding != 0)
     return -1;
 
   file.next_in = nullptr;
@@ -160,9 +184,22 @@ int ndb_zlib::inflate_init()
 
 int ndb_zlib::inflate_end()
 {
+  if (m_op_mode == NO_OP)
+    return 0;
   if (m_op_mode != INFLATE)
+  {
     return -1;
-
+  }
+  if (padding_left != 0)
+  {
+    // Not all padding processed
+    RETURN(-1);
+  }
+  if (pkcs_padded && padding == 0)
+  {
+    // No padding processed
+    RETURN(-1);
+  }
   int err = ::inflateEnd(&file);
   switch (err)
   {
@@ -180,8 +217,9 @@ int ndb_zlib::inflate_end()
 
 /*
  * return
- *  1 - need more processing
  *  0 - finished
+ *  1 - need more input
+ *  2 - have more output
  * -1 - unrecoverable error
  */
 int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
@@ -190,81 +228,159 @@ int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
   if (m_op_mode != DEFLATE)
     return -1;
 
-  size_t in_size = in->size();
-  size_t out_size = out->size();
-
-  file.next_in = const_cast<byte*>(in->cbegin());
-  file.avail_in = in_size;
-  file.next_out = out->begin();
-  file.avail_out = out_size;
-  int flush_mode = in->last() ? Z_FINISH : Z_NO_FLUSH;
-  int err = ::deflate(&file, flush_mode);
-
-  size_t in_advance = in_size - file.avail_in;
-  size_t out_advance = out_size - file.avail_out;
-
-  in->advance(in_advance);
-  out->advance(out_advance);
-
-  switch (err)
+  if (padding == 0)
   {
-  case Z_OK:
-  case Z_BUF_ERROR:
-    if (out->empty()) return have_more_output;
-    return need_more_input;
-  case Z_STREAM_END:
-    require(file.avail_in == 0);
-    require(in->last());
+    size_t in_size = in->size();
+    size_t out_size = out->size();
+
+    file.next_in = const_cast<byte*>(in->cbegin());
+    file.avail_in = in_size;
+    file.next_out = out->begin();
+    file.avail_out = out_size;
+    int flush_mode = in->last() ? Z_FINISH : Z_NO_FLUSH;
+    int err = ::deflate(&file, flush_mode);
+
+    size_t in_advance = in_size - file.avail_in;
+    size_t out_advance = out_size - file.avail_out;
+
+    in->advance(in_advance);
+    require(file.next_in == const_cast<byte*>(in->cbegin()));
+    out->advance(out_advance);
+    require(file.next_out == out->begin());
+
+    switch (err)
+    {
+    case Z_OK:
+    case Z_BUF_ERROR:
+    {
+      if (out->empty()) return have_more_output;
+      return need_more_input;
+    }
+    case Z_STREAM_END:
+      require(file.avail_in == 0);
+      require(in->last());
+      if (pkcs_padded)
+      {
+        padding = 16 - file.total_out % 16;
+        padding_left = padding;
+        break; // handle padding
+      }
+      out->set_last();
+      return 0;
+    default:
+      RETURN(-1);
+    }
+  }
+  // padding if Z_STREAM_END
+  require(pkcs_padded);
+  require(padding_left > 0);
+  while (!out->empty() && padding_left > 0)
+  {
+    *out->begin()= padding;
+    out->advance(1);
+    padding_left--;
+  }
+  if (padding_left == 0)
+  {
+    padding = 0;
     out->set_last();
     return 0;
-  default:
-    RETURN(-1);
   }
+  return have_more_output;
 }
 
 int ndb_zlib::inflate(output_iterator* out, input_iterator* in)
 {
   assert(m_op_mode == INFLATE);
   if (m_op_mode != INFLATE)
-    return -1;
-
-  size_t in_size = in->size();
-  size_t out_size = out->size();
-
-  file.next_in = const_cast<byte*>(in->cbegin());
-  file.avail_in = in_size;
-  file.next_out = out->begin();
-  file.avail_out = out_size;
-  int flush_mode = in->last() ? Z_FINISH : Z_NO_FLUSH;
-  int err = Z_OK;
-  if (file.avail_in || file.avail_out)
   {
-    err = ::inflate(&file, flush_mode);
+    return -1;
   }
 
-  size_t in_advance = in_size - file.avail_in;
-  size_t out_advance = out_size - file.avail_out;
-
-  in->advance(in_advance);
-  out->advance(out_advance);
-
-  switch (err)
+  if (padding_left == 0)
   {
-  case Z_OK:
-  case Z_BUF_ERROR:  // no progress
-    return need_more_input;
-  case Z_STREAM_END:
-    require(file.avail_in == 0);
+    size_t in_size = in->size();
+    size_t out_size = out->size();
+
+    file.next_in = const_cast<byte*>(in->cbegin());
+    file.avail_in = in_size;
+    file.next_out = out->begin();
+    file.avail_out = out_size;
+    int flush_mode = in->last() ? Z_FINISH : Z_NO_FLUSH;
+    int err = Z_OK;
+    if (file.avail_in || file.avail_out)
+    {
+      err = ::inflate(&file, flush_mode);
+    }
+
+    size_t in_advance = in_size - file.avail_in;
+    size_t out_advance = out_size - file.avail_out;
+
+    in->advance(in_advance);
+    out->advance(out_advance);
+
+    switch (err)
+    {
+    case Z_OK:
+    case Z_BUF_ERROR:  // no progress
+      if (out->empty()) return have_more_output;
+      return need_more_input;
+    case Z_STREAM_END:
+      if (!pkcs_padded)
+      {
+        out->set_last();
+        return 0;
+      }
+      if (in->empty() && in->last() && padding != 0 && padding_left == 0)
+      {
+        // All padding already processed
+        out->set_last();
+        return 0;
+      }
+      if (file.avail_in > 0)
+      {
+        padding = file.next_in[0];
+        assert(padding == (16 - (file.total_in % 16)));
+        if (padding != (16 - (file.total_in % 16)))
+        {
+          RETURN(-1);
+        }
+      }
+      else
+      {
+        padding = 16 - (file.total_in % 16);
+      }
+      require(padding > 0);
+      require(padding <= 16);
+      padding_left = padding;
+    break;
+    case Z_MEM_ERROR:
+    case Z_STREAM_ERROR:
+    case Z_DATA_ERROR:
+      RETURN(-1);
+    default:
+      RETURN(-1);
+    }
+  }
+  // padding if Z_STREAM_END
+  require(pkcs_padded);
+  require(padding_left > 0);
+  while (!in->empty() && padding_left > 0)
+  {
+    if (*in->cbegin() != padding)
+    {
+      RETURN(-1);
+    }
+    in->advance(1);
+    padding_left--;
+  }
+  if (padding_left == 0)
+  {
     require(in->last());
     out->set_last();
     return 0;
-  case Z_MEM_ERROR:
-  case Z_STREAM_ERROR:
-  case Z_DATA_ERROR:
-    RETURN(-1);
-  default:
-    RETURN(-1);
   }
+  return need_more_input;
 }
 
 #if 0

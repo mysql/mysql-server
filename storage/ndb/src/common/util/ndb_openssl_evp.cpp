@@ -20,6 +20,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "util/ndb_math.h"
 #include "util/require.h"
 #include "util/ndb_openssl_evp.h"
 
@@ -39,6 +40,10 @@
 #include "portlib/NdbThread.h"
 #include "portlib/NdbMutex.h"
 #include "openssl/engine.h"
+#endif
+
+#ifndef REQUIRE
+#define REQUIRE(r) do { if (unlikely(!(r))) { fprintf(stderr, "\nYYY: %s: %u: %s: r = %d\n", __FILE__, __LINE__, __func__, (r)); require((r)); } } while (0)
 #endif
 
 #define RETURN(rv) return(rv)
@@ -221,6 +226,10 @@ int ndb_openssl_evp::set_aes_256_xts(bool padding, size_t data_unit_size)
 
   assert(data_unit_size % XTS_BLOCK_LEN == 0);
   if (data_unit_size % XTS_BLOCK_LEN != 0)
+  {
+    return -1;
+  }
+  if (data_unit_size == 0)
   {
     return -1;
   }
@@ -712,17 +721,25 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
   {
     require(!m_context->m_padding);
 
-    if (in->size() % data_unit_size != 0)
+    if (in->size() < data_unit_size && !in->last())
     {
-      RETURN(-1);
+      return need_more_input;
     }
     if (out->size() < data_unit_size)
     {
       return have_more_output;
     }
 
+    /*
+     * G is used as loop guard.
+     * Each lap of loop will encrypt at most one data unit.
+     * Allow yet another lap to get a chance to detect input have become empty.
+     * Loop may end earlier due to errors or out of output space.
+     */
+    int G = ndb_ceil_div(in->size(), data_unit_size) + 1;
     for (;;)
     {
+      require(G--);
       if (in->empty() && in->last())
       {
         out->set_last();
@@ -733,6 +750,17 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
         return progress ? need_more_input : have_more_output;
       }
 
+      int inl = (in->size() > data_unit_size)
+                ? data_unit_size
+                : in->size();
+      if (out->size() < static_cast<size_t>(inl))
+      {
+        return have_more_output;
+      }
+      if (static_cast<size_t>(inl) < data_unit_size && !in->last())
+      {
+        return need_more_input;
+      }
       if (setup_encrypt_key_iv(m_input_position) == -1)
       {
         RETURN(-1);
@@ -743,17 +771,17 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
                                 out->begin(),
                                 &outl,
                                 in->cbegin(),
-                                data_unit_size);
+                                inl);
       if (r != 1)
       {
         RETURN(-1);
       }
 
-      require(size_t(outl) == data_unit_size);
-      m_input_position += data_unit_size;
+      require(outl == inl);
+      m_input_position += inl;
       m_output_position += outl;
       out->advance(outl);
-      in->advance(data_unit_size);
+      in->advance(inl);
       progress = true;
 
       r = EVP_EncryptFinal_ex(m_evp_context, out->begin(), &outl);
@@ -877,25 +905,31 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
   {
     require(!m_context->m_padding);
 
-    if (in->size() % data_unit_size != 0)
-    {
-      RETURN(-1);
-    }
-    if (out->size() < data_unit_size)
-    {
-      return have_more_output;
-    }
-
+    /*
+     * G is used as loop guard.
+     * Each lap of loop will encrypt at most one data unit.
+     * Allow yet another lap to get a chance to detect input have become empty.
+     * Loop may end earlier due to errors or out of output space.
+     */
+    int G = ndb_ceil_div(in->size(), data_unit_size) + 1;
     for (;;)
     {
+      require(G--);
       if (in->empty() && in->last())
       {
         out->set_last();
         return 0;
       }
-      else if (in->empty() || out->empty())
+      int inl = (in->size() >= data_unit_size)
+                ? data_unit_size
+                : in->size();
+      if (static_cast<size_t>(inl) < data_unit_size && !in->last())
       {
-        return progress ? need_more_input : have_more_output;
+        return need_more_input;
+      }
+      if (out->size() < static_cast<size_t>(inl))
+      {
+        return have_more_output;
       }
 
       if (setup_decrypt_key_iv(m_output_position) == -1)
@@ -908,17 +942,17 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
                                 out->begin(),
                                 &outl,
                                 in->cbegin(),
-                                data_unit_size);
+                                inl);
       if (r != 1)
       {
         RETURN(-1);
       }
 
-      require(size_t(outl) == data_unit_size);
-      m_input_position += data_unit_size;
+      require(outl == inl);
+      m_input_position += inl;
       m_output_position += outl;
       out->advance(outl);
-      in->advance(data_unit_size);
+      in->advance(inl);
       progress = true;
 
       r = EVP_DecryptFinal_ex(m_evp_context, out->begin(), &outl);
@@ -1032,7 +1066,8 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
   progress = true;
   m_at_padding_end = false;
  
-  return need_more_input;
+  if (in->empty() && in->last()) out->set_last();
+  return out->last() ? 0 : need_more_input;
 }
 
 int ndb_openssl_evp::operation::decrypt_end()
