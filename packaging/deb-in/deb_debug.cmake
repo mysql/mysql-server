@@ -220,7 +220,7 @@ SET (DEB_CONTROL_DEBUG
 Package: mysql-${DEB_PRODUCTNAME}-server-debug
 Architecture: any
 Section: debug
-Depends: \${misc:Depends}
+Depends: \${misc:Depends}, mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version})
 Description: Debug binaries for MySQL Server
 
 Package: mysql-${DEB_PRODUCTNAME}-test-debug
