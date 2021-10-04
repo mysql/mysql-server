@@ -48,10 +48,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 #include "my_config.h"
+#include "mysqld_error.h"
 #include "storage/innobase/include/detail/ut/allocator_traits.h"
 #include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/detail/ut/page_metadata.h"
 #include "storage/innobase/include/detail/ut/pfs.h"
+#include "storage/innobase/include/ut0log.h"
 
 namespace ut {
 namespace detail {
@@ -67,12 +69,24 @@ inline void *page_aligned_alloc(size_t n_bytes) {
   // to the multiple of system page size if it is not already
   void *ptr =
       VirtualAlloc(nullptr, n_bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (unlikely(!ptr)) {
+    ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc VirtualAlloc(" << n_bytes
+                                << " bytes) failed;"
+                                   " Windows error "
+                                << GetLastError();
+  }
   return ptr;
 #else
   // With addr set to nullptr, mmap will internally round n_bytes to the
   // multiple of system page size if it is not already
   void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANON, -1, 0);
+  if (unlikely(ptr == (void *)-1)) {
+    ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc mmap(" << n_bytes
+                                << " bytes) failed;"
+                                   " errno "
+                                << errno;
+  }
   return (ptr != (void *)-1) ? ptr : nullptr;
 #endif
 }
@@ -87,11 +101,24 @@ inline bool page_aligned_free(void *ptr, size_t n_bytes) {
   if (unlikely(!ptr)) return false;
 #ifdef _WIN32
   auto ret = VirtualFree(ptr, 0, MEM_RELEASE);
-  (void)n_bytes;
+  if (unlikely(ret == 0)) {
+    ib::log_error(ER_IB_MSG_858)
+        << "large_page_aligned_free VirtualFree(" << ptr
+        << ")  failed;"
+           " Windows error "
+        << GetLastError();
+  }
   return ret != 0;
 #else
   // length aka n_bytes does not need to be aligned to page-size
   auto ret = munmap(ptr, n_bytes);
+  if (unlikely(ret != 0)) {
+    ib::log_error(ER_IB_MSG_858)
+        << "page_aligned_free munmap(" << ptr << ", " << n_bytes
+        << ") failed;"
+           " errno "
+        << errno;
+  }
   return ret == 0;
 #endif
 }
