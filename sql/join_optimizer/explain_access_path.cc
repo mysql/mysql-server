@@ -1037,14 +1037,27 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     char cost_as_string[FLOATING_POINT_BUFFER];
     my_fcvt(first_row_cost, 2, first_row_cost_as_string, /*error=*/nullptr);
     my_fcvt(path->cost, 2, cost_as_string, /*error=*/nullptr);
+
+    // Nominally, we only write number of rows as an integer.
+    // However, if that should end up in zero, it's hard to know
+    // whether that was 0.49 or 0.00001, so we add enough precision
+    // to get one leading digit in that case.
+    char rows_as_string[32];
+    if (llrint(path->num_output_rows) == 0 && path->num_output_rows >= 1e-9) {
+      snprintf(rows_as_string, sizeof(rows_as_string), "%.1g",
+               path->num_output_rows);
+    } else {
+      snprintf(rows_as_string, sizeof(rows_as_string), "%lld",
+               llrint(path->num_output_rows));
+    }
+
     char str[1024];
     if (path->init_cost >= 0.0) {
-      snprintf(str, sizeof(str), "  (cost=%s..%s rows=%lld)",
-               first_row_cost_as_string, cost_as_string,
-               llrint(path->num_output_rows));
+      snprintf(str, sizeof(str), "  (cost=%s..%s rows=%s)",
+               first_row_cost_as_string, cost_as_string, rows_as_string);
     } else {
-      snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
-               llrint(path->num_output_rows));
+      snprintf(str, sizeof(str), "  (cost=%s rows=%s)", cost_as_string,
+               rows_as_string);
     }
     description.back() += str;
   }

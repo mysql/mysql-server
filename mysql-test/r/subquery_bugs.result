@@ -645,7 +645,7 @@ WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.
 EXPLAIN
 -> Nested loop left join  (cost=0.91 rows=1)
     -> Nested loop semijoin  (cost=0.68 rows=1)
-        -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
+        -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0.5)
             -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.77 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
