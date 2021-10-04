@@ -7643,7 +7643,7 @@ bool Item_func_match::init_search(THD *thd) {
 
   assert(master == nullptr);
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
-  if (ft_handler == nullptr) {
+  if (ft_handler == nullptr || thd->is_error()) {
     return true;
   }
 
