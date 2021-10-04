@@ -55,6 +55,7 @@ public:
   {
     NdbMem_AlignedFree(m_data);
   }
+  static constexpr size_t size() { return SIZE; }
   void init()
   {
     m_read_head = m_write_head = m_data;
@@ -79,20 +80,12 @@ public:
   ndbxfrm_output_iterator get_output_iterator()
   {
     require(m_write_head >= m_read_head);
-    if (m_wrote_last)
-      return ndbxfrm_output_iterator(
-          m_write_head, m_write_head, m_wrote_last);
-    require(!m_wrote_last);
     return ndbxfrm_output_iterator(
        m_write_head, m_data + SIZE, m_wrote_last);
   }
   ndbxfrm_output_reverse_iterator get_output_reverse_iterator()
   {
     require(m_write_head <= m_read_head);
-    if (m_wrote_last)
-      return ndbxfrm_output_reverse_iterator(
-          m_write_head, m_write_head, m_wrote_last);
-    require(!m_wrote_last);
     return ndbxfrm_output_reverse_iterator(
         m_write_head, m_data, m_wrote_last);
   }
@@ -104,6 +97,7 @@ public:
     {
       m_wrote_last = true;
     }
+    require(it.end() == m_data_end);
   }
   void update_reverse_write(ndbxfrm_output_reverse_iterator& it)
   {
@@ -113,15 +107,40 @@ public:
     {
       m_wrote_last = true;
     }
+    require(it.end() == m_data);
   }
   void update_read(ndbxfrm_input_iterator& it)
   {
     m_read_head = it.cbegin();
     require(m_write_head >= m_read_head);
+    if (unlikely(it.cend() != m_write_head))
+    {
+      /*
+       * When one reach end of file there may be trailer data that is read but
+       * should not be read further the readable data may be reduced by
+       * reducing the write head.
+       */
+      require(it.cend() >= m_read_head);
+      require(it.cend() < m_write_head);
+      m_write_head -= m_write_head - it.cend();
+    }
+    require(m_write_head >= m_read_head);
   }
   void update_reverse_read(ndbxfrm_input_reverse_iterator& it)
   {
     m_read_head = it.cbegin();
+    require(m_write_head <= m_read_head);
+    if (unlikely(it.cend() != m_write_head))
+    {
+      /*
+       * When reading backwards one reach start of file there may be header
+       * data that is read but should not be read further the readable data may
+       * be reduced by reducing the write head.
+       */
+      require(it.cend() <= m_read_head);
+      require(it.cend() > m_write_head);
+      m_write_head += it.cend() - m_write_head;
+    }
     require(m_write_head <= m_read_head);
   }
   size_t read_size() const
