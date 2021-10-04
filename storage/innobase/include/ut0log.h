@@ -413,6 +413,137 @@ class trace_3 : public logger {
 };
 #endif /* UNIV_HOTBACKUP */
 
+/* Convenience functions that ease the usage of logging facilities throughout
+   the code.
+
+   Logging facilities are designed such so that they differentiate between the
+   case when UNIV_NO_ERR_MSGS is defined and when it is not. In particular, end
+   user code must take into account when code is built with  UNIV_NO_ERR_MSGS
+   because not the same set of ib::logger constructors will be available in such
+   setting. Design of the logging facility therefore imposes that every possible
+   usage of it in the end user code will result with sprinkling the #ifdefs all
+   around.
+
+   So, what these convenience wrappers do is that they provide somewhat better
+   alternative to the following code, which without the wrapper look like:
+     #ifdef UNIV_NO_ERR_MSGS
+       ib::info();
+     #else
+       ib::info(ER_IB_MSG_1158);
+     #endif
+         << "Some message";
+
+   Same applies for any other ib:: logging facility, e.g.:
+     #ifdef UNIV_NO_ERR_MSGS
+       ib::fatal(UT_LOCATION_HERE)
+     #else
+       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1157)
+     #endif
+         << "Some message";
+
+   With the convenience wrapper these two usages become:
+     log_info(ER_IB_MSG_1158) << "Some message";
+     log_fatal(UT_LOCATION_HERE, ER_IB_MSG_1157) << "Some message";
+*/
+
+static inline auto log_info() { return ib::info(); }
+static inline auto log_warn() { return ib::warn(); }
+static inline auto log_error() { return ib::error(); }
+static inline auto log_fatal(ut::Location location) {
+  return ib::fatal(location);
+}
+static inline auto log_error_or_warn(bool pred) {
+#ifdef UNIV_NO_ERR_MSGS
+  return ib::error_or_warn();
+#else
+  return ib::error_or_warn(pred);
+#endif
+}
+static inline auto log_fatal_or_error(bool fatal, ut::Location location) {
+  return ib::fatal_or_error(fatal, location);
+}
+
+template <typename... Args>
+static inline auto log_info(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_info();
+#else
+  return ib::info(err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_warn(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_warn();
+#else
+  return ib::warn(err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_error(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_error();
+#else
+  return ib::error(err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_fatal(ut::Location location, int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_fatal(location);
+#else
+  return ib::fatal(location, err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_error_or_warn(bool pred, int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_error_or_warn(pred);
+#else
+  return ib::error_or_warn(pred, err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_fatal_or_error(bool fatal, ut::Location location,
+                                      int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_fatal_or_error(fatal, location);
+#else
+  return ib::fatal_or_error(fatal, location, err, std::forward<Args>(args)...);
+#endif
+}
+
+#ifdef UNIV_HOTBACKUP
+static inline auto log_trace_1() { return ib::trace_1(); }
+static inline auto log_trace_2() { return ib::trace_2(); }
+static inline auto log_trace_3() { return ib::trace_3(); }
+
+template <typename... Args>
+static inline auto log_trace_1(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_trace_1();
+#else
+  return ib::trace_1(err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_trace_2(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_trace_2();
+#else
+  return ib::trace_2(err, std::forward<Args>(args)...);
+#endif
+}
+template <typename... Args>
+static inline auto log_trace_3(int err, Args &&... args) {
+#ifdef UNIV_NO_ERR_MSGS
+  return log_trace_3();
+#else
+  return ib::trace_3(err, std::forward<Args>(args)...);
+#endif
+}
+#endif /* UNIV_HOTBACKUP */
+
 }  // namespace ib
 
 #endif
