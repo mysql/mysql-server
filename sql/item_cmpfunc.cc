@@ -7718,9 +7718,12 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
                                  m_right_extractor->max_char_length())) {
   m_store_full_sort_key = true;
 
+  const bool using_secondary_storage_engine =
+      (current_thd->lex->m_sql_cmd != nullptr &&
+       current_thd->lex->m_sql_cmd->using_secondary_storage_engine());
   if ((join_condition->compare_type() == STRING_RESULT ||
        join_condition->compare_type() == ROW_RESULT) &&
-      !current_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+      !using_secondary_storage_engine) {
     const CHARSET_INFO *cs = join_condition->compare_collation();
     if (cs->coll->strnxfrmlen(cs, cs->mbmaxlen * m_max_character_length) >
         1024) {
