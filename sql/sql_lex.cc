@@ -1699,8 +1699,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           c = lip->yyGet();
           if (c == '-' || c == '+') c = lip->yyGet();  // Skip sign
           if (!my_isdigit(cs, c)) {                    // No digit after sign
-            state = MY_LEX_CHAR;
-            break;
+            return (ABORT_SYM);
           }
           while (my_isdigit(cs, lip->yyGet()))
             ;
