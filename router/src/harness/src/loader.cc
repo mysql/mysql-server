@@ -203,7 +203,8 @@ static void block_all_nonfatal_signals() {
 
 // GCC defines __SANITIZE_ADDRESS
 // clang has __has_feature and 'address_sanitizer'
-#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer))
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer)) || \
+    (__has_feature(thread_sanitizer))
 #define HAS_FEATURE_ASAN
 #endif
 

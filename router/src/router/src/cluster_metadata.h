@@ -117,7 +117,7 @@ class ClusterMetadata {
    * @throws std::out_of_range
    * @throws std::logic_error
    *
-   *  * checks that the server
+   * checks that the server
    *
    * - has the metadata in the correct version
    * - contains metadata for the group it's in (in case of GR cluster)
