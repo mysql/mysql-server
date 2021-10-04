@@ -1959,6 +1959,7 @@ static void innobase_col_to_mysql(
     case DATA_SYS:
       /* These column types should never be shipped to MySQL. */
       ut_ad(0);
+      [[fallthrough]];
 
     case DATA_FLOAT:
     case DATA_DOUBLE:
@@ -10794,7 +10795,7 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   if (dd_part_has_datadir(dd_part) ||
       swap_table->options().exists(data_file_name_key)) {
     /* after above swaping swap is now partition table and part is now normal
-     * table */
+    table */
     exchange_partition_adjust_datadir(thd, swap, part);
   }
 

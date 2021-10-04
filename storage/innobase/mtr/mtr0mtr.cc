@@ -773,6 +773,7 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_SHORT_INSERTS:
       ut_ad(0);
       /* fall through (write no redo log) */
+      [[fallthrough]];
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);

@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0sync.h"
 #include "univ.i"
 #include "ut0counter.h"
+#include "ut0log.h"
 #include "ut0new.h"
 
 #ifdef UNIV_DEBUG

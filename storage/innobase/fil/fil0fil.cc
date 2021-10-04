@@ -8459,7 +8459,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
     switch (space->purpose) {
       case FIL_TYPE_TEMPORARY:
-        ut_ad(0);  // we already checked for this
+        ut_error;  // we already checked for this
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
@@ -8468,7 +8468,6 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       case FIL_TYPE_LOG:
         ut_error;
-        break;
     }
 
     bool skip_flush = false;
@@ -8523,7 +8522,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
     switch (space->purpose) {
       case FIL_TYPE_TEMPORARY:
-        ut_ad(0);  // we already checked for this
+        ut_error;  // we already checked for this
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
