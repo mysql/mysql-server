@@ -222,7 +222,6 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 
 --echo # Testing memory/sql/hash_join.
-SET GLOBAL optimizer_switch="materialization=off,firstmatch=off";
 CREATE TABLE t1 (i BIGINT);
 CREATE TABLE t2 (i BIGINT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -240,9 +239,9 @@ ANALYZE TABLE t1, t2;
 
 SET GLOBAL join_buffer_size = 2048;  # 2 kB.
 let $memory_key = memory/sql/hash_join;
-let $test_query = SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+let $test_query = SELECT /*+ SET_VAR(optimizer_switch='materialization=off,firstmatch=off') */
+                  COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 --source include/mem_cnt_check_err.inc
-SET GLOBAL optimizer_switch = default;
 SET GLOBAL join_buffer_size = default;
 DROP TABLE t1, t2;
 
