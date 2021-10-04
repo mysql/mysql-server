@@ -1591,6 +1591,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     default:
       ut_ad(0);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
@@ -2012,6 +2013,7 @@ flag_ok:
       break;
     default:
       ut_ad(0);
+      [[fallthrough]];
     case DB_INVALID_NULL:
       ut_ad(row == nullptr);
       return (error);
