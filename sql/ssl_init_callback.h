@@ -120,4 +120,8 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
 extern Ssl_init_callback_server_main server_main_callback;
 extern Ssl_init_callback_server_admin server_admin_callback;
 
+/**
+  Helper method to validate values of --tls-version and --admin-tls-version
+*/
+bool validate_tls_version(const char *val);
 #endif  // !SSL_INIT_CALLBACK_INCLUDED

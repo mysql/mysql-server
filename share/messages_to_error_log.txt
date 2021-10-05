@@ -11581,6 +11581,9 @@ ER_CONN_LIMIT
 ER_WARN_AUDIT_LOG_DISABLED
   eng "Audit Log is disabled. Enable it with audit_log_disable = false."
 
+ER_INVALID_TLS_VERSION
+  eng "Option --tls-version or --admin-tls-version is set to an invalid value %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

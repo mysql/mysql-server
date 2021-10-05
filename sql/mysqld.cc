@@ -10006,12 +10006,18 @@ bool mysqld_get_one_option(int optid,
     case OPT_TLS_CIPHERSUITES:
     case OPT_SSL_CRL:
     case OPT_SSL_CRLPATH:
-    case OPT_TLS_VERSION:
       /*
         Enable use of SSL if we are using any ssl option.
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_TLS_VERSION:
+      opt_use_ssl = true;
+      if (validate_tls_version(argument)) {
+        LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
+        return true;
+      }
       break;
     case OPT_USE_ADMIN_SSL:
       if (opt_use_admin_ssl)
@@ -10034,13 +10040,20 @@ bool mysqld_get_one_option(int optid,
     case OPT_ADMIN_TLS_CIPHERSUITES:
     case OPT_ADMIN_SSL_CRL:
     case OPT_ADMIN_SSL_CRLPATH:
-    case OPT_ADMIN_TLS_VERSION:
       /*
         Enable use of SSL if we are using any ssl option.
         One can disable SSL later by using --skip-admin-ssl or --admin-ssl=0.
       */
       g_admin_ssl_configured = true;
       opt_use_admin_ssl = true;
+      break;
+    case OPT_ADMIN_TLS_VERSION:
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
+      if (validate_tls_version(argument)) {
+        LogErr(ERROR_LEVEL, ER_INVALID_TLS_VERSION, argument);
+        return true;
+      }
       break;
     case 'V':
       print_server_version();

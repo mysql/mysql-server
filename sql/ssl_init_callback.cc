@@ -64,16 +64,21 @@ static const char *opt_admin_tls_version = nullptr;
 
 static PolyLock_mutex lock_admin_ssl_ctx(&LOCK_admin_tls_ctx_options);
 
-static bool check_tls_version(sys_var *, THD *, set_var *var) {
-  if (!(var->save_result.string_value.str)) return true;
+bool validate_tls_version(const char *val) {
+  if (val && val[0] == 0) return true;
   std::string token;
-  std::stringstream str(var->save_result.string_value.str);
+  std::stringstream str(val);
   while (getline(str, token, ',')) {
     if (my_strcasecmp(system_charset_info, token.c_str(), "TLSv1.2") &&
         my_strcasecmp(system_charset_info, token.c_str(), "TLSv1.3"))
       return true;
   }
   return false;
+}
+
+static bool check_tls_version(sys_var *, THD *, set_var *var) {
+  if (!(var->save_result.string_value.str)) return true;
+  return validate_tls_version(var->save_result.string_value.str);
 }
 
 static bool check_admin_tls_version(sys_var *, THD *, set_var *var) {
