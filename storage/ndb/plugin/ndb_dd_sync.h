@@ -241,6 +241,25 @@ class Ndb_dd_sync {
   */
   bool synchronize_schema(const char *schema_name) const;
 
+  /*
+   * @brief Iterate over all temporary tables in NDB, process them by the name:
+   *          - the temporary tables, whose names start with prefix #sql2, will
+   *          produce error, becasue original data has been renamed and cannot
+   *          be accessed by user, this tables will be kept to prevent any data
+   *          loss,
+   *          - the temporary tables, whose names start with prefix #sql (and
+   *          not #sql2), will be deleted, they ware created as a copy of
+   *          orignal data, which should exists in the NDB under its original
+   *          name or as temporary table prefixed #sql2.
+   *
+   * @parm schema_name                  Name of the schema
+   * @param temp_tables_in_ndb          set of temporary tables in NDB
+   * @return void
+   */
+  void remove_copying_alter_temp_tables(
+      const char *schema_name,
+      const std::unordered_set<std::string> &temp_tables_in_ndb) const;
+
  public:
   Ndb_dd_sync(THD *thd, Thd_ndb *thd_ndb) : m_thd(thd), m_thd_ndb(thd_ndb) {}
   Ndb_dd_sync(const Ndb_dd_sync &) = delete;

@@ -10311,6 +10311,14 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     }
   });
 
+  DBUG_EXECUTE_IF("ndb_simulate_crash_during_alter_table_rename1", {
+    // Force mysqld crash during copy alter first rename
+    // before renaming old table to a temp name
+    if (!ndb_name_is_temp(old_tabname) && ndb_name_is_temp(new_tabname)) {
+      DBUG_SUICIDE();
+    }
+  });
+
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
     return HA_ERR_NO_CONNECTION;

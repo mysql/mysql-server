@@ -27,6 +27,7 @@
 
 #include <functional>
 
+#include "m_string.h"                                 // is_prefix
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
 #include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client
@@ -204,8 +205,10 @@ bool Ndb_dd_sync::remove_deleted_tables() const {
     // separately during binlog setup. The index stat tables are not installed
     // in the DD.
     std::unordered_set<std::string> tables_in_NDB;
+    std::unordered_set<std::string> temp_tables_in_NDB;
     if (!ndb_get_table_names_in_schema(m_thd_ndb->ndb->getDictionary(),
-                                       schema_name, &tables_in_NDB)) {
+                                       schema_name, &tables_in_NDB,
+                                       &temp_tables_in_NDB)) {
       log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
       ndb_log_error(
           "Failed to get list of NDB tables in schema '%s' from "
@@ -217,6 +220,8 @@ bool Ndb_dd_sync::remove_deleted_tables() const {
     ndb_log_verbose(50,
                     "Found %zu NDB tables in schema '%s' in the NDB Dictionary",
                     tables_in_NDB.size(), schema_name);
+
+    remove_copying_alter_temp_tables(schema_name, temp_tables_in_NDB);
 
     // Iterate over all NDB tables found in DD. If they don't exist in NDB
     // anymore, then remove the table from DD
@@ -1389,4 +1394,39 @@ bool Ndb_dd_sync::synchronize() const {
 
   ndb_log_info("Completed metadata synchronization");
   return true;
+}
+
+void Ndb_dd_sync::remove_copying_alter_temp_tables(
+    const char *schema_name,
+    const std::unordered_set<std::string> &temp_tables_in_ndb) const {
+  for (const std::string &ndb_table_name : temp_tables_in_ndb) {
+    // if the table starts with #sql2, it's the table left behind after
+    // renaming original table to temporary one, cannot be deleted to prevent
+    // data loss
+    if (is_prefix(ndb_table_name.c_str(), "#sql2")) {
+      ndb_log_error(
+          "Found temporary table %s.%s, which is most likely left behind"
+          " by failed copying alter table",
+          schema_name, ndb_table_name.c_str());
+      continue;
+    }
+
+    // the table is temporary and does not start with prefix #sql2,
+    // so it must have been left behind before renaming orignal table,
+    // if so, it can be deleted to cleanup unfinished copying alter table
+    ndb_log_warning(
+        "Found temporary table %s.%s, wich is most likely left behind by failed"
+        " copying alter table, this table will be removed, the operation"
+        " does not affect original data",
+        schema_name, ndb_table_name.c_str());
+    Ndb_table_guard ndbtab_g(m_thd_ndb->ndb, schema_name,
+                             ndb_table_name.c_str());
+    auto ndbtab = *ndbtab_g.get_table();
+    constexpr int flag = NdbDictionary::Dictionary::DropTableCascadeConstraints;
+
+    if (m_thd_ndb->ndb->getDictionary()->dropTableGlobal(ndbtab, flag)) {
+      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
+      ndb_log_error("Cannot drop %s.%s", schema_name, ndb_table_name.c_str());
+    }
+  }
 }
