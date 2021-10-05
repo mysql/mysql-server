@@ -1785,12 +1785,13 @@ int main(int argc, char **argv) {
 
 /** Report a failed assertion
 @param[in]	expr	the failed assertion (optional)
-@param[in]	file	source file containting the assertion
+@param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
   fprintf(stderr,
           "Innochecksum: Assertion failure in"
-          " file %s line " ULINTPF "\n",
+          " file %s line " UINT64PF "\n",
           file, line);
 
   if (expr) {

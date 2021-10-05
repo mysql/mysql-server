@@ -240,8 +240,9 @@ std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
 @param[in]	expr	the failed assertion if not NULL
 @param[in]	file	source file containing the assertion
 @param[in]	line	line number of the assertion */
-void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line) {
-  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " ULINTPF "\n",
+[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
+                                          uint64_t line) {
+  fprintf(stderr, "ibd2sdi: Assertion failure in file %s line " UINT64PF "\n",
           file, line);
 
   if (expr != nullptr) {
