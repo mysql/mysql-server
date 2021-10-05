@@ -48,6 +48,10 @@
 // can't be overridden to be disabled by adding any compile options. Thus we
 // have to disable /RTC1 and enable /O2 (or any level of optimization) using
 // pragmas.
+#ifdef _ITERATOR_DEBUG_LEVEL
+#undef _ITERATOR_DEBUG_LEVEL
+#endif
+
 #define _ITERATOR_DEBUG_LEVEL 0
 #pragma runtime_checks("", off)
 #pragma optimize("g", on)

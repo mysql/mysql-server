@@ -49,6 +49,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0rw.h"
 #include "ut0mutex.h"
 
+#include <scope_guard.h>
+
 #ifndef UNIV_NO_ERR_MSGS
 #include "srv0start.h"
 #endif /* !UNIV_NO_ERR_MSGS */
@@ -593,6 +595,7 @@ bool LatchDebug::basic_check(const Latches *latches,
 @return	pointer to a thread's acquired latches. */
 Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   m_mutex.enter();
+  auto mutex_guard = create_scope_guard([this]() { m_mutex.exit(); });
 
   auto thread_id = std::this_thread::get_id();
   ThreadMap::iterator lb = m_threads.lower_bound(thread_id);
@@ -600,13 +603,9 @@ Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   if (lb != m_threads.end() && !(m_threads.key_comp()(thread_id, lb->first))) {
     Latches *latches = lb->second;
 
-    m_mutex.exit();
-
     return (latches);
 
   } else if (!add) {
-    m_mutex.exit();
-
     return (nullptr);
 
   } else {
@@ -619,8 +618,6 @@ Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
     latches->reserve(32);
 
     m_threads.insert(lb, value_type(thread_id, latches));
-
-    m_mutex.exit();
 
     return (latches);
   }
