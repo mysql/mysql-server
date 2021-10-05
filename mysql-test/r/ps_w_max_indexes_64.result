@@ -3330,7 +3330,6 @@ Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
-Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
@@ -3342,7 +3341,6 @@ Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
-Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c13' at row 1
@@ -3381,7 +3379,7 @@ Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 select c1, c13, c14, c15, c16, c17 from t9 order by c1 ;
@@ -5418,7 +5416,6 @@ Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
-Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
@@ -5430,7 +5427,6 @@ Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
-Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Warning	1265	Data truncated for column 'c13' at row 1
@@ -5469,7 +5465,7 @@ Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 select c1, c13, c14, c15, c16, c17 from t9 order by c1 ;

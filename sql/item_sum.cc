@@ -5027,11 +5027,9 @@ bool Item_first_last_value::fix_fields(THD *thd, Item **items) {
       args[0]->check_cols(1))
     return true;
 
-  if (setup_first_last()) return true;
-
-  result_field = nullptr;
-
   if (resolve_type(thd)) return true;
+
+  if (setup_first_last()) return true;
 
   if (check_sum_func(thd, items)) return true;
 

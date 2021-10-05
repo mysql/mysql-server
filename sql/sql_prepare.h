@@ -424,7 +424,7 @@ class Prepared_statement final {
 
  private:
   void cleanup_stmt();
-  void setup_set_params();
+  void setup_stmt_logging();
   bool check_parameter_types();
   void copy_parameter_types(Item_param **from_param_array);
   bool set_db(const LEX_CSTRING &db_length);
@@ -433,8 +433,9 @@ class Prepared_statement final {
   bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
-  bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);
-  bool insert_params(String *query, PS_PARAM *parameters);
+  bool insert_parameters_from_vars(List<LEX_STRING> &varnames, String *query);
+  bool insert_parameters(String *query, bool has_new_types,
+                         PS_PARAM *parameters);
 };
 
 #endif  // SQL_PREPARE_H

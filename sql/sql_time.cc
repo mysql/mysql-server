@@ -225,6 +225,25 @@ static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
 }
 
 /**
+  Convert decimal value to datetime.
+
+  @param       decimal The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+                         my_time_flags_t flags) {
+  lldiv_t lld;
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
+}
+
+/**
   Convert decimal value to datetime value with a warning.
   @param       decimal The value to convert from.
   @param[out]  ltime   The variable to convert to.
@@ -254,6 +273,24 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double value to datetime.
+
+  @param       nr      The value to convert from.
+  @param[out]  ltime   The variable to convert to.
+  @param       flags   Conversion flags.
+
+  @returns false on success, true if not convertible to datetime.
+*/
+bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld)) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 }
 
 /**
@@ -333,6 +370,24 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings) {
 
 /**
   Convert decimal number to TIME
+
+  @param      decimal  The number to convert from.
+  @param[out] ltime          The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  int warnings = 0;
+
+  if (my_decimal2lldiv_t(0, decimal, &lld)) {
+    return true;
+  }
+  return lldiv_t_to_time(lld, ltime, &warnings);
+}
+
+/**
+  Convert decimal number to TIME
   @param      decimal  The number to convert from.
   @param[out] ltime          The variable to convert to.
 
@@ -358,6 +413,23 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal,
       return true;
   }
   return rc;
+}
+
+/**
+  Convert double number to TIME
+
+  @param      nr      The number to convert from.
+  @param[out] ltime   The variable to convert to.
+
+  @returns false on success, true if not convertible to time.
+*/
+bool double_to_time(double nr, MYSQL_TIME *ltime) {
+  lldiv_t lld;
+  if (double2lldiv_t(nr, &lld) != E_DEC_OK) {
+    return true;
+  }
+  int warnings = 0;
+  return lldiv_t_to_time(lld, ltime, &warnings);
 }
 
 /**

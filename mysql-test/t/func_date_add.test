@@ -50,3 +50,56 @@ drop table t1;
 --echo # Bug #27004806: UBSAN: ITEM_DATE_ADD_INTERVAL - NEGATION OF XYZ AND SIGNED INTEGER OVERFLOW
 --echo #
 SELECT ADDDATE('8112-06-20', REPEAT('1', 32));
+
+--echo # Bug#32915973: Prepare DATE_ADD/DATE_SUB incorrectly returns DATETIME
+
+# Document resolver actions of various ADDDATE parameters
+
+SELECT ADDDATE(DATE'2021-01-01', INTERVAL 1 DAY);
+SELECT ADDDATE(DATE'2021-01-01', INTERVAL 1 HOUR);
+SELECT ADDDATE(TIMESTAMP'2021-01-01 00:00:00', INTERVAL 1 DAY);
+SELECT ADDDATE(TIMESTAMP'2021-01-01 00:00:00', INTERVAL 1 HOUR);
+# Will add current date to the TIME value:
+SELECT DATE(ts) = CURRENT_DATE + INTERVAL '1' DAY AS is_tomorrow, TIME(ts)
+FROM (SELECT ADDDATE(TIME'00:00:00', INTERVAL 1 DAY) AS ts) AS dt;
+SELECT ADDDATE(TIME'00:00:00', INTERVAL 1 HOUR);
+SELECT ADDDATE('2021-01-01', INTERVAL 1 DAY);
+SELECT ADDDATE('2021-01-01', INTERVAL 1 HOUR);
+SELECT ADDDATE('2021-01-01 00:00:00', INTERVAL 1 DAY);
+SELECT ADDDATE('2021-01-01 00:00:00', INTERVAL 1 HOUR);
+SELECT ADDDATE('00:00:00', INTERVAL 1 DAY);
+SELECT ADDDATE('00:00:00', INTERVAL 1 HOUR);
+
+set @d='2021-01-01';
+set @t='00:00:00';
+set @ts='2021-01-01 00:00:00';
+
+prepare sd from "SELECT ADDDATE(?, INTERVAL 1 DAY)";
+execute sd using @d;
+prepare st from "SELECT ADDDATE(?, INTERVAL 1 HOUR)";
+execute st using @d;
+prepare sd from "SELECT ADDDATE(?, INTERVAL 1 DAY)";
+execute sd using @ts;
+prepare st from "SELECT ADDDATE(?, INTERVAL 1 HOUR)";
+execute st using @ts;
+prepare sd from "SELECT ADDDATE(?, INTERVAL 1 DAY)";
+execute sd using @t;
+prepare st from "SELECT ADDDATE(?, INTERVAL 1 HOUR)";
+execute st using @t;
+
+# Document resolver actions of various ADDTIME parameters
+
+SELECT ADDTIME(DATE'2021-01-01', '01:01:01');
+SELECT ADDTIME(TIMESTAMP'2021-01-01 00:00:00', TIME'01:01:01');
+SELECT ADDTIME(TIME'00:00:00', TIME'01:01:01');
+SELECT ADDTIME('2021-01-01', '01:01:01');
+SELECT ADDTIME('2021-01-01 00:00:00', TIME'01:01:01');
+SELECT ADDTIME('00:00:00', TIME'01:01:01');
+
+prepare s from "SELECT ADDTIME(?, TIME'01:01:01')";
+execute s using @d;
+prepare s from "SELECT ADDTIME(?, TIME'01:01:01')";
+execute s using @ts;
+prepare s from "SELECT ADDTIME(?, TIME'01:01:01')";
+execute s using @t;
+
