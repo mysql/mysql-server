@@ -53,7 +53,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
 @param[in] file Source file containing the assertion
 @param[in] line Line number of the assertion */
 [[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
-                                          ulint line) {
+                                          uint64_t line) {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line
@@ -70,7 +70,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   }
 
   fprintf(stderr,
-          "InnoDB: Assertion failure: %s:" ULINTPF
+          "InnoDB: Assertion failure: %s:" UINT64PF
           "%s%s\n"
           "InnoDB: thread %s",
           filename, line, expr != nullptr ? ":" : "",
