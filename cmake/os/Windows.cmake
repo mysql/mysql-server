@@ -1,5 +1,5 @@
 # Copyright (c) 2010, 2021, Oracle and/or its affiliates.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This file includes Windows specific hacks, mostly around compiler flags
 
@@ -54,7 +54,7 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1928)
 ENDIF()
 
 # OS display name (version_compile_os etc).
-# Used by the test suite to ignore bugs on some platforms, 
+# Used by the test suite to ignore bugs on some platforms,
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
   SET(MYSQL_MACHINE_TYPE "x86_64")
@@ -88,11 +88,19 @@ IF(WIN32_CLANG)
   ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_NOEXCEPT=1)
   ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_RANGE_FOR=1)
 ENDIF()
-  
-OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
-OPTION(WIN_DEBUG_RTC "Enable RTC checks for debug builds on Windows" OFF)
 
 IF(MSVC)
+  OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
+  OPTION(WIN_DEBUG_RTC "Enable RTC checks for debug builds on Windows" OFF)
+
+  SET(WIN_STL_DEBUG_ITERATORS_DOC
+    "Enable STL iterator debug checks for debug builds on VC++, use 2 for ")
+  STRING_APPEND(WIN_STL_DEBUG_ITERATORS_DOC
+    "debug checks, 1 for simple checks only, 0 for disabled.")
+
+  SET(WIN_STL_DEBUG_ITERATORS 2 CACHE STRING "${WIN_STL_DEBUG_ITERATORS_DOC}")
+  SET_PROPERTY(CACHE WIN_STL_DEBUG_ITERATORS PROPERTY STRINGS 0 1 2)
+
   OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   IF(WITH_ASAN AND WIN32_CLANG)
     SET(LINK_STATIC_RUNTIME_LIBRARIES ON)
@@ -104,13 +112,15 @@ IF(MSVC)
     STRING(REPLACE "/RTC1"  "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
   ENDIF()
 
+  STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -D_ITERATOR_DEBUG_LEVEL=${WIN_STL_DEBUG_ITERATORS}")
+
   # Enable debug info also in Release build,
   # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
    SET(CMAKE_{type}_LINKER_FLAGS_RELEASE
      "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
   ENDFOREACH()
-  
+
   # For release types Debug Release RelWithDebInfo (but not MinSizeRel):
   # - Choose C++ exception handling:
   #     If /EH is not specified, the compiler will catch structured and
@@ -167,10 +177,14 @@ IF(MSVC)
     SET("${flag}" "${${flag}} /std:c++17")
   ENDFOREACH()
 
+  OPTION(WIN_INCREMENTAL_LINK "Enable incremental linking on Windows" OFF)
+
   FOREACH(type EXE SHARED MODULE)
     FOREACH(config DEBUG RELWITHDEBINFO RELEASE MINSIZEREL)
       SET(flag "CMAKE_${type}_LINKER_FLAGS_${config}")
-      SET("${flag}" "${${flag}} /INCREMENTAL:NO")
+      if (NOT WIN_INCREMENTAL_LINK)
+        SET("${flag}" "${${flag}} /INCREMENTAL:NO")
+      ENDIF()
     ENDFOREACH()
   ENDFOREACH()
 
