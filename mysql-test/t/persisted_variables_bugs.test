@@ -473,4 +473,58 @@ SELECT VARIABLE_NAME, VARIABLE_SOURCE FROM performance_schema.variables_info
 RESET PERSIST;
 --source include/restart_mysqld.inc
 
+--echo #
+--echo # Bug #33388488: NO DEPRECATION WARNING ON SERVER RESTART IF TWO OR MORE
+--echo # PERSISTED OPTIONS
+--echo #
+
+SET PERSIST transaction_write_set_extraction='XXHASH64';
+SET PERSIST avoid_temporal_upgrade=TRUE;
+
+--let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+SET PERSIST_ONLY transaction_write_set_extraction='XXHASH64';
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+
+--let $restart_parameters=restart:--log_error=$LOG_ERR --no-console
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting transaction_write_set_extraction
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Assert that there is a warning at bootstrap when setting avoid_temporal_upgrade
+--let $assert_file= $LOG_ERR
+--let $assert_select= '@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+RESET PERSIST;
+--remove_file $LOG_ERR
+
+# set to default
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
 --echo # End of the 8.0 tests
