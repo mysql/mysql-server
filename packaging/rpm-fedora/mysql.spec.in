@@ -74,6 +74,7 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libaio-devel
+BuildRequires:  libcurl-devel
 BuildRequires:  libfido2-devel
 BuildRequires:  mecab-devel
 BuildRequires:  multilib-rpm-config
@@ -513,6 +514,7 @@ mkdir debug
            -DMYSQL_MAINTAINER_MODE=0 \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="$optflags" \
@@ -551,6 +553,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
+           -DWITH_CURL=system \
            -DWITH_FIDO=system \
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
