@@ -24986,6 +24986,8 @@ void Dblqh::timeSup(Signal* signal)
                           logFilePtr.p->currentMbyte,
                           logPagePtr.i);
       /* Wait for current file to be ready for writes */
+      signal->theData[0] = ZTIME_SUPERVISION;
+      signal->theData[1] = logPartPtr.i;
       sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 50, 2);
       return;
     }
