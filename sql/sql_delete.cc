@@ -1004,8 +1004,6 @@ bool Query_result_delete::optimize() {
     if (!(map & delete_table_map)) continue;
 
     // We are going to delete from this table
-    // Don't use record cache
-    table->no_cache = true;
     table->covering_keys.clear_all();
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER)) {
