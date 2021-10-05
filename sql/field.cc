@@ -2892,8 +2892,10 @@ type_conversion_status Field_new_decimal::store(
         thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
         errmsg.ptr(), field_name, da->current_row_for_condition());
-    return err != E_DEC_BAD_NUM ? decimal_err_to_type_conv_status(err)
-                                : store_value(&decimal_value);
+    if (err == E_DEC_BAD_NUM) return store_value(&decimal_value);
+    // Ensure that we always store something for virtual generated columns.
+    if (is_virtual_gcol()) (void)store_value(&decimal_value);
+    return decimal_err_to_type_conv_status(err);
   }
 
   if (err != 0) {
