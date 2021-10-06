@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -651,6 +651,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
      */
     LogLevel::EventCategory category;
     Uint32 level = 0;
+    ndbrequire(subReq->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
     for(Uint32 i = 0; i<subReq->noOfEntries; i++){
       category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
       level = subReq->theData[i] & 0xFFFF;
