@@ -759,6 +759,7 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
      */
     LogLevel::EventCategory category;
     Uint32 level = 0;
+    ndbrequire(subReq->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
     for(Uint32 i = 0; i<subReq->noOfEntries; i++){
       category = (LogLevel::EventCategory)(subReq->theData[i] >> 16);
       level = subReq->theData[i] & 0xFFFF;
