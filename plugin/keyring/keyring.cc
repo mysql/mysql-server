@@ -87,7 +87,7 @@ static char *keyring_file_data_value = nullptr;
 static MYSQL_SYSVAR_STR(
     data,                                              /* name       */
     keyring_file_data_value,                           /* value      */
-    PLUGIN_VAR_RQCMDARG,                               /* flags      */
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NODEFAULT,        /* flags      */
     "The path to the keyring file. Must be specified", /* comment    */
     check_keyring_file_data,                           /* check()    */
     update_keyring_file_data,                          /* update()   */
