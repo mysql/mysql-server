@@ -409,7 +409,7 @@ def	test	t1	n	{"add column algo": "instant"}	NULL
 ALTER TABLE t1 MODIFY COLUMN m INT ENGINE_ATTRIBUTE='{"modify column algo": "inplace"}', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
 ALTER TABLE t1 MODIFY COLUMN n INT ENGINE_ATTRIBUTE='{"modify column algo": "instant"}', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 ## Changing columns with attributes
 ALTER TABLE t1 CHANGE COLUMN m mm CHAR(8) ENGINE_ATTRIBUTE='{"change column algo": "inplace" }', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
@@ -432,7 +432,7 @@ def	test	t1	l	{"modify column algo": "none"}	NULL
 def	test	t1	m	{"add column algo": "inplace"}	NULL
 def	test	t1	n	{"add column algo": "instant"}	NULL
 ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) ENGINE_ATTRIBUTE='{"change column algo": "instant" }', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -616,9 +616,9 @@ def	test	t1	l	NULL	{"modify column algo": "none"}
 def	test	t1	m	NULL	{"add column algo": "inplace"}
 def	test	t1	n	NULL	{"add column algo": "instant"}
 ALTER TABLE t1 MODIFY COLUMN n INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column algo": "instant"}', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 ALTER TABLE t1 MODIFY COLUMN n INT SECONDARY_ENGINE_ATTRIBUTE='{"modify column algo": "instant"}', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -680,9 +680,9 @@ def	test	t1	ll	NULL	{"change column algo": "none"}
 def	test	t1	m	NULL	{"add column algo": "inplace"}
 def	test	t1	n	NULL	{"add column algo": "instant"}
 ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change column algo": "instant" }', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 ALTER TABLE t1 CHANGE COLUMN n nn CHAR(8) SECONDARY_ENGINE_ATTRIBUTE='{"change column algo": "instant" }', ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

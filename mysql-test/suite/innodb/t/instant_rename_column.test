@@ -1,0 +1,185 @@
+#############################################
+# Test script to test INSTANT RENAME COLUMN #
+#############################################
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `.*`\\.`.*` is set as discarded");
+call mtr.add_suppression("\\[Warning\\].* Tablespace for table `.*`\\.`.*` /\\* Partition `.*` \\*/ is set as discarded");
+--enable_query_log
+
+--echo # Scenario 1 : Rename a column
+
+CREATE TABLE t1 (c1 INT, c2 INT, c3 INT AS (c1 + 10) VIRTUAL);
+INSERT INTO t1(c1, c2) VALUES (1,11);
+INSERT INTO t1(c1, c2) VALUES (2,22);
+INSERT INTO t1(c1, c2) VALUES (3,33);
+INSERT INTO t1(c1, c2) VALUES (4,44);
+INSERT INTO t1(c1, c2) VALUES (5,55);
+SELECT * FROM t1;
+
+ALTER TABLE t1 RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+SELECT * FROM t1;
+
+CREATE TABLE tpart (c1 INT, c2 INT, c3 INT AS (c1 + 10) VIRTUAL)
+  PARTITION BY RANGE (c1) (
+    PARTITION tpart1 VALUES LESS THAN (10),
+    PARTITION tpart2 VALUES LESS THAN (100));
+
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE tpart RENAME COLUMN c1 TO c22, ALGORITHM=INSTANT;
+
+ALTER TABLE tpart RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+
+--echo # Scenario 2 : Rename an INSTANT ADD column
+ALTER TABLE t1 ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 RENAME COLUMN c4 to c44, ALGORITHM=INSTANT;
+SELECT * FROM t1;
+
+ALTER TABLE tpart ADD COLUMN c4 INT, ALGORITHM=INSTANT;
+ALTER TABLE tpart RENAME COLUMN c4 TO c44, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+
+--echo # Scenario 3 : Rename a VIRTUAL column
+ALTER TABLE t1 CHANGE c3 c33 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, algorithm=instant;
+SELECT * FROM t1;
+
+ALTER TABLE tpart CHANGE c3 c33 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+
+--echo # Scenario 4 : Rename an INSTANT ADD VIRTUAL column
+ALTER TABLE t1 add COLUMN (c5 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL), ALGORITHM=INSTANT;
+SELECT * FROM t1;
+ALTER TABLE t1 change c5 c55 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, algorithm=instant;
+SELECT * FROM t1;
+
+ALTER TABLE tpart ADD COLUMN (c5 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL), ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+ALTER TABLE tpart CHANGE c5 c55 INT GENERATED ALWAYS AS (c1 + 10) VIRTUAL, ALGORITHM=INSTANT;
+SELECT * FROM tpart;
+
+DROP TABLE t1;
+DROP TABLE tpart;
+
+--echo # Scenario 5 : Try to rename a column which is referenced in other table
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT,  INDEX(c2));
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT,
+                  CONSTRAINT t1c1 FOREIGN KEY (c2) REFERENCES t1(c2));
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 CHANGE c2 c22 INT, algorithm=INSTANT;
+
+DROP TABLE t1c;
+DROP TABLE t1;
+
+--echo # Scenario 6: Try to change the column name in a table with discarded tablespace
+CREATE TABLE t1 (c1 int, c2 INT as (c1+1) VIRTUAL);
+SELECT TABLE_ID INTO @old_tid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t1%";
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT TABLE_ID INTO @new_tid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%t1%";
+
+SELECT (@old_tid != @new_tid) as Table_Id_Changed;
+
+ALTER TABLE t1 RENAME COLUMN c2 to c3, algorithm=instant;
+ALTER TABLE t1 RENAME COLUMN c3 to c2, algorithm=instant;
+
+Drop TABLE t1;
+
+CREATE TABLE tpart (c1 INT, c2 INT AS (c1 + 1) VIRTUAL)
+  PARTITION BY RANGE(c1) (
+    PARTITION p1 VALUES LESS THAN (10),
+    PARTITION p2 VALUES LESS THAN (100));
+
+SELECT max(TABLE_ID) INTO @old_tpid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%tpart%";
+
+ALTER TABLE tpart DISCARD TABLESPACE;
+SELECT max(TABLE_ID) INTO @new_tpid FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE "%tpart%";
+
+SELECT (@old_tpid != @new_tpid) AS Table_Id_Changed;
+
+ALTER TABLE tpart RENAME COLUMN c2 TO c3, ALGORITHM=INSTANT;
+ALTER TABLE tpart RENAME COLUMN c3 TO c2, ALGORITHM=INSTANT;
+
+DROP TABLE tpart;
+
+--echo # Scenario 7: Try to rename a column to an internal column name
+CREATE TABLE t1 (c1 INT, c2 INT);
+
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_ROW_ID;
+
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_TRX_ID;
+
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1 RENAME COLUMN c1 TO DB_ROLL_PTR;
+
+DROP TABLE t1;
+
+--echo # Scenario 8: Rename SET and ENUM type columns
+CREATE TABLE tenum (c1 INT, c2 ENUM('a','b'));
+INSERT INTO tenum VALUES (1, 'a');
+ALTER TABLE tenum RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+ALTER TABLE tenum CHANGE c22 c2 ENUM ('a','b','c'), ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tenum CHANGE c2 c22 ENUM ('a','b'), ALGORITHM=INSTANT;
+DROP TABLE tenum;
+
+CREATE TABLE tset (c1 INT, c2 SET('a','b'));
+INSERT INTO tset VALUES (1, 'a');
+ALTER TABLE tset RENAME COLUMN c2 TO c22, ALGORITHM=INSTANT;
+ALTER TABLE tset CHANGE c22 c2 SET ('a','b','c'), ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tset CHANGE c2 c22 SET ('a','b'), ALGORITHM=INSTANT;
+DROP TABLE tset;
+
+--echo # Scenario 9: CHANGE column cannot use INSTANT algorithm if
+--echo # it involves definition change
+CREATE TABLE tchange (c1 INT, c2 INT);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tchange CHANGE c2 c2 DOUBLE, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tchange CHANGE c2 c2 DOUBLE, ALGORITHM=INPLACE;
+ALTER TABLE tchange CHANGE c2 c22 DOUBLE, ALGORITHM=COPY;
+SHOW CREATE TABLE tchange;
+ALTER TABLE tchange CHANGE c22 c2 DOUBLE, ALGORITHM=INSTANT;
+SHOW CREATE TABLE tchange;
+DROP TABLE tchange;
+
+--echo # Scenario 10: INSTANT RENAME WITH INSTANT ADD
+# [c1, c2, c3, c4]
+Create table t1 (c1 int KEY, c2 int, c3 int, c4 int);
+desc t1;
+# INSTANT ADD column with rename
+# [c1, c2, c3, c4] => [c1, c22, c3, c4, c5]
+alter table t1 add column c5 int , rename column c2 to c22, algorithm=instant;
+desc t1;
+
+# INSTANT ADD virtual column with rename
+# Not allowed yet.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 add column v1 int as (c1+1), add column v2 int as (c1+2) virtual, rename column c3 to c33, algorithm=instant;
+
+# INSTANT ADD virtual column
+# [c1, c22, c3, c4, c5] => [c1, c22, c3, c4, c5, v1, v2]
+alter table t1 add column v1 int as (c1+1), add column v2 int as (c1+2) virtual, algorithm=instant;
+desc t1;
+
+# INSTANT DROP virtual column
+# Drop virtual column in between. This will change the order of virtual column.
+# Not allowed.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+alter table t1 drop column v1, algorithm=instant;
+
+# INSTANT DROP virtual column
+# [c1, c22, c3, c4, c5, v1, v2] => [c1, c22, c3, c4, c5, v1]
+alter table t1 drop column v2, algorithm=instant;
+desc t1;
+
+# INSTANT DROP virtual column with rename
+# Not allowed.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 drop column v1, rename column c22 to c222, algorithm=instant;
+
+DROP TABLE t1;
+

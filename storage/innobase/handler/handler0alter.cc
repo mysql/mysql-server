@@ -114,7 +114,10 @@ enum class Instant_Type : uint16_t {
 
   /** ADD COLUMN which can be done instantly, including
   adding stored column only (or along with adding virtual columns) */
-  INSTANT_ADD_COLUMN
+  INSTANT_ADD_COLUMN,
+
+  /** Column rename */
+  INSTANT_COLUMN_RENAME
 };
 
 /** Function to convert the Instant_Type to a comparable int */
@@ -154,6 +157,14 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE =
     Alter_inplace_info::DROP_CHECK_CONSTRAINT |
     Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT |
     Alter_inplace_info::ALTER_COLUMN_VISIBILITY;
+
+/** Operation allowed with ALGORITHM=INSTANT */
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INSTANT_ALLOWED =
+    Alter_inplace_info::ALTER_COLUMN_NAME |
+    Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+    Alter_inplace_info::DROP_VIRTUAL_COLUMN |
+    Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
+    Alter_inplace_info::ADD_STORED_BASE_COLUMN;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS =
@@ -584,6 +595,108 @@ static void innobase_discard_table(THD *thd, dict_table_t *table) {
   table->discard_after_ddl = true;
 }
 
+/* To check if renaming a column is ok.
+@return true if Ok, false otherwise */
+static bool ok_to_rename_column(const Alter_inplace_info *ha_alter_info,
+                                const TABLE *old_table,
+                                const TABLE *altered_table,
+                                const dict_table_t *dict_table, bool instant,
+                                bool report_error) {
+  List_iterator_fast<Create_field> cf_it(
+      ha_alter_info->alter_info->create_list);
+
+  for (Field **fp = old_table->field; *fp; fp++) {
+    if (!(*fp)->is_flag_set(FIELD_IS_RENAMED)) {
+      continue;
+    }
+
+    const char *name = nullptr;
+
+    cf_it.rewind();
+    while (const Create_field *cf = cf_it++) {
+      if (cf->field == *fp) {
+        name = cf->field_name;
+        goto check_if_ok_to_rename;
+      }
+    }
+
+    ut_error;
+  check_if_ok_to_rename:
+    /* Prohibit renaming a column from FTS_DOC_ID
+    if full-text indexes exist. */
+    if (!my_strcasecmp(system_charset_info, (*fp)->field_name,
+                       FTS_DOC_ID_COL_NAME) &&
+        innobase_fulltext_exist(altered_table)) {
+      if (report_error) {
+        my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0), name);
+      }
+      return false;
+    }
+
+    /* Prohibit renaming a column to an internal column. */
+    const char *s = dict_table->col_names;
+    unsigned j;
+    /* Skip user columns.
+    MySQL should have checked these already.
+    We want to allow renaming of c1 to c2, c2 to c1. */
+    for (j = 0; j < old_table->s->fields; j++) {
+      if (!innobase_is_v_fld(old_table->field[j])) {
+        s += strlen(s) + 1;
+      }
+    }
+
+    for (; j < dict_table->n_def; j++) {
+      if (!my_strcasecmp(system_charset_info, name, s)) {
+        if (report_error) {
+          my_error(ER_WRONG_COLUMN_NAME, MYF(0), s);
+        }
+        return false;
+      }
+
+      s += strlen(s) + 1;
+    }
+  }
+
+  /* If column being renamed is being referenced by any other table, don't
+  allow INSTANT in that case. */
+  if (instant) {
+    if (!dict_table->referenced_set.empty()) {
+      List_iterator_fast<Create_field> cf_it(
+          ha_alter_info->alter_info->create_list);
+
+      for (Field **fp = old_table->field; *fp; fp++) {
+        if (!(*fp)->is_flag_set(FIELD_IS_RENAMED)) {
+          continue;
+        }
+
+        const char *col_name = (*fp)->field_name;
+
+        for (dict_foreign_set::iterator it = dict_table->referenced_set.begin();
+             it != dict_table->referenced_set.end(); ++it) {
+          dict_foreign_t *foreign = *it;
+          const char *r_name = foreign->referenced_col_names[0];
+
+          for (size_t i = 0; i < foreign->n_fields; ++i) {
+            if (!my_strcasecmp(system_charset_info, r_name, col_name)) {
+              if (report_error) {
+                my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+                         "ALGORITHM=INSTANT",
+                         innobase_get_err_msg(
+                             ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
+                         "ALGORITHM=INPLACE");
+              }
+              return false;
+            }
+            r_name = foreign->referenced_col_names[i];
+          } /* each column in reference element */
+        }   /* each element in reference set */
+      }     /* each column being renamed */
+    }
+  }
+
+  return true;
+}
+
 /** Determine if one ALTER TABLE can be done instantly on the table
 @param[in]	ha_alter_info	The DDL operation
 @param[in]	table		InnoDB table
@@ -600,35 +713,68 @@ static inline Instant_Type innobase_support_instant(
   Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
       ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE;
 
-  /* If it's only adding and(or) dropping virtual columns */
-  if ((!(alter_inplace_flags & ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN |
-                                 Alter_inplace_info::DROP_VIRTUAL_COLUMN))) &&
-      check_v_col_in_order(old_table, altered_table, ha_alter_info)) {
-    return (Instant_Type::INSTANT_VIRTUAL_ONLY);
-  }
-
-  if (!table->support_instant_add()) {
+  if (alter_inplace_flags & ~INNOBASE_INSTANT_ALLOWED) {
     return (Instant_Type::INSTANT_IMPOSSIBLE);
   }
 
-  /* If it's an ADD COLUMN without changing existing stored column orders
-  (change trailing virtual column orders is fine, especially for supporting
-  adding stored columns to a table with functional indexes), or including
-  ADD VIRTUAL COLUMN */
-  if ((alter_inplace_flags == Alter_inplace_info::ADD_STORED_BASE_COLUMN) ||
-      (alter_inplace_flags == (Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-                               Alter_inplace_info::ADD_VIRTUAL_COLUMN)) ||
-      (alter_inplace_flags ==
-       (Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-        Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) ||
-      (alter_inplace_flags ==
-       ((Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-         Alter_inplace_info::ADD_VIRTUAL_COLUMN |
-         Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)))) {
-    return (Instant_Type::INSTANT_ADD_COLUMN);
-  } else {
-    return (Instant_Type::INSTANT_IMPOSSIBLE);
+  enum class INSTANT_OPERATION {
+    COLUMN_RENAME_ONLY,           /*!< Only column RENAME */
+    VIRTUAL_ADD_DROP_ONLY,        /*!< Only virtual column ADD AND DROP */
+    VIRTUAL_ADD_DROP_WITH_RENAME, /*!< Virtual column ADD/DROP with RENAME */
+    INSTANT_ADD, /*< INSTANT ADD possibly with virtual column ADD and
+                    column RENAME */
+    NONE
+  };
+
+  enum INSTANT_OPERATION op = INSTANT_OPERATION::NONE;
+
+  if (!(alter_inplace_flags & ~Alter_inplace_info::ALTER_COLUMN_NAME)) {
+    op = INSTANT_OPERATION::COLUMN_RENAME_ONLY;
+  } else if (!(alter_inplace_flags &
+               ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+                 Alter_inplace_info::DROP_VIRTUAL_COLUMN))) {
+    op = INSTANT_OPERATION::VIRTUAL_ADD_DROP_ONLY;
+  } else if (!(alter_inplace_flags &
+               ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+                 Alter_inplace_info::DROP_VIRTUAL_COLUMN |
+                 Alter_inplace_info::ALTER_COLUMN_NAME))) {
+    op = INSTANT_OPERATION::VIRTUAL_ADD_DROP_WITH_RENAME;
+  } else if (alter_inplace_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN &&
+             !(alter_inplace_flags & Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
+    op = INSTANT_OPERATION::INSTANT_ADD;
   }
+
+  switch (op) {
+    case INSTANT_OPERATION::COLUMN_RENAME_ONLY: {
+      bool report_error = (ha_alter_info->alter_info->requested_algorithm ==
+                           Alter_info::ALTER_TABLE_ALGORITHM_INSTANT);
+      if (ok_to_rename_column(ha_alter_info, old_table, altered_table, table,
+                              true, report_error)) {
+        return (Instant_Type::INSTANT_COLUMN_RENAME);
+      }
+    } break;
+    case INSTANT_OPERATION::VIRTUAL_ADD_DROP_ONLY:
+      if (check_v_col_in_order(old_table, altered_table, ha_alter_info)) {
+        return (Instant_Type::INSTANT_VIRTUAL_ONLY);
+      }
+      break;
+    case INSTANT_OPERATION::VIRTUAL_ADD_DROP_WITH_RENAME:
+      /* Not supported yet in INPLACE. So not supporting here as well. */
+      break;
+    case INSTANT_OPERATION::INSTANT_ADD:
+      /* If it's an ADD COLUMN without changing existing stored column orders
+      (change trailing virtual column orders is fine, especially for supporting
+      adding stored columns to a table with functional indexes), or including
+      ADD VIRTUAL COLUMN */
+      if (table->support_instant_add()) {
+        return (Instant_Type::INSTANT_ADD_COLUMN);
+      }
+      break;
+    case INSTANT_OPERATION::NONE:
+      break;
+  }
+
+  return (Instant_Type::INSTANT_IMPOSSIBLE);
 }
 
 /** Determine if this is an instant ALTER TABLE.
@@ -726,8 +872,14 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         INNOBASE_ALTER_REBUILD)) {
     if (ha_alter_info->handler_flags &
         Alter_inplace_info::ALTER_STORED_COLUMN_TYPE) {
-      ha_alter_info->unsupported_reason = innobase_get_err_msg(
-          ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+      if (ha_alter_info->alter_info->requested_algorithm ==
+          Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+        ha_alter_info->unsupported_reason = innobase_get_err_msg(
+            ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE_INSTANT);
+      } else {
+        ha_alter_info->unsupported_reason = innobase_get_err_msg(
+            ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+      }
     }
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
@@ -770,6 +922,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         [[fallthrough]];
       case Instant_Type::INSTANT_NO_CHANGE:
       case Instant_Type::INSTANT_VIRTUAL_ONLY:
+      case Instant_Type::INSTANT_COLUMN_RENAME:
         ha_alter_info->handler_trivial_ctx = instant_type_to_int(instant_type);
         return HA_ALTER_INPLACE_INSTANT;
     }
@@ -1073,7 +1226,8 @@ no change to the table
 @param[in]	new_dd_tab	New dd::Table or dd::Partition
 @param[in]	ignore_fts	ignore FTS update if true */
 template <typename Table>
-static void dd_commit_inplace_no_change(const Table *old_dd_tab,
+static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
+                                        const Table *old_dd_tab,
                                         Table *new_dd_tab, bool ignore_fts);
 
 /** Update metadata in commit phase if it is instant ALTER TABLE
@@ -1113,7 +1267,8 @@ which would not result in failure
 @param[in]	altered_table	MySQL table that is being altered
 @param[in]	old_dd_tab	Old dd::Table
 @param[in,out]	new_dd_tab	New dd::Table */
-static void dd_commit_instant_table(const dict_table_t *new_table,
+static void dd_commit_instant_table(const Alter_inplace_info *ha_alter_info,
+                                    const dict_table_t *new_table,
                                     const TABLE *old_table,
                                     const TABLE *altered_table,
                                     const dd::Table *old_dd_tab,
@@ -1346,7 +1501,7 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
              ctx == nullptr) {
     ut_ad(!res);
-    dd_commit_inplace_no_change(old_dd_tab, new_dd_tab, false);
+    dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
   } else {
     ut_ad(old_info_updated);
     dd_commit_inplace_alter_table<dd::Table>(old_info, ctx->new_table,
@@ -4046,7 +4201,8 @@ which would not result in failure
 @param[in]	altered_table	MySQL table that is being altered
 @param[in]	old_dd_tab	Old dd::Table
 @param[in,out]	new_dd_tab	New dd::Table */
-static void dd_commit_instant_table(const dict_table_t *new_table,
+static void dd_commit_instant_table(const Alter_inplace_info *ha_alter_info,
+                                    const dict_table_t *new_table,
                                     const TABLE *old_table,
                                     const TABLE *altered_table,
                                     const dd::Table *old_dd_tab,
@@ -4068,10 +4224,11 @@ static void dd_commit_instant_table(const dict_table_t *new_table,
   }
 
   /* To remember old default values if exist */
-  dd_copy_table_columns(*new_dd_tab, *old_dd_tab);
+  dd_copy_table_columns(ha_alter_info, *new_dd_tab, *old_dd_tab);
 
   /* Then add all new default values */
-  dd_add_instant_columns(old_table, altered_table, new_dd_tab, new_table);
+  dd_add_instant_columns(IF_DEBUG(ha_alter_info, ) old_table, altered_table,
+                         new_dd_tab, new_table);
 
   /* Keep the metadata for newly added virtual columns if exist */
   dd_update_v_cols(new_dd_tab, new_table->id);
@@ -4108,7 +4265,8 @@ static void dd_commit_instant_part(const dict_table_t *new_table,
 }
 
 template <typename Table>
-static void dd_commit_inplace_no_change(const Table *old_dd_tab,
+static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
+                                        const Table *old_dd_tab,
                                         Table *new_dd_tab, bool ignore_fts) {
   if (!ignore_fts) {
     dd_add_fts_doc_id_index(new_dd_tab->table(), old_dd_tab->table());
@@ -4118,7 +4276,7 @@ static void dd_commit_inplace_no_change(const Table *old_dd_tab,
 
   if (!dd_table_is_partitioned(new_dd_tab->table()) ||
       dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-    dd_copy_table(new_dd_tab->table(), old_dd_tab->table());
+    dd_copy_table(ha_alter_info, new_dd_tab->table(), old_dd_tab->table());
   }
 }
 
@@ -4136,7 +4294,19 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
 
   switch (type) {
     case Instant_Type::INSTANT_NO_CHANGE:
-      dd_commit_inplace_no_change(old_dd_tab, new_dd_tab, false);
+      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
+      break;
+    case Instant_Type::INSTANT_COLUMN_RENAME:
+      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, false);
+
+      if (!dd_table_is_partitioned(new_dd_tab->table()) ||
+          dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
+        dd_update_v_cols(&new_dd_tab->table(), table->id);
+      }
+
+      row_mysql_lock_data_dictionary(trx);
+      innobase_discard_table(thd, table);
+      row_mysql_unlock_data_dictionary(trx);
       break;
     case Instant_Type::INSTANT_VIRTUAL_ONLY:
       if (dd_find_column(&old_dd_tab->table(), FTS_DOC_ID_COL_NAME) &&
@@ -4147,7 +4317,7 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
         dd_set_hidden_unique_index(new_dd_tab->table().add_index(),
                                    FTS_DOC_ID_INDEX_NAME, col);
       }
-      dd_commit_inplace_no_change(old_dd_tab, new_dd_tab, true);
+      dd_commit_inplace_no_change(ha_alter_info, old_dd_tab, new_dd_tab, true);
 
       if (!dd_table_is_partitioned(new_dd_tab->table()) ||
           dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
@@ -4163,7 +4333,7 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
 
       if (!dd_table_is_partitioned(new_dd_tab->table()) ||
           dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
-        dd_commit_instant_table(table, old_table, altered_table,
+        dd_commit_instant_table(ha_alter_info, table, old_table, altered_table,
                                 &old_dd_tab->table(), &new_dd_tab->table());
       }
 
@@ -5423,55 +5593,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   /* Prohibit renaming a column to something that the table
   already contains. */
   if (ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_NAME) {
-    List_iterator_fast<Create_field> cf_it(
-        ha_alter_info->alter_info->create_list);
-
-    for (Field **fp = table->field; *fp; fp++) {
-      if (!(*fp)->is_flag_set(FIELD_IS_RENAMED)) {
-        continue;
-      }
-
-      const char *name = nullptr;
-
-      cf_it.rewind();
-      while (const Create_field *cf = cf_it++) {
-        if (cf->field == *fp) {
-          name = cf->field_name;
-          goto check_if_ok_to_rename;
-        }
-      }
-
-      ut_error;
-    check_if_ok_to_rename:
-      /* Prohibit renaming a column from FTS_DOC_ID
-      if full-text indexes exist. */
-      if (!my_strcasecmp(system_charset_info, (*fp)->field_name,
-                         FTS_DOC_ID_COL_NAME) &&
-          innobase_fulltext_exist(altered_table)) {
-        my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0), name);
-        goto err_exit_no_heap;
-      }
-
-      /* Prohibit renaming a column to an internal column. */
-      const char *s = m_prebuilt->table->col_names;
-      unsigned j;
-      /* Skip user columns.
-      MySQL should have checked these already.
-      We want to allow renaming of c1 to c2, c2 to c1. */
-      for (j = 0; j < table->s->fields; j++) {
-        if (!innobase_is_v_fld(table->field[j])) {
-          s += strlen(s) + 1;
-        }
-      }
-
-      for (; j < m_prebuilt->table->n_def; j++) {
-        if (!my_strcasecmp(system_charset_info, name, s)) {
-          my_error(ER_WRONG_COLUMN_NAME, MYF(0), s);
-          goto err_exit_no_heap;
-        }
-
-        s += strlen(s) + 1;
-      }
+    if (!ok_to_rename_column(ha_alter_info, table, altered_table,
+                             m_prebuilt->table, false, true)) {
+      goto err_exit_no_heap;
     }
   }
 
@@ -10021,6 +10145,7 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
       [[fallthrough]];
     case Instant_Type::INSTANT_NO_CHANGE:
     case Instant_Type::INSTANT_VIRTUAL_ONLY:
+    case Instant_Type::INSTANT_COLUMN_RENAME:
       if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {
         /* Deny the inplace ALTER TABLE. MySQL will try to
         re-create the table and ha_innobase::create() will
@@ -10361,7 +10486,7 @@ end:
                 : nullptr);
       } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
                  ctx == nullptr) {
-        dd_commit_inplace_no_change(old_part, new_part, true);
+        dd_commit_inplace_no_change(ha_alter_info, old_part, new_part, true);
       } else {
         inplace_instant = !ctx_parts->m_old_info[0].m_rebuild;
         dd_commit_inplace_alter_table(ctx_parts->m_old_info[i], ctx->new_table,
@@ -10603,7 +10728,7 @@ bool ha_innopart::commit_inplace_alter_partition(
                        m_part_share->next_auto_inc_val);
       }
 
-      dd_copy_table(*new_dd_tab, *old_dd_tab);
+      dd_copy_table(ha_alter_info, *new_dd_tab, *old_dd_tab);
       dd_part_adjust_table_id(new_dd_tab);
       if (!dd_table_part_has_instant_cols(*new_dd_tab) &&
           dd_table_has_instant_cols(*new_dd_tab)) {

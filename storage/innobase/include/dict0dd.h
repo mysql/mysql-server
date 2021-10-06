@@ -570,7 +570,8 @@ void dd_copy_private(Table &new_table, const Table &old_table);
 /** Copy the engine-private parts of column definitions of a table
 @param[in,out]	new_table	Copy of old table
 @param[in]	old_table	Old table */
-void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table);
+void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
+                           dd::Table &new_table, const dd::Table &old_table);
 
 /** Copy the metadata of a table definition, including the INSTANT
 ADD COLUMN information. This should be done when it's not an ALTER TABLE
@@ -578,9 +579,10 @@ with rebuild. Basically, check dd::Table::se_private_data and
 dd::Column::se_private_data.
 @param[in,out]	new_table	Copy of old table definition
 @param[in]	old_table	Old table definition */
-inline void dd_copy_table(dd::Table &new_table, const dd::Table &old_table) {
+inline void dd_copy_table(const Alter_inplace_info *ha_alter_info,
+                          dd::Table &new_table, const dd::Table &old_table) {
   /* Copy columns first, to make checking in dd_copy_instant_n_cols pass */
-  dd_copy_table_columns(new_table, old_table);
+  dd_copy_table_columns(ha_alter_info, new_table, old_table);
   if (dd_table_has_instant_cols(old_table)) {
     dd_copy_instant_n_cols(new_table, old_table);
   }
@@ -597,8 +599,9 @@ void dd_part_adjust_table_id(dd::Table *new_table);
 @param[in]	altered_table	MySQL table that is being altered
 @param[in,out]	new_dd_table	New dd::Table
 @param[in]	new_table	New InnoDB table object */
-void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
-                            dd::Table *new_dd_table,
+void dd_add_instant_columns(IF_DEBUG(const Alter_inplace_info *ha_alter_info, )
+                                const TABLE *old_table,
+                            const TABLE *altered_table, dd::Table *new_dd_table,
                             const dict_table_t *new_table);
 
 /** Clear the instant ADD COLUMN information of a table
@@ -1041,9 +1044,7 @@ operation.
 @retval DB_SUCCESS on success. */
 dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 /** Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
