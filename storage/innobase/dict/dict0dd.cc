@@ -68,6 +68,7 @@ Data dictionary interface */
 #include "ha_prototypes.h"
 #include "mysql/plugin.h"
 #include "query_options.h"
+#include "sql/create_field.h"
 #include "sql/mysqld.h"  // lower_case_file_system
 #include "sql_base.h"
 #include "sql_table.h"
@@ -1564,21 +1565,73 @@ template void dd_copy_private<dd::Table>(dd::Table &, const dd::Table &);
 template void dd_copy_private<dd::Partition>(dd::Partition &,
                                              const dd::Partition &);
 
+/** Check if given column is renamed during ALTER.
+@param[in]	ha_alter_info	alter info
+@param[in]	old_name	colmn old name
+@param[out]	new_col		column new name
+@return true if column is renamed, false otherwise. */
+static bool is_renamed(const Alter_inplace_info *ha_alter_info,
+                       const char *old_name, std::string &new_name) {
+  List_iterator_fast<Create_field> cf_it(
+      ha_alter_info->alter_info->create_list);
+  cf_it.rewind();
+  Create_field *cf;
+  while ((cf = cf_it++) != nullptr) {
+    if (cf->field && cf->field->is_flag_set(FIELD_IS_RENAMED) &&
+        !my_strcasecmp(system_charset_info, old_name, cf->change)) {
+      /* This column is being renamed */
+      new_name = cf->field_name;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Check if given column is dropped during ALTER.
+@param[in]	ha_alter_info	alter info
+@param[in]	dd_column	dd::Column
+@return true if column is dropped, false otherwise. */
+static bool is_dropped(const Alter_inplace_info *ha_alter_info,
+                       const dd::Column *old_dd_column) {
+  for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
+    if (drop->type != Alter_drop::COLUMN) continue;
+
+    if (!my_strcasecmp(system_charset_info, old_dd_column->name().c_str(),
+                       drop->name)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** Copy the engine-private parts of column definitions of a table.
 @param[in,out]	new_table	Copy of old table
 @param[in]	old_table	Old table */
-void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table) {
+void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
+                           dd::Table &new_table, const dd::Table &old_table) {
   /* Columns in new table maybe more than old tables, when this is
   called for adding instant columns. Also adding and dropping
   virtual columns instantly is another case. */
   for (const auto old_col : old_table.columns()) {
-    dd::Column *new_col = const_cast<dd::Column *>(
-        dd_find_column(&new_table, old_col->name().c_str()));
+    dd::Column *new_col = nullptr;
+    std::string new_name;
 
-    if (new_col == nullptr) {
+    /* Skip the dropped column */
+    if (is_dropped(ha_alter_info, old_col)) {
+      /* Currently only virtual columns can be dropped instantly */
       ut_ad(old_col->is_virtual());
       continue;
+    } else if (is_renamed(ha_alter_info, old_col->name().c_str(), new_name)) {
+      new_col = const_cast<dd::Column *>(
+          dd_find_column(&new_table, new_name.c_str()));
+    } else {
+      new_col = const_cast<dd::Column *>(
+          dd_find_column(&new_table, old_col->name().c_str()));
     }
+
+    ut_a(new_col);
 
     if (!old_col->se_private_data().empty()) {
       if (!new_col->se_private_data().empty())
@@ -1675,8 +1728,9 @@ bool dd_instant_columns_exist(const dd::Table &dd_table) {
 @param[in]	altered_table	MySQL table that is being altered
 @param[in,out]	new_dd_table	New dd::Table
 @param[in]	new_table	New InnoDB table object */
-void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
-                            dd::Table *new_dd_table,
+void dd_add_instant_columns(IF_DEBUG(const Alter_inplace_info *ha_alter_info, )
+                                const TABLE *old_table,
+                            const TABLE *altered_table, dd::Table *new_dd_table,
                             const dict_table_t *new_table) {
   DD_instant_col_val_coder coder;
   uint32_t old_n_stored_cols = 0;
@@ -1716,8 +1770,20 @@ void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
       continue;
     }
 
-    ut_ad(strcmp(old_table->field[old_cols]->field_name,
-                 altered_table->field[new_cols]->field_name) == 0);
+#ifdef UNIV_DEBUG
+    {
+      std::string new_name;
+      if (is_renamed(ha_alter_info, old_table->field[old_cols]->field_name,
+                     new_name)) {
+        ut_ad(strcmp(new_name.c_str(),
+                     altered_table->field[new_cols]->field_name) == 0);
+      } else {
+        ut_ad(strcmp(old_table->field[old_cols]->field_name,
+                     altered_table->field[new_cols]->field_name) == 0);
+      }
+    }
+#endif
+
     ++old_cols;
     ++new_cols;
     ut_d(++n_stored_checked);
