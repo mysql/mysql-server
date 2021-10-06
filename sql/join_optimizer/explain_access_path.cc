@@ -639,7 +639,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       const auto &param = path->index_merge();
       description.emplace_back("Sort-deduplicate by row ID");
       for (AccessPath *child : *path->index_merge().children) {
-        if (param.table->file->primary_key_is_clustered() &&
+        if (param.allow_clustered_primary_key_scan &&
+            param.table->file->primary_key_is_clustered() &&
             child->index_range_scan().index == param.table->s->primary_key) {
           children.push_back(
               {child, "Clustered primary key (scanned separately)"});

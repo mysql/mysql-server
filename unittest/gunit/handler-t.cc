@@ -152,7 +152,7 @@ TEST_F(HandlerTest, IndexInMemoryEstimate) {
   Mock_field_datetime field_datetime;
   Fake_TABLE *table = static_cast<Fake_TABLE *>(field_datetime.table);
   handlerton *hton = nullptr;
-  StrictMock<Mock_HANDLER> mock_handler(hton, table->get_share());
+  NiceMock<Mock_HANDLER> mock_handler(hton, table->get_share());
   table->set_handler(&mock_handler);
   mock_handler.change_table_ptr(table, table->get_share());
   const uint key_no = 0;

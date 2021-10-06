@@ -3688,6 +3688,128 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
   query_block->cleanup(m_thd, /*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, IndexMerge) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x < 3 OR t1.y > 4",
+                      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
+
+  // Mark the index as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // No filter; it should be subsumed.
+  ASSERT_EQ(AccessPath::INDEX_MERGE, root->type);
+  ASSERT_EQ(2, root->index_merge().children->size());
+
+  // t1.x < 3; we don't bother checking the other range, since it's so tedious.
+  AccessPath *child0 = (*root->index_merge().children)[0];
+  ASSERT_EQ(AccessPath::INDEX_RANGE_SCAN, child0->type);
+  ASSERT_EQ(1, child0->index_range_scan().num_ranges);
+  EXPECT_EQ(NO_MIN_RANGE | NEAR_MAX,
+            child0->index_range_scan().ranges[0]->flag);
+  string_view max_key{
+      pointer_cast<char *>(child0->index_range_scan().ranges[0]->max_key),
+      child0->index_range_scan().ranges[0]->max_length};
+  EXPECT_EQ("\x03\x00\x00\x00"sv, max_key);
+
+  AccessPath *child1 = (*root->index_merge().children)[1];
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, child1->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexMergeSubsumesOnlyOnePredicate) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE (t1.x < 3 OR t1.y > 4) AND (t1.y > 0 OR t1.z > "
+      "0)",
+      /*nullable=*/false);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->file->stats.records = 1000;
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
+
+  // Mark the index as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The second predicate should not be subsumed, so we have a filter.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("((t1.y > 0) or (t1.z > 0))",
+            ItemToString(root->filter().condition));
+  EXPECT_EQ(AccessPath::INDEX_MERGE, root->filter().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
+  for (bool order_by : {false, true}) {
+    SCOPED_TRACE(order_by ? "With ORDER BY" : "Without ORDER BY");
+
+    Query_block *query_block = ParseAndResolve(
+        order_by ? "SELECT 1 FROM t1 WHERE t1.x < 3 OR t1.y > 4 ORDER BY t1.x"
+                 : "SELECT 1 FROM t1 WHERE t1.x < 3 OR t1.y > 4",
+        /*nullable=*/false);
+
+    Fake_TABLE *t1 = m_fake_tables["t1"];
+    t1->file->stats.records = 1000;
+    t1->s->primary_key =
+        t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+    t1->create_index(t1->field[1], nullptr, /*unique=*/false);
+
+    // Mark the index as supporting range scans, being ordered, and being
+    // clustered.
+    ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+            index_flags(_, _, _))
+        .WillByDefault(Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT |
+                              HA_READ_PREV));
+    ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+            primary_key_is_clustered())
+        .WillByDefault(Return(true));
+
+    string trace;
+    AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+    SCOPED_TRACE(trace);  // Prints out the trace on failure.
+    // Prints out the query plan on failure.
+    SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                                /*is_root_of_join=*/true));
+
+    ASSERT_EQ(AccessPath::INDEX_MERGE, root->type);
+    EXPECT_EQ(2, root->index_merge().children->size());
+    if (order_by) {
+      // We should choose a non-clustered primary key scan, since that gets the
+      // ordering and thus elides the sort.
+      EXPECT_FALSE(root->index_merge().allow_clustered_primary_key_scan);
+    } else {
+      // If there's no ordering, then using the CPK scan is cheaper.
+      EXPECT_TRUE(root->index_merge().allow_clustered_primary_key_scan);
+    }
+
+    query_block->cleanup(m_thd, /*full=*/true);
+  }
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

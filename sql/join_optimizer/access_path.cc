@@ -440,7 +440,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         for (size_t child_idx = 0; child_idx < param.children->size();
              ++child_idx) {
           AccessPath *range_scan = (*param.children)[child_idx];
-          if (param.table->file->primary_key_is_clustered() &&
+          if (param.allow_clustered_primary_key_scan &&
+              param.table->file->primary_key_is_clustered() &&
               range_scan->index_range_scan().index ==
                   param.table->s->primary_key) {
             assert(pk_quick_select == nullptr);

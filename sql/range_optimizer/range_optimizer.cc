@@ -1200,6 +1200,7 @@ static AccessPath *get_best_disjunct_quick(
       imerge_path->type = AccessPath::INDEX_MERGE;
       imerge_path->index_merge().table = table;
       imerge_path->index_merge().forced_by_hint = force_index_merge;
+      imerge_path->index_merge().allow_clustered_primary_key_scan = true;
       imerge_path->index_merge().children =
           new (param->return_mem_root) Mem_root_array<AccessPath *>(
               param->return_mem_root, range_scans, range_scans + n_child_scans);

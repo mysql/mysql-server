@@ -128,8 +128,6 @@ class SEL_IMERGE {
  public:
   Mem_root_array<SEL_TREE *> trees;
 
-  SEL_ARG ***best_keys; /* best keys to read in SEL_TREEs */
-
   SEL_IMERGE(MEM_ROOT *mem_root) : trees(mem_root) {}
   SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param);
   bool or_sel_tree(SEL_TREE *tree);

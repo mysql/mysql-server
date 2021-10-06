@@ -541,7 +541,16 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2) {
     SEL_ROOT *key1 = tree1->release_key(idx);
     SEL_ROOT *key2 = tree2->release_key(idx);
 
-    if (key1 || key2) {
+    if (key1 != nullptr || key2 != nullptr) {
+      if (key1 == nullptr || key2 == nullptr) {
+        // If AND-ing two trees together, and one has an expression over a
+        // different index from the other, we cannot guarantee that the entire
+        // expression is exact if that index is chosen. (The only time this
+        // really matters is when there's an AND within an OR; only the
+        // hypergraph optimizer cares about the inexact flag, and it does its
+        // own splitting of top-level ANDs.)
+        tree1->inexact = true;
+      }
       SEL_ROOT *new_key = key_and(param, key1, key2);
       tree1->set_key(idx, new_key);
       if (new_key) {

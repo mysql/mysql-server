@@ -889,6 +889,7 @@ struct AccessPath {
     struct {
       TABLE *table;
       bool forced_by_hint;
+      bool allow_clustered_primary_key_scan;
       Mem_root_array<AccessPath *> *children;
     } index_merge;
     struct {

@@ -98,6 +98,7 @@
 #include "sql/table.h"
 #include "sql/table_function.h"
 #include "sql/temp_table_param.h"
+#include "sql/uniques.h"
 #include "sql/window.h"
 #include "template_utils.h"
 
@@ -372,6 +373,13 @@ class CostingReceiver {
 
   bool FindIndexRangeScans(int node_idx, bool *impossible,
                            double *num_output_rows_after_filter);
+  void ProposeIndexMerge(TABLE *table, int node_idx, const SEL_IMERGE &imerge,
+                         int pred_idx, bool inexact,
+                         bool allow_clustered_primary_key_scan,
+                         int num_where_predicates,
+                         double num_output_rows_after_filter,
+                         RANGE_OPT_PARAM *param,
+                         bool *has_clustered_primary_key_scan);
 
   void TraceAccessPaths(NodeMap nodes);
   void ProposeAccessPathForBaseTable(int node_idx,
@@ -1009,6 +1017,149 @@ double EstimateOutputRowsFromRangeTree(
   return total_rows * selectivity;
 }
 
+/**
+  From a collection of index scans, find the single cheapest one and generate an
+  AccessPath for it. This is similar to CollectPossibleRangeScans(), except that
+  this is for index merge, where we don't want to enumerate all possibilities;
+  since we don't care about the ordering of the index (we're going to sort all
+  of the rows to deduplicate them anyway), cost is the only interesting metric,
+  so we only need to pick out and collect ranges for one of them.
+  (This isn't strictly true; sometimes, it can be attractive to choose a
+  clustered primary key, so we prefer one if we allow them. See the code about
+  is_preferred_cpk below, and the comment on the caller. Also, see about
+  exactness below.)
+
+  This function can probably be extended to find ROR-capable scans later
+  (just check is_ror_scan instead of is_imerge_scan).
+
+  Note that all such scans are index-only (covering), which is reflected in
+  the cost parameters we use.
+
+  *inexact is set to true if and only if the chosen path does not reflect its
+  predicate faithfully, and needs to be rechecked. We do not currently take
+  into account that this may affect the cost higher up, as the difference
+  should be small enough that we don't want the combinatorial explosion.
+ */
+AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
+                                       RANGE_OPT_PARAM *param,
+                                       bool prefer_clustered_primary_key_scan,
+                                       bool *inexact) {
+  double best_cost = DBL_MAX;
+  int best_key = -1;
+  int best_num_rows = -1;
+  unsigned best_mrr_flags = 0, best_mrr_buf_size = 0;
+  for (unsigned idx = 0; idx < param->keys; idx++) {
+    SEL_ROOT *root = tree->keys[idx];
+    if (root == nullptr || root->type == SEL_ROOT::Type::MAYBE_KEY ||
+        root->root->maybe_flag) {
+      continue;
+    }
+
+    unsigned mrr_flags, buf_size;
+    Cost_estimate cost;
+    bool is_ror_scan, is_imerge_scan;
+
+    ha_rows num_rows =
+        check_quick_select(thd, param, idx, /*index_only=*/true, root,
+                           /*update_tbl_stats=*/true, ORDER_NOT_RELEVANT,
+                           /*skip_records_in_range=*/false, &mrr_flags,
+                           &buf_size, &cost, &is_ror_scan, &is_imerge_scan);
+    if (num_rows == HA_POS_ERROR || !is_imerge_scan) {
+      continue;
+    }
+    const bool is_preferred_cpk =
+        prefer_clustered_primary_key_scan &&
+        param->table->file->primary_key_is_clustered() &&
+        param->real_keynr[idx] == param->table->s->primary_key;
+    if (!is_preferred_cpk && cost.total_cost() > best_cost) {
+      continue;
+    }
+
+    best_key = idx;
+    best_cost = cost.total_cost();
+    best_num_rows = num_rows;
+    best_mrr_flags = mrr_flags;
+    best_mrr_buf_size = buf_size;
+
+    if (is_preferred_cpk) {
+      break;
+    }
+  }
+  if (best_key == -1) {
+    return nullptr;
+  }
+
+  const uint keynr = param->real_keynr[best_key];
+  SEL_ROOT *root = tree->keys[best_key];
+
+  Quick_ranges ranges(param->return_mem_root);
+  unsigned used_key_parts, num_exact_key_parts;
+  if (get_ranges_from_tree(param->return_mem_root, param->table,
+                           param->key[best_key], keynr, root, MAX_REF_PARTS,
+                           &used_key_parts, &num_exact_key_parts, &ranges)) {
+    return nullptr;
+  }
+
+  KEY *key = &param->table->key_info[keynr];
+
+  AccessPath *path = new (param->return_mem_root) AccessPath;
+  path->type = AccessPath::INDEX_RANGE_SCAN;
+  path->init_cost = 0.0;
+  path->cost = path->cost_before_filter = best_cost;
+  path->num_output_rows_before_filter = path->num_output_rows = best_num_rows;
+  path->index_range_scan().index = keynr;
+  path->index_range_scan().num_used_key_parts = used_key_parts;
+  path->index_range_scan().used_key_part = param->key[best_key];
+  path->index_range_scan().ranges = &ranges[0];
+  path->index_range_scan().num_ranges = ranges.size();
+  path->index_range_scan().mrr_flags = best_mrr_flags;
+  path->index_range_scan().mrr_buf_size = best_mrr_buf_size;
+  path->index_range_scan().can_be_used_for_ror =
+      tree->ror_scans_map.is_set(best_key);
+  path->index_range_scan().need_rows_in_rowid_order = false;
+  path->index_range_scan().can_be_used_for_imerge = true;
+  path->index_range_scan().reuse_handler = false;
+  path->index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
+
+  *inexact |= (num_exact_key_parts != used_key_parts);
+  return path;
+}
+
+/**
+  Represents a candidate index merge, ie. an OR expression of several
+  range scans across different indexes (that can be reconciled by doing
+  deduplication by sorting on row IDs).
+
+  Each predicate (in our usual sense of “part of a top-level AND conjunction in
+  WHERE”) can give rise to multiple index merges (if there are AND conjunctions
+  within ORs), but one index merge arises from exactly one predicate.
+  This is not an inherent limitation, but it is how tree_and() does it;
+  if it takes two SEL_TREEs with index merges, it just combines their candidates
+  wholesale; each will deal with one predicate, and the other one would just
+  have to be applied as a filter.
+
+  This is obviously suboptimal, as there are many cases where we could do
+  better. Imagine something like (a = 3 OR b > 3) AND b <= 5, with separate
+  indexes on a and b; obviously, we could have applied this as a single index
+  merge between two range scans: (a = 3 AND b <= 5) OR (b > 3 AND b <= 5). But
+  this is probably not a priority for us, so we follow the range optimizer's
+  lead here and record each index merge as covering a separate, single
+  predicate.
+ */
+struct PossibleIndexMerge {
+  // The index merge itself (a list of range optimizer trees,
+  // implicitly ORed together).
+  SEL_IMERGE *imerge;
+
+  // Which WHERE predicate it came from.
+  size_t pred_idx;
+
+  // If true, the index merge does not faithfully represent the entire
+  // predicate (it could return more rows), and needs to be re-checked
+  // with a filter.
+  bool inexact;
+};
+
 bool CostingReceiver::FindIndexRangeScans(
     int node_idx, bool *impossible, double *num_output_rows_after_filter) {
   *impossible = false;
@@ -1033,6 +1184,7 @@ bool CostingReceiver::FindIndexRangeScans(
                                                 m_graph.predicates.size()};
   MutableOverflowBitset tree_subsumed_predicates{m_thd->mem_root,
                                                  m_graph.predicates.size()};
+  Mem_root_array<PossibleIndexMerge> index_merges(&m_range_optimizer_mem_root);
   const NodeMap my_map = TableBitmap(node_idx);
   SEL_TREE *tree = nullptr;
   for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
@@ -1075,6 +1227,27 @@ bool CostingReceiver::FindIndexRangeScans(
       // revert this decision. See SEL_TREE::inexact and get_ranges_from_tree().
       tree_subsumed_predicates.SetBit(i);
     }
+
+    // Store any index merges this predicate gives rise to. The final ANDed tree
+    // will also have a list of index merges, but it's only a combined list of
+    // the ones from individual predicates, so we collect them here to know
+    // which predicate they came from.
+    for (SEL_IMERGE &imerge : new_tree->merges) {
+      PossibleIndexMerge merge;
+      merge.imerge = &imerge;
+      merge.pred_idx = i;
+
+      // If there is more than one candidate merge arising from this predicate,
+      // it must be because we had an AND inside an OR (tree_and() is the only
+      // case that creates multiple candidates). ANDs in index merges are pretty
+      // much always handled nonexactly (see the comment on PossibleIndexMerge),
+      // ie., we pick one part of the conjunction and have to check the other
+      // by filter. So we need to note here that this has happened.
+      merge.inexact = (new_tree->merges.size() > 1);
+
+      index_merges.push_back(merge);
+    }
+
     if (tree == nullptr) {
       tree = new_tree;
     } else {
@@ -1096,9 +1269,13 @@ bool CostingReceiver::FindIndexRangeScans(
   assert(tree->type == SEL_TREE::KEY);
 
   Mem_root_array<PossibleRangeScan> possible_scans(&m_range_optimizer_mem_root);
+  OverflowBitset tree_applied_predicates_fixed =
+      std::move(tree_applied_predicates);
+  OverflowBitset tree_subsumed_predicates_fixed =
+      std::move(tree_subsumed_predicates);
   if (CollectPossibleRangeScans(
-          m_thd, tree, &param, std::move(tree_applied_predicates),
-          std::move(tree_subsumed_predicates), m_graph, &possible_scans)) {
+          m_thd, tree, &param, tree_applied_predicates_fixed,
+          tree_subsumed_predicates_fixed, m_graph, &possible_scans)) {
     return true;
   }
   *num_output_rows_after_filter = EstimateOutputRowsFromRangeTree(
@@ -1109,6 +1286,7 @@ bool CostingReceiver::FindIndexRangeScans(
     return false;
   }
 
+  // Propose all single-index index range scans.
   for (PossibleRangeScan &scan : possible_scans) {
     const uint keynr = param.real_keynr[scan.idx];
     KEY *key = &param.table->key_info[keynr];
@@ -1223,7 +1401,183 @@ bool CostingReceiver::FindIndexRangeScans(
     }
   }
 
+  // Propose all index merges we have collected. Note that this is only
+  // “sort-index” merges, ie., generally collect all the row IDs,
+  // deduplicate them by sorting (in a Unique object) and then read all the
+  // rows. If the indexes are “ROR compatible” (give out their rows in row ID
+  // order directly, without any sort -- typically only for InnoDB indexes with
+  // the primary key appended directly after the last key part), we can
+  // union/intersect them directly without any sorts (“ROR scans”). However, we
+  // do not support that yet; it will be for a future worklog.
+  for (const PossibleIndexMerge &imerge : index_merges) {
+    for (bool allow_clustered_primary_key_scan : {true, false}) {
+      bool has_clustered_primary_key_scan;
+      ProposeIndexMerge(table, node_idx, *imerge.imerge, imerge.pred_idx,
+                        imerge.inexact, allow_clustered_primary_key_scan,
+                        m_graph.num_where_predicates,
+                        *num_output_rows_after_filter, &param,
+                        &has_clustered_primary_key_scan);
+      if (!has_clustered_primary_key_scan) {
+        // No need to check scans with clustered key scans disallowed
+        // if we didn't choose one to begin with.
+        break;
+      }
+    }
+  }
   return false;
+}
+
+void CostingReceiver::ProposeIndexMerge(
+    TABLE *table, int node_idx, const SEL_IMERGE &imerge, int pred_idx,
+    bool inexact, bool allow_clustered_primary_key_scan,
+    int num_where_predicates, double num_output_rows_after_filter,
+    RANGE_OPT_PARAM *param, bool *has_clustered_primary_key_scan) {
+  double cost = 0.0;
+  double num_output_rows = 0.0;
+
+  // Clustered primary keys are special; we can deduplicate
+  // against them cheaper than running through the Unique object,
+  // so we want to keep track of its size to cost them.
+  // However, they destroy ordering properties, and if there are
+  // very few rows in the scan, it's probably better to avoid the
+  // compare, so we need to try both with and without
+  // (done in a for loop outside this function).
+  *has_clustered_primary_key_scan = false;
+  double non_cpk_cost = 0.0;
+  double non_cpk_rows = 0.0;
+
+  Mem_root_array<AccessPath *> paths(m_thd->mem_root);
+  for (SEL_TREE *tree : imerge.trees) {
+    inexact |= tree->inexact;
+
+    // NOTE: If we allow clustered primary key scans, we prefer
+    // them here even with a higher cost, in case they make the
+    // entire query cheaper due to lower sort costs. (There can
+    // only be one in any given index merge, since there is only
+    // one primary key.) If we end up choosing it, we will be
+    // called again with allow_clustered_primary_key_scan=false.
+    AccessPath *path = FindCheapestIndexRangeScan(
+        m_thd, tree, param,
+        /*prefer_clustered_primary_key_scan=*/allow_clustered_primary_key_scan,
+        &inexact);
+
+    if (path == nullptr) {
+      // Something failed; ignore.
+      return;
+    }
+    paths.push_back(path);
+    cost += path->cost;
+    num_output_rows += path->num_output_rows;
+
+    if (allow_clustered_primary_key_scan &&
+        table->file->primary_key_is_clustered() &&
+        path->index_range_scan().index == table->s->primary_key) {
+      assert(!*has_clustered_primary_key_scan);
+      *has_clustered_primary_key_scan = true;
+    } else {
+      non_cpk_cost += path->cost;
+      non_cpk_rows = path->num_output_rows;
+    }
+  }
+
+  double init_cost = non_cpk_cost;
+
+  // If we have a clustered primary key scan, we scan it separately, without
+  // going through the deduplication-by-sort. But that means we need to make
+  // sure no other rows overlap with it; there's a special operation for this
+  // (check if a given row ID falls inside a given primary key range),
+  // but it's not free, so add it costs here.
+  if (*has_clustered_primary_key_scan) {
+    double compare_cost = table->cost_model()->key_compare_cost(non_cpk_rows);
+    init_cost += compare_cost;
+    cost += compare_cost;
+  }
+
+  // Add the cost for the Unique operations. Note that since we read
+  // the clustered primary key _last_, we cannot get out a single row
+  // before everything has been read and deduplicated. If we want
+  // lower init_cost (i.e., for LIMIT), we should probably change this.
+  const double rows_to_deduplicate =
+      *has_clustered_primary_key_scan ? non_cpk_rows : num_output_rows;
+  const double dup_removal_cost =
+      Unique::get_use_cost(rows_to_deduplicate, table->file->ref_length,
+                           m_thd->variables.sortbuff_size, table->cost_model());
+  init_cost += dup_removal_cost;
+  cost += dup_removal_cost;
+
+  // Add the cost for converting the sorted row IDs into rows
+  // (which is done for all rows, except for clustered primary keys).
+  // This happens running for each row, so doesn't get added to init_cost.
+  // NOTE: We always give is_interrupted = false, because we don't
+  // really know where we will be in the join tree.
+  Cost_estimate sweep_cost;
+  get_sweep_read_cost(table, non_cpk_rows, /*interrupted=*/false, &sweep_cost);
+  cost += sweep_cost.total_cost();
+
+  AccessPath imerge_path;
+  imerge_path.type = AccessPath::INDEX_MERGE;
+  imerge_path.index_merge().table = table;
+  imerge_path.index_merge().forced_by_hint = false;
+  imerge_path.index_merge().allow_clustered_primary_key_scan =
+      allow_clustered_primary_key_scan;
+  imerge_path.index_merge().children = new (param->return_mem_root)
+      Mem_root_array<AccessPath *>(std::move(paths));
+
+  imerge_path.cost = imerge_path.cost_before_filter = cost;
+  imerge_path.init_cost = init_cost;
+  imerge_path.num_output_rows = imerge_path.num_output_rows_before_filter =
+      min<double>(num_output_rows, num_output_rows_after_filter);
+
+  // Find out which ordering we would follow, if any. We nominally sort
+  // everything by row ID (which follows the primary key), but if we have a
+  // clustered primary key scan, it is taken after everything else and thus
+  // out-of-order (ironically enough).
+  if (!*has_clustered_primary_key_scan &&
+      table->file->primary_key_is_clustered()) {
+    const auto it = find_if(
+        m_active_indexes->begin(), m_active_indexes->end(),
+        [table](const ActiveIndexInfo &info) {
+          return info.table == table &&
+                 info.key_idx == static_cast<int>(table->s->primary_key);
+        });
+    if (it != m_active_indexes->end()) {
+      imerge_path.ordering_state = m_orderings->SetOrder(
+          m_orderings->RemapOrderingIndex(it->forward_order));
+    }
+  }
+
+  // An index merge corresponds to one predicate (see comment on
+  // PossibleIndexMerge), and subsumes that predicate if and only if it is a
+  // faithful representation of everything in it.
+  MutableOverflowBitset this_predicate(param->temp_mem_root,
+                                       num_where_predicates);
+  this_predicate.SetBit(pred_idx);
+  OverflowBitset applied_predicates(std::move(this_predicate));
+  OverflowBitset subsumed_predicates =
+      inexact ? OverflowBitset() : applied_predicates;
+  const bool contains_subqueries = Overlaps(imerge_path.filter_predicates,
+                                            m_graph.materializable_predicates);
+  for (bool materialize_subqueries : {false, true}) {
+    AccessPath new_path = imerge_path;
+    FunctionalDependencySet new_fd_set;
+    ApplyPredicatesForBaseTable(node_idx, applied_predicates,
+                                subsumed_predicates, materialize_subqueries,
+                                &new_path, &new_fd_set);
+
+    // Override the number of estimated rows, so that all paths get the
+    // same.
+    new_path.num_output_rows = num_output_rows_after_filter;
+
+    ProposeAccessPathWithOrderings(
+        TableBitmap(node_idx), new_fd_set,
+        /*obsolete_orderings=*/0, &new_path,
+        materialize_subqueries ? "mat. subq" : "index merge");
+
+    if (!contains_subqueries) {
+      // Nothing to try to materialize.
+      break;
+    }
+  }
 }
 
 // Specifies a mapping in a TABLE_REF between an index keypart and a condition,
