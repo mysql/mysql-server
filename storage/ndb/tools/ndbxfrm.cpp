@@ -286,7 +286,7 @@ int copy_file(const char src[], const char dst[])
     ndbxfrm_input_iterator wr_it = buffer.get_input_iterator();
     if (dst_xfrm.write_forward(&wr_it) == -1)
     {
-      fprintf(stderr, "Error: Can not write file %s.\n", src);
+      fprintf(stderr, "Error: Can not write file %s.\n", dst);
       r = 2; // write failure
       break;
     }
