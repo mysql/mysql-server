@@ -33,6 +33,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 #include "mysql/harness/logging/logging.h"
@@ -42,6 +43,7 @@
 #include "tcp_address.h"
 
 using namespace std::chrono_literals;
+using namespace std::string_view_literals;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -56,39 +58,61 @@ static const std::set<std::string> supported_params{
 
 namespace {
 
+const constexpr std::array<
+    std::pair<std::string_view, DestMetadataCacheGroup::ServerRole>, 3>
+    known_roles{{
+        {"PRIMARY", DestMetadataCacheGroup::ServerRole::Primary},
+        {"SECONDARY", DestMetadataCacheGroup::ServerRole::Secondary},
+        {"PRIMARY_AND_SECONDARY",
+         DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary},
+    }};
+
 DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     const mysqlrouter::URIQuery &uri) {
-  if (uri.find("role") == uri.end())
+  const auto it = uri.find("role");
+  if (it == uri.end()) {
     throw std::runtime_error(
         "Missing 'role' in routing destination specification");
+  }
 
-  const std::string name = uri.at("role");
-  std::string name_uc = name;
+  const std::string name = it->second;
+  std::string name_uc;
+  name_uc.resize(name.size());
   std::transform(name.begin(), name.end(), name_uc.begin(), ::toupper);
 
-  if (name_uc == "PRIMARY")
-    return DestMetadataCacheGroup::ServerRole::Primary;
-  else if (name_uc == "SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::Secondary;
-  else if (name_uc == "PRIMARY_AND_SECONDARY")
-    return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [name = name_uc](const auto &p) { return p.first == name; });
 
-  throw std::runtime_error("Invalid server role in metadata cache routing '" +
-                           name + "'");
+  if (role_it == known_roles.end()) {
+    std::string valid_names;
+    for (auto role : known_roles) {
+      if (!valid_names.empty()) {
+        valid_names += ", ";
+      }
+
+      valid_names += role.first;
+    }
+
+    throw std::runtime_error(
+        "The role in '?role=" + name +
+        "' does not contain one of the valid role names: " + valid_names);
+  }
+
+  return role_it->second;
 }
 
 std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
-  switch (role) {
-    case DestMetadataCacheGroup::ServerRole::Primary:
-      return "PRIMARY";
-    case DestMetadataCacheGroup::ServerRole::Secondary:
-      return "SECONDARY";
-    case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return "PRIMARY_AND_SECONDARY";
+  auto role_it =
+      std::find_if(known_roles.begin(), known_roles.end(),
+                   [role](const auto &p) { return p.second == role; });
+
+  if (role_it == known_roles.end()) {
+    return "unknown";
   }
 
-  return "unknown";
+  return std::string{role_it->first};
 }
 
 routing::RoutingStrategy get_default_routing_strategy(
