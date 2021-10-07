@@ -155,6 +155,7 @@ Requires:       grep
 Requires:       shadow-utils
 Recommends:     mecab-ipadic
 Recommends:     mecab-ipadic-EUCJP
+Requires:       %{name}-icu-data-files = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}

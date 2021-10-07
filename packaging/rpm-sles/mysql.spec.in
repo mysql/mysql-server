@@ -181,6 +181,7 @@ Requires:       net-tools
 Requires:       perl-base
 Requires:       %{name}-client >= %{min}
 Requires:       %{name}-common = %{version}-%{release}
+Requires:       %{name}-icu-data-files = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced = %{version}-%{release}
