@@ -95,7 +95,7 @@ MACRO(CREATE_JAR TARGET_ARG)
   SET(MARKER "${MARKER_BASE}.${COUNTER}")
 
   # Add target
-  ADD_CUSTOM_TARGET(${TARGET}.jar ALL DEPENDS ${JAR})
+  MY_ADD_CUSTOM_TARGET(${TARGET}.jar ALL DEPENDS ${JAR})
 
   # Limit memory of javac, otherwise build might fail for parallel builds.
   # (out-of-memory/timeout if garbage collector kicks in too late)
@@ -119,7 +119,7 @@ MACRO(CREATE_JAR TARGET_ARG)
         COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
-        COMMENT "Building objects for ${TARGET}.jar"
+        COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
       )
     ELSE()
       ADD_CUSTOM_COMMAND(
@@ -130,7 +130,7 @@ MACRO(CREATE_JAR TARGET_ARG)
         COMMAND ${JAVA_COMPILE} ${JAVA_ARGS} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
-        COMMENT "Building objects for ${TARGET}.jar"
+        COMMENT "Building objects for ${TARGET}.jar OUTPUT ${MARKER}"
       )
     ENDIF()
   ELSE()
@@ -157,8 +157,8 @@ MACRO(CREATE_JAR TARGET_ARG)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
-        DEPENDS ${F} ${OLD_MARKER}
-        COMMENT "Adding directory ${N} to ${TARGET}.jar"
+        DEPENDS ${OLD_MARKER}
+        COMMENT "Adding directory ${N} to ${TARGET}.jar DEPENDS ${OLD_MARKER} OUTPUT ${MARKER}"
       )
     ELSE()
       ADD_CUSTOM_COMMAND(
@@ -166,7 +166,7 @@ MACRO(CREATE_JAR TARGET_ARG)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/${F} ${CLASS_DIR}/${N}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${F} ${OLD_MARKER}
-        COMMENT "Adding file ${N} to ${TARGET}.jar"
+        COMMENT "Adding file ${N} to ${TARGET}.jar DEPENDS ${F} ${OLD_MARKER} OUTPUT ${MARKER}"
       )
     ENDIF()
   ENDFOREACH()
