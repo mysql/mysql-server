@@ -325,28 +325,39 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
                  NDB_THREAD_ARG *p_thread_arg,
                  const NDB_THREAD_STACKSIZE _stack_size,
                  const char* p_thread_name,
-                 NDB_THREAD_PRIO thread_prio)
+                 NDB_THREAD_PRIO thread_prio [[maybe_unused]])
 {
-  struct NdbThread* tmpThread;
-  int result;
-  my_thread_attr_t thread_attr;
-  my_thread_handle thread_handle;
-  NDB_THREAD_STACKSIZE thread_stack_size;
-
   DBUG_ENTER("NdbThread_Create");
 
+  if (p_thread_func == NULL)
+    DBUG_RETURN(NULL);
+
+  NDB_THREAD_STACKSIZE thread_stack_size;
   /* Use default stack size if 0 specified */
   if (_stack_size == 0)
     thread_stack_size = 64 * 1024 * SIZEOF_CHARP/4;
   else
     thread_stack_size = _stack_size * SIZEOF_CHARP/4;
 
-  (void)thread_prio; /* remove warning for unused parameter */
+#ifdef PTHREAD_STACK_MIN
+  /*
+    PTHREAD_STACK_MIN is not constant from glibc 2.34 onwards. Snippet from
+    the release notes:
+    * When _DYNAMIC_STACK_SIZE_SOURCE or _GNU_SOURCE are defined,
+      PTHREAD_STACK_MIN is no longer constant and is redefined to
+      sysconf(_SC_THREAD_STACK_MIN).  This supports dynamic sized register
+      sets for modern architectural features like Arm SVE.
 
-  if (p_thread_func == NULL)
+    Return an error if the value is negative
+  */
+  if (PTHREAD_STACK_MIN < 0)
     DBUG_RETURN(NULL);
+  if (thread_stack_size < static_cast<NDB_THREAD_STACKSIZE>(PTHREAD_STACK_MIN))
+    thread_stack_size = PTHREAD_STACK_MIN;
+#endif
+  DBUG_PRINT("info", ("stack_size: %zu", thread_stack_size));
 
-  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
+  NdbThread *const tmpThread = (NdbThread *)malloc(sizeof(NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -354,12 +365,8 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   my_stpnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
 
+  my_thread_attr_t thread_attr;
   my_thread_attr_init(&thread_attr);
-#ifdef PTHREAD_STACK_MIN
-  if (thread_stack_size < PTHREAD_STACK_MIN)
-    thread_stack_size = PTHREAD_STACK_MIN;
-#endif
-  DBUG_PRINT("info", ("stack_size: %llu", (ulonglong)thread_stack_size));
 #ifndef _WIN32
   pthread_attr_setstacksize(&thread_attr, thread_stack_size);
 #else
@@ -380,11 +387,12 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->first_lock_call_exclusive = false;
   tmpThread->first_lock_call_non_exclusive = false;
 
+  my_thread_handle thread_handle;
   NdbMutex_Lock(ndb_thread_mutex);
-  result = my_thread_create(&thread_handle,
-			    &thread_attr,
-  		            ndb_thread_wrapper,
-  		            tmpThread);
+  const int result = my_thread_create(&thread_handle,
+                                      &thread_attr,
+                                      ndb_thread_wrapper,
+                                      tmpThread);
   tmpThread->thread= thread_handle.thread;
 
   my_thread_attr_destroy(&thread_attr);
