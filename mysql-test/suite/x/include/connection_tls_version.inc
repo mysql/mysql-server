@@ -43,7 +43,7 @@ EOF
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 
 
---let $restart_parameters = restart: --tls-version=TLSv1,TLSv1.2
+--let $restart_parameters = restart: --tls-version=TLSv1.2
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
@@ -62,7 +62,7 @@ EOF
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3   $XTESTPARAMS 2>&1
 
 
---let $restart_parameters = restart: --tls-version=TLSv1.1,TLSv1.2
+--let $restart_parameters = restart: --tls-version=TLSv1.2
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
