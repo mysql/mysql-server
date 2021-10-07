@@ -231,6 +231,7 @@ Requires:       shadow-utils
 Requires:       net-tools
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
+Requires:       %{name}-icu-data-files = %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-commercial-embedded < 8.0.1
