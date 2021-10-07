@@ -31,19 +31,22 @@
 # on systems we can trust.
 # On Windows we use the Windows subsystem for Linux and gcc and sed
 # installed in it, if available.
+SET(RUN_ABI_CHECK 0)
 IF(LINUX AND MY_COMPILER_IS_GNU)
   SET(RUN_ABI_CHECK 1)
 ELSEIF(WIN32)
   FIND_PROGRAM(WSL_EXECUTABLE wsl HINTS C:/Windows/Sysnative)
   IF (WSL_EXECUTABLE)
     SET (COMPILER "gcc")
-    SET(RUN_ABI_CHECK 1)
-    MESSAGE(STATUS "Will do ABI check using ${WSL_EXECUTABLE} (gcc/sed)")
-  ELSE()
-    SET(RUN_ABI_CHECK 0)
+    # Check that the compiler is available under WSL.
+    EXECUTE_PROCESS(
+      COMMAND ${WSL_EXECUTABLE} which ${COMPILER}
+      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE COMPILER_LOCATION)
+    IF (COMPILER_LOCATION STREQUAL "/usr/bin/gcc")
+      SET(RUN_ABI_CHECK 1)
+      MESSAGE(STATUS "Will do ABI check using ${WSL_EXECUTABLE} (gcc/sed)")
+    ENDIF()
   ENDIF()
-ELSE()
-  SET(RUN_ABI_CHECK 0)
 ENDIF()
 
 SET(API_PREPROCESSOR_HEADER
