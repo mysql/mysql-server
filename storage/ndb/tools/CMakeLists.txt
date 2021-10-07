@@ -79,7 +79,7 @@ BISON_TARGET(ndb_import
 # The new Xcode build system does not support multiple targets that
 # DEPEND on the same outputs.
 IF(NOT APPLE_XCODE)
-  ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
+  MY_ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
 ENDIF()
 
 OPTION(NDB_UTILS_LINK_DYNAMIC
