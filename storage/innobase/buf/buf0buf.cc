@@ -6029,7 +6029,7 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  ut_a(buf_LRU_validate());
+  buf_LRU_validate_instance(buf_pool);
   ut_a(buf_flush_validate(buf_pool));
 
   return (TRUE);
