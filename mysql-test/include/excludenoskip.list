@@ -307,3 +307,7 @@ not_hypergraph.inc
 
 # 30. Keyring_file component - can be skipped based on cmake configuration
 have_component_keyring_file.inc
+
+# 31. MTR test case can be skipped because it is just used to exercise
+# a unit test that requires a runninng server.
+have_cs_test_mysql_proto_reader_mtr.inc

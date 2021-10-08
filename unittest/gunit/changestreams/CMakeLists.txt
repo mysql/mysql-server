@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,47 +20,38 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(REPLICATION_SOURCES
-  binary_log_funcs.cpp
-  binlog_event.cpp
+ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
-  codecs/binary.cpp
-  codecs/factory.cpp
-
-  compression/base.cpp
-  compression/factory.cpp
-  compression/iterator.cpp
-  compression/none.cpp
-  compression/zstd.cpp
-
-  control_events.cpp
-  event_reader.cpp
-
-  gtids/gtid.cpp
-  gtids/gtidset.cpp
-
-  load_data_events.cpp
-  rows_event.cpp
-  statement_events.cpp
-  trx_boundary_parser.cpp
-  uuid.cpp
-  )
-
-# Configure for building static library
-ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
-
-IF(STANDALONE_BINLOG)
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY})
-ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY} mysys)
-  ADD_DEPENDENCIES(binlogevents_static GenError)
+MY_CHECK_CXX_COMPILER_WARNING("-Wno-unused-local-typedefs" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-SET_TARGET_PROPERTIES(binlogevents_static
-  PROPERTIES OUTPUT_NAME "binlogevents"
-  )
+INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
-SET_TARGET_PROPERTIES(binlogevents_static
-  PROPERTIES
-  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib
-  )
+# Add tests
+SET(TESTS
+  cstreams_reader_state)
+
+SET(TESTS_LINK_LIBRARIES
+  changestreams_standalone_static
+  binlogstandalone_static
+  mysqlclient
+  gunit_small)
+
+IF (WITH_CS_PROTOBUF)
+  LIST(APPEND TESTS
+    cstreams_reader_state_codec_pb)
+
+  LIST(APPEND TESTS_LINK_LIBRARIES
+    changestreams_pb_static
+    ${PROTOBUF_LITE_LIBRARY})
+ENDIF()
+
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ADD_TEST ${test}
+    LINK_LIBRARIES ${TESTS_LINK_LIBRARIES}
+    COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
+ENDFOREACH()
+

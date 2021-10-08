@@ -28,7 +28,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(HAVE_MYSYS)
 /* Event parser state names */
 static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
                                                  "Error"};
