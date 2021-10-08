@@ -465,6 +465,13 @@ static Sys_var_bool Sys_pfs_consumer_events_stages_history_long(
         GLOBAL_VAR(pfs_param.m_consumer_events_stages_history_long_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_bool Sys_pfs_consumer_events_statements_cpu(
+    "performance_schema_consumer_events_statements_cpu",
+    "Default startup value for the events_statements_cpu consumer.",
+    READ_ONLY NOT_VISIBLE
+        GLOBAL_VAR(pfs_param.m_consumer_events_statements_cpu_enabled),
+    CMD_LINE(OPT_ARG), DEFAULT(false), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_bool Sys_pfs_consumer_events_statements_current(
     "performance_schema_consumer_events_statements_current",
     "Default startup value for the events_statements_current consumer.",

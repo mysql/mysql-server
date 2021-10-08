@@ -143,6 +143,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement);
 
 extern ulong nested_statement_lost;
 
+extern bool flag_events_statements_cpu;
 extern bool flag_events_statements_current;
 extern bool flag_events_statements_history;
 extern bool flag_events_statements_history_long;

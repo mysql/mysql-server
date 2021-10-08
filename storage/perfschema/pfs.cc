@@ -5956,6 +5956,10 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
 
     if (klass->m_timed) {
       flags |= STATE_FLAG_TIMED;
+
+      if (flag_events_statements_cpu) {
+        flags |= STATE_FLAG_CPU;
+      }
     }
 
     if (flag_events_statements_current) {
@@ -6178,8 +6182,11 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
 
   if (flags & STATE_FLAG_TIMED) {
     timer_start = get_statement_timer();
-    cpu_time_start = get_thread_cpu_timer();
     state->m_timer_start = timer_start;
+  }
+
+  if (flags & STATE_FLAG_CPU) {
+    cpu_time_start = get_thread_cpu_timer();
     state->m_cpu_time_start = cpu_time_start;
   }
 
@@ -6398,10 +6405,13 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   ulonglong wait_time = 0;
   uint flags = state->m_flags;
 
-  if (flags & STATE_FLAG_TIMED) {
+  if (flags & STATE_FLAG_CPU) {
     cpu_time_end = get_thread_cpu_timer();
-    timer_end = get_statement_timer();
     cpu_time = cpu_time_end - state->m_cpu_time_start;
+  }
+
+  if (flags & STATE_FLAG_TIMED) {
+    timer_end = get_statement_timer();
     wait_time = timer_end - state->m_timer_start;
   }
 
