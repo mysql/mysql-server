@@ -318,6 +318,8 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] client closed the signalling connection .*"),
  ("\\[GCS\\] local_server: client closed the signalling connection.*"),
  ("\\[GCS\\] local_server: error reading from the signalling connection.*"),
+ ("\\[GCS\\] Unable to start XCom Network Provider.*"),
+ ("\\[GCS\\] Error initializing the group communication engine.*"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx
