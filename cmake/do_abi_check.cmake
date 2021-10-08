@@ -71,6 +71,11 @@ IF(WSL_EXECUTABLE)
   EXECUTE_PROCESS(
     COMMAND ${WSL_EXECUTABLE} wslpath ${ABI_BINARY_DIR}
     OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE ABI_BINARY_DIR)
+  EXECUTE_PROCESS(
+    COMMAND ${WSL_EXECUTABLE} wslpath ${abi_check_out}
+    OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE abi_current)
+ELSE()
+  SET (abi_current ${abi_check_out})
 ENDIF()
 
 FOREACH(file ${ABI_HEADERS})
@@ -100,8 +105,18 @@ FOREACH(file ${ABI_HEADERS})
     MESSAGE(FATAL_ERROR "sed returned error ${result}")
   ENDIF()
   FILE(REMOVE ${tmpfile})
+
+  IF(WSL_EXECUTABLE)
+    EXECUTE_PROCESS(
+      COMMAND ${WSL_EXECUTABLE} wslpath ${file}
+      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE abi_original)
+  ELSE()
+    SET (abi_original ${file})
+  ENDIF()
+
   EXECUTE_PROCESS(
-    COMMAND diff -w ${file}.pp ${abi_check_out} RESULT_VARIABLE result)
+    COMMAND ${WSL_EXECUTABLE} diff -w ${abi_original}.pp ${abi_current}
+    RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
     MESSAGE(FATAL_ERROR
       "ABI check found difference between ${file}.pp and ${abi_check_out}")
