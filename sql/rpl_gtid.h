@@ -29,6 +29,7 @@
 #include <mutex>  // std::adopt_lock_t
 
 #include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/gtids/global.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
@@ -96,8 +97,9 @@ class THD;
 
 /// Type of SIDNO (source ID number, first component of GTID)
 typedef int rpl_sidno;
-/// Type of GNO, the second (numeric) component of GTID
-typedef std::int64_t rpl_gno;
+/// GNO, the second (numeric) component of a GTID, is an alias of
+/// binary_log::gtids::gno_t
+using rpl_gno = binary_log::gtids::gno_t;
 typedef int64 rpl_binlog_pos;
 
 /**

@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/have_cs_test_mysql_proto_reader_mtr.inc
+--source include/gtid_utils.inc
+
+RESET MASTER;
+
+--eval SET GTID_NEXT='$uuid0:1'
+CREATE TABLE t1 (c1 INT);
+
+--eval SET GTID_NEXT='$uuid0:2'
+INSERT INTO t1 VALUES (1);
+
+--eval SET GTID_NEXT='$uuid1:1'
+INSERT INTO t1 VALUES (2);
+
+--eval SET GTID_NEXT='$uuid1:2'
+INSERT INTO t1 VALUES (3);
+SET GTID_NEXT=AUTOMATIC;
+
+--let $basedir=`SELECT @@basedir`
+--replace_result $basedir BASEDIR $MASTER_MYPORT MASTER_MYPORT
+--exec $basedir/bin/cs-test-mysql-proto-reader-mtr --gtest_print_time=0 127.0.0.1 root "" $MASTER_MYPORT
+
+DROP TABLE t1;
+RESET MASTER;
+
+--source include/gtid_utils_end.inc

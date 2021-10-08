@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,47 +20,39 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(REPLICATION_SOURCES
-  binary_log_funcs.cpp
-  binlog_event.cpp
+ADD_WSHADOW_WARNING()
+DISABLE_MISSING_PROFILE_WARNING()
 
-  codecs/binary.cpp
-  codecs/factory.cpp
-
-  compression/base.cpp
-  compression/factory.cpp
-  compression/iterator.cpp
-  compression/none.cpp
-  compression/zstd.cpp
-
-  control_events.cpp
-  event_reader.cpp
-
-  gtids/gtid.cpp
-  gtids/gtidset.cpp
-
-  load_data_events.cpp
-  rows_event.cpp
-  statement_events.cpp
-  trx_boundary_parser.cpp
-  uuid.cpp
-  )
-
-# Configure for building static library
-ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
-
-IF(STANDALONE_BINLOG)
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY})
-ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY} mysys)
-  ADD_DEPENDENCIES(binlogevents_static GenError)
+# This is not a unit test per se, but uses the Google Test framework
+# We are thus treating it as a unit test.
+IF(NOT WITH_UNIT_TESTS)
+  RETURN()
 ENDIF()
 
-SET_TARGET_PROPERTIES(binlogevents_static
-  PROPERTIES OUTPUT_NAME "binlogevents"
-  )
+ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
-SET_TARGET_PROPERTIES(binlogevents_static
-  PROPERTIES
-  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib
-  )
+SET(TESTS_DIR ${CS_BASE_SRC_DIR}/tests)
+
+SET(TESTS "")
+
+SET(TEST_LINK_LIBRARIES
+  changestreams_standalone_static
+  binlogstandalone_static
+  mysqlclient
+  ${GTEST_LIBRARIES})
+
+# If we are using the protobuf extensions
+IF (WITH_CS_PROTOBUF)
+  SET (TESTS
+    ${TESTS}
+    cs-test-mysql-proto-reader-mtr)
+
+  LIST(APPEND TEST_LINK_LIBRARIES
+    changestreams_pb_static ${PROTOBUF_LITE_LIBRARY})
+ENDIF()
+
+FOREACH(test ${TESTS})
+  MYSQL_ADD_EXECUTABLE(${test} ${TESTS_DIR}/${test}.cpp
+    ADD_TEST ${test}
+    LINK_LIBRARIES ${TEST_LINK_LIBRARIES})
+ENDFOREACH()

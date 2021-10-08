@@ -1106,6 +1106,8 @@ class Gtid_event : public Binary_log_event {
   static const std::int64_t GNO_END = INT64_MAX;
 
  public:
+  std::int64_t get_gno() const { return gtid_info_struct.rpl_gtid_gno; }
+  Uuid get_uuid() const { return Uuid_parent_struct; }
   /// Total length of post header
   static const int POST_HEADER_LENGTH =
       ENCODED_FLAG_LENGTH +               /* flags */
