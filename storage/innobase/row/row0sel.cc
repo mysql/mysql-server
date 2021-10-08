@@ -4520,6 +4520,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     prebuilt->n_rows_fetched = 0;
     prebuilt->n_fetch_cached = 0;
     prebuilt->fetch_cache_first = 0;
+    prebuilt->m_end_range = false;
     if (record_buffer != nullptr) {
       record_buffer->reset();
     }
@@ -4547,6 +4548,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       prebuilt->n_rows_fetched = 0;
       prebuilt->n_fetch_cached = 0;
       prebuilt->fetch_cache_first = 0;
+      prebuilt->m_end_range = false;
 
       /* A record buffer is not used for scroll cursors.
       Otherwise, it would have to be reset here too. */
@@ -4559,8 +4561,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
       err = DB_SUCCESS;
       goto func_exit;
-    } else if (prebuilt->m_end_range == true) {
-      prebuilt->m_end_range = false;
+    } else if (prebuilt->m_end_range) {
       err = DB_RECORD_NOT_FOUND;
       goto func_exit;
     }
