@@ -139,15 +139,50 @@ bool Sql_cmd_update::precheck(THD *thd) {
       */
       if (tr->is_derived() || tr->uses_materialization())
         tr->grant.privilege = SELECT_ACL;
-      else if ((check_access(thd, UPDATE_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, false, true) ||
-                check_grant(thd, UPDATE_ACL, tr, false, 1, true)) &&
-               (check_access(thd, SELECT_ACL, tr->db, &tr->grant.privilege,
-                             &tr->grant.m_internal, false, false) ||
-                check_grant(thd, SELECT_ACL, tr, false, 1, false)))
-        return true;
-    }
-  }
+      else {
+        auto chk = [&](long want_access) {
+          const bool ignore_errors = (want_access == UPDATE_ACL);
+          return check_access(thd, want_access, tr->db, &tr->grant.privilege,
+                              &tr->grant.m_internal, false, ignore_errors) ||
+                 check_grant(thd, want_access, tr, false, 1, ignore_errors);
+        };
+        if (chk(UPDATE_ACL)) {
+          // Verify that lock has not yet been acquired for request.
+          assert(tr->mdl_request.ticket == nullptr);
+          // If there is no UPDATE privilege on this table we want to avoid
+          // acquring SHARED_WRITE MDL. It is safe to change lock type to
+          // SHARE_READ in such a case, since attempts to update column in
+          // this table will be rejected by later column-level privilege
+          // check.
+          // If a prepared statement/stored procedure is re-executed after
+          // the tables and privileges have been modified such that the
+          // ps/sp will attempt to update the SR-locked table, a
+          // reprepare/recompilation will restore the mdl request to SW.
+          //
+          // There are two possible cases in which we could try to update the SR
+          // locked table, here, in theory:
+          //
+          // 1) There was no movement of columns between tables mentioned in
+          // UPDATE statement.
+          //    We didn't have privilege on the table which we try to update
+          //    before but i was granted. This case is not relevant for PS, as
+          //    in it we will get an error during prepare phase and no PS will
+          //    be created. For SP first execution of statement will fail during
+          //    prepare phase as well, however, SP will stay around, and the
+          //    second execution attempt will just cause another prepare.
+          // 2) Some columns has been moved between tables mentioned in UPDATE
+          // statement,
+          //    so the table which was read-only initially (and on which we
+          //    didn't have UPDATE privilege then, so it was SR-locked), now
+          //    needs to be updated. The change in table definition will be
+          //    detected at open_tables() time and cause re-prepare in this
+          //    case.
+          tr->mdl_request.type = MDL_SHARED_READ;
+          if (chk(SELECT_ACL)) return true;
+        }
+      }  // else
+    }    // for
+  }      // else
   return false;
 }
 
