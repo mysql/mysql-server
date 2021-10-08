@@ -2495,7 +2495,7 @@ func_exit:
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list for one buffer pool instance.
 @param[in]	buf_pool	buffer pool instance */
-static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
+void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
