@@ -563,7 +563,7 @@ Dblqh::handle_queued_log_write(Signal *signal,
     else
     {
       jam();
-      writePrepareLog(signal, tcConnectptr, true);
+      doWritePrepareLog(signal, tcConnectptr);
     }
     return;
   }
@@ -10930,7 +10930,7 @@ void Dblqh::rwConcludedLab(Signal* signal,
        * A NORMAL WRITE OPERATION THAT NEEDS LOGGING AND WILL NOT BE 
        * PREMATURELY COMMITTED.                                   
        * ------------------------------------------------------------------ */
-      writePrepareLog(signal, tcConnectptr, false);
+      writePrepareLog(signal, tcConnectptr);
     }//if
   }//if
 }//Dblqh::rwConcludedLab()
@@ -11020,22 +11020,20 @@ Dblqh::set_use_mutex_for_log_parts()
   }
 }
 
+/**
+ * writePrepareLog
+ *
+ * Attempt to write a prepare log entry, may result in operation
+ * being queued or aborted depending on redo log part state
+ */
 void Dblqh::writePrepareLog(Signal* signal,
-                            const TcConnectionrecPtr tcConnectptr,
-                            bool is_log_part_locked)
+                            const TcConnectionrecPtr tcConnectptr)
 {
-  LogPageRecordPtr logPagePtr;
-  LogFileRecordPtr logFilePtr;
-  UintR tcurrentFilepage;
-
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   LogPartRecord * const regLogPartPtr = regTcPtr->m_log_part_ptr_p;
 
-  if (!is_log_part_locked)
-  {
-    jam();
-    lock_log_part(regLogPartPtr);
-  }
+  lock_log_part(regLogPartPtr);
+
   Uint32 noOfFreeLogPages = count_free_log_pages(regLogPartPtr);
   const bool out_of_log_buffer = noOfFreeLogPages < ZMIN_LOG_PAGES_OPERATION;
   bool abort_on_redo_problems =
@@ -11108,6 +11106,29 @@ void Dblqh::writePrepareLog(Signal* signal,
     unlock_log_part(regLogPartPtr);
     return;
   }//if
+
+  /* Proceed with writing the log */
+  doWritePrepareLog(signal, tcConnectptr);
+
+}//Dblqh::writePrepareLog()
+
+/**
+ * doWritePrepareLog
+ *
+ * Do the redo log write - log part lock must be held,
+ * and all checks must have been done before calling
+ */
+void Dblqh::doWritePrepareLog(Signal* signal,
+                              const TcConnectionrecPtr tcConnectptr)
+{
+  LogPageRecordPtr logPagePtr;
+  LogFileRecordPtr logFilePtr;
+  UintR tcurrentFilepage;
+
+  TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  LogPartRecord * const regLogPartPtr = regTcPtr->m_log_part_ptr_p;
+
+  // Require that log part pointer is locked
 
   increment_committed_mbytes(regLogPartPtr,
                              regTcPtr);
@@ -11245,7 +11266,7 @@ void Dblqh::writePrepareLog(Signal* signal,
      * -------------------------------------------------------------------- */
     localCommitLab(signal, tcConnectptr);
   }//if
-}//Dblqh::writePrepareLog()
+}
 
 void
 Dblqh::writePrepareLog_problems(Signal * signal,
