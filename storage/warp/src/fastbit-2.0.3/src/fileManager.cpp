@@ -42,6 +42,11 @@
 #include <sys/resource.h>       // getrlimit
 #endif
 
+
+#ifndef FASTBIT_RECURSIVE_UNLOAD
+#define FASTBIT_RECURSIVE_UNLOAD 1
+#endif
+
 // initialize static varialbes (class members) of fileManager
 time_t ibis::fileManager::hbeat = 0;
 uint64_t ibis::fileManager::maxBytes = 0;
