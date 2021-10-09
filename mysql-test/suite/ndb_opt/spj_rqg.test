@@ -1417,7 +1417,7 @@ FROM n AS table1
     LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
   ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1473,7 +1473,7 @@ FROM r AS table2
                        AND table5.col_int_unique = table6.col_int_unique
 where table2.pk between 2 and 3;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1497,7 +1497,7 @@ WHERE table4.col_int IN (
     LEFT JOIN x AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
 ) and table1.pk between 3 and 3;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1523,7 +1523,7 @@ FROM f AS table1
   )
   and table1.pk < 3;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1547,7 +1547,7 @@ SELECT straight_join
       ON table2.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
     ON table1.col_int_unique = table2.col_int;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1569,7 +1569,7 @@ FROM e AS table1
 		       AND table5.col_int_unique = table6.col_int_unique
 where table1.pk between 1 and 3;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1589,7 +1589,7 @@ FROM c AS table1
   AND table2.col_int_key = table3.col_int_key
   AND table1.col_int_unique = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1618,7 +1618,7 @@ FROM u AS table1
 where table3.pk between 0 and 1
   and table2.pk between 4 and 5;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1637,7 +1637,7 @@ WHERE table1.pk IN (
     JOIN m AS table2s ON table1s.pk = table2s.col_int_key
 );
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1653,7 +1653,7 @@ FROM t AS table1
   ON table1.col_int_unique = table3.col_int_key
 where table1.pk between 14 and 14;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1666,7 +1666,8 @@ FROM r AS table1
   LEFT JOIN z AS table2
     LEFT JOIN f AS table3 ON table2.col_int_key = table3.col_int_unique
   ON table1.col_int_unique = table3.col_int_unique;
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1680,7 +1681,7 @@ FROM v AS table1
     LEFT JOIN u AS table3 ON table2.col_int_unique = table3.col_int_key
   ON table1.col_int_key = table2.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1697,7 +1698,7 @@ FROM t AS table1
   ON table1.col_int = table2.col_int_unique
 where table1.pk > 8 and table1.pk < 11;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1714,7 +1715,7 @@ FROM i AS table1
   ON table1.col_int_key = table2.col_int_key
 where table1.pk > 2 and table1.pk < 5;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1729,7 +1730,7 @@ FROM s AS table1
     LEFT JOIN o AS table4 ON table2.pk = table4.col_int
   ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1742,7 +1743,7 @@ FROM c AS table1
   INNER JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
   LEFT  JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1755,7 +1756,7 @@ FROM s AS table1
   LEFT OUTER JOIN c AS table2 ON table1.col_int = table2.pk
   LEFT OUTER JOIN w AS table3 ON table2.col_int = table3.col_int_key;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1770,7 +1771,7 @@ FROM r AS table1
   ON table1.pk = table2.col_int_unique
 WHERE table1.pk < 3;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1783,7 +1784,7 @@ FROM c AS table1
   INNER JOIN p AS table2 ON table1.pk = table2.pk
   LEFT OUTER JOIN i AS table3 ON table2.col_int_unique = table3.col_int;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1800,7 +1801,7 @@ WHERE NOT table2.col_int_unique IN (
   WHERE table2.pk = 9 OR table2s.col_int = 1
 ) IS TRUE ;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1821,7 +1822,7 @@ WHERE table1.col_int NOT IN (
                          table1s.col_int_unique = table2s.col_int_unique
 );
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1839,7 +1840,7 @@ FROM b AS table1
        table2.col_int_unique = table4.col_int
   ON table1.col_int_key = table2.col_int_key;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1856,7 +1857,7 @@ WHERE table1.col_int_key IN (
     JOIN h AS table2s ON table1s.col_int = table2s.col_int
 );
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1872,7 +1873,7 @@ WHERE table1.col_int IN (
     JOIN y AS table2s ON table1s.col_int_key = table2s.col_int_key
 );
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1888,7 +1889,7 @@ WHERE table1.col_int IN (
 )
   and table1.pk in (1,2);
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1904,7 +1905,7 @@ WHERE table1.col_int IN (
 )
   and table1.pk in (4,5);
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1917,7 +1918,7 @@ FROM f AS table1
   JOIN r AS table2 ON table1.col_int_unique = table2.col_int_key
 WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM w AS table1s);
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1934,7 +1935,7 @@ FROM j AS table1
      table1.col_int_key = table3.col_int_key AND
      table2.col_int_unique = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1952,7 +1953,7 @@ WHERE NOT EXISTS (
 )
   and table1.pk = 11;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1971,7 +1972,7 @@ WHERE NOT EXISTS (
 )
   and table1.pk = 11;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1990,7 +1991,7 @@ WHERE NOT EXISTS (
   FROM b AS table1s WHERE table1.col_int_key = table1s.col_int_key
 ) and table1.pk between 2 and 2;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2008,7 +2009,7 @@ WHERE NOT EXISTS (
 )
 and table1.pk = 11;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2026,7 +2027,7 @@ WHERE NOT EXISTS (
 )
 and table1.pk = 11;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2041,7 +2042,7 @@ WHERE table1.pk IN (
   SELECT table1s.pk AS field3 FROM b AS table1s
 );
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2064,7 +2065,7 @@ WHERE
 )
  and table1.pk between 4 and 6;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2098,7 +2099,7 @@ FROM
     ON table2.col_int = table6.col_int AND
        table2.col_int_unique = table6.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2121,7 +2122,7 @@ FROM p AS table1
   LEFT JOIN h AS table3 ON table1.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
 ORDER BY field1,field2;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2139,7 +2140,7 @@ FROM k AS table1
   LEFT JOIN m AS table2 ON table1.col_int_unique = table2.col_int_unique
   JOIN q AS table3 ON table2.col_int = table3.col_int AND table1.col_int_unique = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2156,7 +2157,7 @@ FROM d AS table1
     ON table2.col_int_unique = table4.col_int_unique
   ON table1.col_int_unique = table2.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2169,7 +2170,7 @@ FROM j AS table1
   JOIN r AS table2 ON table1.col_int = table2.col_int AND table1.col_int_unique = table2.col_int_unique
 WHERE table1.col_int_key IN (SELECT table1s.col_int_key AS field6 FROM z AS table1s);
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2189,7 +2190,7 @@ WHERE table2.col_int_key IN (
   WHERE table1.col_int_unique = 4 IS UNKNOWN)
 AND table2.col_varchar_10_key = table1.col_varchar_256;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2212,7 +2213,7 @@ FROM q AS table1
        table2.col_int_unique = table4.col_int_unique
   JOIN f AS table5 ON table2.col_int_key = table5.pk;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2227,7 +2228,7 @@ FROM n AS table1
     INNER JOIN m AS table4 ON table3.col_int = table4.pk
     ON  table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2249,7 +2250,7 @@ WHERE
        NOT table3.col_int_unique = 9  OR
        table1.col_varchar_10 = table1.col_varchar_256_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2267,7 +2268,7 @@ FROM i AS table1
                            table1.col_int_unique = table2.col_int_unique
   LEFT JOIN m AS table3 ON table2.col_int_key = table3.col_int_key;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2289,7 +2290,7 @@ FROM f AS table1
 
 # We do not explain this query as a slightly different query plan
 # might be generated on Windows and Mac.
-#--replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+#--replace_regex /  \(cost=.*//
 #eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2311,7 +2312,7 @@ FROM f AS table1
 
 # We do not explain this query as a slightly different query plan
 # might be generated on Windows and Mac.
-#--replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+#--replace_regex /  \(cost=.*//
 #eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -2332,7 +2333,7 @@ FROM
      table2.col_int_key = table5.col_int_key AND
      table1.col_int_unique = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+(\.\d+)?//
+--replace_regex /  \(cost=.*//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
