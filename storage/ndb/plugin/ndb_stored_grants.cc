@@ -110,6 +110,7 @@ class ThreadContext : public Ndb_local_connection {
 
   bool get_local_user(const std::string &) const;
   int get_grants_for_user(std::string);
+  bool show_create_user(std::string, std::string &);
   void get_create_user(std::string, int);
   void create_user(std::string &, std::string &);
 
@@ -291,11 +292,14 @@ bool ThreadContext::exec_sql(const std::string &statement) {
   return m_closed;
 }
 
-void ThreadContext::get_create_user(std::string user, int ngrants) {
+/* Run SHOW CREATE USER, and place the result SQL in result.
+   Return true on success.
+*/
+bool ThreadContext::show_create_user(std::string user, std::string &result) {
   std::string statement("SHOW CREATE USER " + user);
   if (exec_sql(statement)) {
     ndb_log_error("Failed SHOW CREATE USER for %s", user.c_str());
-    return;
+    return false;
   }
 
   List<Ed_row> results = *get_results();
@@ -303,16 +307,25 @@ void ThreadContext::get_create_user(std::string user, int ngrants) {
   if (results.elements != 1) {
     ndb_log_error("%s returned %d rows", statement.c_str(), results.elements);
     close();
-    return;
+    return false;
   }
 
   Ed_row *result_row = results[0];
   const MYSQL_LEX_STRING *result_sql = result_row->get_column(0);
-  unsigned int note = ngrants;
-  char *row = Row(TYPE_USER, user, 0, &note,
-                  std::string(result_sql->str, result_sql->length));
-  m_current_rows.push_back(row);
+  result.assign(result_sql->str, result_sql->length);
   close();
+  return true;
+}
+
+/* Run SHOW CREATE USER, create a row, and push it to m_current_rows
+ */
+void ThreadContext::get_create_user(std::string user, int ngrants) {
+  std::string show_create;
+  if (show_create_user(user, show_create)) {
+    unsigned int note = ngrants;
+    char *row = Row(TYPE_USER, user, 0, &note, show_create);
+    m_current_rows.push_back(row);
+  }
   return;
 }
 
@@ -630,8 +643,16 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
       " WITH MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 "
       " MAX_CONNECTIONS_PER_HOUR 0 MAX_USER_CONNECTIONS 0");
 
-  /* Run statement CREATE USER IF NOT EXISTS */
-  if (!get_local_user(name)) {
+  const bool exists_local = get_local_user(name);
+
+  if (exists_local) {
+    std::string show_create;
+    if (show_create_user(name, show_create) && show_create == statement)
+      return;  // Current SHOW CREATE USER already matches snapshot
+  }
+
+  if (!exists_local) {
+    /* Create the user with a random password */
     ndb_log_info("From stored snapshot, adding NDB stored user: %s",
                  name.c_str());
     run_acl_statement(create_user + name + random_pass);
