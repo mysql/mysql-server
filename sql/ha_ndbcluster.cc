@@ -3889,6 +3889,12 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
     assert(m_next_row!=NULL);
     unpack_record_and_set_generated_fields(table, buf, m_next_row);
     m_thd_ndb->m_pushed_reads++;
+
+    // Pushed join results are Ref-compared using the correlation key, not
+    // the specified key (unless where it is not push-executed after all).
+    // Check that we still returned a row matching the specified key.
+    assert(key_cmp_if_same(table, key, active_index,
+               calculate_key_len(table, active_index, keypart_map)) == 0);
   }
   else
   {
@@ -16890,8 +16896,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
       int res= fetch_next_pushed();
       if (res == NdbQuery::NextResult_gotRow)
       {
-        m_current_range_no= 0;
-//      m_current_range_no= cursor->get_range_no();  // FIXME SPJ, need rangeNo from index scan
+        m_current_range_no = m_active_query->getRangeNo();
       }
       else if (res == NdbQuery::NextResult_scanComplete)
       {
