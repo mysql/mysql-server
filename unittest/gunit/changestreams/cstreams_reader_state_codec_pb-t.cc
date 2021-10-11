@@ -31,20 +31,17 @@ namespace cs::reader::unittests {
 
 const std::string DEFAULT_UUID1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const std::string DEFAULT_UUID2 = "aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb";
-const std::string INVALID_UUID = "-aaaa-aaaa-aaaa-bbbbbbbbbbbb";
 
 class ReaderStateCodecTest : public ::testing::Test {
  protected:
   binary_log::gtids::Uuid valid_uuid1;
   binary_log::gtids::Uuid valid_uuid2;
-  binary_log::gtids::Uuid invalid_uuid;
   cs::reader::State state;
 
   binary_log::gtids::Gtid gtid1_1{valid_uuid1, 0};
   binary_log::gtids::Gtid gtid1_2{valid_uuid1, 0};
   binary_log::gtids::Gtid gtid2_1{valid_uuid1, 0};
   binary_log::gtids::Gtid gtid1_1_copy{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid__1{invalid_uuid, 0};
 
   ReaderStateCodecTest() = default;
 
@@ -53,28 +50,17 @@ class ReaderStateCodecTest : public ::testing::Test {
         valid_uuid1.parse(DEFAULT_UUID1.c_str(), DEFAULT_UUID1.size()));
     ASSERT_FALSE(
         valid_uuid2.parse(DEFAULT_UUID2.c_str(), DEFAULT_UUID2.size()));
-    ASSERT_TRUE(invalid_uuid.parse(INVALID_UUID.c_str(), INVALID_UUID.size()));
 
     gtid1_1 = {valid_uuid1, 1};
     gtid1_2 = {valid_uuid1, 2};
     gtid2_1 = {valid_uuid2, 1};
     gtid1_1_copy = {valid_uuid1, 1};
-    gtid__1 = {invalid_uuid, 1};
   }
 
   void TearDown() override {}
 };
 
 TEST_F(ReaderStateCodecTest, StateBasics) {
-  binary_log::gtids::Uuid invalid_uuid;
-  ASSERT_TRUE(invalid_uuid.parse(INVALID_UUID.c_str(), INVALID_UUID.size()));
-
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 1};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 2};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid2, 1};
-  binary_log::gtids::Gtid gtid1_1_copy{valid_uuid1, 1};
-  binary_log::gtids::Gtid gtid__1{invalid_uuid, 1};
-
   state.add_gtid(gtid1_1);
   state.add_gtid(gtid1_2);
   state.add_gtid(gtid2_1);
