@@ -43,8 +43,10 @@ class GtidsTest : public ::testing::Test {
 
   binary_log::gtids::Gtid gtid1_1{valid_uuid1, 0};
   binary_log::gtids::Gtid gtid1_2{valid_uuid1, 0};
+  binary_log::gtids::Gtid gtid1_100{valid_uuid1, 0};
   binary_log::gtids::Gtid gtid2_1{valid_uuid2, 0};
   binary_log::gtids::Gtid gtid2_2{valid_uuid2, 0};
+  binary_log::gtids::Gtid gtid2_1000{valid_uuid2, 0};
   binary_log::gtids::Gtid gtid3_1{valid_uuid3, 0};
   binary_log::gtids::Gtid gtid3_2{valid_uuid3, 0};
   binary_log::gtids::Gtid gtid1_1_copy{valid_uuid1, 0};
@@ -63,8 +65,10 @@ class GtidsTest : public ::testing::Test {
 
     gtid1_1 = {valid_uuid1, 1};
     gtid1_2 = {valid_uuid1, 2};
+    gtid1_100 = {valid_uuid1, 100};
     gtid2_1 = {valid_uuid2, 1};
     gtid2_2 = {valid_uuid2, 2};
+    gtid2_1000 = {valid_uuid2, 1000};
     gtid3_1 = {valid_uuid3, 1};
     gtid3_2 = {valid_uuid3, 2};
     gtid1_1_copy = {valid_uuid1, 1};
@@ -148,18 +152,6 @@ TEST_F(GtidsTest, IntervalsMerge) {
 }
 
 TEST_F(GtidsTest, GtidSetBasics) {
-  binary_log::gtids::Uuid valid_uuid1;
-  valid_uuid1.parse(DEFAULT_UUID1.c_str(), DEFAULT_UUID1.size());
-  binary_log::gtids::Uuid valid_uuid2;
-  valid_uuid2.parse(DEFAULT_UUID2.c_str(), DEFAULT_UUID2.size());
-
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 1};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 2};
-  binary_log::gtids::Gtid gtid1_100{valid_uuid1, 100};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid2, 1};
-  binary_log::gtids::Gtid gtid2_2{valid_uuid2, 2};
-  binary_log::gtids::Gtid gtid2_1000{valid_uuid2, 1000};
-
   binary_log::gtids::Gtid_set set1;
 
   std::stringstream expected;
@@ -256,16 +248,6 @@ TEST_F(GtidsTest, GtidSetBasics) {
 }
 
 TEST_F(GtidsTest, GtidSetCopyAssignment) {
-  binary_log::gtids::Uuid valid_uuid1;
-  binary_log::gtids::Uuid valid_uuid2;
-
-  ASSERT_FALSE(valid_uuid1.parse(DEFAULT_UUID1.c_str(), DEFAULT_UUID1.size()));
-  ASSERT_FALSE(valid_uuid2.parse(DEFAULT_UUID2.c_str(), DEFAULT_UUID2.size()));
-
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 1};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 2};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid2, 1};
-
   binary_log::gtids::Gtid_set set1;
 
   set1.add(gtid1_1);
@@ -336,16 +318,6 @@ TEST_F(GtidsTest, GtidSetComparison) {
 }
 
 TEST_F(GtidsTest, GtidSetToString) {
-  binary_log::gtids::Uuid valid_uuid1;
-  binary_log::gtids::Uuid valid_uuid2;
-
-  ASSERT_FALSE(valid_uuid1.parse(DEFAULT_UUID1.c_str(), DEFAULT_UUID1.size()));
-  ASSERT_FALSE(valid_uuid2.parse(DEFAULT_UUID2.c_str(), DEFAULT_UUID2.size()));
-
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 1};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 2};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid2, 1};
-
   binary_log::gtids::Gtid_set set1;
   binary_log::gtids::Gtid_set set2;
 
