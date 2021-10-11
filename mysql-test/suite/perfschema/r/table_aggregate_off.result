@@ -18,6 +18,7 @@ NAME	ENABLED
 events_stages_current	YES
 events_stages_history	YES
 events_stages_history_long	YES
+events_statements_cpu	YES
 events_statements_current	YES
 events_statements_history	YES
 events_statements_history_long	YES

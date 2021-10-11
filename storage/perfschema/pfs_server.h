@@ -116,6 +116,7 @@ struct PFS_global_param {
   bool m_consumer_events_stages_current_enabled;
   bool m_consumer_events_stages_history_enabled;
   bool m_consumer_events_stages_history_long_enabled;
+  bool m_consumer_events_statements_cpu_enabled;
   bool m_consumer_events_statements_current_enabled;
   bool m_consumer_events_statements_history_enabled;
   bool m_consumer_events_statements_history_long_enabled;

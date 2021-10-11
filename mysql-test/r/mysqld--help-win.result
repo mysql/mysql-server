@@ -851,6 +851,9 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-stages-history-long 
  Default startup value for the events_stages_history_long
  consumer.
+ --performance-schema-consumer-events-statements-cpu 
+ Default startup value for the events_statements_cpu
+ consumer.
  --performance-schema-consumer-events-statements-current 
  Default startup value for the events_statements_current
  consumer.
@@ -1832,6 +1835,7 @@ performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
+performance-schema-consumer-events-statements-cpu FALSE
 performance-schema-consumer-events-statements-current TRUE
 performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
