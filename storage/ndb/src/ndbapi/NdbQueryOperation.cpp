@@ -461,6 +461,10 @@ public:
   const char* getCurrentRow()
   { return m_receiver.getCurrentRow(); }
 
+  /** Get the RANGE_NO for 'CurrentRow', or -1 if not available. */
+  int getCurrentRangeNo() const
+  { return m_receiver.get_range_no(); }
+
   /**
    * Process an incomming tuple for this stream. Extract parent and own tuple 
    * ids and pass it on to m_receiver.
@@ -785,8 +789,8 @@ NdbResultStream::prepare()
   m_receiver.do_setup_ndbrecord(
                           m_operation.getNdbRecord(),
                           rowBuffer,
-                          false, /*read_range_no*/
-                          false  /*read_key_info*/);
+                          m_operation.needRangeNo(),
+                          /*read_key_info=*/ false);
 } //NdbResultStream::prepare
 
 /** Locate, and return 'tupleNo', of first tuple with specified parentId.
@@ -1410,6 +1414,12 @@ NdbQuery::setBound(const NdbRecord *keyRecord,
   } else {
     return 0;
   }
+}
+
+int
+NdbQuery::getRangeNo() const
+{
+  return m_impl.getRangeNo();
 }
 
 NdbQuery::NextResultOutcome
@@ -2141,6 +2151,17 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   return 0;
 } // NdbQueryImpl::setBound()
 
+int
+NdbQueryImpl::getRangeNo() const
+{
+  const NdbRootFragment* rootFrag = m_applFrags.getCurrent();
+  if (rootFrag != NULL) {
+    const int range_no = rootFrag->getResultStream(0).getCurrentRangeNo();
+    if (range_no >= 0) return range_no;
+    assert(!needRangeNo());
+  }
+  return 0;
+}
 
 Uint32
 NdbQueryImpl::getNoOfOperations() const
@@ -4302,7 +4323,13 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
     recAttr = recAttr->next();
   }
 
-  bool withCorrelation = getRoot().getQueryDef().isScanQuery();
+  if (needRangeNo()) {
+    Uint32 ah;
+    AttributeHeader::init(&ah, AttributeHeader::RANGE_NO, 0);
+    attrInfo.append(ah);
+  }
+
+  const bool withCorrelation = getRoot().getQueryDef().isScanQuery();
   if (withCorrelation) {
     Uint32 ah;
     AttributeHeader::init(&ah, AttributeHeader::CORR_FACTOR64, 0);
@@ -5300,7 +5327,7 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
   if (m_rowSize == 0xffffffff)
   {
     m_rowSize = 
-      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, false);
+      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, needRangeNo());
   }
   return m_rowSize;
 }
@@ -5354,7 +5381,8 @@ Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
                                                   m_ndbRecord,
                                                   readMask.rep.data,
                                                   m_firstRecAttr,
-                                                  0, 0);
+                                                  /*key_size = */ 0,
+                                                  needRangeNo());
   }
   return m_batchBufferSize;
 }
