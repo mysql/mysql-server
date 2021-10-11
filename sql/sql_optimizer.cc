@@ -10591,6 +10591,11 @@ bool JOIN::fts_index_access(JOIN_TAB *tab) {
   assert(tab->type() == JT_FT);
   TABLE *table = tab->table();
 
+  // Give up if index-only access has already been disabled on this table.
+  if (table->no_keyread) {
+    return false;
+  }
+
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
     return false;  // Optimizations requires extended FTS support by table
                    // engine
