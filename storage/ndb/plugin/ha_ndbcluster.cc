@@ -7246,7 +7246,7 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update) {
   }
   NdbTransaction *trans = thd_ndb->trans;
   NdbOperation *op = 0;
-  int r = 0;
+  int r [[maybe_unused]] = 0;
   r |= (op = trans->getNdbOperation(ndbtab)) == 0;
   assert(r == 0);
   if (do_update)

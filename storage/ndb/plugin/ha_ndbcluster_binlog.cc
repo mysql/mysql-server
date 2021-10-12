@@ -1875,7 +1875,7 @@ class Ndb_schema_event_handler {
       if ((trans = ndb->startTransaction()) == 0) goto err;
       {
         NdbOperation *op = 0;
-        int r = 0;
+        int r [[maybe_unused]] = 0;
 
         /* read row from ndb_schema with exlusive row lock */
         r |= (op = trans->getNdbOperation(ndbtab)) == 0;
@@ -1917,7 +1917,7 @@ class Ndb_schema_event_handler {
 
       {
         NdbOperation *op = 0;
-        int r = 0;
+        int r [[maybe_unused]] = 0;
 
         /* now update the tuple */
         r |= (op = trans->getNdbOperation(ndbtab)) == 0;
