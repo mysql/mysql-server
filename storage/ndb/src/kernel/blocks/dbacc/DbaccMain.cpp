@@ -45,6 +45,9 @@
 #include <KeyDescriptor.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
 #include <md5_hash.hpp>
+#include <EventLogger.hpp>
+
+extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 #define ACC_DEBUG(x) ndbout << "DBACC: "<< x << endl;
@@ -2085,6 +2088,8 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
   return true;
 }
 
+#endif // ACC_SAFE_QUEUE
+
 NdbOut&
 operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
 {
@@ -2194,6 +2199,8 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
   out << "]";
   return out;
 }
+
+#ifdef ACC_SAFE_QUEUE
 
 void
 Dbacc::dump_lock_queue(OperationrecPtr loPtr)const
@@ -9898,6 +9905,66 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
+  if (dumpState->args[0] == DumpStateOrd::AccDumpOneOpRecLocal)
+  {
+    if (signal->length() != 2)
+    {
+      return;
+    }
+
+    OperationrecPtr opPtr;
+    opPtr.i = dumpState->args[1];
+    ndbrequire(oprec_pool.getValidPtr(opPtr));
+
+    {
+      char buff[200];
+      StaticBuffOutputStream buffStream(buff, sizeof(buff));
+      NdbOut buffOut(buffStream);
+
+      buffOut << opPtr;
+
+      g_eventLogger->info("ACC %u : %s",
+                          instance(),
+                          buff);
+    }
+
+    return;
+  }
+
+  if (dumpState->args[0] == DumpStateOrd::AccDumpOpPrecedingLocks)
+  {
+    jam();
+    if (signal->length() != 2)
+    {
+      return;
+    }
+
+    OperationrecPtr startOpPtr;
+    OperationrecPtr currOpPtr;
+    startOpPtr.i = dumpState->args[1];
+    ndbrequire(oprec_pool.getValidPtr(startOpPtr));
+
+    currOpPtr = startOpPtr;
+
+    /* Dump start op */
+    signal->theData[0] = DumpStateOrd::AccDumpOneOpRecLocal;
+    signal->theData[1] = startOpPtr.i;
+    execDUMP_STATE_ORD(signal);
+
+    if (getPrecedingOperation(currOpPtr))
+    {
+      jam();
+
+      do
+      {
+        /* Dump dependent op */
+        signal->theData[1] = currOpPtr.i;
+        execDUMP_STATE_ORD(signal);
+      } while (getPrecedingOperation(currOpPtr));
+    }
+  }
+
+
 #if 0
   if (type == 100) {
     RelTabMemReq * const req = (RelTabMemReq *)signal->getDataPtrSend();
@@ -10028,6 +10095,72 @@ Dbacc::debug_lh_vars(const char* where)const
     << "\n";
 }
 #endif
+
+/**
+ * getPrecedingOperation
+ *
+ * Used to iterate the lock queues on a row, based
+ * on an arbitrary starting position.
+ *
+ * Given an opPtr we :
+ *  1.  Check it is on a lock queue, or return RNIL
+ *  2.  Return a pointer to a preceding operation in terms
+ *      of lock ownership order, or RNIL
+ */
+bool
+Dbacc::getPrecedingOperation(OperationrecPtr& opPtr) const
+{
+  ndbrequire(oprec_pool.getValidPtr(opPtr));
+
+  if ((opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) != 0)
+  {
+    /* owner, nothing precedes */
+    ndbrequire((opPtr.p->m_op_bits & Operationrec::OP_RUN_QUEUE) != 0);
+    opPtr.i = RNIL;
+    //ndbout_c("OWNER");
+  }
+  else
+  {
+    /* !owner, anything preceding? */
+    if (opPtr.p->prevParallelQue != RNIL)
+    {
+      /* Traverse parallel first */
+      opPtr.i = opPtr.p->prevParallelQue;
+      //ndbout_c("PREV PARALLEL");
+      ndbrequire(oprec_pool.getValidPtr(opPtr));
+    }
+    else if (opPtr.p->prevSerialQue != RNIL)
+    {
+      /* Traverse serial */
+      opPtr.i = opPtr.p->prevSerialQue;
+      //ndbout_c("PREV SERIAL");
+      ndbrequire(oprec_pool.getValidPtr(opPtr));
+
+      /* Do we have a parallel queue here? */
+      if (opPtr.p->nextParallelQue != RNIL)
+      {
+        /* AFAIK, only the first serial entry can have parallel ops */
+        ndbrequire((opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) !=0);
+
+        /* Jump to end of parallel queue */
+        OperationrecPtr lo = opPtr;
+        opPtr.i = opPtr.p->m_lo_last_parallel_op_ptr_i;
+        ndbrequire(oprec_pool.getValidPtr(opPtr));
+        //ndbout_c("PREV SERIAL HAS PARALLEL QUEUE, JUMP TO END");
+
+        /* Check end of parallel queue refs start */
+        ndbrequire(opPtr.p->m_lock_owner_ptr_i == lo.i);
+      }
+    }
+    else
+    {
+      /* !owner, nothing precedes - not locked */
+      //ndbout_c("NOTHING PRECEDES");
+    }
+  }
+
+  return (opPtr.i != RNIL);
+}
 
 /**
  * Implementation of Dbacc::Page32Lists

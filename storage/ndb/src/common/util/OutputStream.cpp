@@ -293,3 +293,82 @@ void BufferedSockOutputStream::flush(){
   m_buffer.clear();
 }
 
+StaticBuffOutputStream::StaticBuffOutputStream(char* buff, size_t size):
+  m_buff(buff), m_size(size), m_offset(0)
+{
+  reset();
+};
+
+StaticBuffOutputStream::~StaticBuffOutputStream() {};
+
+int
+StaticBuffOutputStream::print(const char * fmt, ...)
+{
+  va_list ap;
+  size_t remain = m_size - m_offset;
+  assert(m_offset < m_size);
+
+  // Print to buffer
+  va_start(ap, fmt);
+  int idealLen = BaseString::vsnprintf(m_buff + m_offset,
+                                       remain,
+                                       fmt,
+                                       ap);
+  va_end(ap);
+
+  if (idealLen >= 0)
+  {
+    m_offset = MIN(m_offset + idealLen, m_size - 1);
+    assert(m_buff[m_offset] == '\0');
+    return 0;
+  }
+  assert(m_buff[m_offset] == '\0');
+  return -1;
+}
+
+int
+StaticBuffOutputStream::println(const char * fmt, ...)
+{
+  va_list ap;
+  size_t remain = m_size - m_offset;
+  assert(m_offset < m_size);
+
+  // Print to buffer
+  va_start(ap, fmt);
+  int idealLen = BaseString::vsnprintf(m_buff + m_offset,
+                                       remain,
+                                       fmt,
+                                       ap);
+  va_end(ap);
+
+  if (idealLen >= 0)
+  {
+    m_offset = MIN(m_offset + idealLen, m_size - 1);
+
+    return print("\n");
+  }
+  assert(m_buff[m_offset] == '\0');
+  return -1;
+}
+
+int
+StaticBuffOutputStream::write(const void * buf, size_t len)
+{
+  /* Will write as much as we can, ensuring space for
+   * terminating null
+   */
+  assert(m_offset < m_size);
+  size_t remain = m_size - m_offset;
+
+  if (remain > 1)
+  {
+    size_t copySz = MIN(len, remain -1);
+    memcpy(m_buff, buf, copySz);
+    m_offset+= copySz;
+    m_buff[m_offset]='\0';
+    return copySz;
+  }
+
+  assert(m_buff[m_offset] == '\0');
+  return 0;
+}
