@@ -8250,10 +8250,10 @@ void ha_innobase::build_template(bool whole_row) {
         UT_NEW_THIS_FILE_PSI_KEY, n_fields * sizeof(mysql_row_templ_t));
   }
 
-#ifdef UNIV_DEBUG
+#if defined(UNIV_DEBUG) && !defined(UNIV_DEBUG_VALGRIND)
   /* zero-filling for compare contents for debug */
   memset(m_prebuilt->mysql_template, 0, n_fields * sizeof(mysql_row_templ_t));
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
 
   m_prebuilt->template_type =
       whole_row ? ROW_MYSQL_WHOLE_ROW : ROW_MYSQL_REC_FIELDS;
@@ -10016,7 +10016,8 @@ int ha_innobase::index_read(
     build_template(false);
   }
 
-#ifdef UNIV_DEBUG
+#if defined(UNIV_DEBUG) && !defined(UNIV_DEBUG_VALGRIND)
+  /* valgrind complains about some of uninitialized bytes. skip it for now. */
   if (m_prebuilt->sql_stat_start && can_reuse_mysql_template()) {
     /* confirm mysql_template contents are same */
     const auto n_template_save = m_prebuilt->n_template;
@@ -10029,7 +10030,7 @@ int ha_innobase::index_read(
     ut::free(m_prebuilt->mysql_template);
     m_prebuilt->mysql_template = mysql_template_save;
   }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG && !UNIV_DEBUG_VALGRIND */
 
   if (key_ptr != nullptr) {
     /* Convert the search key value to InnoDB format into
