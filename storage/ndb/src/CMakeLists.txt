@@ -35,6 +35,8 @@ FOREACH(warning
     "error=stringop-overflow"
     # Downgrade -Werror=shadow-field
     "error=shadow-field"
+    # Downgrade -Werror=null-pointer-subtraction
+    "error=null-pointer-subtraction"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
