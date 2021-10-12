@@ -97,11 +97,10 @@ override_dh_installinit:
 	@echo "RULES.$@"
 	@DEB_RULES_APPARMOR_LOAD@
 	@DEB_RULES_APPARMOR_LOAD_ROUTER@
-	dh_systemd_enable --name=mysql
+	dh_installsystemd --name=mysql
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysql@ -- disable
 	@DEB_RULES_INSTALLINIT_ROUTER@
-	dh_systemd_start --restart-after-upgrade
 	touch $@
 
 override_dh_install:
