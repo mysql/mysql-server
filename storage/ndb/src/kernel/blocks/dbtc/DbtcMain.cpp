@@ -1114,6 +1114,17 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
 
   time_track_init_histogram_limits();
+
+  val = TELL_NONE;
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_ERROR_LOGLEVEL, &val);
+  c_trans_error_loglevel = val;
+
+  if (c_trans_error_loglevel != TELL_NONE)
+  {
+    g_eventLogger->info("TC %u __TransactionErrorLogLevel 0x%x",
+                        instance(),
+                        c_trans_error_loglevel);
+  }
 }
 
 void Dbtc::execSTTOR(Signal* signal) 
@@ -8165,6 +8176,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 	/**
 	 * No error is allowed on this operation
 	 */
+        logAbortingOperation(signal, apiConnectptr, tcConnectptr, errCode);
         TCKEY_abort(signal, 49, apiConnectptr);
 	return;
       }//if
@@ -9453,6 +9465,208 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_timer_ptr)
   return;
 }//Dbtc::timeOutLoopStartLab()
 
+void Dbtc::logAbortingOperation(Signal* signal,
+                                ApiConnectRecordPtr apiPtr,
+                                TcConnectRecordPtr tcPtr,
+                                Uint32 error)
+{
+  jam();
+  const Uint32 logLevel = c_trans_error_loglevel;
+
+  if (!((logLevel & TELL_CONTROL_MASK) &&
+        (logLevel & TELL_TC_ABORTS)))
+  {
+    /* We are not logging / not logging aborts */
+    return;
+  }
+
+  const bool trans_has_deferred_constraints =
+    tc_testbit(apiPtr.p->m_flags, ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
+
+  if (!((logLevel & TELL_ALL) ||
+        ((logLevel & TELL_DEFERRED) && trans_has_deferred_constraints)))
+  {
+    /* We are not logging this abort */
+    return;
+  }
+
+  /* Log it */
+  g_eventLogger->info("TC %u : Txn abort [0x%08x 0x%08x] state %u ptr %u exec %u "
+                      "place %u ticks %u errcode %u errData %u lqhkeyreqrec/conf %u/%u "
+                      "pendingTriggers %u flags 0x%x apiref 0x%x nodes %s deferred %u",
+                      instance(),
+                      apiPtr.p->transid[0],
+                      apiPtr.p->transid[1],
+                      apiPtr.p->apiConnectstate,
+                      apiPtr.i,
+                      tc_testbit(apiPtr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG),
+                      apiPtr.p->m_apiConTimer_line,
+                      ctcTimer - getApiConTimer(apiPtr),
+                      error,
+                      apiPtr.p->errorData,
+                      apiPtr.p->lqhkeyreqrec,
+                      apiPtr.p->lqhkeyconfrec,
+                      apiPtr.p->pendingTriggers,
+                      apiPtr.p->m_flags,
+                      apiPtr.p->ndbapiBlockref,
+                      BaseString::getPrettyText(apiPtr.p->m_transaction_nodes).c_str(),
+                      trans_has_deferred_constraints?1:0);
+  g_eventLogger->info("TC %u :           [0x%08x 0x%08x] caused by error %u on op %u "
+                      "type %u state %u flags 0x%x",
+                      instance(),
+                      apiPtr.p->transid[0],
+                      apiPtr.p->transid[1],
+                      error,
+                      tcPtr.i,
+                      tcPtr.p->operation,
+                      tcPtr.p->tcConnectstate,
+                      tcPtr.p->m_special_op_flags);
+
+  if (tcPtr.p->triggeringOperation != RNIL)
+  {
+    jam();
+    TcConnectRecordPtr triggeringOpPtr;
+    triggeringOpPtr.i = tcPtr.p->triggeringOperation;
+    tcConnectRecord.getPtr(triggeringOpPtr);
+
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
+
+    g_eventLogger->info("TC %u :           [0x%08x 0x%08x] caused by triggered operation.  "
+                        "Trig type %u objid %u Triggering op type %u.",
+                        instance(),
+                        apiPtr.p->transid[0],
+                        apiPtr.p->transid[1],
+                        trigPtr.p->triggerType,
+                        trigPtr.p->indexId,
+                        triggeringOpPtr.p->operation);
+  }
+}//Dbtc::logAbortingOperation()
+
+void Dbtc::logTransactionTimeout(Signal* signal,
+                                 Uint32 apiConnIdx,
+                                 Uint32 errCode,
+                                 bool force)
+{
+  jam();
+  /**
+   * Loglevel set to full by parameter,
+   * otherwise go with config setting
+   */
+  const Uint32 logLevel = (force ? Uint32(TELL_FULL):
+                           c_trans_error_loglevel);
+
+  if (!((logLevel & TELL_CONTROL_MASK) &&
+        (logLevel & TELL_TC_TIMEOUTS_MASK)))
+  {
+    /* We are not logging / not logging timeouts */
+    return;
+  }
+
+  ApiConnectRecordPtr apiPtr;
+  apiPtr.i = apiConnIdx;
+  ndbrequire(c_apiConnectRecordPool.getValidPtr(apiPtr));
+  const ApiConnectRecord& apiConn = *apiPtr.p;
+
+  const bool trans_has_deferred_constraints =
+    tc_testbit(apiConn.m_flags, ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
+
+  if (!((logLevel & TELL_ALL) ||
+        ((logLevel & TELL_DEFERRED) && trans_has_deferred_constraints)))
+  {
+    /* We are not logging this timeout */
+    return;
+  }
+
+  if (errCode == ZNODEFAIL_BEFORE_COMMIT)
+  {
+    jam();
+    /* Node failure handling, not a real timeout - don't log */
+    return;
+  }
+
+  /* Log it */
+  g_eventLogger
+    ->info("TC %u : Txn timeout [0x%08x 0x%08x] state %u ptr %u exec %u "
+           "place %u ticks %u code %u lqhkeyreqrec/conf %u/%u "
+           "pendingTriggers %u flags 0x%x apiref 0x%x nodes %s deferred %u",
+           instance(),
+           apiConn.transid[0],
+           apiConn.transid[1],
+           apiConn.apiConnectstate,
+           apiConnIdx,
+           tc_testbit(apiConn.m_flags, ApiConnectRecord::TF_EXEC_FLAG),
+           apiPtr.p->m_apiConTimer_line,
+           ctcTimer - getApiConTimer(apiPtr),
+           errCode,
+           apiConn.lqhkeyreqrec,
+           apiConn.lqhkeyconfrec,
+           apiConn.pendingTriggers,
+           apiConn.m_flags,
+           apiConn.ndbapiBlockref,
+           BaseString::getPrettyText(apiConn.m_transaction_nodes).c_str(),
+           trans_has_deferred_constraints?1:0);
+
+  /* TODO : CONTINUEB */
+  TcConnectRecordPtr localTcConnectptr;
+  LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiPtr.p->tcConnect);
+
+  if (tcConList.first(localTcConnectptr)) do
+  {
+    ndbrequire(tcConnectRecord.getValidPtr(localTcConnectptr));
+    const TcConnectRecord& tcConn = *localTcConnectptr.p;
+
+    g_eventLogger->info("TC %u :             [0x%08x 0x%08x] op %u optype %u "
+                        "state %u dirty %u simple %u "
+                        "inst %u flags 0x%x trig f/r/e "
+                        "%u/%u/%u nodes %u %u %u %u",
+                        instance(),
+                        apiConn.transid[0],
+                        apiConn.transid[1],
+                        localTcConnectptr.i,
+                        tcConn.operation,
+                        tcConn.tcConnectstate,
+                        tcConn.dirtyOp,
+                        tcConn.opSimple,
+                        tcConn.lqhInstanceKey,
+                        tcConn.m_special_op_flags,
+                        tcConn.numFiredTriggers,
+                        tcConn.numReceivedTriggers,
+                        tcConn.triggerExecutionCount,
+                        tcConn.tcNodedata[0],
+                        tcConn.tcNodedata[1],
+                        tcConn.tcNodedata[2],
+                        tcConn.tcNodedata[3]);
+
+    if (logLevel & TELL_TC_TIMEOUTS_TRANS_OPS_LDM)
+    {
+      /* Dump state at LQH */
+      signal->theData[0] = DumpStateOrd::LqhDumpOpRecLookup;
+      signal->theData[1] = apiConn.transid[0];
+      signal->theData[2] = apiConn.transid[1];
+      signal->theData[3] = localTcConnectptr.i;
+      signal->theData[4] = cownref;
+
+      /* Send to all relevant nodes (1 for reads with lock) */
+      for (Uint32 n=0; n < tcConn.noOfNodes; n++)
+      {
+        BlockReference bref = numberToRef(tcConn.recBlockNo,
+                                          getInstanceNo(tcConn.tcNodedata[n],
+                                                        tcConn.lqhInstanceKey),
+                                          tcConn.tcNodedata[n]);
+
+        sendSignal(bref,
+                   GSN_DUMP_STATE_ORD,
+                   signal,
+                   5,
+                   JBB);
+      }
+    }
+
+  } while (tcConList.next(localTcConnectptr));
+}
+
+
 void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode) 
 {
   ApiConnectRecordPtr apiConnectptr;
@@ -9463,25 +9677,6 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   /*       THIS TRANSACTION HAVE EXPERIENCED A TIME-OUT AND WE NEED TO*/
   /*       FIND OUT WHAT WE NEED TO DO BASED ON THE STATE INFORMATION.*/
   /*------------------------------------------------------------------*/
-  DEBUG("[ H'" << hex << apiConnectptr.p->transid[0] 
-	<< " H'" << apiConnectptr.p->transid[1] << "] " << dec 
-	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
-	<< " apiConnectptr.i = " << apiConnectptr.i 
-	<< " - exec: "
-        << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
-        << " - place: " << apiConnectptr.p->m_apiConTimer_line
-	<< " code: " << errCode
-        << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
-        << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
-        << (apiConnectptr.p->apiConnectstate == CS_START_SCAN
-            ? " buddyPtr: "
-            : " pendingTriggers: ") << apiConnectptr.p->pendingTriggers
-        << " outstanding_fire_trig_req: "
-        << apiConnectptr.p->m_outstanding_fire_trig_req
-        << " cascading_scans = " << apiConnectptr.p->cascading_scans_count
-        << " executing_trigger_operations: "
-        << apiConnectptr.p->m_executing_trigger_ops
-        );
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
@@ -9499,6 +9694,9 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
         return;
       }//if
     }
+
+    logTransactionTimeout(signal, TapiConPtr, errCode);
+
     apiConnectptr.p->returnsignal = RS_TCROLLBACKREP;      
     apiConnectptr.p->returncode = errCode;
     abort010Lab(signal, apiConnectptr);
@@ -9515,6 +9713,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       START ABORTING THE TRANSACTION. ALSO START CHECKING THE    */
     /*       REMAINING TRANSACTIONS.                                    */
     /*------------------------------------------------------------------*/
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     terrorCode = errCode;
     abortErrorLab(signal, apiConnectptr);
     return;
@@ -9548,11 +9747,8 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
         time_passed > (10 * ctimeOutValue))
     {
       jam();
-      g_eventLogger->info("timeOutFoundLab trans: 0x%x 0x%x state: %u",
-                          apiConnectptr.p->transid[0],
-                          apiConnectptr.p->transid[1],
-                          (Uint32)apiConnectptr.p->apiConnectstate);
 
+      logTransactionTimeout(signal, TapiConPtr, errCode, true);
       // Reset timeout to not flood log...
       setApiConTimer(apiConnectptr, 0, __LINE__);
     }//if
@@ -9567,6 +9763,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       TO THOSE NODES THAT HAVE MISSED THE COMMIT SIGNAL DUE TO   */
     /*       A NODE FAILURE.                                            */
     /*------------------------------------------------------------------*/
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     tabortInd = ZCOMMIT_SETUP;
     setupFailData(signal, apiConnectptr.p);
     toCommitHandlingLab(signal, apiConnectptr);
@@ -9580,6 +9777,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     /*       TO THOSE NODES THAT HAVE MISSED THE COMPLETE SIGNAL DUE TO   */
     /*       A NODE FAILURE.                                              */
     /*--------------------------------------------------------------------*/
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     tabortInd = ZCOMMIT_SETUP;
     setupFailData(signal, apiConnectptr.p);
     toCompleteHandlingLab(signal, apiConnectptr);
@@ -9607,7 +9805,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       jam();
       return;
     }//if
-    
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     ScanRecordPtr scanptr;
     scanptr.i = apiConnectptr.p->apiScanRec;
     scanRecordPool.getPtr(scanptr);
@@ -9616,6 +9814,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   }
   case CS_WAIT_ABORT_CONF:
     jam();
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     tcConnectRecord.getPtr(tcConnectptr);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
@@ -9642,6 +9841,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     return;
   case CS_WAIT_COMMIT_CONF:
     jam();
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     CRASH_INSERTION(8053);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     tcConnectRecord.getPtr(tcConnectptr);
@@ -9669,6 +9869,7 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     return;
   case CS_WAIT_COMPLETE_CONF:
     jam();
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     tcConnectptr.i = apiConnectptr.p->currentTcConnect;
     tcConnectRecord.getPtr(tcConnectptr);
     arrGuard(apiConnectptr.p->currentReplicaNo, MAX_REPLICAS);
@@ -9701,11 +9902,11 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   case CS_DISCONNECTED:
   default:
     jam();
+    logTransactionTimeout(signal, TapiConPtr, errCode);
     jamLine(apiConnectptr.p->apiConnectstate);
     /*------------------------------------------------------------------*/
     /*       AN IMPOSSIBLE STATE IS SET. CRASH THE SYSTEM.              */
     /*------------------------------------------------------------------*/
-    DEBUG("State = " << apiConnectptr.p->apiConnectstate);
     systemErrorLab(signal, __LINE__);
     return;
   }//switch
@@ -10059,6 +10260,83 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   }
 }//execSCAN_HBREP()
 
+void Dbtc::logScanTimeout(Signal* signal,
+                          ScanFragRecPtr scanFragPtr,
+                          ScanRecordPtr scanPtr)
+{
+  jam();
+
+  const Uint32 logLevel = c_trans_error_loglevel;
+
+  if (!((logLevel & TELL_CONTROL_MASK) &&
+        (logLevel & TELL_TC_TIMEOUTS_MASK)))
+  {
+    /* We are not logging / not logging timeouts */
+    return;
+  }
+
+  ApiConnectRecordPtr apiPtr;
+  apiPtr.i = scanPtr.p->scanApiRec;
+  ndbrequire(c_apiConnectRecordPool.getValidPtr(apiPtr));
+
+  const bool trans_has_deferred_constraints =
+    tc_testbit(apiPtr.p->m_flags, ApiConnectRecord::TF_DEFERRED_CONSTRAINTS);
+
+  if (!((logLevel & TELL_ALL) ||
+        ((logLevel & TELL_DEFERRED) && trans_has_deferred_constraints)))
+  {
+    /* We are not logging this timeout */
+  }
+
+  bool rc = ScanFragReq::getReadCommittedFlag(scanPtr.p->scanRequestInfo);
+  bool lockmode = ScanFragReq::getLockMode(scanPtr.p->scanRequestInfo);
+  bool holdlock = ScanFragReq::getHoldLockFlag(scanPtr.p->scanRequestInfo);
+  bool keyinfo = ScanFragReq::getKeyinfoFlag(scanPtr.p->scanRequestInfo);
+  bool range = ScanFragReq::getRangeScanFlag(scanPtr.p->scanRequestInfo);
+  bool nodisk = ScanFragReq::getNoDiskFlag(scanPtr.p->scanRequestInfo);
+
+  Uint32 runningCount = 0 , deliveredCount = 0, queuedCount = 0;
+  {
+    ScanFragRecPtr ptr;
+    Local_ScanFragRec_dllist running(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
+    Local_ScanFragRec_dllist delivered(c_scan_frag_pool, scanPtr.p->m_delivered_scan_frags);
+    Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
+
+    for (running.first(ptr); !ptr.isNull(); running.next(ptr))
+      runningCount++;
+    for (delivered.first(ptr); !ptr.isNull(); delivered.next(ptr))
+      deliveredCount++;
+    for (queued.first(ptr); !ptr.isNull(); queued.next(ptr))
+      queuedCount++;
+  }
+
+  g_eventLogger->info("TC %u : Scan timeout "
+                      "[0x%08x 0x%08x] state %u tab %u dist %u ri 0x%x "
+                      " (%s%s%s%s%s%s) frags r %u d %u q %u "
+                      "frag state %u, fid %u node %u instance %u",
+                      instance(),
+                      apiPtr.p->transid[0],
+                      apiPtr.p->transid[1],
+                      scanPtr.p->scanState,
+                      scanPtr.p->scanTableref,
+                      scanPtr.p->m_scan_dist_key_flag,
+                      scanPtr.p->scanRequestInfo,
+                      (rc?"rc ":""),
+                      (lockmode?"lm 1 ":"lm 0 "),
+                      (holdlock?"hl 1 ":"hl 0 "),
+                      (keyinfo?"ki ":""),
+                      (range?"range ":""),
+                      (nodisk?"nodisk ":"disk "),
+                      runningCount,
+                      deliveredCount,
+                      queuedCount,
+                      scanFragPtr.p->scanFragState,
+                      scanFragPtr.p->lqhScanFragId,
+                      refToNode(scanFragPtr.p->lqhBlockref),
+                      refToInstance(scanFragPtr.p->lqhBlockref));
+}
+
+
 /*--------------------------------------------------------------------------*/
 /*      Timeout has occurred on a fragment which means a scan has timed out. */
 /*      If this is true we have an error in LQH/ACC.                        */
@@ -10145,6 +10423,9 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     {
       break;
     }
+
+    logScanTimeout(signal, ptr, scanptr);
+
     if(connectCount != ptr.p->m_connectCount){
       jam();
       /**
@@ -17440,6 +17721,23 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 #endif
+
+  if (arg == DumpStateOrd::TcSetTransErrorLogLevel)
+  {
+    jam();
+    Uint32 level = 0;
+    if (signal->getLength() >= 2)
+    {
+      level = signal->theData[1];
+    }
+
+    g_eventLogger->info("TC %u : __TransactionErrorLogLevel changes from 0x%x to 0x%x",
+                        instance(),
+                        c_trans_error_loglevel,
+                        level);
+    c_trans_error_loglevel = level;
+    return;
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)

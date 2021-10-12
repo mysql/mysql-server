@@ -1207,6 +1207,27 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_TRANS_ERROR_LOGLEVEL,
+    "__TransactionErrorLogLevel",
+    DB_TOKEN,
+    "Transaction timeout logging level\n"
+    "When to log : \n"
+    "  0x0000 Not at all\n"
+    "  0x0001 Always\n"
+    "  0x0002 Only for deferred constraints\n"
+    "What to log : \n"
+    "  0x0100 Transaction aborts\n"
+    "  0x0200 Transaction timeouts (TC)\n"
+    "  0x0400 Transaction timeouts (TC+LDM)\n",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0", // Default
+    "0",
+    STR_VALUE(MAX_UINT)
+  },
+
+  {
     CFG_DB_MICRO_GCP_INTERVAL,
     "TimeBetweenEpochs",
     DB_TOKEN,

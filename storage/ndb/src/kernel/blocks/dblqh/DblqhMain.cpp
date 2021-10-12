@@ -35491,6 +35491,68 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+  if (arg == DumpStateOrd::LqhDumpOpRecLookup)
+  {
+    if (signal->getLength() < 5)
+    {
+      g_eventLogger->info("LQH %u : LqhDumpOpRecLookup bad length %u.", instance(), signal->getLength());
+      return;
+    }
+
+    TcConnectionrecPtr tcConnectptr = m_tc_connect_ptr;
+
+    if (findTransaction(signal->theData[1],
+                        signal->theData[2],
+                        signal->theData[3],
+                        signal->theData[4],
+                        true,
+                        false,
+                        tcConnectptr) != ZOK)
+    {
+      jam();
+      g_eventLogger->info("LQH %u : LqhDumpOpRecLookup failed for [0x%08x 0x%08x] %u %u",
+                          instance(),
+                          signal->theData[1],
+                          signal->theData[2],
+                          signal->theData[3],
+                          signal->theData[4]);
+      return;
+    }
+    g_eventLogger->info("LQH %u : DumpOpRecLookup [0x%08x 0x%08x] op %u %u type %u table %u frag %u "
+                        "state %u as %u lws %u err %u lockType %u scanRec %u accRec %u "
+                        "log part %u state %u problems %u",
+                        instance(),
+                        signal->theData[1],
+                        signal->theData[2],
+                        signal->theData[3],
+                        signal->theData[4],
+                        tcConnectptr.p->operation,
+                        tcConnectptr.p->tableref,
+                        tcConnectptr.p->fragmentid,
+                        tcConnectptr.p->transactionState,
+                        tcConnectptr.p->abortState,
+                        tcConnectptr.p->logWriteState,
+                        tcConnectptr.p->errorCode,
+                        tcConnectptr.p->lockType,
+                        tcConnectptr.p->tcScanRec,
+                        tcConnectptr.p->accConnectrec,
+                        tcConnectptr.p->m_log_part_ptr_p->logPartNo,
+                        tcConnectptr.p->m_log_part_ptr_p->logPartState,
+                        tcConnectptr.p->m_log_part_ptr_p->m_log_problems);
+
+    if (tcConnectptr.p->transactionState == TcConnectionrec::WAIT_ACC)
+    {
+      /* We are waiting for something from ACC - let's ask it what */
+      ndbrequire(tcConnectptr.p->accConnectrec != RNIL);
+      signal->theData[0] = DumpStateOrd::AccDumpOpPrecedingLocks;
+      signal->theData[1] = tcConnectptr.p->accConnectrec;
+
+      EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
+    }
+    return;
+  }
+
+
   if (arg == 4002)
   {
     bool ops = false;

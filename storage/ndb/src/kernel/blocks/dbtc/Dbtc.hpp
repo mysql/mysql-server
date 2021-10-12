@@ -2447,6 +2447,9 @@ private:
   void wrongSchemaVersionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void noFreeConnectionErrorLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void tckeyreq050Lab(Signal* signal, CacheRecordPtr cachePtr, ApiConnectRecordPtr apiConnectptr);
+  void logAbortingOperation(Signal* signal, ApiConnectRecordPtr apiPtr, TcConnectRecordPtr tcPtr, Uint32 error);
+  void logTransactionTimeout(Signal* signal, Uint32 apiConn, Uint32 errCode, bool force = false);
+  void logScanTimeout(Signal* signal, ScanFragRecPtr scanFragPtr, ScanRecordPtr scanPtr);
   void timeOutFoundLab(Signal* signal, UintR anAdd, Uint32 errCode);
   void completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd);
   void completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd);
@@ -2926,12 +2929,47 @@ private:
 
   Uint32 m_load_balancer_location;
 
+  enum TransErrorLogLevel
+  {
+    /* No logging */
+    TELL_NONE                       = 0x0000,
+
+    /* When to log */
+
+    /*   Always */
+    TELL_ALL                        = 0x0001,
+
+    /*   Only when there are deferred triggers in the transaction */
+    TELL_DEFERRED                   = 0x0002,
+
+    /* Space left for more 'filters' */
+    TELL_CONTROL_MASK               = 0x00FF,
+
+    /* What to log */
+    /*   Log details when one operation causes a transaction to abort */
+    TELL_TC_ABORTS                  = 0x0100,
+
+    /*   Log details when a transaction times out at TC */
+    /*     Log timed out transaction details at TC incl ops */
+    TELL_TC_TIMEOUTS_TRANS_OPS      = 0x0200,
+    /*     Also log timed out transaction operation details @ LDM */
+    TELL_TC_TIMEOUTS_TRANS_OPS_LDM  = 0x0400,
+
+    /* All timeout logging options */
+    TELL_TC_TIMEOUTS_MASK           = 0x0600,
+
+
+    /* 'Full logging' value */
+    TELL_FULL                       = 0x0701
+  };
+
 #ifdef ERROR_INSERT
   // Used with ERROR_INSERT 8078 + 8079 to check API_FAILREQ handling
   Uint32 c_lastFailedApi;
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+  Uint32 c_trans_error_loglevel;
   Uint32 m_take_over_operations;
 #endif
 
