@@ -72,7 +72,7 @@ insert into t select 2, 1, i+10 from t1000;
 insert into t select 2, 2, i+10 from t1000;
 insert into t select 3, 1, i+10 from t1000;
 insert into t select 3, 2, i+10 from t1000;
-select /*+ SKIP_SCAN(t i) */ * from t where   k > 2 and k < 8;
+select /*+ SKIP_SCAN(t i) */ * from t where k > 2 and k < 8 order by i, j, k;
 i	j	k
 1	1	3
 1	1	4
