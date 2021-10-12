@@ -17549,6 +17549,17 @@ static MYSQL_SYSVAR_BOOL(
     1     /* default */
 );
 
+bool opt_ndb_applier_allow_skip_epoch;
+static MYSQL_SYSVAR_BOOL(applier_allow_skip_epoch,         /* name */
+                         opt_ndb_applier_allow_skip_epoch, /* var */
+                         PLUGIN_VAR_OPCMDARG,
+                         "Should replication applier be "
+                         "allowed to skip epochs",
+                         NULL, /* check func. */
+                         NULL, /* update func. */
+                         0     /* default */
+);
+
 bool opt_ndb_schema_dist_upgrade_allowed;
 static MYSQL_SYSVAR_BOOL(
     schema_dist_upgrade_allowed,         /* name */
@@ -17893,6 +17904,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(metadata_check),
     MYSQL_SYSVAR(metadata_check_interval),
     MYSQL_SYSVAR(metadata_sync),
+    MYSQL_SYSVAR(applier_allow_skip_epoch),
     NULL};
 
 struct st_mysql_storage_engine ndbcluster_storage_engine = {
