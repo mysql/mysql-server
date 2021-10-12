@@ -39,6 +39,7 @@ extern st_ndb_slave_state g_ndb_slave_state;
 #include "storage/ndb/plugin/ndb_mi.h"
 
 extern ulong opt_ndb_slave_conflict_role;
+extern bool opt_ndb_applier_allow_skip_epoch;
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -1054,23 +1055,43 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (!current_master_server_epoch_committed) {
         /**
            We've moved onto a new epoch without committing
-           the last - probably a bug in transaction retry
+           the last - could be a bug, or perhaps the user
+           has configured slave-skip-errors?
         */
-        ndb_log_error(
-            "NDB Replica: SQL thread stopped as attempting to "
-            "apply new epoch %llu/%llu (%llu) while lower "
-            "received epoch %llu/%llu (%llu) has not been "
-            "committed.  Source Server id : %u.  "
-            "Group Source Log : %s  "
-            "Group Source Log Pos : %." PRIu64,
-            next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-            current_master_server_epoch >> 32,
-            current_master_server_epoch & 0xffffffff,
-            current_master_server_epoch, master_server_id,
-            ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos());
-        /* Stop the slave */
-        return false;
+        if (!opt_ndb_applier_allow_skip_epoch) {
+          ndb_log_error(
+              "NDB Replica: SQL thread stopped as attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64,
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Stop the slave */
+          return false;
+        } else {
+          ndb_log_warning(
+              "NDB Replica: SQL thread attempting to "
+              "apply new epoch %llu/%llu (%llu) while lower "
+              "received epoch %llu/%llu (%llu) has not been "
+              "committed.  Source Server id : %u.  "
+              "Group Source Log : %s  "
+              "Group Source Log Pos : %." PRIu64
+              ".  "
+              "Continuing as ndb_applier_allow_skip_epoch set.",
+              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
+              current_master_server_epoch >> 32,
+              current_master_server_epoch & 0xffffffff,
+              current_master_server_epoch, master_server_id,
+              ndb_mi_get_group_master_log_name(),
+              ndb_mi_get_group_master_log_pos());
+          /* Continue */
+        }
       } else {
         /* Normal case of next epoch after committing last */
       }
