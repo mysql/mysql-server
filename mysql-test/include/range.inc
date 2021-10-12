@@ -921,7 +921,7 @@ explain select * from t2 where a between 'a' and 'A';
 explain select * from t2 where a = 'a' or a='A';
 
 update t1 set a='b' where a<>'a';
---replace_column 10 #
+--replace_column 10 # 11 100.00
 explain select * from t1 where a not between 'b' and 'b'; 
 select a, hex(filler) from t1 where a not between 'b' and 'b'; 
 
