@@ -423,27 +423,18 @@
 // Max. 256 bytes for encryption password given via mgmapi
 #define MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH 256
 
-#ifdef NDB_STATIC_ASSERT
+static_assert(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+static_assert(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
+static_assert(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
 
-static inline void ndb_limits_constraints()
-{
-  NDB_STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+// MAX_NDB_NODES should be 48, but code assumes it is 49
+static constexpr Uint32 MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID;
+static_assert(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
+// Default partitioning is 1 partition per LDM
+static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= MAX_NDB_PARTITIONS);
 
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
-
-  // MAX_NDB_NODES should be 48, but code assumes it is 49
-  static constexpr Uint32 MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID;
-  NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
-
-  // Default partitioning is 1 partition per LDM
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= MAX_NDB_PARTITIONS);
-
-  // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= NDB_MAX_HASHMAP_BUCKETS);
-}
-
-#endif
+// The default hashmap should atleast support the maximum default partitioning
+static_assert(MAX_NDB_DATA_NODES * NDB_MAX_LOG_PARTS <= NDB_MAX_HASHMAP_BUCKETS);
 
 #endif

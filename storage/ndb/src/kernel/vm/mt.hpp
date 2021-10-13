@@ -62,7 +62,7 @@
  */
 #define MAX_INSTANCES_PER_THREAD ((2 * NO_OF_BLOCKS) + 1)
 
-static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS);
 
 Uint32 mt_get_instance_count(Uint32 block);
 

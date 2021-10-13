@@ -75,7 +75,7 @@ int ndbxfrm_writefile::open(ndb_file& file, bool compress, byte* pwd, size_t pwd
   if (m_file_format == FF_AZ31)
   {
     m_file_block_size = 512; // Backward compatibility requires 512 bytes.
-    static_assert(512 == NDB_O_DIRECT_WRITE_ALIGNMENT, "");
+    static_assert(512 == NDB_O_DIRECT_WRITE_ALIGNMENT);
     ndbxfrm_output_iterator out = m_file_buffer.get_output_iterator();
     require(ndb_az31::write_header(&out) == 0);
     m_file_buffer.update_write(out);

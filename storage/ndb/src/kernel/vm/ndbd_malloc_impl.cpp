@@ -76,7 +76,7 @@ extern void mt_mem_manager_unlock();
 
 extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
 
-const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
+constexpr Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
 { /* bound in regions */
   ZONE_19_BOUND >> PAGES_PER_REGION_LOG,
   ZONE_27_BOUND >> PAGES_PER_REGION_LOG,
@@ -160,10 +160,10 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
 {
   if (watchCounter)
     *watchCounter = 9;
-  const Uint32 max_regions = zone_bound[ZONE_COUNT - 1];
-  const Uint32 max_pages = max_regions << PAGES_PER_REGION_LOG;
-  require(max_regions == (max_pages >> PAGES_PER_REGION_LOG));
-  require(max_regions > 0); // TODO static_assert
+  constexpr Uint32 max_regions = zone_bound[ZONE_COUNT - 1];
+  constexpr Uint32 max_pages = max_regions << PAGES_PER_REGION_LOG;
+  static_assert(max_regions == (max_pages >> PAGES_PER_REGION_LOG));
+  static_assert(max_regions > 0);
   if (pages > max_pages)
   {
     return false;
@@ -193,7 +193,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
   require(pages == 0);
 
   /* Reserve big enough continuous address space */
-  require(ZONE_COUNT >= 2); // TODO static assert
+  static_assert(ZONE_COUNT >= 2);
   const Uint32 highest_low = zone_bound[0] - region_count[0];
   const Uint32 lowest_high = zone_bound[ZONE_COUNT - 2] +
                              region_count[ZONE_COUNT - 1];
@@ -1200,7 +1200,7 @@ found:
      * Boundary between lo and high zone coincide with a BPP region
      * boundary.
      */
-    NDB_STATIC_ASSERT((ZONE_19_BOUND & ((1 << BPP_2LOG) - 1)) == 0);
+    static_assert((ZONE_19_BOUND & ((1 << BPP_2LOG) - 1)) == 0);
     if (start < ZONE_19_BOUND)
     {
       require(start + cnt < ZONE_19_BOUND);

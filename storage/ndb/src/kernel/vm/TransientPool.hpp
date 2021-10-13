@@ -119,8 +119,8 @@ private:
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT( offsetof(T, m_magic) == 0);
-    NDB_STATIC_ASSERT( sizeof(T::m_magic) == 4);
+    static_assert( offsetof(T, m_magic) == 0);
+    static_assert( sizeof(T::m_magic) == 4);
   }
 };
 

@@ -1367,7 +1367,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
 	  allAfterFirstToken != NULL &&
 	  native_strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     // password length should be less than sizeof(line_buffer)
-    STATIC_ASSERT(MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH < 512)
+    static_assert(MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH < 512);
     m_error= executeStartBackup(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }

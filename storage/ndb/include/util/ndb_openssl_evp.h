@@ -60,8 +60,8 @@ public:
   static constexpr size_t XTS_IV_LEN = 16;
   static constexpr size_t XTS_BLOCK_LEN = 1;
   static_assert(KEY_LEN + IV_LEN == XTS_KEY_LEN, "xts uses double key length");
-  static_assert(KEY_LEN == CBC_KEY_LEN, "");
-  static_assert(CBC_IV_LEN <= IV_LEN, "");
+  static_assert(KEY_LEN == CBC_KEY_LEN);
+  static_assert(CBC_IV_LEN <= IV_LEN);
 
   static int library_init();
   static int library_end();
@@ -113,7 +113,7 @@ private:
    */
   struct { byte m_key_iv[KEY_LEN + IV_LEN]; } m_key_iv[500];
 };
-static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512, "");
+static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512);
 
 class ndb_openssl_evp::operation
 {

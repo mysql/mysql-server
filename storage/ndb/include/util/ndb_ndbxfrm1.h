@@ -197,9 +197,9 @@ private:
 
   static constexpr size_t MIN_HEADER_SIZE = 8;
   static constexpr size_t MAX_HEADER_SIZE = 512;
-  static_assert(sizeof(fixed_header) <= MAX_HEADER_SIZE, "");
+  static_assert(sizeof(fixed_header) <= MAX_HEADER_SIZE);
   static constexpr size_t MAX_OCTETS_SIZE = 32000;
-  static_assert(MAX_HEADER_SIZE + MAX_OCTETS_SIZE <= 32768, "");
+  static_assert(MAX_HEADER_SIZE + MAX_OCTETS_SIZE <= 32768);
 
   static constexpr size_t MAX_BUFFER_SIZE = MAX_HEADER_SIZE + MAX_OCTETS_SIZE;
 
@@ -269,7 +269,7 @@ private:
     int toggle_endian();
     int validate() const;
   };
-  static_assert(sizeof(fixed_trailer) % 8 == 0, "");
+  static_assert(sizeof(fixed_trailer) % 8 == 0);
 
   struct
   {

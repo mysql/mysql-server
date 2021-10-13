@@ -5174,7 +5174,7 @@ Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
     Page_pos save_pos= c_buckets[bucket].m_buffer_head;
 
     static_assert(1 + Buffer_page::GCI_SZ32 + buffer_header_sz + SUMA_BUF_SZ
-                    <= Buffer_page::DATA_WORDS, "");
+                    <= Buffer_page::DATA_WORDS);
     if (likely((dst1 = get_buffer_ptr(signal, bucket, gci, sz1, 1)) &&
                (dst2 = get_buffer_ptr(signal, bucket, gci, sz2, 2))))
     {
@@ -7002,7 +7002,7 @@ loop:
      * 1) save header on last page
      * 2) seize new page
      */
-    static_assert(1 + 6 + SUMA_BUF_SZ + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS, "");
+    static_assert(1 + 6 + SUMA_BUF_SZ + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS);
     Uint32 next;
     if(unlikely((next= seize_page()) == RNIL))
     {

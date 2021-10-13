@@ -392,7 +392,7 @@ bool TransientPagePool::shrink()
 
 inline TransientPagePool::MapPage::MapPage(Uint32 magic)
 {
-  NDB_STATIC_ASSERT(NO_VALUE == 0);
+  static_assert(NO_VALUE == 0);
   /* zero fill both m_reserved and m_values */
   memset(this, 0, sizeof(*this));
   require(magic != 0);

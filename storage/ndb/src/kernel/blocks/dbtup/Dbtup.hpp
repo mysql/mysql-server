@@ -3913,11 +3913,11 @@ private:
    *   - clogMemBuffer also used for before values
    */
   static_assert(sizeof(clogMemBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(coutBuffer) >=
-      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE), "");
+      sizeof(Uint32) * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE));
   static_assert(sizeof(cinBuffer) >=
-      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX), "");
+      sizeof(Uint32) * (MAX_KEY_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_INDEX));
 
   Uint32 ctemp_page[ZWORDS_ON_PAGE];
   Uint32 ctemp_var_record[ZWORDS_ON_PAGE];

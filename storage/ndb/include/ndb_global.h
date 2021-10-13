@@ -185,30 +185,7 @@ extern "C" {
 #define NDB_O_DIRECT_WRITE_ALIGNMENT 512
 #define NDB_O_DIRECT_WRITE_BLOCKSIZE 4096
 
-#ifndef STATIC_ASSERT
-#if defined VM_TRACE
-/**
- * Compile-time assert for use from procedure body
- * Zero length array not allowed in C
- * Add use of array to avoid compiler warning
- */
-#define STATIC_ASSERT(expr) { char a_static_assert[(expr)? 1 : 0] = {'\0'}; if (a_static_assert[0]) {}; }
-#else
-#define STATIC_ASSERT(expr)
-#endif
-#endif
-
 #define NDB_ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
-
-
-/*
-  NDB_STATIC_ASSERT(expr)
-   - Check coding assumptions during compile time
-     by laying out code that will generate a compiler error
-     if the expression is false.
-*/
-
-#define NDB_STATIC_ASSERT(expr) static_assert(expr, #expr)
 
 #if defined(_WIN32) && (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
@@ -217,7 +194,7 @@ extern "C" {
 
 #ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
-  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
+  static_assert(!__has_trivial_constructor(x))
 #else
 #define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
 #endif
@@ -230,7 +207,7 @@ extern "C" {
  */
 #ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define NDB_ASSERT_POD(x) \
-  NDB_STATIC_ASSERT(__has_trivial_constructor(x))
+  static_assert(__has_trivial_constructor(x))
 #else
 #define NDB_ASSERT_POD(x)
 #endif

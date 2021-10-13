@@ -1631,7 +1631,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   char **_argv= (char **)argv;
 
   // Use program name as one of the defaults group name
-  static_assert(NDB_ARRAY_SIZE(load_default_groups) == 4, "");
+  static_assert(NDB_ARRAY_SIZE(load_default_groups) == 4);
   require(load_default_groups[2] == nullptr);
   load_default_groups[2] = argv[0];
 

@@ -2641,15 +2641,13 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
 {
   m_globalHash = 0;
   m_local_table_data_size= 0;
-#ifdef VM_TRACE
-  STATIC_ASSERT(
+  static_assert(
     (int)WarnUndobufferRoundUp == (int)CreateFilegroupConf::WarnUndobufferRoundUp &&
     (int)WarnUndofileRoundDown == (int)CreateFileConf::WarnUndofileRoundDown &&
     (int)WarnExtentRoundUp == (int)CreateFilegroupConf::WarnExtentRoundUp &&
     (int)WarnDatafileRoundDown == (int)CreateFileConf::WarnDatafileRoundDown &&
     (int)WarnDatafileRoundUp == (int)CreateFileConf::WarnDatafileRoundUp
   );
-#endif
 }
 
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,

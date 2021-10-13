@@ -445,7 +445,7 @@ Ndb_move_data::Op::Op()
   updateop = 0;
   values = 0;
   buflen = 32 * 1024;
-  static_assert(32 * 1024 >= (4 * MAX_TUPLE_SIZE_IN_WORDS), "");
+  static_assert(32 * 1024 >= (4 * MAX_TUPLE_SIZE_IN_WORDS));
   require(buflen >= (4 * MAX_TUPLE_SIZE_IN_WORDS));
   buf1 = new char [buflen];
   buf2 = new char [buflen];

@@ -48,11 +48,11 @@ void Dbtup::init_list_sizes(void)
    * size.
    * Assume varsize may take up the whole row (a slight exaggeration).
    */
-  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784, "");
+  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784);
   c_min_list_size[4]= 7784;
   c_max_list_size[4]= 8159;
 
-  static_assert(MAX_FREE_LIST == 5, "");
+  static_assert(MAX_FREE_LIST == 5);
   c_min_list_size[5]= 0;
   c_max_list_size[5]= 199;
 }

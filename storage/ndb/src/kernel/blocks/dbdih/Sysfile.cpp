@@ -87,8 +87,8 @@ Sysfile::pack_sysfile_format_v2(Uint32 cdata[], Uint32* cdata_size_ptr) const
   Uint32 index = 0;
 
   std::memcpy(&cdata[index], MAGIC_v2, MAGIC_SIZE_v2);
-  static_assert(MAGIC_SIZE_v2 % sizeof(Uint32) == 0, "");
-  static_assert(MAGIC_SIZE_v2 / sizeof(Uint32) == 2, "");
+  static_assert(MAGIC_SIZE_v2 % sizeof(Uint32) == 0);
+  static_assert(MAGIC_SIZE_v2 / sizeof(Uint32) == 2);
   index += MAGIC_SIZE_v2 / sizeof(Uint32);
 
   require(index == 2);

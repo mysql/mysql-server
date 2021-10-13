@@ -62,7 +62,7 @@ resetTransactionTimeout(NDBT_Context* ctx, NDBT_Step* step){
   // g_org_timeout will be passed as printed int to mgm,
   // then converted to Uint32 before sent to tc.
   // Check convert Uint32 -> int -> Uint32 is safe
-  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  static_assert(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
   int val[] = { DumpStateOrd::TcSetApplTransactionTimeout, (int)g_org_timeout };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;
@@ -118,7 +118,7 @@ resetDeadlockTimeout(NDBT_Context* ctx, NDBT_Step* step){
   // g_org_deadlock will be passed as printed int to mgm,
   // then converted to Uint32 before sent to tc.
   // Check convert Uint32 -> int -> Uint32 is safe
-  NDB_STATIC_ASSERT(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
+  static_assert(UINT_MAX32 == (Uint32)(int)UINT_MAX32);
   int val[] = { DumpStateOrd::TcSetTransactionTimeout, (int)g_org_deadlock };
   if(restarter.dumpStateAllNodes(val, 2) != 0){
     return NDBT_FAILED;

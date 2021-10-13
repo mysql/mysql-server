@@ -941,7 +941,7 @@ public:
 
     static void static_asserts()
     {
-      STATIC_ASSERT(sizeof(ApiConTimers) ==
+      static_assert(sizeof(ApiConTimers) ==
                       sizeof(TimerEntry) << INDEX_BITS);
     }
 

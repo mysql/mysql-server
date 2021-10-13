@@ -90,8 +90,7 @@ struct NDB_INDEX_DATA {
     // Verify that vector's type is large enough to store "index of NDB column"
     // (currently 32 columns supported by NDB and 16 by MySQL)
     static_assert(std::numeric_limits<decltype(m_ids)::value_type>::max() >
-                      NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY,
-                  "");
+                  NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY);
 
    public:
     Attrid_map(const KEY *key_info, const NdbDictionary::Table *table);

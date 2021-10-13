@@ -46,7 +46,7 @@ Dbinfo::Dbinfo(Block_context& ctx) :
 {
   BLOCK_CONSTRUCTOR(Dbinfo);
 
-  STATIC_ASSERT(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
+  static_assert(sizeof(DbinfoScanCursor) == sizeof(Ndbinfo::ScanCursor));
 
   /* Add Received Signals */
   addRecSignal(GSN_STTOR, &Dbinfo::execSTTOR);

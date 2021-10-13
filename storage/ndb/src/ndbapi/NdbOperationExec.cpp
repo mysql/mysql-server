@@ -68,8 +68,8 @@ private :
 
   void checkStaticAssertions()
   {
-    STATIC_ASSERT(KeyInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
-    STATIC_ASSERT(AttrInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
+    static_assert(KeyInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
+    static_assert(AttrInfo::HeaderLength == KeyAndAttrInfoHeaderLength);
   }
 
 public :

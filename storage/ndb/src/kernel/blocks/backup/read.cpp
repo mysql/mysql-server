@@ -1310,8 +1310,7 @@ readLogEntry(ndbxfrm_readfile* f,
              Uint32 file_type,
              Uint32 version)
 {
-  static_assert(MaxReadWords >= BackupFormat::LogFile::LogEntry::MAX_SIZE,
-                "");
+  static_assert(MaxReadWords >= BackupFormat::LogFile::LogEntry::MAX_SIZE);
   constexpr Uint32 word_size = sizeof(Uint32);
 
   Uint32 len;
@@ -1352,8 +1351,7 @@ readLogEntry(ndbxfrm_readfile* f,
       return -1;
     }
     static_assert(header_len <=
-                    BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS,
-                  "");
+                    BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS);
     constexpr Uint32 header_len_diff =
         BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS - header_len;
     if (1 + len + header_len_diff > MaxReadWords)

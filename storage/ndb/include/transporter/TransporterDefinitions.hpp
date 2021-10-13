@@ -75,8 +75,8 @@ enum SB_LevelType
  * with nodes at versions lower than mysql-5.1-telco-6.3.18 
  * 
  */
-const Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
-const Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
+constexpr Uint32 MAX_RECV_MESSAGE_BYTESIZE = 32768;
+constexpr Uint32 MAX_SEND_MESSAGE_BYTESIZE = 32768;
 
 /**
  * TransporterConfiguration

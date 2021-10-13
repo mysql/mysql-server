@@ -3272,8 +3272,7 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
 
       boundsDef->oldBound.lowBound.highestKey = 0;
       boundsDef->oldBound.lowBound.highestSoFarIsStrict = false;
-      /* Should be STATIC_ASSERT */
-      assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
+      static_assert(NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY == 32);
       boundsDef->oldBound.lowBound.keysPresentBitmap = 0;
       
       boundsDef->oldBound.highBound= boundsDef->oldBound.lowBound;

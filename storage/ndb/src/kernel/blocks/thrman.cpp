@@ -3022,7 +3022,7 @@ Thrman::calculate_cpu_load_last_second(MeasurementRecord *measure)
     } while (measurePtr.i != RNIL &&
              measure->m_elapsed_time <
              Uint64(NUM_MEASUREMENTS * 50 * 1000));
-    STATIC_ASSERT(NUM_MEASUREMENTS * 50 * 1000 == 1000 * 1000);
+    static_assert(NUM_MEASUREMENTS * 50 * 1000 == 1000 * 1000);
     return true;
   }
   jam();
@@ -3047,7 +3047,7 @@ Thrman::calculate_cpu_load_last_20seconds(MeasurementRecord *measure)
     } while (measurePtr.i != RNIL &&
              measure->m_elapsed_time <
              Uint64(NUM_MEASUREMENTS * NUM_MEASUREMENTS * 50 * 1000));
-    STATIC_ASSERT(NUM_MEASUREMENTS *
+    static_assert(NUM_MEASUREMENTS *
                   NUM_MEASUREMENTS *
                   50 * 1000 == 20 * 1000 * 1000);
     return true;
@@ -3076,7 +3076,7 @@ Thrman::calculate_cpu_load_last_400seconds(MeasurementRecord *measure)
              Uint64(NUM_MEASUREMENTS *
                     NUM_MEASUREMENTS *
                     NUM_MEASUREMENTS * 50 * 1000));
-    STATIC_ASSERT(NUM_MEASUREMENTS *
+    static_assert(NUM_MEASUREMENTS *
                   NUM_MEASUREMENTS *
                   NUM_MEASUREMENTS *
                   50 * 1000 == 400 * 1000 * 1000);
@@ -3299,7 +3299,7 @@ Thrman::calculate_stats_last_second(MeasureStats *stats)
     c_next_50ms_measure.next(measurePtr);
   } while (measurePtr.i != RNIL &&
            elapsed_time < Uint64(NUM_MEASUREMENTS * 50 * 1000));
-  STATIC_ASSERT(NUM_MEASUREMENTS * 50 * 1000 == 1000 * 1000);
+  static_assert(NUM_MEASUREMENTS * 50 * 1000 == 1000 * 1000);
   calc_avgs(stats, num_stats);
   return true;
 }
@@ -3328,7 +3328,7 @@ Thrman::calculate_stats_last_20seconds(MeasureStats *stats)
   } while (measurePtr.i != RNIL &&
            elapsed_time <
            Uint64(NUM_MEASUREMENTS * NUM_MEASUREMENTS * 50 * 1000));
-  STATIC_ASSERT(NUM_MEASUREMENTS *
+  static_assert(NUM_MEASUREMENTS *
                 NUM_MEASUREMENTS *
                 50 * 1000 == 20 * 1000 * 1000);
   calc_avgs(stats, num_stats);
@@ -3361,7 +3361,7 @@ Thrman::calculate_stats_last_400seconds(MeasureStats *stats)
            Uint64(NUM_MEASUREMENTS *
                   NUM_MEASUREMENTS *
                   NUM_MEASUREMENTS * 50 * 1000));
-  STATIC_ASSERT(NUM_MEASUREMENTS *
+  static_assert(NUM_MEASUREMENTS *
                 NUM_MEASUREMENTS *
                 NUM_MEASUREMENTS *
                 50 * 1000 == 400 * 1000 * 1000);

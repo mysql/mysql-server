@@ -105,7 +105,7 @@ class StaticSlotPool::Page
 
   static void static_asserts()
   {
-    NDB_STATIC_ASSERT(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
+    static_assert(sizeof(Page) == WORDS_PER_PAGE * sizeof(Uint32));
   }
 };
 

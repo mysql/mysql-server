@@ -170,8 +170,8 @@ SHM_Transporter::setupBuffers()
   sharedSize += 64;
   sharedSize += sizeof(NdbMutex);
 
-  const Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
-                           MAX_SEND_MESSAGE_BYTESIZE);
+  constexpr Uint32 slack = MAX(MAX_RECV_MESSAGE_BYTESIZE,
+                               MAX_SEND_MESSAGE_BYTESIZE);
 
   /**
    *  NOTE: There is 7th shared variable in Win2k (sharedCountAttached).

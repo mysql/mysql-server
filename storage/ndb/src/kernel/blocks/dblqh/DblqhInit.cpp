@@ -793,7 +793,7 @@ Dblqh::Dblqh(Block_context& ctx,
     &c_scanRecordPool;
   c_transient_pools[DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX] =
     &m_commitAckMarkerPool;
-  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  static_assert(c_transient_pool_count == 3);
   c_transient_pools_shrinking.clear();
 }//Dblqh::Dblqh()
 

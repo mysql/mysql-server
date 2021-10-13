@@ -1091,12 +1091,12 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 
   if (operationRecPtr.p->tupkeylen == 0)
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+    static_assert(AccKeyReq::SignalLength_localKey == 10);
     ndbassert(siglen == AccKeyReq::SignalLength_localKey);
   }
   else
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+    static_assert(AccKeyReq::SignalLength_keyInfo == 8);
     ndbassert(siglen == AccKeyReq::SignalLength_keyInfo + operationRecPtr.p->tupkeylen);
   }
 }//Dbacc::initOpRec()
@@ -2861,7 +2861,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         // enter local key in place of PK
         keyreq->localKey[0] = req->page_id;
         keyreq->localKey[1] = req->page_idx;
-        NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+        static_assert(AccKeyReq::SignalLength_localKey == 10);
       }
       signal->setLength(AccKeyReq::SignalLength_localKey);
       execACCKEYREQ(signal,

@@ -641,8 +641,7 @@ class RestoreLogIterator : public BackupFile {
    * No harm in require space for a few extra words to header too.
    */
   static_assert(BackupFile::BUFFER_SIZE >=
-                  BackupFormat::LogFile::LogEntry::MAX_SIZE,
-                "");
+                  BackupFormat::LogFile::LogEntry::MAX_SIZE);
 private:
   const RestoreMetaData & m_metaData;
 

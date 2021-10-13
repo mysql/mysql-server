@@ -141,7 +141,7 @@ Dbtux::Dbtux(Block_context& ctx,
     &c_scanLockPool;
   c_transient_pools[DBTUX_SCAN_BOUND_TRANSIENT_POOL_INDEX] =
     &c_scanBoundPool;
-  NDB_STATIC_ASSERT(c_transient_pool_count == 3);
+  static_assert(c_transient_pool_count == 3);
   c_transient_pools_shrinking.clear();
 }
 

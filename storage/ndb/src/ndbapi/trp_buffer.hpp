@@ -174,7 +174,7 @@ public:
 
 protected:
   static constexpr Uint32 SENDBUFFER_DEFAULT_PAGE_SIZE = 32 * 1024;
-  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage), "");
+  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage));
 };
 
 class TFMTPool : private TFPool

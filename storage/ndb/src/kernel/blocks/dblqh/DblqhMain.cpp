@@ -9276,7 +9276,7 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
 
     /* Copy KeyInfo to end of ACCKEYREQ signal, starting at offset 7 */
     copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+    static_assert(AccKeyReq::SignalLength_keyInfo == 8);
   }
   TRACE_OP(regTcPtr.p, "ACC");
 
@@ -9740,7 +9740,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
     req->localKey[0] = rowid->m_page_no;
     req->localKey[1] = rowid->m_page_idx;
     siglen = AccKeyReq::SignalLength_localKey;
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+    static_assert(AccKeyReq::SignalLength_localKey == 10);
   }
   else
   {
@@ -9754,7 +9754,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
      */
     copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
     siglen = AccKeyReq::SignalLength_keyInfo + keylen;
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+    static_assert(AccKeyReq::SignalLength_keyInfo == 8);
   }
   signal->setLength(siglen);
   c_acc->execACCKEYREQ(signal,
@@ -33146,7 +33146,7 @@ void Dblqh::readExecLog(Signal* signal,
   req->numberOfPages = lfoPtr.p->noPagesRw;
   req->data.listOfMemPages.fileOffset = logPartPtrP->execSrStartPageNo;
   static_assert(LogFileOperationRecord::LOG_PAGE_ARRAY_SIZE <=
-                  NDB_ARRAY_SIZE(req->data.listOfMemPages.varIndex), "");
+                  NDB_ARRAY_SIZE(req->data.listOfMemPages.varIndex));
   for (unsigned i = 0; i < lfoPtr.p->noPagesRw; i++)
   {
     req->data.listOfMemPages.varIndex[i] = lfoPtr.p->logPageArray[i];

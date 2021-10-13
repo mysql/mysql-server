@@ -27185,7 +27185,7 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
   int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
   jamLine((Uint16)ret);
   ndbrequire(ret == 0);
-  STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
+  static_assert(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
   memcpy(&sysfileDataToFile[0], &cdata[0], 4 * cdata_size_in_words);
   // zero fill unused part of file
   memset(&sysfileDataToFile[cdata_size_in_words],
@@ -27239,7 +27239,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   req->varIndex = ZVAR_NO_WORD;
   req->numberOfPages = tab->noPages;
 
-  NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
+  static_assert(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
   Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
   // .listOfMemPages.fileOffset
   section[0] = 0;

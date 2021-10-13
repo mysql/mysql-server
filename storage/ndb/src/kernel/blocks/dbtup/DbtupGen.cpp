@@ -251,7 +251,7 @@ Dbtup::Dbtup(Block_context& ctx,
     &c_scanLockPool;
   c_transient_pools[DBTUP_SCAN_OPERATION_TRANSIENT_POOL_INDEX] =
     &c_scanOpPool;
-  NDB_STATIC_ASSERT(c_transient_pool_count == 4);
+  static_assert(c_transient_pool_count == 4);
   c_transient_pools_shrinking.clear();
 }//Dbtup::Dbtup()
 

@@ -382,8 +382,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == SUMA))
     {
       static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
-                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
-                    "");
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength);
       ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <=
                  NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,

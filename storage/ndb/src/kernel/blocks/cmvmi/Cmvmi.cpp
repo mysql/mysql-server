@@ -96,8 +96,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   /* Ensure that aligned allocation will result in 64-bit
    * aligned offset for theData
    */
-  STATIC_ASSERT((sizeof(SectionSegment) % 8) == 0);
-  STATIC_ASSERT((offsetof(SectionSegment, theData) % 8) == 0); 
+  static_assert((sizeof(SectionSegment) % 8) == 0);
+  static_assert((offsetof(SectionSegment, theData) % 8) == 0); 
 
   long_sig_buffer_size= long_sig_buffer_size / sizeof(SectionSegment);
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
@@ -470,7 +470,7 @@ SavedEventBuffer::purge()
    * end of buffer.
    */
   constexpr Uint32 len_off = 0;
-  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32));
   const Uint32 data_len = ptr[len_off];
   Uint32 len = SavedEvent::HeaderLength + data_len;
   m_read_pos = (m_read_pos + len) % m_buffer_len;
@@ -529,7 +529,7 @@ SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
    * end of buffer.
    */
   constexpr Uint32 len_off = 0;
-  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32));
   const Uint32 data_len = ptr[len_off];
   require(data_len <= MAX_EVENT_REP_SIZE_WORDS);
   Uint32 total = data_len + SavedEvent::HeaderLength;
@@ -562,7 +562,7 @@ SavedEventBuffer::getScanPosSeq() const
    * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
    * end of buffer.
    */
-  static_assert(offsetof(SavedEvent, m_seq) % sizeof(Uint32) == 0, "");
+  static_assert(offsetof(SavedEvent, m_seq) % sizeof(Uint32) == 0);
   constexpr Uint32 seq_off = offsetof(SavedEvent, m_seq) / sizeof(Uint32);
   if (m_scan_pos + seq_off < m_buffer_len)
   {

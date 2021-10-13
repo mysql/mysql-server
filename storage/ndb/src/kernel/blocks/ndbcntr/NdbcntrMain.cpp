@@ -2583,7 +2583,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
     const Uint32 version = getNodeInfo(refToNode(Tref)).m_version;
     if (ndbd_send_node_bitmask_in_section(version))
     {
-      STATIC_ASSERT(CntrStartConf::SignalLength + NdbNodeBitmask::Size <=
+      static_assert(CntrStartConf::SignalLength + NdbNodeBitmask::Size <=
                     NDB_ARRAY_SIZE(signal->theData));
       LinearSectionPtr lsptr[3];
       Uint32 num_sections;

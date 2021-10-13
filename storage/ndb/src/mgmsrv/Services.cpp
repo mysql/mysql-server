@@ -868,7 +868,7 @@ MgmApiSession::getClusterLogLevel(Parser<MgmApiSession>::Context &			, Propertie
                           "schema" };
 
   int const loglevel_count = (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1);
-  NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(names) == loglevel_count);
+  static_assert(NDB_ARRAY_SIZE(names) == loglevel_count);
   LogLevel::EventCategory category;
 
   m_output->println("get cluster loglevel");

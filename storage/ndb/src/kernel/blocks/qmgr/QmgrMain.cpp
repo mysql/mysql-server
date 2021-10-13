@@ -1509,7 +1509,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     LinearSectionPtr lsptr[3];
 
     // 8192 is the size of signal->theData array.
-    STATIC_ASSERT(CmRegConf::SignalLength_v1 + NdbNodeBitmask::Size <=
+    static_assert(CmRegConf::SignalLength_v1 + NdbNodeBitmask::Size <=
                   NDB_ARRAY_SIZE(signal->theData));
     c_clusterNodes.copyto(packed_nodebitmask_length,
                           &signal->theData[CmRegConf::SignalLength_v1]);
@@ -3840,7 +3840,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
             {
               jam();
-              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5, "");
+              static_assert(NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks) == 5);
               BaseString::snprintf(buf, sizeof(buf),
                                    "  Waiting for blocks: %u %u %u %u %u",
                                    nodePtr.p->m_failconf_blocks[0],

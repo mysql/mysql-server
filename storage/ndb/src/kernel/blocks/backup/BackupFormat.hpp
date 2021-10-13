@@ -308,11 +308,9 @@ struct BackupFormat {
       Uint32 Data[1]; // Len = Length - 3
     };
     static_assert(offsetof(LogEntry, FragId) ==
-                    LogEntry::FRAGID_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry::FRAGID_OFFSET * sizeof(Uint32));
     static_assert(offsetof(LogEntry, Data) ==
-                    LogEntry::DATA_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry::DATA_OFFSET * sizeof(Uint32));
 
     /**
      * Log Entry pre NDBD_FRAGID_VERSION (<5.1.6) and drop6 (5.2.x)
@@ -330,8 +328,7 @@ struct BackupFormat {
       Uint32 Data[1]; // Len = Length - 2
     };
     static_assert(offsetof(LogEntry_no_fragid, Data) ==
-                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32),
-                  "");
+                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32));
   };
 
   /**

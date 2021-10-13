@@ -161,7 +161,7 @@ SimulatedBlock::addInstance(SimulatedBlock* b, Uint32 theInstance)
 void
 SimulatedBlock::initCommon()
 {
-  NDB_STATIC_ASSERT(RG_COUNT == MM_RG_COUNT + 1);
+  static_assert(RG_COUNT == MM_RG_COUNT + 1);
 
   Uint32 count = 10;
   this->getParam("FragmentSendPool", &count);
@@ -3312,10 +3312,10 @@ SimulatedBlock::doNodeFailureCleanup(Signal* signal,
   sig->cleanup.resource = resource;
   sig->cleanup.cursor = cursor;
   sig->cleanup.elementsCleaned= elementsCleaned;
-  Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
-  Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS + 
+  constexpr Uint32 callbackWords = (sizeof(Callback) + 3) >> 2;
+  constexpr Uint32 sigLen = ContinueFragmented::CONTINUE_CLEANUP_FIXED_WORDS +
     callbackWords;
-  ndbassert(sigLen <= 25); // Should be STATIC_ASSERT
+  static_assert(sigLen <= 25);
   memcpy(&sig->cleanup.callbackStart, &cb, callbackWords << 2);
   
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, sigLen, JBB);
