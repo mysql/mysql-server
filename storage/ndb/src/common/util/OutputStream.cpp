@@ -297,9 +297,9 @@ StaticBuffOutputStream::StaticBuffOutputStream(char* buff, size_t size):
   m_buff(buff), m_size(size), m_offset(0)
 {
   reset();
-};
+}
 
-StaticBuffOutputStream::~StaticBuffOutputStream() {};
+StaticBuffOutputStream::~StaticBuffOutputStream() {}
 
 int
 StaticBuffOutputStream::print(const char * fmt, ...)
