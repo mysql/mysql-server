@@ -1280,7 +1280,7 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         Uint32 nodeId = 0;
         Uint32 location_domain_id = 0;
         Uint32 node_type;
-        char *host_str;
+        char *host_str = nullptr;
         iterall.get(CFG_NODE_ID, &nodeId);
         iterall.get(CFG_TYPE_OF_SECTION, &node_type);
         if (node_type == NODE_TYPE_API)

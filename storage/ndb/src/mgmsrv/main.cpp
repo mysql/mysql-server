@@ -206,7 +206,7 @@ static void mgmd_sigterm_handler(int signum)
 }
 #endif
 
-struct ThreadData
+struct ThdData
 {
   FILE* f;
   LogBuffer* logBuf;
@@ -220,7 +220,7 @@ struct ThreadData
 
 void* async_local_log_func(void* args)
 {
-  ThreadData* data = (ThreadData*)args;
+  ThdData* data = (ThdData*)args;
   FILE* f = data->f;
   LogBuffer* logBuf = data->logBuf;
   const size_t get_bytes = 512;
@@ -262,7 +262,7 @@ static void mgmd_run()
   LogBuffer* logBufLocalLog = new LogBuffer(32768); // 32kB
 
   struct NdbThread* locallog_threadvar= NULL;
-  ThreadData thread_args=
+  ThdData thread_args=
   {
     stdout,
     logBufLocalLog,

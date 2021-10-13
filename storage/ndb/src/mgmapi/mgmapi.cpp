@@ -512,7 +512,13 @@ ndb_mgm_call(NdbMgmHandle handle,
       Uint64 val_64;
       BaseString val_s;
 
-      cmd_args->getTypeOf(name, &t);
+      if (!cmd_args->getTypeOf(name, &t))
+      {
+        BaseString errStr = "Failed to get type of argument: ";
+        errStr.append(name);
+        SET_ERROR(handle, NDB_MGM_USAGE_ERROR, errStr.c_str());
+        DBUG_RETURN(NULL);
+      }
       switch(t) {
       case PropertiesType_Uint32:
 	cmd_args->get(name, &val_i);

@@ -673,7 +673,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
  */
 void ThreadContext::apply_current_snapshot() {
   for (const char *row : m_current_rows) {
-    unsigned int note;
+    unsigned int note = 0;
     size_t str_length;
     const char *str_start;
     bool is_null;

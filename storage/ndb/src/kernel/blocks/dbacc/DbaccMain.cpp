@@ -203,7 +203,7 @@ extern EventLogger* g_eventLogger;
 #define JAM_FILE_ID 345
 
 // Index pages used by ACC instances, used by CMVMI to report index memory usage
-extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
+extern Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
 
 void
 Dbacc::prepare_scan_ctx(Uint32 scanPtrI)
