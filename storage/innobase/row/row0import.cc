@@ -786,21 +786,21 @@ tablespace file.
   1. Check each page for corruption.
 
   2. Update the space id and LSN on every page
-     * For the header page
+    - For the header page
        - Validate the flags
        - Update the LSN
 
   3. On Btree pages
-     * Set the index id
-     * Update the max trx id
-     * In a cluster index, update the system columns
-     * In a cluster index, update the BLOB ptr, set the space id
-     * Purge delete marked records, but only if they can be easily
+    - Set the index id
+    - Update the max trx id
+    - In a cluster index, update the system columns
+    - In a cluster index, update the BLOB ptr, set the space id
+    - Purge delete marked records, but only if they can be easily
        removed from the page
-     * Keep a counter of number of rows, ie. non-delete-marked rows
-     * Keep a counter of number of delete marked rows
-     * Keep a counter of number of purge failure
-     * If a page is stamped with an index id that isn't in the .cfg file
+    - Keep a counter of number of rows, ie. non-delete-marked rows
+    - Keep a counter of number of delete marked rows
+    - Keep a counter of number of purge failure
+    - If a page is stamped with an index id that isn't in the .cfg file
        we assume it is deleted and the page can be ignored.
 
    4. Set the page state to dirty so that it will be written to disk.

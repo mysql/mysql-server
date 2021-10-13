@@ -2039,6 +2039,7 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 }
 #endif /* UNIV_DEBUG */
 
+#ifdef UNIV_LINUX
 /** Calculates difference between two timeval values.
 @param[in]	a	later timeval
 @param[in]	b	earlier timeval
@@ -2046,8 +2047,6 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 [[maybe_unused]] static int64_t timeval_diff_us(timeval a, timeval b) {
   return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);
 }
-
-#ifdef UNIV_LINUX
 
 /** Updates statistics about current CPU usage. */
 static void srv_update_cpu_usage() {

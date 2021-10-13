@@ -4983,6 +4983,7 @@ static void fil_name_write_rename(space_id_t space_id, const char *old_name,
   have physically renamed the file. */
 }
 
+#ifdef UNIV_LINUX
 /* Write a redo log record for adding pages to a tablespace
 @param[in]	space_id	Space ID
 @param[in]	offset		Offset from where the file
@@ -4990,10 +4991,8 @@ static void fil_name_write_rename(space_id_t space_id, const char *old_name,
 @param[in]	size		Number of bytes by which the file
                                 is extended starting from the offset
 @param[in,out]	mtr		Mini-transaction */
-[[maybe_unused]] static void fil_op_write_space_extend(space_id_t space_id,
-                                                       os_offset_t offset,
-                                                       os_offset_t size,
-                                                       mtr_t *mtr) {
+static void fil_op_write_space_extend(space_id_t space_id, os_offset_t offset,
+                                      os_offset_t size, mtr_t *mtr) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
   byte *log_ptr;
@@ -5028,6 +5027,7 @@ static void fil_name_write_rename(space_id_t space_id, const char *old_name,
 
   mlog_close(mtr, log_ptr);
 }
+#endif
 #endif /* !UNIV_HOTBACKUP */
 
 /** Allocate and build a file name from a path, a table or tablespace name
@@ -8185,7 +8185,6 @@ dberr_t fil_redo_io(const IORequest &type, const page_id_t &page_id,
 #if defined(_WIN32) && defined(WIN_ASYNC_IO)
   /* On Windows we always open the redo log file in AIO mode. ie. we
   use the AIO API for the read/write even for sync IO. */
-  file::Block *e_block{};
   return shard->do_io(type, true, page_id, page_size, byte_offset, len, buf,
                       nullptr);
 #else
