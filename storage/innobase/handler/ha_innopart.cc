@@ -4233,7 +4233,7 @@ err:
 }
 
 /****************************************************************************
- * DS-MRR implementation
+DS-MRR implementation
  ***************************************************************************/
 
 /* TODO: move the default implementations into the base handler class! */

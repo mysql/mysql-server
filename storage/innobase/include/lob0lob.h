@@ -83,8 +83,8 @@ namespace lob {
 const ulint MAX_SIZE = UINT32_MAX;
 
 /** The compressed LOB is stored as a collection of zlib streams.  The
- * uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
- * these chunks are compressed individually and stored as compressed LOB.
+uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
+these chunks are compressed individually and stored as compressed LOB.
 data. */
 #define KB128 (128 * 1024)
 #define Z_CHUNK_SIZE KB128

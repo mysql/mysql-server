@@ -573,13 +573,13 @@ void dict_col_t::set_default(const byte *value, size_t length,
 
 bool dict_col_default_t::operator==(const dict_col_default_t &other) {
   /* If the lengths are different, trivially the default values are not
-   * the same, return false immediately */
+  the same, return false immediately */
   if (len != other.len) {
     return false;
   }
   /* If the lengths are null or 0, the values are empty and equal.
-   * No need to check both lengths since we only reach this point
-   * if len == other.len */
+  No need to check both lengths since we only reach this point
+  if len == other.len */
   if (len == UNIV_SQL_NULL || len == 0) {
     return true;
   }

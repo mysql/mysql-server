@@ -29,9 +29,13 @@ ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 # Expand PSI_XXX_CALL into direct calls to the performance_schema.
 ADD_DEFINITIONS(-DPFS_DIRECT_CALL)
 
-# Treat warnings as errors on MSVC for InnoDB
 IF(MSVC AND NOT WIN32_CLANG)
+  # Treat warnings as errors on MSVC for InnoDB
   ADD_COMPILE_OPTIONS("/WX")
+  # Add warnings from level 4
+  ADD_COMPILE_OPTIONS("/W4")
+  # Disable C4324: structure was padded due to __declspec(align())
+  ADD_COMPILE_OPTIONS("/wd4324")
 ENDIF()
 
 # TODO: Fix up all non-canonical include paths and remove this.
@@ -241,6 +245,45 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
+IF(MSVC AND NOT WIN32_CLANG)
+  # Disable C4505: unreferenced local function has been removed
+  ADD_COMPILE_FLAGS(pars/lexyy.cc COMPILE_FLAGS "/wd4505")
+  # Disable C4702: unreachable code
+  ADD_COMPILE_FLAGS(pars/lexyy.cc pars/pars0grm.cc COMPILE_FLAGS "/wd4702")
+  # Disable C4100: unreferenced formal parameter
+  # Disable C4701: potentially uninitialized local variable used
+  # Disable C4702: unreachable code
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc COMPILE_FLAGS "/wd4100 /wd4701 /wd4702")
+
+  # Temporary disables for warnings that are not yet fixed:
+  # C4100: unreferenced formal parameter
+  ADD_COMPILE_OPTIONS("/wd4100")
+  # C4127	conditional expression is constant
+  ADD_COMPILE_OPTIONS("/wd4127")
+  # C4245: conversion from 'X'' to 'Y', signed/unsigned mismatch
+  ADD_COMPILE_OPTIONS("/wd4245")
+  # C4456: declaration of 'X' hides local declaration
+  ADD_COMPILE_OPTIONS("/wd4456")
+  # C4457: declaration of 'X' hides function parameter
+  ADD_COMPILE_OPTIONS("/wd4457")
+  # C4458: declaration of 'X' hides class member
+  ADD_COMPILE_OPTIONS("/wd4458")
+  # C4459: declaration of 'X' hides global declaration
+  ADD_COMPILE_OPTIONS("/wd4459")
+  # C4389: '==': signed/unsigned mismatch
+  ADD_COMPILE_OPTIONS("/wd4389")
+  # C4201: nonstandard extension used: nameless struct/union
+  ADD_COMPILE_OPTIONS("/wd4201")
+  # C4701: potentially uninitialized local variable 'X' used
+  ADD_COMPILE_OPTIONS("/wd4701")
+  # C4702: unreachable code
+  ADD_COMPILE_OPTIONS("/wd4702")
+  # C4703: potentially uninitialized local pointer variable 'X' used
+  ADD_COMPILE_OPTIONS("/wd4703")
+  # C4706: assignment within conditional expression
+  ADD_COMPILE_OPTIONS("/wd4706")
+ENDIF()
+
 # There seems to be a bug in gcc for Oracle Linux 8 on ARM.
 # storage/innobase/ut/ut0test.cc:213:76:
 # warning: requested alignment 512 is larger than 16 [-Wattributes]
@@ -278,7 +321,6 @@ MYSQL_ADD_PLUGIN(innobase
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
-
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
 IF(SOLARIS AND MY_COMPILER_IS_GNU)
@@ -299,4 +341,16 @@ MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc
     COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
+IF(MSVC AND NOT WIN32_CLANG)
+  # Disable C4100: unreferenced formal parameter
+  # for release builds and other non-innobase targets, as many parameters are
+  # server-only and debug-only.
+  FOREACH(flag
+     CMAKE_CXX_FLAGS_MINSIZEREL
+     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+   SET("${flag}" "${${flag}} /wd4100")
+  ENDFOREACH()
+  TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE "/wd4100")
 ENDIF()
