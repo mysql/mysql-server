@@ -119,29 +119,4 @@ void init_test_logger(const std::list<std::string> &additional_log_domains = {},
                       const std::string &log_folder = "",
                       const std::string &log_filename = "");
 
-/**
- * Temporary Directory object using RAII semantics
- *
- * This class creates a temporary directory with (partially) random name, which
- * it removes on destruction along with its contents. It exposes an API to
- * conveniently work with this directory.
- */
-class TmpDir {
- public:
-  // RAII
-  TmpDir() : tmp_dir_(mysql_harness::get_tmp_dir()) {}
-  TmpDir(const std::string &dir_name_prefix)
-      : tmp_dir_(mysql_harness::get_tmp_dir(dir_name_prefix)) {}
-  ~TmpDir() { mysql_harness::delete_dir(tmp_dir_); }
-
-  // return path to tmp dir
-  std::string operator()() { return tmp_dir_; }
-
-  // return path/to/file in tmp dir
-  std::string file(const std::string &fname) { return tmp_dir_ + "/" + fname; }
-
- private:
-  std::string tmp_dir_;
-};
-
 #endif /* MYSQL_HARNESS_HELPERS_INCLUDED */

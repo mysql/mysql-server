@@ -41,6 +41,7 @@
 #include "keyring/keyring_memory.h"
 #include "random_generator.h"
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 using namespace testing;
 
@@ -275,7 +276,7 @@ static bool file_exists(const std::string &file) {
   return mysql_harness::Path(file).exists();
 }
 
-TmpDir tmp_dir;
+TempDirectory tmp_dir;
 
 TEST(KeyringManager, init_tests) {
   mysql_harness::DIM::instance().set_RandomGenerator(

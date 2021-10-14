@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_TEMP_DIRECTORY_INCLUDED
-#define MYSQLROUTER_TEMP_DIRECTORY_INCLUDED
+#ifndef MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
+#define MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
 
 #include <string>
 
@@ -41,6 +41,8 @@ class TempDirectory {
     name_ = name;
   }
   std::string name() const { return name_; }
+
+  std::string file(const std::string &fname) { return name_ + "/" + fname; }
 
  private:
   std::string name_;

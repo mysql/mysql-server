@@ -29,7 +29,7 @@
 #include "mysql/harness/net_ts/socket.h"  // net::impl::socket::init
 
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "test/helpers.h"  // TmpDir
+#include "test/temp_directory.h"
 
 #ifndef _WIN32
 
@@ -156,7 +156,7 @@ std::ostream &operator<<(std::ostream &os,
 }  // namespace net
 
 TEST(NetTS_local, stream_socket_bind_accept_connect) {
-  TmpDir tmpdir;
+  TempDirectory tmpdir;
 
   std::string socket_path = tmpdir.file("stream-protocol.test.socket");
 
@@ -228,7 +228,7 @@ TEST(NetTS_local, stream_socket_bind_accept_connect) {
 }
 
 TEST(NetTS_local, datagram_socket_bind_sendmsg_recvmsg) {
-  TmpDir tmpdir;
+  TempDirectory tmpdir;
 
   net::io_context io_ctx;
 

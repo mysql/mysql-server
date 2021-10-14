@@ -121,7 +121,7 @@ ENDFOREACH()
 ADD_GOOGLETEST_FILE(test_net_ts_local.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS harness_net_ts
-  # TmpDir
+  # TempDirectory
   LIB_DEPENDS test-helpers
   )
 

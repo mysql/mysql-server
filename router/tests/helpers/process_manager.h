@@ -46,7 +46,7 @@
 #include "mysql/harness/net_ts/win32_named_pipe.h"
 #include "mysql/harness/stdx/expected.h"
 #include "router_test_helpers.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
 
