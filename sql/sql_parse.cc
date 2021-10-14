@@ -4158,10 +4158,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
       name = lex->sphead->name(&namelen);
       if (lex->sphead->m_type == enum_sp_type::FUNCTION) {
         udf_func *udf = find_udf(name, namelen);
-
+        /*
+          Issue a warning if there is an existing loadable function with the
+          same name.
+        */
         if (udf) {
-          my_error(ER_UDF_EXISTS, MYF(0), name);
-          goto error;
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
+                              ER_WARN_SF_UDF_NAME_COLLISION,
+                              ER_THD(thd, ER_WARN_SF_UDF_NAME_COLLISION), name);
         }
       }
 

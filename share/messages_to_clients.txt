@@ -9679,6 +9679,9 @@ ER_DA_CONN_LIMIT
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE_INSTANT
   eng "Need to rebuild the table to change column type"
 
+ER_WARN_SF_UDF_NAME_COLLISION
+  eng "This function '%-.192s' has the same name as a loadable function (UDF). To invoke the stored function, it is necessary to qualify it with the schema name."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
