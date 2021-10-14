@@ -2442,44 +2442,60 @@ void Item_func_convert_tz::cleanup() {
 bool Item_date_add_interval::resolve_type(THD *thd) {
   set_nullable(true);
 
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  /*
+    If first argument is a dynamic parameter, type DATE is assumed if the
+    provided interval is a YEAR, MONTH or DAY interval, otherwise
+    type DATETIME is assumed.
+    If the assumed type is DATE and the user provides a DATETIME on execution,
+    a reprepare will happen.
+  */
+  const enum_field_types assumed_type =
+      m_interval_type <= INTERVAL_DAY || m_interval_type == INTERVAL_YEAR_MONTH
+          ? MYSQL_TYPE_DATE
+          : MYSQL_TYPE_DATETIME;
+
+  if (param_type_is_default(thd, 0, 1, assumed_type)) return true;
   /*
     Syntax may be:
-    - either date_add(x, ?): then '?' is an integer number of days
-    - or date_add(x, interval ? some_query_expression): then '?' may be an int,
-    a decimal, a string in format "days hours:minutes", depending on int_type,
-    see
-    https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_date-add
+    - either DATE_ADD(x, ?): then '?' is an integer number of days
+    - or DATE_ADD(x, interval ? some_query_expression): then '?' may be
+    an integer, a decimal, a string in format "days hours:minutes",
+    depending on m_interval_type, see
+    https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#
+    function_date-add
   */
   enum_field_types arg1_type;
-  if (int_type <= INTERVAL_MINUTE)
+  if (m_interval_type <= INTERVAL_MINUTE)
     arg1_type = MYSQL_TYPE_LONGLONG;
-  else if (int_type == INTERVAL_SECOND)  // decimals allowed
+  else if (m_interval_type == INTERVAL_SECOND)  // decimals allowed
     arg1_type = MYSQL_TYPE_NEWDECIMAL;
-  else if (int_type == INTERVAL_MICROSECOND)
+  else if (m_interval_type == INTERVAL_MICROSECOND)
     arg1_type = MYSQL_TYPE_LONGLONG;
   else
     arg1_type = MYSQL_TYPE_VARCHAR;  // composite, as in "HOUR:MINUTE"
   if (param_type_is_default(thd, 1, 2, arg1_type)) return true;
 
   /*
-    The field type for the result of an Item_date function is defined as
-    follows:
+    The result type of an Item_date_add_interval function is defined as follows:
 
-    - If first arg is a MYSQL_TYPE_DATETIME result is MYSQL_TYPE_DATETIME
-    - If first arg is a MYSQL_TYPE_DATE and the interval type uses hours,
-      minutes or seconds then type is MYSQL_TYPE_DATETIME.
+    - If first argument is MYSQL_TYPE_DATETIME, result is MYSQL_TYPE_DATETIME.
+    - If first argument is MYSQL_TYPE_DATE,
+        if the interval type uses hour, minute or second,
+        then type is MYSQL_TYPE_DATETIME, otherwise type is MYSQL_TYPE_DATE.
+    - If first argument is MYSQL_TYPE_TIME,
+        if the interval type uses year, month or days
+        then type is MYSQL_TYPE_DATETIME, otherwise type is MYSQL_TYPE_TIME.
     - Otherwise the result is MYSQL_TYPE_STRING
-      (This is because you can't know if the string contains a DATE, MYSQL_TIME
-    or DATETIME argument)
+      This is because the first argument is interpreted as a string which
+      may contain a DATE, TIME or DATETIME value, but we don't know which yet.
   */
   enum_field_types arg0_data_type = args[0]->data_type();
   uint8 interval_dec = 0;
-  if (int_type == INTERVAL_MICROSECOND ||
-      (int_type >= INTERVAL_DAY_MICROSECOND &&
-       int_type <= INTERVAL_SECOND_MICROSECOND))
+  if (m_interval_type == INTERVAL_MICROSECOND ||
+      (m_interval_type >= INTERVAL_DAY_MICROSECOND &&
+       m_interval_type <= INTERVAL_SECOND_MICROSECOND))
     interval_dec = DATETIME_MAX_DECIMALS;
-  else if (int_type == INTERVAL_SECOND && args[1]->decimals > 0)
+  else if (m_interval_type == INTERVAL_SECOND && args[1]->decimals > 0)
     interval_dec = min(args[1]->decimals, uint8{DATETIME_MAX_DECIMALS});
 
   if (arg0_data_type == MYSQL_TYPE_DATETIME ||
@@ -2487,13 +2503,22 @@ bool Item_date_add_interval::resolve_type(THD *thd) {
     uint8 dec = max<uint8>(args[0]->datetime_precision(), interval_dec);
     set_data_type_datetime(dec);
   } else if (arg0_data_type == MYSQL_TYPE_DATE) {
-    if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
+    if (m_interval_type <= INTERVAL_DAY ||
+        m_interval_type == INTERVAL_YEAR_MONTH)
       set_data_type_date();
     else
       set_data_type_datetime(interval_dec);
   } else if (arg0_data_type == MYSQL_TYPE_TIME) {
-    uint8 dec = max<uint8>(args[0]->time_precision(), interval_dec);
-    set_data_type_time(dec);
+    if ((m_interval_type >= INTERVAL_HOUR &&
+         m_interval_type <= INTERVAL_MICROSECOND) ||
+        (m_interval_type >= INTERVAL_HOUR_MINUTE &&
+         m_interval_type <= INTERVAL_SECOND_MICROSECOND)) {
+      uint8 dec = max<uint8>(args[0]->time_precision(), interval_dec);
+      set_data_type_time(dec);
+    } else {
+      uint8 dec = max<uint8>(args[0]->datetime_precision(), interval_dec);
+      set_data_type_datetime(dec);
+    }
   } else {
     /* Behave as a usual string function when return type is VARCHAR. */
     set_data_type_char(MAX_DATETIME_FULL_WIDTH, default_charset());
@@ -2510,7 +2535,7 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
 
   if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE)) return (null_value = true);
 
-  if (get_interval_value(args[1], int_type, &value, &interval)) {
+  if (get_interval_value(args[1], m_interval_type, &value, &interval)) {
     // Do not warn about "overflow" for NULL
     if (!args[1]->null_value) {
       push_warning_printf(
@@ -2520,7 +2545,7 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
     return (null_value = true);
   }
 
-  if (date_sub_interval) interval.neg = !interval.neg;
+  if (m_subtract) interval.neg = !interval.neg;
 
   /*
     Make sure we return proper time_type.
@@ -2533,8 +2558,8 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
            ltime->time_type == MYSQL_TIMESTAMP_DATE)
     date_to_datetime(ltime);
 
-  if ((null_value =
-           date_add_interval_with_warn(current_thd, ltime, int_type, interval)))
+  if ((null_value = date_add_interval_with_warn(current_thd, ltime,
+                                                m_interval_type, interval)))
     return true;
   return false;
 }
@@ -2542,11 +2567,12 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
 bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime) {
   Interval interval;
 
-  if ((null_value = args[0]->get_time(ltime) ||
-                    get_interval_value(args[1], int_type, &value, &interval)))
+  null_value = args[0]->get_time(ltime) ||
+               get_interval_value(args[1], m_interval_type, &value, &interval);
+  if (null_value) {
     return true;
-
-  if (date_sub_interval) interval.neg = !interval.neg;
+  }
+  if (m_subtract) interval.neg = !interval.neg;
 
   assert(!check_time_range_quick(*ltime));
 
@@ -2602,8 +2628,8 @@ bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const {
   if (!Item_func::eq(item, binary_cmp)) return false;
   const Item_date_add_interval *other =
       down_cast<const Item_date_add_interval *>(item);
-  return ((int_type == other->int_type) &&
-          (date_sub_interval == other->date_sub_interval));
+  return m_interval_type == other->m_interval_type &&
+         m_subtract == other->m_subtract;
 }
 
 /*
@@ -2636,10 +2662,10 @@ void Item_date_add_interval::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
-  str->append(date_sub_interval ? " - interval " : " + interval ");
+  str->append(m_subtract ? " - interval " : " + interval ");
   args[1]->print(thd, str, query_type);
   str->append(' ');
-  str->append(interval_names[int_type]);
+  str->append(interval_names[m_interval_type]);
   str->append(')');
 }
 
@@ -2969,25 +2995,29 @@ err:
 }
 
 bool Item_func_add_time::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  if (param_type_is_default(thd, 0, 1,
+                            m_datetime ? MYSQL_TYPE_DATETIME : MYSQL_TYPE_TIME))
+    return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_TIME)) return true;
 
   /*
     The field type for the result of an Item_func_add_time function is defined
     as follows:
 
-    - If first arg is a MYSQL_TYPE_DATETIME or MYSQL_TYPE_TIMESTAMP
-      result is MYSQL_TYPE_DATETIME
-    - If first arg is a MYSQL_TYPE_TIME result is MYSQL_TYPE_TIME
+    - If first argument is MYSQL_TYPE_DATETIME, MYSQL_TYPE_TIMESTAMP or
+      MYSQL_TYPE_DATE, then result is MYSQL_TYPE_DATETIME
+    - If first argument is MYSQL_TYPE_TIME, then result is MYSQL_TYPE_TIME
+    - Result type is overridden as MYSQL_TYPE_DATETIME if m_datetime,
+      meaning that this is the implementation of the two-argument
+      TIMESTAMP function.
     - Otherwise the result is MYSQL_TYPE_STRING
-
-    TODO: perhaps it should also return MYSQL_TYPE_DATETIME
-    when the first argument is MYSQL_TYPE_DATE.
   */
-  if (args[0]->data_type() == MYSQL_TYPE_TIME && !is_date) {
+  if (args[0]->data_type() == MYSQL_TYPE_TIME && !m_datetime) {
     uint8 dec = max(args[0]->time_precision(), args[1]->time_precision());
     set_data_type_time(dec);
-  } else if (args[0]->is_temporal_with_date_and_time() || is_date) {
+  } else if (args[0]->data_type() == MYSQL_TYPE_DATETIME ||
+             args[0]->data_type() == MYSQL_TYPE_TIMESTAMP ||
+             args[0]->data_type() == MYSQL_TYPE_DATE || m_datetime) {
     uint8 dec = max(args[0]->datetime_precision(), args[1]->time_precision());
     set_data_type_datetime(dec);
   } else {
@@ -3001,21 +3031,20 @@ bool Item_func_add_time::resolve_type(THD *thd) {
   ADDTIME(t,a) and SUBTIME(t,a) are time functions that calculate a
   time/datetime value
 
-  t: time_or_datetime_expression
-  a: time_expression
+  @param time       time or datetime_expression.
+  @param fuzzy_date flags that control temporal operation.
 
-  @retval 0 on success
-  @retval 1 on error
+  @returns false on success, true on error or NULL value return.
 */
 
 bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
                                       my_time_flags_t fuzzy_date) {
-  assert(fixed == 1);
+  assert(fixed);
   MYSQL_TIME l_time1, l_time2;
   bool is_time = false;
   long days, microseconds;
   longlong seconds;
-  int l_sign = sign;
+  int l_sign = m_sign;
 
   null_value = false;
   if (data_type() == MYSQL_TYPE_DATETIME)  // TIMESTAMP function
@@ -3079,11 +3108,11 @@ null_date:
 
 void Item_func_add_time::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
-  if (is_date) {
-    assert(sign > 0);
+  if (m_datetime) {
+    assert(m_sign > 0);
     str->append(STRING_WITH_LEN("timestamp("));
   } else {
-    if (sign > 0)
+    if (m_sign > 0)
       str->append(STRING_WITH_LEN("addtime("));
     else
       str->append(STRING_WITH_LEN("subtime("));

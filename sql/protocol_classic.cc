@@ -2784,7 +2784,7 @@ static bool parse_query_bind_params(
 
       enum enum_field_types type =
           has_new_types ? params[i].type
-                        : stmt_data->param_array[i]->data_type_actual();
+                        : stmt_data->param_array[i]->data_type_source();
       if (type == MYSQL_TYPE_BOOL)
         return true;  // unsupported in this version of the Server
       if (stmt_data && i < stmt_data->param_count && stmt_data->param_array &&

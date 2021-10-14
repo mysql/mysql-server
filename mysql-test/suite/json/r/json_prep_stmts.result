@@ -23,51 +23,62 @@ values because Field_json::store() is not implemented for such values.
 Integer parameter: With CAST, the integer value is converted to a
 scalar JSON value, without cast the parameter is rejected as invald JSON.
 execute ps_insert_cast using @int;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @int;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 Decimal parameter: With CAST, the decimal value is converted to a
 scalar JSON value, without cast the parameter is rejected as invald JSON.
 execute ps_insert_cast using @dec;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @dec;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 Float parameter: With CAST, the float value is converted to a
 scalar JSON value, without cast the parameter is rejected as invald JSON.
 execute ps_insert_cast using @flt;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @flt;
 ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 String parameter containing an integer: Both statements accept the
 parameter as a scalar JSON value.
 execute ps_insert_cast using @intstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @intstr;
 String parameter containing a decimal: Both statements accept the
 parameter as a scalar JSON value.
 execute ps_insert_cast using @decstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @decstr;
 String parameter containing a float: Both statements accept the
 parameter as a scalar JSON value.
 execute ps_insert_cast using @fltstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @fltstr;
 String parameter containing a non-quoted string: None of the statements
 will recognize this:
 execute ps_insert_cast using @strstr;
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @strstr;
 ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value for column 't1.j'.
 String parameter containing a quoted string: Both statements accept
 the parameter as a scalar JSON value.
 execute ps_insert_cast using @quotstr;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @quotstr;
 String parameter containing a timestamp literal: None of the statements
 will recognize this:
 execute ps_insert_cast using @ts;
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @ts;
 ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't1.j'.
 Parameter that is a NULL value: accepted with both statements:
 execute ps_insert_cast using @null;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @null;
 String parameter that is a JSON object: accepted with both statements:
 execute ps_insert_cast using @json;
+prepare ps_insert from 'insert into t1 values (?)';
 execute ps_insert using @json;
 DEALLOCATE PREPARE ps_insert_cast;
 DEALLOCATE PREPARE ps_insert;

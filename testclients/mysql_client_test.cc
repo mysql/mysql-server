@@ -6015,6 +6015,73 @@ static void test_temporal_param() {
   mysql_stmt_close(stmt);
 }
 
+static void test_temporal_functions() {
+  MYSQL_STMT *stmt = nullptr;
+  uint rc;
+  ulong length = 0;
+  MYSQL_BIND bind_date{};
+  MYSQL_BIND bind_result{};
+  bool is_null = false;
+  MYSQL_TIME date, result;
+
+  /* Initialize the temporal parameters */
+  bind_date.buffer_type = MYSQL_TYPE_DATE;
+  bind_date.buffer = (void *)&date;
+  bind_date.is_null = &is_null;
+  bind_date.length = &length;
+  bind_date.buffer_length = (ulong)sizeof(date);
+
+  bind_result.buffer_type = MYSQL_TYPE_TIMESTAMP;
+  bind_result.buffer = (void *)&result;
+  bind_result.is_null = &is_null;
+  bind_result.length = &length;
+  bind_result.buffer_length = (ulong)sizeof(result);
+
+  /* Initialize the temporal values */
+  date.neg = false;
+  date.time_type = MYSQL_TIMESTAMP_DATE;
+  date.year = 2000;
+  date.month = 1;
+  date.day = 1;
+  date.hour = 0;
+  date.minute = 0;
+  date.second = 0;
+  date.second_part = 0;
+
+  /* Prepare and bind input and output parameters */
+  stmt = mysql_simple_prepare(mysql, "SELECT ADDDATE(?, INTERVAL 1 MONTH)");
+  check_stmt(stmt);
+  verify_param_count(stmt, 1);
+
+  rc = mysql_stmt_bind_param(stmt, &bind_date);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_result(stmt, &bind_result);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  /* Execute and fetch */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_close(stmt);
+}
+
 /* Misc tests to keep pure coverage happy */
 
 static void test_pure_coverage() {
@@ -8156,7 +8223,7 @@ static void test_ts() {
   char query[MAX_TEST_QUERY_LENGTH];
   const char *queries[3] = {
       "SELECT a, b, c FROM test_ts WHERE %c=?",
-      "SELECT a, b, c FROM test_ts WHERE %c=?",
+      "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS TIME)",
       "SELECT a, b, c FROM test_ts WHERE %c=CAST(? AS DATE)"};
   myheader("test_ts");
 
@@ -11520,6 +11587,7 @@ static void test_datetime_ranges() {
 
   myheader("test_datetime_ranges");
 
+  rc = mysql_real_query(mysql, STRING_WITH_LEN("set sql_mode=''"));
   stmt_text = "drop table if exists t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
@@ -22254,6 +22322,258 @@ static void test_bug33164347() {
   DIE_UNLESS(rc != 0);
 }
 
+static void test_bug32915973() {
+  DBUG_TRACE;
+  myheader("test_bug32915973");
+
+  int rc = 0;
+  MYSQL_STMT *stmt;
+  MYSQL_RES *result;
+
+  const char *query1 = "select ADDDATE(?, INTERVAL 1 DAY) AS c";
+  const char *query2 = "select ADDDATE(?, INTERVAL 1 HOUR) AS c";
+
+  stmt = mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != nullptr);
+
+  ulong length[2];
+  bool is_null[2] = {false, false};
+  MYSQL_TIME tm[2];
+
+  MYSQL_BIND bind[2];
+  memset(bind, 0, sizeof(bind));
+
+  bind[0].buffer_type = MYSQL_TYPE_DATE;
+  bind[0].buffer = (void *)&tm[0];
+  bind[0].is_null = &is_null[0];
+  bind[0].length = &length[0];
+  bind[0].buffer_length = 30;
+  length[0] = 20;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATE;
+  bind[1].buffer = (void *)&tm[1];
+  bind[1].is_null = &is_null[1];
+  bind[1].length = &length[1];
+  bind[1].buffer_length = 30;
+  length[1] = 20;
+
+  tm[0].neg = false;
+  tm[0].year = 2021;
+  tm[0].month = 2;
+  tm[0].day = 3;
+  tm[0].hour = 1;
+  tm[0].minute = 2;
+  tm[0].second = 3;
+  tm[0].second_part = 0;
+  tm[0].time_type = MYSQL_TIMESTAMP_NONE;
+
+  // Test 1: ADDDATE with date interval and date parameter, result date
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",               // field and its org name
+                       MYSQL_TYPE_DATE,  // field type
+                       "", "",           // table and its org name
+                       "", 10, 0);       // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4);
+
+  mysql_free_result(result);
+
+  // Test 2: ADDDATE with date interval and time parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_TIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  // Year, month and day are taken from current date and are not checked:
+  DIE_UNLESS(tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  // Test 3: ADDDATE with date interval and datetime parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query1, strlen(query1));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 4 &&
+             tm[1].hour == 1 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  // Test 4: ADDDATE with time interval and time parameter, result is NULL
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_TIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(is_null[1]);
+
+  mysql_free_result(result);
+
+  // Test 5: ADDDATE with time interval and date parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATE;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
+             tm[1].hour == 1 && tm[1].minute == 0 && tm[1].second == 0);
+
+  mysql_free_result(result);
+
+  // Test 6: ADDDATE with time interval and datetime parameter, result datetime
+
+  rc = mysql_stmt_prepare(stmt, query2, strlen(query2));
+  check_execute(stmt, rc);
+
+  bind[0].buffer_type = MYSQL_TYPE_DATETIME;
+
+  bind[1].buffer_type = MYSQL_TYPE_DATETIME;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  result = mysql_stmt_result_metadata(stmt);
+  mytest(result);
+
+  verify_prepare_field(result, 0, "c",
+                       "",                   // field and its org name
+                       MYSQL_TYPE_DATETIME,  // field type
+                       "", "",               // table and its org name
+                       "", 26, 0);           // db name, length(its bool flag)
+
+  rc = mysql_stmt_bind_result(stmt, bind + 1);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(tm[1].year == 2021 && tm[1].month == 2 && tm[1].day == 3 &&
+             tm[1].hour == 2 && tm[1].minute == 2 && tm[1].second == 3);
+
+  mysql_free_result(result);
+
+  mysql_stmt_close(stmt);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22323,6 +22643,7 @@ static struct my_tests_st my_tests[] = {
     {"test_date", test_date},
     {"test_date_frac", test_date_frac},
     {"test_temporal_param", test_temporal_param},
+    {"test_temporal_functions", test_temporal_functions},
     {"test_date_date", test_date_date},
     {"test_date_time", test_date_time},
     {"test_date_ts", test_date_ts},
@@ -22560,6 +22881,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug32847269", test_bug32847269},
     {"test_bug32892045", test_bug32892045},
     {"test_bug33164347", test_bug33164347},
+    {"test_bug32915973", test_bug32915973},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

@@ -81,6 +81,12 @@ bool datetime_to_timeval(const MYSQL_TIME *t, const Time_zone &tz,
                          my_timeval *tm, int *warnings);
 bool str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
                                my_time_flags_t flags);
+bool decimal_to_datetime(const my_decimal *decimal, MYSQL_TIME *ltime,
+                         my_time_flags_t flags);
+bool decimal_to_time(const my_decimal *decimal, MYSQL_TIME *ltime);
+bool double_to_datetime(double nr, MYSQL_TIME *ltime, my_time_flags_t flags);
+bool double_to_time(double nr, MYSQL_TIME *ltime);
+
 bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
                                       MYSQL_TIME *ltime, my_time_flags_t flags);
 bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
