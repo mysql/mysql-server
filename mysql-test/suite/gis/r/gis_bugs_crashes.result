@@ -6542,34 +6542,34 @@ POINT(0 8)
 # Bug #33290245 Item_func_st_distance_sphere::val_real():
 #               Assertion `is_nullable()' failed.
 do st_astext( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_aswkb( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_centroid( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_contains( ( _utf32', ,*') regexp 13946, ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_convexhull( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_distance_sphere( ( ( _utf32', ,*') regexp 13946), 1, 42);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_envelope( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_geometrytype( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_geomfromtext( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_issimple( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_isvalid( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_latitude( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_makeenvelope( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_simplify( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_srid( st_pointfromtext(( _utf32', ,*') regexp 13946));
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
 do st_validate( ( _utf32', ,*') regexp 13946);
-ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16le
+ERROR HY000: Cannot convert string '\x2C\x20\x2C\x2A' from utf32 to utf16
