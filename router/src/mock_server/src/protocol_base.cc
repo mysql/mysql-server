@@ -142,7 +142,10 @@ stdx::expected<void, std::error_code> ProtocolBase::tls_accept() {
 
   // if the initial memory bio is processed, switch to the fd for more data.
   if (BIO_method_type(rbio) == BIO_TYPE_MEM && BIO_ctrl_pending(rbio) == 0) {
-    SSL_set_rfd(ssl, client_socket_.native_handle());
+    // we could use SSL_set_rfd as we only change read BIO here but in older
+    // OpenSSL version it seems to be bogus and invalidates our existing write
+    // BIO as a side effect
+    SSL_set_fd(ssl, client_socket_.native_handle());
   }
 
   if (accept_res != 1) {
