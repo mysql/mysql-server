@@ -4054,6 +4054,32 @@ EXPLAIN
     -> Table scan on t1
 
 DROP TABLE t1;
+# Bug#32213576: MySQL tries to parse string-bound float as integer
+#               and returns wrong error
+CREATE TABLE t (f INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t (f) VALUES (0);
+PREPARE stmt FROM 'UPDATE t SET f = 100 * ?';
+SET @a = '0.3';
+EXECUTE stmt USING @a;
+DEALLOCATE PREPARE stmt;
+SELECT * FROM t;
+f
+30
+DROP TABLE t;
+# Bug#32787037: Passed string type binding for integer column
+#               incorrectly cast to integer
+CREATE TABLE t1 (int_column INT NOT NULL);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT * from t1 where int_column < '1.9';
+int_column
+1
+PREPARE stmt FROM 'SELECT * from t1 where int_column < ?';
+SET @a = '1.9';
+EXECUTE stmt USING @a;
+int_column
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 SET GLOBAL log_output=@old_log_output;
 TRUNCATE TABLE mysql.general_log;
 TRUNCATE TABLE mysql.slow_log;
