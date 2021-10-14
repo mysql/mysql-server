@@ -517,7 +517,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 # Check for a charset mismatch processing:
 CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
-ERROR 42000: COLLATION 'ascii_bin' is not valid for CHARACTER SET 'utf8'
+ERROR 42000: COLLATION 'ascii_bin' is not valid for CHARACTER SET 'utf8mb3'
 # Check for a sorting order support:
 CREATE TABLE t1 (c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
 c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci GENERATED ALWAYS AS (c),

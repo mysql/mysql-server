@@ -2887,7 +2887,7 @@ ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8mb3' and 'CHARACTER SE
 # Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
-ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8mb3'
 # Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
 #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;

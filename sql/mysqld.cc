@@ -5035,7 +5035,8 @@ int init_common_variables() {
     }
     if (!my_charset_same(default_charset_info, default_collation)) {
       LogErr(ERROR_LEVEL, ER_INVALID_COLLATION_FOR_CHARSET,
-             default_collation_name, default_charset_info->csname);
+             default_collation_name,
+             replace_utf8_utf8mb3(default_charset_info->csname));
       return 1;
     }
     warn_on_deprecated_collation(nullptr, default_collation,
