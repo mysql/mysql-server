@@ -190,11 +190,7 @@ struct first_page_t : public basic_page_t {
   @param[in]    addr    Location of file list node.
   @param[in]    mtr   Mini-transaction context to be used.
   @return               the file list node.*/
-  flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
-    space_id_t space = dict_index_get_space(m_index);
-    const page_size_t page_size = dict_table_page_size(m_index->table);
-    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr));
-  }
+  flst_node_t *addr2ptr_x(const fil_addr_t &addr, mtr_t *mtr) const;
 
   /** Load the file list node from the given location.  An x-latch is taken
   on the page containing the file list node.

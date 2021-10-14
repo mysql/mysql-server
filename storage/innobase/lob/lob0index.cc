@@ -231,4 +231,19 @@ std::ostream &index_entry_mem_t::print(std::ostream &out) const {
   return (out);
 }
 
+void index_entry_t::free_data_page(const page_no_t first_page_no) {
+  ut_ad(m_mtr != nullptr);
+  ut_ad(m_index != nullptr);
+  ut_ad(first_page_no != FIL_NULL);
+  ut_ad(first_page_no != 0);
+
+  const page_no_t page_no = get_page_no();
+  if (page_no != first_page_no && page_no != FIL_NULL) {
+    data_page_t data_page(m_mtr, const_cast<dict_index_t *>(m_index));
+    data_page.load_x(page_no);
+    data_page.dealloc();
+    set_page_no(FIL_NULL);
+  }
+}
+
 } /* namespace lob */
