@@ -37,7 +37,6 @@
 # We assume you have installed
 #     https://slproweb.com/products/Win32OpenSSL.html
 #     We look for "C:/Program Files/OpenSSL-Win64/"
-#     The .dll files must be in your PATH.
 # or
 #     http://brewformulas.org/Openssl
 #     We look for "/usr/local/opt/openssl"
@@ -121,6 +120,32 @@ MACRO (MYSQL_CHECK_SSL)
         SET(WITH_SSL_PATH "/usr/local/opt/openssl")
       ELSE()
         SET(WITH_SSL_PATH "C:/Program Files/OpenSSL-Win64/")
+      ENDIF()
+
+      # Note that several packages may come with ssl headers,
+      # e.g. Strawberry Perl, so ignore some system paths below.
+      IF(WIN32 AND NOT OPENSSL_ROOT_DIR AND WITH_SSL STREQUAL "system")
+        FILE(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
+        IF(SIZEOF_VOIDP EQUAL 8)
+          FIND_PATH(OPENSSL_WIN64
+            NAMES  "include/openssl/ssl.h"
+            PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/"
+            NO_SYSTEM_ENVIRONMENT_PATH
+            NO_CMAKE_SYSTEM_PATH
+            )
+          IF(OPENSSL_WIN64)
+            SET(OPENSSL_ROOT_DIR ${OPENSSL_WIN64})
+            FIND_LIBRARY(OPENSSL_LIBRARY
+              NAMES libssl_static
+              HINTS ${OPENSSL_ROOT_DIR}/lib)
+            FIND_LIBRARY(CRYPTO_LIBRARY
+              NAMES libcrypto_static
+              HINTS ${OPENSSL_ROOT_DIR}/lib)
+            IF(OPENSSL_LIBRARY AND CRYPTO_LIBRARY)
+              SET(FOUND_STATIC_SSL_LIBS 1)
+            ENDIF()
+          ENDIF()
+        ENDIF()
       ENDIF()
     ENDIF()
 
@@ -267,7 +292,7 @@ MACRO (MYSQL_CHECK_SSL)
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBDL})
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
-      IF(WIN32 AND WITH_SSL STREQUAL "system")
+      IF(WIN32 AND WITH_SSL STREQUAL "system" AND NOT FOUND_STATIC_SSL_LIBS)
         MESSAGE(STATUS "Please do\nPATH=\"${WITH_SSL_PATH}bin\":$PATH")
         FILE(TO_NATIVE_PATH "${WITH_SSL_PATH}" WITH_SSL_PATH_XX)
         MESSAGE(STATUS "or\nPATH=\"${WITH_SSL_PATH_XX}bin\":$PATH")
