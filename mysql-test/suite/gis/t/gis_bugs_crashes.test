@@ -6501,35 +6501,51 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10
 --echo # Bug #33290245 Item_func_st_distance_sphere::val_real():
 --echo #               Assertion `is_nullable()' failed.
 
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_astext( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_aswkb( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_centroid( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_contains( ( _utf32', ,*') regexp 13946, ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_convexhull( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_distance_sphere( ( ( _utf32', ,*') regexp 13946), 1, 42);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_envelope( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_geometrytype( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_geomfromtext( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_issimple( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_isvalid( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_latitude( ( _utf32', ,*') regexp 13946);
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_makeenvelope( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_simplify( ( _utf32', ,*') regexp 13946, 'POINT(0 0)');
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_srid( st_pointfromtext(( _utf32', ,*') regexp 13946));
+--replace_regex /utf16le/utf16/
 --error ER_CANNOT_CONVERT_STRING
 do st_validate( ( _utf32', ,*') regexp 13946);
