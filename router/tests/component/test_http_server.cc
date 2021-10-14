@@ -37,7 +37,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // a placeholder that will be replaced with a valid value
 //

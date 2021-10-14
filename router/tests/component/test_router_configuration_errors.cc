@@ -27,7 +27,7 @@
 #include "config_builder.h"
 #include "mysql/harness/utility/string.h"
 #include "router_component_test.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 using namespace std::chrono_literals;
 

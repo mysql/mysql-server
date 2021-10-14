@@ -57,7 +57,7 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 using mysql_harness::Path;
 using namespace std::chrono_literals;

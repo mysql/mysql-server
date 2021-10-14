@@ -35,6 +35,7 @@
 #include "filesystem_utils.h"
 #include "mysql/harness/filesystem.h"
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 class CertificateHandlerTest : public ::testing::Test {
  public:
@@ -50,16 +51,16 @@ class CertificateHandlerTest : public ::testing::Test {
     mysql_harness::make_file_public(router_cert_path.str());
   }
 
-  TmpDir temp_dir;
+  TempDirectory temp_dir;
 
   const mysql_harness::Path ca_key_path =
-      mysql_harness::Path(temp_dir()).join("ca-key.pem");
+      mysql_harness::Path(temp_dir.name()).join("ca-key.pem");
   const mysql_harness::Path ca_cert_path =
-      mysql_harness::Path(temp_dir()).join("ca.pem");
+      mysql_harness::Path(temp_dir.name()).join("ca.pem");
   const mysql_harness::Path router_key_path =
-      mysql_harness::Path(temp_dir()).join("router-key.pem");
+      mysql_harness::Path(temp_dir.name()).join("router-key.pem");
   const mysql_harness::Path router_cert_path =
-      mysql_harness::Path(temp_dir()).join("router.pem");
+      mysql_harness::Path(temp_dir.name()).join("router.pem");
 
   CertificateHandler cert_handler{ca_key_path, ca_cert_path, router_key_path,
                                   router_cert_path};
@@ -110,13 +111,15 @@ TEST_F(CertificateHandlerTest, create_success) {
 
 TEST_F(CertificateHandlerTest, create_fail) {
   const mysql_harness::Path ca_key_path =
-      mysql_harness::Path(temp_dir()).join("not_there").join("ca-key.pem");
+      mysql_harness::Path(temp_dir.name()).join("not_there").join("ca-key.pem");
   const mysql_harness::Path ca_cert_path =
-      mysql_harness::Path(temp_dir()).join("not_there").join("ca.pem");
+      mysql_harness::Path(temp_dir.name()).join("not_there").join("ca.pem");
   const mysql_harness::Path router_key_path =
-      mysql_harness::Path(temp_dir()).join("not_there").join("router-key.pem");
+      mysql_harness::Path(temp_dir.name())
+          .join("not_there")
+          .join("router-key.pem");
   const mysql_harness::Path router_cert_path =
-      mysql_harness::Path(temp_dir()).join("not_there").join("router.pem");
+      mysql_harness::Path(temp_dir.name()).join("not_there").join("router.pem");
 
   CertificateHandler handler{ca_key_path, ca_cert_path, router_key_path,
                              router_cert_path};

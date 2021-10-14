@@ -324,7 +324,7 @@ stdx::expected<void, std::error_code> delete_file(
 
 std::string get_tmp_dir(const std::string &name) {
   const size_t MAX_LEN = 256;
-  const std::string pattern_str = std::string(name + "-XXXXXX");
+  const std::string pattern_str = std::string("/tmp/" + name + "-XXXXXX");
   const char *pattern = pattern_str.c_str();
   if (strlen(pattern) >= MAX_LEN) {
     throw std::runtime_error(

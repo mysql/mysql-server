@@ -24,6 +24,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 INCLUDE_DIRECTORIES(helpers
   ${PROJECT_SOURCE_DIR}/src/harness/include
+  ${PROJECT_SOURCE_DIR}/src/harness/shared/include/
   ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
   ${PROJECT_SOURCE_DIR}/src/http/include/
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/

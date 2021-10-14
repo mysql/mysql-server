@@ -68,15 +68,15 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_test_helpers.h"
-#include "temp_dir.h"
 #include "test/helpers.h"
+#include "test/temp_directory.h"
 
 #define ASSERT_NO_ERROR(x) \
   ASSERT_THAT((x), ::testing::Truly([](const auto &t) { return bool(t); }))
 
 std::string g_cwd;
 mysql_harness::Path g_origin;
-TmpDir test_dir;
+TempDirectory test_dir;
 
 const std::string kDefaultConnectTimeout =
     std::to_string(mysqlrouter::MySQLSession::kDefaultConnectTimeout);
@@ -148,7 +148,7 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
     config_path->append("Bug24570426.conf");
 
     default_paths["logging_folder"] = "";
-    default_paths["data_folder"] = test_dir();
+    default_paths["data_folder"] = test_dir.name();
   }
 
   std::unique_ptr<Path> config_path;
@@ -1467,7 +1467,7 @@ class CreateConfigGeneratorTest : public ConfigGeneratorTest {
   std::stringstream conf_output, state_output;
 
   const mysql_harness::Path tmp_path =
-      mysql_harness::Path{test_dir()}.real_path();
+      mysql_harness::Path{test_dir.name()}.real_path();
 
   const std::vector<std::string> rest_config{
       "[http_server]",
@@ -1772,7 +1772,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
   opts["base-port"] = "123";
   opts["use-sockets"] = "1";
   opts["skip-tcp"] = "1";
-  opts["socketsdir"] = test_dir();
+  opts["socketsdir"] = test_dir.name();
   options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
@@ -1810,25 +1810,25 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
       "use_gr_notifications=0",
       "",
       "[routing:mycluster_rw]",
-      "socket=" + test_dir() + "/mysql.sock",
+      "socket=" + test_dir.name() + "/mysql.sock",
       "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
       "[routing:mycluster_ro]",
-      "socket=" + test_dir() + "/mysqlro.sock",
+      "socket=" + test_dir.name() + "/mysqlro.sock",
       "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
       "[routing:mycluster_x_rw]",
-      "socket=" + test_dir() + "/mysqlx.sock",
+      "socket=" + test_dir.name() + "/mysqlx.sock",
       "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
       "[routing:mycluster_x_ro]",
-      "socket=" + test_dir() + "/mysqlxro.sock",
+      "socket=" + test_dir.name() + "/mysqlxro.sock",
       "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -1859,7 +1859,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["use-sockets"] = "1";
-  opts["socketsdir"] = test_dir();
+  opts["socketsdir"] = test_dir.name();
   options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
@@ -1898,7 +1898,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6446",
-      "socket=" + test_dir() + "/mysql.sock",
+      "socket=" + test_dir.name() + "/mysql.sock",
       "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
@@ -1906,7 +1906,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6447",
-      "socket=" + test_dir() + "/mysqlro.sock",
+      "socket=" + test_dir.name() + "/mysqlro.sock",
       "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
@@ -1914,7 +1914,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6448",
-      "socket=" + test_dir() + "/mysqlx.sock",
+      "socket=" + test_dir.name() + "/mysqlx.sock",
       "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
@@ -1922,7 +1922,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6449",
-      "socket=" + test_dir() + "/mysqlxro.sock",
+      "socket=" + test_dir.name() + "/mysqlxro.sock",
       "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -3390,15 +3390,15 @@ TEST_F(ConfigGeneratorTest, set_file_owner_no_user) {
 
   std::map<std::string, std::string> empty_options;
   ASSERT_NO_THROW(
-      config_gen.set_file_owner(empty_options, test_dir() + "/somefile"));
+      config_gen.set_file_owner(empty_options, test_dir.name() + "/somefile"));
 }
 
 TEST_F(ConfigGeneratorTest, set_file_owner_user_empty) {
   ConfigGenerator config_gen;
 
   std::map<std::string, std::string> bootstrap_options{{"user", ""}};
-  ASSERT_NO_THROW(
-      config_gen.set_file_owner(bootstrap_options, test_dir() + "/somefile"));
+  ASSERT_NO_THROW(config_gen.set_file_owner(bootstrap_options,
+                                            test_dir.name() + "/somefile"));
 }
 
 // bootstrap from URI/unix-socket/hostname checks
@@ -3413,12 +3413,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_unixsocket) {
       [](const std::string &) -> std::string { return kDefaultPassword; });
 
   mock_mysql->expect_connect("", kDefaultMysqlPort, kDefaultUsername,
-                             kDefaultPassword, test_dir() + "/mysql.sock");
+                             kDefaultPassword, test_dir.name() + "/mysql.sock");
 
   common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
-  EXPECT_THROW({ config_gen.init(test_dir() + "/mysql.sock", {}); },
+  EXPECT_THROW({ config_gen.init(test_dir.name() + "/mysql.sock", {}); },
                std::runtime_error);
 }
 
@@ -3487,13 +3487,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_uri_unixsocket) {
       [](const std::string &) -> std::string { return ""; });
 
   mock_mysql->expect_connect("localhost", 3306, kDefaultUsername,
-                             kDefaultPassword, test_dir() + "/mysql.sock");
+                             kDefaultPassword, test_dir.name() + "/mysql.sock");
   common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_NO_THROW({
     config_gen.init("mysql://localhost:3306/",
-                    {{"bootstrap_socket", test_dir() + "/mysql.sock"}});
+                    {{"bootstrap_socket", test_dir.name() + "/mysql.sock"}});
   });
 }
 
@@ -3507,8 +3507,9 @@ TEST_F(ConfigGeneratorTest, bootstrap_from_invalid_uri) {
   ConfigGenerator config_gen;
   EXPECT_THROW(
       {
-        config_gen.init("mysql://localhost:330660/",
-                        {{"bootstrap_socket", test_dir() + "/mysql.sock"}});
+        config_gen.init(
+            "mysql://localhost:330660/",
+            {{"bootstrap_socket", test_dir.name() + "/mysql.sock"}});
       },
       std::runtime_error);
 }
@@ -3524,8 +3525,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_fail_if_socket_and_hostname) {
   ConfigGenerator config_gen;
   EXPECT_THROW(
       {
-        config_gen.init("somehost",
-                        {{"bootstrap_socket", test_dir() + "/mysql.sock"}});
+        config_gen.init("somehost", {{"bootstrap_socket",
+                                      test_dir.name() + "/mysql.sock"}});
       },
       std::runtime_error);
 }
@@ -3537,13 +3538,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_if_socket_and_localhost) {
       [](const std::string &) -> std::string { return ""; });
 
   mock_mysql->expect_connect("localhost", 0, kDefaultUsername, kDefaultPassword,
-                             test_dir() + "/mysql.sock");
+                             test_dir.name() + "/mysql.sock");
   common_pass_metadata_checks(mock_mysql.get());
 
   ConfigGenerator config_gen;
   EXPECT_NO_THROW({
     config_gen.init("localhost",
-                    {{"bootstrap_socket", test_dir() + "/mysql.sock"}});
+                    {{"bootstrap_socket", test_dir.name() + "/mysql.sock"}});
   });
 }
 

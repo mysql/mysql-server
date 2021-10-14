@@ -45,7 +45,8 @@
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/helpers.h"
+#include "test/temp_directory.h"
 
 using namespace std::string_literals;
 

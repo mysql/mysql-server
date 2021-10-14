@@ -40,7 +40,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "temp_dir.h"
+#include "test/temp_directory.h"
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
