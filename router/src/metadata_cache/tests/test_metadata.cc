@@ -231,7 +231,7 @@ class MockMySQLSessionFactory {
   MockMySQLSessionFactory() {
     // we pre-allocate instances and then return those in create() and get()
     for (int i = 0; i < kInstances; i++) {
-      sessions_.emplace_back(new MockMySQLSession);
+      sessions_.emplace_back(new ::testing::StrictMock<MockMySQLSession>);
     }
   }
 
@@ -248,7 +248,8 @@ class MockMySQLSessionFactory {
  private:
   // can't use vector<MockMySQLSession>, because MockMySQLSession is not
   // copyable due to GMock (produces weird linker errors)
-  std::vector<std::shared_ptr<MockMySQLSession>> sessions_;
+  std::vector<std::shared_ptr<::testing::StrictMock<MockMySQLSession>>>
+      sessions_;
 
   mutable unsigned next_ = 0;
 };
@@ -310,6 +311,8 @@ class MetadataTest : public ::testing::Test {
     session_factory.get(0).set_good_conns(
         {"localhost:3310", "localhost:3320", "localhost:3330"});
 
+    EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session1)));
+    EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session2)));
     EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
     EXPECT_TRUE(metadata.connect_and_setup_session(metadata_servers[0]));
   }
@@ -434,6 +437,8 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
   session_factory.get(0).set_good_conns({"localhost:3310"});
 
   // should connect successfully
+  EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session1)));
+  EXPECT_CALL(session_factory.get(0), execute(StartsWith(setup_session2)));
   EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
   EXPECT_TRUE(metadata.connect_and_setup_session(metadata_server));
 }
@@ -2030,6 +2035,7 @@ TEST_F(MetadataTest, FetchInstances_ok) {
     std::atomic<bool> terminated{false};
     auto target_cluster = mysqlrouter::TargetCluster(
         mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
+    EXPECT_CALL(session_factory.get(session), flag_succeed(_, 3310));
     const auto res = metadata.fetch_cluster_topology(terminated, target_cluster,
                                                      0, metadata_servers, true,
                                                      "gr-id", "", instance_id);
@@ -2094,6 +2100,14 @@ TEST_F(MetadataTest, FetchInstances_fail) {
               query(StartsWith(query_primary_member), _, _))
       .Times(1)
       .WillOnce(Invoke(query_primary_member_fail(session)));
+  EXPECT_CALL(session_factory.get(session), flag_succeed(_, 3310));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith(setup_session1)));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith(setup_session2)));
+  EXPECT_CALL(session_factory.get(session),
+              execute(StartsWith("START TRANSACTION")));
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith("COMMIT")));
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3320)).Times(1);
   EXPECT_CALL(session_factory.get(++session), flag_fail(_, 3330)).Times(1);
 

@@ -171,7 +171,7 @@ class DestMetadataCacheTest : public ::testing::Test {
     metadata_cache_api_.fill_instance_vector(iv);
   }
 
-  MetadataCacheAPIStub metadata_cache_api_;
+  ::testing::StrictMock<MetadataCacheAPIStub> metadata_cache_api_;
   net::io_context io_ctx_;
 };
 
@@ -1049,6 +1049,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // new metadata - no primary
@@ -1071,6 +1072,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1093,6 +1095,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // new metadata - 2 primaries
@@ -1118,6 +1121,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1141,6 +1145,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // remove last node, leaving only the one primary
@@ -1165,6 +1170,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1189,6 +1195,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
@@ -1211,6 +1218,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1242,6 +1250,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
 
   fill_instance_vector(instances);
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
@@ -1263,6 +1272,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
   metadata_cache_api_.trigger_instances_change_callback();
 
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1284,6 +1294,7 @@ TEST_F(DestMetadataCacheTest,
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // new empty metadata
@@ -1306,6 +1317,7 @@ TEST_F(DestMetadataCacheTest,
   // because md servers are not reachable as disconnect_on_metadata_unavailable
   // is set to 'no' (by default) we are not expected to force the disconnects
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /**
@@ -1330,6 +1342,7 @@ TEST_F(DestMetadataCacheTest,
       {"uuid2", metadata_cache::ServerMode::ReadOnly, "3307", 3307, 33070},
   });
 
+  EXPECT_CALL(metadata_cache_api_, add_acceptor_handler_listener(_));
   dest_mc_group.start(nullptr);
 
   // new empty metadata
@@ -1353,6 +1366,7 @@ TEST_F(DestMetadataCacheTest,
   // disconnect_on_metadata_unavailable=yes we are expected to call the users
   // (routing) callbacks to force the disconnects
   ASSERT_TRUE(callback_called);
+  EXPECT_CALL(metadata_cache_api_, remove_acceptor_handler_listener(_));
 }
 
 /*****************************************/

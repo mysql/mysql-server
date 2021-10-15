@@ -3997,7 +3997,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
 static const mysqlrouter::MetadataSchemaVersion kNewSchemaVersion{2, 0, 3};
 
 TEST_F(ConfigGeneratorTest, register_router_error_message) {
-  MockSocketOperations
+  ::testing::StrictMock<MockSocketOperations>
       sock_ops;  // this implementation will trigger our scenario by throwing
 
   mysql_harness::RandomGenerator rg;
@@ -4026,7 +4026,7 @@ TEST_F(ConfigGeneratorTest, register_router_error_message) {
  * with a user-friendly message
  */
 TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
-  MockSocketOperations
+  ::testing::StrictMock<MockSocketOperations>
       sock_ops;  // this implementation will trigger our scenario by throwing
 
   MySQLSessionReplayer mysql;

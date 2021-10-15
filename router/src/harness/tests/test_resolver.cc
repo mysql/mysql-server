@@ -101,7 +101,7 @@ TEST(TestResolver, TCPServicePort) {
 }
 
 TEST(TestResolver, TCPServiceCache) {
-  MockResolver resolver;
+  ::testing::StrictMock<MockResolver> resolver;
 
   // query, so cache is updated
   EXPECT_EQ(21, resolver.tcp_service_name("ftp"));
