@@ -4449,6 +4449,43 @@ bool Item_param::convert_value() {
         } else {
           str_value.set_charset(m_collation_actual);
         }
+      } else if (is_numeric_type(data_type())) {
+        const char *ptr = str_value.ptr();
+        size_t length = str_value.length();
+        const CHARSET_INFO *cs = m_collation_source;
+        int error;
+        const char *endptr;
+        bool check_integer = is_integer_type(data_type());
+        if (check_integer) {
+          // First, check if string is a signed or unsigned integer
+          endptr = ptr + length;
+          value.integer = (*(cs->cset->strtoll10))(cs, ptr, &endptr, &error);
+          if (length == static_cast<size_t>(endptr - ptr) ||
+              check_if_only_end_space(cs, endptr, ptr + length)) {
+            if (!unsigned_flag && error <= 0 && value.integer >= 0) {
+              set_data_type_actual(MYSQL_TYPE_LONGLONG, false);
+              return false;
+            } else if (unsigned_flag && error == 0) {
+              set_data_type_actual(MYSQL_TYPE_LONGLONG, true);
+              return false;
+            }
+          }
+        }
+        // Next, check if it is a decimal
+        if (check_integer || data_type() == MYSQL_TYPE_NEWDECIMAL) {
+          if (str2my_decimal(E_DEC_ERROR, ptr, length, cs, &decimal_value) ==
+              E_DEC_OK) {
+            set_data_type_actual(MYSQL_TYPE_NEWDECIMAL);
+            return false;
+          }
+        }
+        // Finally, check if it is a valid floating point value
+        value.real = my_strntod(cs, ptr, length, &endptr, &error);
+        if (error == 0 && (length == static_cast<size_t>(endptr - ptr) ||
+                           check_if_only_end_space(cs, endptr, ptr + length))) {
+          set_data_type_actual(MYSQL_TYPE_DOUBLE);
+          return false;
+        }
       } else if (data_type() == MYSQL_TYPE_DATE ||
                  data_type() == MYSQL_TYPE_DATETIME) {
         str_value.set_charset(m_collation_source);
