@@ -41,7 +41,8 @@ void xcom_tcp_server_startup(Xcom_network_provider *net_provider) {
   xcom_port port = net_provider->get_port();
 
   result tcp_fd = {0, 0};
-  if ((tcp_fd = Xcom_network_provider_library::announce_tcp(port)).val < 0) {
+  tcp_fd = Xcom_network_provider_library::announce_tcp(port);
+  if (tcp_fd.val < 0) {
     g_critical("Unable to announce tcp port %d. Port already in use?", port);
     net_provider->notify_provider_ready(true);
     return;

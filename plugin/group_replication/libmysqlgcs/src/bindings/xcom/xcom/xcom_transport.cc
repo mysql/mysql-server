@@ -200,6 +200,8 @@ static u_int put_srv_buf(srv_buf *sb, char *data, u_int len) {
 int flush_srv_buf(server *s, int64_t *ret) {
   DECL_ENV
   u_int buflen;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -293,6 +295,8 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
   DECL_ENV
   uint32_t buflen;
   char *buf;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -378,6 +382,8 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
                x_msg_type x_type, unsigned int tag, int64_t *ret) {
   DECL_ENV
   char buf[MSG_HDR_SIZE];
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t sent{0};
@@ -751,6 +757,8 @@ int srv_unref(server *s) {
 int incoming_connection_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   connection_descriptor *new_conn;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
@@ -783,6 +791,8 @@ void server_detected(server *s) { s->detected = task_now(); }
 static int dial(server *s) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -1000,6 +1010,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
   DECL_ENV
   uint32_t left;
   char *bytes;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t nread = 0;
@@ -1051,6 +1063,8 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   DECL_ENV
   uint32_t left;
   char *bytes;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   uint32_t nget = 0;
 
@@ -1131,6 +1145,8 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   uint32_t msgsize;
   x_msg_type x_type;
   unsigned int tag;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -1247,6 +1263,8 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 #ifdef NOTDEF
   unsigned int check;
 #endif
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -1407,6 +1425,8 @@ int sender_task(task_arg arg) {
 #if defined(_WIN32)
   bool was_connected;
 #endif
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t ret_code{0};
@@ -1606,6 +1626,8 @@ int local_sender_task(task_arg arg) {
   DECL_ENV
   server *s;
   msg_link *link;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -1760,6 +1782,8 @@ void invalidate_servers(const site_def *old_site_def,
 int tcp_reaper_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
   while (!xcom_shutdown) {
