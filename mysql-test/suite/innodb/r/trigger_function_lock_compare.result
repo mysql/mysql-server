@@ -1,0 +1,534 @@
+#
+# BUG#32636792: IN THE TRIGGER, INSERT INTO SELECT LOCKS THE SELECTED
+#               ROWS, EVEN READ-COMMITTED
+#
+########## BINLOG FORMAT: ROW ###########
+# Query: SELECT id FROM t1 WHERE val = 'a' INTO @v1
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: SELECT id FROM t1 WHERE val = 'a' FOR SHARE INTO @v1
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: SELECT id FROM t1 WHERE val = 'a' FOR UPDATE INTO @v1
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: UPDATE t1 SET val='A' WHERE val = 'a'
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 SELECT id+100,val FROM t2
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: REPLACE INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 VALUES (30, 'b');
+  UPDATE t2 SET val='c' WHERE val IN (SELECT val FROM t1 where id = 30)
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 VALUES (2, 'A');
+  SELECT val FROM t1 WHERE id = 10 INTO @v1
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+########## BINLOG FORMAT: STATEMENT ###########
+# Query: SELECT id FROM t1 WHERE val = 'a' INTO @v1
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: SELECT id FROM t1 WHERE val = 'a' FOR SHARE INTO @v1
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: SELECT id FROM t1 WHERE val = 'a' FOR UPDATE INTO @v1
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: UPDATE t1 SET val='A' WHERE val = 'a'
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 SELECT id+100,val FROM t2
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: REPLACE INTO t1 ( id, val ) SELECT 2, id FROM t1 WHERE val = 'a'
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 VALUES (30, 'b');
+  UPDATE t2 SET val='c' WHERE val IN (SELECT val FROM t1 where id = 30)
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: INSERT INTO t1 VALUES (2, 'A');
+  SELECT val FROM t1 WHERE id = 10 INTO @v1
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+########## BINLOG FORMAT: ROW ###########
+# Query: INSERT INTO t2 SELECT id+100,val FROM t1
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: CREATE TEMPORARY TABLE t3 SELECT id FROM t1;
+  DROP TEMPORARY TABLE t3
+# Isolation level: READ UNCOMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: READ COMMITTED
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+# Locks taken in trigger should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_trigger]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+# Locks taken in function should always be same as that in regular case.
+include/diff_tables.inc [locks_in_regular_case, locks_in_function]
+
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+########## BINLOG FORMAT: STATEMENT ###########
+# Query: INSERT INTO t2 SELECT id+100,val FROM t1
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
+# Query: CREATE TEMPORARY TABLE t3 SELECT id FROM t1;
+  DROP TEMPORARY TABLE t3
+# Isolation level: REPEATABLE READ
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+
+# Isolation level: SERIALIZABLE
+# Comparing locks taken for the above query in regular case and when inside a trigger.
+include/assert.inc [Locks taken in trigger should always be stronger or equal to locks taken in regular case]
+
+# Comparing locks taken for the above query in regular case and when inside a function.
+include/assert.inc [Locks taken in function should always be stronger or equal to locks taken in regular case]
+
