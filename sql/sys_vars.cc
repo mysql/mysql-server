@@ -3772,7 +3772,7 @@ static Sys_var_ulong Sys_query_prealloc_size(
     SESSION_VAR(query_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(QUERY_ALLOC_PREALLOC_SIZE, ULONG_MAX),
     DEFAULT(QUERY_ALLOC_PREALLOC_SIZE), BLOCK_SIZE(1024), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_thd_mem_root));
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 #if defined(_WIN32)
 static Sys_var_bool Sys_shared_memory(
@@ -3857,7 +3857,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
     SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1024, 128 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
     BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(fix_trans_mem_root));
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static const char *thread_handling_names[] = {
     "one-thread-per-connection", "no-threads", "loaded-dynamically", nullptr};
