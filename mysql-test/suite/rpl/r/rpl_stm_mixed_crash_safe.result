@@ -82,7 +82,6 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int unsigned NOT NULL,
   `Checkpoint_group_size` int unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  `Channel_name` char(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Channel_name` varchar(64) CHARACTER SET utf8mb3 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the replica is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
