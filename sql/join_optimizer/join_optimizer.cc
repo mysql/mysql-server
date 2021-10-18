@@ -1448,6 +1448,9 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       }
       continue;
     }
+    // TODO(sgunders): We should also allow conditions that depend on
+    // parameterized tables (and also touch this table, of course). See bug
+    // #33477822.
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
       filter_predicates.SetBit(i);
       FilterCost cost =
