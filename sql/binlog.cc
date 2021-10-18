@@ -10627,7 +10627,7 @@ bool THD::is_ddl_gtid_compatible() {
     // Check this conditionally, since create_info and/or query_block
     // may be uninitialized if sql_command!=SQLCOM_CREATE_TABLE.
     is_create_temporary_table =
-        !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+        (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
     if (!is_create_temporary_table)
       is_create_table_select = !lex->query_block->field_list_is_empty();
     is_create_table_atomic =
