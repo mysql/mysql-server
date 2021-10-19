@@ -6401,6 +6401,12 @@ field_def:
           opt_gcol_attribute_list
           {
             $$= $1;
+            /* column of type SERIAL cannot set as generated */
+            if (Lex->type & SERIAL_FLAG)
+            {
+                my_error(ER_WRONG_USAGE, MYF(0), "SERIAL", "generated column");
+                MYSQL_YYABORT;
+            }
             if (Lex->charset)
             {
               Lex->charset= merge_charset_and_collation(Lex->charset, $2);
@@ -6768,7 +6774,7 @@ type:
           {
             $$=MYSQL_TYPE_LONGLONG;
             Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
-              UNIQUE_FLAG);
+              UNIQUE_FLAG | SERIAL_FLAG);
           }
         | JSON_SYM
           {
