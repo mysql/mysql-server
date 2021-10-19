@@ -997,13 +997,14 @@ static void recover_relay_log(Master_info *mi) {
     mi->set_master_log_pos(std::max<ulonglong>(
         BIN_LOG_HEADER_SIZE, rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
-  }
 
-  // TODO make this conditional message also
-  LogErr(WARNING_LEVEL, ER_RPL_RECOVERY_FILE_MASTER_POS_INFO,
-         (ulong)mi->get_master_log_pos(), mi->get_master_log_name(),
-         mi->get_for_channel_str(), rli->get_group_relay_log_pos(),
-         rli->get_group_relay_log_name());
+    LogErr(WARNING_LEVEL, ER_RPL_RECOVERY_FILE_MASTER_POS_INFO,
+           (ulong)mi->get_master_log_pos(), mi->get_master_log_name(),
+           mi->get_for_channel_str(), rli->get_group_relay_log_pos(),
+           rli->get_group_relay_log_name());
+  } else {
+    LogErr(WARNING_LEVEL, ER_RPL_RELAY_LOG_RECOVERY_GTID_ONLY);
+  }
 
   // Start with a fresh relay log.
   rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
