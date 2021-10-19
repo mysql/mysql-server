@@ -788,9 +788,30 @@ AsyncFile::readReq( Request * request)
          * to be able to always read all at once instead of issuing several
          * system calls to read smaller chunks at a time.
          */
+        const bool zeros_are_sparse = (m_open_flags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
         ndbxfrm_input_iterator in = {buf, buf + bytes_read, false};
         while (!in.empty())
         {
+          if (!m_xfile.is_compressed()) // sparse_file)
+          {
+            // Only REDO log files can be sparse and they uses 32KB pages
+            require(bytes_read % GLOBAL_PAGE_SIZE == 0);
+            const byte* p = in.cbegin();
+            const byte* end = in.cend();
+            require((end - p) % GLOBAL_PAGE_SIZE == 0);
+            while (p != end && *p == 0) p++;
+            // Only skip whole pages with zeros
+            size_t sz = ((p - in.cbegin()) / GLOBAL_PAGE_SIZE) * GLOBAL_PAGE_SIZE;
+            if (sz > 0)
+            {
+              if (m_xfile.is_encrypted()) require(zeros_are_sparse);
+              // Keep zeros as is without untransform.
+              in.advance(sz);
+              current_data_offset += sz;
+              if (in.empty())
+                break;
+            }
+          }
           byte buffer[GLOBAL_PAGE_SIZE];
           ndbxfrm_output_iterator out = {buffer, buffer + GLOBAL_PAGE_SIZE, false};
           const byte* in_cbegin = in.cbegin();
@@ -971,6 +992,8 @@ AsyncFile::writeReq(Request * request)
      */
     openssl_evp_op = &request->thread->m_openssl_evp_op;
   }
+  const bool zeros_are_sparse = m_xfile.is_encrypted() &&
+                                     (m_open_flags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
 
   ndbxfrm_output_iterator file_out = { file_buffer,
                                        file_buffer + file_buffer_size,
@@ -1004,6 +1027,7 @@ AsyncFile::writeReq(Request * request)
     ndbxfrm_input_iterator raw_in = {raw, raw + size, false};
 
     do {
+      byte* file_out_begin = file_out.begin();
       const byte* raw_in_begin = raw_in.cbegin();
       if (m_xfile.transform_pages(openssl_evp_op,
                                   current_data_offset,
@@ -1015,6 +1039,27 @@ AsyncFile::writeReq(Request * request)
                             theFileName.c_str());
         NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
       }
+      if (zeros_are_sparse)
+      {
+        const byte* p = file_out_begin;
+        const byte* end = file_out.begin();
+        require((end - p) % GLOBAL_PAGE_SIZE == 0);
+        while (p != end)
+        {
+          const byte* q = p;
+          while (q != end && *q == 0) q++;
+          /*
+           * If encryption produced a full page of zeros crash since reader can
+           * not distinguish between sparse page and encrypted page that
+           * happend to result in an all zeros page (should be a quite rare
+           * event).
+           */
+          require((q - p) < GLOBAL_PAGE_SIZE);
+          // start at next page boundary
+          p += GLOBAL_PAGE_SIZE;
+        }
+      }
+
       current_data_offset += (raw_in.cbegin() - raw_in_begin);
 
       if (file_out.empty())

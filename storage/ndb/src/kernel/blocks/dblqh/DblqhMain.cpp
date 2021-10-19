@@ -25737,7 +25737,8 @@ void Dblqh::openFileRw(Signal* signal,
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
   signal->theData[6] = FsOpenReq::OM_READWRITE |
                        FsOpenReq::OM_AUTOSYNC |
-                       FsOpenReq::OM_CHECK_SIZE;
+                       FsOpenReq::OM_CHECK_SIZE |
+                       FsOpenReq::OM_ZEROS_ARE_SPARSE;
   if (c_o_direct)
   {
     jam();
@@ -25781,7 +25782,8 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
                        FsOpenReq::OM_TRUNCATE |
                        FsOpenReq::OM_CREATE |
                        FsOpenReq::OM_AUTOSYNC |
-                       FsOpenReq::OM_WRITE_BUFFER;
+                       FsOpenReq::OM_WRITE_BUFFER |
+                       FsOpenReq::OM_ZEROS_ARE_SPARSE;
   if (c_o_direct)
   {
     jam();
@@ -25928,7 +25930,8 @@ void Dblqh::openNextLogfile(Signal *signal,
     signal->theData[6] = FsOpenReq::OM_READWRITE |
                          FsOpenReq::OM_AUTOSYNC |
                          FsOpenReq::OM_CHECK_SIZE |
-                         FsOpenReq::OM_WRITE_BUFFER;
+                         FsOpenReq::OM_WRITE_BUFFER |
+                         FsOpenReq::OM_ZEROS_ARE_SPARSE;
     if (c_o_direct)
     {
       jam();

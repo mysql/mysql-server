@@ -2374,13 +2374,11 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     openReq->fileNumber[0] = ~Uint32(0);
     openReq->fileNumber[1] = ~Uint32(0);
     openReq->fileNumber[2] = 0;
-    openReq->fileNumber[3] =
-      1 << 24 |
-      1 << 16 |
-      255 << 8 |
-      255;
+    openReq->fileNumber[3] = ~Uint32(0);
+    FsOpenReq::setVersion(openReq->fileNumber, 1);
+    FsOpenReq::setSuffix(openReq->fileNumber, FsOpenReq::S_FRAGLOG);
     openReq->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_CREATE |
-                         FsOpenReq::OM_TRUNCATE;
+                         FsOpenReq::OM_TRUNCATE | FsOpenReq::OM_ZEROS_ARE_SPARSE;
 
     openReq->page_size = 0;
     openReq->file_size_hi = UINT32_MAX;
