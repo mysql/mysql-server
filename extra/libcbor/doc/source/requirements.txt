@@ -10,7 +10,7 @@ Flask==1.1.1
 idna==2.9
 imagesize==1.2.0
 itsdangerous==1.1.0
-Jinja2==2.10.1
+Jinja2==2.11.3
 livereload==2.6.1
 MarkupSafe==1.1.1
 packaging==20.3
