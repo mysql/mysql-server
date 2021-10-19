@@ -82,6 +82,12 @@ INSERT INTO t1 VALUES(4);
 --let $assert_cond= GTID_COUNT("$local_gtid_set") = 1
 --source include/assert.inc
 
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count= 1
+--let $assert_select= Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions.
+--let $assert_text= The relay log recovery message does not mention positions
+--source include/assert_grep.inc
+
 --echo #
 --echo # 3. Cleanup
 
@@ -91,8 +97,13 @@ CHANGE REPLICATION SOURCE TO GTID_ONLY = 0, REQUIRE_ROW_FORMAT=0;
 
 --source include/start_slave.inc
 
-CALL mtr.add_suppression("Recovery from master pos.* and file");
 --source include/gtid_utils_end.inc
+
+let $messages =
+Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions.
+;
+--source include/suppress_messages.inc
+
 
 --source include/rpl_connection_master.inc
 

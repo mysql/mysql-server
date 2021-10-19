@@ -11584,6 +11584,9 @@ ER_WARN_AUDIT_LOG_DISABLED
 ER_INVALID_TLS_VERSION
   eng "Option --tls-version or --admin-tls-version is set to an invalid value %s."
 
+ER_RPL_RELAY_LOG_RECOVERY_GTID_ONLY
+  eng "Relay log recovery on channel with GTID_ONLY=1. The channel will switch to a new relay log and the GTID protocol will be used to replicate unapplied transactions."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

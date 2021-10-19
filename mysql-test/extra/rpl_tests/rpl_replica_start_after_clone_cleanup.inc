@@ -52,5 +52,6 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]*\.*[0-9]* for channel ''*");
+call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 call mtr.add_suppression("Relay log information for channel '' was found after a clone operation. Relay log recovery");
 SET SESSION sql_log_bin=1;
