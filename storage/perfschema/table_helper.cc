@@ -1037,6 +1037,9 @@ void PFS_statement_stat_row::set_field(uint index, Field *f) {
     case 24: /* SUM_CPU_TIME */
       set_field_ulonglong(f, m_cpu_time);
       break;
+    case 25: /* COUNT_SECONDARY */
+      set_field_ulonglong(f, m_count_secondary);
+      break;
     default:
       assert(false);
       break;

@@ -1427,6 +1427,8 @@ static void check_secondary_engine_statement(THD *thd,
                                              Parser_state *parser_state,
                                              const char *query_string,
                                              size_t query_length) {
+  bool use_secondary_engine = false;
+
   // Only restart the statement if a non-fatal error was raised.
   if (!thd->is_error() || thd->is_killed() || thd->is_fatal_error()) return;
 
@@ -1446,6 +1448,7 @@ static void check_secondary_engine_statement(THD *thd,
         return;
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::SECONDARY);
+      use_secondary_engine = true;
       break;
     case Secondary_engine_optimization::SECONDARY:
       // If the query failed during offloading to a secondary engine,
@@ -1465,9 +1468,17 @@ static void check_secondary_engine_statement(THD *thd,
 
   // Tell performance schema that the statement is restarted.
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+
+  mysql_thread_set_secondary_engine(use_secondary_engine);
+
   thd->m_statement_psi = MYSQL_START_STATEMENT(
       &thd->m_statement_state, com_statement_info[thd->get_command()].m_key,
       thd->db().str, thd->db().length, thd->charset(), nullptr);
+
+  mysql_statement_set_secondary_engine(thd->m_statement_psi,
+                                       use_secondary_engine);
+
+  DEBUG_SYNC(thd, "retry_secondary_engine");
 
   // Reset the statement digest state.
   thd->m_digest = &thd->m_digest_state;
@@ -1989,6 +2000,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->profiling->start_new_query("continuing");
         thd->profiling->set_query_source(beginning_of_next_stmt, length);
 #endif
+
+        mysql_thread_set_secondary_engine(false);
 
         /* PSI begin */
         thd->m_digest = &thd->m_digest_state;

@@ -126,6 +126,8 @@ PFS_prepared_stmt *create_prepared_stmt(
       }
     }
 
+    pfs->m_secondary = false;
+
     /* Insert this record. */
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }

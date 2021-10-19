@@ -121,6 +121,15 @@ struct PFS_events_statements : public PFS_events {
   /** Statement character set number. */
   uint m_sqltext_cs_number;
 
+  /** Executed on the secondary engine. */
+  bool m_secondary;
+
+  /*
+   MAINTAINER:
+   See pointer arithmetic in copy_events_statements(),
+   attribute here are copied when needed.
+  */
+
   /**
     SQL_TEXT.
     This pointer is immutable,

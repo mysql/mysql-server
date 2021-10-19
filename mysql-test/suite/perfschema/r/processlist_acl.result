@@ -88,17 +88,17 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
 
 # Information Schema processlist table
 
@@ -134,17 +134,17 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_00	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_01	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_all	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
 
 # Information Schema processlist table
 
@@ -180,11 +180,11 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
 
 # Information Schema processlist table
 
@@ -217,11 +217,11 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user_none	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2	PRIMARY
 
 # Information Schema processlist table
 

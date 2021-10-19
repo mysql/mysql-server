@@ -85,6 +85,7 @@ Plugin_table table_esms_by_program::m_table_def(
     "  SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,\n"
     "  SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL,\n"
     "  SUM_CPU_TIME BIGINT unsigned not null,\n"
+    "  COUNT_SECONDARY bigint(20) unsigned NOT NULL,\n"
     "  PRIMARY KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",

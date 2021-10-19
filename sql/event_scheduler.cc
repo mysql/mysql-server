@@ -359,6 +359,8 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
     return;
   }
 
+  mysql_thread_set_secondary_engine(false);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
   assert(thd->m_statement_psi == nullptr);

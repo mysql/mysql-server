@@ -174,6 +174,18 @@ static inline void mysql_thread_set_peer_port(uint port [[maybe_unused]]) {
 #endif
 }
 
+/**
+  @def mysql_thread_set_secondary_engine()
+  Set the EXECUTION_ENGINE attribute for the thread instrumentation.
+  @param secondary True for SECONDARY, false for PRIMARY.
+*/
+static inline void mysql_thread_set_secondary_engine(bool secondary
+                                                     [[maybe_unused]]) {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread_secondary_engine)(secondary);
+#endif
+}
+
 /** @} (end of group psi_api_thread) */
 
 #endif

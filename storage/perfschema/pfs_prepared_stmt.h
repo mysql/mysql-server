@@ -75,6 +75,9 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr {
   /** COLUMN COUNT_REPREPARE. Prepared statement re-prepare stat. */
   PFS_single_stat m_reprepare_stat;
 
+  /** COLUMN EXECUTION_ENGINE. */
+  bool m_secondary;
+
   /** Prepared statement execution stat. */
   PFS_statement_stat m_execute_stat;
 

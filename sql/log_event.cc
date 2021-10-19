@@ -4806,6 +4806,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                              concurrency_error_code(expected_error))) {
         thd->variables.option_bits |= OPTION_MASTER_SQL_ERROR;
       }
+
+      mysql_thread_set_secondary_engine(false);
+
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length)) {

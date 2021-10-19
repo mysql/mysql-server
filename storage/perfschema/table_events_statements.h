@@ -166,6 +166,8 @@ struct row_events_statements {
 
   /** Column STATEMENT_ID. */
   ulonglong m_statement_id;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */

@@ -32,6 +32,7 @@
 --                  state: alter table (read PK and internal sort)
 --                   time: 2
 --      current_statement: alter table t1 add column l int
+--       execution_engine: PRIMARY
 --      statement_latency: 2349834276374
 --               progress: 60.00
 --           lock_latency: 339707000000
@@ -67,6 +68,7 @@ VIEW x$processlist (
   state,
   time,
   current_statement,
+  execution_engine,
   statement_latency,
   progress,
   lock_latency,
@@ -99,6 +101,7 @@ SELECT pps.thread_id AS thd_id,
        pps.processlist_state AS state,
        pps.processlist_time AS time,
        pps.processlist_info AS current_statement,
+       pps.execution_engine AS execution_engine,
        IF(esc.end_event_id IS NULL,
           esc.timer_wait,
           NULL) AS statement_latency,

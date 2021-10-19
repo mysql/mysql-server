@@ -2201,6 +2201,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     sql_digest_state *parent_digest = thd->m_digest;
     thd->m_digest = &digest_state;
 
+    mysql_thread_set_secondary_engine(false);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
     PSI_statement_info *psi_info = i->get_psi_info();

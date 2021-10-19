@@ -246,6 +246,11 @@ static void test_noop() {
   psi_thread_service->set_thread_THD(nullptr, nullptr);
 
   psi_error_service->log_error(0, PSI_ERROR_OPERATION_RAISED);
+
+  psi_thread_service->set_thread_secondary_engine(false);
+  psi_statement_service->set_statement_secondary_engine(nullptr, false);
+  psi_statement_service->set_prepared_stmt_secondary_engine(nullptr, false);
+
   ok(true, "no error");
 
   ok(true, "all noop api called");

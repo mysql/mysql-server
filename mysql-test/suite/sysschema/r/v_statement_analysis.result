@@ -31,6 +31,7 @@ query	longtext	YES		NULL
 db	varchar(64)	YES		NULL	
 full_scan	varchar(1)	NO			
 exec_count	bigint unsigned	NO		NULL	
+exec_secondary_count	bigint unsigned	NO		NULL	
 err_count	bigint unsigned	NO		NULL	
 warn_count	bigint unsigned	NO		NULL	
 total_latency	bigint unsigned	NO		NULL	

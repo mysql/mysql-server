@@ -66,6 +66,7 @@ Plugin_table table_threads::m_table_def(
     "  CONNECTION_TYPE VARCHAR(16),\n"
     "  THREAD_OS_ID BIGINT unsigned,\n"
     "  RESOURCE_GROUP VARCHAR(64),\n"
+    "  EXECUTION_ENGINE ENUM ('PRIMARY', 'SECONDARY'),\n"
     "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
     "  KEY (PROCESSLIST_ID) USING HASH,\n"
     "  KEY (THREAD_OS_ID) USING HASH,\n"
@@ -339,6 +340,8 @@ int table_threads::make_row(PFS_thread *pfs) {
   m_row.m_history = pfs->m_history;
   m_row.m_psi = pfs;
 
+  m_row.m_secondary = pfs->m_secondary;
+
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -476,6 +479,9 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
+        case 18: /* EXECUTION_ENGINE */
+          set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
+          break;
         default:
           assert(false);
       }
@@ -492,20 +498,6 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0:  /* THREAD_ID */
-        case 1:  /* NAME */
-        case 2:  /* TYPE */
-        case 3:  /* PROCESSLIST_ID */
-        case 4:  /* PROCESSLIST_USER */
-        case 5:  /* PROCESSLIST_HOST */
-        case 6:  /* PROCESSLIST_DB */
-        case 7:  /* PROCESSLIST_COMMAND */
-        case 8:  /* PROCESSLIST_TIME */
-        case 9:  /* PROCESSLIST_STATE */
-        case 10: /* PROCESSLIST_INFO */
-        case 11: /* PARENT_THREAD_ID */
-        case 12: /* ROLE */
-          return HA_ERR_WRONG_COMMAND;
         case 13: /* INSTRUMENTED */
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
@@ -514,13 +506,8 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
           value = (enum_yes_no)get_field_enum(f);
           m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
           break;
-        case 15: /* CONNECTION_TYPE */
-        case 16: /* THREAD_OS_ID */
-          return HA_ERR_WRONG_COMMAND;
-        case 17: /* RESOURCE_GROUP */
-          return HA_ERR_WRONG_COMMAND;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

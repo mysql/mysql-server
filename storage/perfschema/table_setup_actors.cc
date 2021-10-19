@@ -314,10 +314,6 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* HOST */
-        case 1: /* USER */
-        case 2: /* ROLE */
-          return HA_ERR_WRONG_COMMAND;
         case 3: /* ENABLED */
           value = (enum_yes_no)get_field_enum(f);
           /* Reject illegal enum values in ENABLED */
@@ -335,7 +331,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

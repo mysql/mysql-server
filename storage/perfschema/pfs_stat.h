@@ -398,6 +398,7 @@ struct PFS_statement_stat {
     Expressed in STORAGE units (nanoseconds).
   */
   ulonglong m_cpu_time{0};
+  ulonglong m_count_secondary{0};
 
   void reset() { new (this) PFS_statement_stat(); }
 
@@ -431,6 +432,7 @@ struct PFS_statement_stat {
       m_no_index_used += stat->m_no_index_used;
       m_no_good_index_used += stat->m_no_good_index_used;
       m_cpu_time += stat->m_cpu_time;
+      m_count_secondary += stat->m_count_secondary;
     }
   }
 };

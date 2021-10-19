@@ -120,9 +120,6 @@
   performance_schema tables changed in MySQL 8.0.17
   - WL#12571 increases the HOST name length from 60 to 255.
 
-
-  Version published is now 80020. The next number to use is 80021.
-
   80018:
 
   performance_schema tables changed in MySQL 8.0.18
@@ -171,10 +168,12 @@
   performance_schema.replication_asynchronous_connection_failover_managed
 
   80024:
+
   performance_schema tables changed in MySQL 8.0.24
   - WL#13446 added performance_schema.keyring_component_status
 
   80027:
+
   performance_schema tables changed in MySQL 8.0.27
   - WL#9852 added replication_group_members column
     MEMBER_COMMUNICATION_PROTOCOL_STACK
@@ -187,11 +186,16 @@
     fixed DOUBLE columns (removed sign)
 
   80028:
+
   performance_schema tables changed in MySQL 8.0.28
   - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
     added CPU_TIME, SUM_CPU_TIME columns.
 
   80029:
+
+  performance_schema tables changed in MySQL 8.0.29
+  - WL#14346 PERFORMANCE_SCHEMA, SECONDARY_ENGINE STATS
+    Added columns EXECUTION_ENGINE, COUNT_SECONDARY
   - Bug #30624990 NO UTF8MB3 IN INFORMATION_SCHEMA.CHARACTER_SETS
     Use 'utf8mb3' rather than 'utf8' alias for for character set names.
 */

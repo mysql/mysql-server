@@ -54,14 +54,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 
 # Information Schema processlist table
 
@@ -94,14 +94,14 @@ Id	User	Host	db	Command	Time	State	Info
 # Performance Schema processlist table
 
 select * from performance_schema.processlist order by user, id;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL
-<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
+<Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user0	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id	PRIMARY
+<Id>	user1	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user2	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user3	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
+<Id>	user4	<Host>	test	<Command>	<Time>	<State>	NULL	PRIMARY
 
 # Information Schema processlist table
 

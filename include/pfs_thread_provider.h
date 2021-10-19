@@ -100,6 +100,8 @@ void pfs_set_connection_type_vc(opaque_vio_type conn_type);
 
 void pfs_set_thread_info_vc(const char *info, uint info_len);
 
+void pfs_set_thread_secondary_engine_vc(bool secondary);
+
 int pfs_set_thread_resource_group_vc(const char *group_name, int group_name_len,
                                      void *user_data);
 

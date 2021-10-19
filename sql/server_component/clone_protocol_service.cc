@@ -110,6 +110,9 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
     }
   }
 #endif
+
+  mysql_thread_set_secondary_engine(false);
+
   /* Create and set PFS statement key */
   if (statement_key != PSI_NOT_INSTRUMENTED) {
     if (thd->m_statement_psi == nullptr) {

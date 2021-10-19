@@ -66,6 +66,8 @@ static void net_before_header_psi(NET *net [[maybe_unused]], void *user_data,
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
   }
+
+  mysql_thread_set_secondary_engine(false);
 }
 
 static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,

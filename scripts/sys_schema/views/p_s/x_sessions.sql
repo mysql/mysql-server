@@ -32,6 +32,7 @@
 --                  state: Sending data
 --                   time: 0
 --      current_statement: select * from sys.x$session
+--       execution_engine: PRIMARY
 --      statement_latency: 16285980000
 --               progress: NULL
 --           lock_latency: 15450000000

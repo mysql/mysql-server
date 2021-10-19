@@ -290,6 +290,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
   `CPU_TIME` bigint unsigned NOT NULL,
+  `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_history;
@@ -338,6 +339,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
   `CPU_TIME` bigint unsigned NOT NULL,
+  `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_history_long;
@@ -385,7 +387,8 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `NESTING_EVENT_LEVEL` int DEFAULT NULL,
   `STATEMENT_ID` bigint unsigned DEFAULT NULL,
-  `CPU_TIME` bigint unsigned NOT NULL
+  `CPU_TIME` bigint unsigned NOT NULL,
+  `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_digest;
 Table	Create Table
@@ -418,6 +421,7 @@ events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_d
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   `FIRST_SEEN` timestamp(6) NOT NULL,
   `LAST_SEEN` timestamp(6) NOT NULL,
   `QUANTILE_95` bigint unsigned NOT NULL,
@@ -458,6 +462,7 @@ events_statements_summary_by_host_by_event_name	CREATE TABLE `events_statements_
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `HOST` (`HOST`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_thread_by_event_name;
@@ -490,6 +495,7 @@ events_statements_summary_by_thread_by_event_name	CREATE TABLE `events_statement
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   PRIMARY KEY (`THREAD_ID`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_user_by_event_name;
@@ -522,6 +528,7 @@ events_statements_summary_by_user_by_event_name	CREATE TABLE `events_statements_
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `USER` (`USER`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_by_account_by_event_name;
@@ -555,6 +562,7 @@ events_statements_summary_by_account_by_event_name	CREATE TABLE `events_statemen
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   UNIQUE KEY `ACCOUNT` (`USER`,`HOST`,`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_statements_summary_global_by_event_name;
@@ -586,6 +594,7 @@ events_statements_summary_global_by_event_name	CREATE TABLE `events_statements_s
   `SUM_NO_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_NO_GOOD_INDEX_USED` bigint unsigned NOT NULL,
   `SUM_CPU_TIME` bigint unsigned NOT NULL,
+  `COUNT_SECONDARY` bigint unsigned NOT NULL,
   PRIMARY KEY (`EVENT_NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table events_transactions_current;
@@ -1536,6 +1545,7 @@ threads	CREATE TABLE `threads` (
   `CONNECTION_TYPE` varchar(16) DEFAULT NULL,
   `THREAD_OS_ID` bigint unsigned DEFAULT NULL,
   `RESOURCE_GROUP` varchar(64) DEFAULT NULL,
+  `EXECUTION_ENGINE` enum('PRIMARY','SECONDARY') DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`),
   KEY `PROCESSLIST_ID` (`PROCESSLIST_ID`),
   KEY `THREAD_OS_ID` (`THREAD_OS_ID`),

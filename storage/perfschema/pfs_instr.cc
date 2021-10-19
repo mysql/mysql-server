@@ -620,6 +620,7 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
     pfs->m_stage_progress = nullptr;
     pfs->m_processlist_info[0] = '\0';
     pfs->m_processlist_info_length = 0;
+    pfs->m_secondary = false;
     pfs->m_connection_type = NO_VIO_TYPE;
 
     pfs->m_thd = nullptr;

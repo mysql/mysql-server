@@ -76,6 +76,8 @@ struct row_processlist {
   const char *m_processlist_info_ptr;
   /** Length in bytes of @c m_processlist_info_ptr. */
   uint m_processlist_info_length;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 class PFS_index_processlist_by_processlist_id : public PFS_index_threads {

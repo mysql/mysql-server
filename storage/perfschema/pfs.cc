@@ -1895,12 +1895,12 @@ PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
 @endverbatim
 
   Implemented as:
-  - [1] #pfs_start_statement_v2(), #pfs_end_statement_v2()
+  - [1] #pfs_start_statement_vc(), #pfs_end_statement_vc()
        (1a, 1b) is an aggregation by EVENT_NAME,
         (1c, 1d, 1e) is an aggregation by TIME,
         (1f) is an aggregation by DIGEST
         all of these are orthogonal,
-        and implemented in #pfs_end_statement_v2().
+        and implemented in #pfs_end_statement_vc().
   - [2] #pfs_delete_thread_v1(), #aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
@@ -2490,7 +2490,7 @@ void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
   return;
 }
 
-void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
+void pfs_register_statement_vc(const char *category, PSI_statement_info *info,
                                int count) {
   char formatted_name[PFS_MAX_INFO_NAME_LENGTH];
   size_t prefix_length;
@@ -3328,6 +3328,18 @@ void pfs_set_thread_info_vc(const char *info, uint info_len) {
     }
     pfs->m_processlist_info_length = info_len;
     pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v6::set_thread_secondary_engine.
+*/
+void pfs_set_thread_secondary_engine_vc(bool secondary) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (likely(pfs != nullptr)) {
+    pfs->m_secondary = secondary;
   }
 }
 
@@ -5925,7 +5937,7 @@ void pfs_end_stage_v1() {
   }
 }
 
-PSI_statement_locker *pfs_get_thread_statement_locker_v2(
+PSI_statement_locker *pfs_get_thread_statement_locker_vc(
     PSI_statement_locker_state *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share) {
   assert(state != nullptr);
@@ -6011,6 +6023,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
       pfs->m_no_index_used = 0;
       pfs->m_no_good_index_used = 0;
       pfs->m_cpu_time = 0;
+      pfs->m_secondary = false;
       pfs->m_digest_storage.reset();
 
       /* New stages will have this statement as parent */
@@ -6122,7 +6135,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
+PSI_statement_locker *pfs_refine_statement_vc(PSI_statement_locker *locker,
                                               PSI_statement_key key) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6170,7 +6183,7 @@ PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
-void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
+void pfs_start_statement_vc(PSI_statement_locker *locker, const char *db,
                             uint db_len, const char *src_file, uint src_line) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6219,7 +6232,7 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
   state->m_query_sample_truncated = false;
 }
 
-void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
+void pfs_set_statement_text_vc(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6289,7 +6302,7 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
   }                                                                      \
   return;
 
-void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
+void pfs_set_statement_query_id_vc(PSI_statement_locker *locker,
                                    ulonglong query_id) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -6308,83 +6321,117 @@ void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
   return;
 }
 
-void pfs_set_statement_lock_time_v2(PSI_statement_locker *locker,
+void pfs_set_statement_lock_time_vc(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_lock_time, count);
 }
 
-void pfs_set_statement_rows_sent_v2(PSI_statement_locker *locker,
+void pfs_set_statement_rows_sent_vc(PSI_statement_locker *locker,
                                     ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_sent, count);
 }
 
-void pfs_set_statement_rows_examined_v2(PSI_statement_locker *locker,
+void pfs_set_statement_rows_examined_vc(PSI_statement_locker *locker,
                                         ulonglong count) {
   SET_STATEMENT_ATTR_BODY(locker, m_rows_examined, count);
 }
 
-void pfs_inc_statement_created_tmp_disk_tables_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_disk_tables_vc(PSI_statement_locker *locker,
                                                   ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_disk_tables, count);
 }
 
-void pfs_inc_statement_created_tmp_tables_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_created_tmp_tables_vc(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_created_tmp_tables, count);
 }
 
-void pfs_inc_statement_select_full_join_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_join_vc(PSI_statement_locker *locker,
                                            ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_join, count);
 }
 
-void pfs_inc_statement_select_full_range_join_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_full_range_join_vc(PSI_statement_locker *locker,
                                                  ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_full_range_join, count);
 }
 
-void pfs_inc_statement_select_range_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_vc(PSI_statement_locker *locker,
                                        ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range, count);
 }
 
-void pfs_inc_statement_select_range_check_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_range_check_vc(PSI_statement_locker *locker,
                                              ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_range_check, count);
 }
 
-void pfs_inc_statement_select_scan_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_select_scan_vc(PSI_statement_locker *locker,
                                       ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_select_scan, count);
 }
 
-void pfs_inc_statement_sort_merge_passes_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_merge_passes_vc(PSI_statement_locker *locker,
                                             ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_merge_passes, count);
 }
 
-void pfs_inc_statement_sort_range_v2(PSI_statement_locker *locker,
+void pfs_inc_statement_sort_range_vc(PSI_statement_locker *locker,
                                      ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_range, count);
 }
 
-void pfs_inc_statement_sort_rows_v2(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_rows_vc(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_rows, count);
 }
 
-void pfs_inc_statement_sort_scan_v2(PSI_statement_locker *locker, ulong count) {
+void pfs_inc_statement_sort_scan_vc(PSI_statement_locker *locker, ulong count) {
   INC_STATEMENT_ATTR_BODY(locker, m_sort_scan, count);
 }
 
-void pfs_set_statement_no_index_used_v2(PSI_statement_locker *locker) {
+void pfs_set_statement_no_index_used_vc(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_index_used, 1);
 }
 
-void pfs_set_statement_no_good_index_used_v2(PSI_statement_locker *locker) {
+void pfs_set_statement_no_good_index_used_vc(PSI_statement_locker *locker) {
   SET_STATEMENT_ATTR_BODY(locker, m_no_good_index_used, 1);
 }
 
-void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
+void pfs_set_statement_secondary_engine_vc(PSI_statement_locker *locker,
+                                           bool secondary) {
+  PSI_statement_locker_state *state;
+  state = reinterpret_cast<PSI_statement_locker_state *>(locker);
+
+  if (unlikely(state == nullptr)) {
+    return;
+  }
+  if (state->m_discarded) {
+    return;
+  }
+
+  /*
+    No dedicated attribute in PSI_statement_locker_state,
+    we use flags for storage.
+  */
+  if (secondary) {
+    /* Set the secondary engine flag */
+    state->m_flags |= STATE_FLAG_SECONDARY;
+  } else {
+    /* Clear the secondary engine flag */
+    state->m_flags &= ~STATE_FLAG_SECONDARY;
+  }
+
+  if (state->m_flags & STATE_FLAG_EVENT) {
+    PFS_events_statements *pfs;
+    pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement);
+    assert(pfs != nullptr);
+    /* Here there is a dedicated attribute. */
+    pfs->m_secondary = secondary;
+  }
+  return;
+}
+
+void pfs_end_statement_vc(PSI_statement_locker *locker, void *stmt_da) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   Diagnostics_area *da = reinterpret_cast<Diagnostics_area *>(stmt_da);
@@ -6546,6 +6593,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   stat->m_sort_scan += state->m_sort_scan;
   stat->m_no_index_used += state->m_no_index_used;
   stat->m_no_good_index_used += state->m_no_good_index_used;
+  if (flags & STATE_FLAG_SECONDARY) {
+    stat->m_count_secondary++;
+  }
 
   if (digest_stat != nullptr) {
     bool new_max_wait = false;
@@ -6627,6 +6677,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     digest_stat->m_stat.m_sort_scan += state->m_sort_scan;
     digest_stat->m_stat.m_no_index_used += state->m_no_index_used;
     digest_stat->m_stat.m_no_good_index_used += state->m_no_good_index_used;
+    if (flags & STATE_FLAG_SECONDARY) {
+      digest_stat->m_stat.m_count_secondary++;
+    }
   } else {
     if (flags & STATE_FLAG_TIMED) {
       time_normalizer *normalizer = time_normalizer::get_statement();
@@ -6666,6 +6719,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
       sub_stmt_stat->m_sort_scan += state->m_sort_scan;
       sub_stmt_stat->m_no_index_used += state->m_no_index_used;
       sub_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+      if (flags & STATE_FLAG_SECONDARY) {
+        sub_stmt_stat->m_count_secondary++;
+      }
     }
   }
 
@@ -6709,6 +6765,9 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
         prepared_stmt_stat->m_sort_scan += state->m_sort_scan;
         prepared_stmt_stat->m_no_index_used += state->m_no_index_used;
         prepared_stmt_stat->m_no_good_index_used += state->m_no_good_index_used;
+        if (pfs_prepared_stmt->m_secondary) {
+          prepared_stmt_stat->m_count_secondary++;
+        }
       }
     }
   }
@@ -6797,7 +6856,7 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type) {
   Implementation of the stored program instrumentation interface.
   @sa PSI_v1::get_sp_share.
 */
-static PSI_sp_share *pfs_get_sp_share_v2(uint sp_type, const char *schema_name,
+static PSI_sp_share *pfs_get_sp_share_vc(uint sp_type, const char *schema_name,
                                          uint schema_name_length,
                                          const char *object_name,
                                          uint object_name_length) {
@@ -6821,12 +6880,12 @@ static PSI_sp_share *pfs_get_sp_share_v2(uint sp_type, const char *schema_name,
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
-static void pfs_release_sp_share_v2(PSI_sp_share *) {
+static void pfs_release_sp_share_vc(PSI_sp_share *) {
   /* Unused */
   return;
 }
 
-static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
+static PSI_sp_locker *pfs_start_sp_vc(PSI_sp_locker_state *state,
                                       PSI_sp_share *sp_share) {
   assert(state != nullptr);
   if (!flag_global_instrumentation) {
@@ -6864,7 +6923,7 @@ static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
   return reinterpret_cast<PSI_sp_locker *>(state);
 }
 
-static void pfs_end_sp_v2(PSI_sp_locker *locker) {
+static void pfs_end_sp_vc(PSI_sp_locker *locker) {
   PSI_sp_locker_state *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
   assert(state != nullptr);
 
@@ -6885,7 +6944,7 @@ static void pfs_end_sp_v2(PSI_sp_locker *locker) {
   }
 }
 
-static void pfs_drop_sp_v2(uint sp_type, const char *schema_name,
+static void pfs_drop_sp_vc(uint sp_type, const char *schema_name,
                            uint schema_name_length, const char *object_name,
                            uint object_name_length) {
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
@@ -7338,7 +7397,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
   }
 }
 
-struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
+struct PSI_digest_locker *pfs_digest_start_vc(PSI_statement_locker *locker) {
   PSI_statement_locker_state *statement_state;
   statement_state = reinterpret_cast<PSI_statement_locker_state *>(locker);
   assert(statement_state != nullptr);
@@ -7354,7 +7413,7 @@ struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
   return nullptr;
 }
 
-void pfs_digest_end_v2(PSI_digest_locker *locker,
+void pfs_digest_end_vc(PSI_digest_locker *locker,
                        const sql_digest_storage *digest) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7400,7 +7459,7 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
   }
 }
 
-PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
+PSI_prepared_stmt *pfs_create_prepared_stmt_vc(void *identity, uint stmt_id,
                                                PSI_statement_locker *locker,
                                                const char *stmt_name,
                                                size_t stmt_name_length,
@@ -7432,7 +7491,7 @@ PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
   return reinterpret_cast<PSI_prepared_stmt *>(pfs);
 }
 
-void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
+void pfs_execute_prepared_stmt_vc(PSI_statement_locker *locker,
                                   PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
@@ -7442,14 +7501,14 @@ void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
   state->m_in_prepare = false;
 }
 
-void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_destroy_prepared_stmt_vc(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void pfs_reprepare_prepared_stmt_vc(PSI_prepared_stmt *prepared_stmt) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat = &pfs_prepared_stmt->m_reprepare_stat;
@@ -7460,7 +7519,7 @@ void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
   return;
 }
 
-void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
+void pfs_set_prepared_stmt_text_vc(PSI_prepared_stmt *prepared_stmt,
                                    const char *text, uint text_len) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
@@ -7473,6 +7532,17 @@ void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
 
   memcpy(pfs_prepared_stmt->m_sqltext, text, text_len);
   pfs_prepared_stmt->m_sqltext_length = text_len;
+
+  return;
+}
+
+void pfs_set_prepared_stmt_secondary_engine_vc(PSI_prepared_stmt *prepared_stmt,
+                                               bool secondary) {
+  PFS_prepared_stmt *pfs_prepared_stmt =
+      reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
+  assert(pfs_prepared_stmt != nullptr);
+
+  pfs_prepared_stmt->m_secondary = secondary;
 
   return;
 }
@@ -8393,6 +8463,86 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5) = {
     pfs_notify_session_disconnect_vc,
     pfs_notify_session_change_user_vc};
 
+/**
+  Implementation of the instrumentation interface.
+  @sa PSI_thread_service_v6
+*/
+PSI_thread_service_v6 pfs_thread_service_v6 = {
+    /* Old interface, for plugins. */
+    pfs_register_thread_vc,
+    pfs_spawn_thread_vc,
+    pfs_new_thread_vc,
+    pfs_set_thread_id_vc,
+    pfs_get_current_thread_internal_id_vc,
+    pfs_get_thread_internal_id_vc,
+    pfs_get_thread_by_id_vc,
+    pfs_set_thread_THD_vc,
+    pfs_set_thread_os_id_vc,
+    pfs_get_thread_vc,
+    pfs_set_thread_user_vc,
+    pfs_set_thread_account_vc,
+    pfs_set_thread_db_vc,
+    pfs_set_thread_command_vc,
+    pfs_set_connection_type_vc,
+    pfs_set_thread_start_time_vc,
+    pfs_set_thread_info_vc,
+    pfs_set_thread_secondary_engine_vc,
+    pfs_set_thread_resource_group_vc,
+    pfs_set_thread_resource_group_by_id_vc,
+    pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
+    pfs_aggregate_thread_status_vc,
+    pfs_delete_current_thread_vc,
+    pfs_delete_thread_vc,
+    pfs_set_thread_connect_attrs_vc,
+    pfs_get_current_thread_event_id_vc,
+    pfs_get_thread_event_id_vc,
+    pfs_get_thread_system_attrs_vc,
+    pfs_get_thread_system_attrs_by_id_vc,
+    pfs_register_notification_vc,
+    pfs_unregister_notification_vc,
+    pfs_notify_session_connect_vc,
+    pfs_notify_session_disconnect_vc,
+    pfs_notify_session_change_user_vc,
+    pfs_set_mem_cnt_THD_vc};
+
+SERVICE_TYPE(psi_thread_v6)
+SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v6) = {
+    /* New interface, for components. */
+    pfs_register_thread_vc,
+    pfs_spawn_thread_vc,
+    pfs_new_thread_vc,
+    pfs_set_thread_id_vc,
+    pfs_get_current_thread_internal_id_vc,
+    pfs_get_thread_internal_id_vc,
+    pfs_get_thread_by_id_vc,
+    pfs_set_thread_THD_vc,
+    pfs_set_thread_os_id_vc,
+    pfs_get_thread_vc,
+    pfs_set_thread_user_vc,
+    pfs_set_thread_account_vc,
+    pfs_set_thread_db_vc,
+    pfs_set_thread_command_vc,
+    pfs_set_connection_type_vc,
+    pfs_set_thread_start_time_vc,
+    pfs_set_thread_info_vc,
+    pfs_set_thread_secondary_engine_vc,
+    pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
+    pfs_aggregate_thread_status_vc,
+    pfs_delete_current_thread_vc,
+    pfs_delete_thread_vc,
+    pfs_set_thread_connect_attrs_vc,
+    pfs_get_current_thread_event_id_vc,
+    pfs_get_thread_event_id_vc,
+    pfs_get_thread_system_attrs_vc,
+    pfs_get_thread_system_attrs_by_id_vc,
+    pfs_register_notification_vc,
+    pfs_unregister_notification_vc,
+    pfs_notify_session_connect_vc,
+    pfs_notify_session_disconnect_vc,
+    pfs_notify_session_change_user_vc};
+
 PSI_mutex_service_v1 pfs_mutex_service_v1 = {
     /* Old interface, for plugins. */
     pfs_register_mutex_v1,   pfs_init_mutex_v1,     pfs_destroy_mutex_v1,
@@ -8549,120 +8699,163 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1) = {
     pfs_register_stage_v1, pfs_start_stage_v1,
     pfs_get_current_stage_progress_v1, pfs_end_stage_v1};
 
-PSI_statement_service_v2 pfs_statement_service_v2 = {
+PSI_statement_service_v3 pfs_statement_service_v3 = {
     /* Old interface, for plugins. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_query_id_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_set_statement_secondary_engine_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_set_prepared_stmt_secondary_engine_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 SERVICE_TYPE(psi_statement_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1) = {
     /* New interface, for components. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 SERVICE_TYPE(psi_statement_v2)
 SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v2) = {
     /* New interface, for components. */
-    pfs_register_statement_v2,
-    pfs_get_thread_statement_locker_v2,
-    pfs_refine_statement_v2,
-    pfs_start_statement_v2,
-    pfs_set_statement_text_v2,
-    pfs_set_statement_query_id_v2,
-    pfs_set_statement_lock_time_v2,
-    pfs_set_statement_rows_sent_v2,
-    pfs_set_statement_rows_examined_v2,
-    pfs_inc_statement_created_tmp_disk_tables_v2,
-    pfs_inc_statement_created_tmp_tables_v2,
-    pfs_inc_statement_select_full_join_v2,
-    pfs_inc_statement_select_full_range_join_v2,
-    pfs_inc_statement_select_range_v2,
-    pfs_inc_statement_select_range_check_v2,
-    pfs_inc_statement_select_scan_v2,
-    pfs_inc_statement_sort_merge_passes_v2,
-    pfs_inc_statement_sort_range_v2,
-    pfs_inc_statement_sort_rows_v2,
-    pfs_inc_statement_sort_scan_v2,
-    pfs_set_statement_no_index_used_v2,
-    pfs_set_statement_no_good_index_used_v2,
-    pfs_end_statement_v2,
-    pfs_create_prepared_stmt_v2,
-    pfs_destroy_prepared_stmt_v2,
-    pfs_reprepare_prepared_stmt_v2,
-    pfs_execute_prepared_stmt_v2,
-    pfs_set_prepared_stmt_text_v2,
-    pfs_digest_start_v2,
-    pfs_digest_end_v2,
-    pfs_get_sp_share_v2,
-    pfs_release_sp_share_v2,
-    pfs_start_sp_v2,
-    pfs_end_sp_v2,
-    pfs_drop_sp_v2};
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
+
+SERVICE_TYPE(psi_statement_v3)
+SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v3) = {
+    /* New interface, for components. */
+    pfs_register_statement_vc,
+    pfs_get_thread_statement_locker_vc,
+    pfs_refine_statement_vc,
+    pfs_start_statement_vc,
+    pfs_set_statement_text_vc,
+    pfs_set_statement_query_id_vc,
+    pfs_set_statement_lock_time_vc,
+    pfs_set_statement_rows_sent_vc,
+    pfs_set_statement_rows_examined_vc,
+    pfs_inc_statement_created_tmp_disk_tables_vc,
+    pfs_inc_statement_created_tmp_tables_vc,
+    pfs_inc_statement_select_full_join_vc,
+    pfs_inc_statement_select_full_range_join_vc,
+    pfs_inc_statement_select_range_vc,
+    pfs_inc_statement_select_range_check_vc,
+    pfs_inc_statement_select_scan_vc,
+    pfs_inc_statement_sort_merge_passes_vc,
+    pfs_inc_statement_sort_range_vc,
+    pfs_inc_statement_sort_rows_vc,
+    pfs_inc_statement_sort_scan_vc,
+    pfs_set_statement_no_index_used_vc,
+    pfs_set_statement_no_good_index_used_vc,
+    pfs_set_statement_secondary_engine_vc,
+    pfs_end_statement_vc,
+    pfs_create_prepared_stmt_vc,
+    pfs_destroy_prepared_stmt_vc,
+    pfs_reprepare_prepared_stmt_vc,
+    pfs_execute_prepared_stmt_vc,
+    pfs_set_prepared_stmt_text_vc,
+    pfs_set_prepared_stmt_secondary_engine_vc,
+    pfs_digest_start_vc,
+    pfs_digest_end_vc,
+    pfs_get_sp_share_vc,
+    pfs_release_sp_share_vc,
+    pfs_start_sp_vc,
+    pfs_end_sp_vc,
+    pfs_drop_sp_vc};
 
 PSI_transaction_service_v1 pfs_transaction_service_v1 = {
     /* Old interface, for plugins. */
@@ -8744,6 +8937,8 @@ static void *get_thread_interface(int version) {
       return &pfs_thread_service_v4;
     case PSI_THREAD_VERSION_5:
       return &pfs_thread_service_v5;
+    case PSI_THREAD_VERSION_6:
+      return &pfs_thread_service_v6;
     default:
       return nullptr;
   }
@@ -8837,6 +9032,7 @@ static void *get_stage_interface(int version) {
 static void *get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
+    case PSI_STATEMENT_VERSION_2:
       /*
         Obsolete.
 
@@ -8873,8 +9069,8 @@ static void *get_statement_interface(int version) {
         For COMPONENTS, the service is properly versioned.
       */
       return nullptr;
-    case PSI_STATEMENT_VERSION_2:
-      return &pfs_statement_service_v2;
+    case PSI_STATEMENT_VERSION_3:
+      return &pfs_statement_service_v3;
     default:
       return nullptr;
   }
@@ -8993,6 +9189,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v3), */
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v6),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),

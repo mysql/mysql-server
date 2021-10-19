@@ -31,6 +31,7 @@
 --                  state: alter table (flush)
 --                   time: 18
 --      current_statement: alter table t1 add column g int
+--       execution_engine: PRIMARY
 --      statement_latency: 18.45 s
 --               progress: 98.84
 --           lock_latency: 265.43 ms
@@ -66,6 +67,7 @@ VIEW processlist (
   state,
   time,
   current_statement,
+  execution_engine,
   statement_latency,
   progress,
   lock_latency,
@@ -98,6 +100,7 @@ SELECT pps.thread_id AS thd_id,
        pps.processlist_state AS state,
        pps.processlist_time AS time,
        sys.format_statement(pps.processlist_info) AS current_statement,
+       pps.execution_engine AS execution_engine,
        IF(esc.end_event_id IS NULL,
           format_pico_time(esc.timer_wait),
           NULL) AS statement_latency,

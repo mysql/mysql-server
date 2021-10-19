@@ -71,8 +71,11 @@ extern SERVICE_TYPE(psi_stage_v1)
 /* Deprecated, use psi_statement_v2. */
 extern SERVICE_TYPE(psi_statement_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v1);
+/* Deprecated, use psi_statement_v3. */
 extern SERVICE_TYPE(psi_statement_v2)
     SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v2);
+extern SERVICE_TYPE(psi_statement_v3)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v3);
 extern SERVICE_TYPE(psi_system_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1);
 extern SERVICE_TYPE(psi_table_v1)
@@ -81,6 +84,8 @@ extern SERVICE_TYPE(psi_thread_v4)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v4);
 extern SERVICE_TYPE(psi_thread_v5)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5);
+extern SERVICE_TYPE(psi_thread_v6)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v6);
 extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)

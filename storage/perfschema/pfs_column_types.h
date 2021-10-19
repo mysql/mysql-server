@@ -92,6 +92,17 @@ enum enum_timer_name {
 enum enum_yes_no { ENUM_YES = 1, ENUM_NO = 2 };
 
 /**
+  Enum values for the various EXECUTION_ENGINE columns.
+  This enum is found in the following tables:
+  - performance_schema.threads
+  - performance_schema.processlist
+  - performance_schema.events_statements_current
+  - performance_schema.events_statements_history
+  - performance_schema.events_statements_history_long
+*/
+enum enum_executed_on_engine { ENUM_PRIMARY = 1, ENUM_SECONDARY = 2 };
+
+/**
   Enum values for the various OPERATION columns.
   This enum is found in the following tables:
   - performance_schema.events_waits_current (OPERATION)

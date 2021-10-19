@@ -81,6 +81,9 @@ struct row_prepared_stmt_instances {
   /** Columns COUNT_REPREPARE. */
   PFS_stat_row m_reprepare_stat;
 
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
+
   /** Columns COUNT_STAR...SUM_NO_GOOD_INDEX_USED. */
   PFS_statement_stat_row m_execute_stat;
 };

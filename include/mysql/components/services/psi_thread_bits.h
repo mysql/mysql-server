@@ -355,6 +355,12 @@ typedef void (*set_thread_state_v1_t)(const char *state);
 typedef void (*set_thread_info_v1_t)(const char *info, unsigned int info_len);
 
 /**
+  Set a thread EXECUTION_ENGINE attribute.
+  @param secondary True for SECONDARY, false for PRIMARY.
+*/
+typedef void (*set_thread_secondary_engine_v6_t)(bool secondary);
+
+/**
   Assign a resource group name to the current thread.
 
   @param group_name resource group name string

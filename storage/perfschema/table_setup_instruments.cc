@@ -442,8 +442,6 @@ int table_setup_instruments::update_row_values(TABLE *table,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* NAME */
-          return HA_ERR_WRONG_COMMAND;
         case 1: /* ENABLED */
           /* Do not raise error if m_update_enabled is false, silently ignore.
            */
@@ -459,12 +457,8 @@ int table_setup_instruments::update_row_values(TABLE *table,
             m_row.m_instr_class->m_timed = (value == ENUM_YES) ? true : false;
           }
           break;
-        case 3: /* PROPERTIES */
-        case 4: /* VOLATILITY */
-        case 5: /* DOCUMENTATION */
-          return HA_ERR_WRONG_COMMAND;
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

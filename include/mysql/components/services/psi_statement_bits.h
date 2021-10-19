@@ -56,16 +56,23 @@ typedef unsigned int PSI_statement_key;
 /**
   @def PSI_STATEMENT_VERSION_2
   Performance Schema Statement Interface number for version 2.
-  This version is supported.
+  This version is deprecated.
 */
 #define PSI_STATEMENT_VERSION_2 2
 
 /**
+  @def PSI_STATEMENT_VERSION_3
+  Performance Schema Statement Interface number for version 3.
+  This version is supported.
+*/
+#define PSI_STATEMENT_VERSION_3 3
+
+/**
   @def PSI_CURRENT_STATEMENT_VERSION
   Performance Schema Statement Interface number for the most recent version.
-  The most current version is @c PSI_STATEMENT_VERSION_2
+  The most current version is @c PSI_STATEMENT_VERSION_3
 */
-#define PSI_CURRENT_STATEMENT_VERSION 2
+#define PSI_CURRENT_STATEMENT_VERSION 3
 
 /**
   Interface for an instrumented statement.
@@ -411,6 +418,14 @@ typedef void (*set_statement_no_good_index_used_t)(
     struct PSI_statement_locker *locker);
 
 /**
+  Set a statement EXECUTION_ENGINE attribute.
+  @param locker the statement locker
+  @param secondary True for SECONDARY, false for PRIMARY.
+*/
+typedef void (*set_statement_secondary_engine_v3_t)(
+    struct PSI_statement_locker *locker, bool secondary);
+
+/**
   End a statement event.
   @param locker the statement locker
   @param stmt_da the statement diagnostics area.
@@ -441,7 +456,7 @@ typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
 typedef void (*destroy_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 
 /**
-  repreare a prepare statement.
+  reprepare a prepare statement.
   @param prepared_stmt prepared statement.
 */
 typedef void (*reprepare_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
@@ -463,6 +478,15 @@ typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
 typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
                                             const char *text,
                                             unsigned int text_len);
+
+/**
+  Set a prepared statement EXECUTION_ENGINE attribute.
+  @param prepared_stmt prepared statement.
+  @param secondary True for SECONDARY, false for PRIMARY.
+*/
+typedef void (*set_prepared_stmt_secondary_engine_v3_t)(
+    PSI_prepared_stmt *prepared_stmt, bool secondary);
+
 /**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread

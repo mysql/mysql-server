@@ -1896,6 +1896,8 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
+  MYSQL_SET_PS_SECONDARY_ENGINE(stmt->m_prepared_stmt, false);
+
   // Query text for binary, general or slow log, if any of them is open
   String expanded_query;
   expanded_query.set_charset(default_charset_info);
@@ -3075,12 +3077,15 @@ reexecute:
                Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         assert(!lex->unit->is_executed());
         thd->clear_error();
-        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE)
+        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE) {
           thd->set_secondary_engine_optimization(
               Secondary_engine_optimization::SECONDARY);
-        else
+          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, true);
+        } else {
           thd->set_secondary_engine_optimization(
               Secondary_engine_optimization::PRIMARY_ONLY);
+          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
+        }
         // Disable the general log. The query was written to the general log in
         // the first attempt to execute it. No need to write it twice.
         general_log_temporarily_disabled |= disable_general_log(thd);
@@ -3097,6 +3102,7 @@ reexecute:
         thd->clear_error();
         thd->set_secondary_engine_optimization(
             Secondary_engine_optimization::PRIMARY_ONLY);
+        MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
         error = reprepare();
         if (!error) {
           // The reprepared statement should not use a secondary engine.

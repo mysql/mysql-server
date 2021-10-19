@@ -642,6 +642,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   */
   uint m_processlist_info_length;
 
+  /** Executed on secondary engine. */
+  bool m_secondary;
+
   PFS_events_stages m_stage_current;
 
   /** Size of @c m_events_statements_stack. */

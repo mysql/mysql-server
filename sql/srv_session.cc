@@ -1113,6 +1113,8 @@ int Srv_session::execute_command(enum enum_server_command command,
   */
   if (command != COM_QUERY) thd.reset_for_next_command();
 
+  mysql_thread_set_secondary_engine(false);
+
   assert(thd.m_statement_psi == nullptr);
   thd.m_statement_psi = MYSQL_START_STATEMENT(
       &thd.m_statement_state, stmt_info_new_packet.m_key, thd.db().str,

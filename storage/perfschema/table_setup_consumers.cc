@@ -253,8 +253,6 @@ int table_setup_consumers::update_row_values(TABLE *table,
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
-        case 0: /* NAME */
-          return HA_ERR_WRONG_COMMAND;
         case 1: /* ENABLED */
         {
           value = (enum_yes_no)get_field_enum(f);
@@ -262,7 +260,7 @@ int table_setup_consumers::update_row_values(TABLE *table,
           break;
         }
         default:
-          assert(false);
+          return HA_ERR_WRONG_COMMAND;
       }
     }
   }

@@ -24,7 +24,7 @@
 -- +-------------+---------------+
 -- | sys_version | mysql_version |
 -- +-------------+---------------+
--- | 2.1.1       | 8.0.18        |
+-- | 2.1.2       | 8.0.28        |
 -- +-------------+---------------+
 -- 
 
@@ -35,5 +35,5 @@ VIEW version (
   sys_version,
   mysql_version
 ) AS 
-SELECT '2.1.1' AS sys_version,
+SELECT '2.1.2' AS sys_version,
         version() AS mysql_version;

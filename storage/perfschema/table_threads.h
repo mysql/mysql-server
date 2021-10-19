@@ -94,6 +94,8 @@ struct row_threads {
   char m_groupname[NAME_LEN];
   /** Length in bytes of @c m_groupname. */
   uint m_groupname_length;
+  /** Column EXECUTION_ENGINE. */
+  bool m_secondary;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {

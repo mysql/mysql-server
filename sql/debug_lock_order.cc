@@ -6227,8 +6227,8 @@ static void lo_register_file(const char *category, PSI_file_info *info,
   native_mutex_unlock(&serialize);
 }
 
-static void lo_register_statement_v2(const char *category,
-                                     PSI_statement_info *info, int count) {
+static void lo_register_statement(const char *category,
+                                  PSI_statement_info *info, int count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->register_statement(category, info, count);
   }
@@ -6659,6 +6659,12 @@ static void lo_set_thread_info(const char *info, uint info_len) {
   }
 }
 
+static void lo_set_thread_secondary_engine(bool secondary) {
+  if (g_thread_chain != nullptr) {
+    g_thread_chain->set_thread_secondary_engine(secondary);
+  }
+}
+
 static int lo_set_thread_resource_group(const char *group_name,
                                         int group_name_len, void *user_data) {
   int rc = 0;
@@ -6839,7 +6845,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
   int index = (int)file;
   if (index >= 0) {
     /*
-      See comment in pfs_get_thread_file_descriptor_locker_v2().
+      See comment in pfs_get_thread_file_descriptor_locker().
 
       We are about to close a file by descriptor number,
       and the calling code still holds the descriptor.
@@ -7159,7 +7165,7 @@ static void lo_end_cond_wait(PSI_cond_locker *locker, int rc) {
   native_mutex_unlock(&serialize);
 }
 
-static PSI_statement_locker *lo_get_thread_statement_locker_v2(
+static PSI_statement_locker *lo_get_thread_statement_locker(
     PSI_statement_locker_state *state, PSI_statement_key key, const void *cs,
     PSI_sp_share *sp_share) {
   PSI_statement_locker *chain = nullptr;
@@ -7174,8 +7180,8 @@ static PSI_statement_locker *lo_get_thread_statement_locker_v2(
   return chain;
 }
 
-static PSI_statement_locker *lo_refine_statement_v2(
-    PSI_statement_locker *locker, PSI_statement_key key) {
+static PSI_statement_locker *lo_refine_statement(PSI_statement_locker *locker,
+                                                 PSI_statement_key key) {
   PSI_statement_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7185,16 +7191,16 @@ static PSI_statement_locker *lo_refine_statement_v2(
   return chain;
 }
 
-static void lo_start_statement_v2(PSI_statement_locker *locker, const char *db,
-                                  uint db_len, const char *src_file,
-                                  uint src_line) {
+static void lo_start_statement(PSI_statement_locker *locker, const char *db,
+                               uint db_len, const char *src_file,
+                               uint src_line) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->start_statement(locker, db, db_len, src_file, src_line);
   }
 }
 
-static void lo_set_statement_text_v2(PSI_statement_locker *locker,
-                                     const char *text, uint text_len) {
+static void lo_set_statement_text(PSI_statement_locker *locker,
+                                  const char *text, uint text_len) {
   LO_thread *lo_thread = get_THR_LO();
 
   if (g_statement_chain != nullptr) {
@@ -7206,136 +7212,142 @@ static void lo_set_statement_text_v2(PSI_statement_locker *locker,
   }
 }
 
-static void lo_set_statement_query_id_v2(PSI_statement_locker *locker,
-                                         ulonglong query_id) {
+static void lo_set_statement_query_id(PSI_statement_locker *locker,
+                                      ulonglong query_id) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_query_id(locker, query_id);
   }
 }
 
-static void lo_set_statement_lock_time_v2(PSI_statement_locker *locker,
-                                          ulonglong count) {
+static void lo_set_statement_lock_time(PSI_statement_locker *locker,
+                                       ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_lock_time(locker, count);
   }
 }
 
-static void lo_set_statement_rows_sent_v2(PSI_statement_locker *locker,
-                                          ulonglong count) {
+static void lo_set_statement_rows_sent(PSI_statement_locker *locker,
+                                       ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_rows_sent(locker, count);
   }
 }
 
-static void lo_set_statement_rows_examined_v2(PSI_statement_locker *locker,
-                                              ulonglong count) {
+static void lo_set_statement_rows_examined(PSI_statement_locker *locker,
+                                           ulonglong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_rows_examined(locker, count);
   }
 }
 
-static void lo_inc_statement_created_tmp_disk_tables_v2(
+static void lo_inc_statement_created_tmp_disk_tables(
     PSI_statement_locker *locker, ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_created_tmp_disk_tables(locker, count);
   }
 }
 
-static void lo_inc_statement_created_tmp_tables_v2(PSI_statement_locker *locker,
-                                                   ulong count) {
+static void lo_inc_statement_created_tmp_tables(PSI_statement_locker *locker,
+                                                ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_created_tmp_tables(locker, count);
   }
 }
 
-static void lo_inc_statement_select_full_join_v2(PSI_statement_locker *locker,
-                                                 ulong count) {
+static void lo_inc_statement_select_full_join(PSI_statement_locker *locker,
+                                              ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_full_join(locker, count);
   }
 }
 
-static void lo_inc_statement_select_full_range_join_v2(
+static void lo_inc_statement_select_full_range_join(
     PSI_statement_locker *locker, ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_full_range_join(locker, count);
   }
 }
 
-static void lo_inc_statement_select_range_v2(PSI_statement_locker *locker,
-                                             ulong count) {
+static void lo_inc_statement_select_range(PSI_statement_locker *locker,
+                                          ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_range(locker, count);
   }
 }
 
-static void lo_inc_statement_select_range_check_v2(PSI_statement_locker *locker,
-                                                   ulong count) {
+static void lo_inc_statement_select_range_check(PSI_statement_locker *locker,
+                                                ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_range_check(locker, count);
   }
 }
 
-static void lo_inc_statement_select_scan_v2(PSI_statement_locker *locker,
-                                            ulong count) {
+static void lo_inc_statement_select_scan(PSI_statement_locker *locker,
+                                         ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_select_scan(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_merge_passes_v2(PSI_statement_locker *locker,
-                                                  ulong count) {
+static void lo_inc_statement_sort_merge_passes(PSI_statement_locker *locker,
+                                               ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_merge_passes(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_range_v2(PSI_statement_locker *locker,
-                                           ulong count) {
+static void lo_inc_statement_sort_range(PSI_statement_locker *locker,
+                                        ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_range(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_rows_v2(PSI_statement_locker *locker,
-                                          ulong count) {
+static void lo_inc_statement_sort_rows(PSI_statement_locker *locker,
+                                       ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_rows(locker, count);
   }
 }
 
-static void lo_inc_statement_sort_scan_v2(PSI_statement_locker *locker,
-                                          ulong count) {
+static void lo_inc_statement_sort_scan(PSI_statement_locker *locker,
+                                       ulong count) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->inc_statement_sort_scan(locker, count);
   }
 }
 
-static void lo_set_statement_no_index_used_v2(PSI_statement_locker *locker) {
+static void lo_set_statement_no_index_used(PSI_statement_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_no_index_used(locker);
   }
 }
 
-static void lo_set_statement_no_good_index_used_v2(
-    PSI_statement_locker *locker) {
+static void lo_set_statement_no_good_index_used(PSI_statement_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_statement_no_good_index_used(locker);
   }
 }
 
-static void lo_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
+static void lo_set_statement_secondary_engine(PSI_statement_locker *locker,
+                                              bool secondary) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->set_statement_secondary_engine(locker, secondary);
+  }
+}
+
+static void lo_end_statement(PSI_statement_locker *locker, void *stmt_da) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->end_statement(locker, stmt_da);
   }
 }
 
-PSI_prepared_stmt *lo_create_prepared_stmt_v2(void *identity, uint stmt_id,
-                                              PSI_statement_locker *locker,
-                                              const char *stmt_name,
-                                              size_t stmt_name_length,
-                                              const char *sql_text,
-                                              size_t sql_text_length) {
+PSI_prepared_stmt *lo_create_prepared_stmt(void *identity, uint stmt_id,
+                                           PSI_statement_locker *locker,
+                                           const char *stmt_name,
+                                           size_t stmt_name_length,
+                                           const char *sql_text,
+                                           size_t sql_text_length) {
   PSI_prepared_stmt *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7347,36 +7359,43 @@ PSI_prepared_stmt *lo_create_prepared_stmt_v2(void *identity, uint stmt_id,
   return chain;
 }
 
-void lo_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void lo_destroy_prepared_stmt(PSI_prepared_stmt *prepared_stmt) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->destroy_prepared_stmt(prepared_stmt);
   }
 }
 
-void lo_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt) {
+void lo_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->reprepare_prepared_stmt(prepared_stmt);
   }
 }
 
-void lo_execute_prepared_stmt_v2(PSI_statement_locker *locker,
-                                 PSI_prepared_stmt *ps) {
+void lo_execute_prepared_stmt(PSI_statement_locker *locker,
+                              PSI_prepared_stmt *ps) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->execute_prepared_stmt(locker, ps);
   }
 }
 
-void lo_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
-                                  const char *text, uint text_len) {
+void lo_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
+                               const char *text, uint text_len) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->set_prepared_stmt_text(prepared_stmt, text, text_len);
   }
 }
 
-PSI_sp_share *lo_get_sp_share_v2(uint sp_type, const char *schema_name,
-                                 uint schema_name_length,
-                                 const char *object_name,
-                                 uint object_name_length) {
+void lo_set_prepared_stmt_secondary_engine(PSI_prepared_stmt *prepared_stmt,
+                                           bool secondary) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->set_prepared_stmt_secondary_engine(prepared_stmt,
+                                                          secondary);
+  }
+}
+
+PSI_sp_share *lo_get_sp_share(uint sp_type, const char *schema_name,
+                              uint schema_name_length, const char *object_name,
+                              uint object_name_length) {
   PSI_sp_share *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7388,14 +7407,13 @@ PSI_sp_share *lo_get_sp_share_v2(uint sp_type, const char *schema_name,
   return chain;
 }
 
-void lo_release_sp_share_v2(PSI_sp_share *s) {
+void lo_release_sp_share(PSI_sp_share *s) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->release_sp_share(s);
   }
 }
 
-PSI_sp_locker *lo_start_sp_v2(PSI_sp_locker_state *state,
-                              PSI_sp_share *sp_share) {
+PSI_sp_locker *lo_start_sp(PSI_sp_locker_state *state, PSI_sp_share *sp_share) {
   PSI_sp_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7405,15 +7423,14 @@ PSI_sp_locker *lo_start_sp_v2(PSI_sp_locker_state *state,
   return chain;
 }
 
-void lo_end_sp_v2(PSI_sp_locker *locker) {
+void lo_end_sp(PSI_sp_locker *locker) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->end_sp(locker);
   }
 }
 
-void lo_drop_sp_v2(uint sp_type, const char *schema_name,
-                   uint schema_name_length, const char *object_name,
-                   uint object_name_length) {
+void lo_drop_sp(uint sp_type, const char *schema_name, uint schema_name_length,
+                const char *object_name, uint object_name_length) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->drop_sp(sp_type, schema_name, schema_name_length,
                                object_name, object_name_length);
@@ -7591,7 +7608,7 @@ static void lo_end_file_rename_wait(PSI_file_locker *locker,
   delete lo_locker;
 }
 
-static PSI_digest_locker *lo_digest_start_v2(PSI_statement_locker *locker) {
+static PSI_digest_locker *lo_digest_start(PSI_statement_locker *locker) {
   PSI_digest_locker *chain = nullptr;
 
   if (g_statement_chain != nullptr) {
@@ -7601,8 +7618,8 @@ static PSI_digest_locker *lo_digest_start_v2(PSI_statement_locker *locker) {
   return chain;
 }
 
-static void lo_digest_end_v2(PSI_digest_locker *locker,
-                             const sql_digest_storage *digest) {
+static void lo_digest_end(PSI_digest_locker *locker,
+                          const sql_digest_storage *digest) {
   if (g_statement_chain != nullptr) {
     g_statement_chain->digest_end(locker, digest);
   }
@@ -7728,7 +7745,7 @@ static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
   }
 }
 
-PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
+PSI_thread_service_v6 LO_thread_v6 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7745,6 +7762,7 @@ PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
                                       lo_set_connection_type,
                                       lo_set_thread_start_time,
                                       lo_set_thread_info,
+                                      lo_set_thread_secondary_engine,
                                       lo_set_thread_resource_group,
                                       lo_set_thread_resource_group_by_id,
                                       lo_set_thread,
@@ -7767,15 +7785,13 @@ PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
 static void *lo_get_thread_interface(int version) {
   switch (version) {
     case PSI_THREAD_VERSION_1:
-      return nullptr;
     case PSI_THREAD_VERSION_2:
-      return nullptr;
     case PSI_THREAD_VERSION_3:
-      return nullptr;
     case PSI_THREAD_VERSION_4:
-      return nullptr;
     case PSI_THREAD_VERSION_5:
-      return &LO_thread_v5;
+      return nullptr;
+    case PSI_THREAD_VERSION_6:
+      return &LO_thread_v6;
     default:
       return nullptr;
   }
@@ -7873,49 +7889,52 @@ static void *lo_get_idle_interface(int version) {
 
 struct PSI_idle_bootstrap LO_idle_bootstrap = {lo_get_idle_interface};
 
-PSI_statement_service_v2 LO_statement_v2 = {
-    lo_register_statement_v2,
-    lo_get_thread_statement_locker_v2,
-    lo_refine_statement_v2,
-    lo_start_statement_v2,
-    lo_set_statement_text_v2,
-    lo_set_statement_query_id_v2,
-    lo_set_statement_lock_time_v2,
-    lo_set_statement_rows_sent_v2,
-    lo_set_statement_rows_examined_v2,
-    lo_inc_statement_created_tmp_disk_tables_v2,
-    lo_inc_statement_created_tmp_tables_v2,
-    lo_inc_statement_select_full_join_v2,
-    lo_inc_statement_select_full_range_join_v2,
-    lo_inc_statement_select_range_v2,
-    lo_inc_statement_select_range_check_v2,
-    lo_inc_statement_select_scan_v2,
-    lo_inc_statement_sort_merge_passes_v2,
-    lo_inc_statement_sort_range_v2,
-    lo_inc_statement_sort_rows_v2,
-    lo_inc_statement_sort_scan_v2,
-    lo_set_statement_no_index_used_v2,
-    lo_set_statement_no_good_index_used_v2,
-    lo_end_statement_v2,
-    lo_create_prepared_stmt_v2,
-    lo_destroy_prepared_stmt_v2,
-    lo_reprepare_prepared_stmt_v2,
-    lo_execute_prepared_stmt_v2,
-    lo_set_prepared_stmt_text_v2,
-    lo_digest_start_v2,
-    lo_digest_end_v2,
-    lo_get_sp_share_v2,
-    lo_release_sp_share_v2,
-    lo_start_sp_v2,
-    lo_end_sp_v2,
-    lo_drop_sp_v2};
+PSI_statement_service_v3 LO_statement_v3 = {
+    lo_register_statement,
+    lo_get_thread_statement_locker,
+    lo_refine_statement,
+    lo_start_statement,
+    lo_set_statement_text,
+    lo_set_statement_query_id,
+    lo_set_statement_lock_time,
+    lo_set_statement_rows_sent,
+    lo_set_statement_rows_examined,
+    lo_inc_statement_created_tmp_disk_tables,
+    lo_inc_statement_created_tmp_tables,
+    lo_inc_statement_select_full_join,
+    lo_inc_statement_select_full_range_join,
+    lo_inc_statement_select_range,
+    lo_inc_statement_select_range_check,
+    lo_inc_statement_select_scan,
+    lo_inc_statement_sort_merge_passes,
+    lo_inc_statement_sort_range,
+    lo_inc_statement_sort_rows,
+    lo_inc_statement_sort_scan,
+    lo_set_statement_no_index_used,
+    lo_set_statement_no_good_index_used,
+    lo_set_statement_secondary_engine,
+    lo_end_statement,
+    lo_create_prepared_stmt,
+    lo_destroy_prepared_stmt,
+    lo_reprepare_prepared_stmt,
+    lo_execute_prepared_stmt,
+    lo_set_prepared_stmt_text,
+    lo_set_prepared_stmt_secondary_engine,
+    lo_digest_start,
+    lo_digest_end,
+    lo_get_sp_share,
+    lo_release_sp_share,
+    lo_start_sp,
+    lo_end_sp,
+    lo_drop_sp};
 
 static void *lo_get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
-      return nullptr;
     case PSI_STATEMENT_VERSION_2:
-      return &LO_statement_v2;
+      return nullptr;
+    case PSI_STATEMENT_VERSION_3:
+      return &LO_statement_v3;
     default:
       return nullptr;
   }

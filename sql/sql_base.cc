@@ -66,7 +66,9 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_table.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -6620,6 +6622,8 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
       thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
     thd->set_secondary_engine_optimization(
         Secondary_engine_optimization::SECONDARY);
+    mysql_thread_set_secondary_engine(true);
+    mysql_statement_set_secondary_engine(thd->m_statement_psi, true);
   }
 
   // Only open secondary engine tables if use of a secondary engine
