@@ -5119,7 +5119,6 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
   }
   SimpleSignal ssig;
   UtilBuffer buf;
-  UtilBuffer *buf_ptr = &buf;
   new_config.pack(buf, v2);
   ssig.ptr[0].p = (Uint32*)buf.get_data();
   ssig.ptr[0].sz = (buf.length() + 3) / 4;
@@ -5171,8 +5170,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
             /**
              * Free old buffer and create a new one.
              */
-            delete buf_ptr;
-            buf_ptr = new (buf_ptr) UtilBuffer;
+            buf.assign(nullptr, 0);
             require(new_config.pack(buf, v2_new));
             v2 = v2_new;
           }

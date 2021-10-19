@@ -127,7 +127,7 @@ LocalConfig::~LocalConfig(){
   
 void LocalConfig::setError(int lineNumber, const char * _msg) {
   error_line = lineNumber;
-  strncpy(error_msg, _msg, sizeof(error_msg));
+  snprintf(error_msg, sizeof(error_msg), "%s", _msg);
 }
 
 bool

@@ -1939,6 +1939,7 @@ NdbTableImpl::get_nodes(Uint32 fragmentId, const Uint16 ** nodes) const
     *nodes = m_fragments.getBase()+pos;
     return m_replicaCount;
   }
+  *nodes = nullptr;
   return 0;
 }
 

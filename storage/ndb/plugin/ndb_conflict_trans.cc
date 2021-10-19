@@ -178,7 +178,7 @@ template class LinkedStack<Uint64, st_mem_root_allocator>;
  * Given a table, key_record and record, this method will
  * determine how many significant bytes the key contains,
  * and if a buffer is passed, will copy the bytes into the
- * buffer.
+ * buffer. Returns -1 on failure and 0 on success
  */
 static int pack_key_to_buffer(const NdbDictionary::Table *table,
                               const NdbRecord *key_rec, const uchar *record,
@@ -190,7 +190,7 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
    */
   Uint32 attr_id;
   Uint32 buff_offset = 0;
-  NdbDictionary::getFirstAttrId(key_rec, attr_id);
+  if (!NdbDictionary::getFirstAttrId(key_rec, attr_id)) return -1;
 
   do {
     Uint32 from_offset = 0;
@@ -211,6 +211,9 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
         byte_len = uint2korr(&record[from_offset]);
         from_offset += 2;
         break;
+      default:
+        assert(false);
+        return -1;
     };
     assert((buff_offset + byte_len) <= buff_len);
 
@@ -223,13 +226,15 @@ static int pack_key_to_buffer(const NdbDictionary::Table *table,
   return 0;
 }
 
-static Uint32 determine_packed_key_size(const NdbDictionary::Table *table,
-                                        const NdbRecord *key_rec,
-                                        const uchar *record) {
-  Uint32 key_size = ~Uint32(0);
+static bool determine_packed_key_size(const NdbDictionary::Table *table,
+                                      const NdbRecord *key_rec,
+                                      const uchar *record,
+                                      Uint32 &required_buff_size) {
   /* Use pack_key_to_buffer to calculate length required */
-  pack_key_to_buffer(table, key_rec, record, NULL, key_size);
-  return key_size;
+  if (pack_key_to_buffer(table, key_rec, record, nullptr, required_buff_size) ==
+      -1)
+    return false;
+  return true;
 }
 
 /* st_mem_root_allocator implementation */
@@ -285,7 +290,12 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
                                        Uint64 transaction_id) {
   DBUG_TRACE;
 
-  Uint32 required_buff_size = determine_packed_key_size(table, key_rec, row);
+  Uint32 required_buff_size = ~Uint32(0);
+  if (!determine_packed_key_size(table, key_rec, row, required_buff_size)) {
+    if (!error_text)
+      error_text = "track_operation : Failed to determine packed key size";
+    return -1;
+  }
   DBUG_PRINT("info", ("Required length for key : %u", required_buff_size));
 
   /* Alloc space for packed key and struct in MEM_ROOT */
@@ -293,7 +303,7 @@ int DependencyTracker::track_operation(const NdbDictionary::Table *table,
   void *element_mem = mra.mem_root->Alloc(sizeof(st_row_event_key_info));
 
   if (pack_key_to_buffer(table, key_rec, row, packed_key_buff,
-                         required_buff_size)) {
+                         required_buff_size) == -1) {
     if (!error_text) error_text = "track_operation : Failed packing key";
     return -1;
   }

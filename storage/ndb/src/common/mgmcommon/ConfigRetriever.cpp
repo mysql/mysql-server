@@ -307,7 +307,9 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
   }
 
   if(_type != (unsigned int)m_node_type){
-    const char *type_s, *alias_s, *type_s2, *alias_s2;
+    const char *alias_s, *alias_s2;
+    const char *type_s = nullptr;
+    const char *type_s2 = nullptr;
     alias_s=
       ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)m_node_type,
                                          &type_s);

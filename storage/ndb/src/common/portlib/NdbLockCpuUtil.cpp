@@ -131,6 +131,7 @@ use_processor_set(const Uint32 *cpu_ids,
         handler->cpu_ids = (Uint32 *)malloc(sizeof(Uint32) * num_cpu_ids);
         if (handler->cpu_ids == NULL)
         {
+          require(errno != 0);
           return errno;
         }
         if (is_exclusive)
@@ -169,6 +170,7 @@ use_processor_set(const Uint32 *cpu_ids,
 
     if (new_proc_set_array == NULL)
     {
+      require(errno != 0);
       return errno;
     }
     memcpy(new_proc_set_array,
@@ -185,7 +187,8 @@ use_processor_set(const Uint32 *cpu_ids,
     num_processor_sets *= 2;
   }
   /* Should never arrive here */
-  return ret;
+  require(false);
+  return -1;
 }
 
 int
