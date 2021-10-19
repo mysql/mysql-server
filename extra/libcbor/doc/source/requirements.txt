@@ -34,6 +34,6 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 tornado==6.0.4
-urllib3==1.25.8
+urllib3==1.26.5
 watchdog==0.10.2
 Werkzeug==0.15.5
