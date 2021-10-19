@@ -1526,3 +1526,9 @@ SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
   测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa INT PATH '$[0]',
   测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb INT PATH '$[1]')
 ) AS jt;
+
+--echo #
+--echo # Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+--echo #
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;

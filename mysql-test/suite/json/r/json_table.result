@@ -2191,3 +2191,8 @@ SELECT * FROM JSON_TABLE('[1, 2]', '$' COLUMNS (
 ) AS jt;
 测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	测试列aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb
 1	2
+#
+# Bug#33414235: Item_row::illegal_method_call const: Assertion `0' failed.
+#
+SELECT 1 FROM JSON_TABLE(ROW(1, 2), '$' COLUMNS (o FOR ORDINALITY)) AS jt;
+ERROR 21000: Operand should contain 1 column(s)

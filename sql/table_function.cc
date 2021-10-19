@@ -245,6 +245,11 @@ bool Table_function_json::do_init_args() {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");
     return true;
   }
+
+  if (source->check_cols(1)) {
+    return true;
+  }
+
   try {
     /*
       Check whether given JSON source is a const and it's valid, see also
