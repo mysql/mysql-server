@@ -18230,10 +18230,25 @@ int ha_innobase::start_stmt(THD *thd, thr_lock_type lock_type) {
 
     m_prebuilt->select_lock_type = LOCK_X;
 
-  } else if (trx->isolation_level != TRX_ISO_SERIALIZABLE &&
-             thd_sql_command(thd) == SQLCOM_SELECT && lock_type == TL_READ) {
+  } else if ((trx->isolation_level != TRX_ISO_SERIALIZABLE &&
+              lock_type == TL_READ && thd_sql_command(thd) == SQLCOM_SELECT) ||
+             (trx->skip_gap_locks() &&
+              (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT) &&
+              (thd_sql_command(thd) == SQLCOM_INSERT_SELECT ||
+               thd_sql_command(thd) == SQLCOM_REPLACE_SELECT ||
+               thd_sql_command(thd) == SQLCOM_UPDATE ||
+               thd_sql_command(thd) == SQLCOM_CREATE_TABLE))) {
     /* For other than temporary tables, we obtain
-    no lock for consistent read (plain SELECT). */
+    no lock for consistent read (plain SELECT).
+
+    If this session is using READ COMMITTED or READ
+    UNCOMMITTED isolation level and MySQL is doing INSERT
+    INTO... SELECT or REPLACE INTO...SELECT or UPDATE ...
+    = (SELECT ...) or CREATE  ...  SELECT... without FOR
+    UPDATE or IN SHARE MODE in select, then we use
+    consistent read for select.
+
+    See also similar code in ha_innobase::store_lock(). */
 
     m_prebuilt->select_lock_type = LOCK_NONE;
   } else {
@@ -19246,7 +19261,9 @@ THR_LOCK_DATA **ha_innobase::store_lock(
       INTO... SELECT or REPLACE INTO...SELECT or UPDATE ...
       = (SELECT ...) or CREATE  ...  SELECT... without FOR
       UPDATE or IN SHARE MODE in select, then we use
-      consistent read for select. */
+      consistent read for select.
+
+      See also similar code in ha_innobase::start_stmt(). */
 
       m_prebuilt->select_lock_type = LOCK_NONE;
       m_stored_select_lock_type = LOCK_NONE;
