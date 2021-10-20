@@ -495,3 +495,15 @@ prepare stmt from "SELECT TIME'01:01:01' = ?";
 execute stmt using @dt_flt;
 deallocate prepare stmt;
 
+--echo # Bug#33477883: Sig6 `value.time.time_type == MYSQL_TIMESTAMP_ERROR'
+
+prepare ps from "SELECT TIME'01:01:01' = ?";
+
+set @var = 'e';
+execute ps using @var;
+
+set @var = '';
+execute ps using @var;
+
+set @var = '23:59:60';
+execute ps using @var;
