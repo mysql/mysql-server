@@ -5775,9 +5775,15 @@ TABLE_LIST *Query_block::add_table_to_list(
     ptr->db = table_name->db.str;
     ptr->db_length = table_name->db.length;
   } else {
-    bool found_cte;
-    if (find_common_table_expr(thd, table_name, ptr, pc, &found_cte))
-      return nullptr;
+    // Check if the unqualified name could refer to a CTE. Don't do this for the
+    // alias list of a multi-table DELETE statement (TL_OPTION_ALIAS), since
+    // those are only references into the FROM list, and any CTEs referenced by
+    // the aliases will be resolved when we later resolve the FROM list.
+    bool found_cte = false;
+    if ((table_options & TL_OPTION_ALIAS) == 0) {
+      if (find_common_table_expr(thd, table_name, ptr, pc, &found_cte))
+        return nullptr;
+    }
     if (!found_cte && lex->copy_db_to(&ptr->db, &ptr->db_length))
       return nullptr;
   }
