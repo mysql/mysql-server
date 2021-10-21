@@ -5009,11 +5009,16 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
           and as result we'll choose an index scan when using ref/range
           access + filesort will be cheaper.
         */
-        if (fanout == 0)                // Would have been a division-by-zero
+        if (fanout == 0) {              // Would have been a division-by-zero
           select_limit = HA_POS_ERROR;  // -> 'infinite'
-        else if (fanout > 0)            // 'fanout' not unknown
-          select_limit =
-              (ha_rows)(select_limit < fanout ? 1 : select_limit / fanout);
+        } else if (fanout >= 0) {       // 'fanout' not unknown
+          const double new_limit = max(select_limit / fanout, 1.0);
+          if (new_limit >= static_cast<double>(HA_POS_ERROR)) {
+            select_limit = HA_POS_ERROR;
+          } else {
+            select_limit = new_limit;
+          }
+        }
         /*
           We assume that each of the tested indexes is not correlated
           with ref_key. Thus, to select first N records we have to scan
