@@ -2179,13 +2179,20 @@ void CostingReceiver::ProposeNestedLoopJoin(
   }
 
   // Ignores the row count from filter_path; see above.
+  //
+  // NOTE: The ceil() around the number of rows on the left side is a workaround
+  // for an issue where we think the left side has a very low cardinality,
+  // e.g. 1e-5 rows, and we believe that justifies having something hugely
+  // expensive on the right side (e.g. a large table scan). Obviously, this is a
+  // band-aid (we should “just” have better row estimation and/or braking
+  // factors), but it should be fairly benign in general.
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
       FindOutputRowsForJoin(left_path, right_path, edge,
                             right_path_already_applied_selectivity);
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +
-      inner_rescan_cost * left_path->num_output_rows;
+      inner_rescan_cost * ceil(left_path->num_output_rows);
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something
