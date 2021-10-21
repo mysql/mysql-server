@@ -1,6 +1,6 @@
 alabaster==0.7.12
 argh==0.26.2
-Babel==2.8.0
+Babel==2.9.1
 breathe==4.14.1
 certifi==2019.11.28
 chardet==3.0.4
