@@ -206,22 +206,40 @@ void Table_access::compute_type_and_index() const {
       break;
 
     case JT_REF: {
+      /**
+       * NOTE: From optimizer POW, REF access means: 'may return multiple rows'.
+       * This does not necessarily mean that a range type access operation is
+       * used by the storage engine, even if that is the most likely case.
+       * In particular, if the (UNIQUE) HASH-index type is used (NDB), we have
+       * to take care: If the key contain NULL values it will degrade to a
+       * full table scan, else it will be an unique single row lookup.
+       * (i.e, can never be an index scan as suggested by type = REF!)
+       */
       assert(qep_tab->ref().key >= 0);
       assert((uint)qep_tab->ref().key < MAX_KEY);
       m_index_no = qep_tab->ref().key;
 
-      /*
-        All parts of a key are specified for an unique index -> access is a key
-        lookup.
-      */
       const KEY *key_info = qep_tab->table()->s->key_info;
-      if (key_info[m_index_no].user_defined_key_parts ==
-              qep_tab->ref().key_parts &&
-          key_info[m_index_no].flags & HA_NOSAME) {
-        m_access_type =
-            (m_index_no == static_cast<int32>(qep_tab->table()->s->primary_key))
-                ? AT_PRIMARY_KEY
-                : AT_UNIQUE_KEY;
+      if (unlikely(key_info[m_index_no].algorithm == HA_KEY_ALG_HASH)) {
+        // If key has _known_ NULL values it becomes a full_table_scan
+        const TABLE_REF *ref = &qep_tab->ref();
+        for (uint i = 0; i < ref->key_parts; i++) {
+          if (ref->items[i]->is_null() && ref->items[i]->const_item()) {
+            assert(!(ref->null_rejecting & (1 << i)));
+            m_access_type = AT_TABLE_SCAN;
+            DBUG_VOID_RETURN;
+          }
+        }
+        /**
+         * Note that there can still be NULL values in the key if
+         * it is constructed from Item_fields refering other tables.
+         * This is not known until execution time, so below we do
+         * a best guess about no NULL values:
+         */
+        // PK is fully null_rejecting, so can't be the PRIMARY KEY
+        assert(m_index_no !=
+               static_cast<int>(qep_tab->table()->s->primary_key));
+        m_access_type = AT_UNIQUE_KEY;
         DBUG_PRINT("info",
                    ("Operation %d is an unique key referrence.", m_tab_no));
       } else {

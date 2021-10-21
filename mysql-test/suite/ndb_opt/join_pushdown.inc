@@ -1855,6 +1855,120 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 is not null;
 
+################################
+# Bug#33451256 AbstractQueryPlan (AQP) return incorrect
+#              access type to be used for a table.
+#
+# If the column(s) an unique index is specified over
+# are nullable, _and_ the key contains a NULL value,
+# multiple NULL-valued rows may still be returned from the UNIQUE index.
+# (All the non-NULL columns are unique though)
+#
+# Note that the optimizer correctly set the access type to REF (-> non-unique)
+# However, the AQP still decided it was 'unique' as all key values
+# was specified.
+#
+# Note that none of the 4 test cases added for this bug should
+# emit the Warning '1296 Prepared pushed join could not be executed'
+# with the patch for this bug. (It does without the patch)
+
+# Insert an additional NULL value, such that the unique index on column d3
+# now has 2 null values - Should not fail.
+insert into t3 values (0x5f, 0x5f, 4, null);
+
+# Need a non-unique index
+alter table t3 add index ix(b3);
+
+###################################
+# AQP incorrectly clasified 'where t1.d3 is null' as a
+# single row lookup operation (Even if explain says 'REF').
+#
+# As pushdown of index scans with a lookup root is not supported,
+# we could not push 't3 as t1' as a root in query below.
+# (t2 join t3) was pushed though.
+#
+# Correctly classifying t1-access as a index access would have
+# allowed all 3 tables to be pushed.
+
+let $query1 =
+select straight_join *
+from t3 as t1
+  left join t3 as t2 on t2.b3 = t1.a3
+  left join t3 as t3 on t3.b3 = t2.d3
+where t1.d3 is null;
+
+eval explain $query1;
+--sorted_result
+eval $query1;
+
+#################################
+# The other way around, making t2 and t3 acccess an EQ_REF:
+# t1 is still incorrectly believed to be a single row operation
+#
+# A pushed join was now prepared for the full 't1 join t2 join t3' -
+# ... with t1 as single row lookup operation.
+#
+# At execution time it turns out that t1 had a NULL in its key,
+# which required an index scan access type. Thus the prepared pushed join
+# ends up being unsuitable, and is dropped from being executed
+
+let $query2 =
+select straight_join *
+from t3 as t1
+  left join t3 as t2 on t2.d3 = t1.a3
+  left join t3 as t3 on t3.d3 = t2.d3
+where t1.d3 is null;
+
+eval explain $query2;
+--sorted_result
+eval $query2;
+
+
+# The only time where the optimizer set up a REF access, and
+# we still do a unique single row access against it, is when
+# we are using a HASH index. Then there is no ordered index
+# available for doing a range type access:
+
+alter table t3 drop index d3;
+
+# Note that a 'using hash' index will warn about doing full table scans
+# if the key has NULL values
+alter table t3 add unique key(d3) using hash;
+
+######################################
+# Use the same two queries a above, now with a redefined HASH index:
+# t1 access will now either be a unique single row acces, if key
+# has no NULLs, or a full table scan. Which of them we can't really
+# know until execution time when the key values are known, unless
+# they are a const-literal.
+#
+# The first one now fails to push t1 as root as it belived it was
+# a lookup type operation with t2 & t3 as scan child.
+#
+# As the t1 key is constructed from 't1.d3 is null', we should be
+# able to detect early that t1 will be accessed using a full table scan.
+# Thus preparing a scan type pushed join for all 3 tables
+
+eval explain $query1;
+--sorted_result
+eval $query1;
+
+####################################
+# The other query was, and still is, asuming t1 to be a single row lookup.
+# Thus we may prepare a pushed lookup join for all 3 tables.
+#
+# However, as the t1 condition 't1.d3 is null' turns out to need a
+# full table scan, the pushed join is rejected at execution time
+#
+# We should be able to detect at prepare time that the key contain
+# a NULL value, thus needing a table scan.
+
+eval explain $query2;
+--sorted_result
+eval $query2;
+
+# Bug#33451256 ... end
+###################################
 
 connection ddl;
 drop table t3;
