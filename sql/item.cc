@@ -7918,17 +7918,20 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         }
 
         /*
-          Check table fields only if the subquery is used somewhere out of
-          HAVING or the outer SELECT does not use grouping (i.e. tables are
-          accessible).
+          Check table fields only if the subquery is used in a context that
+          is not the HAVING clause, or in case the HAVING clause can be
+          implemented as a WHERE clause (i.e. the query block is not grouped
+          - implicitly or explicitly - and DISTINCT filtering is not present).
           TODO:
-          Here we could first find the field anyway, and then test this
-          condition, so that we can give a better error message -
-          ER_WRONG_FIELD_WITH_GROUP, instead of the less informative
-          ER_BAD_FIELD_ERROR which we produce now.
+          Implement proper SQL resolving, by looking at fields from columns
+          only and reject fields in HAVING clause that are not functionally
+          dependent on grouping columns from this query block.
+          In order to preserve MySQL semantics, we may need to accept
+          fields from the SELECT fields, until this feature has been removed.
         */
-        if ((place != CTX_HAVING ||
-             (!select->with_sum_func && select->group_list.elements == 0))) {
+        if (place != CTX_HAVING ||
+            (!select->with_sum_func && select->group_list.elements == 0 &&
+             !select->is_distinct())) {
           /*
             In case of view, find_field_in_tables() write pointer to view
             field expression to 'reference', i.e. it substitute that
