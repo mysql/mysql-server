@@ -2012,3 +2012,16 @@ WHERE
   t1.a = 143;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32950670: Potentially wrong results
+--echo #
+
+CREATE TABLE t1 (i SMALLINT, INDEX a (i));
+CREATE TABLE t2 (i SMALLINT UNSIGNED);
+
+INSERT INTO t1 VALUES (-32768), (32767);
+INSERT INTO t2 VALUES (65535);
+SELECT * FROM t1 JOIN t2 ON t2.i > t1.i;
+
+DROP TABLE t1, t2;

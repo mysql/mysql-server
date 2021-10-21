@@ -117,6 +117,7 @@ insert ignore into t2 select b,c from t1;
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
 Warning	1265	Data truncated for column 'b' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
 Warning	1265	Data truncated for column 'b' at row 3
 Warning	1048	Column 'a' cannot be null
 Warning	1265	Data truncated for column 'b' at row 4
