@@ -96,6 +96,7 @@ insert into t1 values (11,11,11), (12,12,12), (13,13,13), (14,14,14);
 call mtr.add_suppression(".*duplicate key in table.*");
 call mtr.add_suppression(".*Duplicate key on write or update.*");
 call mtr.add_suppression(".*duplicate value in unique index.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 
 --echo Single insert
 --connection master

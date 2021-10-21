@@ -476,13 +476,15 @@ static int check_slave_config() {
   DBUG_TRACE;
 
   if (ndb_get_number_of_channels() > 1) {
+    // Ideally NDB should not impose any limit on the number of non-NDB sources.
     ndb_log_error(
         "NDB Replica: Configuration with number of replication "
         "sources = %u is not supported when applying to NDB",
         ndb_get_number_of_channels());
     return HA_ERR_UNSUPPORTED;
   }
-  if (ndb_mi_get_replica_parallel_workers() > 0) {
+  // NDB does not yet support more than 1 worker
+  if (ndb_mi_get_replica_parallel_workers() > 1) {
     ndb_log_error(
         "NDB Replica: Configuration 'replica_parallel_workers = %lu' is "
         "not supported when applying to NDB",
@@ -12623,12 +12625,14 @@ static int ndbcluster_init(void *handlerton_ptr) {
         "Changed global value of binlog_format from STATEMENT to MIXED");
   }
 
-  if (opt_mts_replica_parallel_workers) {
+  // NDB should probably not be changing the value of global settings, but
+  // the data structures used to maintain replica state are not thread-safe,
+  // so this is necessary until that is fixed in wl#14885.
+  if (opt_mts_replica_parallel_workers > 1) {
     ndb_log_info(
-        "Changed global value of --replica-parallel-workers "
-        "from %lu to 0",
+        "Changed global value of --replica-parallel-workers from %lu to 1",
         opt_mts_replica_parallel_workers);
-    opt_mts_replica_parallel_workers = 0;
+    opt_mts_replica_parallel_workers = 1;
   }
 
   if (ndb_index_stat_thread.init() ||

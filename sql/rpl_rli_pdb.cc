@@ -1687,6 +1687,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
   DBUG_TRACE;
 
   thd->server_id = ev->server_id;
+  thd->unmasked_server_id = ev->common_header->unmasked_server_id;
   thd->set_time();
   thd->lex->set_current_query_block(nullptr);
   if (!ev->common_header->when.tv_sec)

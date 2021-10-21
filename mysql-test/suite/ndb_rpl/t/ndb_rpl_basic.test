@@ -12,11 +12,11 @@ call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' du
 #
 # connect to the master and create tabe t1 in gotoslave database
 --connection master
-CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
- 	            `nom` char(4) default NULL,
-  		    `prenom` char(4) default NULL,
-		    PRIMARY KEY  (`nid`)) 
-    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE `t1` (
+  `nid` int NOT NULL default 0,
+  `nom` char(4) default NULL,
+  `prenom` char(4) default NULL,
+ PRIMARY KEY  (`nid`)) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
 select * from t1 order by nid;
@@ -24,6 +24,8 @@ select * from t1 order by nid;
 --sync_slave_with_master
 # connect to slave and ensure data it there.
 --connection slave
+call mtr.add_suppression(".*worker thread retried transaction 1 time.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 select * from t1 order by nid;
 
 --connection master
@@ -76,10 +78,11 @@ DROP table t1;
 # Test replication of table with no primary key 
 #
 --connection master
-CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
- 	            `nom` char(4) default NULL,
-  		    `prenom` char(4) default NULL)
-    ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE `t1` (
+  `nid` int NOT NULL default '0',
+  `nom` char(4) default NULL,
+  `prenom` char(4) default NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 VALUES(1,"XYZ1","ABC1"),(2,"AAA","BBB"),(3,"CCC","DDD");
 select * from t1 order by nid;
@@ -124,20 +127,20 @@ DROP table t1;
 
 --connection master
 CREATE TABLE `t1` (
-  `prid` int(10) unsigned NOT NULL,
+  `prid` int unsigned NOT NULL,
   `id_type` enum('IMSI','SIP') NOT NULL,
   `fkimssub` varchar(50) NOT NULL,
   `user_id` varchar(20) DEFAULT NULL,
   `password` varchar(20) DEFAULT NULL,
   `ptg_nbr` varchar(20) DEFAULT NULL,
-  `old_tmsi` int(10) unsigned DEFAULT NULL,
-  `new_tmsi` int(10) unsigned DEFAULT NULL,
-  `dev_capability` int(10) unsigned DEFAULT NULL,
-  `dev_oid` bigint(20) unsigned DEFAULT NULL,
-  `lac_cell_id` bigint(20) unsigned DEFAULT NULL,
-  `ms_classmark1` int(10) unsigned DEFAULT NULL,
-  `cipher_key` int(10) unsigned DEFAULT NULL,
-  `priid_master` int(10) unsigned DEFAULT NULL,
+  `old_tmsi` int unsigned DEFAULT NULL,
+  `new_tmsi` int unsigned DEFAULT NULL,
+  `dev_capability` int unsigned DEFAULT NULL,
+  `dev_oid` bigint unsigned DEFAULT NULL,
+  `lac_cell_id` bigint unsigned DEFAULT NULL,
+  `ms_classmark1` int unsigned DEFAULT NULL,
+  `cipher_key` int unsigned DEFAULT NULL,
+  `priid_master` int unsigned DEFAULT NULL,
   PRIMARY KEY (`prid`),
   UNIQUE KEY `fkimssub` (`fkimssub`,`ptg_nbr`) USING HASH
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
