@@ -896,7 +896,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
 const char *partition_info::find_duplicate_name() {
   collation_unordered_set<string> partition_names{system_charset_info,
                                                   PSI_INSTRUMENT_ME};
-  uint max_names;
   List_iterator<partition_element> parts_it(partitions);
   partition_element *p_elem;
 
@@ -908,8 +907,6 @@ const char *partition_info::find_duplicate_name() {
     And this only happens when in ALTER TABLE with full table copy.
   */
 
-  max_names = num_parts;
-  if (is_sub_partitioned()) max_names += num_parts * num_subparts;
   while ((p_elem = (parts_it++))) {
     const char *partition_name = p_elem->partition_name;
     if (!partition_names.insert(partition_name).second) return partition_name;

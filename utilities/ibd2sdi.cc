@@ -1629,8 +1629,6 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
   DBUG_TRACE;
 
   byte page_buf[UNIV_PAGE_SIZE_MAX];
-  uint64_t calc_length = 0;
-  uint64_t part_len;
   page_no_t page_num = first_blob_page_num;
   z_stream d_stream;
   int err;
@@ -1667,16 +1665,12 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
       break;
     }
 
-    part_len =
-        mach_read_from_4(page_buf + FIL_PAGE_DATA + lob::LOB_HDR_PART_LEN);
-
     page_no_t next_page_num = mach_read_from_4(page_buf + FIL_PAGE_NEXT);
     space_id_t space_id =
         mach_read_from_4(page_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
     d_stream.next_in = page_buf + FIL_PAGE_DATA;
     d_stream.avail_in = static_cast<uInt>(page_size.physical() - FIL_PAGE_DATA);
-    calc_length += part_len;
     err = inflate(&d_stream, Z_NO_FLUSH);
     switch (err) {
       case Z_OK:

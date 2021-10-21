@@ -2393,7 +2393,7 @@ err:
 int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
                        int rep_quick, bool no_copy_stat) {
   int got_error;
-  uint i, key, total_key_length, istep;
+  uint i, key, istep;
   ulong rec_length;
   ha_rows start_records;
   my_off_t new_header_length, del;
@@ -2563,7 +2563,6 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
     mi_check_print_error(param, "Not enough memory for key!");
     goto err;
   }
-  total_key_length = 0;
   rec_per_key_part = param->rec_per_key_part;
   info->state->records = info->state->del = share->state.split = 0;
   info->state->empty = 0;
@@ -2621,7 +2620,6 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
         sort_param[i].key_length += 2 + (keyseg->length >= 127);
       if (keyseg->flag & HA_NULL_PART) sort_param[i].key_length++;
     }
-    total_key_length += sort_param[i].key_length;
 
     if (sort_param[i].keyinfo->flag & HA_FULLTEXT) {
       uint ft_max_word_len_for_sort =

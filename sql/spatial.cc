@@ -4387,6 +4387,8 @@ void Gis_wkb_vector<T>::reassemble() {
     memcpy(q, prev_start, len);
     total_len += len;
   }
+
+  (void)total_len;
   assert(total_len == totlen);
 
   // Inner rings doesn't have ring count.
