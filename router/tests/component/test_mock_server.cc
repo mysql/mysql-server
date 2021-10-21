@@ -416,6 +416,7 @@ TEST_P(MockServerConnectOkTest, classic_protocol) {
 TEST_P(MockServerConnectOkTest, x_protocol) {
   auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
   auto bind_port = port_pool_.get_next_available();
+  auto other_bind_port = port_pool_.get_next_available();
   ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
 
   std::map<std::string, std::string> config{
@@ -434,6 +435,12 @@ TEST_P(MockServerConnectOkTest, x_protocol) {
       cmdline_args.push_back(replace_placeholders(arg, config));
     }
   }
+
+  // set the classic port even though we don't use it.
+  // otherwise it defaults to bind to port 3306 which may lead to "Address
+  // already in use"
+  cmdline_args.emplace_back("--port");
+  cmdline_args.push_back(std::to_string(other_bind_port));
 
   cmdline_args.emplace_back("--xport");
   cmdline_args.push_back(std::to_string(bind_port));
