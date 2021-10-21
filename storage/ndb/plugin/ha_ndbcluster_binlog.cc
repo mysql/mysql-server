@@ -5956,8 +5956,8 @@ void Ndb_binlog_thread::handle_non_data_event(THD *thd, NdbEventOperation *pOp,
   const NDB_SHARE *const share = event_data->share;
   switch (type) {
     case NDBEVENT::TE_CLUSTER_FAILURE:
-      log_verbose(1, "cluster failure for epoch %u/%u.",
-                  (uint)(pOp->getGCI() >> 32), (uint)(pOp->getGCI()));
+      // Connection to NDB has been lost, release resources in same way as when
+      // table has been dropped
       [[fallthrough]];
     case NDBEVENT::TE_DROP:
       if (m_apply_status_share == share) {
