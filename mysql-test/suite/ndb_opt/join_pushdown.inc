@@ -4538,6 +4538,31 @@ insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
 
+###################################################
+# In the IN-value tests below we use regex filtering to
+# avoid having the entire IN-value list in the result-file.
+# We filter out all IN-values except the first 'foo' value
+# and the last 'row# <last value', leaving the result:
+#
+#   in ('foo' .... 'row# <last value')
+#
+# Note, there is a regex bug:
+#  Bug 86184 - std::regex crashes when matching long lines
+#  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164
+#
+# The root cause is a too deep recursion when matching '+' and '*' patterns.
+# in combination with a too long text to match. We hit that bug when increasing
+# the in-value list from 2000 to 4000 row-values.
+#
+# As a workaround for that bug we do the regex matching in two steps
+# for the test cases having 4000 values.:
+#
+# 1) Replace 'row# nnn' with just '#', producing a shorter list of
+#    comma separated #'s.
+# 2) Match the (recursive) list of '#,', replace it with '....'
+#
+#######################################################
+
 # These queries with large IN clauses exceeds the default memory limit of the
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
@@ -4554,12 +4579,14 @@ let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
 while ($values < 2000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval explain $query;
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4574,12 +4601,14 @@ let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4590,12 +4619,14 @@ let $query = select * from t1 x where x.name in ('foo';
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query );
 
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 
@@ -4621,12 +4652,14 @@ let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in
 let $values = 0;
 while ($values < 1000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval explain $query;
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4639,30 +4672,34 @@ let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in
 let $values = 0;
 while ($values < 4000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 
 echo ------------------------------------------------------------------;
 echo;
-# A pushed condition with size between 32K - 64K was not not 'Too large',
+# A pushed condition with size between 32K - 64K was not 'Too large',
 # but would require fragmented sending in order to work -> Crashed.
 #
 let $query = select straight_join * from t1 x, t1 y where y.k1=x.i and y.name in ('foo';
 let $values = 0;
 while ($values < 2000)
 {
-  let $query = $query , 'row# $values';
+  let $query = $query,'row# $values';
   inc $values;
 }
 let $query = $query ) order by x.k1;
 
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval explain $query;
+--replace_regex /('row# [0-9]+',)+/ .... /
 eval $query;
 
 set range_optimizer_max_mem_size = @save_range_opt_max;
