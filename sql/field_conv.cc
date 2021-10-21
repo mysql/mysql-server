@@ -730,7 +730,7 @@ bool fields_are_memcpyable(const Field *to, const Field *from) {
   if (to->pack_length() != from->pack_length()) {
     return false;
   }
-  if (to->is_flag_set(UNSIGNED_FLAG) && !from->is_flag_set(UNSIGNED_FLAG)) {
+  if (to->is_flag_set(UNSIGNED_FLAG) != from->is_flag_set(UNSIGNED_FLAG)) {
     return false;
   }
   if (to->table->s->db_low_byte_first != from->table->s->db_low_byte_first) {
