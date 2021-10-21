@@ -191,6 +191,130 @@ SYS_VAR* system_variables[] = {
   NULL
 };
 
+
+struct fetch_worker_info {
+  private:
+  bool free_base_table = false;
+
+  public:
+  bool completed = false;
+  ibis::table* filtered_table = NULL;
+  std::string filter = "";
+  std::string column_set = "";
+  ibis::mensa::table* base_table = NULL;
+  std::string partition_path = "";
+  
+  bool has_rows = false;
+  ibis::table::cursor* rows = NULL;
+
+  ~fetch_worker_info() {
+    if(rows) {
+      delete rows;
+    }
+    if(filtered_table != NULL) {
+      delete filtered_table;
+    }
+    if(free_base_table && base_table) {
+      delete base_table;
+    }
+    
+  }
+
+  void work() {
+    //std::cerr << "START STORAGE WORKER\n";
+    if(has_rows) {
+      return;
+    }
+
+    if(!base_table && partition_path != "") {
+      base_table = ibis::table::create(partition_path.c_str());
+      if(!base_table) {
+        return;
+      }
+      free_base_table = true;
+    }
+
+    if(filter == "") {
+      filter = "1=1";
+    }
+    
+    filtered_table = base_table->select(column_set.c_str(), filter.c_str());
+
+    if(!filtered_table) {
+      return;
+    }
+    
+    rows = filtered_table->createCursor();
+
+    if(rows) {
+      has_rows = true;
+    }
+    
+  }
+
+};
+
+struct warp_filter_info {
+  private:
+    std::set<uint64_t> dim_rownums;
+    bool frozen = false;
+  public:
+    std::string fact_column = "";
+    std::string dim_alias = "";
+    std::string dim_column = "";
+
+    std::mutex mtx;
+
+    warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
+      this->fact_column = fact_column;
+      this->dim_alias = dim_alias;
+      this->dim_column = dim_column; 
+    }
+
+    /* in order to do batch operations, the mutex can be taken manually
+       and then the second parameter should be false
+    */
+    
+    void add_matching_rownum(uint64_t rownum, bool take_lock = true) {
+      if(take_lock) { 
+        mtx.lock();
+      }
+      if(!frozen) {
+        dim_rownums.insert(rownum);
+      }
+      if(take_lock) {
+        mtx.unlock();
+      }
+    }
+
+    void freeze() {
+      mtx.lock();
+      frozen = true;
+      mtx.unlock();
+    }
+
+    /* IT IS NOT SAFE TO ACCESS THIS VECTOR IF ANY
+       WRITES TO THE VECTOR ARE TAKING PLACE!!!
+
+       To prevent shooting myself in the foot, the
+       struct must be frozen before the structure can
+       be read from at which point it becomes
+       immutable.
+    */
+    std::set<uint64_t>* get_rownums() {
+      mtx.lock();
+      if(!frozen) {
+        mtx.unlock();
+        return NULL;
+      }
+      mtx.unlock();
+      return &dim_rownums;
+    }
+
+};
+
+typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint64_t, uint64_t>*> fact_table_filter;
+
 std::mutex write_mutex;
 
 struct WARP_SHARE {
@@ -244,7 +368,7 @@ class warp_pushdown_information {
   // opened, and to construct an in-memory hash
   // index if there is key on the dimension table
   std::unordered_map<Field*, warp_join_info> join_info;
-
+  fact_table_filter* fact_table_filters;
   // if an index exists for the join in the dimension
   // table, then an in memory has index will be built
   // on the table to improve join performance because
@@ -265,15 +389,22 @@ class warp_pushdown_information {
   ~warp_pushdown_information() {
     if(cursor != NULL) {
       delete cursor;
+      cursor = NULL;
     }
-    if(filtered_table != NULL)
-    delete filtered_table;
-    filtered_table = NULL;
-    delete base_table;
-    base_table = NULL;
+
+    if(filtered_table != NULL) {
+      delete filtered_table;
+      filtered_table = NULL;
+    }
+    
+    if(base_table != NULL) {
+      delete base_table;
+    }
+    
   }
 
 };
+
 
 // maps the table aliases for this query to pushdown information info
 std::unordered_map<THD*, std::unordered_map<std::string, warp_pushdown_information*> * > pd_info;
@@ -612,7 +743,19 @@ class ha_warp : public handler {
 
   /* WHERE clause constructed from engine condition pushdown */
   std::string          push_where_clause  = "";
-  
+  int64_t pushdown_table_count = 0;
+  std::vector<fetch_worker_info*> fetch_workers;
+  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*> matching_ridset;
+  uint32_t rownum = 0;
+  std::unordered_map<uint32_t, uint8_t>* current_matching_ridset=NULL;
+  std::unordered_map<uint32_t, uint8_t>::iterator current_matching_ridset_it;
+  std::set<uint64_t>::iterator current_matching_dim_ridset_it;
+  std::set<uint64_t>* current_matching_dim_ridset=NULL;
+
+  //static void warp_filter_table(ibis::mensa::table* filtered_table, std::string filter_column, std::vector<std::string>* batch, std::string push_where_clause, std::vector<uint64_t> matching_rowids, std::mutex* mtx, uint64_t* thread_count);
+ 
+  fact_table_filter fact_table_filters;
+
   // used for index lookups
   //std::string          idx_where_clause   = "";
   //ibis::qExpr*         idx_qexpr;

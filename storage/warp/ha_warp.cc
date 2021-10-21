@@ -1307,16 +1307,16 @@ int ha_warp::extra(enum ha_extra_function) {
 void ha_warp::cleanup_pushdown_info() {
   // free up memory used for pushdown filters
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
-  
+  std::cerr << "Cleaning up pushdown info for: " << std::string(table->alias) << "\n";
   pushdown_mtx.lock();
   auto it = pd_info.find(table->in_use);
   if(it != pd_info.end()) {
+  
     // remove the pushdown info for this table
     auto it2 = it->second->find(table->alias);
     if(it2 != it->second->end()) {
       it->second->erase(it2);
     }
-
     // if all of the tables are removed delete the pushdown info completely
     if(it->second->size() == 0) {
       delete it->second;
@@ -1324,9 +1324,12 @@ void ha_warp::cleanup_pushdown_info() {
     }
 
   }
+  
   delete pushdown_info;
   pushdown_mtx.unlock();
-}
+  fact_table_filters.clear();
+  pushdown_table_count = 0;
+}  
 
 int ha_warp::repair(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("ha_warp::repair");
@@ -1658,8 +1661,8 @@ int ha_warp::rnd_init(bool) {
       }
     }
   }
-
-  bitmap_merge_join();
+  
+ 
   
   current_rowid = 0;
   /* When scanning this is used to skip evaluation of transactions
@@ -1684,6 +1687,8 @@ int ha_warp::rnd_init(bool) {
   if(push_where_clause == "") {
     push_where_clause = "1=1";
   }
+
+  //std::cerr << "WHERE_CLAUSE:\n"<<push_where_clause<<"\n";
   //DBUG_RETURN(-1);
   if(pushdown_info->base_table != NULL) {
     partitions = NULL;
@@ -1697,6 +1702,35 @@ int ha_warp::rnd_init(bool) {
         pushdown_info->cursor=cursor; 
       }
     }
+    //std::cerr << "billy\n";
+    for(auto filter_it = pushdown_info->fact_table_filters->begin(); filter_it != pushdown_info->fact_table_filters->end(); ++filter_it) {
+      (filter_it->first)->freeze();
+      //std::cerr << "silly\n";
+      //std::cerr << (filter_it->first)->dim_alias << " == " << std::string(table->alias) << " ???\n";
+      if((filter_it->first)->dim_alias == std::string(table->alias)) {
+        //std::cerr << "hilly\n";
+        //if(filter_it->first == NULL) {
+        //  std::cerr << "I should really use an interactive debugger\n";
+        //}
+        auto tmp = (filter_it->first);
+        //if(tmp == NULL) {
+        //  std::cerr << "it is not easy being green!\n";
+        // }
+        current_matching_dim_ridset_it = tmp->get_rownums()->begin();
+        //std::cerr << "chilly\n";
+        current_matching_dim_ridset = tmp->get_rownums();
+        if(current_matching_dim_ridset == NULL) {
+          std::cerr << "DIM_MATCHING_RIDSET_SIZE: NULL" << "\n";
+        } else {
+          std::cerr << "DIM_MATCHING_RIDSET_SIZE [" << (filter_it->first)->fact_column 
+            << " ]=[" << (filter_it->first)->dim_alias << "." << (filter_it->first)->dim_column << "]: " 
+            << current_matching_dim_ridset->size() << "\n";
+        }
+        break;
+      }
+    }
+    rownum = 0;
+    //fetch_count = 0;
   } else {
     base_table = NULL;
     partitions = new ibis::partList;
@@ -1726,78 +1760,375 @@ int ha_warp::rnd_init(bool) {
    visibility, but right now it only involves checking that the row is not
    deleted.  If the row is deleted, another fetch must be attempted.
 */
+
+static void execute_worker(fetch_worker_info* worker, uint64_t* running_threads, std::mutex* mtx, uint64_t job_num) {
+  //std::cerr << "START_WORK [" << job_num << "]\n";
+  worker->work();
+  //mtx->lock();
+  //--(*running_threads);
+  //std::cerr << "END_WORK [" << job_num << "]\n";
+  //mtx->unlock();
+}
+
+static void execute_workers(std::vector<fetch_worker_info*> workers) {
+  uint64_t running_threads = 0;
+  uint64_t max_threads = 1;
+  std::mutex* mtx = new std::mutex();
+  struct timespec sleep_time;
+  struct timespec remaining_time;
+  sleep_time.tv_sec = (time_t)0;
+  sleep_time.tv_nsec = 100000000L; 
+  uint64_t job_num = 0;
+  for(auto worker = workers.begin(); worker != workers.end(); ++worker) {
+    ++job_num;
+    //if( (*worker)->completed == false ) {
+    //  while(1) {
+        /*mtx->lock();
+        if(running_threads >= max_threads) {
+          mtx->unlock();
+          //std::cerr << "Running threads: " << running_threads << "\n";
+          int err = nanosleep(&sleep_time, &remaining_time);
+          continue;
+        }*/
+        //running_threads++;
+        //mtx->unlock();
+        //std::thread (execute_worker, *worker, &running_threads, mtx, job_num).detach();
+        execute_worker(*worker, &running_threads, mtx, job_num);
+        //break;
+     // }
+    //}
+  }
+  /*
+  while(1) {
+    mtx->lock();
+    if(running_threads == 0) {
+      mtx->unlock();
+      break;
+    }
+    mtx->unlock();
+    //std::cerr << "Running threads: " << running_threads << "\n";
+    int err = nanosleep(&sleep_time, &remaining_time);
+  }*/
+  delete mtx;
+}
+
+void exec_pushdown_join(
+  ibis::query* column_query, 
+  ibis::partList::iterator part_it, 
+  fact_table_filter* fact_table_filters,
+  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*>* matching_ridset) {
+
+  auto filter_it = fact_table_filters->begin();        
+          
+  auto matching_rids = new std::unordered_map<uint32_t, uint8_t>;
+  //matching_rids.reserve((*part_it)->nRows());
+  //matching_rids.clear();
+  
+  uint64_t processor_count = 12;
+  uint8_t filter_exec_count = 0;
+  uint32_t rownum = 0;
+
+  std::cerr << "Filtering for join #" << filter_exec_count << "\n";
+  
+  auto rid_it = matching_rids->end();
+  uint32_t match_count = 0;
+  for (filter_it = fact_table_filters->begin() , filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
+
+    auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
+  
+    uint32_t rownum =0;
+    std::vector<uint64_t> matching_dim_rowids;
+    matching_dim_rowids.clear();
+    for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
+      
+      ++rownum;
+      if( filter_exec_count > 1 ) {
+        /* if this is the second or later pass over column data
+           if this rownum did not already match, then it does not
+           have to be looked up again.  Lookups into filter_it->second
+           are 64 bit while lookups into matching_rids are 32 bit.  That
+           makes this lookup considerably faster than the column lookup.
+        */
+        rid_it = matching_rids->find(rownum);
+        if( rid_it == matching_rids->end() ) {
+          continue;
+        }
+
+        if( rid_it->second != filter_exec_count - 1 ) {
+          continue;
+        }
+
+      }  
+      auto find_it = filter_it->second->find(*column_it);
+      if( find_it == filter_it->second->end() ) {
+        continue;
+      }
+      if( filter_exec_count == 1 ) {
+        matching_rids->insert(std::make_pair(rownum,1)); 
+      } else {
+        rid_it->second++;
+      }
+      /* this will hold a mutex attached to the struct, so this is 
+         thread safe as long as the underlying  
+         is not read from while any other threads may be
+         writing to it 
+      */
+      matching_dim_rowids.push_back(find_it->second);
+    }
+    std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << ": " << matching_dim_rowids.size() << "\n";
+
+    filter_it->first->mtx.lock();
+    for(auto insert_it = matching_dim_rowids.begin(); insert_it != matching_dim_rowids.end(); ++insert_it) {
+      filter_it->first->add_matching_rownum(*insert_it, false);
+    }
+    filter_it->first->mtx.unlock();
+    filter_it->first->freeze();
+    std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << " [after de-dupe]: " << filter_it->first->get_rownums()->size() << "\n";
+  }
+  if( matching_rids->size() > 0 ) {
+    auto tmp = std::string((*part_it)->currentDataDir());
+    auto find_it = matching_ridset->find(tmp);
+    assert(find_it != matching_ridset->end());
+    for(auto it = matching_rids->begin();it != matching_rids->end(); ++it) {
+      if( it->second == fact_table_filters->size() ) {
+        ++match_count;
+      }
+    }
+    find_it->second = matching_rids;
+
+  }
+  
+  std::cerr << "After in-memory weed-out of rowids: " << match_count << "\n";
+
+}
 int ha_warp::rnd_next(uchar *buf) {
   static uint64_t fetch_count = 0;
   DBUG_ENTER("ha_warp::rnd_next");
   uint64_t row_trx_id = 0;
+  std::mutex* mtx = new std::mutex;
+  uint64_t running_thread_cnt=0;
+  
+  std::unordered_map<uint32_t, uint8_t> matching_rids;
 
-  if(partitions == NULL && base_table == NULL) {
+  if( partitions == NULL && base_table == NULL ) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
   /* not scanning partitions and table is empty */
-  if((partitions == NULL && cursor == NULL) || (cursor != NULL && cursor->nRows() <= 0)) {
+  if( (partitions == NULL && cursor == NULL) || (cursor != NULL && cursor->nRows() <= 0) ) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   } 
 
 fetch_again:  
-  if(partitions != NULL) {
-    if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name)) {
+  if( partitions != NULL ) {
+    if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
       ++part_it;
     }
-    if(part_it == partitions->end()) {
+    if( part_it == partitions->end() ) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
 
-    if(cursor == NULL) {
+    if( cursor == NULL ) {
       base_table = ibis::table::create((*part_it)->currentDataDir());
-    
+      rownum = 0;
       if(!base_table) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
       
-      filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-      if(!filtered_table) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
+      filtered_table = NULL;
+      
+      auto column_query = new ibis::query((const char*)(0), (*part_it), (const char*)(0));
+      if( push_where_clause == "" ) {
+          push_where_clause = "1=1";
       }
-      cursor = filtered_table->createCursor();
-      if(!cursor) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
+
+      column_query->addConditions(push_where_clause.c_str());
+      column_query->evaluate();
+      if( column_query->getNumHits() != 0 ) {
+
+        bitmap_merge_join();
+
+        // this is zero if join optimization is not being used
+        if(fact_table_filters.size() == 0) {
+          if( push_where_clause == "" ) {
+            push_where_clause = "1=1";
+          }
+          filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+          if( !filtered_table ) {
+            delete base_table;
+            base_table = NULL;
+            delete column_query;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }
+          cursor = filtered_table->createCursor();
+          if( !cursor ) {
+            delete filtered_table;
+            filtered_table = NULL;
+            delete base_table;
+            base_table = NULL;
+            delete column_query;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }
+        } else {
+          if( matching_ridset.size() == 0 ) {
+            for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
+              matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::unordered_map<uint32_t,uint8_t>*)NULL));
+            }
+          }  
+          
+          exec_pushdown_join(column_query, part_it, &fact_table_filters, &matching_ridset);
+          filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+
+          if( !filtered_table ) {
+            delete base_table;
+            base_table = NULL;
+            delete column_query;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }
+          cursor = filtered_table->createCursor();
+          if( !cursor ) {
+            delete filtered_table;
+            filtered_table = NULL;
+            delete column_query;
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+          }    
+        } 
+      }    
+      
+      delete column_query;
+      column_query = NULL;
+      fetch_count = 0;
+    }
+  } 
+
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  if( matching_ridset.size() > 0 ) {
+    if( current_matching_ridset == NULL ) {
+      //std::cerr << "Searching for rid: " << rownum << "\n";
+      auto find_it = matching_ridset.find(std::string((*part_it)->currentDataDir()));
+      if( find_it == matching_ridset.end() ) {
+        goto fetch_again;
       }
+      if( find_it->second == NULL ) {
+        goto fetch_again;
+      } 
+
+      current_matching_ridset = find_it->second;
+      current_matching_ridset_it = find_it->second->begin();
     }
   }
-  
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
-  if(cursor->fetch() != 0) {
-    if(partitions != NULL) {
-      delete base_table;
-      delete filtered_table;
-      delete cursor;
+  if( !cursor ) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  // will remain 10 if we hit the end of current_matching_ridset
+  // otherwise is the result of the fetch.  if there is no 
+  // current_matching_ridset the next row is fetched and if the
+  // end of the resultset is reached, res will end up non-zero 
+  int res = 10;
+
+  if( current_matching_ridset != NULL ) {
+    while(1) {
       
-      base_table = NULL;
-      filtered_table = NULL;
-      cursor = NULL;
+      if( current_matching_ridset_it == current_matching_ridset->end() ) {
+       break;
+      }
+
+      if( current_matching_ridset_it->second != fact_table_filters.size() ) {
+       ++current_matching_ridset_it;
+
+       continue;
+      } else {
+
+       rownum = current_matching_ridset_it->first;
+       res = cursor->fetch(rownum-1);
+       ++current_matching_ridset_it;
+       break;
+      }
+    }
+  } else { 
     
+    //std::cerr << "willy 5\n";
+    if( current_matching_dim_ridset != NULL ) {
+      //std::cerr << "~~~~~~\n";
+      if( current_matching_dim_ridset->size() == 0) { 
+        //std::cerr << "willy 6\n";
+        res = -1;
+      } else {
+        //std::cerr << "willy 7\n";
+        if( current_matching_dim_ridset_it == current_matching_dim_ridset->end() ) {
+          //std::cerr << "willy 8\n";
+          res = -1;
+        } else {
+          
+            //std::cerr << "willy 9\n";
+            rownum = *current_matching_dim_ridset_it;
+            res = cursor->fetch(*current_matching_dim_ridset_it);
+            ++current_matching_dim_ridset_it;
+          
+        }
+        //std::cerr << "willy 10\n";
+      }
+      //std::cerr << "willy 11\n";
+    } else {
+      
+      //std::cerr << "willy 12\n";
+      // THIS IS A BASIC TABLE SCAN (it still might be filtered by bitmap indexes)
+       
+      res = cursor->fetch();
+      ++rownum;
+    
+    }
+    
+  }
+
+  //std::cerr << "Last fetch result: " << res << " of [" << std::string(table->alias) << "] for rownum: " << rownum << "\n";
+  
+  if( res != 0 ) {
+    std::cerr << "total fetches: " << fetch_count << "\n";
+    fetch_count = 0;
+    if( partitions != NULL ) {
+
+      if( current_matching_ridset != NULL ) {
+        delete current_matching_ridset;
+        auto find_it = matching_ridset.find(std::string((*part_it)->currentDataDir()));
+        find_it->second = NULL;
+        current_matching_ridset = NULL;
+      }
+  
+      if( cursor != NULL ) {
+        delete cursor;
+        cursor = NULL;
+      }
+
+      if( filtered_table != NULL ) {
+        delete filtered_table;
+        filtered_table = NULL;
+      }
+
+      if( base_table != NULL ) {
+        delete base_table;
+        base_table = NULL;
+      }
+
       delete *part_it;
       ++part_it;
       fetch_count = 0;
-      if(part_it == partitions->end()) {
+      if( part_it == partitions->end() ) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
       
       goto fetch_again;
     }
+    current_matching_dim_ridset = NULL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
+
+  }  
   ++fetch_count;
-  if(!cursor) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
-  
-  //DBUG_RETURN(HA_ERR_END_OF_FILE);
-  cursor->getColumnAsULong("t", row_trx_id);
   cursor->getColumnAsULong("r", current_rowid);
+  
+  cursor->getColumnAsULong("t", row_trx_id);
+  //std::cerr << "HERE!!!!!!!!!!!!!!!!!333!!\n";
   
   /* This sets is_trx_visible handler variable!
      If we already checked this trx_id in the last iteration
@@ -1809,45 +2140,45 @@ fetch_again:
   */
 
   
-  is_trx_visible_to_read(row_trx_id);
+  //is_trx_visible_to_read(row_trx_id);
   
-  if(!is_trx_visible) {
-    goto fetch_again;
-  }
+  //if(!is_trx_visible) {
+  //  goto fetch_again;
+  //}
   
   // if the row would be visible due to row_trx_id it might not
   // be visible if it has been changed in a future transaction.
   // because the delete_rows bitmap has bits possibly committed
   // from future transaction, a history lock is created to 
   // maintain row visiblity
-  if(!is_row_visible_to_read(current_rowid)) {
-    goto fetch_again;
-  }
+  //if(!is_row_visible_to_read(current_rowid)) {
+  //  goto fetch_again;
+  //}
   
   // Lock rows during a read if requested
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   int lock_taken = 0;
-  if(lock_in_share_mode) {
+  if( lock_in_share_mode ) {
     lock_taken = warp_state->create_lock(current_rowid, current_trx, LOCK_SH);
     // row is exclusive locked so it has been deleted but this row should 
     // have already been skipped because it has a history lock
-    if(lock_taken == LOCK_EX) {
+    if( lock_taken == LOCK_EX ) {
       goto fetch_again;
     }
   
-    if(lock_taken != LOCK_SH && lock_taken != WRITE_INTENTION) {
+    if( lock_taken != LOCK_SH && lock_taken != WRITE_INTENTION ) {
         // some sort of error happened like DEADLOCK or LOCK_WAIT_TIMEOUt
       DBUG_RETURN(lock_taken);
     }
   } else {
-    if(lock_for_update) {
+    if( lock_for_update ) {
       lock_taken = warp_state->create_lock(current_rowid, current_trx, WRITE_INTENTION);
-      if(lock_taken != WRITE_INTENTION) {
+      if( lock_taken != WRITE_INTENTION ) {
         DBUG_RETURN(lock_taken);
       }
     }  
   }
-  
+  //std::cerr << "finding row for rownum " << rownum << "\n";
   find_current_row(buf, cursor);
 
   DBUG_RETURN(0);
@@ -1874,6 +2205,8 @@ int ha_warp::rnd_end() {
     partitions = NULL;
   }
   
+  matching_ridset.clear();
+
   base_table = NULL;
   filtered_table = NULL;
   cursor = NULL;
@@ -1891,9 +2224,10 @@ int ha_warp::rnd_end() {
 */
 void ha_warp::position(const uchar *) {
   DBUG_ENTER("ha_warp::position");
-  uint64_t rownum = 0;
-  assert(cursor);
-  rownum = cursor->getCurrentRowNumber();
+  std::cerr << "You gotta be kidding me!\n";
+  //uint64_t rownum = 0;
+  //assert(cursor);
+  //rownum = cursor->getCurrentRowNumber();
   my_store_ptr(ref, ref_length, rownum);
   DBUG_VOID_RETURN;
 }
@@ -1904,6 +2238,7 @@ void ha_warp::position(const uchar *) {
 int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_ENTER("ha_warp::rnd_pos");
+  std::cerr << "You too!\n";
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   auto current_rownum = my_get_ptr(pos, ref_length);
   cursor->fetch(current_rownum);
@@ -2452,7 +2787,7 @@ int ha_warp::append_column_filter(const Item *cond,
       // only support equijoin right now
       if(!is_eq) {
         return 0;
-      }
+      }      
       
       Item_field* f0 = (Item_field *)(arg[0]);
       Item_field* f1 = (Item_field *)(arg[1]);
@@ -2528,7 +2863,12 @@ int ha_warp::append_column_filter(const Item *cond,
       fact_table->join_info.emplace(std::pair<Field*, warp_join_info>(*fact_field, dim_info));
       
       // end join condition processing
+      //if(build_where_clause != "") {
+      //  build_where_clause += " AND ";
+      //}
+
       return 2;
+      //build_where_clause += "1=1";
     }
     
     /* BETWEEN AND IN() need some special syntax handling */
@@ -2699,7 +3039,7 @@ int ha_warp::append_column_filter(const Item *cond,
         continue;
       }
 
-      return 0;
+      //return 1;
     }
 
     if(is_in) {
@@ -2743,22 +3083,24 @@ int ha_warp::append_column_filter(const Item *cond,
       and fact.dim_id IN(10,15,20);  
 */
 int ha_warp::bitmap_merge_join() {
+  std::cerr << " XXXXXXXXXXXXXXXXXXXX \n";
   auto fact_pushdown_info=get_pushdown_info(table->in_use, table->alias);
-  if(fact_pushdown_info == NULL) {
+  if(fact_pushdown_info == NULL || fact_table_filters.size() > 0) {
     return 0;
   }
-  std::string fact_pushdown_clause = "";
+  //std::string fact_pushdown_clause = "";
   std::string dim_pushdown_clause = "";
   /*if(fact_pushdown_info->filter != "") {
     fact_pushdown_clause = fact_pushdown_info->filter;
   }*/
-
+  
   for(auto join_it = fact_pushdown_info->join_info.begin(); join_it != fact_pushdown_info->join_info.end(); ++join_it) {
-    if(fact_pushdown_info->filter != "") {
-      fact_pushdown_clause = fact_pushdown_info->filter;
-    } else {
-      fact_pushdown_clause = "";
-    }
+
+    //if(fact_pushdown_info->filter != "") {
+    //  fact_pushdown_clause = fact_pushdown_info->filter;
+    //} else {
+    //  fact_pushdown_clause = "";
+    //}
     //bool dim_full_table_scan = false;
     Field* fact_field = join_it->first;
 
@@ -2770,36 +3112,39 @@ int ha_warp::bitmap_merge_join() {
        fact_field->real_type() ==  MYSQL_TYPE_JSON) {
       continue;
     }
-
+    
     Field* dim_field = join_it->second.field;
     auto dim_pushdown_info = get_pushdown_info(table->in_use, join_it->second.alias);
     if(dim_pushdown_info == NULL) {
       continue;
     }
+    
     std::string fact_colname = std::string("c") + std::to_string(fact_field->field_index());
     std::string fact_nullname = std::string("n") + std::to_string(fact_field->field_index());
     std::string dim_colname = std::string("c") + std::to_string(dim_field->field_index());
     std::string dim_nullname = std::string("n") + std::to_string(dim_field->field_index());
+    std::string dim_alias = join_it->second.alias;
+
     bool fact_is_nullable = fact_field->is_nullable();
     bool dim_is_nullable = dim_field->is_nullable();
 
     if(dim_pushdown_info->filter == "") {
       continue;
     } 
-
+    
     dim_pushdown_clause = dim_pushdown_info->filter;
     if(dim_is_nullable) {
       dim_pushdown_clause += " AND " + dim_nullname + "=0";
     } 
     // this is where the pushdown information will be collected for the fact table
     // but if this is a full scan, no rows are pushed
-    if(fact_pushdown_clause != "") {
-      fact_pushdown_clause += " AND ";
-    }
-    if(fact_is_nullable) {
-      fact_pushdown_clause = fact_nullname += "=0 AND ";       
-    }
-    fact_pushdown_clause += fact_colname + " IN(";
+    //if(fact_pushdown_clause != "") {
+    //  fact_pushdown_clause += " AND ";
+    //}
+    //if(fact_is_nullable) {
+    //  fact_pushdown_clause = fact_nullname += "=0 AND ";       
+    //}
+    //fact_pushdown_clause += fact_colname + " IN(";
     /* open the dimension table to read the data - the pointers are stored on the pushdown
         info structure so that they can be re-used in the scan
     */
@@ -2817,6 +3162,7 @@ int ha_warp::bitmap_merge_join() {
     if(dim_cursor == NULL) {
       continue;
     }
+    
     bool first_row = true;
     /*
     std::vector<uint64_t> uints;
@@ -2824,44 +3170,67 @@ int ha_warp::bitmap_merge_join() {
     std::vector<double> dbls;
     std::vector<std::string> strings;
     */
-    while(dim_cursor->fetch() == 0) {   
-      if(!first_row) fact_pushdown_clause += ",";
-      first_row = false;
+
+    switch(dim_field->real_type()) {
+      case MYSQL_TYPE_NULL:
+      case MYSQL_TYPE_BIT:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_NEWDECIMAL:
+      case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_JSON:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_TYPED_ARRAY:
+        continue;
+        break;
+  
+    }
+    
+    auto matches = new std::unordered_map<uint64_t, uint64_t>;
+    uint64_t rownum = 0;
+    while(dim_cursor->fetch() == 0) {
+      ++rownum;   
+      //if(!first_row) fact_pushdown_clause += ",";
+      //first_row = false;
       bool is_unsigned = fact_field->is_unsigned();
       int rc=0;
       switch(dim_field->real_type()) {
-        case MYSQL_TYPE_JSON:
-        case MYSQL_TYPE_TINY_BLOB:
-        case MYSQL_TYPE_MEDIUM_BLOB:
-        case MYSQL_TYPE_LONG_BLOB:
-        case MYSQL_TYPE_BLOB:
-        case MYSQL_TYPE_TYPED_ARRAY:
-          continue;
-        break;  
 
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_YEAR: {
           if(is_unsigned) {
             unsigned char tmp = 0;
             rc = dim_cursor->getColumnAsUByte(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
           } else {
             char tmp = 0;
             rc = dim_cursor->getColumnAsByte(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);  
+            //fact_pushdown_clause += std::to_string(tmp);  
+            matches->insert(std::make_pair(tmp, rownum));            
           }
-          break;
-        }
+          
+        } break;
+
         case MYSQL_TYPE_SHORT: {
           if(is_unsigned) {
             uint16_t tmp = 0;
             rc = dim_cursor->getColumnAsUShort(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+//            fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
 
           } else {
             int16_t tmp = 0;
             rc = dim_cursor->getColumnAsShort(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+//            fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
           }
         } break;
 
@@ -2869,11 +3238,15 @@ int ha_warp::bitmap_merge_join() {
           if(is_unsigned) {
             uint32_t tmp = 0;
             rc = dim_cursor->getColumnAsUInt(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           } else {
             int32_t tmp = 0;
             rc = dim_cursor->getColumnAsInt(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           }
         } break;
 
@@ -2881,60 +3254,31 @@ int ha_warp::bitmap_merge_join() {
           uint64_t tmp = 0;
           if(is_unsigned) {
             rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           } else {
             int64_t tmp = 0;
             rc = dim_cursor->getColumnAsLong(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           }
-        } break;
-
-        case MYSQL_TYPE_VAR_STRING:
-        case MYSQL_TYPE_VARCHAR:
-        case MYSQL_TYPE_STRING: {
-          std::string tmp;
-          rc = dim_cursor->getColumnAsString(dim_colname.c_str(), tmp);
-          {
-            std::string escaped;
-            for (unsigned int i = 0; i < tmp.length(); ++i) {
-              char c = tmp.at(i);
-              if(c == '\'') {
-                escaped += '\\';
-                escaped += '\'';
-              } else if(c == 0) {
-                escaped += '\\';
-                escaped += '0';
-              } else if(c == '\\') {
-                escaped += "\\\\";
-              } else {
-                escaped += c;
-              }
-            }
-            fact_pushdown_clause += "'" + escaped + "'";
-          }
-        } break;
-
-        case MYSQL_TYPE_FLOAT: {
-          float_t tmp;
-          rc = dim_cursor->getColumnAsFloat(dim_colname.c_str(), tmp);
-          fact_pushdown_clause += std::to_string(tmp);
-        } break;
-
-        case MYSQL_TYPE_DOUBLE: {
-          double_t tmp;
-          rc = dim_cursor->getColumnAsDouble(dim_colname.c_str(), tmp);
-          fact_pushdown_clause += std::to_string(tmp);
         } break;
 
         case MYSQL_TYPE_INT24: {
           if(is_unsigned) {
             uint32_t tmp;
             rc = dim_cursor->getColumnAsUInt(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           } else {
             int32_t tmp;
             rc = dim_cursor->getColumnAsInt(dim_colname.c_str(), tmp);
-            fact_pushdown_clause += std::to_string(tmp);
+            //fact_pushdown_clause += std::to_string(tmp);
+            matches->insert(std::make_pair(tmp, rownum));
+
           }
         } break;
 
@@ -2945,27 +3289,17 @@ int ha_warp::bitmap_merge_join() {
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
         case MYSQL_TYPE_TIMESTAMP2:
-        case MYSQL_TYPE_DATETIME2: 
-          {
+        case MYSQL_TYPE_DATETIME2: {
           uint64_t tmp;
           rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp); 
-          fact_pushdown_clause += std::to_string(tmp);
-          } 
-          break;
+          //fact_pushdown_clause += std::to_string(tmp);
+          matches->insert(std::make_pair(tmp, rownum));
 
-        // the following are stored as strings in Fastbit 
-        case MYSQL_TYPE_DECIMAL:
-        case MYSQL_TYPE_NEWDECIMAL:
-        case MYSQL_TYPE_NULL:
-        case MYSQL_TYPE_BIT:
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_GEOMETRY: {
-          // don't need to escape these strings
-          std::string tmp;
-          rc = dim_cursor->getColumnAsString(dim_colname.c_str(), tmp);
-          fact_pushdown_clause += tmp;
         } break;
+
+        /* this should never happen but is here to avoid a warning */  
+        default:
+          continue;
       }
       if(rc != 0) {
         return -1;
@@ -2974,20 +3308,21 @@ int ha_warp::bitmap_merge_join() {
     // new cursor will be opened in the scan if it wasn't used to build
     // a hash index otherwise attach this cursor to make sure the 
     // positional information remains vali
-    delete dim_cursor;
-    dim_pushdown_info->cursor = NULL;
-    fact_pushdown_clause += ")";
-    dim_pushdown_info->fact_filter = fact_pushdown_clause;
-    if(fact_pushdown_clause != "") {
-      if(push_where_clause != "") {
-        push_where_clause += " AND ";
-      }
-      push_where_clause += fact_pushdown_clause;
+    //delete dim_cursor;
+    //dim_pushdown_info->cursor = NULL;
+    //fact_pushdown_clause += ")";
+    //dim_pushdown_info->fact_filter = fact_pushdown_clause;
+    if( matches->size() > 0 ) {
+      auto filter_info = new warp_filter_info(fact_colname, dim_alias, dim_colname);
+      fact_table_filters.emplace(std::make_pair(filter_info, matches));
+    } else {
+      delete matches;
     }
-  } // end of dim tables loop   
-  // set the pushdown clause for the table
 
+    dim_pushdown_info->fact_table_filters = &fact_table_filters;
 
+  } // end of dim tables loop  
+ 
   return 0;
 }
 
@@ -3810,6 +4145,7 @@ int warp_global_data::create_lock(uint64_t rowid, warp_trx* trx, int lock_type) 
   struct timespec remaining_time;
   sleep_time.tv_sec = (time_t)0;
   sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+  
   // each sleep beyond the spin locks increments the 
   // waiting time
   ulonglong max_wait_time = THDVAR(current_thd, lock_wait_timeout) * 100000000L;
