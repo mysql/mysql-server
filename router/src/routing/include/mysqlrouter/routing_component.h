@@ -110,6 +110,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
             mysql_harness::PluginFuncEnv *env,
             std::chrono::seconds quarantine_refresh_interval);
 
+  void erase(const std::string &name);
+
   MySQLRoutingAPI api(const std::string &name);
 
   uint64_t current_total_connections();

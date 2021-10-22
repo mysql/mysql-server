@@ -43,6 +43,7 @@
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
 #include "plugin_config.h"
+#include "scope_guard.h"
 #include "ssl_mode.h"
 
 using mysql_harness::AppInfo;
@@ -418,6 +419,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     }
     MySQLRoutingComponent::get_instance().init(
         section->key, r, env, config.unreachable_destination_refresh_interval);
+
+    Scope_guard guard{[section_key = section->key]() {
+      MySQLRoutingComponent::get_instance().erase(section_key);
+    }};
+
     r->start(env);
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());

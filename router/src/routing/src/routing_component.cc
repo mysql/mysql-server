@@ -160,6 +160,12 @@ void MySQLRoutingComponent::init(
   routes_.emplace(name, std::move(srv));
 }
 
+void MySQLRoutingComponent::erase(const std::string &name) {
+  std::lock_guard<std::mutex> lock(routes_mu_);
+
+  routes_.erase(name);
+}
+
 MySQLRoutingComponent &MySQLRoutingComponent::get_instance() {
   static MySQLRoutingComponent instance;
 
