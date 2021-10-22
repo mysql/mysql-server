@@ -162,7 +162,8 @@ ndb_pushed_join::~ndb_pushed_join() {
 }
 
 bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
-                                       const NDB_INDEX_DATA *idx) const {
+                                       const NDB_INDEX_DATA *idx,
+                                       const char *&reason) const {
   const NdbQueryOperationDef *const root_operation =
       m_query_def->getQueryOperation((uint)0);
   const NdbQueryOperationDef::Type def_type = root_operation->getType();
@@ -174,6 +175,7 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
          "not executable as %s",
          NdbQueryOperationDef::getTypeName(def_type),
          NdbQueryOperationDef::getTypeName((NdbQueryOperationDef::Type)type)));
+    reason = "prepared with incompatible access type";
     return false;
   }
   const NdbDictionary::Index *const expected_index = root_operation->getIndex();
@@ -193,6 +195,7 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
                    ("Actual index %s differs from expected index %s."
                     "Therefore, join cannot be pushed.",
                     idx->unique_index->getName(), expected_index->getName()));
+        reason = "prepared with another (unique) index";
         return false;
       }
       break;
@@ -208,6 +211,7 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
         DBUG_PRINT("info", ("Actual index %s differs from expected index %s. "
                             "Therefore, join cannot be pushed.",
                             idx->index->getName(), expected_index->getName()));
+        reason = "prepared with another (ordered) index";
         return false;
       }
       break;
@@ -231,6 +235,7 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
     if (field->is_real_null()) {
       DBUG_PRINT("info",
                  ("paramValue is NULL, can not execute as pushed join"));
+      reason = "a paramValue was NULL";
       return false;
     }
   }

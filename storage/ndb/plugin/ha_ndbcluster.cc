@@ -2821,10 +2821,6 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id) {
       return ndb_err(trans);
     }
   } else {
-    if (m_pushed_join_operation == PUSHED_ROOT) {
-      m_thd_ndb->m_pushed_queries_dropped++;
-    }
-
     const NdbOperation *op;
     if (!(op = pk_unique_index_read_key(
               table->s->primary_key, key, buf, lm,
@@ -3131,10 +3127,6 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf) {
       return ndb_err(trans);
     }
   } else {
-    if (m_pushed_join_operation == PUSHED_ROOT) {
-      m_thd_ndb->m_pushed_queries_dropped++;
-    }
-
     const NdbOperation *op;
 
     if (!(op = pk_unique_index_read_key(active_index, key, buf, lm, NULL)))
@@ -3807,10 +3799,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     // Can't have BLOB in pushed joins (yet)
     assert(!uses_blob_value(table->read_set));
   } else {
-    if (m_pushed_join_operation == PUSHED_ROOT) {
-      m_thd_ndb->m_pushed_queries_dropped++;
-    }
-
     NdbScanOperation::ScanOptions options;
     options.optionsPresent = NdbScanOperation::ScanOptions::SO_SCANFLAGS;
     options.scan_flags = 0;
@@ -3969,10 +3957,6 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
     // Can't have BLOB in pushed joins (yet)
     assert(!uses_blob_value(table->read_set));
   } else {
-    if (m_pushed_join_operation == PUSHED_ROOT) {
-      m_thd_ndb->m_pushed_queries_dropped++;
-    }
-
     NdbScanOperation *op;
     NdbInterpretedCode code(m_table);
 
@@ -13655,9 +13639,13 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range) {
             return error;
           }
         } else {
-          if (m_pushed_join_operation == PUSHED_ROOT) {
+          if (m_pushed_join_operation == PUSHED_ROOT &&
+              !m_disable_pushed_join) {
             DBUG_PRINT("info",
                        ("Cannot push join due to incomplete implementation."));
+            m_thd_ndb->push_warning(
+                "Prepared pushed join could not be executed"
+                ", not implemented for UNIQUE KEY 'multi range read'");
             m_thd_ndb->m_pushed_queries_dropped++;
           }
           if (!(op = pk_unique_index_read_key(
@@ -14116,13 +14104,24 @@ bool ha_ndbcluster::maybe_pushable_join(const char *&reason) const {
 bool ha_ndbcluster::check_if_pushable(int type,  // NdbQueryOperationDef::Type,
                                       uint idx) const {
   if (m_disable_pushed_join) {
+    // We will likely re-enable and (try to) execute it later, not just yet
     DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
     return false;
   }
-  return m_pushed_join_operation == PUSHED_ROOT &&
-         m_pushed_join_member != NULL &&
-         m_pushed_join_member->match_definition(
-             type, (idx < MAX_KEY) ? &m_index[idx] : NULL);
+  if (m_pushed_join_operation == PUSHED_ROOT &&
+      m_pushed_join_member != nullptr) {
+    const char *reason = nullptr;
+    // We had prepared a pushed join for this table, can it be executed?
+    if (!m_pushed_join_member->match_definition(
+            type, (idx < MAX_KEY) ? &m_index[idx] : nullptr, reason)) {
+      m_thd_ndb->push_warning("Prepared pushed join could not be executed, %s",
+                              reason);
+      m_thd_ndb->m_pushed_queries_dropped++;
+      return false;
+    }
+    return true;  // Ok to execute it
+  }
+  return false;
 }
 
 int ha_ndbcluster::create_pushed_join(const NdbQueryParamValue *keyFieldParams,
