@@ -30,7 +30,7 @@
 
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "rest_metadata_client.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"

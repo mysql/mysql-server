@@ -38,7 +38,7 @@
 #include "dim.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"

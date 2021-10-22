@@ -35,9 +35,9 @@
 #include <fstream>
 #include <thread>
 
-#include "mock_server_rest_client.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 #include "router_test_helpers.h"
 
 namespace {

@@ -38,7 +38,7 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlxclient/xsession.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"

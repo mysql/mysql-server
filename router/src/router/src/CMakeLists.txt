@@ -25,8 +25,6 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)  # bypass Warning C4996 (getenv)
 ENDIF()
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter)
-
 SET(lib_source_files
   auto_cleaner.cc
   certificate_generator.cc
@@ -76,7 +74,10 @@ TARGET_LINK_LIBRARIES(router_lib
   ${SSL_LIBRARIES}
   io_component
   )
-TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
+TARGET_INCLUDE_DIRECTORIES(router_lib
+  PUBLIC
+  ../include
+  )
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory

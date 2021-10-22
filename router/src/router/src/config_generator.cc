@@ -70,7 +70,7 @@
 IMPORT_LOG_FUNCTIONS()
 
 #include "cluster_metadata.h"
-#include "cluster_metadata_dynamic_state.h"
+#include "mysqlrouter/cluster_metadata_dynamic_state.h"
 
 static const int kDefaultRWPort = 6446;
 static const int kDefaultROPort = 6447;

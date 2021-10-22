@@ -54,7 +54,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

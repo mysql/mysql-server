@@ -34,9 +34,9 @@
 #include "harness_assert.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
+#include "mysqlrouter/utils.h"  // write_windows_event_log
 #include "mysqlrouter/windows/service_operations.h"
 #include "nt_servc.h"
-#include "utils.h"
 
 // forward declarations
 std::string get_logging_folder(const std::string &conf_file);

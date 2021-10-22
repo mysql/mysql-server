@@ -43,12 +43,12 @@
 #include "mock_server_testutils.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysqlrouter/keyring_info.h"
+#include "mysqlrouter/utils.h"  // copy_file
 #include "process_manager.h"
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "script_generator.h"
 #include "tcp_port_pool.h"
-#include "utils.h"  // copy_file
 
 /**
  * @file

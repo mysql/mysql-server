@@ -40,7 +40,7 @@
 #include "mock_server_testutils.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/string_utils.h"  // split_lines
-#include "mysql_session.h"
+#include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"  // rename_file
 #include "process_wrapper.h"
 #include "random_generator.h"

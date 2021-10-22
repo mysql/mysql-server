@@ -50,6 +50,7 @@
 #include "mysql/harness/string_utils.h"  // split_lines
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/utils.h"  // getpwuid
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -58,7 +59,6 @@
 #include "script_generator.h"
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 /**
  * @file

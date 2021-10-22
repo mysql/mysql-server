@@ -47,11 +47,11 @@
 #include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/tls_context.h"
 #include "mysqlrouter/http_client.h"
+#include "mysqlrouter/utils.h"
 #include "process_wrapper.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 using namespace std::chrono_literals;
 
