@@ -31,7 +31,6 @@
 
 #include "metadata_cache_ar.h"
 #include "metadata_cache_gr.h"
-#include "metadata_factory.h"
 #include "mysqlrouter/metadata_cache.h"
 
 #include "cluster_metadata.h"
@@ -97,20 +96,20 @@ void MetadataCacheAPI::cache_init(
 
   switch (cluster_type) {
     case mysqlrouter::ClusterType::RS_V2:
-      g_metadata_cache.reset(new ARMetadataCache(
+      g_metadata_cache = std::make_unique<ARMetadataCache>(
           router_id, cluster_type_specific_id, metadata_servers,
-          get_instance(cluster_type, session_config, ssl_options,
-                       use_cluster_notifications, view_id),
+          instance_factory_(cluster_type, session_config, ssl_options,
+                            use_cluster_notifications, view_id),
           ttl_config, ssl_options, target_cluster, router_attributes,
-          thread_stack_size));
+          thread_stack_size);
       break;
     default:
-      g_metadata_cache.reset(new GRMetadataCache(
+      g_metadata_cache = std::make_unique<GRMetadataCache>(
           router_id, cluster_type_specific_id, clusterset_id, metadata_servers,
-          get_instance(cluster_type, session_config, ssl_options,
-                       use_cluster_notifications, view_id),
+          instance_factory_(cluster_type, session_config, ssl_options,
+                            use_cluster_notifications, view_id),
           ttl_config, ssl_options, target_cluster, router_attributes,
-          thread_stack_size, use_cluster_notifications));
+          thread_stack_size, use_cluster_notifications);
   }
 
   is_initialized_ = true;

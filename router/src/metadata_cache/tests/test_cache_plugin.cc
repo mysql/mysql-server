@@ -34,6 +34,7 @@
 #include <gmock/gmock.h>
 
 #include "mock_metadata.h"
+#include "mock_metadata_factory.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "tcp_address.h"
@@ -70,6 +71,10 @@ class MetadataCachePluginTest : public ::testing::Test {
 
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
+
+    metadata_cache::MetadataCacheAPI::instance()->set_instance_factory(
+        &mock_metadata_factory_get_instance);
+
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
         mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id, "",
         metadata_server_vector,
@@ -125,6 +130,7 @@ TEST_F(MetadataCachePluginTest, ValidCluserTest_1) {
 
 int main(int argc, char *argv[]) {
   init_test_logger();
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

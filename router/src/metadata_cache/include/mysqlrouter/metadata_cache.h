@@ -44,70 +44,11 @@
 #include "mysql_router_thread.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/metadata.h"
+#include "mysqlrouter/metadata_cache_datatypes.h"
 #include "tcp_address.h"
 
 namespace metadata_cache {
-
-enum class metadata_errc {
-  ok,
-  no_rw_node_found,
-  no_rw_node_needed,
-  no_metadata_server_reached,
-  no_metadata_read_successful,
-  cluster_marked_as_invalid,
-  metadata_refresh_terminated,
-  cluster_not_found,
-  invalid_cluster_type,
-  outdated_view_id
-};
-}  // namespace metadata_cache
-
-namespace std {
-template <>
-struct is_error_code_enum<metadata_cache::metadata_errc>
-    : public std::true_type {};
-}  // namespace std
-
-namespace metadata_cache {
-inline const std::error_category &metadata_cache_category() noexcept {
-  class metadata_category_impl : public std::error_category {
-   public:
-    const char *name() const noexcept override { return "metadata cache"; }
-    std::string message(int ev) const override {
-      switch (static_cast<metadata_errc>(ev)) {
-        case metadata_errc::ok:
-          return "ok";
-        case metadata_errc::no_rw_node_found:
-          return "no RW node found";
-        case metadata_errc::no_rw_node_needed:
-          return "RW node not requested";
-        case metadata_errc::no_metadata_server_reached:
-          return "no metadata server accessible";
-        case metadata_errc::no_metadata_read_successful:
-          return "did not successfully read metadata from any metadata server";
-        case metadata_errc::cluster_marked_as_invalid:
-          return "cluster marked as invalid in the metadata";
-        case metadata_errc::metadata_refresh_terminated:
-          return "metadata refresh terminated";
-        case metadata_errc::cluster_not_found:
-          return "cluster not found in the metadata";
-        case metadata_errc::invalid_cluster_type:
-          return "unexpected cluster type";
-        case metadata_errc::outdated_view_id:
-          return "highier view_id seen";
-        default:
-          return "unknown";
-      }
-    }
-  };
-
-  static metadata_category_impl instance;
-  return instance;
-}
-
-inline std::error_code make_error_code(metadata_errc e) noexcept {
-  return std::error_code(static_cast<int>(e), metadata_cache_category());
-}
 
 constexpr const uint16_t kDefaultMetadataPort{32275};
 constexpr const std::string_view kDefaultMetadataAddress{"127.0.0.1:32275"};
@@ -127,9 +68,6 @@ constexpr const std::string_view kNodeTagHidden{"_hidden"};
 constexpr const std::string_view kNodeTagDisconnectWhenHidden{
     "_disconnect_existing_sessions_when_hidden"};
 
-constexpr const bool kNodeTagHiddenDefault{false};
-constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
-
 enum class ClusterStatus {
   AvailableWritable,
   AvailableReadOnly,
@@ -137,89 +75,11 @@ enum class ClusterStatus {
   Unavailable
 };
 
-enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
-
 enum class InstanceStatus {
   Reachable,
   InvalidHost,  // Network connection cannot even be attempted (ie bad IP)
   Unreachable,  // TCP connection cannot be opened
   Unusable      // TCP connection can be opened but session can't be opened
-};
-
-/** @class ManagedInstance
- *
- * Class ManagedInstance represents a server managed by the topology.
- */
-class METADATA_CACHE_EXPORT ManagedInstance {
- public:
-  ManagedInstance() = default;
-  ManagedInstance(const std::string &p_mysql_server_uuid,
-                  const ServerMode p_mode, const std::string &p_host,
-                  const uint16_t p_port, const uint16_t p_xport);
-
-  using TCPAddress = mysql_harness::TCPAddress;
-  explicit ManagedInstance(const TCPAddress &addr);
-  operator TCPAddress() const;
-  bool operator==(const ManagedInstance &other) const;
-
-  /** @brief The uuid of the MySQL server */
-  std::string mysql_server_uuid;
-  /** @brief The mode of the server */
-  ServerMode mode;
-  /** @brief The host name on which the server is running */
-  std::string host;
-  /** The port number in which the server is running */
-  uint16_t port;
-  /** The X protocol port number in which the server is running */
-  uint16_t xport;
-  /** Should the node be hidden from the application to use it */
-  bool hidden{kNodeTagHiddenDefault};
-  /** Should the Router disconnect existing client sessions to the node when it
-   * is hidden */
-  bool disconnect_existing_sessions_when_hidden{
-      kNodeTagDisconnectWhenHiddenDefault};
-};
-
-using cluster_nodes_list_t = std::vector<ManagedInstance>;
-
-using metadata_server_t = mysql_harness::TCPAddress;
-
-using metadata_servers_list_t = std::vector<metadata_server_t>;
-
-/** @class ManagedCluster
- * Represents a cluster (a GR group or AR members)
- */
-class METADATA_CACHE_EXPORT ManagedCluster {
- public:
-  /** @brief List of the members that belong to the cluster */
-  cluster_nodes_list_t members;
-  /** @brief Whether the cluster is in single_primary_mode (from PFS in case of
-   * GR) */
-  bool single_primary_mode;
-  /** @brief Id of the view this metadata represents (only used for AR now)*/
-  uint64_t view_id{0};
-  /** @brief Metadata for the cluster is not consistent (only applicable for
-   * the GR cluster when the data in the GR metadata is not consistent with the
-   * cluster metadata)*/
-  bool md_discrepancy{false};
-
-  // address of the writable metadata server that can be used for updating the
-  // metadata (router version, last_check_in), error code if not found
-  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
-      writable_server{stdx::make_unexpected(
-          make_error_code(metadata_cache::metadata_errc::no_rw_node_found))};
-
-  bool empty() const noexcept { return members.empty(); }
-
-  void clear() noexcept { members.clear(); }
-};
-
-/** @class ManagedCluster
- * Represents a cluster (a GR group or AR members) and its metadata servers
- */
-struct METADATA_CACHE_EXPORT ClusterTopology {
-  ManagedCluster cluster_data;
-  metadata_servers_list_t metadata_servers;
 };
 
 /** @class connection_error
@@ -257,14 +117,6 @@ class METADATA_CACHE_EXPORT LookupResult {
 
   /** @brief List of ManagedInstance objects */
   const cluster_nodes_list_t instance_vector;
-};
-
-struct RouterAttributes {
-  std::string metadata_user_name;
-  std::string rw_classic_port;
-  std::string ro_classic_port;
-  std::string rw_x_port;
-  std::string ro_x_port;
 };
 
 /**
@@ -399,25 +251,6 @@ struct METADATA_CACHE_EXPORT MetadataCacheTTLConfig {
   // auth_cache_refresh_interval Refresh rate of the rest user authentication
   // data
   std::chrono::milliseconds auth_cache_refresh_interval;
-};
-
-/**
- * @brief Metadata MySQL session configuration
- */
-struct METADATA_CACHE_EXPORT MetadataCacheMySQLSessionConfig {
-  // User credentials used for the connecting to the metadata server.
-  mysqlrouter::UserCredentials user_credentials;
-
-  // The time in seconds after which trying to connect to metadata server should
-  // time out.
-  int connect_timeout;
-
-  // The time in seconds after which read from metadata server should time out.
-  int read_timeout;
-
-  // Numbers of retries used before giving up the attempt to connect to the
-  // metadata server (not used atm).
-  int connection_attempts;
 };
 
 class METADATA_CACHE_EXPORT MetadataCacheAPIBase
@@ -629,7 +462,26 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
   virtual mysqlrouter::TargetCluster target_cluster() const = 0;
 
   virtual std::chrono::milliseconds ttl() const = 0;
+
+  using metadata_factory_t = std::function<std::shared_ptr<MetaData>(
+      mysqlrouter::ClusterType cluster_type,
+      const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+      const mysqlrouter::SSLOptions &ssl_options,
+      const bool use_cluster_notifications, unsigned view_id)>;
+
+  virtual void set_instance_factory(metadata_factory_t cb) = 0;
 };
+
+// This provides a factory method that returns a pluggable instance
+// to the underlying transport layer implementation. The transport
+// layer provides the means from which the metadata is
+// fetched.
+
+std::shared_ptr<MetaData> metadata_factory_get_instance(
+    const mysqlrouter::ClusterType cluster_type,
+    const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
+    const mysqlrouter::SSLOptions &ssl_options, const bool use_gr_notifications,
+    const unsigned view_id);
 
 class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
  public:
@@ -694,7 +546,13 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
 
   void handle_sockets_acceptors_on_md_refresh() override;
 
+  void set_instance_factory(metadata_factory_t cb) override {
+    instance_factory_ = std::move(cb);
+  }
+
  private:
+  metadata_factory_t instance_factory_{&metadata_factory_get_instance};
+
   struct InstData {
     std::string name;
   };

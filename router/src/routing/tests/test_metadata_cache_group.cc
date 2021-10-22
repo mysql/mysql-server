@@ -149,6 +149,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   RefreshStatus get_refresh_status() override { return {}; }
 
+  MOCK_METHOD1(set_instance_factory, void(metadata_factory_t cb));
+
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
 

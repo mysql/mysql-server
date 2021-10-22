@@ -22,23 +22,17 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_METADATA_FACTORY_INCLUDED
-#define METADATA_CACHE_METADATA_FACTORY_INCLUDED
+#ifndef METADATA_CACHE_MOCK_METADATA_FACTORY_INCLUDED
+#define METADATA_CACHE_MOCK_METADATA_FACTORY_INCLUDED
 
 #include <memory>
 
-#include "metadata.h"
-#include "tcp_address.h"
+#include "mysqlrouter/metadata.h"
 
-// This provides a factory method that returns a pluggable instance
-// to the underlying transport layer implementation. The transport
-// layer provides the means from which the metadata is
-// fetched.
-
-std::shared_ptr<MetaData> get_instance(
+std::shared_ptr<MetaData> mock_metadata_factory_get_instance(
     const mysqlrouter::ClusterType cluster_type,
     const metadata_cache::MetadataCacheMySQLSessionConfig &session_config,
     const mysqlrouter::SSLOptions &ssl_options, const bool use_gr_notifications,
     const unsigned view_id);
 
-#endif  // METADATA_CACHE_METADATA_FACTORY_INCLUDED
+#endif

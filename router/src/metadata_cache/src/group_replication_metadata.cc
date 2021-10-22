@@ -30,8 +30,8 @@
 #include <memory>
 #include <sstream>
 
-#include "metadata.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 
 using mysqlrouter::MySQLSession;

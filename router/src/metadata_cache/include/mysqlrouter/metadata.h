@@ -27,18 +27,19 @@
 
 #include "mysqlrouter/metadata_cache_export.h"
 
+#include <atomic>
+#include <map>
+#include <string>
+#include <vector>
+
 #include "my_rapidjson_size_t.h"
 
 #include <rapidjson/document.h>
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/cluster_metadata.h"
-#include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/metadata_cache_datatypes.h"
 #include "mysqlrouter/mysql_session.h"
-
-#include <map>
-#include <string>
-#include <vector>
 
 /**
  * The metadata class is used to create a pluggable transport layer

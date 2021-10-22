@@ -35,8 +35,8 @@
 #include "cluster_metadata.h"
 #include "dim.h"
 #include "metadata_cache_gr.h"
-#include "metadata_factory.h"
 #include "mock_metadata.h"
+#include "mock_metadata_factory.h"
 #include "mysql_session_replayer.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
@@ -56,10 +56,11 @@ class MetadataCacheTest : public ::testing::Test {
       : mf(metadata_cache::MetadataCacheMySQLSessionConfig{
             {"admin", "admin"}, 1, 1, 1}),
         cache(kRouterId, "0000-0001", "", {TCPAddress("localhost", 32275)},
-              get_instance(mysqlrouter::ClusterType::GR_V1,
-                           metadata_cache::MetadataCacheMySQLSessionConfig{
-                               {"admin", "admin"}, 1, 1, 1},
-                           mysqlrouter::SSLOptions(), false, 0),
+              mock_metadata_factory_get_instance(
+                  mysqlrouter::ClusterType::GR_V1,
+                  metadata_cache::MetadataCacheMySQLSessionConfig{
+                      {"admin", "admin"}, 1, 1, 1},
+                  mysqlrouter::SSLOptions(), false, 0),
               metadata_cache::MetadataCacheTTLConfig{10s, -1s, 20s},
               mysqlrouter::SSLOptions(),
               {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},

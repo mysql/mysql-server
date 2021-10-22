@@ -20,72 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE(GenerateExportHeader)
-
-SET(METADATA_CACHE_SOURCES
-  src/metadata_factory.cc
-  src/cluster_metadata.cc
-  src/cluster_metadata_ar.cc
-  src/cluster_metadata_gr.cc
-  src/metadata_cache.cc
-  src/metadata_cache_ar.cc
-  src/metadata_cache_gr.cc
-  src/cache_api.cc
-  src/group_replication_metadata.cc
-  src/gr_notifications_listener.cc
-)
-
-SET(include_dirs
-  ../router/include
-  include/
-  ${CMAKE_CURRENT_BINARY_DIR}/include/
-  src/
-)
-
-INCLUDE_DIRECTORIES(SYSTEM
-  ${MYSQLX_GENERATE_DIR}
-  ${CMAKE_SOURCE_DIR}/plugin/x/client
-)
-
-add_harness_plugin(metadata_cache SOURCES
-  src/metadata_cache_plugin.cc
-  src/plugin_config.cc
-  ${METADATA_CACHE_SOURCES}
-  REQUIRES router_lib
-  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
-  )
-
-TARGET_INCLUDE_DIRECTORIES(metadata_cache
-  PUBLIC ${include_dirs}
-  )
-TARGET_LINK_LIBRARIES(metadata_cache PRIVATE
-  mysqlxclient_lite
-  mysqlxmessages_lite
-  ${PROTOBUF_LITE_LIBRARY}
-  )
-GENERATE_EXPORT_HEADER(metadata_cache
-  EXPORT_FILE_NAME
-  ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/metadata_cache_export.h
-  )
-ADD_DEPENDENCIES(mysqlrouter_all mysqlxclient_lite)
-
-IF(WIN32)
-  INSTALL(TARGETS metadata_cache
-    RUNTIME DESTINATION "lib"
-    COMPONENT Router)
-ENDIF()
+ADD_SUBDIRECTORY(src)
 
 IF(WITH_UNIT_TESTS)
-  ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
-  TARGET_LINK_LIBRARIES(metadata_cache_static
-    router_lib
-    mysqlclient
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-    )
-  TARGET_COMPILE_DEFINITIONS(metadata_cache_static
-    PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
-  TARGET_INCLUDE_DIRECTORIES(metadata_cache_static PRIVATE ${include_dirs})
-
-  ADD_SUBDIRECTORY(tests/)
+  ADD_SUBDIRECTORY(tests)
 ENDIF()

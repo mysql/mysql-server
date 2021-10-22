@@ -31,7 +31,7 @@ INCLUDE_DIRECTORIES(SYSTEM
 
 ADD_LIBRARY(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
-                      metadata_cache_static mysql_protocol
+                      metadata_cache mysql_protocol
                       mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)

@@ -22,8 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysqlrouter/metadata_cache_export.h"
-
 #ifndef _WIN32
 #include <termios.h>
 #include <unistd.h>
@@ -286,23 +284,24 @@ static const std::array<const char *, 2> required = {{
 
 extern "C" {
 
-mysql_harness::Plugin METADATA_CACHE_EXPORT harness_plugin_metadata_cache = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "Metadata Cache, managing information fetched from the Metadata Server",
-    VERSION_NUMBER(0, 0, 1),
-    // requires
-    required.size(),
-    required.data(),
-    // conflicts
-    0,
-    nullptr,
-    init,     // init
-    nullptr,  // deinit
-    start,    // start
-    nullptr,  // stop
-    true,     // declares_readiness
-    metadata_cache_supported_options.size(),
-    metadata_cache_supported_options.data(),
+mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
+    harness_plugin_metadata_cache = {
+        mysql_harness::PLUGIN_ABI_VERSION,
+        mysql_harness::ARCHITECTURE_DESCRIPTOR,
+        "Metadata Cache, managing information fetched from the Metadata Server",
+        VERSION_NUMBER(0, 0, 1),
+        // requires
+        required.size(),
+        required.data(),
+        // conflicts
+        0,
+        nullptr,
+        init,     // init
+        nullptr,  // deinit
+        start,    // start
+        nullptr,  // stop
+        true,     // declares_readiness
+        metadata_cache_supported_options.size(),
+        metadata_cache_supported_options.data(),
 };
 }

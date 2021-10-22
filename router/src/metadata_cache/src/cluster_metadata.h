@@ -27,13 +27,14 @@
 
 #include "mysqlrouter/metadata_cache_export.h"
 
-#include "metadata.h"
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "tcp_address.h"
 
 #include <chrono>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <string>

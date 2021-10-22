@@ -39,10 +39,10 @@
 #include <thread>
 
 #include "gr_notifications_listener.h"
-#include "metadata.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
+#include "mysqlrouter/metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 
 class ClusterMetadata;

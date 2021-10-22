@@ -25,9 +25,9 @@
 #ifndef METADATA_CACHE_PLUGIN_CONFIG_INCLUDED
 #define METADATA_CACHE_PLUGIN_CONFIG_INCLUDED
 
-#include "mysqlrouter/metadata_cache_export.h"
-
 #include "mysqlrouter/metadata_cache.h"
+
+#include "mysqlrouter/metadata_cache_plugin_export.h"
 
 #include <chrono>
 #include <map>
@@ -41,13 +41,14 @@
 #include "tcp_address.h"
 
 extern "C" {
-extern mysql_harness::Plugin METADATA_CACHE_EXPORT
+extern mysql_harness::Plugin METADATA_CACHE_PLUGIN_EXPORT
     harness_plugin_metadata_cache;
 }
 
 extern const std::array<const char *, 11> metadata_cache_supported_options;
 
-class MetadataCachePluginConfig final : public mysql_harness::BasePluginConfig {
+class METADATA_CACHE_PLUGIN_EXPORT MetadataCachePluginConfig final
+    : public mysql_harness::BasePluginConfig {
  public:
   /** @brief Constructor
    *
