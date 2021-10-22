@@ -2853,6 +2853,8 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
   unsigned int wait;
   double delay;
   site_def const *site;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN

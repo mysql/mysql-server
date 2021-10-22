@@ -1591,6 +1591,8 @@ int tcp_reconnection_task(task_arg arg [[maybe_unused]]) {
   int dummy;
   server *s;
   int i;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 
