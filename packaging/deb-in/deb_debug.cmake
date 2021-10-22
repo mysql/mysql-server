@@ -185,6 +185,7 @@ usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/component_test_table_access.so
+usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
