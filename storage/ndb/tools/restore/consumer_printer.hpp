@@ -51,6 +51,7 @@ public:
   void endOfTuples() override {}
   void endOfLogEntrys() override;
   bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
+  bool delete_epoch_tuple() override;
   bool m_print;
   bool m_print_log;
   bool m_print_sql_log;

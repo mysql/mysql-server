@@ -92,3 +92,12 @@ BackupPrinter::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   }
   return true;
 }
+
+bool
+BackupPrinter::delete_epoch_tuple()
+{
+  if (m_print)
+  {
+  }
+  return true;
+}

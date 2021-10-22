@@ -1,0 +1,93 @@
+CREATE TABLE t1 (
+id INT,
+col INT
+) ENGINE=ndbcluster;
+INSERT INTO test.t1 VALUES
+(7,7),(8,8),(6,6),(1,1),(4,4),(5,5),(8,8),(2,2),(9,9),(6,6),(3,3),(7,7),
+(1,1),(4,4),(6,6),(8,8),(1,1),(5,5),(3,3),(1,1),(4,4),(9,9),(3,3),(5,5);
+INSERT INTO mysql.ndb_apply_status VALUES
+(1,12,_binary 'logname',123,1234), (2,12,_binary 'logname',123,1234),
+(3,12,_binary 'logname',123,1234), (4,12,_binary 'logname',123,1234),
+(5,12,_binary 'logname',123,1234), (6,12,_binary 'logname',123,1234),
+(7,12,_binary 'logname',123,1234), (8,12,_binary 'logname',123,1234),
+(9,12,_binary 'logname',123,1234), (10,12,_binary 'logname',123,1234);
+# Take backup and drop the tables
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #1: Restore epoch along with replication status
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+24
+# 10 rows will be restored to ndb_apply_status and another row will be generated with server_id = 0
+SELECT COUNT(*) FROM mysql.ndb_apply_status;
+COUNT(*)
+11
+SELECT COUNT(*) FROM mysql.ndb_apply_status WHERE server_id=0;
+COUNT(*)
+1
+# Drop the tables to restore them again with a different use case
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #2: Restore epoch after replication status is restored with data restore
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+24
+SELECT COUNT(*) FROM mysql.ndb_apply_status;
+COUNT(*)
+11
+# Drop the tables to restore them again with a different use case
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #3: Restore replication status without epoch with server_id = 0
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+24
+# Only 10 rows will be restored to ndb_apply_status
+SELECT * FROM mysql.ndb_apply_status ORDER BY server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	12	logname	123	1234
+2	12	logname	123	1234
+3	12	logname	123	1234
+4	12	logname	123	1234
+5	12	logname	123	1234
+6	12	logname	123	1234
+7	12	logname	123	1234
+8	12	logname	123	1234
+9	12	logname	123	1234
+10	12	logname	123	1234
+# Drop the tables to restore them again with a different use case
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #4: Attempt to restore replication status without restore-data/print-data/print-log/print-sql-log
+# Drop the tables to restore them again with a different use case
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #5: Restore appropriate replication status when the backup already contains a row with server_id=0
+INSERT INTO mysql.ndb_apply_status VALUES (0,12,_binary 'logname',0,0),
+(1,12,_binary 'logname',123,1234), (2,12,_binary 'logname',123,1234),
+(3,12,_binary 'logname',123,1234), (4,12,_binary 'logname',123,1234),
+(5,12,_binary 'logname',123,1234), (6,12,_binary 'logname',123,1234),
+(7,12,_binary 'logname',123,1234), (8,12,_binary 'logname',123,1234),
+(9,12,_binary 'logname',123,1234), (10,12,_binary 'logname',123,1234);
+# Take backup and drop the tables
+DELETE FROM mysql.ndb_apply_status;
+SELECT COUNT(*) FROM mysql.ndb_apply_status WHERE server_id = 0;
+COUNT(*)
+1
+# Truncate the table to restore again with a different use case
+DELETE FROM mysql.ndb_apply_status;
+# Use case #5: Restore appropriate replication status when the backup already contains a row with server_id=0 without --restore-epoch
+SELECT * FROM mysql.ndb_apply_status ORDER BY server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	12	logname	123	1234
+2	12	logname	123	1234
+3	12	logname	123	1234
+4	12	logname	123	1234
+5	12	logname	123	1234
+6	12	logname	123	1234
+7	12	logname	123	1234
+8	12	logname	123	1234
+9	12	logname	123	1234
+10	12	logname	123	1234
+# cleanup
+DELETE FROM mysql.ndb_apply_status;

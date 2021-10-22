@@ -52,6 +52,8 @@ public:
   virtual bool createSystable(const TableS &){ return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
     {return true;}
+  virtual bool delete_epoch_tuple()
+    {return true;}
   virtual bool report_started(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool report_meta_data(unsigned backup_id, unsigned node_id)

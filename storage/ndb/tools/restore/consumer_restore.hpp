@@ -129,6 +129,7 @@ public:
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);
   bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
+  bool delete_epoch_tuple() override;
   bool report_started(unsigned node_id, unsigned backup_id) override;
   bool report_meta_data(unsigned node_id, unsigned backup_id) override;
   bool report_data(unsigned node_id, unsigned backup_id) override;
@@ -231,7 +232,9 @@ public:
   bool m_restore_epoch;
   bool m_disable_indexes;
   bool m_rebuild_indexes;
+  bool m_delete_epoch_tuple;
 
+  bool m_with_apply_status;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   bool m_no_restore_disk;
   Uint32 m_tableChangesMask;

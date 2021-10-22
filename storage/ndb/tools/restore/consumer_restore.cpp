@@ -1046,6 +1046,19 @@ BackupRestore::get_table(const TableS & tableS){
     */
     m_cache.m_new_table = tab;
   }
+  else if (m_with_apply_status &&
+           (strcmp(tab->getName(), NDB_APPLY_TABLE) == 0 ||
+            strcmp(tab->getName(), NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0))
+  {
+    /*
+      Special case needed as ndb_apply_status is a 'system table',
+      and so not pre-loaded into the m_new_tables array.
+    */
+    NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+    m_ndb->setDatabaseName(NDB_REP_DB);
+    m_ndb->setSchemaName("def");
+    m_cache.m_new_table = dict->getTable(NDB_APPLY_TABLE);
+  }
   else if((cnt = sscanf(tab->getName(), "%[^/]/%[^/]/NDB$BLOB_%d_%d", 
                         db, schema, &id1, &id2)) == 4){
     m_ndb->setDatabaseName(db);
@@ -1766,6 +1779,98 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   if (result &&
       retries > 0)
     restoreLogger.log_error("--restore-epoch completed successfully "
+                            "after retries");
+
+  return result;
+}
+
+bool
+BackupRestore::delete_epoch_tuple()
+{
+  /**
+   * Make sure only 1 thread in which m_delete_epoch_tuple flag
+   * is set executes this method.
+   */
+  if (!m_delete_epoch_tuple)
+    return true;
+
+  bool result= false;
+
+  m_ndb->setDatabaseName(NDB_REP_DB);
+  m_ndb->setSchemaName("def");
+
+  NdbDictionary::Dictionary *dict= m_ndb->getDictionary();
+  const NdbDictionary::Table *ndbtab= dict->getTable(NDB_APPLY_TABLE);
+  if (!ndbtab)
+  {
+    restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, dict->getNdbError().code, dict->getNdbError().message);
+    return false;
+  }
+
+  int retries;
+  for (retries = 0; retries < MAX_RETRIES; retries++)
+  {
+    if (retries > 0)
+      NdbSleep_MilliSleep(100 + retries * 300);
+
+    NdbTransaction * trans= m_ndb->startTransaction();
+    if (!trans)
+    {
+      restoreLogger.log_error("%s : failed to get transaction in --with-apply-status: %u:%s",
+          NDB_APPLY_TABLE, m_ndb->getNdbError().code, m_ndb->getNdbError().message);
+      if (m_ndb->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+    }
+
+    TransGuard g(trans);
+    NdbOperation * op= trans->getNdbOperation(ndbtab);
+    if (!op)
+    {
+      restoreLogger.log_error("%s : failed to get operation in --with-apply-status: %u:%s",
+          NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
+      if (trans->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+      return false;
+    }
+
+    Uint32 server_id= 0;
+    if (op->deleteTuple() ||
+        op->equal(0u, (const char *)&server_id, sizeof(server_id)))
+    {
+      restoreLogger.log_error("%s : failed to delete tuple with server_id=0 in --with-apply-status: %u: %s",
+          NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
+      return false;
+    }
+
+    int res = trans->execute(NdbTransaction::Commit);
+    if (res != 0)
+    {
+      if(trans->getNdbError().code == 626)
+      {
+        result= true;
+        break;
+      }
+      restoreLogger.log_error("%s : failed to commit transaction in --with-apply-status: %u:%s",
+          NDB_APPLY_TABLE, trans->getNdbError().code, trans->getNdbError().message);
+      if (trans->getNdbError().status == NdbError::TemporaryError)
+      {
+        continue;
+      }
+      return false;
+    }
+    else
+    {
+      result= true;
+      break;
+    }
+  }
+  if (result &&
+      retries > 0)
+    restoreLogger.log_error("--with-apply-status completed successfully "
                             "after retries");
 
   return result;

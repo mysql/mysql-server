@@ -1,0 +1,105 @@
+CREATE TABLE t1 (
+id int,
+name varchar(255),
+age int,
+PRIMARY KEY(id)
+) engine=ndbcluster;
+INSERT INTO test.t1 VALUES
+(1, 'p1', 19), (2, 'p0', 11), (3, 'p2', 43),
+(4, 'p3', 99), (5, 'p4', 33), (6, 'p5', 45);
+INSERT INTO mysql.ndb_apply_status VALUES
+(1,12,_binary 'position',123,1234), (2,12,_binary 'position',123,1234),
+(3,12,_binary 'position',123,1234), (4,12,_binary 'position',123,1234),
+(5,12,_binary 'position',123,1234), (6,12,_binary 'position',123,1234),
+(7,12,_binary 'position',123,1234), (8,12,_binary 'position',123,1234),
+(9,12,_binary 'position',123,1234), (10,12,_binary 'position',123,1234);
+Run backup snapshotend
+Starting backup
+Backup started
+Make a set of changes which we expect to be logged
+4 new rows
+INSERT INTO mysql.ndb_apply_status VALUES
+(11,12,_binary 'position',123,1234), (12,12,_binary 'position',123,1234),
+(13,12,_binary 'position',123,1234), (14,12,_binary 'position',123,1234);
+Waiting for backup to complete
+Backup completed
+4 new rows after backup is completed
+INSERT INTO mysql.ndb_apply_status VALUES
+(15,12,_binary 'position',123,1234), (16,12,_binary 'position',123,1234),
+(17,12,_binary 'position',123,1234), (18,12,_binary 'position',123,1234);
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #1: Restore epoch along with replication status
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+6
+# 14 rows will be restored to ndb_apply_status and another row will be generated with server_id = 0
+SELECT server_id FROM mysql.ndb_apply_status ORDER BY server_id;
+server_id
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+# cleanup
+TRUNCATE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+INSERT INTO test.t1 VALUES
+(1, 'p1', 19), (2, 'p0', 11), (3, 'p2', 43),
+(4, 'p3', 99), (5, 'p4', 33), (6, 'p5', 45);
+INSERT INTO mysql.ndb_apply_status VALUES
+(1,12,_binary 'position',123,1234), (2,12,_binary 'position',123,1234),
+(3,12,_binary 'position',123,1234), (4,12,_binary 'position',123,1234),
+(5,12,_binary 'position',123,1234), (6,12,_binary 'position',123,1234),
+(7,12,_binary 'position',123,1234), (8,12,_binary 'position',123,1234),
+(9,12,_binary 'position',123,1234), (10,12,_binary 'position',123,1234);
+Run backup snapshotstart
+Starting SNAPSHOTSTART backup
+Backup started
+Make a set of changes which we expect to be logged
+4 new rows
+INSERT INTO test.t1 VALUES
+(7, 'p1', 19), (8, 'p0', 11),
+(9, 'p2', 43), (10, 'p0', 11);
+INSERT INTO mysql.ndb_apply_status VALUES
+(11,12,_binary 'position',123,1234), (12,12,_binary 'position',123,1234),
+(13,12,_binary 'position',123,1234), (14,12,_binary 'position',123,1234);
+Waiting for backup to complete
+Backup completed
+4 new rows after backup is completed
+INSERT INTO mysql.ndb_apply_status VALUES
+(15,12,_binary 'position',123,1234), (16,12,_binary 'position',123,1234),
+(17,12,_binary 'position',123,1234), (18,12,_binary 'position',123,1234);
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
+# Use case #2: Restore epoch along with replication status
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+6
+# 10 rows will be restored to ndb_apply_status and another row will be generated with server_id = 0
+SELECT server_id FROM mysql.ndb_apply_status ORDER BY server_id;
+server_id
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+# cleanup
+DROP TABLE test.t1;
+DELETE FROM mysql.ndb_apply_status;
