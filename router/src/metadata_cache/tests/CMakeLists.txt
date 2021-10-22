@@ -46,7 +46,6 @@ SET(include_dirs
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
-  ${PROJECT_SOURCE_DIR}/tests/helpers
   )
 
 # We do not link to the metadata cache libraries since the sources are
@@ -94,18 +93,16 @@ FOREACH(test_file
     test_metadata_cache.cc
     test_plugin_config.cc
     )
-  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
-             MODULE ${TEST_MODULE}
-             LIB_DEPENDS
-               metadata_cache_tests
-               test-helpers
-             INCLUDE_DIRS
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
-               ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
-               ${PROJECT_SOURCE_DIR}/tests/helpers
-               ${PROJECT_SOURCE_DIR}/src/harness/shared/include
-)
+  ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+    MODULE ${TEST_MODULE}
+    LIB_DEPENDS
+      metadata_cache_tests
+      test-helpers
+    INCLUDE_DIRS
+      ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+      ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
+      ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
+  )
 ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
