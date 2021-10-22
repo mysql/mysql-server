@@ -98,7 +98,6 @@ override_dh_installinit:
 	@DEB_RULES_APPARMOR_LOAD@
 	@DEB_RULES_APPARMOR_LOAD_ROUTER@
 	dh_installsystemd --name=mysql
-	dh_prep
 	dh_installsystemd --name=mysql@ --no-enable --no-start
 	@DEB_RULES_INSTALLINIT_ROUTER@
 	touch $@
