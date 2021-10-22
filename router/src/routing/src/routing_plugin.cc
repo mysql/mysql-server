@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysqlrouter/routing_plugin_export.h"
+
 #include <atomic>
 #include <iostream>
 #include <mutex>
@@ -41,7 +43,6 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
-#include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
 #include "plugin_config.h"
 #include "scope_guard.h"
 #include "ssl_mode.h"
@@ -455,7 +456,7 @@ static const std::array<const char *, 4> required = {{
     "io",
 }};
 
-mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
+mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
     "Routing MySQL connections between MySQL clients/connectors and "

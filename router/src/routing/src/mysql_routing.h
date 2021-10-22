@@ -25,6 +25,9 @@
 #ifndef ROUTING_MYSQLROUTING_INCLUDED
 #define ROUTING_MYSQLROUTING_INCLUDED
 
+#include "mysqlrouter/routing_export.h"
+#include "mysqlrouter/routing_plugin_export.h"
+
 /** @file
  * @brief Defining the class MySQLRouting
  *
@@ -114,7 +117,7 @@ struct Nothing {};
  *  use 10.0.11.6 to setup the connection routing.
  *
  */
-class MySQLRouting : public MySQLRoutingBase {
+class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  public:
   /** @brief Default constructor
    *
@@ -462,7 +465,7 @@ class MySQLRouting : public MySQLRoutingBase {
 };
 
 extern "C" {
-extern mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing;
+extern mysql_harness::Plugin ROUTING_PLUGIN_EXPORT harness_plugin_routing;
 }
 
 #endif  // ROUTING_MYSQLROUTING_INCLUDED

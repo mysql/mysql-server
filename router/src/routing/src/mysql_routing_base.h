@@ -27,13 +27,14 @@
 
 #include "context.h"
 #include "destination.h"
+#include "mysqlrouter/routing_component.h"  // MySQLRoutingAPI
 
 class MySQLRoutingBase;
 
 /**
  * Interface for communicating with common quarantined destinations instance.
  */
-struct DestinationQuarantineHandlerInterface {
+struct ROUTING_EXPORT DestinationQuarantineHandlerInterface {
   using SharedQuarantineUpdateCallback =
       std::function<void(mysql_harness::TCPAddress)>;
   using SharedQuarantineQueryCallback =
@@ -60,7 +61,8 @@ struct DestinationQuarantineHandlerInterface {
  * actuall routing endpoint implementation. Allows replacing the routing
  * endpoint with an alternative implementation.
  */
-class MySQLRoutingBase : public DestinationQuarantineHandlerInterface {
+class ROUTING_EXPORT MySQLRoutingBase
+    : public DestinationQuarantineHandlerInterface {
  public:
   virtual MySQLRoutingContext &get_context() = 0;
   virtual int get_max_connections() const noexcept = 0;

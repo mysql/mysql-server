@@ -25,6 +25,8 @@
 #ifndef MYSQLROUTER_ROUTING_INCLUDED
 #define MYSQLROUTER_ROUTING_INCLUDED
 
+#include "mysqlrouter/routing_export.h"
+
 #include <chrono>
 #include <map>
 #include <string>
@@ -108,7 +110,7 @@ enum class RoutingStrategy {
 /** @brief Get comma separated list of all access mode names
  *
  */
-std::string get_access_mode_names();
+std::string ROUTING_EXPORT get_access_mode_names();
 
 /** @brief Returns AccessMode for its literal representation
  *
@@ -118,7 +120,7 @@ std::string get_access_mode_names();
  * @param value literal representation of the access mode
  * @return AccessMode for the given string or AccessMode::kUndefined
  */
-AccessMode get_access_mode(const std::string &value);
+AccessMode ROUTING_EXPORT get_access_mode(const std::string &value);
 
 /** @brief Returns literal name of given access mode
  *
@@ -128,7 +130,8 @@ AccessMode get_access_mode(const std::string &value);
  * @param access_mode Access mode to look up
  * @return Name of access mode as std::string or empty string
  */
-std::string get_access_mode_name(AccessMode access_mode) noexcept;
+std::string ROUTING_EXPORT
+get_access_mode_name(AccessMode access_mode) noexcept;
 
 /** @brief Get comma separated list of all routing stategy names
  *         for a given routing type (metadata cache or static)
@@ -138,7 +141,7 @@ std::string get_access_mode_name(AccessMode access_mode) noexcept;
  *                       strategies supported for metadata_cache
  *                        or static routing
  */
-std::string get_routing_strategy_names(bool metadata_cache);
+std::string ROUTING_EXPORT get_routing_strategy_names(bool metadata_cache);
 
 /** @brief Returns RoutingStrategy for its literal representation
  *
@@ -148,7 +151,7 @@ std::string get_routing_strategy_names(bool metadata_cache);
  * @param value literal representation of the access mode
  * @return RoutingStrategy for the given string or RoutingStrategy::kUndefined
  */
-RoutingStrategy get_routing_strategy(const std::string &value);
+RoutingStrategy ROUTING_EXPORT get_routing_strategy(const std::string &value);
 
 /** @brief Returns literal name of given routing strategy
  *
@@ -158,8 +161,8 @@ RoutingStrategy get_routing_strategy(const std::string &value);
  * @param routing_strategy Routing strategy to look up
  * @return Name of routing strategy as std::string or empty string
  */
-std::string get_routing_strategy_name(
-    RoutingStrategy routing_strategy) noexcept;
+std::string ROUTING_EXPORT
+get_routing_strategy_name(RoutingStrategy routing_strategy) noexcept;
 
 }  // namespace routing
 

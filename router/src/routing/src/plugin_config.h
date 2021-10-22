@@ -25,14 +25,15 @@
 #ifndef PLUGIN_CONFIG_ROUTING_INCLUDED
 #define PLUGIN_CONFIG_ROUTING_INCLUDED
 
+#include "mysqlrouter/routing_plugin_export.h"
+
 #include <string>
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/routing.h"  // RoutingStrategy, AccessMode
-#include "mysqlrouter/routing_export.h"
-#include "protocol/protocol.h"  // Protocol::Type
+#include "protocol/protocol.h"    // Protocol::Type
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
@@ -41,7 +42,7 @@ extern const std::array<const char *, 27> routing_supported_options;
 /**
  * route specific configuration.
  */
-class ROUTING_EXPORT RoutingPluginConfig
+class ROUTING_PLUGIN_EXPORT RoutingPluginConfig
     : public mysql_harness::BasePluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?

@@ -25,6 +25,8 @@
 #ifndef MYSQL_ROUTING_DESTINATION_TLS_CONTEXT_INCLUDED
 #define MYSQL_ROUTING_DESTINATION_TLS_CONTEXT_INCLUDED
 
+#include "mysqlrouter/routing_export.h"
+
 #include <map>
 #include <mutex>
 #include <string>
@@ -35,7 +37,7 @@
 /**
  * TlsClientContext per destination.
  */
-class DestinationTlsContext {
+class ROUTING_EXPORT DestinationTlsContext {
  public:
   /**
    * set SslVerify.
