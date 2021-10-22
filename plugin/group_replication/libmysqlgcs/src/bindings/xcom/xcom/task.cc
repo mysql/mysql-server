@@ -934,6 +934,8 @@ int task_read(connection_descriptor const *con, void *buf, int n, int64_t *ret,
               connnection_read_method read_function) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   result sock_ret = {0, 0};
@@ -1023,6 +1025,8 @@ int task_write(connection_descriptor const *con, void *_buf, uint32_t n,
   char *buf = (char *)_buf;
   DECL_ENV
   uint32_t total; /* Keeps track of number of bytes written so far */
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   result sock_ret = {0, 0};
 

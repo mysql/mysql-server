@@ -274,6 +274,8 @@ int detector_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int notify;
   int local_notify;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -411,6 +413,8 @@ int alive_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   pax_msg *i_p;
   pax_msg *you_p;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
 

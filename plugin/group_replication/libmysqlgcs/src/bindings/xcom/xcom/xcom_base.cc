@@ -1272,6 +1272,8 @@ static int local_server_shutdown_ssl(connection_descriptor *con, void *buf,
   bool_t need_to_wait_for_peer_shutdown;
   bool_t something_went_wrong;
   int64_t nr_read;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   *ret = 0;
   TASK_BEGIN
@@ -1308,6 +1310,19 @@ int local_server(task_arg arg) {
   msg_link *internal_reply;
   bool signaling_connection_error;
   connnection_read_method signal_read;
+  ENV_INIT
+  rfd.fd = -1;
+  ssl_shutdown_ret = 0;
+  memset(buf, 0, 1024);
+  nr_read = 0;
+  request = nullptr;
+  link_init(&internal_reply_queue, TYPE_HASH("msg_link"));
+  next_request = nullptr;
+  request_pax_msg = nullptr;
+  reply_payload = nullptr;
+  internal_reply = nullptr;
+  signaling_connection_error = false;
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
   assert(xcom_try_pop_from_input_cb != NULL);
@@ -1316,16 +1331,6 @@ int local_server(task_arg arg) {
     ep->rfd = *arg_rfd;
     if (input_signal_connection_pipe == nullptr) free(arg_rfd);
   }
-  ep->ssl_shutdown_ret = 0;
-  memset(ep->buf, 0, 1024);
-  ep->nr_read = 0;
-  ep->request = NULL;
-  ep->next_request = NULL;
-  ep->request_pax_msg = NULL;
-  ep->reply_payload = NULL;
-  link_init(&ep->internal_reply_queue, TYPE_HASH("msg_link"));
-  ep->internal_reply = NULL;
-  ep->signaling_connection_error = false;
 
   // We will check if we have a pipe open or if we use a classic signalling
   // connection.
@@ -1422,7 +1427,10 @@ int local_server(task_arg arg) {
         NDBG(task_now(), f));
   /* Close the signalling connection. */
   if (!ep->signaling_connection_error) {
-    if (input_signal_connection_pipe != nullptr) {
+    if (input_signal_connection_pipe != nullptr &&
+        ep->rfd.fd != -1) {  // We add -1 here, because in rare cases, the task
+                             // might have not been activated. Thus, it might
+                             // not have a reference to the socket to close.
       close(ep->rfd.fd);
       remove_and_wakeup(ep->rfd.fd);
     } else {
@@ -2262,6 +2270,8 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
                                                 // necessary
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -2345,6 +2355,8 @@ static int proposer_task(task_arg arg) {
   size_t nr_batched_app_data;
   int remote_retry;
   synode_allocation_type synode_allocation;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   synode_reservation_status reservation_status{
@@ -2885,6 +2897,8 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
   unsigned int wait;
   double delay;
   site_def const *site;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -4352,6 +4366,8 @@ static void x_terminate(execute_context *xc) {
 static int executor_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   execute_context xc;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   /* xcom_debug_mask = D_BUG; */
   IFDBG(D_EXEC, FN; NDBG(stack->sp->state, d); SYCEXP(executed_msg););
@@ -4470,6 +4486,8 @@ static void broadcast_noop(synode_no find, pax_machine *p) {
 static int sweeper_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   synode_no find;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -6423,6 +6441,8 @@ static int harmless(pax_msg const *p) {
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout) {
   DECL_ENV
   double now;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -6451,7 +6471,6 @@ int acceptor_learner_task(task_arg arg) {
   DECL_ENV
   connection_descriptor *rfd;
   srv_buf *in_buf;
-
   pax_msg *p;
   u_int buflen;
   char *buf;
@@ -6460,10 +6479,13 @@ int acceptor_learner_task(task_arg arg) {
   server *srv;
   site_def const *site;
   int behind;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t n{0};
   pax_machine *pm{nullptr};
+
   TASK_BEGIN
 
   ep->rfd = (connection_descriptor *)get_void_arg(arg);
@@ -6714,6 +6736,8 @@ int reply_handler_task(task_arg arg) {
   server *s;
   pax_msg *reply;
   double dtime;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   int64_t n{0};
@@ -7047,6 +7071,8 @@ static task_env *x_timer = NULL;
 static int xcom_timer(task_arg arg) {
   DECL_ENV
   double t;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -7080,6 +7106,8 @@ static void start_x_timer(double t) {
 static int x_fsm_completion_task(task_arg arg) {
   DECL_ENV
   int dummy;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
 
   TASK_BEGIN
@@ -8708,6 +8736,8 @@ static void paxos_timer_advance() {
 static int paxos_timer_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DECL_ENV
   double start;
+  ENV_INIT
+  END_ENV_INIT
   END_ENV;
   TASK_BEGIN
   ep->start = task_now();
