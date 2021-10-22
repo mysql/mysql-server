@@ -4661,15 +4661,14 @@ insert into t1 values (4, 4, 'row# 999');
 #   in ('foo' .... 'row# <last value')
 #
 # Note, there is a regex bug:
-#  Bug 86184 - std::regex crashes when matching long lines
+#  Bug 86164 - std::regex crashes when matching long lines
 #  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164
 #
 # The root cause is a too deep recursion when matching '+' and '*' patterns.
-# in combination with a too long text to match. We hit that bug when increasing
-# the in-value list from 2000 to 4000 row-values.
+# in combination with a too long text to match. We hit that bug when
+# regex-matching such long lines as generated in these IN-value lists.
 #
-# As a workaround for that bug we do the regex matching in two steps
-# for the test cases having 4000 values.:
+# As a workaround for that bug we do the regex matching in two steps:
 #
 # 1) Replace 'row# nnn' with just '#', producing a shorter list of
 #    comma separated #'s.
@@ -4698,9 +4697,9 @@ while ($values < 2000)
 }
 let $query = $query );
 
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4771,9 +4770,9 @@ while ($values < 1000)
 }
 let $query = $query ) order by x.k1;
 
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4811,9 +4810,9 @@ while ($values < 2000)
 }
 let $query = $query ) order by x.k1;
 
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval explain $query;
---replace_regex /('row# [0-9]+',)+/ .... /
+--replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
 eval $query;
 
 set range_optimizer_max_mem_size = @save_range_opt_max;
