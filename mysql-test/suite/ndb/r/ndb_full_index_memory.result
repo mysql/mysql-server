@@ -1,6 +1,4 @@
-call mtr.add_suppression("Warnings:");
 call mtr.add_suppression("The table 't1' is full");
-call mtr.add_suppression("Out of memory in Ndb Kernel, table data (increase DataMemory)");
 create table t1(x int primary key) engine=ndbcluster;
 Node 2 is being restarted
 
