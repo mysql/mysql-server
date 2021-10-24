@@ -4670,9 +4670,9 @@ insert into t1 values (4, 4, 'row# 999');
 #
 # As a workaround for that bug we do the regex matching in two steps:
 #
-# 1) Replace 'row# nnn' with just '#', producing a shorter list of
-#    comma separated #'s.
-# 2) Match the (recursive) list of '#,', replace it with '....'
+# 1) Consume all 'row# nnn' with a trailing ',' - Keeping just the last
+#    row# nnn which has no trailing  ','
+# 2) Add ' .... ' in front of the last remaining 'row#"
 #
 #######################################################
 
@@ -4697,9 +4697,9 @@ while ($values < 2000)
 }
 let $query = $query );
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4719,9 +4719,9 @@ while ($values < 4000)
 }
 let $query = $query );
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4737,9 +4737,9 @@ while ($values < 4000)
 }
 let $query = $query );
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 
@@ -4770,9 +4770,9 @@ while ($values < 1000)
 }
 let $query = $query ) order by x.k1;
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 echo ------------------------------------------------------------------;
@@ -4790,9 +4790,9 @@ while ($values < 4000)
 }
 let $query = $query ) order by x.k1;
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 
@@ -4810,9 +4810,9 @@ while ($values < 2000)
 }
 let $query = $query ) order by x.k1;
 
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval explain $query;
---replace_regex /'row# [0-9]+',/#,/ /(#,)+/ .... /
+--replace_regex /'row# [0-9]+',// /'row#/ .... 'row#/
 eval $query;
 
 set range_optimizer_max_mem_size = @save_range_opt_max;
