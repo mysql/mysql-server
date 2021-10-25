@@ -213,6 +213,11 @@ class Global_THD_manager {
   }
 
   /**
+    Checks if the singleton is not already deinitialized
+  */
+  static bool is_initialized() { return thd_manager != nullptr; }
+
+  /**
     Initializes the thd manager.
     Must be called before get_instance() can be used.
 
