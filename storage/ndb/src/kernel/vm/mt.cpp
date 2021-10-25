@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ inline
 SimulatedBlock*
 GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 {
+  require(blockNo >= MIN_BLOCK_NO && blockNo <= MAX_BLOCK_NO);
   SimulatedBlock* b = getBlock(blockNo);
   if (b != 0 && instanceNo != 0)
     b = b->getInstance(instanceNo);
