@@ -185,7 +185,6 @@ usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 usr/lib/mysql/plugin/debug/component_test_udf_services.so
 usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/component_test_table_access.so
-usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
@@ -215,6 +214,10 @@ usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/keyring_aws.so
 ")
   ENDIF()
+  SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
+usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
+")
+
 ENDIF()
 SET (DEB_CONTROL_DEBUG
 "
