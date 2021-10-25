@@ -1446,10 +1446,14 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::DELETE_ROWS:
         bottom_of_table_path->delete_rows().child = path;
         break;
+      case AccessPath::ZERO_ROWS:
+        // There's nothing to materialize for ZERO_ROWS, so we can drop the
+        // entire MATERIALIZE node.
+        return bottom_of_table_path;
 
       // It's a bit odd to have STREAM and MATERIALIZE nodes
       // inside table_path, but it happens when we have UNION with
-      // with ORDER BY on nondeterminisic predicates, or INSERT
+      // with ORDER BY on nondeterministic predicates, or INSERT
       // which requires buffering. It should be safe move it
       // out of table_path nevertheless.
       case AccessPath::STREAM:

@@ -513,8 +513,11 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
   succeeded. (ALTERNATIVE counts as a basic iterator in this regard.)
 
   We do this by finding the second-bottommost access path, and inserting our
-  materialize node as it child. The bottommost one becomes the actual table
+  materialize node as its child. The bottommost one becomes the actual table
   access path.
+
+  If a ZERO_ROWS access path is materialized, we simply replace the MATERIALIZE
+  path with the ZERO_ROWS path, since there is nothing to materialize.
  */
 AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path);
 
