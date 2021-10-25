@@ -2755,32 +2755,71 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
   for (Item *cond : cycle_inducing_edges) {
     const NodeMap used_nodes = GetNodeMapFromTableMap(
         cond->used_tables(), graph->table_num_to_node_num);
+    RelationalExpression *expr = nullptr;
+
     const NodeMap left = IsolateLowestBit(used_nodes);  // Arbitrary.
     const NodeMap right = used_nodes & ~left;
-    graph->graph.AddEdge(left, right);
 
-    RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
-    expr->type = RelationalExpression::INNER_JOIN;
+    // See if we already have a suitable edge.
+    for (size_t edge_idx = 0; edge_idx < graph->edges.size(); ++edge_idx) {
+      Hyperedge edge = graph->graph.edges[edge_idx * 2];
+      if ((edge.left | edge.right) == used_nodes &&
+          graph->edges[edge_idx].expr->type ==
+              RelationalExpression::INNER_JOIN) {
+        expr = graph->edges[edge_idx].expr;
+        break;
+      }
+    }
+
+    if (expr == nullptr) {
+      graph->graph.AddEdge(left, right);
+
+      expr = new (thd->mem_root) RelationalExpression(thd);
+      expr->type = RelationalExpression::INNER_JOIN;
+
+      // TODO(sgunders): This does not really make much sense, but
+      // estimated_bytes_per_row doesn't make that much sense to begin with; it
+      // will depend on the join order. See if we can replace it with a
+      // per-table width calculation that we can sum up in the join optimizer.
+      expr->tables_in_subtree = cond->used_tables();
+      expr->nodes_in_subtree =
+          GetNodeMapFromTableMap(cond->used_tables() & ~PSEUDO_TABLE_BITS,
+                                 graph->table_num_to_node_num);
+      double selectivity = EstimateSelectivity(thd, cond, trace);
+      const size_t estimated_bytes_per_row =
+          EstimateRowWidthForJoin(*graph, expr);
+      graph->edges.push_back(JoinPredicate{
+          expr, selectivity, estimated_bytes_per_row,
+          /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
+    } else {
+      // Skip this item if it is a duplicate (this can
+      // happen with multiple equalities in particular).
+      bool dup = false;
+      for (Item *other_cond : expr->equijoin_conditions) {
+        if (other_cond->eq(cond, /*binary=*/true)) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        continue;
+      }
+      for (Item *other_cond : expr->join_conditions) {
+        if (other_cond->eq(cond, /*binary=*/true)) {
+          dup = true;
+          break;
+        }
+      }
+      if (dup) {
+        continue;
+      }
+    }
     if (cond->type() == Item::FUNC_ITEM &&
         down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC) {
       expr->equijoin_conditions.push_back(down_cast<Item_func_eq *>(cond));
     } else {
       expr->join_conditions.push_back(cond);
     }
-
-    // TODO(sgunders): This does not really make much sense, but
-    // estimated_bytes_per_row doesn't make that much sense to begin with; it
-    // will depend on the join order. See if we can replace it with a per-table
-    // width calculation that we can sum up in the join optimizer.
-    expr->tables_in_subtree = cond->used_tables();
-    expr->nodes_in_subtree = GetNodeMapFromTableMap(
-        cond->used_tables() & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-    double selectivity = EstimateSelectivity(thd, cond, trace);
-    const size_t estimated_bytes_per_row =
-        EstimateRowWidthForJoin(*graph, expr);
-    graph->edges.push_back(JoinPredicate{
-        expr, selectivity, estimated_bytes_per_row,
-        /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
 
     // Make this predicate potentially sargable (cycle edges are always
     // simple equalities).
@@ -3206,6 +3245,22 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     }
     *trace += "\n";
   }
+
+#ifndef NDEBUG
+  {
+    // Verify we have no duplicate edges.
+    const vector<Hyperedge> &edges = graph->graph.edges;
+    for (size_t edge1_idx = 0; edge1_idx < edges.size(); ++edge1_idx) {
+      for (size_t edge2_idx = edge1_idx + 1; edge2_idx < edges.size();
+           ++edge2_idx) {
+        const Hyperedge &e1 = edges[edge1_idx];
+        const Hyperedge &e2 = edges[edge2_idx];
+        assert(e1.left != e2.left || e1.right != e2.right);
+      }
+    }
+  }
+
+#endif
 
   // Find TES and selectivity for each WHERE predicate that was not pushed
   // down earlier.
