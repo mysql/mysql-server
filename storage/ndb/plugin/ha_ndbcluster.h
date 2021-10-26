@@ -481,9 +481,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void release_metadata(NdbDictionary::Dictionary *dict,
                         bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
-  NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_num, const KEY *key_info,
-                                         bool primary) const;
+  NDB_INDEX_TYPE get_declared_index_type(uint index_num) const;
   bool has_null_in_unique_index(uint idx_no) const;
 
   bool check_if_pushable(int type,  // NdbQueryOperationDef::Type,

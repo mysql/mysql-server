@@ -1183,7 +1183,7 @@ void ha_ndbcluster::set_rec_per_key(THD *thd) {
   */
   for (uint i = 0; i < table_share->keys; i++) {
     KEY *const key_info = table->key_info + i;
-    switch (get_index_type(i)) {
+    switch (m_index[i].type) {
       case UNIQUE_INDEX:
       case PRIMARY_KEY_INDEX: {
         // Index is unique when all 'key_parts' are specified,
@@ -1228,8 +1228,8 @@ void ha_ndbcluster::set_rec_per_key(THD *thd) {
           // no fallback method...
           break;
         }
-      default:
-        assert(false);
+      case UNDEFINED_INDEX:  // index is currently unavailable
+        break;
     }
   }
 }
@@ -2180,6 +2180,7 @@ static bool check_same_order_in_index(const KEY *key_info,
 void NDB_INDEX_DATA::create_attrid_map(const KEY *key_info,
                                        const NdbDictionary::Index *index) {
   DBUG_TRACE;
+  assert(index);
   assert(!attrid_map);  // Should not already have been created
 
   if (key_info->user_defined_key_parts == 1) {
@@ -2227,7 +2228,7 @@ int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab,
 
   for (uint i = 0; i < tab->s->keys; i++, key_info++, key_name++) {
     const char *index_name = *key_name;
-    NDB_INDEX_TYPE idx_type = get_index_type_from_table(i);
+    NDB_INDEX_TYPE idx_type = get_declared_index_type(i);
     error = create_index(thd, index_name, key_info, idx_type, ndbtab);
     if (error) {
       DBUG_PRINT("error", ("Failed to create index %u", i));
@@ -2258,17 +2259,13 @@ static void ndb_protect_char(const char *from, char *to, uint to_length,
   to[tpos] = '\0';
 }
 
-/*
-  Associate a direct reference to an index handle
-  with an index (for faster access)
- */
 int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
                               const KEY *key_info, const char *key_name,
                               uint index_no) {
   DBUG_TRACE;
 
-  const NDB_INDEX_TYPE idx_type = get_index_type_from_table(index_no);
-  m_index[index_no].type = idx_type;
+  NDB_INDEX_TYPE idx_type = get_declared_index_type(index_no);
+  NDB_INDEX_DATA &index_data = m_index[index_no];
 
   char index_name[FN_LEN + 1];
   ndb_protect_char(key_name, index_name, sizeof(index_name) - 1, '/');
@@ -2276,38 +2273,76 @@ int ha_ndbcluster::open_index(NdbDictionary::Dictionary *dict,
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
     const NdbDictionary::Index *index =
         dict->getIndexGlobal(index_name, *m_table);
-    if (!index) ERR_RETURN(dict->getNdbError());
-    DBUG_PRINT("info",
-               ("index: %p  id: %d  version: %d.%d  status: %d", index,
-                index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
-                index->getObjectVersion() >> 24, index->getObjectStatus()));
-    assert(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
-    m_index[index_no].index = index;
+    if (index) {
+      DBUG_PRINT("info",
+                 ("index: %p  id: %d  version: %d.%d  status: %d", index,
+                  index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
+                  index->getObjectVersion() >> 24, index->getObjectStatus()));
+      assert(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
+      index_data.index = index;
+    } else {
+      const NdbError &err = dict->getNdbError();
+      if (err.code != 4243) ERR_RETURN(err);
+      // Index Not Found. Proceed with this index unavailable.
+    }
   }
 
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX) {
     char unique_index_name[FN_LEN + 1];
     static const char *unique_suffix = "$unique";
-    m_has_unique_index = true;
     strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
     DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
     const NdbDictionary::Index *index =
         dict->getIndexGlobal(unique_index_name, *m_table);
-    if (!index) ERR_RETURN(dict->getNdbError());
-    DBUG_PRINT("info",
-               ("index: %p  id: %d  version: %d.%d  status: %d", index,
-                index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
-                index->getObjectVersion() >> 24, index->getObjectStatus()));
-    assert(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
-    m_index[index_no].unique_index = index;
-
-    // Create attrid map for unique index
-    m_index[index_no].create_attrid_map(key_info, index);
+    if (index) {
+      DBUG_PRINT("info",
+                 ("index: %p  id: %d  version: %d.%d  status: %d", index,
+                  index->getObjectId(), index->getObjectVersion() & 0xFFFFFF,
+                  index->getObjectVersion() >> 24, index->getObjectStatus()));
+      assert(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
+      m_has_unique_index = true;
+      index_data.unique_index = index;
+      // Create attrid map for unique index
+      index_data.create_attrid_map(key_info, index);
+    } else {
+      const NdbError &err = dict->getNdbError();
+      if (err.code != 4243) ERR_RETURN(err);
+      // Index Not Found. Proceed with this index unavailable.
+    }
   }
+
+  /* Set type of index as actually opened */
+  switch (idx_type) {
+    case UNDEFINED_INDEX:
+      assert(false);
+      break;
+    case PRIMARY_KEY_INDEX:
+      break;
+    case PRIMARY_KEY_ORDERED_INDEX:
+      if (!index_data.index) idx_type = PRIMARY_KEY_INDEX;
+      break;
+    case UNIQUE_INDEX:
+      if (!index_data.unique_index) idx_type = UNDEFINED_INDEX;
+      break;
+    case UNIQUE_ORDERED_INDEX:
+      if (!(index_data.unique_index || index_data.index))
+        idx_type = UNDEFINED_INDEX;
+      else if (!index_data.unique_index)
+        idx_type = ORDERED_INDEX;
+      else if (!index_data.index)
+        idx_type = UNIQUE_INDEX;
+      break;
+    case ORDERED_INDEX:
+      if (!index_data.index) idx_type = UNDEFINED_INDEX;
+      break;
+  }
+  index_data.type = idx_type;
+
+  if (idx_type == UNDEFINED_INDEX) return 0;
 
   if (idx_type == PRIMARY_KEY_ORDERED_INDEX || idx_type == PRIMARY_KEY_INDEX) {
     // Create attrid map for primary key
-    m_index[index_no].create_attrid_map(key_info, m_table);
+    index_data.create_attrid_map(key_info, m_table);
   }
 
   return open_index_ndb_record(dict, key_info, index_no);
@@ -2624,24 +2659,30 @@ int ha_ndbcluster::inplace__drop_index(NdbDictionary::Dictionary *dict,
 }
 
 /**
-  Decode the type of an index from information
+  Decode the declared type of an index from information
   provided in table object.
 */
-NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_table(uint index_num) const {
-  return get_index_type_from_key(index_num, table_share->key_info,
-                                 index_num == table_share->primary_key);
-}
-
-NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint index_num,
-                                                      const KEY *key_info,
-                                                      bool primary) const {
+NDB_INDEX_TYPE get_index_type_from_key(uint index_num, const KEY *key_info,
+                                       bool primary) {
   const bool is_hash_index = (key_info[index_num].algorithm == HA_KEY_ALG_HASH);
   if (primary)
     return is_hash_index ? PRIMARY_KEY_INDEX : PRIMARY_KEY_ORDERED_INDEX;
 
-  return ((key_info[index_num].flags & HA_NOSAME)
-              ? (is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX)
-              : ORDERED_INDEX);
+  if (!(key_info[index_num].flags & HA_NOSAME)) return ORDERED_INDEX;
+
+  return is_hash_index ? UNIQUE_INDEX : UNIQUE_ORDERED_INDEX;
+}
+
+inline NDB_INDEX_TYPE ha_ndbcluster::get_declared_index_type(uint idxno) const {
+  return get_index_type_from_key(idxno, table_share->key_info,
+                                 idxno == table_share->primary_key);
+}
+
+/* Return the actual type of the index as currently available
+ */
+inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
+  assert(idx_no < MAX_KEY);
+  return m_index[idx_no].type;
 }
 
 void ha_ndbcluster::release_metadata(NdbDictionary::Dictionary *dict,
@@ -2692,36 +2733,6 @@ static inline NdbOperation::LockMode get_ndb_lock_mode(
   return NdbOperation::LM_CommittedRead;
 }
 
-static const ulong index_type_flags[] = {
-    /* UNDEFINED_INDEX */
-    0,
-
-    /* PRIMARY_KEY_INDEX */
-    HA_ONLY_WHOLE_INDEX,
-
-    /* PRIMARY_KEY_ORDERED_INDEX */
-    /*
-       Enable HA_KEYREAD_ONLY when "sorted" indexes are supported,
-       thus ORDER BY clauses can be optimized by reading directly
-       through the index.
-    */
-    // HA_KEYREAD_ONLY |
-    HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER,
-
-    /* UNIQUE_INDEX */
-    HA_ONLY_WHOLE_INDEX | HA_TABLE_SCAN_ON_NULL,
-
-    /* UNIQUE_ORDERED_INDEX */
-    HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER,
-
-    /* ORDERED_INDEX */
-    HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER};
-
-NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
-  assert(idx_no < MAX_KEY);
-  return m_index[idx_no].type;
-}
-
 inline bool ha_ndbcluster::has_null_in_unique_index(uint idx_no) const {
   assert(idx_no < MAX_KEY);
   return m_index[idx_no].null_in_unique_index;
@@ -2730,16 +2741,44 @@ inline bool ha_ndbcluster::has_null_in_unique_index(uint idx_no) const {
 /**
   Get the flags for an index.
 
-  @return
-    flags depending on the type of the index.
+  The index currently available in NDB may differ from the one defined in the
+  data dictionary, if ndb_restore or ndb_drop_index has caused some component
+  of it to be dropped.
+
+  Generally, index_flags() is called after the table has been open, so that the
+  NdbDictionary::Table pointer in m_table is non-null, and index_flags()
+  can return the flags for the index as actually available.
+
+  But in a small number of cases index_flags() is called without an open table.
+  This happens in CREATE TABLE, where index_flags() is called from
+  setup_key_part_field(). It also happens in DD code as discussed in a
+  long comment at fill_dd_indexes_from_keyinfo() in dd_table.cc. And it can
+  happen as the result of an information_schema or SHOW query. In these cases
+  index_flags() returns the flags for the index as declared in the dictionary.
 */
 
-inline ulong ha_ndbcluster::index_flags(uint idx_no, uint, bool) const {
-  DBUG_TRACE;
-  DBUG_PRINT("enter", ("idx_no: %u", idx_no));
-  const NDB_INDEX_TYPE index_type = get_index_type_from_table(idx_no);
-  assert(index_type < array_elements(index_type_flags));
-  return index_type_flags[index_type] | HA_KEY_SCAN_NOT_ROR;
+ulong ha_ndbcluster::index_flags(uint idx_no, uint, bool) const {
+  const NDB_INDEX_TYPE index_type =
+      m_table ? get_index_type(idx_no) : get_declared_index_type(idx_no);
+
+  switch (index_type) {
+    case UNDEFINED_INDEX:
+      return 0;
+
+    case PRIMARY_KEY_INDEX:
+      return HA_ONLY_WHOLE_INDEX;
+
+    case UNIQUE_INDEX:
+      return HA_ONLY_WHOLE_INDEX | HA_TABLE_SCAN_ON_NULL;
+
+    case PRIMARY_KEY_ORDERED_INDEX:
+    case UNIQUE_ORDERED_INDEX:
+    case ORDERED_INDEX:
+      return HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER |
+             HA_KEY_SCAN_NOT_ROR;
+  }
+  assert(false);  // unreachable
+  return 0;
 }
 
 bool ha_ndbcluster::primary_key_is_clustered() const {
@@ -2754,8 +2793,7 @@ bool ha_ndbcluster::primary_key_is_clustered() const {
     (for which there is IO to read data when scanning index)
     but that will need to be handled later...
   */
-  const NDB_INDEX_TYPE idx_type =
-      get_index_type_from_table(table->s->primary_key);
+  const NDB_INDEX_TYPE idx_type = m_index[table->s->primary_key].type;
   return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
           idx_type == UNIQUE_ORDERED_INDEX || idx_type == ORDERED_INDEX);
 }
@@ -3513,8 +3551,6 @@ const NdbOperation *ha_ndbcluster::pk_unique_index_read_key(
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent = 0;
   NdbOperation::GetValueSpec gets[2];
-  const NDB_INDEX_TYPE idx_type =
-      (idx != MAX_KEY) ? get_index_type(idx) : UNDEFINED_INDEX;
 
   assert(m_thd_ndb->trans);
 
@@ -3561,23 +3597,14 @@ const NdbOperation *ha_ndbcluster::pk_unique_index_read_key(
   /* Perform 'empty update' to mark the read in the binlog, iff required */
   /*
    * Lock_mode = exclusive
-   * Index = primary or unique
+   * Index = primary or unique (always true inside this method)
+   * Index is not the hidden primary key
    * Session_state = marking_exclusive_reads
    * THEN
    * issue updateTuple with AnyValue explicitly set
    */
-  if ((lm == NdbOperation::LM_Exclusive) &&
-      /*
-        We don't need to check index type
-        (idx_type == PRIMARY_KEY_INDEX ||
-        idx_type == PRIMARY_KEY_ORDERED_INDEX ||
-        idx_type == UNIQUE_ORDERED_INDEX ||
-        idx_type == UNIQUE_INDEX)
-        since this method is only invoked for
-        primary or unique indexes, but we do need to check
-        if it was a hidden primary key.
-      */
-      idx_type != UNDEFINED_INDEX && THDVAR(current_thd, log_exclusive_reads)) {
+  if ((lm == NdbOperation::LM_Exclusive) && idx != MAX_KEY &&
+      THDVAR(current_thd, log_exclusive_reads)) {
     if (log_exclusive_read(key_rec, key, buf, ppartition_id) != 0) return NULL;
   }
 
@@ -6218,9 +6245,22 @@ static void get_default_value(void *def_val, Field *field) {
   }
 }
 
+static inline int fail_index_offline(TABLE *t, int index) {
+  KEY *key_info = t->key_info + index;
+  push_warning_printf(
+      t->in_use, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
+      "Index %s is not available in NDB. Use \"ALTER TABLE %s ALTER INDEX %s "
+      "INVISIBLE\" to prevent MySQL from attempting to access it, or use "
+      "\"ndb_restore --rebuild-indexes\" to rebuild it.",
+      key_info->name, t->s->table_name.str, key_info->name);
+  return HA_ERR_CRASHED;
+}
+
 int ha_ndbcluster::index_init(uint index, bool sorted) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("index: %u  sorted: %d", index, sorted));
+  if (index < MAX_KEY && m_index[index].type == UNDEFINED_INDEX)
+    return fail_index_offline(table, index);
   active_index = index;
   m_sorted = sorted;
   /*
@@ -6313,6 +6353,8 @@ int ha_ndbcluster::index_prev(uchar *buf) {
 
 int ha_ndbcluster::index_first(uchar *buf) {
   DBUG_TRACE;
+  if (!m_index[active_index].index)
+    return fail_index_offline(table, active_index);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
@@ -6323,6 +6365,8 @@ int ha_ndbcluster::index_first(uchar *buf) {
 
 int ha_ndbcluster::index_last(uchar *buf) {
   DBUG_TRACE;
+  if (!m_index[active_index].index)
+    return fail_index_offline(table, active_index);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   const int error = ordered_index_scan(0, 0, m_sorted, true, buf, NULL);
   return error;
@@ -12806,6 +12850,8 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
   const NDB_INDEX_TYPE idx_type = get_index_type(inx);
 
   DBUG_TRACE;
+
+  if (idx_type == UNDEFINED_INDEX) return HA_POS_ERROR;  // index is offline
 
   if (key_info->flags & HA_NOSAME) {  // 0)
     // Is a potential single row lookup operation.

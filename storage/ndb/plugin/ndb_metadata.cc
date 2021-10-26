@@ -1491,9 +1491,17 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     //            static_cast<unsigned long long>(index2->type()));
 
     // Algorithm
-    ctx.compare(Compare_context::INDEX, index_name, "algorithm",
-                static_cast<unsigned long long>(index1->algorithm()),
-                static_cast<unsigned long long>(index2->algorithm()));
+
+    /*
+      CREATE TABLE t1 (a int primary key, b int, unique(b)) engine=ndb;
+      This creates two indexes "b" and "b$unique". If someone uses ndb_restore
+      or ndb_drop_index to drop one or the other of "b" and "b$unique" (but not
+      both), this test will fail.  In general, post-bug#28584066, DD and NDB
+      are not required to agree about indexes.
+    */
+    // ctx.compare(Compare_context::INDEX, index_name, "algorithm",
+    //             static_cast<unsigned long long>(index1->algorithm()),
+    //             static_cast<unsigned long long>(index2->algorithm()));
 
     // Explicit algorithm
     /*

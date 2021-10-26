@@ -22,11 +22,11 @@ Tables_in_test
 t1
 Drop the table using ndb_drop_table
 SHOW CREATE TABLE t1;
-ERROR HY000: Got error 4243 'Index not found' from NDBCLUSTER
+ERROR HY000: Table definition has changed, please retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1296	Got error 4243 'Index not found' from NDB
-Error	1296	Got error 4243 'Index not found' from NDBCLUSTER
+Warning	1296	Got error 284 'Table not defined in transaction coordinator' from NDB
+Error	1412	Table definition has changed, please retry transaction
 DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
