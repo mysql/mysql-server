@@ -204,7 +204,6 @@ usr/lib/mysql/plugin/debug/keyring_oci.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
-usr/lib/mysql/plugin/debug/component_test_page_track_component.so
 usr/lib/mysql/plugin/debug/authentication_fido.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 ")
@@ -216,6 +215,7 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
   ENDIF()
   SET (DEB_INSTALL_DEBUG_TEST_PLUGINS "${DEB_INSTALL_DEBUG_TEST_PLUGINS}
 usr/lib/mysql/plugin/debug/component_test_global_priv_registration.so
+usr/lib/mysql/plugin/debug/component_test_page_track_component.so
 ")
 
 ENDIF()

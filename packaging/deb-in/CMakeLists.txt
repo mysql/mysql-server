@@ -107,10 +107,14 @@ usr/lib/mysql/plugin/keyring_oci.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
-usr/lib/mysql/plugin/component_test_page_track_component.so
-usr/lib/mysql/plugin/component_test_global_priv_registration.so
 usr/lib/mysql/plugin/authentication_fido.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
+")
+
+   SET (DEB_INSTALL_TEST_PLUGINS
+"
+usr/lib/mysql/plugin/component_test_global_priv_registration.so
+usr/lib/mysql/plugin/component_test_page_track_component.so
 ")
 
   IF (DEB_AWS_SDK)
