@@ -1257,6 +1257,8 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
   jam();
   Ptr<SubOpRecord> subOpPtr;
 
+  ndbrequire(nodeId < MAX_NODES);
+
   if (c_outstanding_drop_trig_req > NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL)
   {
     /* Avoid overflowing DbtupProxy with too many GSN_DROP_TRIG_IMPL_REQs */
