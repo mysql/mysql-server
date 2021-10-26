@@ -1,0 +1,240 @@
+## Test of general functionality of prepare statement crud find message
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_crud_find.xpl
+-->quiet
+
+-->macro Insert  %NAME%  %VALUE%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%NAME%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->endmacro
+
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"expr"}
+-->recvresult
+
+-->callmacro Insert	expr	'{"_id":"0000616daea30000000000000001", "name": "foo"}'
+-->callmacro Insert	expr	'{"_id":"0000616daea30000000000000002", "name": "bar"}'
+-->callmacro Insert	expr	'{"_id":"0000616daea30000000000000003", "name": "buz"}'
+
+-->echo
+-->echo ## x. Prepare find with OP in [==, !=, <, <=, >, >=]
+-->echo #   a. Try to execute (no params)
+-->echo #   b. Execute with ...001
+-->echo #   c. Execute with ...002
+-->echo #   d. Execute with ...003
+-->echo #   e. Deallocate
+-->echo
+
+-->macro PrepareFindIdOpPlaceHolder  %ID%  %OP%
+-->title =Stmt %ID%: Prepare find with '_id %OP% ?'
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: %ID%
+  stmt: {
+    type: FIND
+    find: {
+      collection {
+        schema: "xtest",
+        name: "expr"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "%OP%"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "_id"
+              }
+            }
+          }
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+-->endmacro
+
+
+-->macro PrepareFindPlaceHolderOpId  %ID%  %OP%
+-->title =Stmt %ID%: Prepare find with '? %OP% _id'
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: %ID%
+  stmt: {
+    type: FIND
+    find: {
+      collection {
+        schema: "xtest",
+        name: "expr"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "%OP%"
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "_id"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+-->endmacro
+
+-->macro ExecuteNoArgs %ID%
+-->title =Stmt %ID%.a. Try to execute (no params)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: %ID%
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY
+-->recvresult
+-->endmacro
+
+-->macro Execute %ID% %OP% %VAL%
+-->title =Stmt %ID%.b. Execute %OP% with %VAL%
+
+Mysqlx.Prepare.Execute {
+  stmt_id: %ID%
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: %VAL%
+      }
+    }
+  }
+}
+-->recvresult
+-->endmacro
+
+-->macro Deallocate %ID%
+-->title =Stmt %ID%.d. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: %ID%
+}
+-->recvok
+-->endmacro
+
+-->macro Find  %ID%  %OP%
+-->callmacro PrepareFindPlaceHolderOpId	%ID%	%OP%
+-->callmacro ExecuteNoArgs	%ID%
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000001'
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000002'
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000003'
+-->callmacro Deallocate	%ID%
+
+-->callmacro PrepareFindIdOpPlaceHolder	%ID%	%OP%
+-->callmacro ExecuteNoArgs	%ID%
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000001'
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000002'
+-->callmacro Execute	%ID%	%OP%	'0000616daea30000000000000003'
+-->callmacro Deallocate	%ID%
+-->endmacro
+
+
+-->callmacro Find	1	==
+-->callmacro Find	2	!=
+-->callmacro Find	3	>
+-->callmacro Find	4	>=
+-->callmacro Find	5	<
+-->callmacro Find	6	<=
+EOF
+
+
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
+exec $MYSQLXTEST
+  -ux_root --password='' --schema=xtest
+  --file=$MYSQL_TMP_DIR/prep_stmt_crud_find.xpl 2>&1;
+
+## running the prepared statements via classic-protocol
+## should result in the same results as the xprotocol
+## Crud::Find statements
+
+SET @id1 = '0000616daea30000000000000001',
+  @id2 = '0000616daea30000000000000002',
+  @id3 = '0000616daea30000000000000003';
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) = ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) != ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) > ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) >= ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) < ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+PREPARE s1 FROM "SELECT doc FROM xtest.expr WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) <= ?";
+EXECUTE s1 using @id1;
+EXECUTE s1 using @id2;
+EXECUTE s1 using @id3;
+DEALLOCATE PREPARE s1;
+
+## Cleanup
+--source ../include/xplugin_cleanup.inc
