@@ -3231,6 +3231,7 @@ Ndbcntr::wait_sp_rep(Signal* signal)
     return;
   }
 
+  ndbrequire(rep.nodeId < NDB_ARRAY_SIZE(c_start.m_wait_sp));
   c_start.m_wait_sp[rep.nodeId] = rep.sp;
 
   /**
