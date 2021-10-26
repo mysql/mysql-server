@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2822,6 +2822,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     Uint32 list = 0;
     if (signal->getLength() > 1)
       list = signal->theData[1];
+
+    if (list >= Page_entry::SUBLIST_COUNT)
+    {
+      return;
+    }
 
     Page_sublist& pl = *m_page_sublist[list];
     Ptr<Page_entry> ptr;
