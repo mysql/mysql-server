@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25542,6 +25542,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     Uint32 record = signal->theData[2];
     Uint32 len = signal->getLength();
     TcConnectionrecPtr tcRec;
+    ndbrequire(bucket < NDB_ARRAY_SIZE(ctransidHash));
+
     if (record != RNIL)
     {
       jam();
