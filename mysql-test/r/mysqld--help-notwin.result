@@ -10,7 +10,8 @@ The following options may be given as the first argument:
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
- replication.
+ replication.This option is deprecated and will be removed
+ in a future version. 
  --activate-all-roles-on-login 
  Automatically set all granted roles as active after the
  user has authenticated successfully.
@@ -333,7 +334,8 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-disconnect-on-expired-password to disable.)
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
- replication.
+ replication.This option is deprecated and will be removed
+ in a future version.
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value

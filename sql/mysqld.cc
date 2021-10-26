@@ -8542,8 +8542,9 @@ struct my_option my_long_early_options[] = {
 */
 
 struct my_option my_long_options[] = {
-    {"abort-slave-event-count", 0,
-     "Option used by mysql-test for debugging and testing of replication.",
+    {"abort-slave-event-count", OPT_ABORT_SLAVE_EVENT_COUNT,
+     "Option used by mysql-test for debugging and testing of replication."
+     "This option is deprecated and will be removed in a future version. ",
      &abort_slave_event_count, &abort_slave_event_count, nullptr, GET_INT,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"allow-suspicious-udfs", 0,
@@ -8612,8 +8613,9 @@ struct my_option my_long_options[] = {
     {"default-time-zone", 0, "Set the default time zone.", &default_tz_name,
      &default_tz_name, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"disconnect-slave-event-count", 0,
-     "Option used by mysql-test for debugging and testing of replication.",
+    {"disconnect-slave-event-count", OPT_DISCONNECT_SLAVE_EVENT_COUNT,
+     "Option used by mysql-test for debugging and testing of replication."
+     "This option is deprecated and will be removed in a future version.",
      &disconnect_slave_event_count, &disconnect_slave_event_count, nullptr,
      GET_INT, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"exit-info", 'T', "Used for debugging. Use at your own risk.", nullptr,
@@ -10457,6 +10459,13 @@ bool mysqld_get_one_option(int optid,
     case OPT_TRANSACTION_WRITE_SET_EXTRACTION:
       push_deprecated_warn_no_replacement(nullptr,
                                           "--transaction-write-set-extraction");
+      break;
+    case OPT_DISCONNECT_SLAVE_EVENT_COUNT:
+      push_deprecated_warn_no_replacement(nullptr,
+                                          "--disconnect-slave-event-count");
+      break;
+    case OPT_ABORT_SLAVE_EVENT_COUNT:
+      push_deprecated_warn_no_replacement(nullptr, "--abort-slave-event-count");
   }
   return false;
 }

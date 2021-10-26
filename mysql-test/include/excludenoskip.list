@@ -217,6 +217,8 @@ have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
 have_transaction_write_set_extraction.inc
+have_default_replica_transaction_retries.inc
+have_default_slave_rows_search_algorithms.inc
 
 #14.3 Some replication tests cannot run with GTID_ONLY == 1
 not_rpl_gtid_only.inc
