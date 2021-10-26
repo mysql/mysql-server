@@ -2921,6 +2921,11 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() > 1)
       list = signal->theData[1];
 
+    if (list >= Page_entry::SUBLIST_COUNT)
+    {
+      return;
+    }
+
     Page_sublist& pl = *m_page_sublist[list];
     Ptr<Page_entry> ptr;
     

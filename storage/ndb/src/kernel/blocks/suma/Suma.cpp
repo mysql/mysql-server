@@ -1239,6 +1239,8 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
 {
   jam();
 
+  ndbrequire(nodeId < MAX_NODES);
+
   Ptr<Gcp_record> gcp;
   if (c_gcp_list.first(gcp))
   {
@@ -1300,6 +1302,8 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 {
   jam();
   Ptr<SubOpRecord> subOpPtr;
+
+  ndbrequire(nodeId < MAX_NODES);
 
   if (c_outstanding_drop_trig_req > NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL)
   {

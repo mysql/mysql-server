@@ -883,6 +883,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   Uint32 start_type = ~0;
   NdbNodeBitmask skip_nodes;
 
+  ndbrequire(cmRegReq->nodeId < MAX_NODES);
+
   if (!c_connectedNodes.get(cmRegReq->nodeId))
   {
     jam();

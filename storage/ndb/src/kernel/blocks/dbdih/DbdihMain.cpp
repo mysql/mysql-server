@@ -19676,7 +19676,7 @@ void Dbdih::copyTableLab(Signal* signal, Uint32 tableId)
 {
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
-  ptrAss(tabPtr, tabRecord);
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   ndbrequire(tabPtr.p->tabCopyStatus == TabRecord::CS_IDLE);
   tabPtr.p->tabCopyStatus = TabRecord::CS_SR_PHASE2_READ_TABLE;
@@ -22918,6 +22918,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
     jam();
     return;
   }
+
+  ndbrequire(q < NDB_ARRAY_SIZE(c_diverify_queue));
 
   if (!isEmpty(c_diverify_queue[q]))
   {
