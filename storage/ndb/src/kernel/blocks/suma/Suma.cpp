@@ -1195,6 +1195,8 @@ Suma::api_fail_gci_list(Signal* signal, Uint32 nodeId)
 {
   jam();
 
+  ndbrequire(nodeId < MAX_NODES);
+
   Ptr<Gcp_record> gcp;
   if (c_gcp_list.first(gcp))
   {
