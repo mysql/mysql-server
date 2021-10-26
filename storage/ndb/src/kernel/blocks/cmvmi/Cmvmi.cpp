@@ -375,6 +375,8 @@ void Cmvmi::execSET_LOGLEVELORD(Signal* signal)
   Uint32 level;
   jamEntry();
 
+  ndbrequire(llOrd->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
+
   for(unsigned int i = 0; i<llOrd->noOfEntries; i++){
     category = (LogLevel::EventCategory)(llOrd->theData[i] >> 16);
     level = llOrd->theData[i] & 0xFFFF;
