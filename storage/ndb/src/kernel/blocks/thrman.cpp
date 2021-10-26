@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,6 +203,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     Uint32 arr[NO_OF_BLOCKS];
     Uint32 len = mt_get_blocklist(this, arr, NDB_ARRAY_SIZE(arr));
     Uint32 pos = cursor->data[0];
+    ndbrequire(pos < NDB_ARRAY_SIZE(arr));
     for (; ; )
     {
       Ndbinfo::Row row(signal, req);
