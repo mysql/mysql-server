@@ -75,7 +75,7 @@ ibool ib_wqueue_is_empty(
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
     /* out: work item or NULL on timeout*/
-    ib_wqueue_t *wq,          /* in: work queue */
-    ib_time_t wait_in_usecs); /* in: wait time in micro seconds */
+    ib_wqueue_t *wq,                 /* in: work queue */
+    std::chrono::microseconds wait); /* in: wait time */
 
 #endif /* IB_WORK_QUEUE_H */

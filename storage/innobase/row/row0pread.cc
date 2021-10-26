@@ -781,8 +781,6 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
   dberr_t err{DB_SUCCESS};
   dberr_t cb_err{DB_SUCCESS};
 
-  constexpr auto FOREVER = OS_SYNC_INFINITE_TIME;
-
   if (m_start_callback) {
     /* Thread start. */
     thread_ctx->m_state = State::THREAD;
@@ -798,7 +796,8 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
   abort the operation if there are not enough resources to spawn all the
   threads. */
   if (!m_sync) {
-    os_event_wait_time_low(m_event, FOREVER, m_sig_count);
+    os_event_wait_time_low(m_event, std::chrono::microseconds::max(),
+                           m_sig_count);
   }
 
   for (;;) {
@@ -867,7 +866,8 @@ void Parallel_reader::worker(Parallel_reader::Thread_ctx *thread_ctx) {
     }
 
     if (!m_sync) {
-      os_event_wait_time_low(m_event, FOREVER, sig_count);
+      os_event_wait_time_low(m_event, std::chrono::microseconds::max(),
+                             sig_count);
     }
   }
 

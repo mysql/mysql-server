@@ -235,7 +235,7 @@ sync_cell_t *sync_array_reserve_cell(
 
   cell->thread_id = std::this_thread::get_id();
 
-  cell->reservation_time = ut_time_monotonic();
+  cell->reservation_time = std::chrono::steady_clock::now();
 
   /* Make sure the event is reset and also store the value of
   signal_count at which the event was reset. */
@@ -339,10 +339,14 @@ void sync_array_cell_print(FILE *file, sync_cell_t *cell) {
   type = cell->request_type;
 
   fprintf(file,
-          "--Thread %s has waited at %s line " ULINTPF " for " UINT64PF
+          "--Thread %s has waited at %s line " ULINTPF " for %" PRId64
           " seconds the semaphore:\n",
           to_string(cell->thread_id).c_str(), innobase_basename(cell->file),
-          cell->line, (uint64_t)(ut_time_monotonic() - cell->reservation_time));
+          cell->line,
+          static_cast<int64_t>(
+              std::chrono::duration_cast<std::chrono::seconds>(
+                  std::chrono::steady_clock::now() - cell->reservation_time)
+                  .count()));
 
   if (type == SYNC_MUTEX) {
     WaitMutex *mutex = cell->latch.mutex;
@@ -860,9 +864,9 @@ static bool sync_array_print_long_waits_low(
     const void **sema,       /*!< out: longest-waited-for semaphore */
     ibool *noticed)          /*!< out: TRUE if long wait noticed */
 {
-  ulint fatal_timeout = srv_fatal_semaphore_wait_threshold;
   bool fatal = false;
-  uint64_t longest_diff = 0;
+  std::chrono::steady_clock::duration longest_diff{};
+  auto fatal_timeout = get_srv_fatal_semaphore_wait_threshold();
 
   /* For huge tables, skip the check during CHECK TABLE etc... */
   if (0 < srv_fatal_semaphore_wait_extend.load()) {
@@ -875,10 +879,10 @@ static bool sync_array_print_long_waits_low(
   we are running under valgrind but we have no better way to tell.
   See Bug#58432 innodb.innodb_bug56143 fails under valgrind
   for an example */
-#define SYNC_ARRAY_TIMEOUT 2400
+  constexpr std::chrono::minutes timeout{40};
   fatal_timeout *= 10;
 #else
-#define SYNC_ARRAY_TIMEOUT 240
+  constexpr std::chrono::minutes timeout{4};
 #endif
 
   for (ulint i = 0; i < arr->next_free_slot; i++) {
@@ -893,11 +897,10 @@ static bool sync_array_print_long_waits_low(
       continue;
     }
 
-    const auto time_diff = ut_time_monotonic() - cell->reservation_time;
+    const auto time_diff =
+        std::chrono::steady_clock::now() - cell->reservation_time;
 
-    const uint64_t diff = time_diff > 0 ? (uint64_t)time_diff : 0;
-
-    if (diff > SYNC_ARRAY_TIMEOUT) {
+    if (time_diff > timeout) {
 #ifdef UNIV_NO_ERR_MSGS
       ib::warn()
 #else
@@ -909,18 +912,16 @@ static bool sync_array_print_long_waits_low(
       *noticed = TRUE;
     }
 
-    if (diff > fatal_timeout) {
+    if (time_diff > fatal_timeout) {
       fatal = true;
     }
 
-    if (diff > longest_diff) {
-      longest_diff = diff;
+    if (longest_diff < time_diff) {
+      longest_diff = time_diff;
       *sema = latch;
       *waiter = cell->thread_id;
     }
   }
-
-#undef SYNC_ARRAY_TIMEOUT
 
   return fatal;
 }

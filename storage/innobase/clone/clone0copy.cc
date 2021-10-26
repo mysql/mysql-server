@@ -1274,14 +1274,15 @@ int Clone_Handle::send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
   return (err);
 }
 
-void Clone_Handle::display_progress(uint32_t cur_chunk, uint32_t max_chunk,
-                                    uint32_t &percent_done,
-                                    ib_time_monotonic_ms_t &disp_time) {
-  auto current_time = ut_time_monotonic_ms();
+void Clone_Handle::display_progress(
+    uint32_t cur_chunk, uint32_t max_chunk, uint32_t &percent_done,
+    std::chrono::steady_clock::time_point &disp_time) {
+  auto current_time = std::chrono::steady_clock::now();
   auto current_percent = (cur_chunk * 100) / max_chunk;
 
   if (current_percent >= percent_done + 20 ||
-      (current_time - disp_time > 5000 && current_percent > percent_done)) {
+      (current_time - disp_time > std::chrono::seconds{5} &&
+       current_percent > percent_done)) {
     percent_done = current_percent;
     disp_time = current_time;
 
@@ -1339,7 +1340,7 @@ int Clone_Handle::copy(THD *thd, uint task_id, Ha_clone_cbk *callback) {
 
   /* Set time values for tracking stage progress. */
 
-  auto disp_time = ut_time_monotonic_ms();
+  auto disp_time = std::chrono::steady_clock::now();
 
   /* Loop and process data until snapshot is moved to DONE state. */
   uint32_t percent_done = 0;
@@ -1396,7 +1397,7 @@ int Clone_Handle::copy(THD *thd, uint task_id, Ha_clone_cbk *callback) {
 
       max_chunks = snapshot->get_num_chunks();
       percent_done = 0;
-      disp_time = ut_time_monotonic_ms();
+      disp_time = std::chrono::steady_clock::now();
 
       /* Send state metadata before processing chunks. */
       err = send_state_metadata(task, callback, true);

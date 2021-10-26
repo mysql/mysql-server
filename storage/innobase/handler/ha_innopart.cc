@@ -3528,8 +3528,9 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
           return error;
         }
       }
-      stats.update_time =
-          std::max(stats.update_time, ulong(ib_table->update_time));
+      stats.update_time = std::max(stats.update_time,
+                                   ulong(std::chrono::system_clock::to_time_t(
+                                       ib_table->update_time.load())));
     }
 
     if (is_analyze || innobase_stats_on_metadata) {

@@ -500,7 +500,7 @@ static bool timeout(bool (*wait_condition)()) {
     os_event_t consume_event = redo_log_archive_consume_event;
     mutex_exit(&redo_log_archive_admin_mutex);
     // Use 0.125 seconds as it can be accurately represented by "float".
-    os_event_wait_time(consume_event, 125000);  // 0.125 second
+    os_event_wait_time(consume_event, std::chrono::milliseconds{125});
     seconds_to_wait -= 0.125f;
     os_event_reset(consume_event);
     mutex_enter(&redo_log_archive_admin_mutex);

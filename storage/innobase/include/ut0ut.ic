@@ -122,41 +122,58 @@ static inline ulint ut_2_log(ulint n) /*!< in: number != 0 */
 @return 2 to power n */
 static inline uint32_t ut_2_exp(uint32_t n) { return (1 << n); }
 
+namespace ut {
+/** Delays execution for at most max_wait or returns earlier if cond becomes
+true.
+@param cond in: condition to wait for; evaluated every 2 ms
+@param max_wait in: maximum delay to wait
+@return Returns true if condition have evaluated to true, false on timeout. */
+template <typename TCondition>
+bool wait_for(TCondition cond, std::chrono::steady_clock::duration max_wait) {
+  const auto start = std::chrono::steady_clock::now();
+  while (!cond()) {
+    const auto diff = std::chrono::steady_clock::now() - start;
+    if (max_wait <= std::chrono::seconds::zero() || diff > max_wait) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  }
+  return true;
+}
+
 #ifndef UNIV_HOTBACKUP
 /** Waits in loop until given condition is satisfied. It starts waiting
 using spin loop with pauses and after reaching maximum iterations, it
 switches to loop with sleeps. The sleep time is multiplied by two after
 every k-sleeps, until it reaches 100ms (starting at provided value).
 @param[in]	spins_limit		maximum iterations without sleep
-@param[in]	sleep			initial sleep time in microseconds
-@param[in]	condition		returns true when condition is
-                                        satisfied
+@param[in]	sleep			initial sleep time
+@param[in]	condition		returns true when condition is satisfied
 @return		number of loops with sleep that have been used */
 template <typename Condition>
-inline static Wait_stats ut_wait_for(uint64_t spins_limit, uint64_t sleep,
-                                     Condition condition = {}) {
+inline static Wait_stats wait_for(uint64_t spins_limit,
+                                  std::chrono::microseconds sleep,
+                                  Condition condition = {}) {
   uint64_t sleeps = 0, spins = 0;
 #ifdef _WIN32
-  uint64_t next_level = 64;
+  constexpr uint64_t base_level = 64;
 #else
-  uint64_t next_level = 4;
+  constexpr uint64_t base_level = 4;
 #endif
+  uint64_t next_level = 64;
 
   while (!condition(spins == spins_limit)) {
     if (spins == spins_limit) {
       ++sleeps;
 
       if (sleeps == next_level) {
-        sleep = std::min(sleep * 2, uint64_t{100 * 1000});
+        sleep = std::min<std::chrono::microseconds>(
+            sleep * 2, std::chrono::milliseconds{100});
 
-#ifdef _WIN32
-        next_level += 64;
-#else
-        next_level += 4;
-#endif
+        next_level += base_level;
       }
 
-      std::this_thread::sleep_for(std::chrono::microseconds(sleep));
+      std::this_thread::sleep_for(sleep);
 
     } else {
       ++spins;
@@ -169,3 +186,5 @@ inline static Wait_stats ut_wait_for(uint64_t spins_limit, uint64_t sleep,
 }
 
 #endif /* !UNIV_HOTBACKUP */
+
+}  // namespace ut

@@ -116,6 +116,9 @@ fil_space_t *log_space;
 
 extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 
+extern ulong srv_log_checkpoint_every;
+extern ulong srv_log_wait_for_flush_timeout;
+
 static bool log_test_general_init() {
   ut_new_boot_safe();
 
@@ -131,7 +134,7 @@ static bool log_test_general_init() {
   srv_log_wait_for_flush_timeout = 100000;
   srv_log_write_max_size = 4096;
   srv_log_writer_spin_delay = 25000;
-  srv_log_checkpoint_every = 1000000000;
+  srv_log_checkpoint_every = INNODB_LOG_CHECKPOINT_EVERY_DEFAULT;
   srv_log_flusher_spin_delay = 25000;
   srv_log_write_notifier_spin_delay = 0;
   srv_log_flush_notifier_spin_delay = 0;

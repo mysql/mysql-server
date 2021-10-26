@@ -730,7 +730,7 @@ static void dict_stats_update_transient(
   table->stat_sum_of_other_index_sizes =
       sum_of_index_sizes - index->stat_index_size;
 
-  table->stats_last_recalc = ut_time_monotonic();
+  table->stats_last_recalc = std::chrono::steady_clock::now();
 
   table->stat_modified_counter = 0;
 
@@ -744,15 +744,15 @@ Wait time estimation is based on the last call of this function when not exist.
 Can be updated by this function if no waiter found now.
 @return true if long waiters exist */
 static bool dict_stats_index_long_waiters(
-    dict_index_t *index, ib_time_monotonic_t &wait_start_time) {
+    dict_index_t *index,
+    std::chrono::steady_clock::time_point &wait_start_time) {
   if (rw_lock_get_waiters(dict_index_get_lock(index))) {
-    const uint64_t diff =
-        std::max(ut_time_monotonic() - wait_start_time, (ib_time_monotonic_t)0);
+    const auto diff = std::chrono::steady_clock::now() - wait_start_time;
 
-    return diff > srv_fatal_semaphore_wait_threshold / 2;
+    return diff > get_srv_fatal_semaphore_wait_threshold() / 2;
   } else {
     /* estimated long wait not started yet. updates wait_start_time. */
-    wait_start_time = ut_time_monotonic();
+    wait_start_time = std::chrono::steady_clock::now();
 
     return false;
   }
@@ -796,7 +796,7 @@ static bool dict_stats_analyze_index_level(
     ib_uint64_t *total_pages,        /*!< out: total number of pages */
     boundaries_t *n_diff_boundaries, /*!< out: boundaries of the groups
                                    of distinct keys */
-    ib_time_monotonic_t &wait_start_time,
+    std::chrono::steady_clock::time_point &wait_start_time,
     /*!< in/out: last known time index lock wasn't awaited. */
     mtr_t *mtr) /*!< in/out: mini-transaction */
 {
@@ -1421,8 +1421,8 @@ awaited.
 @return false if aborted */
 static bool dict_stats_analyze_index_for_n_prefix(
     dict_index_t *index, ulint n_prefix, const boundaries_t *boundaries,
-    n_diff_data_t *n_diff_data, ib_time_monotonic_t &wait_start_time,
-    mtr_t *mtr) {
+    n_diff_data_t *n_diff_data,
+    std::chrono::steady_clock::time_point &wait_start_time, mtr_t *mtr) {
   btr_pcur_t pcur;
   const page_t *page;
   ib_uint64_t rec_idx;
@@ -1677,7 +1677,6 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   ib_uint64_t total_recs;
   ib_uint64_t total_pages;
   const ib_uint64_t n_diff_required = n_sample_pages * 10;
-  ib_time_monotonic_t wait_start_time;
   bool succeeded = true;
   mtr_t mtr;
   ulint size;
@@ -1723,7 +1722,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   mtr_start(&mtr);
 
   mtr_sx_lock(dict_index_get_lock(index), &mtr);
-  wait_start_time = ut_time_monotonic();
+  auto wait_start_time = std::chrono::steady_clock::now();
 
   root_level = btr_height_get(index, &mtr);
 
@@ -1820,7 +1819,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     mtr_commit(&mtr);
     mtr_start(&mtr);
     mtr_sx_lock(dict_index_get_lock(index), &mtr);
-    wait_start_time = ut_time_monotonic();
+    wait_start_time = std::chrono::steady_clock::now();
     if (root_level != btr_height_get(index, &mtr)) {
       /* Just quit if the tree has changed beyond
       recognition here. The old stats from previous
@@ -2065,7 +2064,7 @@ static dberr_t dict_stats_update_persistent(
     table->stat_sum_of_other_index_sizes += index->stat_index_size;
   }
 
-  table->stats_last_recalc = ut_time_monotonic();
+  table->stats_last_recalc = std::chrono::steady_clock::now();
 
   table->stat_modified_counter = 0;
 
@@ -2190,7 +2189,6 @@ are saved
 static dberr_t dict_stats_save(dict_table_t *table_orig,
                                const index_id_t *only_for_index) {
   pars_info_t *pinfo;
-  lint now;
   dberr_t ret;
   dict_table_t *table;
   char db_utf8[dict_name::MAX_DB_UTF8_LEN];
@@ -2206,7 +2204,8 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
   /* MySQL's timestamp is 4 byte, so we use
   pars_info_add_int4_literal() which takes a lint arg, so "now" is
   lint */
-  now = (lint)ut_time();
+  auto now = static_cast<uint32_t>(
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
   pinfo = pars_info_create();
 

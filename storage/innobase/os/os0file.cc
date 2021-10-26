@@ -294,7 +294,7 @@ struct Slot {
   bool is_reserved{false};
 
   /** time when reserved */
-  ib_time_monotonic_t reservation_time{0};
+  std::chrono::steady_clock::time_point reservation_time;
 
   /** buffer used in i/o */
   byte *buf{nullptr};
@@ -786,8 +786,8 @@ AIO *AIO::s_sync;
 /** timeout for each io_getevents() call = 500ms. */
 static constexpr uint64_t OS_AIO_REAP_TIMEOUT = 500000000UL;
 
-/** time to sleep, in milliseconds if io_setup() returns EAGAIN. */
-static constexpr uint64_t OS_AIO_IO_SETUP_RETRY_SLEEP_MS = 500UL;
+/** time to sleep if io_setup() returns EAGAIN. */
+static constexpr std::chrono::milliseconds OS_AIO_IO_SETUP_RETRY_SLEEP{500};
 
 /** number of attempts before giving up on io_setup(). */
 static const int OS_AIO_IO_SETUP_RETRY_ATTEMPTS = 5;
@@ -815,7 +815,7 @@ std::atomic<ulint> os_n_pending_writes{0};
 /** Number of pending read operations */
 std::atomic<ulint> os_n_pending_reads{0};
 
-static ib_time_monotonic_t os_last_printout;
+static std::chrono::steady_clock::time_point os_last_printout;
 bool os_has_said_disk_full = false;
 
 /** Default Zip compression level */
@@ -2621,8 +2621,7 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
 
           ib::warn(ER_IB_MSG_758) << "io_setup() attempt " << n_retries << ".";
 
-          std::this_thread::sleep_for(
-              std::chrono::milliseconds(OS_AIO_IO_SETUP_RETRY_SLEEP_MS));
+          std::this_thread::sleep_for(OS_AIO_IO_SETUP_RETRY_SLEEP);
 
           continue;
         }
@@ -6401,7 +6400,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
     os_aio_segment_wait_events[i] = os_event_create();
   }
 
-  os_last_printout = ut_time_monotonic();
+  os_last_printout = std::chrono::steady_clock::now();
 
   return true;
 }
@@ -6769,7 +6768,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   }
 
   slot->is_reserved = true;
-  slot->reservation_time = ut_time_monotonic();
+  slot->reservation_time = std::chrono::steady_clock::now();
   slot->m1 = m1;
   slot->m2 = m2;
   slot->file = file;
@@ -7376,7 +7375,7 @@ class SimulatedAIOHandler {
   /** Reset the state of the handler
   @param[in]	n_slots	Number of pending AIO operations supported */
   void init(ulint n_slots) {
-    m_oldest = 0;
+    m_oldest = std::chrono::seconds::zero();
     m_n_elems = 0;
     m_n_slots = n_slots;
     m_lowest_offset = IB_UINT64_MAX;
@@ -7605,23 +7604,28 @@ class SimulatedAIOHandler {
     return (m_n_elems > 0);
   }
 
+  typedef std::vector<Slot *> slots_t;
+
+ private:
   /** Select the slot if it is older than the current oldest slot.
   @param[in]	slot		The slot to check */
   void select_if_older(Slot *slot) {
-    const auto time_diff = ut_time_monotonic() - slot->reservation_time;
+    const auto time_diff =
+        std::max(std::chrono::steady_clock::now() - slot->reservation_time,
+                 std::chrono::steady_clock::duration{0});
 
-    const uint64_t age = time_diff > 0 ? (uint64_t)time_diff : 0;
+    if (time_diff >= std::chrono::seconds{2}) {
+      if ((time_diff > m_oldest) ||
+          (time_diff == m_oldest && slot->offset < m_lowest_offset)) {
+        /* Found an i/o request */
+        m_slots[0] = slot;
 
-    if ((age >= 2 && age > m_oldest) ||
-        (age >= 2 && age == m_oldest && slot->offset < m_lowest_offset)) {
-      /* Found an i/o request */
-      m_slots[0] = slot;
+        m_n_elems = 1;
 
-      m_n_elems = 1;
+        m_oldest = time_diff;
 
-      m_oldest = age;
-
-      m_lowest_offset = slot->offset;
+        m_lowest_offset = slot->offset;
+      }
     }
   }
 
@@ -7644,10 +7648,7 @@ class SimulatedAIOHandler {
     return (m_n_elems > 0);
   }
 
-  typedef std::vector<Slot *> slots_t;
-
- private:
-  ulint m_oldest;
+  std::chrono::steady_clock::duration m_oldest;
   ulint m_n_elems;
   os_offset_t m_lowest_offset;
 
@@ -7973,8 +7974,11 @@ void os_aio_print(FILE *file) {
   AIO::print_all(file);
 
   putc('\n', file);
-  const auto current_time = ut_time_monotonic();
-  const auto time_elapsed = 0.001 + (current_time - os_last_printout);
+  const auto current_time = std::chrono::steady_clock::now();
+  const auto time_elapsed_s =
+      0.001 + std::chrono::duration_cast<std::chrono::duration<double>>(
+                  current_time - os_last_printout)
+                  .count();
 
   fprintf(file,
           "Pending flushes (fsync) log: " ULINTPF
@@ -7999,12 +8003,12 @@ void os_aio_print(FILE *file) {
   }
 
   fprintf(file,
-          "%.2f reads/s, %lu avg bytes/read,"
-          " %.2f writes/s, %.2f fsyncs/s\n",
-          (os_n_file_reads - os_n_file_reads_old) / time_elapsed,
+          "%.2lf reads/s, %lu avg bytes/read,"
+          " %.2lf writes/s, %.2lf fsyncs/s\n",
+          (os_n_file_reads - os_n_file_reads_old) / time_elapsed_s,
           (ulong)avg_bytes_read,
-          (os_n_file_writes - os_n_file_writes_old) / time_elapsed,
-          (os_n_fsyncs - os_n_fsyncs_old) / time_elapsed);
+          (os_n_file_writes - os_n_file_writes_old) / time_elapsed_s,
+          (os_n_fsyncs - os_n_fsyncs_old) / time_elapsed_s);
 
   os_n_file_reads_old = os_n_file_reads;
   os_n_file_writes_old = os_n_file_writes;
@@ -8028,7 +8032,7 @@ void os_aio_refresh_stats() {
 
   os_bytes_read_since_printout = 0;
 
-  os_last_printout = ut_time_monotonic();
+  os_last_printout = std::chrono::steady_clock::now();
 }
 
 /** Checks that all slots in the system have been freed, that is, there are

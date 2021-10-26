@@ -90,7 +90,7 @@ ulong fts_max_token_size;
 ulong fts_min_token_size;
 
 // FIXME: testing
-static ib_time_t elapsed_time = 0;
+static std::chrono::steady_clock::duration elapsed_time;
 static ulint n_nodes = 0;
 
 #ifdef FTS_CACHE_SIZE_DEBUG
@@ -4000,9 +4000,9 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
                            "  :last_doc_id, :doc_count, :ilist);");
   }
 
-  const auto start_time = ut_time_monotonic();
+  const auto start_time = std::chrono::steady_clock::now();
   error = fts_eval_sql(trx, *graph);
-  elapsed_time += ut_time_monotonic() - start_time;
+  elapsed_time += std::chrono::steady_clock::now() - start_time;
   ++n_nodes;
 
   return (error);
@@ -4065,9 +4065,9 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
 @param[in]      sync_start_time Holds the timestamp of start of sync
                                 for deducing the length of sync time
 @return DB_SUCCESS if all went well else error code */
-[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
-    fts_sync_write_words(trx_t *trx, fts_index_cache_t *index_cache,
-                         bool unlock_cache, ib_time_t sync_start_time) {
+[[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t fts_sync_write_words(
+    trx_t *trx, fts_index_cache_t *index_cache, bool unlock_cache,
+    std::chrono::steady_clock::time_point sync_start_time) {
   fts_table_t fts_table;
   ulint n_nodes = 0;
   ulint n_words = 0;
@@ -4076,7 +4076,7 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
   ibool print_error = FALSE;
   dict_table_t *table = index_cache->index->table;
   const float cutoff = 0.98f;
-  ulint lock_threshold = srv_fatal_semaphore_wait_threshold * cutoff;
+  auto lock_threshold = get_srv_fatal_semaphore_wait_threshold() * cutoff;
 
   bool timeout_extended = false;
 
@@ -4116,12 +4116,13 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
         DBUG_EXECUTE_IF("fts_instrument_sync_write",
                         std::this_thread::sleep_for(std::chrono::seconds(10)););
         if (!unlock_cache) {
-          ulint cache_lock_time = ut_time_monotonic() - sync_start_time;
+          const auto cache_lock_time =
+              std::chrono::steady_clock::now() - sync_start_time;
           if (cache_lock_time > lock_threshold) {
             if (!timeout_extended) {
               srv_fatal_semaphore_wait_extend.fetch_add(1);
               timeout_extended = true;
-              lock_threshold += 7200;
+              lock_threshold += std::chrono::hours{2};
             } else {
               unlock_cache = true;
               srv_fatal_semaphore_wait_extend.fetch_sub(1);
@@ -4180,9 +4181,9 @@ static void fts_sync_begin(fts_sync_t *sync) /*!< in: sync state */
   fts_cache_t *cache = sync->table->fts->cache;
 
   n_nodes = 0;
-  elapsed_time = 0;
+  elapsed_time = std::chrono::seconds::zero();
 
-  sync->start_time = ut_time_monotonic();
+  sync->start_time = std::chrono::steady_clock::now();
 
   sync->trx = trx_allocate_for_background();
 
@@ -4294,11 +4295,17 @@ static void fts_sync_index_reset(fts_index_cache_t *index_cache) {
     ib::error(ER_IB_MSG_476) << "(" << ut_strerr(error) << ") during SYNC.";
   }
 
-  if (fts_enable_diag_print && elapsed_time) {
+  if (fts_enable_diag_print && elapsed_time != std::chrono::seconds::zero()) {
     ib::info(ER_IB_MSG_477)
-        << "SYNC for table " << sync->table->name
-        << ": SYNC time: " << (ut_time_monotonic() - sync->start_time)
-        << " secs: elapsed " << (double)n_nodes / elapsed_time << " ins/sec";
+        << "SYNC for table " << sync->table->name << ": SYNC time: "
+        << std::chrono::duration_cast<std::chrono::seconds>(
+               std::chrono::steady_clock::now() - sync->start_time)
+               .count()
+        << " secs: elapsed "
+        << n_nodes / std::chrono::duration_cast<std::chrono::duration<double>>(
+                         elapsed_time)
+                         .count()
+        << " ins/sec";
   }
 
   /* Avoid assertion in trx_free(). */
@@ -5286,21 +5293,13 @@ void fts_cache_append_deleted_doc_ids(
   mutex_exit((ib_mutex_t *)&cache->deleted_lock);
 }
 
-/** Wait for the background thread to start. We poll to detect change
- of state, which is acceptable, since the wait should happen only
- once during startup.
- @return true if the thread started else false (i.e timed out) */
 ibool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, /*!< in: table to which the thread
-                         is attached */
-    ulint max_wait)      /*!< in: time in microseconds, if
-                         set to 0 then it disables
-                         timeout checking */
-{
+    dict_table_t *table, std::chrono::microseconds max_wait) {
   ulint count = 0;
   ibool done = FALSE;
 
-  ut_a(max_wait == 0 || max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT_US);
+  ut_a(max_wait == std::chrono::seconds::zero() ||
+       max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT);
 
   for (;;) {
     fts_t *fts = table->fts;
@@ -5314,14 +5313,13 @@ ibool fts_wait_for_background_thread_to_start(
     mutex_exit(&fts->bg_threads_mutex);
 
     if (!done) {
-      std::this_thread::sleep_for(
-          std::chrono::microseconds(FTS_MAX_BACKGROUND_THREAD_WAIT_US));
+      std::this_thread::sleep_for(FTS_MAX_BACKGROUND_THREAD_WAIT);
 
-      if (max_wait > 0) {
-        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT_US;
+      if (max_wait > std::chrono::seconds::zero()) {
+        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT;
 
         /* We ignore the residual value. */
-        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT_US) {
+        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT) {
           break;
         }
       }
@@ -5501,7 +5499,7 @@ fts_shutdown(
 
 	ut_a(fts->fts_status & BG_THREAD_STOP);
 
-	dict_table_wait_for_bg_threads_to_exit(table, 20000);
+	dict_table_wait_for_bg_threads_to_exit(table, std::chrono::milliseconds{20});
 
 	mutex_exit(&fts->bg_threads_mutex);
 }

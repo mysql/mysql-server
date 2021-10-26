@@ -248,7 +248,8 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
   here only because the query threads code requires it. It is otherwise
   quite unnecessary. We should get rid of it eventually. */
   purge_sys->trx->id = 0;
-  purge_sys->trx->start_time.store(ut_time(), std::memory_order_relaxed);
+  purge_sys->trx->start_time.store(std::chrono::system_clock::now(),
+                                   std::memory_order_relaxed);
   purge_sys->trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
   purge_sys->trx->op_info = "purge trx";
   purge_sys->trx->purge_sys_trx = true;
@@ -1305,15 +1306,13 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
 }
 
 void undo::Truncate::mark(Tablespace *undo_space) {
-  /* Set the internal state of this undo space to inactive_implicit
-  so that its rsegs will not be allocated to any new transaction.
-  If the space is already in the inactive_explicit state, it will
-  stay there.
-  Note that the DD is not modified since in case of crash, the
-  action must be completed before the DD is available.
-  Set both the state and this marked id while this routine has
-  an x_lock on m_rsegs because a concurrent user thread might issue
-  undo_space->alter_active(). */
+  /* Set the internal state of this undo space to inactive_implicit so that its
+  rsegs will not be allocated to any new transaction.
+  If the space is already in the inactive_explicit state, it will stay there.
+  Note that the DD is not modified since in case of crash, the action must be
+  completed before the DD is available. Set both the state and this marked id
+  while this routine has an x_lock on m_rsegs because a concurrent user thread
+  might issue undo_space->alter_active(). */
   undo_space->set_inactive_implicit(&m_space_id_marked);
 
   m_marked_space_is_empty = false;
@@ -1341,8 +1340,8 @@ static bool trx_purge_check_if_marked_undo_is_empty() {
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
   Rsegs *marked_rsegs = marked_space->rsegs();
 
-  /* Scan over each rseg in this inactive undo tablespace
-  and ensure that it does not hold any active undo records. */
+  /* Scan over each rseg in this inactive undo tablespace and ensure that it
+  does not hold any active undo records. */
   bool all_free = true;
 
   marked_rsegs->x_lock();
@@ -1468,9 +1467,8 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   if (marked_rsegs->is_inactive_explicit()) {
     next_state = DD_SPACE_STATE_EMPTY;
 
-    /* This was made inactive and truncated due to
-    an  ALTER TABLESPACE SET INACTIVE statement.
-    Mark it empty now so that it can be DROPPED. */
+    /* This was made inactive and truncated due to an ALTER TABLESPACE SET
+    INACTIVE statement. Mark it empty now so that it can be DROPPED. */
     marked_rsegs->set_empty();
     ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_EMPTY, marked_space->file_name()));
 
@@ -1478,9 +1476,8 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     ut_ad(marked_rsegs->is_inactive_implicit());
     next_state = DD_SPACE_STATE_ACTIVE;
 
-    /* This was made inactive and truncated due to
-    normal background undo tablespace truncation.
-    Make it 'active' again. */
+    /* This was made inactive and truncated due to normal background undo
+    tablespace truncation. Make it 'active' again. */
     marked_rsegs->set_active();
     ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_ACTIVE, marked_space->file_name()));
   }
@@ -1506,7 +1503,7 @@ This wrapper does initial preparation and handles cleanup.
 @return true for success, false for failure */
 static bool trx_purge_truncate_marked_undo() {
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_COUNT, 1);
-  auto counter_time_truncate = ut_time_monotonic_us();
+  auto counter_time_truncate = std::chrono::steady_clock::now();
 
   /* Initialize variables */
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
@@ -1538,16 +1535,15 @@ static bool trx_purge_truncate_marked_undo() {
 #endif /* UNIV_DEBUG */
 
   if (dd_result != DD_SUCCESS) {
-    MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
-                                   counter_time_truncate);
+    MONITOR_INC_TIME(MONITOR_UNDO_TRUNCATE_MICROSECOND, counter_time_truncate);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL, space_name.c_str());
     return (false);
   }
   ut_ad(mdl_ticket != nullptr);
 
-  /* Re-check for clone after acquiring MDL. The Backup MDL from clone
-  is released by clone during shutdown while provisioning. We should
-  not allow truncate to proceed here. */
+  /* Re-check for clone after acquiring MDL. The Backup MDL from clone is
+  released by clone during shutdown while provisioning. We should not allow
+  truncate to proceed here. */
   if (clone_check_provisioning()) {
     dd_release_mdl(mdl_ticket);
     ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
@@ -1560,8 +1556,7 @@ static bool trx_purge_truncate_marked_undo() {
   if (!trx_purge_truncate_marked_undo_low(space_num, space_name)) {
     mutex_exit(&undo::ddl_mutex);
     dd_release_mdl(mdl_ticket);
-    MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
-                                   counter_time_truncate);
+    MONITOR_INC_TIME(MONITOR_UNDO_TRUNCATE_MICROSECOND, counter_time_truncate);
     return (false);
   }
 
@@ -1581,8 +1576,7 @@ static bool trx_purge_truncate_marked_undo() {
 
   mutex_exit(&undo::ddl_mutex);
 
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
-                                 counter_time_truncate);
+  MONITOR_INC_TIME(MONITOR_UNDO_TRUNCATE_MICROSECOND, counter_time_truncate);
   return (true);
 }
 
@@ -1595,7 +1589,7 @@ static void trx_purge_truncate_history(purge_iter_t *limit,
                                        const ReadView *view) {
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
 
-  auto counter_time_truncate_history = ut_time_monotonic_us();
+  auto counter_time_truncate_history = std::chrono::steady_clock::now();
 
   /* We play safe and set the truncate limit at most to the purge view
   low_limit number, though this is not necessary */
@@ -1651,8 +1645,8 @@ static void trx_purge_truncate_history(purge_iter_t *limit,
   }
   trx_sys->tmp_rsegs.s_unlock();
 
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_PURGE_TRUNCATE_HISTORY_MICROSECOND,
-                                 counter_time_truncate_history);
+  MONITOR_INC_TIME(MONITOR_PURGE_TRUNCATE_HISTORY_MICROSECOND,
+                   counter_time_truncate_history);
 }
 
 /** Select an undo tablespace to truncate, make sure it is empty of undo logs,
@@ -1669,8 +1663,8 @@ static void trx_purge_truncate_undo_spaces() {
   /* Truncate as many undo spaces as can be truncated.
   Break the loop and return whenever the process cannot be completed. */
   for (size_t i = 0; i < undo::spaces->size(); ++i) {
-    /* Check current activity and if conditions allow,
-    mark the undo space that needs to be truncated. */
+    /* Check current activity and if conditions allow, mark the undo space that
+    needs to be truncated. */
     if (!trx_purge_mark_undo_for_truncate(i)) {
       break; /* No truncation is needed at this time. */
     }
@@ -1678,8 +1672,8 @@ static void trx_purge_truncate_undo_spaces() {
     /* A space was marked but may not be yet empty. */
     ut_a(undo_trunc.is_marked());
 
-    /* If any undo logs need to be purged from this marked space,
-    try again later. */
+    /* If any undo logs need to be purged from this marked space, try again
+    later. */
     if (!trx_purge_check_if_marked_undo_is_empty()) {
       break;
     }
@@ -1689,17 +1683,15 @@ static void trx_purge_truncate_undo_spaces() {
 
     /* Truncate the marked space. */
     if (!trx_purge_truncate_marked_undo()) {
-      /* If the marked and empty space did not get trucated
-      due to a concurrent clone or something else,
-      try again later. */
+      /* If the marked and empty space did not get truncated due to a concurrent
+      clone or something else, try again later. */
       break;
     }
   }
 }
 
-/** Updates the last not yet purged history log info in rseg when we have
- purged a whole undo log. Advances also purge_sys->purge_trx_no past the
- purged log. */
+/** Updates the last not yet purged history log info in rseg when we have purged
+ a whole undo log. Advances also purge_sys->purge_trx_no past the purged log. */
 static void trx_purge_rseg_get_next_history_log(
     trx_rseg_t *rseg,       /*!< in: rollback segment */
     ulint *n_pages_handled) /*!< in/out: number of UNDO pages
@@ -1744,12 +1736,11 @@ static void trx_purge_rseg_get_next_history_log(
     rseg->unlatch();
 
 #ifdef UNIV_DEBUG
-    /* Add debug code to track history list corruption reported
-    on the MySQL mailing list on Nov 9, 2004. The fut0lst.cc
-    file-based list was corrupt. The prev node pointer was
-    FIL_NULL, even though the list length was over 8 million nodes!
-    We assume that purge truncates the history list in large
-    size pieces, and if we here reach the head of the list, the
+    /* Add debug code to track history list corruption reported on the MySQL
+    mailing list on Nov 9, 2004. The fut0lst.cc file-based list was corrupt. The
+    prev node pointer was FIL_NULL, even though the list length was over 8
+    million nodes! We assume that purge truncates the history list in large size
+    pieces, and if we here reach the head of the list, the
     list cannot be longer than 2000 000 undo logs now. */
 
     const auto rseg_history_len = trx_sys->rseg_history_len.load();
@@ -1797,9 +1788,9 @@ static void trx_purge_rseg_get_next_history_log(
   TrxUndoRsegs elem(rseg->last_trx_no);
   elem.insert(rseg);
 
-  /* Purge can also produce events, however these are already ordered
-  in the rollback segment and any user generated event will be greater
-  than the events that Purge produces. ie. Purge can never produce
+  /* Purge can also produce events, however these are already ordered in the
+  rollback segment and any user generated event will be greater than the events
+  that Purge produces. ie. Purge can never produce
   events from an empty rollback segment. */
 
   mutex_enter(&purge_sys->pq_mutex);
@@ -1864,9 +1855,9 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
 }
 
 /** Chooses the next undo log to purge and updates the info in purge_sys. This
- function is used to initialize purge_sys when the next record to purge is
- not known, and also to update the purge system info on the next record when
- purge has handled the whole undo log for a transaction. */
+ function is used to initialize purge_sys when the next record to purge is not
+ known, and also to update the purge system info on the next record when purge
+ has handled the whole undo log for a transaction. */
 static void trx_purge_choose_next_log(void) {
   ut_ad(purge_sys->next_stored == FALSE);
 
@@ -1907,8 +1898,8 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
   const page_size_t page_size(purge_sys->rseg->page_size);
 
   if (offset == 0) {
-    /* It is the dummy undo log record, which means that there is
-    no need to purge this undo log */
+    /* It is the dummy undo log record, which means that there is no need to
+    purge this undo log */
 
     trx_purge_rseg_get_next_history_log(purge_sys->rseg, n_pages_handled);
 
@@ -1933,8 +1924,8 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
     trx_undo_rec_t *next_rec;
     ulint cmpl_info;
 
-    /* Try first to find the next record which requires a purge
-    operation from the same page of the same undo log */
+    /* Try first to find the next record which requires a purge operation from
+    the same page of the same undo log */
 
     next_rec = trx_undo_page_get_next_rec(rec2, purge_sys->hdr_page_no,
                                           purge_sys->hdr_offset);

@@ -667,7 +667,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(buf_pool_zip_free_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(clone_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(clone_task_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -1689,13 +1688,10 @@ ibool thd_trx_is_auto_commit(THD *thd) /*!< in: thread handle, can be NULL */
 
 extern "C" time_t thd_start_time(const THD *thd);
 
-/** Get the thread start time.
- @return the thread start time in seconds since the epoch. */
-ulint thd_start_time_in_secs(THD *thd) /*!< in: thread handle, or NULL */
-{
+std::chrono::system_clock::time_point thd_start_time(THD *thd) {
   // FIXME: This function should be added to the server code.
   // return(thd_start_time(thd));
-  return (ulint(ut_time()));
+  return std::chrono::system_clock::now();
 }
 
 /** Enter InnoDB engine after checking the max number of user threads
@@ -1721,9 +1717,12 @@ static inline dberr_t innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
 
     } else if (trx->mysql_thd != nullptr &&
                thd_is_replication_slave_thread(trx->mysql_thd)) {
-      UT_WAIT_FOR(
-          srv_conc_get_active_threads() < (int32_t)srv_thread_concurrency,
-          srv_replication_delay * 1000);
+      ut::wait_for(
+          [&]() {
+            return srv_conc_get_active_threads() <
+                   (int32_t)srv_thread_concurrency;
+          },
+          get_srv_replication_delay());
 
     } else {
       err = srv_conc_enter_innodb(prebuilt);
@@ -1822,22 +1821,18 @@ void innobase_disable_core_dump() {
   test_flags &= ~TEST_CORE_ON_SIGNAL;
 }
 
-/** Returns the lock wait timeout for the current connection.
- @return the lock wait timeout, in seconds */
-ulong thd_lock_wait_timeout(THD *thd) /*!< in: thread handle, or NULL to query
-                                      the global innodb_lock_wait_timeout */
-{
+std::chrono::seconds thd_lock_wait_timeout(THD *thd) {
   /* According to <mysql/plugin.h>, passing thd == NULL
   returns the global value of the session variable. */
-  return (THDVAR(thd, lock_wait_timeout));
+  return std::chrono::seconds{THDVAR(thd, lock_wait_timeout)};
 }
 
-/** Set the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
-                            ulint value) /*!< in: time waited for the lock */
-{
+void thd_set_lock_wait_time(THD *thd,
+                            std::chrono::steady_clock::duration value) {
   if (thd) {
-    thd_storage_lock_wait(thd, value);
+    thd_storage_lock_wait(
+        thd,
+        std::chrono::duration_cast<std::chrono::microseconds>(value).count());
   }
 }
 
@@ -3204,6 +3199,7 @@ class Validate_files {
         m_space_max_id(),
         m_n_to_check(),
         m_n_threads(),
+        m_start_time(std::chrono::steady_clock::time_point{}),
         m_n_validated(),
         m_n_skipped(),
         m_n_moved(),
@@ -3254,7 +3250,8 @@ class Validate_files {
 
   /** The time when Validate_files::validate() starts or the last time
   one of the threads reported progress. */
-  std::atomic<ib_time_monotonic_t> m_start_time;
+  std::atomic<std::chrono::steady_clock::time_point> m_start_time;
+  static_assert(decltype(m_start_time)::is_always_lock_free);
 
   /** Number of tablespaces validated. */
   std::atomic_size_t m_n_validated;
@@ -3296,8 +3293,9 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   for (auto it = begin; it != end; ++it) {
     const auto &dd_tablespace = *it;
 
-    if (ut_time_monotonic() - m_start_time.load() >= PRINT_INTERVAL_SECS) {
-      m_start_time = ut_time_monotonic();
+    if (std::chrono::steady_clock::now() - m_start_time.load() >=
+        PRINT_INTERVAL) {
+      m_start_time = std::chrono::steady_clock::now();
 
       std::ostringstream msg;
 
@@ -3620,7 +3618,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
   m_n_to_check = tablespaces.size();
   m_n_threads = fil_get_scan_threads(m_n_to_check);
-  m_start_time = ut_time_monotonic();
+  m_start_time = std::chrono::steady_clock::now();
 
   if (!srv_validate_tablespace_paths && !recv_needed_recovery) {
     ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
@@ -16936,7 +16934,8 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
       m_prebuilt->trx->op_info = "returning various info to MySQL";
     }
 
-    stats.update_time = (ulong)ib_table->update_time;
+    stats.update_time = (ulong)std::chrono::system_clock::to_time_t(
+        ib_table->update_time.load());
   }
 
   if (flag & HA_STATUS_VARIABLE) {
@@ -17379,7 +17378,8 @@ static bool innobase_get_table_statistics(
   }
 
   if (stat_flags & HA_STATUS_TIME) {
-    stats->update_time = static_cast<ulong>(ib_table->update_time);
+    stats->update_time = static_cast<ulong>(
+        std::chrono::system_clock::to_time_t(ib_table->update_time.load()));
   }
 
   if (stat_flags & HA_STATUS_VARIABLE_EXTRA) {
@@ -20449,7 +20449,7 @@ static void innodb_monitor_set_option(
       MONITOR_SET_START(monitor_id);
 
       /* If the monitor to be turned on uses
-      exisitng monitor counter (status variable),
+      existing monitor counter (status variable),
       make special processing to remember existing
       counter value. */
       if (monitor_info->monitor_type & MONITOR_EXISTING) {
@@ -21729,6 +21729,7 @@ static MYSQL_SYSVAR_UINT(
     nullptr, innodb_merge_threshold_set_all_debug_update,
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT, 1, 50, 0);
 
+extern ulong srv_fatal_semaphore_wait_threshold;
 static MYSQL_SYSVAR_ULONG(
     semaphore_wait_timeout_debug, srv_fatal_semaphore_wait_threshold,
     PLUGIN_VAR_RQCMDARG,
@@ -21775,6 +21776,7 @@ static MYSQL_SYSVAR_STR(ft_server_stopword_table,
                         "The user supplied stopword table name.",
                         innodb_stopword_table_validate, nullptr, nullptr);
 
+extern uint srv_flush_log_at_timeout;
 static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
                          PLUGIN_VAR_OPCMDARG,
                          "Write and flush logs every (n) second.", nullptr,
@@ -21911,9 +21913,10 @@ of latches protecting complete search system. */
 static MYSQL_SYSVAR_ULONG(
     adaptive_hash_index_parts, btr_ahi_parts,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Number of InnoDB Adapative Hash Index Partitions. (default = 8). ",
-    nullptr, nullptr, 8, 1, 512, 0);
+    "Number of InnoDB Adaptive Hash Index Partitions. (default = 8). ", nullptr,
+    nullptr, 8, 1, 512, 0);
 
+extern ulong srv_replication_delay;
 static MYSQL_SYSVAR_ULONG(
     replication_delay, srv_replication_delay, PLUGIN_VAR_RQCMDARG,
     "Replication thread delay (ms) on the slave server if"
@@ -22351,6 +22354,7 @@ static MYSQL_SYSVAR_ULONG(
     " This is not used when user thread has to wait for log flushed to disk.",
     NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_wait_for_write_timeout;
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
     PLUGIN_VAR_RQCMDARG,
@@ -22363,6 +22367,7 @@ static MYSQL_SYSVAR_ULONG(
     "Number of spin iterations, when spinning and waiting for log flushed.",
     NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_wait_for_flush_timeout;
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_flush_timeout, srv_log_wait_for_flush_timeout,
     PLUGIN_VAR_RQCMDARG,
@@ -22398,6 +22403,7 @@ static MYSQL_SYSVAR_ULONG(
     " for new data to flush, without sleeping.",
     NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_flusher_timeout;
 static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
                           PLUGIN_VAR_RQCMDARG,
                           "Initial timeout used to wait on event in log "
@@ -22412,6 +22418,7 @@ static MYSQL_SYSVAR_ULONG(
     " for advanced write_lsn, without sleeping.",
     NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_write_notifier_timeout;
 static MYSQL_SYSVAR_ULONG(
     log_write_notifier_timeout, srv_log_write_notifier_timeout,
     PLUGIN_VAR_RQCMDARG,
@@ -22426,6 +22433,7 @@ static MYSQL_SYSVAR_ULONG(
     " for advanced flushed_to_disk_lsn, without sleeping.",
     NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
 
+extern ulong srv_log_flush_notifier_timeout;
 static MYSQL_SYSVAR_ULONG(
     log_flush_notifier_timeout, srv_log_flush_notifier_timeout,
     PLUGIN_VAR_RQCMDARG,
@@ -22440,8 +22448,9 @@ static MYSQL_SYSVAR_UINT(
     "Percentage of the buffer pool to reserve for 'old' blocks.", nullptr,
     innodb_old_blocks_pct_update, 100 * 3 / 8, 5, 95, 0);
 
+extern uint buf_LRU_old_threshold;
 static MYSQL_SYSVAR_UINT(
-    old_blocks_time, buf_LRU_old_threshold_ms, PLUGIN_VAR_RQCMDARG,
+    old_blocks_time, buf_LRU_old_threshold, PLUGIN_VAR_RQCMDARG,
     "Move blocks to the 'new' end of the buffer pool if the first access"
     " was at least this many milliseconds ago."
     " The timeout is disabled if 0.",

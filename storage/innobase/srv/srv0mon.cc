@@ -1870,7 +1870,9 @@ void srv_mon_process_existing_counter(
 
     /* innodb_row_lock_time_max */
     case MONITOR_OVLD_LOCK_MAX_WAIT_TIME:
-      value = lock_sys->n_lock_max_wait_time / 1000;
+      value = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  lock_sys->n_lock_max_wait_time)
+                  .count();
       break;
 
     /* innodb_row_lock_time_avg */
@@ -2085,7 +2087,7 @@ void srv_mon_reset(monitor_id_t monitor) /*!< in: monitor id */
   MONITOR_MAX_VALUE(monitor) = MAX_RESERVED;
   MONITOR_MIN_VALUE(monitor) = MIN_RESERVED;
 
-  MONITOR_FIELD((monitor), mon_reset_time) = time(nullptr);
+  MONITOR_FIELD((monitor), mon_reset_time) = std::chrono::system_clock::now();
 
   if (monitor_was_on) {
     MONITOR_ON(monitor);

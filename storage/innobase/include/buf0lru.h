@@ -236,7 +236,7 @@ The minimum must exceed
 
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
-extern uint buf_LRU_old_threshold_ms;
+std::chrono::milliseconds get_buf_LRU_old_threshold();
 /** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.

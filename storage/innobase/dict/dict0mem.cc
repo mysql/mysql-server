@@ -772,7 +772,8 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
 /** Initialize dict memory variables */
 void dict_mem_init(void) {
   /* Initialize a randomly distributed temporary file number */
-  ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
+  ib_uint32_t now = static_cast<ib_uint32_t>(
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
   const byte *buf = reinterpret_cast<const byte *>(&now);
   auto file_num = ut_crc32(buf, sizeof(now));

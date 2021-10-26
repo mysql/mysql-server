@@ -237,9 +237,6 @@ class Batch_segment;
 
 /** Doublewrite implementation. Assumes it can use DBLWR_PAGES. */
 class Double_write {
-  /** Maximum wait in micro-seconds for new write events. */
-  static constexpr auto MAX_WAIT_FOR_EVENTS = 10000000;
-
  public:
   /** Number of instances. */
   static uint32_t s_n_instances;

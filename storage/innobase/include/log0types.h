@@ -261,10 +261,10 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       std::atomic<uint64_t> write_to_file_requests_total;
 
   /** How often redo write/flush is requested in average.
-  Measures in microseconds. Log threads do not spin when
-  the write/flush requests are not frequent. */
+  Log threads do not spin when the write/flush requests are not frequent. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_to_file_requests_interval;
+      std::atomic<std::chrono::microseconds> write_to_file_requests_interval;
+  static_assert(decltype(write_to_file_requests_interval)::is_always_lock_free);
 
   /** This padding is probably not needed, left for convenience. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)

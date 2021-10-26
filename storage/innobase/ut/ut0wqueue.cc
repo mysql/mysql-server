@@ -100,8 +100,8 @@ uint64_t ib_wqueue_get_count(ib_wqueue_t *wq) {
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
     /* out: work item or NULL on timeout*/
-    ib_wqueue_t *wq,         /* in: work queue */
-    ib_time_t wait_in_usecs) /* in: wait time in micro seconds */
+    ib_wqueue_t *wq,                /* in: work queue */
+    std::chrono::microseconds wait) /* in: wait time */
 {
   ib_list_node_t *node = nullptr;
 
@@ -125,7 +125,7 @@ void *ib_wqueue_timedwait(
 
     mutex_exit(&wq->mutex);
 
-    error = os_event_wait_time_low(wq->event, (ulint)wait_in_usecs, sig_count);
+    error = os_event_wait_time_low(wq->event, wait, sig_count);
 
     if (error == OS_SYNC_TIME_EXCEEDED) {
       break;

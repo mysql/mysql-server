@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 /** Minimum time interval between stats recalc for a given table */
-#define MIN_RECALC_INTERVAL 10 /* seconds */
+constexpr std::chrono::seconds MIN_RECALC_INTERVAL{10};
 
 #define SHUTTING_DOWN() \
   (srv_shutdown_state.load() >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS)
@@ -304,7 +304,8 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   be replaced with something else, though a time interval is the natural
   approach. */
 
-  if (ut_time_monotonic() - table->stats_last_recalc < MIN_RECALC_INTERVAL) {
+  if (std::chrono::steady_clock::now() - table->stats_last_recalc <
+      MIN_RECALC_INTERVAL) {
     /* Stats were (re)calculated not long ago. To avoid
     too frequent stats updates we put back the table on
     the auto recalc list and do nothing. */
@@ -365,7 +366,7 @@ void dict_stats_thread() {
     dict_stats_process_entry_from_recalc_pool() puts the entry back
     in the list, the os_event_set() will be lost by the subsequent
     os_event_reset(). */
-    os_event_wait_time(dict_stats_event, MIN_RECALC_INTERVAL * 1000000);
+    os_event_wait_time(dict_stats_event, MIN_RECALC_INTERVAL);
 
 #ifdef UNIV_DEBUG
     while (innodb_dict_stats_disabled_debug) {
@@ -373,7 +374,7 @@ void dict_stats_thread() {
       if (SHUTTING_DOWN()) {
         break;
       }
-      os_event_wait_time(dict_stats_event, 100000);
+      os_event_wait_time(dict_stats_event, std::chrono::milliseconds{100});
     }
 #endif /* UNIV_DEBUG */
 

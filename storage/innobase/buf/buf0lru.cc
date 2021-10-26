@@ -129,7 +129,11 @@ buf_LRU_stat_t buf_LRU_stat_sum;
 @{ */
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
-uint buf_LRU_old_threshold_ms;
+uint buf_LRU_old_threshold;
+std::chrono::milliseconds get_buf_LRU_old_threshold() {
+  return std::chrono::milliseconds{buf_LRU_old_threshold};
+}
+
 /** @} */
 
 /** Takes a block out of the LRU list and page hash table.
@@ -1125,7 +1129,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
     ut_ad(bpage->in_LRU_list);
     ut_ad(buf_page_in_file(bpage));
 
-    unsigned accessed = buf_page_is_accessed(bpage);
+    const auto accessed = buf_page_is_accessed(bpage);
 
     if (bpage->was_stale()) {
       freed = buf_page_free_stale(buf_pool, bpage);
@@ -1141,7 +1145,7 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
       }
     }
 
-    if (freed && !accessed) {
+    if (freed && accessed == std::chrono::steady_clock::time_point{}) {
       /* Keep track of pages that are evicted without
       ever being accessed. This gives us a measure of
       the effectiveness of readahead */

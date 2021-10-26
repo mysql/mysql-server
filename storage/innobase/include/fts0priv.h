@@ -57,8 +57,8 @@ enum fts_table_state_enum {
 
 typedef enum fts_table_state_enum fts_table_state_t;
 
-/** The default time to wait for the background thread (in microseconds). */
-#define FTS_MAX_BACKGROUND_THREAD_WAIT_US 10000
+/** The default time to wait for the background thread. */
+constexpr std::chrono::milliseconds FTS_MAX_BACKGROUND_THREAD_WAIT{10};
 
 /** Maximum number of iterations to wait before we complain */
 #define FTS_BACKGROUND_THREAD_WAIT_COUNT 1000
@@ -349,9 +349,9 @@ void fts_cache_append_deleted_doc_ids(
  once during startup.
  @return true if the thread started else false (i.e timed out) */
 ibool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, /*!< in: table to which the thread
-                         is attached */
-    ulint max_wait);     /*!< in: time in microseconds, if set
+    dict_table_t *table,                 /*!< in: table to which the thread
+                                         is attached */
+    std::chrono::microseconds max_wait); /*!< in: time, if set
                          to 0 then it disables timeout
                          checking */
 /** Search the index specific cache for a particular FTS index.

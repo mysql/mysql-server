@@ -473,7 +473,8 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
             log.sn_locked.load(std::memory_order_acquire) > start_sn) {
           break;
         }
-        os_event_wait_time_low(log.sn_lock_event, 1000000, signal_count);
+        os_event_wait_time_low(log.sn_lock_event, std::chrono::seconds{1},
+                               signal_count);
       }
     } while ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) != 0 &&
              log.sn_locked.load(std::memory_order_acquire) <= start_sn);

@@ -64,49 +64,6 @@ namespace ut {
 ulong spin_wait_pause_multiplier = 50;
 }
 
-/** Returns system time. We do not specify the format of the time returned:
- the only way to manipulate it is to use the function ut_difftime.
- @return system time */
-ib_time_t ut_time(void) { return (time(nullptr)); }
-
-/** Returns the number of microseconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_us_t ut_time_monotonic_us(void) {
-  const auto now = std::chrono::steady_clock::now();
-  return (std::chrono::duration_cast<std::chrono::microseconds>(
-              now.time_since_epoch())
-              .count());
-}
-
-/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
- @return ms since epoch */
-ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
-  const auto now = std::chrono::steady_clock::now();
-  return (std::chrono::duration_cast<std::chrono::milliseconds>(
-              now.time_since_epoch())
-              .count());
-}
-
-/** Returns the number of seconds since epoch. Uses the monotonic clock.
- @return us since epoch or 0 if failed to retrieve */
-ib_time_monotonic_t ut_time_monotonic(void) {
-  const auto now = std::chrono::steady_clock::now();
-
-  const auto ret =
-      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch())
-          .count();
-
-  return (ret);
-}
-
-/** Returns the difference of two times in seconds.
- @return time2 - time1 expressed in seconds */
-double ut_difftime(ib_time_t time2, /*!< in: time */
-                   ib_time_t time1) /*!< in: time */
-{
-  return (difftime(time2, time1));
-}
-
 #ifdef UNIV_HOTBACKUP
 /** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'.

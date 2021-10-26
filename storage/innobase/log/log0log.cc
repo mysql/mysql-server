@@ -604,7 +604,7 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
   ut_a(start_lsn >= checkpoint_lsn);
 
   log.write_to_file_requests_total.store(0);
-  log.write_to_file_requests_interval.store(0);
+  log.write_to_file_requests_interval.store(std::chrono::seconds::zero());
 
   log.recovered_lsn = start_lsn;
   log.last_checkpoint_lsn = checkpoint_lsn;

@@ -102,8 +102,9 @@ in the buffer pool, and writes information about the lsn in log files.
 static void log_checkpoint(log_t &log);
 
 /** Calculates time that elapsed since last checkpoint.
-@return number of microseconds since the last checkpoint */
-static uint64_t log_checkpoint_time_elapsed(const log_t &log);
+@return Time duration elapsed since the last checkpoint */
+static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
+    const log_t &log);
 
 /** Requests a checkpoint written for lsn greater or equal to provided one.
 The log.checkpointer_mutex has to be acquired before it is called, and it
@@ -731,7 +732,7 @@ static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
   };
 
-  ut_wait_for(0, 100, stop_condition);
+  ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
 }
 
 static bool log_request_checkpoint_validate(const log_t &log) {
@@ -829,7 +830,8 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 
     os_event_set(buf_flush_event);
 
-    os_event_wait_time_low(buf_flush_tick_event, 1000000, sig_count);
+    os_event_wait_time_low(buf_flush_tick_event, std::chrono::seconds{1},
+                           sig_count);
 
     return (true);
 
@@ -918,20 +920,11 @@ static void log_consider_sync_flush(log_t &log) {
   }
 }
 
-static uint64_t log_checkpoint_time_elapsed(const log_t &log) {
+static std::chrono::steady_clock::duration log_checkpoint_time_elapsed(
+    const log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
 
-  const auto current_time = std::chrono::high_resolution_clock::now();
-
-  const auto checkpoint_time = log.last_checkpoint_time;
-
-  if (current_time < log.last_checkpoint_time) {
-    return (0);
-  }
-
-  return (std::chrono::duration_cast<std::chrono::microseconds>(current_time -
-                                                                checkpoint_time)
-              .count());
+  return std::chrono::high_resolution_clock::now() - log.last_checkpoint_time;
 }
 
 static bool log_should_checkpoint(log_t &log) {
@@ -940,7 +933,6 @@ static bool log_should_checkpoint(log_t &log) {
   lsn_t current_lsn;
   lsn_t requested_checkpoint_lsn;
   lsn_t checkpoint_age;
-  uint64_t checkpoint_time_elapsed;
   bool periodical_checkpoints_enabled;
 
   ut_ad(log_checkpointer_mutex_own(log));
@@ -994,7 +986,7 @@ static bool log_should_checkpoint(log_t &log) {
 
   checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
 
-  checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
+  const auto checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
 
   /* Update checkpoint_lsn stored in header of log files if:
           a) more than 1s elapsed since last checkpoint
@@ -1006,7 +998,7 @@ static bool log_should_checkpoint(log_t &log) {
                   periodical_checkpoints_enabled = false;);
 
   if ((periodical_checkpoints_enabled &&
-       checkpoint_time_elapsed >= srv_log_checkpoint_every * 1000ULL) ||
+       checkpoint_time_elapsed >= get_srv_log_checkpoint_every()) ||
       checkpoint_age >= log.max_checkpoint_age_async ||
       (requested_checkpoint_lsn > last_checkpoint_lsn &&
        requested_checkpoint_lsn <= oldest_lsn)) {
@@ -1076,7 +1068,7 @@ void log_checkpointer(log_t *log_ptr) {
         requested_checkpoint_lsn >
             log.last_checkpoint_lsn.load(std::memory_order_acquire) ||
         log_checkpoint_time_elapsed(log) >=
-            log_busy_checkpoint_interval * srv_log_checkpoint_every * 1000ULL) {
+            log_busy_checkpoint_interval * get_srv_log_checkpoint_every()) {
       /* Consider flushing some dirty pages. */
       log_consider_sync_flush(log);
 
@@ -1093,8 +1085,8 @@ void log_checkpointer(log_t *log_ptr) {
       /* not satisfied. retry. */
       error = 0;
     } else {
-      error = os_event_wait_time_low(
-          log.checkpointer_event, srv_log_checkpoint_every * 1000, sig_count);
+      error = os_event_wait_time_low(log.checkpointer_event,
+                                     get_srv_log_checkpoint_every(), sig_count);
     }
 
     /* Check if we should close the thread. */
@@ -1349,7 +1341,8 @@ void log_free_check_wait(log_t &log) {
     return (current_lsn <= limit_lsn);
   };
 
-  const auto wait_stats = ut_wait_for(0, 100, stop_condition);
+  const auto wait_stats =
+      ut::wait_for(0, std::chrono::microseconds{100}, stop_condition);
 
   MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FILE_SPACE_, wait_stats);
 }

@@ -284,9 +284,8 @@ the read requests for the whole area.
 */
 
 #ifndef UNIV_HOTBACKUP
-/** Value in microseconds */
-static const int WAIT_FOR_READ_US = 100;
-static const int WAIT_FOR_WRITE_US = 100;
+constexpr std::chrono::microseconds WAIT_FOR_READ{100};
+constexpr std::chrono::microseconds WAIT_FOR_WRITE{100};
 /** Number of attempts made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 /** Number of pages to read ahead */
@@ -1294,7 +1293,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-    buf_pool->last_printout_time = ut_time_monotonic();
+    buf_pool->last_printout_time = std::chrono::steady_clock::now();
   }
   /* 2. Initialize flushing fields
   -------------------------------- */
@@ -2096,8 +2095,8 @@ static void buf_pool_resize() {
 
   buf_resize_status("Withdrawing blocks to be shrunken.");
 
-  ib_time_t withdraw_started = ut_time();
-  ulint message_interval = 60;
+  auto withdraw_start_time = std::chrono::system_clock::now();
+  std::chrono::minutes message_interval{1};
   ulint retry_interval = 1;
 
 withdraw_retry:
@@ -2120,9 +2119,10 @@ withdraw_retry:
   buf_load_abort();
 
   if (should_retry_withdraw &&
-      ut_difftime(ut_time(), withdraw_started) >= message_interval) {
-    if (message_interval > 900) {
-      message_interval = 1800;
+      std::chrono::system_clock::now() - withdraw_start_time >=
+          message_interval) {
+    if (message_interval > std::chrono::minutes{15}) {
+      message_interval = std::chrono::minutes{30};
     } else {
       message_interval *= 2;
     }
@@ -2147,14 +2147,13 @@ withdraw_retry:
         const auto trx_state = trx->state.load(std::memory_order_relaxed);
         const auto trx_start = trx->start_time.load(std::memory_order_relaxed);
         if (trx_state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
-            trx_start > 0 && ut_difftime(withdraw_started, trx_start) > 0) {
+            trx_start != std::chrono::system_clock::time_point{} &&
+            withdraw_start_time > trx_start) {
           if (!found) {
-            ib::warn(ER_IB_MSG_61) << "The following trx might hold"
-                                      " the blocks in buffer pool to"
-                                      " be withdrawn. Buffer pool"
-                                      " resizing can complete only"
-                                      " after all the transactions"
-                                      " below release the blocks.";
+            ib::warn(ER_IB_MSG_61)
+                << "The following trx might hold the blocks in buffer pool to "
+                   "be withdrawn. Buffer pool resizing can complete only after "
+                   "all the transactions below release the blocks.";
             found = true;
           }
 
@@ -2164,7 +2163,7 @@ withdraw_retry:
       trx_sys_mutex_exit();
     }
 
-    withdraw_started = ut_time();
+    withdraw_start_time = std::chrono::system_clock::now();
   }
 
   if (should_retry_withdraw) {
@@ -2825,7 +2824,7 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
     bpage = &buf_pool->watch[i];
 
-    ut_ad(bpage->access_time == 0);
+    ut_ad(bpage->access_time == std::chrono::steady_clock::time_point{});
     ut_ad(bpage->get_newest_lsn() == 0);
     ut_ad(!bpage->is_dirty());
     ut_ad(bpage->zip.data == nullptr);
@@ -3190,8 +3189,7 @@ got_block:
       mutex_exit(block_mutex);
 
       if (io_fix == BUF_IO_READ) {
-        std::this_thread::sleep_for(
-            std::chrono::microseconds(WAIT_FOR_READ_US));
+        std::this_thread::sleep_for(WAIT_FOR_READ);
       } else {
         break;
       }
@@ -3702,7 +3700,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
     buf_block_unfix(fix_block);
 
     /* The block is buffer-fixed or I/O-fixed.  Try again later. */
-    std::this_thread::sleep_for(std::chrono::microseconds(WAIT_FOR_READ_US));
+    std::this_thread::sleep_for(WAIT_FOR_READ);
 
     return (DB_FAIL);
   }
@@ -3787,7 +3785,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
 
   mutex_exit(&m_buf_pool->zip_mutex);
 
-  auto access_time = buf_page_is_accessed(&block->page);
+  const auto access_time = buf_page_is_accessed(&block->page);
 
   buf_page_mutex_exit(block);
 
@@ -3806,7 +3804,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   }
 
   if (!recv_no_ibuf_operations) {
-    if (access_time != 0) {
+    if (access_time != std::chrono::steady_clock::time_point{}) {
 #ifdef UNIV_IBUF_COUNT_DEBUG
       ut_a(ibuf_count_get(m_page_id) == 0);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
@@ -3853,8 +3851,7 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
           buf_block_unfix(block);
 
-          std::this_thread::sleep_for(
-              std::chrono::microseconds(WAIT_FOR_WRITE_US));
+          std::this_thread::sleep_for(WAIT_FOR_WRITE);
 
           return (DB_FAIL);
         }
@@ -4169,7 +4166,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
   page can be discarded quickly if it is not accessed again. */
   if (m_mode != Page_fetch::SCAN) {
     /* This is a heuristic and we don't care about ordering issues. */
-    if (access_time == 0) {
+    if (access_time == std::chrono::steady_clock::time_point{}) {
       buf_page_mutex_enter(block);
 
       buf_page_set_accessed(&block->page);
@@ -4206,7 +4203,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
   mtr_add_page(block);
 
   if (m_mode != Page_fetch::PEEK_IF_IN_POOL && m_mode != Page_fetch::SCAN &&
-      access_time == 0) {
+      access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
 
     buf_read_ahead_linear(m_page_id, m_page_size, ibuf_inside(m_mtr));
@@ -4306,7 +4303,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_block_buf_fix_inc(block, file, line);
 
-  auto access_time = buf_page_is_accessed(&block->page);
+  const auto access_time = buf_page_is_accessed(&block->page);
 
   buf_page_set_accessed(&block->page);
 
@@ -4369,7 +4366,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_ad(!block->page.file_page_was_freed);
   ut_d(buf_page_mutex_exit(block));
 
-  if (access_time == 0) {
+  if (access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
     buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr));
   }
@@ -4565,7 +4562,7 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
   bpage->reinit_io_fix();
   bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
-  bpage->access_time = 0;
+  bpage->access_time = {};
   bpage->set_newest_lsn(0);
   bpage->set_clean();
 
@@ -5778,7 +5775,7 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
 /** Refreshes the statistics used to print per-second averages.
 @param[in,out]	buf_pool	buffer pool instance */
 static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
-  buf_pool->last_printout_time = ut_time_monotonic();
+  buf_pool->last_printout_time = std::chrono::steady_clock::now();
 
   buf_pool_stat_t::copy(buf_pool->old_stat, buf_pool->stat);
 }
@@ -5796,7 +5793,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
     /* As this function is called during startup and
     during redo application phase during recovery, InnoDB
     is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in intialization
+    this stage. No new write batch can be in initialization
     stage at this point. */
     ut_ad(buf_pool->init_flush[i] == FALSE);
 
@@ -6341,8 +6338,6 @@ void buf_stats_get_pool_info(
                                     to fill */
 {
   buf_pool_info_t *pool_info;
-  time_t current_time;
-  double time_elapsed;
 
   /* Find appropriate pool_info to store stats for this buffer pool */
   pool_info = &all_pool_info[pool_id];
@@ -6373,8 +6368,11 @@ void buf_stats_get_pool_info(
       (buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] +
        buf_pool->init_flush[BUF_FLUSH_SINGLE_PAGE]);
 
-  current_time = time(nullptr);
-  time_elapsed = 0.001 + difftime(current_time, buf_pool->last_printout_time);
+  const auto time_elapsed_s =
+      0.001 +
+      std::chrono::duration_cast<std::chrono::duration<double>>(
+          std::chrono::steady_clock::now() - buf_pool->last_printout_time)
+          .count();
 
   pool_info->n_pages_made_young = buf_pool->stat.n_pages_made_young;
 
@@ -6395,24 +6393,24 @@ void buf_stats_get_pool_info(
 
   pool_info->page_made_young_rate = (buf_pool->stat.n_pages_made_young -
                                      buf_pool->old_stat.n_pages_made_young) /
-                                    time_elapsed;
+                                    time_elapsed_s;
 
   pool_info->page_not_made_young_rate =
       (buf_pool->stat.n_pages_not_made_young -
        buf_pool->old_stat.n_pages_not_made_young) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->pages_read_rate =
       (buf_pool->stat.n_pages_read - buf_pool->old_stat.n_pages_read) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->pages_created_rate =
       (buf_pool->stat.n_pages_created - buf_pool->old_stat.n_pages_created) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->pages_written_rate =
       (buf_pool->stat.n_pages_written - buf_pool->old_stat.n_pages_written) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->n_page_get_delta =
       Counter::total(buf_pool->stat.m_n_page_gets) -
@@ -6432,15 +6430,15 @@ void buf_stats_get_pool_info(
   pool_info->pages_readahead_rnd_rate =
       (buf_pool->stat.n_ra_pages_read_rnd -
        buf_pool->old_stat.n_ra_pages_read_rnd) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->pages_readahead_rate =
       (buf_pool->stat.n_ra_pages_read - buf_pool->old_stat.n_ra_pages_read) /
-      time_elapsed;
+      time_elapsed_s;
 
   pool_info->pages_evicted_rate = (buf_pool->stat.n_ra_pages_evicted -
                                    buf_pool->old_stat.n_ra_pages_evicted) /
-                                  time_elapsed;
+                                  time_elapsed_s;
 
   pool_info->unzip_lru_len = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
 

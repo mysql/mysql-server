@@ -1285,7 +1285,7 @@ void RecLock::set_wait_state(lock_t *lock) {
   ut_ad(trx_mutex_own(m_trx));
   ut_ad(lock_get_wait(lock));
 
-  m_trx->lock.wait_started = ut_time();
+  m_trx->lock.wait_started = std::chrono::system_clock::now();
 
   m_trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
@@ -3452,7 +3452,7 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
 
   trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
-  trx->lock.wait_started = ut_time();
+  trx->lock.wait_started = std::chrono::system_clock::now();
   trx->lock.was_chosen_as_deadlock_victim = false;
 
   auto stopped = que_thr_stop(thr);
@@ -4647,9 +4647,12 @@ void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx) {
 
   if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
     fprintf(file,
-            "------- TRX HAS BEEN WAITING %lu SEC"
-            " FOR THIS LOCK TO BE GRANTED:\n",
-            (ulong)difftime(ut_time(), trx->lock.wait_started));
+            "------- TRX HAS BEEN WAITING %" PRId64
+            " SEC FOR THIS LOCK TO BE GRANTED:\n",
+            static_cast<int64_t>(
+                std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now() - trx->lock.wait_started)
+                    .count()));
 
     if (lock_get_type_low(trx->lock.wait_lock) == LOCK_REC) {
       lock_rec_print(file, trx->lock.wait_lock);

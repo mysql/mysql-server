@@ -52,18 +52,18 @@ page frame.
 a frame.
   -- The above is true because we look at these fields when the
      corresponding buddy block is free which implies that:
-    - The block we are looking at must have an address aligned at
+     - The block we are looking at must have an address aligned at
        the same size that its free buddy has. For example, if we have
        a free block of 8K then its buddy's address must be aligned at
        8K as well.
-    - It is possible that the block we are looking at may have been
+     - It is possible that the block we are looking at may have been
        further divided into smaller sized blocks but its starting
        address must still remain the start of a page frame i.e.: it
        cannot be middle of a block. For example, if we have a free
        block of size 8K then its buddy may be divided into blocks
        of, say, 1K, 1K, 2K, 4K but the buddy's address will still be
        the starting address of first 1K compressed page.
-    - What is important to note is that for any given block, the
+     - What is important to note is that for any given block, the
        buddy's address cannot be in the middle of a larger block i.e.:
        in above example, our 8K block cannot have a buddy whose address
        is aligned on 8K but it is part of a larger 16K block.
@@ -574,7 +574,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
   if (buf_page_can_relocate(bpage)) {
     /* Relocate the compressed page. */
-    const auto usec = ut_time_monotonic_us();
+    const auto start_time = std::chrono::steady_clock::now();
 
     ut_a(bpage->zip.data == src);
 
@@ -589,7 +589,8 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
     buf_buddy_stat_t *buddy_stat = &buf_pool->buddy_stat[i];
     buddy_stat->relocated++;
-    buddy_stat->relocated_usec += ut_time_monotonic_us() - usec;
+    buddy_stat->relocated_duration +=
+        std::chrono::steady_clock::now() - start_time;
     return (true);
   }
 

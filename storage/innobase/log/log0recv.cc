@@ -1261,7 +1261,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
     unit = batch_size;
   }
 
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
   for (const auto &space : *recv_sys->spaces) {
     bool dropped;
@@ -1296,10 +1296,11 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
         pct += PCT;
 
-        start_time = ut_time_monotonic();
+        start_time = std::chrono::steady_clock::now();
 
-      } else if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
-        start_time = ut_time_monotonic();
+      } else if (std::chrono::steady_clock::now() - start_time >=
+                 PRINT_INTERVAL) {
+        start_time = std::chrono::steady_clock::now();
 
         ib::info(ER_IB_MSG_709)
             << std::setprecision(2)

@@ -832,7 +832,7 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn,
 
   const auto wait_stats =
       os_event_wait_for(log.write_events[slot], max_spins,
-                        srv_log_wait_for_write_timeout, stop_condition);
+                        get_srv_log_wait_for_write_timeout(), stop_condition);
 
   MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_WRITE_, wait_stats);
 
@@ -888,7 +888,7 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn,
 
   const auto wait_stats =
       os_event_wait_for(log.flush_events[slot], max_spins,
-                        srv_log_wait_for_flush_timeout, stop_condition);
+                        get_srv_log_wait_for_flush_timeout(), stop_condition);
 
   MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FLUSH_, wait_stats);
 
@@ -937,7 +937,8 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
     const auto sig_count = log.current_ready_waiting_sig_count;
     log_closer_mutex_exit(log);
     ++waits;
-    os_event_wait_time_low(log.closer_event, 100000, sig_count);
+    os_event_wait_time_low(log.closer_event, std::chrono::milliseconds{100},
+                           sig_count);
     log.recent_written.advance_tail();
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
@@ -1163,23 +1164,23 @@ retry:
 
 /** @{ */
 
-/** Small utility which is used inside log threads when they have to
-wait for next interesting event to happen. For performance reasons,
-it might make sense to use spin-delay in front of the wait on event
-in such cases. The strategy is first to spin and then to fallback to
-the wait on event. However, for idle servers or work-loads which do
-not need redo being flushed as often, we prefer to avoid spinning.
-This utility solves such problems and provides waiting mechanism. */
+/** Small utility which is used inside log threads when they have to wait for
+next interesting event to happen. For performance reasons, it might make sense
+to use spin-delay in front of the wait on event in such cases. The strategy is
+first to spin and then to fallback to the wait on event. However, for idle
+servers or work-loads which do not need redo being flushed as often, we prefer
+to avoid spinning. This utility solves such problems and provides waiting
+mechanism. */
 struct Log_thread_waiting {
   Log_thread_waiting(const log_t &log, os_event_t event, uint64_t spin_delay,
-                     uint64_t min_timeout)
+                     std::chrono::microseconds min_timeout)
       : m_log(log),
         m_event{event},
         m_spin_delay{static_cast<uint32_t>(std::min(
             uint64_t(std::numeric_limits<uint32_t>::max()), spin_delay))},
-        m_min_timeout{static_cast<uint32_t>(
-            /* No more than 1s */
-            std::min(uint64_t{1000 * 1000}, min_timeout))} {}
+        m_min_timeout{/* No more than 1s */
+                      std::min<std::chrono::microseconds>(
+                          std::chrono::seconds{1}, min_timeout)} {}
 
   template <typename Stop_condition>
   inline Wait_stats wait(Stop_condition stop_condition) {
@@ -1187,10 +1188,9 @@ struct Log_thread_waiting {
     auto min_timeout = m_min_timeout;
 
     /** We might read older value, it just decides on spinning.
-    Correctness does not depend on this. Only local performance
-    might depend on this but it's anyway heuristic and depends
-    on average which by definition has lag. No reason to make
-    extra barriers here. */
+    Correctness does not depend on this. Only local performance might depend on
+    this but it's anyway heuristic and depends on average which by definition
+    has lag. No reason to make extra barriers here. */
 
     const auto req_interval =
         m_log.write_to_file_requests_interval.load(std::memory_order_relaxed);
@@ -1198,16 +1198,16 @@ struct Log_thread_waiting {
     if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
         !log_write_to_file_requests_are_frequent(req_interval)) {
       /* Either:
-      1. CPU usage is very low on the server, which means the server
-         is most likely idle or almost idle.
-      2. Request to write/flush redo to disk comes only once per 1ms
-         in average or even less often.
-      In both cases we prefer not to spend on CPU power, because there
-      is no real gain from spinning in log threads then. */
+      1. CPU usage is very low on the server, which means the server is most
+         likely idle or almost idle.
+      2. Request to write/flush redo to disk comes only once per 1ms in average
+         or even less often.
+      In both cases we prefer not to spend on CPU power, because there is no
+      real gain from spinning in log threads then. */
 
       spin_delay = 0;
-      min_timeout =
-          static_cast<uint32_t>(req_interval < 1000 ? req_interval : 1000);
+      min_timeout = std::min<std::chrono::microseconds>(
+          req_interval, std::chrono::milliseconds{1});
     }
 
     const auto wait_stats =
@@ -1220,7 +1220,7 @@ struct Log_thread_waiting {
   const log_t &m_log;
   os_event_t m_event;
   const uint32_t m_spin_delay;
-  const uint32_t m_min_timeout;
+  const std::chrono::microseconds m_min_timeout;
 };
 
 struct Log_write_to_file_requests_monitor {
@@ -1240,27 +1240,26 @@ struct Log_write_to_file_requests_monitor {
     }
 
     const auto delta_time = current_time - m_last_requests_time;
-    const auto delta_time_us =
-        std::chrono::duration_cast<std::chrono::microseconds>(delta_time)
-            .count();
 
     if (requests_value > m_last_requests_value) {
       const auto delta_requests = requests_value - m_last_requests_value;
-      const auto request_interval = delta_time_us / delta_requests;
-      m_request_interval = (m_request_interval * 63 + request_interval) / 64;
+      const auto request_interval = delta_time / delta_requests;
+      m_request_interval =
+          std::chrono::duration_cast<std::chrono::microseconds>(
+              (m_request_interval * 63 + request_interval) / 64);
 
-    } else if (delta_time_us > 100 * 1000) {
-      /* Last call to log_write_up_to() was longer than 100ms ago,
-      so consider this as maximum time between calls we can expect.
-      Tracking higher values does not make sense, because it is for
-      sure already higher than any reasonable threshold which can be
+    } else if (delta_time > std::chrono::milliseconds{100}) {
+      /* Last call to log_write_up_to() was longer than 100ms ago, so consider
+      this as maximum time between calls we can expect. Tracking higher values
+      does not make sense, because it is for sure already higher than any
+      reasonable threshold which can be
       used to differ different activity modes. */
 
-      m_request_interval = 100 * 1000; /* 100ms */
+      m_request_interval = std::chrono::milliseconds{100};
 
     } else {
-      /* No progress in number of requests and still no more than
-      1second since last progress. Postpone any decision. */
+      /* No progress in number of requests and still no more than 1second since
+      last progress. Postpone any decision. */
       return;
     }
 
@@ -1268,7 +1267,7 @@ struct Log_write_to_file_requests_monitor {
                                                 std::memory_order_relaxed);
 
     MONITOR_SET(MONITOR_LOG_WRITE_TO_FILE_REQUESTS_INTERVAL,
-                m_request_interval);
+                m_request_interval.count());
 
     m_last_requests_time = current_time;
     m_last_requests_value = requests_value;
@@ -1278,7 +1277,7 @@ struct Log_write_to_file_requests_monitor {
   log_t &m_log;
   uint64_t m_last_requests_value;
   Log_clock_point m_last_requests_time;
-  uint64_t m_request_interval;
+  std::chrono::microseconds m_request_interval;
 };
 
 /** @} */
@@ -2160,7 +2159,7 @@ void log_writer(log_t *log_ptr) {
   log_writer_mutex_enter(log);
 
   Log_thread_waiting waiting{log, log.writer_event, srv_log_writer_spin_delay,
-                             srv_log_writer_timeout};
+                             get_srv_log_writer_timeout()};
 
   Log_write_to_file_requests_monitor write_to_file_requests_monitor{log};
 
@@ -2427,7 +2426,7 @@ void log_flusher(log_t *log_ptr) {
   log_t &log = *log_ptr;
 
   Log_thread_waiting waiting{log, log.flusher_event, srv_log_flusher_spin_delay,
-                             srv_log_flusher_timeout};
+                             get_srv_log_flusher_timeout()};
 
   log_flusher_mutex_enter(log);
 
@@ -2512,27 +2511,22 @@ void log_flusher(log_t *log_ptr) {
         log.last_flush_end_time = current_time;
       }
 
-      const auto time_elapsed = current_time - log.last_flush_start_time;
+      const auto time_elapsed =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              current_time - log.last_flush_start_time);
 
-      using us = std::chrono::microseconds;
+      ut_a(time_elapsed >= std::chrono::seconds::zero());
 
-      const auto time_elapsed_us =
-          std::chrono::duration_cast<us>(time_elapsed).count();
+      const auto flush_every = get_srv_flush_log_at_timeout();
 
-      ut_a(time_elapsed_us >= 0);
-
-      const auto flush_every = srv_flush_log_at_timeout;
-
-      const auto flush_every_us = 1000000LL * flush_every;
-
-      if (time_elapsed_us < flush_every_us) {
+      if (time_elapsed < flush_every) {
         log_flusher_mutex_exit(log);
 
         /* When we are asked to stop threads, do not respect the limit
         for flushes per second. */
         if (!log.should_stop_threads.load()) {
-          os_event_wait_time_low(log.flusher_event,
-                                 flush_every_us - time_elapsed_us, 0);
+          os_event_wait_time_low(log.flusher_event, flush_every - time_elapsed,
+                                 0);
         }
 
         log_flusher_mutex_enter(log);
@@ -2573,7 +2567,7 @@ void log_write_notifier(log_t *log_ptr) {
 
   Log_thread_waiting waiting{log, log.write_notifier_event,
                              srv_log_write_notifier_spin_delay,
-                             srv_log_write_notifier_timeout};
+                             get_srv_log_write_notifier_timeout()};
 
   for (uint64_t step = 0;; ++step) {
     if (log.should_stop_threads.load()) {
@@ -2695,7 +2689,7 @@ void log_flush_notifier(log_t *log_ptr) {
 
   Log_thread_waiting waiting{log, log.flush_notifier_event,
                              srv_log_flush_notifier_spin_delay,
-                             srv_log_flush_notifier_timeout};
+                             get_srv_log_flush_notifier_timeout()};
 
   for (uint64_t step = 0;; ++step) {
     if (log.should_stop_threads.load()) {
