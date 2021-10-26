@@ -166,20 +166,30 @@ NdbPack::Type::complete()
     set_error(TypeNullableNotBool, __LINE__);
     return -1;
   }
-  if (unlikely(info.m_charType && m_csNumber == 0))
+  if (unlikely(info.m_charType))
   {
-    set_error(CharsetNotSpecified, __LINE__);
-    return -1;
-  }
-  if (info.m_charType && all_charsets[m_csNumber] == 0)
-  {
-    CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-    if (unlikely(cs == 0))
+    if (unlikely(m_csNumber == 0))
+    {
+      set_error(CharsetNotSpecified, __LINE__);
+      return -1;
+    }
+
+    if (unlikely(m_csNumber >= NDB_ARRAY_SIZE(all_charsets)))
     {
       set_error(CharsetNotFound, __LINE__);
       return -1;
     }
-    all_charsets[m_csNumber] = cs; // yes caller must do this
+
+    if (unlikely(all_charsets[m_csNumber] == 0))
+    {
+      CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
+      if (unlikely(cs == 0))
+      {
+        set_error(CharsetNotFound, __LINE__);
+        return -1;
+      }
+      all_charsets[m_csNumber] = cs; // yes caller must do this
+    }
   }
   if (unlikely(!info.m_charType && m_csNumber != 0))
   {

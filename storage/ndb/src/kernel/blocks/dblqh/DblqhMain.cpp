@@ -35329,6 +35329,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     Uint32 record = signal->theData[2];
     Uint32 len = signal->getLength();
     TcConnectionrecPtr tcRec;
+    ndbrequire(bucket < NDB_ARRAY_SIZE(ctransidHash));
+
     if (record != RNIL)
     {
       jam();
