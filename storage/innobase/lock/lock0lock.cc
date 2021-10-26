@@ -3808,7 +3808,7 @@ static void lock_rec_release(lock_t *lock, ulint heap_no) {
 /** Removes a granted record lock of a transaction from the queue and grants
  locks to other transactions waiting in the queue if they now are entitled
  to a lock.
- This function is meant to be used only by row_unlock_for_mysql, and it assumes
+ This function is meant to be used only by row_try_unlock, and it assumes
  that the lock we are looking for has LOCK_REC_NOT_GAP flag.
  */
 void lock_rec_unlock(

@@ -9778,7 +9778,7 @@ int ha_innobase::delete_all_rows() {
 
 /** Removes a new lock set on a row, if it was not read optimistically. This can
  be called after a row has been read in the processing of an UPDATE or a DELETE
- query, when trx_t::allow_semi_consistent() is true. */
+ query, when the record doesn't match the WHERE condition. */
 
 void ha_innobase::unlock_row(void) {
   DBUG_TRACE;
@@ -9807,19 +9807,23 @@ void ha_innobase::unlock_row(void) {
   ut_ad(trx_state_eq(m_prebuilt->trx, TRX_STATE_ACTIVE) ||
         trx_state_eq(m_prebuilt->trx, TRX_STATE_FORCED_ROLLBACK));
 
-  switch (m_prebuilt->row_read_type) {
-    case ROW_READ_WITH_LOCKS:
-      if (!m_prebuilt->trx->allow_semi_consistent()) {
-        break;
-      }
-      [[fallthrough]];
-    case ROW_READ_TRY_SEMI_CONSISTENT:
-      row_unlock_for_mysql(m_prebuilt, FALSE);
-      break;
-    case ROW_READ_DID_SEMI_CONSISTENT:
-      m_prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
-      break;
+  /* The purpose of unlock_row() is to release locks held on non-matching row
+  found during most recent row_search_mvcc() call.
+  In higher isolation levels row_try_unlock() is a no-op, as we only set the
+  m_prebuilt->new_rec_lock[i] when trx->releases_non_matching_rows().
+  In lower isolation levels row_try_unlock() will remove the record locks which
+  were newly created during the most recent row_search_mvcc() (the record locks
+  which were merely reused, are not released as they are still needed).
+  @see handler::was_semi_consistent_read() for great explanation of what
+  semi-consistent read mode is all about and why we don't call row_try_unlock()
+  in case of ROW_READ_DID_SEMI_CONSISTENT, and reset the flag instead; in short
+  a successful semi-consistent read means we didn't acquire any lock, so don't
+  need to unlock anything if the row doesn't match the query. */
+  if (m_prebuilt->row_read_type == ROW_READ_DID_SEMI_CONSISTENT) {
+    ut_ad(m_prebuilt->new_rec_locks_count() == 0);
+    m_prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
   }
+  m_prebuilt->try_unlock(false);
 }
 
 /* See handler.h and row0mysql.h for docs on this function. */

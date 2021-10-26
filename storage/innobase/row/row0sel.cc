@@ -4504,7 +4504,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   bool need_vrow = dict_index_has_virtual(prebuilt->index) &&
                    (prebuilt->read_just_key || prebuilt->m_read_virtual_key);
 
-  /* Reset the new record lock info if trx_t::allow_semi_consistent().
+  /* Reset the new record lock info.
   Then we are able to remove the record locks set here on an
   individual row. */
   std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
@@ -5226,7 +5226,7 @@ rec_loop:
     switch (err) {
       const rec_t *old_vers;
       case DB_SUCCESS_LOCKED_REC:
-        if (trx->allow_semi_consistent()) {
+        if (trx->releases_non_matching_rows()) {
           /* Note that a record of
           prebuilt->index was locked. */
           ut_ad(!prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR]);
@@ -5253,7 +5253,7 @@ rec_loop:
             unique_search || index != clust_index) {
           goto lock_wait_or_error;
         }
-
+        ut_a(trx->allow_semi_consistent());
         /* The following call returns 'offsets' associated with 'old_vers' */
         row_sel_build_committed_vers_for_mysql(
             clust_index, prebuilt, rec, &offsets, &heap, &old_vers,
@@ -5386,6 +5386,16 @@ rec_loop:
     }
   }
 
+#ifdef UNIV_DEBUG
+  if (did_semi_consistent_read) {
+    ut_a(prebuilt->select_lock_type != LOCK_NONE);
+    ut_a(!prebuilt->table->is_intrinsic());
+    ut_a(prebuilt->row_read_type == ROW_READ_TRY_SEMI_CONSISTENT);
+    ut_a(prebuilt->trx->allow_semi_consistent());
+    ut_a(prebuilt->new_rec_locks_count() == 0);
+  }
+#endif /* UNIV_DEBUG */
+
   /* NOTE that at this point rec can be an old version of a clustered
   index record built for a consistent read. We cannot assume after this
   point that rec is on a buffer pool page. Functions like
@@ -5394,13 +5404,10 @@ rec_loop:
   if (rec_get_deleted_flag(rec, comp)) {
     /* The record is delete-marked: we can skip it */
 
-    if (trx->allow_semi_consistent() &&
-        prebuilt->select_lock_type != LOCK_NONE && !did_semi_consistent_read) {
-      /* No need to keep a lock on a delete-marked record
-      if we do not want to use next-key locking. */
-
-      row_unlock_for_mysql(prebuilt, TRUE);
-    }
+    /* No need to keep a lock on a delete-marked record in lower isolation
+    levels - it's similar to when Server sees the WHERE condition doesn't match
+    and calls unlock_row(). */
+    prebuilt->try_unlock(true);
 
     /* This is an optimization to skip setting the next key lock
     on the record that follows this delete-marked record. This
@@ -5427,12 +5434,11 @@ rec_loop:
   /* Check if the record matches the index condition. */
   switch (row_search_idx_cond_check(buf, prebuilt, rec, offsets)) {
     case ICP_NO_MATCH:
-      if (did_semi_consistent_read) {
-        row_unlock_for_mysql(prebuilt, TRUE);
-      }
+      prebuilt->try_unlock(true);
       goto next_rec;
     case ICP_OUT_OF_RANGE:
       err = DB_RECORD_NOT_FOUND;
+      prebuilt->try_unlock(true);
       goto idx_cond_failed;
     case ICP_MATCH:
       break;
@@ -5477,7 +5483,7 @@ rec_loop:
         goto next_rec;
       case DB_SUCCESS_LOCKED_REC:
         ut_a(clust_rec != nullptr);
-        if (trx->allow_semi_consistent()) {
+        if (trx->releases_non_matching_rows()) {
           /* Note that the clustered index record
           was locked. */
           ut_ad(!prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]);
@@ -5493,14 +5499,10 @@ rec_loop:
     if (rec_get_deleted_flag(clust_rec, comp)) {
       /* The record is delete marked: we can skip it */
 
-      if (trx->allow_semi_consistent() &&
-          prebuilt->select_lock_type != LOCK_NONE) {
-        /* No need to keep a lock on a delete-marked
-        record if we do not want to use next-key
-        locking. */
-
-        row_unlock_for_mysql(prebuilt, TRUE);
-      }
+      /* No need to keep a lock on a delete-marked record in lower isolation
+      levels - it's similar to when Server sees the WHERE condition doesn't
+      match and calls unlock_row(). */
+      prebuilt->try_unlock(true);
 
       goto next_rec;
     }
@@ -5947,10 +5949,10 @@ lock_table_wait:
       prev_rec = nullptr;
     }
 
-    if (!same_user_rec && trx->allow_semi_consistent()) {
+    if (!same_user_rec && trx->releases_non_matching_rows()) {
       /* Since we were not able to restore the cursor
       on the same user record, we cannot use
-      row_unlock_for_mysql() to unlock any records, and
+      row_prebuilt_t::try_unlock() to unlock any records, and
       we must thus reset the new rec lock info. Since
       in lock0lock.cc we have blocked the inheriting of gap
       X-locks, we actually do not have any new record locks

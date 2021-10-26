@@ -2483,53 +2483,30 @@ void row_delete_all_rows(dict_table_t *table) {
   }
 }
 
-/** This can only be used when this session is using a READ COMMITTED or READ
-UNCOMMITTED isolation level.  Before calling this function
-row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
-the information which new record locks really were set. This function removes
-a newly set clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
-the latest clustered index record lock we set.
-
-@param[in,out]	prebuilt		prebuilt struct in MySQL handle
-@param[in]	has_latches_on_recs	TRUE if called so that we have the
-                                        latches on the records under pcur
-                                        and clust_pcur, and we do not need
-                                        to reposition the cursors. */
-void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
-  btr_pcur_t *pcur = prebuilt->pcur;
-  btr_pcur_t *clust_pcur = prebuilt->clust_pcur;
-  trx_t *trx = prebuilt->trx;
-
-  ut_ad(prebuilt != nullptr);
+void row_prebuilt_t::try_unlock(bool has_latches_on_recs) {
   ut_ad(trx != nullptr);
-  ut_ad(trx->allow_semi_consistent());
 
-  if (dict_index_is_spatial(prebuilt->index)) {
+  if (dict_index_is_spatial(index)) {
     return;
   }
 
   trx->op_info = "unlock_row";
 
-  if (std::count(prebuilt->new_rec_lock,
-                 prebuilt->new_rec_lock + row_prebuilt_t::LOCK_COUNT, true)) {
-    const rec_t *rec;
-    dict_index_t *index;
-    trx_id_t rec_trx_id;
+  if (0 < new_rec_locks_count()) {
+    ut_ad(trx->releases_non_matching_rows());
+    ut_ad(select_lock_type != LOCK_NONE);
+    ut_ad(!table->is_intrinsic());
+
     mtr_t mtr;
-
     mtr_start(&mtr);
+    if (new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
+      /* Restore the cursor position and find the record */
 
-    /* Restore the cursor position and find the record */
-
-    if (!has_latches_on_recs) {
-      btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr);
+      if (!has_latches_on_recs) {
+        btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, &mtr);
+      }
     }
-
-    rec = btr_pcur_get_rec(pcur);
-    index = btr_pcur_get_btr_cur(pcur)->index;
-
-    if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
+    if (new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
       /* Restore the cursor position and find the record
       in the clustered index. */
 
@@ -2537,56 +2514,48 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
         btr_pcur_restore_position(BTR_SEARCH_LEAF, clust_pcur, &mtr);
       }
 
-      rec = btr_pcur_get_rec(clust_pcur);
-      index = btr_pcur_get_btr_cur(clust_pcur)->index;
+      ut_ad(btr_pcur_get_btr_cur(clust_pcur)->index->is_clustered());
     }
 
-    if (!index->is_clustered()) {
-      /* This is not a clustered index record.  We
-      do not know how to unlock the record. */
-      goto no_unlock;
-    }
-
-    /* If the record has been modified by this
-    transaction, do not unlock it. */
-
-    if (index->trx_id_offset) {
-      rec_trx_id = trx_read_trx_id(rec + index->trx_id_offset);
-    } else {
-      mem_heap_t *heap = nullptr;
-      ulint offsets_[REC_OFFS_NORMAL_SIZE];
-      ulint *offsets = offsets_;
-
-      rec_offs_init(offsets_);
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-
-      rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
-
-      if (UNIV_LIKELY_NULL(heap)) {
-        mem_heap_free(heap);
+    /* If the record has been modified by this transaction, we shouldn't unlock
+    it. In general we should not remove locks acquired during previous queries
+    of the same transaction. It's a bit difficult to verify this rule holds for
+    secondary indexes, as records in them do not track the TRX_ID which modified
+    them. Therefore we verify only clustered index only, that whenever we've
+    modified the row, then we are not trying to unlock it. This property should
+    be ensured by setting the new_rec_lock[i] to true only when a new lock
+    struct was created, which in turn means that no existing lock could be
+    reused, which in turn means we haven't had any X-lock before, which in turn
+    implies we hadn't have modified the record yet. */
+#ifdef UNIV_DEBUG
+    {
+      const btr_pcur_t *const the_pcur =
+          new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR] ? clust_pcur : pcur;
+      const dict_index_t *const index = btr_pcur_get_btr_cur(the_pcur)->index;
+      if (index->is_clustered()) {
+        const rec_t *const rec = btr_pcur_get_rec(the_pcur);
+        const trx_id_t rec_trx_id =
+            index->trx_id_offset
+                ? trx_read_trx_id(rec + index->trx_id_offset)
+                : row_get_rec_trx_id(rec, index,
+                                     Rec_offsets().compute(rec, index));
+        ut_ad(rec_trx_id != trx->id);
       }
     }
+#endif
+    /* We did not update the record: unlock it */
 
-    if (rec_trx_id != trx->id) {
-      /* We did not update the record: unlock it */
-
-      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
-        rec = btr_pcur_get_rec(pcur);
-
-        lock_rec_unlock(
-            trx, btr_pcur_get_block(pcur), rec,
-            static_cast<enum lock_mode>(prebuilt->select_lock_type));
-      }
-
-      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
-        rec = btr_pcur_get_rec(clust_pcur);
-
-        lock_rec_unlock(
-            trx, btr_pcur_get_block(clust_pcur), rec,
-            static_cast<enum lock_mode>(prebuilt->select_lock_type));
-      }
+    if (new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
+      lock_rec_unlock(trx, btr_pcur_get_block(pcur), btr_pcur_get_rec(pcur),
+                      static_cast<enum lock_mode>(select_lock_type));
     }
-  no_unlock:
+
+    if (new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
+      lock_rec_unlock(trx, btr_pcur_get_block(clust_pcur),
+                      btr_pcur_get_rec(clust_pcur),
+                      static_cast<enum lock_mode>(select_lock_type));
+    }
+
     mtr_commit(&mtr);
   }
 

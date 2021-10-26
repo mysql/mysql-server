@@ -1281,6 +1281,11 @@ struct trx_t {
   }
 
   bool allow_semi_consistent() const { return (skip_gap_locks()); }
+  /** Checks if this transaction releases locks on non matching records due to
+  low isolation level.
+  @return true iff in this transaction's isolation level locks on records which
+               do not match the WHERE clause are released */
+  bool releases_non_matching_rows() const { return skip_gap_locks(); }
 };
 #ifndef UNIV_HOTBACKUP
 

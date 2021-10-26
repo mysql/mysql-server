@@ -1,0 +1,48 @@
+create table ts(a int primary key, b int, c int, d int, index(b,c));
+insert into ts
+values(1,1,1,1),(2,2,2,2),(3,3,3,3),(4,4,4,4),(5,5,5,5),(6,6,6,6),(7,7,7,7),(8
+,8,8,8),(9,9,9,9);
+ANALYZE TABLE ts;
+Table	Op	Msg_type	Msg_text
+test.ts	analyze	status	OK
+SELECT @@optimizer_switch LIKE '%index_condition_pushdown=on%';
+@@optimizer_switch LIKE '%index_condition_pushdown=on%'
+1
+explain select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ts	NULL	range	b	b	10	NULL	2	11.11	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ts`.`b` AS `b`,`test`.`ts`.`c` AS `c`,`test`.`ts`.`d` AS `d` from `test`.`ts` where ((`test`.`ts`.`c` = 7) and (`test`.`ts`.`b` >= 5) and (`test`.`ts`.`b` < 8))
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+begin;
+select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+b	c	d
+7	7	7
+select INDEX_NAME,LOCK_TYPE,LOCK_MODE,LOCK_STATUS,LOCK_DATA from performance_schema.data_locks;
+INDEX_NAME	LOCK_TYPE	LOCK_MODE	LOCK_STATUS	LOCK_DATA
+NULL	TABLE	IX	GRANTED	NULL
+b	RECORD	X,REC_NOT_GAP	GRANTED	7, 7, 7
+PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7
+commit;
+SET @@optimizer_switch='index_condition_pushdown=off';
+SELECT @@optimizer_switch LIKE '%index_condition_pushdown=on%';
+@@optimizer_switch LIKE '%index_condition_pushdown=on%'
+0
+explain select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	ts	NULL	range	b	b	10	NULL	2	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`ts`.`b` AS `b`,`test`.`ts`.`c` AS `c`,`test`.`ts`.`d` AS `d` from `test`.`ts` where ((`test`.`ts`.`c` = 7) and (`test`.`ts`.`b` >= 5) and (`test`.`ts`.`b` < 8))
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+begin;
+select b,c,d from ts where b>=5 and b<8 and c=7 for update;
+b	c	d
+7	7	7
+select INDEX_NAME,LOCK_TYPE,LOCK_MODE,LOCK_STATUS,LOCK_DATA from performance_schema.data_locks;
+INDEX_NAME	LOCK_TYPE	LOCK_MODE	LOCK_STATUS	LOCK_DATA
+NULL	TABLE	IX	GRANTED	NULL
+b	RECORD	X,REC_NOT_GAP	GRANTED	7, 7, 7
+PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	7
+commit;
+SET @@optimizer_switch='index_condition_pushdown=off';
+DROP TABLE ts;
