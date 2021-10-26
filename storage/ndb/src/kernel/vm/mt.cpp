@@ -113,6 +113,7 @@ inline
 SimulatedBlock*
 GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 {
+  require(blockNo >= MIN_BLOCK_NO && blockNo <= MAX_BLOCK_NO);
   SimulatedBlock* b = getBlock(blockNo);
   if (b != 0 && instanceNo != 0)
     b = b->getInstance(instanceNo);
