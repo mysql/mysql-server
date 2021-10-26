@@ -194,6 +194,7 @@ ENDFOREACH()
 # Add tests (link them with gunit/gmock libraries and the server libraries)
 SET(SERVER_TESTS
   character_set_deprecation
+  compare_access_paths
   copy_info
   create_field
   dd_cache

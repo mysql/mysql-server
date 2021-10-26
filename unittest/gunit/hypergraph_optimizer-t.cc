@@ -25,6 +25,7 @@
 #include <string.h>
 #include <initializer_list>
 #include <memory>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -1444,6 +1445,39 @@ TEST_F(HypergraphOptimizerTest, SingleTable) {
   EXPECT_FLOAT_EQ(100.0F, root->num_output_rows);
 }
 
+TEST_F(HypergraphOptimizerTest, NumberOfAccessPaths) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 "
+      "JOIN t2 ON t1.x=t2.x "
+      "JOIN t3 ON t1.x=t3.x "
+      "JOIN t4 ON t1.x=t4.x "
+      "JOIN t5 ON t1.x=t5.x",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 101;
+  m_fake_tables["t2"]->file->stats.records = 102;
+  m_fake_tables["t3"]->file->stats.records = 103;
+  m_fake_tables["t4"]->file->stats.records = 104;
+  m_fake_tables["t5"]->file->stats.records = 105;
+
+  m_fake_tables["t1"]->file->stats.data_file_length = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100;
+  m_fake_tables["t3"]->file->stats.data_file_length = 100;
+  m_fake_tables["t4"]->file->stats.data_file_length = 100;
+  m_fake_tables["t5"]->file->stats.data_file_length = 100;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_TRUE(root != nullptr);
+  std::smatch matches;
+  std::regex_search(trace, matches,
+                    std::regex("keeping a total of ([0-9]+) access paths"));
+  ASSERT_EQ(matches.size(), 2);  // One match and one sub-match.
+  int paths = std::stoi(matches[1]);
+  EXPECT_LT(paths, 100);
+}
+
 TEST_F(HypergraphOptimizerTest,
        PredicatePushdown) {  // Also tests nested loop join.
   Query_block *query_block = ParseAndResolve(
@@ -2160,12 +2194,12 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
-  m_fake_tables["t1"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.records = 1000;
   m_fake_tables["t2"]->file->stats.records = 100;
   m_fake_tables["t3"]->file->stats.records = 1000000;
 
   // Set up some large scan costs to discourage nested loop.
-  m_fake_tables["t1"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t1"]->file->stats.data_file_length = 10e6;
   m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
   m_fake_tables["t3"]->file->stats.data_file_length = 10000e6;
 
@@ -2179,7 +2213,6 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   // It's pretty obvious given the sizes of these tables that the optimal
   // order for hash join is t3 hj (t1 hj t2). We don't check the costs
   // beyond that.
-
   ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
   EXPECT_EQ(RelationalExpression::INNER_JOIN,
             root->hash_join().join_predicate->expr->type);

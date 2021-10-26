@@ -62,5 +62,6 @@ static constexpr int kMaxSupportedFDs = 64;
 using FunctionalDependencySet = std::bitset<kMaxSupportedFDs>;
 
 static constexpr int kMaxSupportedOrderings = 64;
+using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
 #endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H

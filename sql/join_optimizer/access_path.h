@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
@@ -48,7 +49,6 @@ class Item;
 class Item_func_match;
 class JOIN;
 class KEY;
-class RowIterator;
 class QEP_TAB;
 class QUICK_RANGE;
 class SJ_TMP_TABLE;

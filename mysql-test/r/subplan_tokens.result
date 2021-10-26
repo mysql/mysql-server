@@ -27,7 +27,10 @@ EXPLAIN
 To force this plan, use:
 SET DEBUG='+d,subplan_tokens,force_subplan_0x685afbd3f088dc87,force_subplan_0x383f9723be72015d';
 
-SET DEBUG='+d,subplan_tokens,force_subplan_0x90b6f02248424220';
+SET DEBUG='+d,subplan_tokens,'
+  'force_subplan_0x90b6f02248424220,'
+  'force_subplan_0x383f9723be72015d,'
+  'force_subplan_0xedd60db81c76aaf5';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
 -> [0x9fe1924c5f48742c] Sort: t1.a  (cost=2.09..2.09 rows=3)

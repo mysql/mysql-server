@@ -61,6 +61,7 @@
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/build_interesting_orders.h"
+#include "sql/join_optimizer/compare_access_paths.h"
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/explain_access_path.h"
@@ -123,8 +124,6 @@ namespace {
 
 string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace);
-
-using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
@@ -204,7 +203,15 @@ class CostingReceiver {
     return it->second.active_functional_dependencies;
   }
 
-  size_t num_access_paths() const { return m_access_paths.size(); }
+  size_t num_subplans() const { return m_access_paths.size(); }
+
+  size_t num_access_paths() const {
+    size_t access_paths = 0;
+    for (const auto &[nodes, pathset] : m_access_paths) {
+      access_paths += pathset.paths.size();
+    }
+    return access_paths;
+  }
 
   AccessPath *ProposeAccessPath(
       AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
@@ -3449,27 +3456,27 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
   return already_applied;
 }
 
-enum class PathComparisonResult {
-  FIRST_DOMINATES,
-  SECOND_DOMINATES,
-  DIFFERENT_STRENGTHS,
-  IDENTICAL,
-};
+uint32_t AddFlag(uint32_t flags, FuzzyComparisonResult flag) {
+  return flags | static_cast<uint32_t>(flag);
+}
+
+bool HasFlag(uint32_t flags, FuzzyComparisonResult flag) {
+  return (flags & static_cast<uint32_t>(flag));
+}
+
+}  // namespace
 
 // See if one access path is better than the other across all cost dimensions
 // (if so, we say it dominates the other one). If not, we return
 // DIFFERENT_STRENGTHS so that both must be kept.
 //
-// TODO(sgunders): If one path is better than the other in cost, and only
-// slightly worse (e.g. 1%) in a less important metric such as init_cost,
-// consider pruning the latter.
-//
 // TODO(sgunders): Support turning off certain cost dimensions; e.g., init_cost
 // only matters if we have a LIMIT or nested loop semijoin somewhere in the
 // query, and it might not matter for secondary engine.
-static inline PathComparisonResult CompareAccessPaths(
-    const LogicalOrderings &orderings, const AccessPath &a, const AccessPath &b,
-    OrderingSet obsolete_orderings) {
+PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
+                                        const AccessPath &a,
+                                        const AccessPath &b,
+                                        OrderingSet obsolete_orderings) {
 #ifndef NDEBUG
   // Manual preference overrides everything else.
   // If they're both preferred, tie-break by ordering.
@@ -3480,31 +3487,14 @@ static inline PathComparisonResult CompareAccessPaths(
   }
 #endif
 
-  bool a_is_better = false, b_is_better = false;
-  if (a.cost < b.cost) {
-    a_is_better = true;
-  } else if (b.cost < a.cost) {
-    b_is_better = true;
-  }
-
-  if (a.init_cost < b.init_cost) {
-    a_is_better = true;
-  } else if (b.init_cost < a.init_cost) {
-    b_is_better = true;
-  }
-
-  if (a.rescan_cost() < b.rescan_cost()) {
-    a_is_better = true;
-  } else if (b.rescan_cost() < a.rescan_cost()) {
-    b_is_better = true;
-  }
+  uint32_t flags = 0;
 
   if (a.parameter_tables != b.parameter_tables) {
     if (!IsSubset(a.parameter_tables, b.parameter_tables)) {
-      b_is_better = true;
+      flags = AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
     }
     if (!IsSubset(b.parameter_tables, a.parameter_tables)) {
-      a_is_better = true;
+      flags = AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
     }
   }
 
@@ -3518,12 +3508,26 @@ static inline PathComparisonResult CompareAccessPaths(
   const int b_ordering_state = (b.parameter_tables == 0) ? b.ordering_state : 0;
   if (orderings.MoreOrderedThan(a_ordering_state, b_ordering_state,
                                 obsolete_orderings)) {
-    a_is_better = true;
+    flags = AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
   }
   if (orderings.MoreOrderedThan(b_ordering_state, a_ordering_state,
                                 obsolete_orderings)) {
-    b_is_better = true;
+    flags = AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
   }
+
+  // If one path is safe for row IDs and another one is not,
+  // that is also something we need to take into account.
+  // Safer values have lower numerical values, so we can compare them
+  // as integers.
+  if (a.safe_for_rowid < b.safe_for_rowid) {
+    flags = AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
+  } else if (b.safe_for_rowid < a.safe_for_rowid) {
+    flags = AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
+  }
+
+  // Numerical cost dimensions are compared fuzzily in order to treat paths
+  // with insignificant differences as identical.
+  constexpr double fuzz_factor = 1.01;
 
   // Normally, two access paths for the same subplan should have the same
   // number of output rows. However, for parameterized paths, this need not
@@ -3534,32 +3538,40 @@ static inline PathComparisonResult CompareAccessPaths(
   // non-optimal now, e.g. by saving on filtering work, or having less work
   // done in other joins. Thus, we need to keep it around as an extra
   // cost dimension.
-  if (a.num_output_rows < b.num_output_rows) {
-    a_is_better = true;
-  } else if (b.num_output_rows < a.num_output_rows) {
-    b_is_better = true;
-  }
+  flags = AddFlag(flags, FuzzyComparison(a.num_output_rows, b.num_output_rows,
+                                         fuzz_factor));
 
-  // If one path is safe for row IDs and another one is not,
-  // that is also something we need to take into account.
-  // Safer values have lower numerical values, so we can compare them
-  // as integers.
-  if (a.safe_for_rowid < b.safe_for_rowid) {
-    a_is_better = true;
-  } else if (b.safe_for_rowid < a.safe_for_rowid) {
-    b_is_better = true;
-  }
+  flags = AddFlag(flags, FuzzyComparison(a.cost, b.cost, fuzz_factor));
+  flags =
+      AddFlag(flags, FuzzyComparison(a.init_cost, b.init_cost, fuzz_factor));
+  flags = AddFlag(
+      flags, FuzzyComparison(a.rescan_cost(), b.rescan_cost(), fuzz_factor));
 
-  if (!a_is_better && !b_is_better) {
-    return PathComparisonResult::IDENTICAL;
+  bool a_is_better = HasFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
+  bool b_is_better = HasFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
+  if (a_is_better && b_is_better) {
+    return PathComparisonResult::DIFFERENT_STRENGTHS;
   } else if (a_is_better && !b_is_better) {
     return PathComparisonResult::FIRST_DOMINATES;
   } else if (!a_is_better && b_is_better) {
     return PathComparisonResult::SECOND_DOMINATES;
-  } else {
-    return PathComparisonResult::DIFFERENT_STRENGTHS;
+  } else {  // Fuzzily identical
+    bool a_is_slightly_better =
+        HasFlag(flags, FuzzyComparisonResult::FIRST_SLIGHTLY_BETTER);
+    bool b_is_slightly_better =
+        HasFlag(flags, FuzzyComparisonResult::SECOND_SLIGHTLY_BETTER);
+    // If one path is no worse in all dimensions and strictly better
+    // in at least one dimension we identify it as dominant.
+    if (a_is_slightly_better && !b_is_slightly_better) {
+      return PathComparisonResult::FIRST_DOMINATES;
+    } else if (!a_is_slightly_better && b_is_slightly_better) {
+      return PathComparisonResult::SECOND_DOMINATES;
+    }
+    return PathComparisonResult::IDENTICAL;
   }
 }
+
+namespace {
 
 string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
                        const char *description_for_trace) {
@@ -3853,7 +3865,6 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
     if (result == PathComparisonResult::IDENTICAL ||
         result == PathComparisonResult::SECOND_DOMINATES) {
-      assert(insert_position == nullptr);
       if (m_trace != nullptr) {
         *m_trace += " - " +
                     PrintAccessPath(*path, m_graph, description_for_trace) +
@@ -5433,11 +5444,13 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   Prealloced_array<AccessPath *, 4> root_candidates =
       receiver.root_candidates();
   assert(!root_candidates.empty());
-  thd->m_current_query_partial_plans += receiver.num_access_paths();
+  thd->m_current_query_partial_plans += receiver.num_subplans();
   if (trace != nullptr) {
     *trace += StringPrintf(
-        "\nEnumerated %zu subplans, got %zu candidate(s) to finalize:\n",
-        receiver.num_access_paths(), root_candidates.size());
+        "\nEnumerated %zu subplans keeping a total of %zu access paths, "
+        "got %zu candidate(s) to finalize:\n",
+        receiver.num_subplans(), receiver.num_access_paths(),
+        root_candidates.size());
   }
 
   // Now we have one or more access paths representing joining all the tables
