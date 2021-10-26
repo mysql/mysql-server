@@ -946,7 +946,8 @@ dberr_t Btree_load::page_commit(Page_load *page_loader,
   need to acquire a lock in that case. */
   ut_ad(!page_loader->is_index_locked());
 
-  IF_ENABLED("ddl_btree_build_sleep", os_thread_sleep(1000000);)
+  IF_ENABLED("ddl_btree_build_sleep",
+             std::this_thread::sleep_for(std::chrono::seconds{1});)
 
   /* Compress page if it's a compressed table. */
   if (page_loader->is_table_compressed() && !page_loader->compress()) {

@@ -627,8 +627,8 @@ Wait until all the background threads of the given table have exited, i.e.,
 bg_threads == 0. Note: bg_threads_mutex must be reserved when
 calling this. */
 void dict_table_wait_for_bg_threads_to_exit(
-    dict_table_t *table, /* in: table */
-    ulint delay);        /* in: time in microseconds to wait between
+    dict_table_t *table,              /* in: table */
+    std::chrono::microseconds delay); /* in: time to wait between
                          checks of bg_threads. */
 
 /** Look up an index among already opened tables. Does not attempt to open

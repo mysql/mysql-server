@@ -602,7 +602,7 @@ void Clone_persist_gtid::periodic_write() {
     }
 
     if (!flush_immediate()) {
-      os_event_wait_time(m_event, s_time_threshold_ms * 1000);
+      os_event_wait_time(m_event, s_time_threshold);
     }
     os_event_reset(m_event);
     /* Write accumulated GTIDs to disk table */

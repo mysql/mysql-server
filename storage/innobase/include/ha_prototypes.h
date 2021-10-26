@@ -186,12 +186,15 @@ the expected memory pages due to failure in using madvise */
 void innobase_disable_core_dump();
 
 /** Returns the lock wait timeout for the current connection.
- @return the lock wait timeout, in seconds */
-ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query
-                                       the global innodb_lock_wait_timeout */
-/** Add up the time waited for the lock for the current query. */
-void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
-                            ulint value); /*!< in: time waited for the lock */
+ @return the lock wait timeout */
+std::chrono::seconds thd_lock_wait_timeout(
+    THD *thd); /*!< in: thread handle, or NULL to query
+the global innodb_lock_wait_timeout */
+
+/** Set the time waited for the lock for the current query. */
+void thd_set_lock_wait_time(THD *thd, /*!< in/out: thread handle */
+                            std::chrono::steady_clock::duration
+                                value); /*!< in: time waited for the lock */
 
 /** Get the value of innodb_tmpdir.
 @param[in] thd	thread handle, or nullptr to query the global innodb_tmpdir.
@@ -257,8 +260,9 @@ int thd_trx_priority(THD *thd);
 ibool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
 
 /** Get the thread start time.
- @return the thread start time in seconds since the epoch. */
-ulint thd_start_time_in_secs(THD *thd); /*!< in: thread handle, or NULL */
+ @return the thread start time. */
+std::chrono::system_clock::time_point thd_start_time(
+    THD *thd); /*!< in: thread handle, or NULL */
 
 /** A wrapper function of innobase_convert_name(), convert a table name
 to the MySQL system_charset_info (UTF-8) and quote it if needed.

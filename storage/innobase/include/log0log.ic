@@ -321,8 +321,9 @@ inline lsn_t log_buffer_flush_order_lag(const log_t &log) {
   return (log.recent_closed.capacity());
 }
 
-inline bool log_write_to_file_requests_are_frequent(uint64_t interval) {
-  return (interval < 1000); /* 1ms */
+inline bool log_write_to_file_requests_are_frequent(
+    std::chrono::microseconds interval) {
+  return (interval < std::chrono::milliseconds{1});
 }
 
 inline bool log_write_to_file_requests_are_frequent(const log_t &log) {

@@ -561,18 +561,21 @@ static int fill_innodb_trx_from_cache(
     OK(field_store_string(fields[IDX_TRX_STATE], row->trx_state));
 
     /* trx_started */
-    OK(field_store_time_t(fields[IDX_TRX_STARTED], (time_t)row->trx_started));
+    OK(field_store_time_t(
+        fields[IDX_TRX_STARTED],
+        std::chrono::system_clock::to_time_t(row->trx_started)));
 
     /* trx_requested_lock_id */
     /* trx_wait_started */
-    if (row->trx_wait_started != 0) {
+    if (row->trx_wait_started != std::chrono::system_clock::time_point{}) {
       OK(field_store_string(fields[IDX_TRX_REQUESTED_LOCK_ID],
                             trx_i_s_create_lock_id(row->requested_lock_row,
                                                    lock_id, sizeof(lock_id))));
       /* field_store_string() sets it no notnull */
 
-      OK(field_store_time_t(fields[IDX_TRX_WAIT_STARTED],
-                            (time_t)row->trx_wait_started));
+      OK(field_store_time_t(
+          fields[IDX_TRX_WAIT_STARTED],
+          std::chrono::system_clock::to_time_t(row->trx_wait_started)));
       fields[IDX_TRX_WAIT_STARTED]->set_notnull();
     } else {
       fields[IDX_TRX_REQUESTED_LOCK_ID]->set_null();
@@ -894,13 +897,19 @@ static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
     mutex.  Thus, some operation in page0zip.cc could
     increment a counter between the time we read it and
     clear it.  We could introduce mutex protection, but it
-    could cause a measureable performance hit in
+    could cause a measurable performance hit in
     page0zip.cc. */
     table->field[1]->store(zip_stat->compressed, true);
     table->field[2]->store(zip_stat->compressed_ok, true);
-    table->field[3]->store(zip_stat->compressed_usec / 1000000, true);
+    table->field[3]->store(std::chrono::duration_cast<std::chrono::seconds>(
+                               zip_stat->compress_time)
+                               .count(),
+                           true);
     table->field[4]->store(zip_stat->decompressed, true);
-    table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
+    table->field[5]->store(std::chrono::duration_cast<std::chrono::seconds>(
+                               zip_stat->decompress_time)
+                               .count(),
+                           true);
 
     if (reset) {
       new (zip_stat) page_zip_stat_t();
@@ -1198,13 +1207,19 @@ static int i_s_cmp_per_index_fill_low(
 
     fields[IDX_COMPRESS_OPS_OK]->store(iter->second.compressed_ok, true);
 
-    fields[IDX_COMPRESS_TIME]->store(iter->second.compressed_usec / 1000000,
-                                     true);
+    fields[IDX_COMPRESS_TIME]->store(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            iter->second.compress_time)
+            .count(),
+        true);
 
     fields[IDX_UNCOMPRESS_OPS]->store(iter->second.decompressed, true);
 
-    fields[IDX_UNCOMPRESS_TIME]->store(iter->second.decompressed_usec / 1000000,
-                                       true);
+    fields[IDX_UNCOMPRESS_TIME]->store(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            iter->second.decompress_time)
+            .count(),
+        true);
 
     if ((error = schema_table_store_record2(thd, table, false))) {
       dict_sys_mutex_exit();
@@ -1483,7 +1498,8 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
       if (reset) {
         /* This is protected by buf_pool->zip_free_mutex. */
         buf_pool->buddy_stat[x].relocated = 0;
-        buf_pool->buddy_stat[x].relocated_usec = 0;
+        buf_pool->buddy_stat[x].relocated_duration =
+            std::chrono::seconds::zero();
       }
     }
 
@@ -1497,7 +1513,10 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
       table->field[2]->store(buddy_stat->used, true);
       table->field[3]->store(zip_free_len_local[x], true);
       table->field[4]->store(buddy_stat->relocated, true);
-      table->field[5]->store(buddy_stat->relocated_usec / 1000000, true);
+      table->field[5]->store(std::chrono::duration_cast<std::chrono::seconds>(
+                                 buddy_stat->relocated_duration)
+                                 .count(),
+                             true);
 
       if (schema_table_store_record(thd, table)) {
         status = 1;
@@ -1895,9 +1914,11 @@ static int i_s_metrics_fill(
     /* If monitor has been enabled (no matter it is disabled
     or not now), fill METRIC_START_TIME and METRIC_TIME_ELAPSED
     field */
-    if (MONITOR_FIELD(count, mon_start_time)) {
+    if (MONITOR_FIELD(count, mon_start_time) !=
+        std::chrono::system_clock::time_point{}) {
       OK(field_store_time_t(fields[METRIC_START_TIME],
-                            (time_t)MONITOR_FIELD(count, mon_start_time)));
+                            std::chrono::system_clock::to_time_t(
+                                MONITOR_FIELD(count, mon_start_time))));
       fields[METRIC_START_TIME]->set_notnull();
 
       /* If monitor is enabled, the TIME_ELAPSED is the
@@ -1906,11 +1927,15 @@ static int i_s_metrics_fill(
       between time when monitor is enabled and time
       when it is disabled */
       if (MONITOR_IS_ON(count)) {
-        time_diff =
-            difftime(time(nullptr), MONITOR_FIELD(count, mon_start_time));
+        time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
+                        std::chrono::system_clock::now() -
+                        MONITOR_FIELD(count, mon_start_time))
+                        .count();
       } else {
-        time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
-                             MONITOR_FIELD(count, mon_start_time));
+        time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
+                        MONITOR_FIELD(count, mon_stop_time) -
+                        MONITOR_FIELD(count, mon_start_time))
+                        .count();
       }
 
       OK(fields[METRIC_TIME_ELAPSED]->store(time_diff));
@@ -1963,15 +1988,20 @@ static int i_s_metrics_fill(
         fields[METRIC_AVG_VALUE_START]->set_null();
       }
 
-      if (MONITOR_FIELD(count, mon_reset_time)) {
+      if (MONITOR_FIELD(count, mon_reset_time) !=
+          std::chrono::system_clock::time_point{}) {
         /* calculate the time difference since last
         reset */
         if (MONITOR_IS_ON(count)) {
-          time_diff =
-              difftime(time(nullptr), MONITOR_FIELD(count, mon_reset_time));
+          time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
+                          std::chrono::system_clock::now() -
+                          MONITOR_FIELD(count, mon_reset_time))
+                          .count();
         } else {
-          time_diff = difftime(MONITOR_FIELD(count, mon_stop_time),
-                               MONITOR_FIELD(count, mon_reset_time));
+          time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(
+                          MONITOR_FIELD(count, mon_stop_time) -
+                          MONITOR_FIELD(count, mon_reset_time))
+                          .count();
         }
       } else {
         time_diff = 0;
@@ -1995,9 +2025,11 @@ static int i_s_metrics_fill(
 
       /* Display latest Monitor Reset Time only if Monitor
       counter is on. */
-      if (MONITOR_FIELD(count, mon_reset_time)) {
+      if (MONITOR_FIELD(count, mon_reset_time) !=
+          std::chrono::system_clock::time_point{}) {
         OK(field_store_time_t(fields[METRIC_RESET_TIME],
-                              (time_t)MONITOR_FIELD(count, mon_reset_time)));
+                              std::chrono::system_clock::to_time_t(
+                                  MONITOR_FIELD(count, mon_reset_time))));
         fields[METRIC_RESET_TIME]->set_notnull();
       } else {
         fields[METRIC_RESET_TIME]->set_null();
@@ -2006,9 +2038,11 @@ static int i_s_metrics_fill(
       /* Display the monitor status as "enabled" */
       OK(field_store_string(fields[METRIC_STATUS], "enabled"));
     } else {
-      if (MONITOR_FIELD(count, mon_stop_time)) {
+      if (MONITOR_FIELD(count, mon_stop_time) !=
+          std::chrono::system_clock::time_point{}) {
         OK(field_store_time_t(fields[METRIC_STOP_TIME],
-                              (time_t)MONITOR_FIELD(count, mon_stop_time)));
+                              std::chrono::system_clock::to_time_t(
+                                  MONITOR_FIELD(count, mon_stop_time))));
         fields[METRIC_STOP_TIME]->set_notnull();
       } else {
         fields[METRIC_STOP_TIME]->set_null();
@@ -4474,7 +4508,12 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->oldest_mod = bpage->get_oldest_lsn();
 
-    page_info->access_time = bpage->access_time;
+    /* Note: this is not an UNIX timestamp, it is an arbitrary number, cut to
+    32bits. */
+    page_info->access_time =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            bpage->access_time - std::chrono::steady_clock::time_point{})
+            .count();
 
     page_info->zip_ssize = bpage->zip.ssize;
 

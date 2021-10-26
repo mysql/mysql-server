@@ -104,7 +104,7 @@ struct sync_cell_t {
                            wait call. */
 
   /** Time when the thread reserved the wait cell. */
-  ib_time_monotonic_t reservation_time = 0;
+  std::chrono::steady_clock::time_point reservation_time{};
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for

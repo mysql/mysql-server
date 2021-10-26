@@ -957,7 +957,7 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   byte *storage; /* storage of uncompressed
                  columns */
 #ifndef UNIV_HOTBACKUP
-  const auto usec = ut_time_monotonic_us();
+  const auto start_time = std::chrono::steady_clock::now();
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
   FILE *logfile = nullptr;
@@ -1179,11 +1179,13 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
       dict_index_zip_failure(index);
     }
 
-    const auto time_diff = ut_time_monotonic_us() - usec;
-    page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+    const auto time_diff =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - start_time);
+    page_zip_stat[page_zip->ssize - 1].compress_time += time_diff;
     if (cmp_per_index_enabled) {
       mutex_enter(&page_zip_stat_per_index_mutex);
-      page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
+      page_zip_stat_per_index[ind_id].compress_time += time_diff;
       mutex_exit(&page_zip_stat_per_index_mutex);
     }
 #endif /* !UNIV_HOTBACKUP */
@@ -1247,13 +1249,14 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   }
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-  const auto time_diff = ut_time_monotonic_us() - usec;
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now() - start_time);
   page_zip_stat[page_zip->ssize - 1].compressed_ok++;
-  page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+  page_zip_stat[page_zip->ssize - 1].compress_time += time_diff;
   if (cmp_per_index_enabled) {
     mutex_enter(&page_zip_stat_per_index_mutex);
     page_zip_stat_per_index[ind_id].compressed_ok++;
-    page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
+    page_zip_stat_per_index[ind_id].compress_time += time_diff;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
 
@@ -1279,7 +1282,7 @@ ibool page_zip_decompress(
                               after page creation */
 {
 #ifndef UNIV_HOTBACKUP
-  const auto usec = ut_time_monotonic_us();
+  const auto start_time = std::chrono::steady_clock::now();
 #endif /* !UNIV_HOTBACKUP */
 
   if (!page_zip_decompress_low(page_zip, page, all)) {
@@ -1287,16 +1290,17 @@ ibool page_zip_decompress(
   }
 
 #ifndef UNIV_HOTBACKUP
-  const auto time_diff = ut_time_monotonic_us() - usec;
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now() - start_time);
   page_zip_stat[page_zip->ssize - 1].decompressed++;
-  page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+  page_zip_stat[page_zip->ssize - 1].decompress_time += time_diff;
 
   if (srv_cmp_per_index_enabled) {
     index_id_t index_id(page_get_space_id(page), btr_page_get_index_id(page));
 
     mutex_enter(&page_zip_stat_per_index_mutex);
     page_zip_stat_per_index[index_id].decompressed++;
-    page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+    page_zip_stat_per_index[index_id].decompress_time += time_diff;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
 #endif /* !UNIV_HOTBACKUP */

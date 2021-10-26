@@ -2800,8 +2800,7 @@ bool Fil_shard::open_file(fil_node_t *file) {
   const auto should_print_message =
       [&start_time](ib::Throttler &throttler) -> bool {
     const auto current_time = std::chrono::steady_clock::now();
-    if (current_time - start_time >=
-        std::chrono::seconds(PRINT_INTERVAL_SECS)) {
+    if (current_time - start_time >= PRINT_INTERVAL) {
       return throttler.apply();
     }
     return false;
@@ -5253,7 +5252,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   ulint count = 0;
   fil_node_t *file = nullptr;
   bool write_ddl_log = true;
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
 #ifdef UNIV_DEBUG
   static uint32_t crash_injection_rename_tablespace_counter = 1;
@@ -5291,10 +5290,10 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
        wait for the other thread to complete its operation. */
       mutex_release();
 
-      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+      if (std::chrono::steady_clock::now() - start_time >= PRINT_INTERVAL) {
         ib::warn(ER_IB_MSG_297);
 
-        start_time = ut_time_monotonic();
+        start_time = std::chrono::steady_clock::now();
       }
 
       std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -10132,7 +10131,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
   size_t failed = 0;
   size_t batch_size = 0;
   bool print_msg = false;
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
   /* If some file paths have changed then update the DD */
   for (auto &tablespace : m_moved) {
@@ -10163,11 +10162,11 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
 
     ++count;
 
-    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+    if (std::chrono::steady_clock::now() - start_time >= PRINT_INTERVAL) {
       ib::info(ER_IB_MSG_346) << "Processed " << count << "/" << m_moved.size()
                               << " tablespace paths. Failures " << failed;
 
-      start_time = ut_time_monotonic();
+      start_time = std::chrono::steady_clock::now();
       print_msg = true;
     }
 
@@ -11531,7 +11530,7 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
                                       Space_id_set *duplicates) {
   size_t count = 0;
   bool printed_msg = false;
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
   for (auto it = start; it != end; ++it, ++m_checked) {
     const std::string filename = it->second;
@@ -11568,11 +11567,11 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
 
     ++count;
 
-    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+    if (std::chrono::steady_clock::now() - start_time >= PRINT_INTERVAL) {
       ib::info(ER_IB_MSG_375) << "Thread# " << thread_id << " - Checked "
                               << count << "/" << (end - start) << " files";
 
-      start_time = ut_time_monotonic();
+      start_time = std::chrono::steady_clock::now();
 
       printed_msg = true;
     }
@@ -11763,7 +11762,7 @@ dberr_t Tablespace_dirs::scan() {
   Scanned_files undo_files;
   uint16_t count = 0;
   bool print_msg = false;
-  auto start_time = ut_time_monotonic();
+  auto start_time = std::chrono::steady_clock::now();
 
   /* Should be trivial to parallelize the scan and ID check. */
   for (const auto &dir : m_dirs) {
@@ -11811,12 +11810,12 @@ dberr_t Tablespace_dirs::scan() {
         undo_files.push_back(Value{count, file});
       }
 
-      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+      if (std::chrono::steady_clock::now() - start_time >= PRINT_INTERVAL) {
         ib::info(ER_IB_MSG_380)
             << "Files found so far: " << ibd_files.size() << " data files"
             << " and " << undo_files.size() << " undo files";
 
-        start_time = ut_time_monotonic();
+        start_time = std::chrono::steady_clock::now();
         print_msg = true;
       }
     });

@@ -141,9 +141,9 @@ struct page_cleaner_slot_t {
   bool succeeded_list;
   /*!< true if flush_list flushing
   succeeded. */
-  uint64_t flush_lru_time;
+  std::chrono::milliseconds flush_lru_time;
   /*!< elapsed time for LRU flushing */
-  uint64_t flush_list_time;
+  std::chrono::milliseconds flush_list_time;
   /*!< elapsed time for flush_list
   flushing */
   ulint flush_lru_pass;
@@ -179,13 +179,13 @@ struct page_cleaner_t {
   /*!< number of slots
   in the state
   PAGE_CLEANER_STATE_FINISHED */
-  uint64_t flush_time;        /*!< elapsed time to flush
-                              requests for all slots */
-  ulint flush_pass;           /*!< count to finish to flush
-                              requests for all slots */
-  page_cleaner_slot_t *slots; /*!< pointer to the slots */
-  bool is_running;            /*!< false if attempt
-                              to shutdown */
+  std::chrono::milliseconds flush_time; /*!< elapsed time to flush
+                       requests for all slots */
+  ulint flush_pass;                     /*!< count to finish to flush
+                                        requests for all slots */
+  page_cleaner_slot_t *slots;           /*!< pointer to the slots */
+  bool is_running;                      /*!< false if attempt
+                                        to shutdown */
 
 #ifdef UNIV_DEBUG
   ulint n_disabled_debug;
@@ -2294,7 +2294,7 @@ void buf_flush_wait_LRU_batch_end(void) {
 namespace Adaptive_flush {
 
 /** Time stamp of current iteration. */
-ib_time_monotonic_ms_t cur_iter_time;
+std::chrono::steady_clock::time_point cur_iter_time;
 
 /** LSN at current iteration. */
 lsn_t cur_iter_lsn = 0;
@@ -2306,7 +2306,7 @@ ulint cur_iter_pages_dirty = 0;
 ulint cur_iter_dirty_pct = 0;
 
 /** Time stamp of previous iteration. */
-ib_time_monotonic_ms_t prev_iter_time;
+std::chrono::steady_clock::time_point prev_iter_time;
 
 /** Number of dirty pages in flush list at previous iteration. */
 ulint prev_iter_pages_dirty = 0;
@@ -2324,7 +2324,7 @@ ulint page_avg_rate = 0;
 lsn_t prev_lsn = 0;
 
 /** Time stamp when last average rates are computed. */
-ib_time_monotonic_ms_t prev_time;
+std::chrono::steady_clock::time_point prev_time;
 
 /** Number of iteration till average rates are computed. */
 ulint n_iterations = 0;
@@ -2337,7 +2337,7 @@ ulint sum_pages = 0;
 @return true if current iteration should be skipped. */
 bool initialize(ulint n_pages_last) {
   lsn_t curr_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
-  ib_time_monotonic_ms_t curr_time = ut_time_monotonic_ms();
+  const auto curr_time = std::chrono::steady_clock::now();
 
   if (prev_lsn == 0) {
     /* First time initialization for next average computation. */
@@ -2361,10 +2361,10 @@ bool initialize(ulint n_pages_last) {
 void set_average() {
   ++n_iterations;
   sum_pages += prev_iter_pages_flushed;
-  auto time_elapsed_sec = (cur_iter_time - prev_time) / 1000;
+  auto time_elapsed = cur_iter_time - prev_time;
 
-  if (time_elapsed_sec < 1) {
-    time_elapsed_sec = 1;
+  if (time_elapsed < std::chrono::seconds{1}) {
+    time_elapsed = std::chrono::seconds{1};
   }
 
   auto avg_loops = srv_flushing_avg_loops;
@@ -2380,17 +2380,20 @@ void set_average() {
   /* We update our variables every srv_flushing_avg_loops iterations to smooth
   out transition in workload. */
   if (n_iterations < avg_loops &&
-      time_elapsed_sec < static_cast<ib_time_monotonic_t>(avg_loops)) {
+      time_elapsed < std::chrono::seconds{avg_loops}) {
     return;
   }
 
-  page_avg_rate = static_cast<ulint>(
-      ((static_cast<double>(sum_pages) / time_elapsed_sec) + page_avg_rate) /
-      2);
+  const auto time_elapsed_sec =
+      std::chrono::duration_cast<std::chrono::duration<double>>(time_elapsed)
+          .count();
+
+  page_avg_rate =
+      static_cast<ulint>(((sum_pages / time_elapsed_sec) + page_avg_rate) / 2);
 
   /* How much LSN we have generated since last call. */
-  auto lsn_rate = static_cast<lsn_t>(
-      static_cast<double>(cur_iter_lsn - prev_lsn) / time_elapsed_sec);
+  auto lsn_rate =
+      static_cast<lsn_t>((cur_iter_lsn - prev_lsn) / time_elapsed_sec);
 
   lsn_avg_rate = (lsn_avg_rate + lsn_rate) / 2;
 
@@ -2400,10 +2403,10 @@ void set_average() {
   /* aggregate stats of all slots */
   mutex_enter(&page_cleaner->mutex);
 
-  uint64_t flush_tm = page_cleaner->flush_time;
+  auto flush_tm = page_cleaner->flush_time.count();
   ulint flush_pass = page_cleaner->flush_pass;
 
-  page_cleaner->flush_time = 0;
+  page_cleaner->flush_time = std::chrono::seconds::zero();
   page_cleaner->flush_pass = 0;
 
   uint64_t lru_tm = 0;
@@ -2416,14 +2419,14 @@ void set_average() {
 
     slot = &page_cleaner->slots[i];
 
-    lru_tm += slot->flush_lru_time;
+    lru_tm += slot->flush_lru_time.count();
     lru_pass += slot->flush_lru_pass;
-    list_tm += slot->flush_list_time;
+    list_tm += slot->flush_list_time.count();
     list_pass += slot->flush_list_pass;
 
-    slot->flush_lru_time = 0;
+    slot->flush_lru_time = std::chrono::seconds::zero();
     slot->flush_lru_pass = 0;
-    slot->flush_list_time = 0;
+    slot->flush_list_time = std::chrono::seconds::zero();
     slot->flush_list_pass = 0;
   }
 
@@ -2689,20 +2692,21 @@ ulint set_flush_target_by_page(ulint n_pages_lsn) {
 
   ut_ad(cur_iter_time >= prev_iter_time);
 
-  auto delta_time_ms = 1;
+  auto delta_time_s = 1.0;
   if (cur_iter_time > prev_iter_time) {
-    delta_time_ms = cur_iter_time - prev_iter_time;
+    delta_time_s = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       cur_iter_time - prev_iter_time)
+                       .count();
   }
 
   /* Number of pages flushed per second in last iteration. */
-  double prev_page_rate_sec =
-      (static_cast<double>(prev_iter_pages_flushed) * 1000) / delta_time_ms;
+  double prev_page_rate_sec = prev_iter_pages_flushed / delta_time_s;
 
   auto delta_dirty_pages = static_cast<double>(cur_iter_pages_dirty) -
                            static_cast<double>(prev_iter_pages_dirty);
 
   /* Change in number of dirty pages per second. It could be negative. */
-  double dirty_page_change_sec = (delta_dirty_pages * 1000) / delta_time_ms;
+  double dirty_page_change_sec = delta_dirty_pages / delta_time_s;
 
   /* Next iteration we would like to adapt the flush rate based on changes in
   dirty page rate. */
@@ -2796,19 +2800,22 @@ ulint page_recommendation(ulint last_pages_in, bool is_sync_flush,
  @param next_loop_time	time when next loop iteration should start
  @param sig_count	zero or the value returned by previous call of
                          os_event_reset() */
-static ulint pc_sleep_if_needed(ib_time_monotonic_ms_t next_loop_time,
-                                int64_t sig_count) {
-  const auto cur_time = ut_time_monotonic_ms();
+static ulint pc_sleep_if_needed(
+    std::chrono::steady_clock::time_point next_loop_time, int64_t sig_count) {
+  const auto cur_time = std::chrono::steady_clock::now();
 
   if (next_loop_time > cur_time) {
-    /* Get sleep interval in micro seconds. We use
-    ut_min() to avoid long sleep in case of wrap around. */
-    const auto sleep_us =
-        ut_min(int64_t{1000000}, (next_loop_time - cur_time) * int64_t{1000});
+    auto sleep_time = next_loop_time - cur_time;
+    if (sleep_time < std::chrono::seconds{1}) {
+      sleep_time = std::chrono::seconds{1};
+    }
 
-    ut_a(sleep_us > 0);
+    ut_a(sleep_time.count() > 0);
 
-    return (os_event_wait_time_low(buf_flush_event, sleep_us, sig_count));
+    return (os_event_wait_time_low(
+        buf_flush_event,
+        std::chrono::duration_cast<std::chrono::microseconds>(sleep_time),
+        sig_count));
   }
 
   return (OS_SYNC_TIME_EXCEEDED);
@@ -2933,8 +2940,8 @@ static void pc_request(ulint min_n, lsn_t lsn_limit) {
 Do flush for one slot.
 @return	the number of the slots which has not been treated yet. */
 static ulint pc_flush_slot(void) {
-  ib_time_monotonic_ms_t lru_tm = 0;
-  ib_time_monotonic_ms_t list_tm = 0;
+  std::chrono::steady_clock::duration lru_time;
+  std::chrono::steady_clock::duration flush_list_time;
   int lru_pass = 0;
   int list_pass = 0;
 
@@ -2969,47 +2976,45 @@ static ulint pc_flush_slot(void) {
     if (!page_cleaner->is_running) {
       slot->n_flushed_lru = 0;
       slot->n_flushed_list = 0;
-      goto finish_mutex;
-    }
-
-    mutex_exit(&page_cleaner->mutex);
-
-    lru_tm = ut_time_monotonic_ms();
-
-    /* Flush pages from end of LRU if required */
-    slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
-
-    lru_tm = ut_time_monotonic_ms() - lru_tm;
-    lru_pass++;
-
-    if (!page_cleaner->is_running) {
-      slot->n_flushed_list = 0;
-      goto finish;
-    }
-
-    /* Flush pages from flush_list if required */
-    if (page_cleaner->requested) {
-      list_tm = ut_time_monotonic_ms();
-
-      slot->succeeded_list =
-          buf_flush_do_batch(buf_pool, BUF_FLUSH_LIST, slot->n_pages_requested,
-                             page_cleaner->lsn_limit, &slot->n_flushed_list);
-
-      list_tm = ut_time_monotonic_ms() - list_tm;
-      list_pass++;
     } else {
-      slot->n_flushed_list = 0;
-      slot->succeeded_list = true;
+      mutex_exit(&page_cleaner->mutex);
+
+      const auto lru_start = std::chrono::steady_clock::now();
+
+      /* Flush pages from end of LRU if required */
+      slot->n_flushed_lru = buf_flush_LRU_list(buf_pool);
+
+      lru_time = std::chrono::steady_clock::now() - lru_start;
+      lru_pass = 1;
+
+      if (!page_cleaner->is_running) {
+        slot->n_flushed_list = 0;
+      } else {
+        /* Flush pages from flush_list if required */
+        if (page_cleaner->requested) {
+          const auto flush_list_start = std::chrono::steady_clock::now();
+
+          slot->succeeded_list = buf_flush_do_batch(
+              buf_pool, BUF_FLUSH_LIST, slot->n_pages_requested,
+              page_cleaner->lsn_limit, &slot->n_flushed_list);
+
+          flush_list_time = std::chrono::steady_clock::now() - flush_list_start;
+          list_pass = 1;
+        } else {
+          slot->n_flushed_list = 0;
+          slot->succeeded_list = true;
+        }
+      }
+      mutex_enter(&page_cleaner->mutex);
     }
-  finish:
-    mutex_enter(&page_cleaner->mutex);
-  finish_mutex:
     page_cleaner->n_slots_flushing--;
     page_cleaner->n_slots_finished++;
     slot->state = PAGE_CLEANER_STATE_FINISHED;
 
-    slot->flush_lru_time += lru_tm;
-    slot->flush_list_time += list_tm;
+    slot->flush_lru_time +=
+        std::chrono::duration_cast<std::chrono::milliseconds>(lru_time);
+    slot->flush_list_time +=
+        std::chrono::duration_cast<std::chrono::milliseconds>(flush_list_time);
     slot->flush_lru_pass += lru_pass;
     slot->flush_list_pass += list_pass;
 
@@ -3191,7 +3196,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 As of now we'll have only one coordinator.
 @param[in]	n_page_cleaners	Number of page cleaner threads to create */
 static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
-  auto next_loop_time = ut_time_monotonic_ms() + 1000;
+  auto loop_start_time = std::chrono::steady_clock::now();
   ulint n_flushed = 0;
   ulint last_activity = srv_get_activity_count();
   ulint last_pages = 0;
@@ -3285,12 +3290,14 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     and there is work to do. */
     if ((is_server_active || buf_get_n_pending_read_ios() || n_flushed == 0) &&
         !is_sync_flush) {
-      ret_sleep = pc_sleep_if_needed(next_loop_time, sig_count);
+      ret_sleep = pc_sleep_if_needed(loop_start_time + std::chrono::seconds{1},
+                                     sig_count);
 
       if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
         break;
       }
-    } else if (ut_time_monotonic_ms() > next_loop_time) {
+    } else if (std::chrono::steady_clock::now() >
+               loop_start_time + std::chrono::seconds{1}) {
       ret_sleep = OS_SYNC_TIME_EXCEEDED;
     } else {
       ret_sleep = 0;
@@ -3299,17 +3306,16 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     sig_count = os_event_reset(buf_flush_event);
 
     if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
-      const auto curr_time = ut_time_monotonic_ms();
+      const auto curr_time = std::chrono::steady_clock::now();
 
-      if (curr_time > next_loop_time + 3000) {
+      if (curr_time > loop_start_time + std::chrono::seconds{4}) {
         if (warn_count == 0) {
-          ulint us;
-
-          us = 1000 + curr_time - next_loop_time;
+          auto diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+              curr_time - loop_start_time);
 
           ib::info(ER_IB_MSG_128)
-              << "Page cleaner took " << us << "ms to flush " << n_flushed_last
-              << " and evict " << n_evicted << " pages";
+              << "Page cleaner took " << diff_ms.count() << "ms to flush "
+              << n_flushed_last << " and evict " << n_evicted << " pages";
 
           if (warn_interval > 300) {
             warn_interval = 600;
@@ -3327,7 +3333,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
         warn_count = 0;
       }
 
-      next_loop_time = curr_time + 1000;
+      loop_start_time = curr_time;
       n_flushed_last = n_evicted = 0;
 
       was_server_active = srv_check_activity(last_activity);
@@ -3389,7 +3395,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
       /* Request flushing for threads */
       pc_request(n_to_flush, lsn_limit);
 
-      const auto tm = ut_time_monotonic_ms();
+      const auto flush_start = std::chrono::steady_clock::now();
 
       /* Coordinator also treats requests */
       while (pc_flush_slot() > 0) {
@@ -3398,7 +3404,9 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
       /* only coordinator is using these counters,
       so no need to protect by lock. */
-      page_cleaner->flush_time += ut_time_monotonic_ms() - tm;
+      page_cleaner->flush_time +=
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::steady_clock::now() - flush_start);
       page_cleaner->flush_pass++;
 
       /* Wait for all slots to be finished */

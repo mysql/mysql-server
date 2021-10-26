@@ -129,7 +129,7 @@ struct fts_sync_t {
   doc_id_t max_doc_id;  /*!< The doc id at which the cache was
                         noted as being full, we use this to
                         set the upper_limit field */
-  ib_time_monotonic_t start_time;
+  std::chrono::steady_clock::time_point start_time;
   /*!< SYNC start time */
   bool in_progress;  /*!< flag whether sync is in progress.*/
   bool unlock_cache; /*!< flag whether unlock cache when

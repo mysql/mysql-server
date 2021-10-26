@@ -66,13 +66,6 @@ class IB_thread {
 /** Operating system thread native handle */
 using os_thread_id_t = std::thread::native_handle_type;
 
-/** The thread sleeps at least the time given in microseconds.
-@param[in]	usecs		time in microseconds */
-#define os_thread_sleep(usecs)                                     \
-  do {                                                             \
-    std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
-  } while (false)
-
 /** Returns the string representation of the thread ID supplied. It uses the
  only standard-compliant way of printing the thread ID.
  @param thread_id The thread ID to convert to string.

@@ -772,7 +772,7 @@ class Clone_Handle {
   @param[in,out]	disp_time	last displayed time */
   void display_progress(uint32_t cur_chunk, uint32_t max_chunk,
                         uint32_t &percent_done,
-                        ib_time_monotonic_ms_t &disp_time);
+                        std::chrono::steady_clock::time_point &disp_time);
 
   /** Create a tablespace file and initialize.
   @param[in]	file_ctx	file information

@@ -258,9 +258,6 @@ const uint SNAPSHOT_DEF_BLOCK_SIZE_POW2 = 6;
 For 16k page size, maximum block size is 64M. */
 const uint SNAPSHOT_MAX_BLOCK_SIZE_POW2 = 12;
 
-/** Sleep time in microseconds while waiting for other clone/task */
-const uint SNAPSHOT_STATE_CHANGE_SLEEP = 100 * 1000;
-
 /** Dynamic database snapshot: Holds metadata and handle to data */
 class Clone_Snapshot {
  public:

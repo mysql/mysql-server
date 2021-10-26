@@ -829,10 +829,10 @@ static inline void buf_page_unset_sticky(
 static inline void buf_page_set_old(buf_page_t *bpage, ibool old);
 
 /** Determine the time of first access of a block in the buffer pool.
- @return ut_time_monotonic_ms() at the time of first access, 0 if not accessed
+ @return Time of first access, zero if not accessed
  */
-[[nodiscard]] static inline unsigned buf_page_is_accessed(
-    const buf_page_t *bpage); /*!< in: control block */
+[[nodiscard]] static inline std::chrono::steady_clock::time_point
+buf_page_is_accessed(const buf_page_t *bpage); /*!< in: control block */
 /** Flag a block accessed. */
 static inline void buf_page_set_accessed(
     buf_page_t *bpage); /*!< in/out: control block */
@@ -1141,8 +1141,8 @@ class buf_page_t {
         m_flush_observer(other.m_flush_observer),
         m_space(other.m_space),
         freed_page_clock(other.freed_page_clock),
-        access_time(other.access_time),
         m_version(other.m_version),
+        access_time(other.access_time),
         m_dblwr_id(other.m_dblwr_id),
         old(other.old)
 #ifdef UNIV_DEBUG
@@ -1604,13 +1604,13 @@ class buf_page_t {
   uint32_t freed_page_clock;
 
   /** @} */
-  /** Time of first access, or 0 if the block was never accessed in the
-  buffer pool. Protected by block mutex */
-  uint32_t access_time;
-
   /** Version of fil_space_t when the page was updated. It can also be viewed as
    the truncation number. */
   uint32_t m_version{};
+
+  /** Time of first access, or 0 if the block was never accessed in the
+  buffer pool. Protected by block mutex */
+  std::chrono::steady_clock::time_point access_time;
 
   /** Double write instance ordinal value during writes. This is used
   by IO completion (writes) to select the double write instance.*/
@@ -2118,18 +2118,18 @@ struct buf_buddy_stat_t {
   /** Number of blocks relocated by the buddy system.
   Protected by buf_pool zip_free_mutex. */
   uint64_t relocated;
-  /** Total duration of block relocations, in microseconds.
+  /** Total duration of block relocations.
   Protected by buf_pool zip_free_mutex. */
-  uint64_t relocated_usec;
+  std::chrono::steady_clock::duration relocated_duration;
 
   struct snapshot_t {
     ulint used;
     uint64_t relocated;
-    uint64_t relocated_usec;
+    std::chrono::steady_clock::duration relocated_duration;
   };
 
   snapshot_t take_snapshot() {
-    return {used.load(), relocated, relocated_usec};
+    return {used.load(), relocated, relocated_duration};
   }
 };
 
@@ -2220,7 +2220,7 @@ struct buf_pool_t {
   std::atomic<ulint> n_pend_unzip;
 
   /** when buf_print_io was last time called. Accesses not protected. */
-  ib_time_monotonic_t last_printout_time;
+  std::chrono::steady_clock::time_point last_printout_time;
 
   /** Statistics of buddy system, indexed by block size. Protected by zip_free
   mutex, except for the used field, which is also accessed atomically */

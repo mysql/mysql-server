@@ -57,10 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static ib_wqueue_t *fts_optimize_wq;
 
 /** Time to wait for a message. */
-static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
+constexpr std::chrono::seconds FTS_QUEUE_WAIT{5};
 
-/** Default optimize interval in secs. */
-static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
+/** Default optimize interval. */
+constexpr std::chrono::minutes FTS_OPTIMIZE_INTERVAL{5};
 
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
@@ -69,7 +69,7 @@ static bool fts_opt_start_shutdown = false;
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
 /** Last time we did check whether system need a sync */
-static ib_time_monotonic_t last_check_sync_time;
+static std::chrono::steady_clock::time_point last_check_sync_time;
 
 #if 0
 /** Check each table in round robin to see whether they'd
@@ -188,7 +188,7 @@ struct fts_optimize_t {
   ulint n_completed; /*!< Number of FTS indexes that have
                      been optimized */
   ibool del_list_regenerated;
-  /*!< BEING_DELETED list regenarated */
+  /*!< BEING_DELETED list regenerated */
 };
 
 /** Used by the optimize, to keep state during compacting nodes. */
@@ -200,21 +200,23 @@ struct fts_encode_t {
 /** We use this information to determine when to start the optimize
 cycle for a table. */
 struct fts_slot_t {
-  table_id_t table_id; /*!< Table id */
+  table_id_t table_id = 0; /*!< Table id */
 
-  fts_state_t state; /*!< State of this slot */
+  fts_state_t state = FTS_STATE_LOADED; /*!< State of this slot */
 
-  ulint added; /*!< Number of doc ids added since the
+  ulint added = 0; /*!< Number of doc ids added since the
                last time this table was optimized */
 
-  ulint deleted; /*!< Number of doc ids deleted since the
+  ulint deleted = 0; /*!< Number of doc ids deleted since the
                  last time this table was optimized */
 
-  ib_time_monotonic_t last_run; /*!< Time last run completed */
+  std::chrono::steady_clock::time_point
+      last_run{}; /*!< Time last run completed */
 
-  ib_time_monotonic_t completed; /*!< Optimize finish time */
+  std::chrono::steady_clock::time_point
+      completed{}; /*!< Optimize finish time */
 
-  int64_t interval_time; /*!< Minimum time to wait before
+  std::chrono::seconds interval_time{0}; /*!< Minimum time to wait before
                          optimizing the table again. */
 };
 
@@ -243,8 +245,8 @@ bool fts_enable_diag_print;
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE = 1024;
 
-/** The amount of time optimizing in a single pass, in milliseconds. */
-static ib_time_t fts_optimize_time_limit = 0;
+/** The amount of time optimizing in a single pass. */
+static std::chrono::milliseconds fts_optimize_time_limit{0};
 
 /** It's defined in fts0fts.cc  */
 extern const char *fts_common_tables[];
@@ -1418,9 +1420,10 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
 /** Optimize the word ilist and rewrite data to the FTS index.
  @return status one of RESTART, EXIT, ERROR */
 [[nodiscard]] static dberr_t fts_optimize_compact(
-    fts_optimize_t *optim,          /*!< in: optimize state data */
-    dict_index_t *index,            /*!< in: current FTS being optimized */
-    ib_time_monotonic_t start_time) /*!< in: optimize start time */
+    fts_optimize_t *optim, /*!< in: optimize state data */
+    dict_index_t *index,   /*!< in: current FTS being optimized */
+    std::chrono::steady_clock::time_point
+        start_time) /*!< in: optimize start time */
 {
   ulint i;
   dberr_t error = DB_SUCCESS;
@@ -1452,8 +1455,9 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
     /* Free the word that was optimized. */
     fts_word_free(word);
 
-    if (fts_optimize_time_limit > 0 &&
-        ut_time_monotonic() - start_time > fts_optimize_time_limit) {
+    if (fts_optimize_time_limit > std::chrono::seconds::zero() &&
+        std::chrono::steady_clock::now() - start_time >
+            fts_optimize_time_limit) {
       optim->done = TRUE;
     }
   }
@@ -1586,18 +1590,18 @@ static void fts_optimize_free(
   mem_heap_free(heap);
 }
 
-/** Get the max time optimize should run in millisecs.
- @return max optimize time limit in millisecs. */
-static ib_time_t fts_optimize_get_time_limit(
+/** Get the max time optimize should run.
+ @return max optimize time limit. */
+static std::chrono::seconds fts_optimize_get_time_limit(
     trx_t *trx,             /*!< in: transaction */
     fts_table_t *fts_table) /*!< in: aux table */
 {
-  ib_time_t time_limit = 0;
+  ulint time_limit = 0;
 
   fts_config_get_ulint(trx, fts_table, FTS_OPTIMIZE_LIMIT_IN_SECS,
                        (ulint *)&time_limit);
 
-  return (time_limit * 1000);
+  return std::chrono::seconds{time_limit};
 }
 
 /** Run OPTIMIZE on the given table. Note: this can take a very long time
@@ -1617,7 +1621,7 @@ static void fts_optimize_words(
   fts_optimize_time_limit =
       fts_optimize_get_time_limit(optim->trx, &optim->fts_common_table);
 
-  const auto start_time = ut_time_monotonic();
+  const auto start_time = std::chrono::steady_clock::now();
 
   /* Setup the callback to use for fetching the word ilist etc. */
   fetch.read_arg = optim->words;
@@ -2270,13 +2274,13 @@ func_exit:
 /** Run OPTIMIZE on the given table by a background thread.
  @return DB_SUCCESS if all OK */
 static dberr_t fts_optimize_table_bk(
-    fts_slot_t *slot) /*!< in: table to optimiza */
+    fts_slot_t *slot) /*!< in: table to optimize */
 {
   dberr_t error = DB_SUCCESS;
 
   /* Avoid optimizing tables that were optimized recently. */
-  if (slot->last_run > 0 &&
-      ut_time_monotonic() - slot->last_run < slot->interval_time) {
+  if (slot->last_run != std::chrono::steady_clock::time_point{} &&
+      std::chrono::steady_clock::now() - slot->last_run < slot->interval_time) {
     return (DB_SUCCESS);
 
   } else {
@@ -2295,8 +2299,8 @@ static dberr_t fts_optimize_table_bk(
 
         if (error == DB_SUCCESS) {
           slot->state = FTS_STATE_DONE;
-          slot->last_run = 0;
-          slot->completed = ut_time_monotonic();
+          slot->last_run = {};
+          slot->completed = std::chrono::steady_clock::now();
         }
       }
 
@@ -2305,13 +2309,13 @@ static dberr_t fts_optimize_table_bk(
   }
 
   /* Note time this run completed. */
-  slot->last_run = ut_time_monotonic();
+  slot->last_run = std::chrono::steady_clock::now();
 
   return (error);
 }
 /** Run OPTIMIZE on the given table.
  @return DB_SUCCESS if all OK */
-dberr_t fts_optimize_table(dict_table_t *table) /*!< in: table to optimiza */
+dberr_t fts_optimize_table(dict_table_t *table) /*!< in: table to optimize */
 {
   dberr_t error = DB_SUCCESS;
   fts_optimize_t *optim = nullptr;
@@ -2554,8 +2558,8 @@ static void fts_optimize_start_table(
                              << " not registered"
                                 " with the optimize thread.";
   } else {
-    slot->last_run = 0;
-    slot->completed = 0;
+    slot->last_run = {};
+    slot->completed = {};
   }
 }
 
@@ -2592,11 +2596,11 @@ static ibool fts_optimize_new_table(
     slot = static_cast<fts_slot_t *>(ib_vector_push(tables, nullptr));
   }
 
-  memset(slot, 0x0, sizeof(*slot));
+  *slot = {};
 
   slot->table_id = table_id;
   slot->state = FTS_STATE_LOADED;
-  slot->interval_time = FTS_OPTIMIZE_INTERVAL_IN_SECS;
+  slot->interval_time = FTS_OPTIMIZE_INTERVAL;
 
   return (TRUE);
 }
@@ -2636,9 +2640,8 @@ static ulint fts_optimize_how_many(
 {
   ulint i;
   ulint n_tables = 0;
-  ib_time_monotonic_t delta;
 
-  const auto current_time = ut_time_monotonic();
+  const auto current_time = std::chrono::steady_clock::now();
 
   for (i = 0; i < ib_vector_size(tables); ++i) {
     const fts_slot_t *slot;
@@ -2650,10 +2653,8 @@ static ulint fts_optimize_how_many(
       case FTS_STATE_LOADED:
         ut_a(slot->completed <= current_time);
 
-        delta = current_time - slot->completed;
-
         /* Skip slots that have been optimized recently. */
-        if (delta >= slot->interval_time) {
+        if (current_time - slot->completed >= slot->interval_time) {
           ++n_tables;
         }
         break;
@@ -2661,9 +2662,7 @@ static ulint fts_optimize_how_many(
       case FTS_STATE_RUNNING:
         ut_a(slot->last_run <= current_time);
 
-        delta = current_time - slot->last_run;
-
-        if (delta > slot->interval_time) {
+        if (current_time - slot->last_run > slot->interval_time) {
           ++n_tables;
         }
         break;
@@ -2685,13 +2684,14 @@ static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
                                                           tables vector*/
 {
   ulint total_memory = 0;
-  const auto time_diff = ut_time_monotonic() - last_check_sync_time;
+  const auto time_diff =
+      std::chrono::steady_clock::now() - last_check_sync_time;
 
-  if (fts_need_sync || time_diff < 5) {
+  if (fts_need_sync || time_diff < std::chrono::seconds{5}) {
     return (false);
   }
 
-  last_check_sync_time = ut_time_monotonic();
+  last_check_sync_time = std::chrono::steady_clock::now();
 
   dict_sys_mutex_enter();
 
@@ -2841,8 +2841,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
     } else if (n_optimize == 0 || !ib_wqueue_is_empty(wq)) {
       fts_msg_t *msg;
 
-      msg = static_cast<fts_msg_t *>(
-          ib_wqueue_timedwait(wq, FTS_QUEUE_WAIT_IN_USECS));
+      msg = static_cast<fts_msg_t *>(ib_wqueue_timedwait(wq, FTS_QUEUE_WAIT));
 
       /* Timeout ? */
       if (msg == nullptr) {
@@ -2937,7 +2936,7 @@ void fts_optimize_init(void) {
 
   fts_optimize_wq = ib_wqueue_create();
   ut_a(fts_optimize_wq != nullptr);
-  last_check_sync_time = ut_time_monotonic();
+  last_check_sync_time = std::chrono::steady_clock::now();
 
   srv_threads.m_fts_optimize = os_thread_create(
       fts_optimize_thread_key, 0, fts_optimize_thread, fts_optimize_wq);

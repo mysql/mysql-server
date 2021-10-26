@@ -1770,7 +1770,7 @@ struct dict_table_t {
   unsigned stat_initialized : 1;
 
   /** Timestamp of last recalc of the stats. */
-  ib_time_monotonic_t stats_last_recalc;
+  std::chrono::steady_clock::time_point stats_last_recalc;
 
 /** The two bits below are set in the 'stat_persistent' member. They
 have the following meaning:
@@ -1967,7 +1967,8 @@ detect this and will eventually quit sooner. */
 #endif /* !UNIV_HOTBACKUP */
 
   /** Timestamp of the last modification of this table. */
-  time_t update_time;
+  std::atomic<std::chrono::system_clock::time_point> update_time;
+  static_assert(decltype(update_time)::is_always_lock_free);
 
   /** row-id counter for use by intrinsic table for getting row-id.
   Given intrinsic table semantics, row-id can be locally maintained

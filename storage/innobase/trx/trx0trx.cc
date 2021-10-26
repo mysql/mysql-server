@@ -839,7 +839,8 @@ static trx_t *trx_resurrect_insert(
   start time here.*/
   if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE ||
       trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED) {
-    trx->start_time.store(ut_time(), std::memory_order_relaxed);
+    trx->start_time.store(std::chrono::system_clock::now(),
+                          std::memory_order_relaxed);
   }
 
   trx->ddl_operation = undo->dict_operation;
@@ -939,7 +940,8 @@ static void trx_resurrect_update(
   start time here.*/
   if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE ||
       trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED) {
-    trx->start_time.store(ut_time(), std::memory_order_relaxed);
+    trx->start_time.store(std::chrono::system_clock::now(),
+                          std::memory_order_relaxed);
   }
 
   trx->ddl_operation = undo->dict_operation;
@@ -1295,13 +1297,14 @@ static void trx_start_low(
   TODO: check performance gain from this micro-optimization on ARM. */
 
   if (trx->mysql_thd != nullptr) {
-    trx->start_time.store(thd_start_time_in_secs(trx->mysql_thd),
+    trx->start_time.store(thd_start_time(trx->mysql_thd),
                           std::memory_order_relaxed);
     if (!trx->ddl_operation) {
       trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
     }
   } else {
-    trx->start_time.store(ut_time(), std::memory_order_relaxed);
+    trx->start_time.store(std::chrono::system_clock::now(),
+                          std::memory_order_relaxed);
   }
 
   /* The initial value for trx->no: TRX_ID_MAX is used in
@@ -1747,20 +1750,12 @@ static void trx_update_mod_tables_timestamp(trx_t *trx) /*!< in: transaction */
 
   /* consider using trx->start_time if calling time() is too
   expensive here */
-  time_t now = ut_time();
+  const auto now = std::chrono::system_clock::now();
 
   trx_mod_tables_t::const_iterator end = trx->mod_tables.end();
 
   for (trx_mod_tables_t::const_iterator it = trx->mod_tables.begin(); it != end;
        ++it) {
-    /* This could be executed by multiple threads concurrently
-    on the same table object. This is fine because time_t is
-    word size or less. And _purely_ _theoretically_, even if
-    time_t write is not atomic, likely the value of 'now' is
-    the same in all threads and even if it is not, getting a
-    "garbage" in table->update_time is justified because
-    protecting it with a latch here would be too performance
-    intrusive. */
     (*it)->update_time = now;
   }
 
@@ -2519,13 +2514,17 @@ void trx_print_low(FILE *f,
       break;
     case TRX_STATE_ACTIVE:
       fprintf(f, ", ACTIVE %lu sec",
-              (ulong)difftime(time(nullptr),
-                              trx->start_time.load(std::memory_order_relaxed)));
+              (ulong)std::chrono::duration_cast<std::chrono::seconds>(
+                  std::chrono::system_clock::now() -
+                  trx->start_time.load(std::memory_order_relaxed))
+                  .count());
       break;
     case TRX_STATE_PREPARED:
       fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-              (ulong)difftime(time(nullptr),
-                              trx->start_time.load(std::memory_order_relaxed)));
+              (ulong)std::chrono::duration_cast<std::chrono::seconds>(
+                  std::chrono::system_clock::now() -
+                  trx->start_time.load(std::memory_order_relaxed))
+                  .count());
       break;
     case TRX_STATE_COMMITTED_IN_MEMORY:
       fputs(", COMMITTED IN MEMORY", f);

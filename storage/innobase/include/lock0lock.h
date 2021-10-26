@@ -959,7 +959,7 @@ struct lock_sys_t {
   bool rollback_complete;
 
   /** Max lock wait time observed, for innodb_row_lock_time_max reporting. */
-  ulint n_lock_max_wait_time;
+  std::chrono::steady_clock::duration n_lock_max_wait_time;
 
   /** Set to the event that is created in the lock wait monitor thread. A value
   of 0 means the thread is not active */

@@ -40,9 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct os_event;
 typedef struct os_event *os_event_t;
 
-/** Denotes an infinite delay for os_event_wait_time() */
-#define OS_SYNC_INFINITE_TIME ULINT_UNDEFINED
-
 /** Return value of os_event_wait_time() when the time is exceeded */
 #define OS_SYNC_TIME_EXCEEDED 1
 
@@ -110,17 +107,16 @@ Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite.
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 ulint os_event_wait_time_low(
-    os_event_t event,         /*!< in/out: event to wait */
-    ulint time_in_usec,       /*!< in: timeout in
-                              microseconds, or
-                              OS_SYNC_INFINITE_TIME */
-    int64_t reset_sig_count); /*!< in: zero or the value
-                              returned by previous call of
-                              os_event_reset(). */
+    os_event_t event,                  /*!< in/out: event to wait */
+    std::chrono::microseconds timeout, /*!< in: timeout, or
+                              std::chrono::microseconds::max() */
+    int64_t reset_sig_count);          /*!< in: zero or the value
+                                       returned by previous call of
+                                       os_event_reset(). */
 
 /** Blocking timed wait on an event.
 @param e - event to wait on.
-@param t - timeout in microseconds */
+@param t - timeout */
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
 
 #include "os0event.ic"
