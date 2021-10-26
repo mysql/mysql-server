@@ -20786,6 +20786,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
     return;
   }
 
+  ndbrequire(q < NDB_ARRAY_SIZE(c_diverify_queue));
+
   if (!isEmpty(c_diverify_queue[q]))
   {
     jam();
