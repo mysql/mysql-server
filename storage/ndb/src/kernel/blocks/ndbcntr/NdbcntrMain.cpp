@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2896,6 +2896,7 @@ Ndbcntr::wait_sp_rep(Signal* signal)
     return;
   }
 
+  ndbrequire(rep.nodeId < NDB_ARRAY_SIZE(c_start.m_wait_sp));
   c_start.m_wait_sp[rep.nodeId] = rep.sp;
 
   /**
