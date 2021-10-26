@@ -12352,6 +12352,7 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
     Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
     handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
+    ndbrequire(ssPtr.sz <= NDB_ARRAY_SIZE(tableName));
     copy(tableName, ssPtr);
 
     DictObject * old_ptr_p = get_object((char*)tableName, len);
