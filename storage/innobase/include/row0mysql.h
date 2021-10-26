@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "btr0pcur.h"
 #include "data0data.h"
@@ -261,20 +262,6 @@ ibool row_table_got_default_clust_index(
 @param[in,out]	table	table handler */
 void row_delete_all_rows(dict_table_t *table);
 
-/** This can only be used when this session is using a READ COMMITTED or READ
-UNCOMMITTED isolation level.  Before calling this function
-row_search_for_mysql() must have initialized prebuilt->new_rec_locks to store
-the information which new record locks really were set. This function removes
-a newly set clustered index record lock under prebuilt->pcur or
-prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that releases
-the latest clustered index record lock we set.
-
-@param[in,out]	prebuilt		prebuilt struct in MySQL handle
-@param[in]	has_latches_on_recs	TRUE if called so that we have the
-                                        latches on the records under pcur
-                                        and clust_pcur, and we do not need
-                                        to reposition the cursors. */
-void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Checks if a table name contains the string "/#sql" which denotes temporary
@@ -740,7 +727,7 @@ struct row_prebuilt_t {
                         session is using READ COMMITTED or READ UNCOMMITTED
                         isolation level, set in row_search_for_mysql() if we set
                         a new record lock on the secondary or clustered index;
-                        this is used in row_unlock_for_mysql() when releasing
+                        this is used in row_try_unlock() when releasing
                         the lock under the cursor if we determine after
                         retrieving the row that it does not need to be locked
                         ('mini-rollback')
@@ -888,6 +875,20 @@ struct row_prebuilt_t {
   @return true iff duplicated values should be allowed */
   bool allow_duplicates() { return (replace || on_duplicate_key_update); }
 
+  /** This is an no-op unless trx is using a READ COMMITTED or READ UNCOMMITTED
+  isolation level.
+  Before calling this function row_search_for_mysql() must have stored to
+  new_rec_locks[] the information which new record locks really were set.
+  This function removes a newly set index record locks under pcur or clust_pcur.
+  Thus, this implements a 'mini-rollback' that releases the latest index record
+  locks we've just set.
+
+  @param[in]	has_latches_on_recs	true if called so that we have the
+                                        latches on the records under pcur
+                                        and clust_pcur, and we do not need
+                                        to reposition the cursors. */
+  void try_unlock(bool has_latches_on_recs);
+
  private:
   /** A helper function for init_search_tuples_types() which prepares the shape
   of the tuple to match the index
@@ -898,6 +899,11 @@ struct row_prebuilt_t {
   }
 
  public:
+  /** Counts how many elements of @see new_rec_lock[] array are set to true. */
+  size_t new_rec_locks_count() const {
+    return std::count(std::begin(new_rec_lock), std::end(new_rec_lock), true);
+  }
+
   /** Initializes search_tuple and m_stop_tuple shape so they match the index */
   void init_search_tuples_types() {
     init_tuple_types(search_tuple);
