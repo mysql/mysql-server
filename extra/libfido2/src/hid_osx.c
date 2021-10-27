@@ -18,9 +18,8 @@
 #include <IOKit/hid/IOHIDManager.h>
 
 #include <Availability.h>
-#include <AvailabilityVersions.h>
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_12_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 120000
 #define kIOMainPortDefault kIOMasterPortDefault
 #endif
 
