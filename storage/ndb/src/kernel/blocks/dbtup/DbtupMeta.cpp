@@ -239,6 +239,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
 
+  ndbrequire(csNumber < NDB_ARRAY_SIZE(all_charsets));
+
   regTabPtr.i= fragOperPtr.p->tableidFrag;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
