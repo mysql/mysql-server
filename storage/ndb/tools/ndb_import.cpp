@@ -502,8 +502,6 @@ checkopts(int argc, char** argv)
   do
   {
     CHK1(checkerrins() == 0);
-    if (g_opt.m_csvopt != 0)
-      CHK1(checkcsvopt() == 0);
     g_state_dir = g_opt.m_state_dir;
     convertpath(g_state_dir);
     g_opt.m_state_dir = g_state_dir.c_str();
@@ -967,13 +965,24 @@ doall()
   return ret;
 }
 
+static bool get_one_option(int optid, const struct my_option *opt, char *arg)
+{
+  bool ret = false;
+  if(strcmp(opt->name, "csvopt") == 0)
+    ret = (checkcsvopt() != 0);
+  else
+    ret = ndb_std_get_one_option(optid, opt, arg);
+  return ret;
+}
+
+
 int
 main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub, usage);
-  if (opts.handle_options() != 0)
+  if (opts.handle_options(&get_one_option) != 0)
     return 1;
   if (listerrins())
     return 0;
