@@ -110,7 +110,8 @@ class AppTest : public ::testing::Test {
   void SetUp() override {
     init_test_logger();
 #ifndef _WIN32
-    mock_sys_user_operations.reset(new MockSysUserOperations());
+    mock_sys_user_operations.reset(
+        new ::testing::StrictMock<MockSysUserOperations>());
 #endif
 
     config_dir = Path(mysql_harness::get_tests_data_dir(g_origin.str()));
@@ -119,7 +120,8 @@ class AppTest : public ::testing::Test {
   void TearDown() override {}
 
 #ifndef _WIN32
-  std::unique_ptr<MockSysUserOperations> mock_sys_user_operations;
+  std::unique_ptr<::testing::StrictMock<MockSysUserOperations>>
+      mock_sys_user_operations;
 #endif
   Path config_dir;
 };

@@ -114,7 +114,7 @@ TEST(NetTS_io_context, poll_io_service_poll_one_empty) {
 
 TEST(NetTS_io_context, work_guard_blocks_run) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   // succeed the open
   EXPECT_CALL(*io_service, open);
@@ -124,8 +124,9 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
       .WillRepeatedly(
           Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   // work guard is need to trigger the poll_one() as otherwise the run() would
   // just leave as there is no work to do without blocking
@@ -137,7 +138,7 @@ TEST(NetTS_io_context, work_guard_blocks_run) {
 
 TEST(NetTS_io_context, io_service_open_fails) {
   // prepare the io-service
-  auto io_service = std::make_unique<MockIoService>();
+  auto io_service = std::make_unique<::testing::StrictMock<MockIoService>>();
 
   EXPECT_CALL(*io_service, open)
       .WillOnce(Return(stdx::make_unexpected(
@@ -145,8 +146,9 @@ TEST(NetTS_io_context, io_service_open_fails) {
 
   // no call to poll_one
 
-  net::io_context io_ctx(std::make_unique<MockSocketService>(),
-                         std::move(io_service));
+  net::io_context io_ctx(
+      std::make_unique<::testing::StrictMock<MockSocketService>>(),
+      std::move(io_service));
 
   EXPECT_EQ(
       io_ctx.open_res(),
