@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "my_config.h"
-#include "storage/innobase/include/detail/ut0new.h"
 #include "storage/innobase/include/univ.i"
 #include "storage/innobase/include/ut0new.h"
 
@@ -1006,6 +1005,12 @@ TYPED_TEST_P(ut0new_large_malloc_free_fundamental_types, fundamental_types) {
   SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
   EXPECT_TRUE(ptr_is_suitably_aligned(ptr));
   EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  EXPECT_GT(ut::large_page_low_level_info(ptr).allocation_size,
+            ut::large_page_allocation_size(ptr));
+  EXPECT_EQ(reinterpret_cast<std::uintptr_t>(
+                ut::large_page_low_level_info(ptr).base_ptr) %
+                CPU_PAGE_SIZE,
+            0);
   ut::free_large_page(ptr);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fundamental_types,
@@ -1028,6 +1033,12 @@ TYPED_TEST_P(ut0new_large_malloc_free_pod_types, pod_types) {
   SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
   EXPECT_TRUE(ptr_is_suitably_aligned(ptr));
   EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  EXPECT_GT(ut::large_page_low_level_info(ptr).allocation_size,
+            ut::large_page_allocation_size(ptr));
+  EXPECT_EQ(reinterpret_cast<std::uintptr_t>(
+                ut::large_page_low_level_info(ptr).base_ptr) %
+                CPU_PAGE_SIZE,
+            0);
   ut::free_large_page(ptr);
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_pod_types, pod_types);
@@ -1048,6 +1059,12 @@ TYPED_TEST_P(ut0new_large_malloc_free_non_pod_types, non_pod_types) {
   SKIP_TEST_IF_HUGE_PAGE_SUPPORT_IS_NOT_AVAILABLE(ptr)
   EXPECT_TRUE(ptr_is_suitably_aligned(ptr));
   EXPECT_GE(ut::large_page_allocation_size(ptr), sizeof(type));
+  EXPECT_GT(ut::large_page_low_level_info(ptr).allocation_size,
+            ut::large_page_allocation_size(ptr));
+  EXPECT_EQ(reinterpret_cast<std::uintptr_t>(
+                ut::large_page_low_level_info(ptr).base_ptr) %
+                CPU_PAGE_SIZE,
+            0);
   // Referencing non-pod type members through returned pointer is UB.
   // Solely releasing it is ok.
   //
@@ -1083,6 +1100,16 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_fundamental_types,
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
         sizeof(type));
+    EXPECT_GT(
+        ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+            .allocation_size,
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}));
+    EXPECT_EQ(
+        reinterpret_cast<std::uintptr_t>(
+            ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+                .base_ptr) %
+            CPU_PAGE_SIZE,
+        0);
     ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
   }
 }
@@ -1110,6 +1137,16 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_pod_types, pod_types) {
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
         sizeof(type));
+    EXPECT_GT(
+        ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+            .allocation_size,
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}));
+    EXPECT_EQ(
+        reinterpret_cast<std::uintptr_t>(
+            ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+                .base_ptr) %
+            CPU_PAGE_SIZE,
+        0);
     ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
   }
 }
@@ -1138,6 +1175,16 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_non_pod_types, non_pod_types) {
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
         sizeof(type));
+    EXPECT_GT(
+        ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+            .allocation_size,
+        ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}));
+    EXPECT_EQ(
+        reinterpret_cast<std::uintptr_t>(
+            ut::large_page_low_level_info(ret, ut::fallback_to_normal_page_t{})
+                .base_ptr) %
+            CPU_PAGE_SIZE,
+        0);
     // Referencing non-pod type members through returned pointer is UB.
     // Solely releasing it is ok.
     //

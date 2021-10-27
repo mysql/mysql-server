@@ -5694,7 +5694,7 @@ ER_IB_MSG_53
   eng "%s"
 
 ER_IB_MSG_54
-  eng "%s"
+  eng "Failed to set NUMA memory policy of buffer pool page frames with mbind(%p,%zu,%s,...,...,%s) failed with %s"
 
 ER_IB_MSG_55
   eng "%s"
