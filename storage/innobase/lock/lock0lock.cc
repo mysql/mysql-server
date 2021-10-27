@@ -4004,6 +4004,11 @@ static bool try_relatch_trx_and_shard_and_do(const lock_t *lock, F &&f) {
                                           std::forward<F>(f));
 }
 
+/** We don't want to hold the Global latch for too long, even in S mode, not to
+starve threads waiting for X-latch on it such as lock_wait_timeout_thread().
+This defines the longest allowed critical section duration. */
+constexpr auto MAX_CS_DURATION = std::chrono::seconds{1};
+
 /** Tries to release read locks of a transaction without latching the whole
 lock sys. This may fail, if there are many concurrent threads editing the
 list of locks of this transaction (for example due to B-tree pages being
@@ -4012,7 +4017,8 @@ It is called during XA prepare to release locks early.
 @param[in,out]	trx		transaction
 @param[in]	only_gap	release only GAP locks
 @return true if and only if it succeeded to do the job*/
-static bool try_release_read_locks_in_s_mode(trx_t *trx, bool only_gap) {
+[[nodiscard]] static bool try_release_read_locks_in_s_mode(trx_t *trx,
+                                                           bool only_gap) {
   /* In order to access trx->lock.trx_locks safely we need to hold trx->mutex.
   So, conceptually we'd love to hold trx->mutex while iterating through
   trx->lock.trx_locks.
@@ -4031,8 +4037,10 @@ static bool try_release_read_locks_in_s_mode(trx_t *trx, bool only_gap) {
   7. verify that the version of trx->lock.trx_locks has not changed
   8. and only then perform any action on the lock.
   */
-  ut_ad(trx_mutex_own(trx));
-  ut_ad(locksys::owns_shared_global_latch());
+  locksys::Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
+  const auto started_at = std::chrono::steady_clock::now();
+  trx_mutex_enter(trx);
+  ut_ad(trx->lock.wait_lock == nullptr);
 
   for (auto lock : trx->lock.trx_locks.removable()) {
     ut_ad(trx_mutex_own(trx));
@@ -4043,76 +4051,81 @@ static bool try_release_read_locks_in_s_mode(trx_t *trx, bool only_gap) {
     */
     if (lock_get_type_low(lock) == LOCK_REC) {
       /* Following call temporarily releases trx->mutex */
-      if (!try_relatch_trx_and_shard_and_do(
+      if ((MAX_CS_DURATION < std::chrono::steady_clock::now() - started_at) ||
+          !try_relatch_trx_and_shard_and_do(
               lock, [=]() { lock_release_read_lock(lock, only_gap); })) {
-        /* Someone has modified the list while we were re-acquiring the latches
+        /* We've been holding the s-latch for too long, we need to re-latch or
+        someone has modified the list while we were re-acquiring the latches
         so we need to start over again. */
+        trx_mutex_exit(trx);
         return false;
       }
     }
     /* As we have verified that the version was not changed by another thread,
     we can safely continue iteration even if we have removed the lock.*/
   }
+  trx_mutex_exit(trx);
   return true;
 }
-}  // namespace locksys
 
-/** Release read locks of a transacion latching the whole lock-sys in
+/** Release read locks of a transaction latching the whole lock-sys in
 exclusive mode, which is a bit too expensive to do by default.
 It is called during XA prepare to release locks early.
 @param[in,out]	trx		transaction
-@param[in]	only_gap	release only GAP locks */
-static void lock_trx_release_read_locks_in_x_mode(trx_t *trx, bool only_gap) {
+@param[in]	only_gap	release only GAP locks
+@return true if and only if it succeeded to do the job*/
+[[nodiscard]] static bool try_release_read_locks_in_x_mode(trx_t *trx,
+                                                           bool only_gap) {
   ut_ad(!trx_mutex_own(trx));
-
   /* We will iterate over locks from various shards. */
-  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+  Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+  const auto started_at = std::chrono::steady_clock::now();
   trx_mutex_enter_first_of_two(trx);
 
   for (auto lock : trx->lock.trx_locks.removable()) {
+    if (MAX_CS_DURATION < std::chrono::steady_clock::now() - started_at) {
+      trx_mutex_exit(trx);
+      return false;
+    }
     DEBUG_SYNC_C("lock_trx_release_read_locks_in_x_mode_will_release");
 
     lock_release_read_lock(lock, only_gap);
   }
 
   trx_mutex_exit(trx);
+  return true;
 }
+}  // namespace locksys
 
 void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
   ut_ad(trx_can_be_handled_by_current_thread(trx));
 
-  size_t failures;
   const size_t MAX_FAILURES = 5;
 
-  {
-    locksys::Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
-    trx_mutex_enter(trx);
-    ut_ad(trx->lock.wait_lock == nullptr);
-
-    for (failures = 0; failures < MAX_FAILURES; ++failures) {
-      if (locksys::try_release_read_locks_in_s_mode(trx, only_gap)) {
-        break;
-      }
+  for (size_t failures = 0; failures < MAX_FAILURES; ++failures) {
+    if (locksys::try_release_read_locks_in_s_mode(trx, only_gap)) {
+      return;
     }
-
-    trx_mutex_exit(trx);
+    std::this_thread::yield();
   }
 
-  if (failures == MAX_FAILURES) {
-    lock_trx_release_read_locks_in_x_mode(trx, only_gap);
+  while (!locksys::try_release_read_locks_in_x_mode(trx, only_gap)) {
+    std::this_thread::yield();
   }
 }
 
+namespace locksys {
 /** Releases transaction locks, and releases possible other transactions waiting
  because of these locks.
-@param[in,out]  trx   transaction */
-static void lock_release(trx_t *trx) {
+@param[in,out]  trx   transaction
+@return true if and only if it succeeded to do the job*/
+[[nodiscard]] static bool try_release_all_locks(trx_t *trx) {
   lock_t *lock;
   ut_ad(!locksys::owns_exclusive_global_latch());
   ut_ad(!trx_mutex_own(trx));
   ut_ad(!trx->is_dd_trx);
-
-  locksys::Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
+  Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
+  const auto started_at = std::chrono::steady_clock::now();
   /* In order to access trx->lock.trx_locks safely we need to hold trx->mutex.
   The transaction is already in TRX_STATE_COMMITTED_IN_MEMORY state and is no
   longer referenced, so we are not afraid of implicit-to-explicit conversions,
@@ -4142,8 +4155,12 @@ static void lock_release(trx_t *trx) {
 
   ut_ad(trx->lock.wait_lock == nullptr);
   while ((lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) != nullptr) {
+    if (MAX_CS_DURATION < std::chrono::steady_clock::now() - started_at) {
+      trx_mutex_exit(trx);
+      return false;
+    }
     /* Following call temporarily releases trx->mutex */
-    locksys::try_relatch_trx_and_shard_and_do(lock, [=]() {
+    try_relatch_trx_and_shard_and_do(lock, [=]() {
       if (lock_get_type_low(lock) == LOCK_REC) {
         lock_rec_dequeue_from_page(lock);
       } else {
@@ -4153,7 +4170,9 @@ static void lock_release(trx_t *trx) {
   }
 
   trx_mutex_exit(trx);
+  return true;
 }
+}  // namespace locksys
 
 /* True if a lock mode is S or X */
 #define IS_LOCK_S_OR_X(lock) \
@@ -6029,7 +6048,9 @@ void lock_trx_release_locks(trx_t *trx) /*!< in/out: transaction */
   ut_ad(!trx_is_referenced(trx));
   trx_mutex_exit(trx);
 
-  lock_release(trx);
+  while (!locksys::try_release_all_locks(trx)) {
+    std::this_thread::yield();
+  }
 
   /* We don't free the locks one by one for efficiency reasons.
   We simply empty the heap one go. Similarly we reset n_rec_locks count to 0.
