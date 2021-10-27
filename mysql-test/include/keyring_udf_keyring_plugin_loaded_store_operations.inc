@@ -14,9 +14,7 @@ select keyring_key_store('Key_1','AES',123);
 select keyring_key_store(NULL,'AES',123);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_store('Key_1',NULL,123);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_store('Key_1','AES',NULL);
---error ER_CANT_INITIALIZE_UDF
 select keyring_key_store(NULL,NULL,NULL);
 --error ER_CANT_INITIALIZE_UDF
 select keyring_key_store(1234,NULL,'53247@#$%^');
