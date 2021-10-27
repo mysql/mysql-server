@@ -1179,6 +1179,16 @@ bool TemptableAggregateIterator::Init() {
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
           return true;
         }
+        /*
+          As the table has moved to disk, the references to the blobs
+          in record[0], if any, would be stale. Copy the record and
+          re-evaluate the functions.
+        */
+        restore_record(table(), record[1]);
+        update_tmptable_sum_func(m_join->sum_funcs, table());
+        if (thd()->is_error()) {
+          return true;
+        }
         // Retry the update on the newly created on-disk table.
         error = table()->file->ha_update_row(table()->record[1],
                                              table()->record[0]);
