@@ -174,13 +174,11 @@ last_name VARCHAR(16) NOT NULL COLUMN_FORMAT FIXED,
 gender CHAR(1) NOT NULL,
 date_died DATE NOT NULL
 ) engine=ndb CHARACTER SET latin1;
-include/assert_grep.inc [Require CSV parser to fail with syntax error]
 create table t10 (
 a int primary key,
 b int not null,
 c varchar(16) not null
 ) engine=ndb CHARACTER SET latin1;
-include/assert_grep.inc [No --table argument and csv filename does not match any table name]
 delete from t10;
 create table t10ver like t10;
 select count(*) from t10 x, t10ver y

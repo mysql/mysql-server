@@ -705,14 +705,6 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
  --csvopt=cqn --pagesize=256 --pagebuffer=512
  test $MYSQLTEST_VARDIR/tmp/tpersons.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
-# Look for the specific error message from ndb_import
---let $assert_file=$NDB_TOOLS_OUTPUT
---let $assert_only_after=import test.tpersons
---let $assert_text=Require CSV parser to fail with syntax error
---let $assert_select=syntax error, unexpected T_DATA
---let $assert_count=1
---source include/assert_grep.inc
-
 create table t10 (
   a int primary key,
   b int not null,
@@ -731,13 +723,6 @@ EOF
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
  --csvopt=cn
  test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv >> $NDB_TOOLS_OUTPUT 2>&1;
-
-# Look for the specific error message from ndb_import
---let $assert_file=$NDB_TOOLS_OUTPUT
---let $assert_text=No --table argument and csv filename does not match any table name
---let $assert_select=No such table existed
---let $assert_count=1
---source include/assert_grep.inc
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
  --csvopt=cnq
