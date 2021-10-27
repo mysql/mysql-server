@@ -17,6 +17,13 @@
 #include <IOKit/hid/IOHIDKeys.h>
 #include <IOKit/hid/IOHIDManager.h>
 
+#include <Availability.h>
+#include <AvailabilityVersions.h>
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_12_0
+#define kIOMainPortDefault kIOMasterPortDefault
+#endif
+
 #include "fido.h"
 
 struct hid_osx {
@@ -395,7 +402,7 @@ fido_hid_open(const char *path)
 		goto fail;
 	}
 
-	if ((entry = IORegistryEntryFromPath(kIOMasterPortDefault,
+	if ((entry = IORegistryEntryFromPath(kIOMainPortDefault,
 	    path)) == MACH_PORT_NULL) {
 		fido_log_debug("%s: IORegistryEntryFromPath", __func__);
 		goto fail;
