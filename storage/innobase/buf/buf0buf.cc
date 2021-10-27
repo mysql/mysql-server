@@ -831,9 +831,12 @@ Emits a warning to the log if could not succeed.
 @return true iff succeeded, false if no OS support or failed */
 bool buf_chunk_t::madvise_dump() {
 #ifdef HAVE_MADV_DONTDUMP
-  if (madvise(mem, mem_size(), MADV_DODUMP)) {
-    ib::warn(ER_IB_MSG_MADVISE_FAILED, mem, mem_size(), "MADV_DODUMP",
-             strerror(errno));
+  const auto low_level_info =
+      ut::large_page_low_level_info(this->mem, ut::fallback_to_normal_page_t{});
+  if (madvise(low_level_info.base_ptr, low_level_info.allocation_size,
+              MADV_DODUMP)) {
+    ib::warn(ER_IB_MSG_MADVISE_FAILED, low_level_info.base_ptr,
+             low_level_info.allocation_size, "MADV_DODUMP", strerror(errno));
     return false;
   }
   return true;
@@ -848,9 +851,12 @@ Emits a warning to the log if could not succeed.
 @return true iff succeeded, false if no OS support or failed */
 bool buf_chunk_t::madvise_dont_dump() {
 #ifdef HAVE_MADV_DONTDUMP
-  if (madvise(mem, mem_size(), MADV_DONTDUMP)) {
-    ib::warn(ER_IB_MSG_MADVISE_FAILED, mem, mem_size(), "MADV_DONTDUMP",
-             strerror(errno));
+  const auto low_level_info =
+      ut::large_page_low_level_info(this->mem, ut::fallback_to_normal_page_t{});
+  if (madvise(low_level_info.base_ptr, low_level_info.allocation_size,
+              MADV_DONTDUMP)) {
+    ib::warn(ER_IB_MSG_MADVISE_FAILED, low_level_info.base_ptr,
+             low_level_info.allocation_size, "MADV_DONTDUMP", strerror(errno));
     return false;
   }
   return true;
@@ -880,6 +886,23 @@ bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
       innobase_disable_core_dump();
     }
   }
+#ifdef HAVE_LIBNUMA
+  if (srv_numa_interleave) {
+    const auto low_level_info = ut::large_page_low_level_info(
+        chunk->mem, ut::fallback_to_normal_page_t{});
+    struct bitmask *numa_nodes = numa_get_mems_allowed();
+    int st = mbind(low_level_info.base_ptr, low_level_info.allocation_size,
+                   MPOL_INTERLEAVE, numa_nodes->maskp, numa_nodes->size,
+                   MPOL_MF_MOVE);
+    if (st != 0) {
+      ib::warn(ER_IB_MSG_54, low_level_info.base_ptr,
+               low_level_info.allocation_size, "MPOL_INTERLEAVE",
+               "MPOL_MF_MOVE", strerror(errno));
+    }
+    numa_bitmask_free(numa_nodes);
+  }
+#endif /* HAVE_LIBNUMA */
+
   return true;
 }
 
@@ -985,21 +1008,6 @@ static buf_chunk_t *buf_chunk_init(
     return (nullptr);
   }
 
-#ifdef HAVE_LIBNUMA
-  if (srv_numa_interleave) {
-    struct bitmask *numa_nodes = numa_get_mems_allowed();
-    int st = mbind(chunk->mem, chunk->mem_size(), MPOL_INTERLEAVE,
-                   numa_nodes->maskp, numa_nodes->size, MPOL_MF_MOVE);
-    if (st != 0) {
-      ib::warn(ER_IB_MSG_54) << "Failed to set NUMA memory policy of"
-                                " buffer pool page frames to MPOL_INTERLEAVE"
-                                " (error: "
-                             << strerror(errno) << ").";
-    }
-    numa_bitmask_free(numa_nodes);
-  }
-#endif /* HAVE_LIBNUMA */
-
   /* Allocate the block descriptors from
   the start of the memory block. */
   chunk->blocks = (buf_block_t *)chunk->mem;
@@ -1010,7 +1018,9 @@ static buf_chunk_t *buf_chunk_init(
   it is bigger, we may allocate more blocks than requested. */
 
   frame = (byte *)ut_align(chunk->mem, UNIV_PAGE_SIZE);
-  chunk->size = ut::large_page_allocation_size(chunk->mem) / UNIV_PAGE_SIZE -
+  chunk->size = ut::large_page_allocation_size(
+                    chunk->mem, ut::fallback_to_normal_page_t{}) /
+                    UNIV_PAGE_SIZE -
                 (frame != chunk->mem);
 
   /* Subtract the space needed for block descriptors. */

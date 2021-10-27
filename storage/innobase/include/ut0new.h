@@ -129,6 +129,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_memory.h"
 
+namespace ut {
+/** Can be used to extract pointer and size of the allocation provided by the
+OS. It is a low level information, and is needed only to call low level
+memory-related OS functions. */
+struct allocation_low_level_info {
+  /** A pointer returned by the OS allocator. */
+  void *base_ptr;
+  /** The size of allocation that OS performed. */
+  size_t allocation_size;
+};
+}  // namespace ut
+
 #include "detail/ut0new.h"
 #include "os0proc.h"
 #include "os0thread.h"
@@ -1182,6 +1194,20 @@ inline size_t page_allocation_size(void *ptr) noexcept {
   return page_alloc_impl::datalen(ptr);
 }
 
+/** Retrieves the pointer and size of the allocation provided by the OS. It is a
+    low level information, and is needed only to call low level memory-related
+    OS functions.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_page*() variants.
+    @return Low level OS allocation info.
+ */
+inline allocation_low_level_info page_low_level_info(void *ptr) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::low_level_info(ptr);
+}
+
 /** Releases storage which has been dynamically allocated through any of
     the ut::malloc_page*() variants.
 
@@ -1264,6 +1290,20 @@ inline size_t large_page_allocation_size(void *ptr) noexcept {
   using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
   using large_page_alloc_impl = detail::Large_alloc_<impl>;
   return large_page_alloc_impl::datalen(ptr);
+}
+
+/** Retrieves the pointer and size of the allocation provided by the OS. It is a
+    low level information, and is needed only to call low level memory-related
+    OS functions.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*() variants.
+    @return Low level OS allocation info.
+ */
+inline allocation_low_level_info large_page_low_level_info(void *ptr) noexcept {
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  return large_page_alloc_impl::low_level_info(ptr);
 }
 
 /** Releases storage which has been dynamically allocated through any of
@@ -1367,7 +1407,27 @@ inline size_t large_page_allocation_size(void *ptr,
   using large_page_alloc_impl = detail::Large_alloc_<impl>;
   if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page)
     return ut::page_allocation_size(ptr);
+  ut_a(large_page_alloc_impl::page_type(ptr) == detail::Page_type::large_page);
   return ut::large_page_allocation_size(ptr);
+}
+
+/** Retrieves the pointer and size of the allocation provided by the OS. It is a
+    low level information, and is needed only to call low level memory-related
+    OS functions.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_large_page*(fallback_to_normal_page_t) variants.
+    @return Low level OS allocation info.
+ */
+inline allocation_low_level_info large_page_low_level_info(
+    void *ptr, fallback_to_normal_page_t) noexcept {
+  assert(ptr);
+  using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using large_page_alloc_impl = detail::Large_alloc_<impl>;
+  if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page)
+    return ut::page_low_level_info(ptr);
+  ut_a(large_page_alloc_impl::page_type(ptr) == detail::Page_type::large_page);
+  return ut::large_page_low_level_info(ptr);
 }
 
 /** Releases storage which has been dynamically allocated through any of
@@ -1393,6 +1453,8 @@ inline bool free_large_page(void *ptr, fallback_to_normal_page_t) noexcept {
   if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page) {
     success = free_page(ptr);
   } else {
+    ut_a(large_page_alloc_impl::page_type(ptr) ==
+         detail::Page_type::large_page);
     success = free_large_page(ptr);
   }
   assert(success);

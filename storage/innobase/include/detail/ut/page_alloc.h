@@ -196,8 +196,9 @@ struct Page_alloc : public allocator_traits<false> {
    */
   static inline bool free(void *data) noexcept {
     if (unlikely(!data)) return false;
+    ut_ad(page_type(data) == Page_type::system_page);
     return page_aligned_free(deduce(data),
-                             datalen(data) + page_allocation_metadata::len);
+                             page_allocation_metadata::datalen(data));
   }
 
   /** Returns the number of bytes that have been allocated.
@@ -207,6 +208,7 @@ struct Page_alloc : public allocator_traits<false> {
       @return Number of bytes.
    */
   static inline page_allocation_metadata::datalen_t datalen(void *data) {
+    ut_ad(page_type(data) == Page_type::system_page);
     return page_allocation_metadata::datalen(data) -
            page_allocation_metadata::len;
   }
@@ -218,7 +220,21 @@ struct Page_alloc : public allocator_traits<false> {
       @return Page type.
    */
   static inline Page_type page_type(void *data) {
+    ut_ad(page_allocation_metadata::page_type(data) == Page_type::system_page);
     return page_allocation_metadata::page_type(data);
+  }
+
+  /** Retrieves the pointer and size of the allocation provided by the OS. It is
+      a low level information, and is needed only to call low level
+      memory-related OS functions.
+
+      @param[in] data Pointer to storage allocated through
+      Page_alloc::alloc()
+      @return Low level allocation info.
+   */
+  static inline allocation_low_level_info low_level_info(void *data) {
+    ut_ad(page_type(data) == Page_type::system_page);
+    return {deduce(data), page_allocation_metadata::datalen(data)};
   }
 
  private:
@@ -226,8 +242,11 @@ struct Page_alloc : public allocator_traits<false> {
       Page_alloc from a pointer which is passed to us by the call-site.
    */
   static inline void *deduce(void *data) noexcept {
-    return reinterpret_cast<void *>(static_cast<uint8_t *>(data) -
-                                    page_allocation_metadata::len);
+    ut_ad(page_type(data) == Page_type::system_page);
+    const auto res = reinterpret_cast<void *>(static_cast<uint8_t *>(data) -
+                                              page_allocation_metadata::len);
+    ut_ad(reinterpret_cast<std::uintptr_t>(res) % CPU_PAGE_SIZE == 0);
+    return res;
   }
 };
 
@@ -326,6 +345,7 @@ struct Page_alloc_pfs : public allocator_traits<true> {
    */
   static inline bool free(PFS_metadata::data_segment_ptr data) noexcept {
     if (unlikely(!data)) return false;
+    ut_ad(page_type(data) == Page_type::system_page);
 
     PFS_metadata::pfs_datalen_t total_len = {};
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -349,6 +369,7 @@ struct Page_alloc_pfs : public allocator_traits<true> {
       @return Number of bytes.
    */
   static inline size_t datalen(PFS_metadata::data_segment_ptr data) {
+    ut_ad(page_type(data) == Page_type::system_page);
     return page_allocation_metadata::pfs_metadata::pfs_datalen(data) -
            page_allocation_metadata::len;
   }
@@ -360,7 +381,22 @@ struct Page_alloc_pfs : public allocator_traits<true> {
       @return Page type.
    */
   static inline Page_type page_type(PFS_metadata::data_segment_ptr data) {
+    ut_ad(page_allocation_metadata::page_type(data) == Page_type::system_page);
     return page_allocation_metadata::page_type(data);
+  }
+
+  /** Retrieves the pointer and size of the allocation provided by the OS. It is
+      a low level information, and is needed only to call low level
+      memory-related OS functions.
+
+      @param[in] data Pointer to storage allocated through
+      Page_alloc_pfs::alloc()
+      @return Low level allocation info.
+   */
+  static inline allocation_low_level_info low_level_info(void *data) {
+    ut_ad(page_type(data) == Page_type::system_page);
+    return {deduce(data),
+            page_allocation_metadata::pfs_metadata::pfs_datalen(data)};
   }
 
  private:
@@ -369,7 +405,11 @@ struct Page_alloc_pfs : public allocator_traits<true> {
       call-site.
    */
   static inline void *deduce(PFS_metadata::data_segment_ptr data) noexcept {
-    return page_allocation_metadata::pfs_metadata::deduce_pfs_meta(data);
+    ut_ad(page_type(data) == Page_type::system_page);
+    const auto res =
+        page_allocation_metadata::pfs_metadata::deduce_pfs_meta(data);
+    ut_ad(reinterpret_cast<std::uintptr_t>(res) % CPU_PAGE_SIZE == 0);
+    return res;
   }
 };
 
@@ -409,6 +449,9 @@ struct Page_alloc_ {
   static inline bool free(void *ptr) { return Impl::free(ptr); }
   static inline size_t datalen(void *ptr) { return Impl::datalen(ptr); }
   static inline Page_type page_type(void *ptr) { return Impl::page_type(ptr); }
+  static inline allocation_low_level_info low_level_info(void *ptr) {
+    return Impl::low_level_info(ptr);
+  }
 };
 
 }  // namespace detail
