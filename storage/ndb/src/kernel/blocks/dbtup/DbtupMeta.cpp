@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -200,6 +200,8 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   Uint32 attrDescriptor = signal->theData[3];
   // DICT sends charset number in upper half
   Uint32 csNumber = (signal->theData[4] >> 16);
+
+  ndbrequire(csNumber < NDB_ARRAY_SIZE(all_charsets));
 
   regTabPtr.i= fragOperPtr.p->tableidFrag;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
