@@ -54,6 +54,8 @@ public:
 
   struct Request;
   struct TreeNode;
+  struct ScanFragHandle;
+
 private:
   BLOCK_DEFINES(Dbspj);
 
@@ -103,11 +105,23 @@ private:
 
   void sendSTTORRY(Signal* signal);
 
-protected:
-  //virtual bool getParam(const char* name, Uint32* count);
+  /**
+   * Security layer:
+   *   Provide verification of 'i-pointers' used in the signaling protocol.
+   *   - 'insert' the GuardedPtr to allow it to be referred.
+   *   - 'remove' at end of lifecycle.
+   *   - 'get' will fetch the 'real' pointer to the object.
+   * Crash if ptrI is unknow to us.
+   */
+  void insertGuardedPtr(Ptr<Request>, Ptr<TreeNode>);
+  void removeGuardedPtr(Ptr<TreeNode>);
+  bool getGuardedPtr(Ptr<TreeNode>&, Uint32 ptrI);
+
+  void insertGuardedPtr(Ptr<Request>, Ptr<ScanFragHandle>);
+  void removeGuardedPtr(Ptr<ScanFragHandle>);
+  bool getGuardedPtr(Ptr<ScanFragHandle>&, Uint32 ptrI);
 
 public:
-  struct ScanFragHandle;
   typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Correlation_list;
   typedef LocalDataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Local_correlation_list;
   typedef DataBuffer<14, LocalArenaPool<DataBufferSegment<14> > > Dependency_map;
@@ -652,6 +666,18 @@ public:
     Uint32 m_next_ref;
     Uint32 m_rangePtrI;  // Set of lower/upper bound keys.
     Uint32 m_paramPtrI;  // Set of interpreter parameters
+
+    // Below are requirements for the hash lists
+    bool equal(const ScanFragHandle &other) const {
+      return key == other.key;
+    }
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    Uint32 key;  // Its own ptrI, used as hash key
+    Uint32 nextHash, prevHash;
+
     union {
       Uint32 nextList;
       Uint32 nextPool;
@@ -661,6 +687,7 @@ public:
   typedef RecordPool<ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
   typedef SLFifoList<ScanFragHandle_pool> ScanFragHandle_list;
   typedef LocalSLFifoList<ScanFragHandle_pool> Local_ScanFragHandle_list;
+  typedef KeyTable<ScanFragHandle_pool> ScanFragHandle_hash;
 
   /**
    * This class computes mean and standard deviation incrementally for a series
@@ -1099,6 +1126,18 @@ public:
       Uint32 m_attrInfoPtrI;     // attrInfoSection
     } m_send;
 
+
+    // Below are requirements for the hash lists
+    bool equal(const TreeNode &other) const {
+      return key == other.key;
+    }
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    Uint32 key;  // Its own ptrI, used as hash key
+    Uint32 nextHash, prevHash;
+
     union {
       Uint32 nextList;
       Uint32 nextPool;
@@ -1110,13 +1149,12 @@ public:
   static const Ptr<TreeNode> NullTreeNodePtr;
 
   typedef RecordPool<ArenaPool<TreeNode> > TreeNode_pool;
+  typedef KeyTable<TreeNode_pool> TreeNode_hash;
   typedef DLFifoList<TreeNode_pool> TreeNode_list;
   typedef LocalDLFifoList<TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLList<TreeNode_pool, IA_Cursor>
-  TreeNodeCursor_list;
-  typedef LocalSLList<TreeNode_pool, IA_Cursor>
-  Local_TreeNodeCursor_list;
+  typedef SLList<TreeNode_pool, IA_Cursor> TreeNodeCursor_list;
+  typedef LocalSLList<TreeNode_pool, IA_Cursor> Local_TreeNodeCursor_list;
 
   /**
    * A request (i.e a query + parameters)
@@ -1331,7 +1369,9 @@ private:
   Request_hash m_lookup_request_hash;
   ArenaPool<DataBufferSegment<14> > m_dependency_map_pool;
   TreeNode_pool m_treenode_pool;
+  TreeNode_hash m_treenode_hash;
   ScanFragHandle_pool m_scanfraghandle_pool;
+  ScanFragHandle_hash m_scanfraghandle_hash;
 
   TableRecord *m_tableRecord;
   UintR c_tabrecFilesize;
