@@ -1,8 +1,6 @@
 --source include/have_ndb.inc
 
-call mtr.add_suppression("Warnings:");
 call mtr.add_suppression("The table 't1' is full");
-call mtr.add_suppression("Out of memory in Ndb Kernel, table data (increase DataMemory)");
 
 create table t1(x int primary key) engine=ndbcluster;
 
@@ -16,6 +14,11 @@ create table t1(x int primary key) engine=ndbcluster;
 # Avoid problem with too large transactions.
 set ndb_use_transactions=0;
 
+# Disables warnings to get same behaviour on Windows and other platforms.
+# Else for unknown reason warning is implicitly shown on Windows but not on
+# other platforms.
+--disable_warnings
+
 # Use up all available data memory (95%)
 --disable_query_log
 insert into t1 values (0), (1);
@@ -26,7 +29,9 @@ while (!$mysql_errno)
 --error 0,1114
   insert into t1 select @n + x from t1;
 }
+show warnings;
 --enable_query_log
+--enable_warnings
 
 # Start node 2, during restart it can use all data memory (100%).
 --exec $NDB_MGM -e "2 start"
