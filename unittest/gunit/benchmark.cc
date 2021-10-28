@@ -59,8 +59,16 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t)) {
   printf(
       "WARNING: Running microbenchmark in debug mode. "
       "Timings will be misleading.\n");
-#endif
 
+  // There's no point in timing in debug mode, so just run 10 times
+  // so that we don't waste build time (this should give us enough runs
+  // to verify that we don't crash).
+  seconds_used = 0.0;
+  size_t num_iterations = 10;
+  StartBenchmarkTiming();
+  func(num_iterations);
+  StopBenchmarkTiming();
+#else
   // Do 100 iterations as rough calibration. (Often, this will over- or
   // undershoot by as much as 50%, but that's fine.)
   static constexpr size_t calibration_iterations = 100;
@@ -80,6 +88,7 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t)) {
   StartBenchmarkTiming();
   func(num_iterations);
   StopBenchmarkTiming();
+#endif
 
   printf("%-40s %10ld iterations %10.0f ns/iter", name,
          static_cast<long>(num_iterations),
