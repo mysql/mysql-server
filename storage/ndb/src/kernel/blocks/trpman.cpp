@@ -936,6 +936,8 @@ Trpman::execUPD_QUERY_DIST_ORD(Signal *signal)
   SegmentedSectionPtr ptr;
   SectionHandle handle(this, signal);
   handle.getSection(ptr, 0);
+  ndbrequire(ptr.sz <= NDB_ARRAY_SIZE(dist_handle->m_weights));
+
   memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));
   copy(dist_handle->m_weights, ptr);
   releaseSections(handle);
