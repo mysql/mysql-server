@@ -1409,7 +1409,9 @@ TEST_F(DestMetadataCacheTest, InvalidServerNodeRole) {
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
           &metadata_cache_api_),
-      std::runtime_error, "Invalid server role in metadata cache routing");
+      std::runtime_error,
+      "The role in '?role=INVALID' does not contain one of the valid role "
+      "names: PRIMARY, SECONDARY, PRIMARY_AND_SECONDARY");
 }
 
 TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
@@ -1558,13 +1560,15 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupMultipleUris) {
     mysqlrouter::URI uri(
         "metadata-cache://test/default?role=SECONDARY,metadata-cache://test2/"
         "default?role=SECONDARY");
-    ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
-                          io_ctx_, "metadata_cache_name",
-                          routing::RoutingStrategy::kUndefined, uri.query,
-                          Protocol::Type::kClassicProtocol),
-                      std::runtime_error,
-                      "Invalid server role in metadata cache routing "
-                      "'SECONDARY,metadata-cache://test2/default?role'");
+    ASSERT_THROW_LIKE(
+        DestMetadataCacheGroup dest(io_ctx_, "metadata_cache_name",
+                                    routing::RoutingStrategy::kUndefined,
+                                    uri.query,
+                                    Protocol::Type::kClassicProtocol),
+        std::runtime_error,
+        "The role in '?role=SECONDARY,metadata-cache://test2/default?role' "
+        "does not contain one of the valid role names: PRIMARY, SECONDARY, "
+        "PRIMARY_AND_SECONDARY");
   }
 }
 

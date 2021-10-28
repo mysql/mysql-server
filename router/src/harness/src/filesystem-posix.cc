@@ -334,7 +334,8 @@ std::string get_tmp_dir(const std::string &name) {
   strncpy(buf, pattern, sizeof(buf) - 1);
   const char *res = mkdtemp(buf);
   if (res == nullptr) {
-    throw std::runtime_error("Could not create temporary directory");
+    throw std::system_error(errno, std::generic_category(),
+                            "mkdtemp(" + pattern_str + ") failed");
   }
 
   return std::string(res);

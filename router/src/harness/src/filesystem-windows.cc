@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <windows.h>
+#include <system_error>
 
 using std::ostringstream;
 using std::string;
@@ -375,7 +376,9 @@ std::string get_tmp_dir(const std::string &name) {
   std::string result = Path(buf).join(dir_name).str();
   int err = _mkdir(result.c_str());
   if (err != 0) {
-    throw std::runtime_error("Error creating temporary directory " + result);
+    std::error_code ec{errno, std::generic_category()};
+
+    throw std::system_error(ec, "_mkdir(" + result + ") failed");
   }
   return result;
 }
