@@ -1899,6 +1899,7 @@ Backup::findTable(const BackupRecordPtr & ptr,
 		  TablePtr & tabPtr, Uint32 tableId)
 {
   Uint32 loopCount = 0;
+  ndbrequire(tableId < c_tableMapSize);
   tabPtr.i = c_tableMap[tableId];
   while (loopCount++ < MAX_TABLE_MAPS)
   {

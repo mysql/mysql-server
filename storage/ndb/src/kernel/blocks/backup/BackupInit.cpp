@@ -225,11 +225,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 1);
 
+  c_tableMapSize = noBackups * noTables +1;
   c_tableMap = (Uint32*)allocRecord("c_tableMap",
                                     sizeof(Uint32),
-                                    noBackups * noTables + 1);
+                                    c_tableMapSize);
 
-  for (Uint32 i = 0; i < (noBackups * noTables + 1); i++)
+  for (Uint32 i = 0; i < c_tableMapSize; i++)
   {
     c_tableMap[i] = RNIL;
   }
