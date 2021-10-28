@@ -15211,12 +15211,17 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     SectionHandle handle(this, signal);
     handle.getSection(ptr, 0);
     union {
-      Uint16 buf[2+2*MAX_NDB_PARTITIONS];
-      Uint32 _align[1];
+      Uint16 buf[MAX_FRAGMENT_DATA_ENTRIES];
+      Uint32 _align[MAX_FRAGMENT_DATA_WORDS];
     };
+    ndbrequire(ptr.sz <= MAX_FRAGMENT_DATA_WORDS);
     copy(_align, ptr);
     releaseSections(handle);
-    start_add_fragments_in_new_table(tabPtr, connectPtr, buf, signal);
+    start_add_fragments_in_new_table(tabPtr,
+                                     connectPtr,
+                                     buf,
+                                     ptr.sz * 2,
+                                     signal);
     return;
   }
 
@@ -15224,10 +15229,14 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 }
 
 Uint32
-Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
+Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr,
+                              const Uint16 buf[],
+                              const Uint32 bufLen)
 {
   Uint32 replicas = buf[0];
   Uint32 cnt = buf[1];
+
+  ndbrequire(bufLen >= (2 + ((1+replicas) * cnt)));
 
   Uint32 i = 0;
   Uint32 err = 0;
@@ -16734,6 +16743,7 @@ void
 Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
                                         ConnectRecordPtr connectPtr,
                                         const Uint16 buf[],
+                                        const Uint32 bufLen,
                                         Signal *signal)
 {
   /**
@@ -16748,7 +16758,7 @@ Dbdih::start_add_fragments_in_new_table(TabRecordPtr tabPtr,
   DIH_TAB_WRITE_LOCK(tabPtr.p);
 
   Uint32 save = tabPtr.p->totalfragments;
-  if ((err = add_fragments_to_table(tabPtr, buf)))
+  if ((err = add_fragments_to_table(tabPtr, buf, bufLen)))
   {
     jam();
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
