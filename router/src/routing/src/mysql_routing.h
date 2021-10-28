@@ -342,7 +342,7 @@ class MySQLRouting : public MySQLRoutingBase {
    *
    * @param[in] nodes_changed_on_md_refresh Information if the destination
    *            candidates have been updated.
-   * @param[in] available_destinations List of destination candidates that are
+   * @param[in] available_nodes List of destination candidates that are
    *            available after metadata refresh.
    */
   void refresh_md_nodes_in_shared_quarantine(
