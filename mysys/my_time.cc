@@ -756,6 +756,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   assert(status->warnings == 0 && status->fractional_digits == 0 &&
          status->nanoseconds == 0);
 
+  l_time->time_type = MYSQL_TIMESTAMP_NONE;
   l_time->neg = false;
   for (; str != end && isspace_char(*str); str++) length--;
   if (str != end && *str == '-') {
@@ -912,6 +913,7 @@ fractional:
 
   if (check_time_mmssff_range(*l_time)) {
     status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    l_time->time_type = MYSQL_TIMESTAMP_ERROR;
     return true;
   }
 

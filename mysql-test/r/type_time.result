@@ -2809,3 +2809,23 @@ execute stmt using @dt_flt;
 TIME'01:01:01' = ?
 1
 deallocate prepare stmt;
+# Bug#33477883: Sig6 `value.time.time_type == MYSQL_TIMESTAMP_ERROR'
+prepare ps from "SELECT TIME'01:01:01' = ?";
+set @var = 'e';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: 'e'
+set @var = '';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
+set @var = '23:59:60';
+execute ps using @var;
+TIME'01:01:01' = ?
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '23:59:60'

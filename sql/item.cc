@@ -4516,7 +4516,8 @@ bool Item_param::convert_value() {
         str_value.set_charset(m_collation_source);
         MYSQL_TIME_STATUS status;
         if (str_to_time(&str_value, &value.time, 0, &status)) {
-          assert(value.time.time_type == MYSQL_TIMESTAMP_ERROR);
+          assert(value.time.time_type == MYSQL_TIMESTAMP_ERROR ||
+                 value.time.time_type == MYSQL_TIMESTAMP_NONE);
         } else {
           if (value.time.time_type == MYSQL_TIMESTAMP_TIME) {
             set_data_type_actual(MYSQL_TYPE_TIME);
