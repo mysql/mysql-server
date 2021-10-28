@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,13 +229,6 @@ extern "C" {
 #if (_MSC_VER > 1500)
 #define HAVE___HAS_TRIVIAL_CONSTRUCTOR
 #define HAVE___IS_POD
-#endif
-
-#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
-  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
-#else
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
 #endif
 
 /**

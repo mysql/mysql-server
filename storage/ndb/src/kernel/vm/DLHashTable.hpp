@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,15 +185,8 @@ private:
 template <typename P, typename T, typename M>
 inline
 DLMHashTable<P, T, M>::DLMHashTable(P & _pool)
-  : thePool(_pool)
-{
-  // Require user defined constructor on T since we fiddle
-  // with T's members
-  ASSERT_TYPE_HAS_CONSTRUCTOR(T);
-
-  mask = 0;
-  hashValues = 0;
-}
+  : mask(0), hashValues(NULL), thePool(_pool)
+{}
 
 template <typename P, typename T, typename M>
 inline
