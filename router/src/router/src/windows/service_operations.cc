@@ -30,7 +30,7 @@ void add_service_options(CmdArgHandler &arg_handler,
   using OptionNames = CmdOption::OptionNames;
 
   arg_handler.add_option(
-      CmdOption::OptionNames({"--install-service"}),
+      OptionNames({"--install-service"}),
       "Install " + std::string(kServiceProductName) +
           " as a Windows service which starts "
           "automatically at system boot (<SERVICE_NAME>='" +
@@ -44,7 +44,7 @@ void add_service_options(CmdArgHandler &arg_handler,
       });
 
   arg_handler.add_option(
-      CmdOption::OptionNames({"--install-service-manual"}),
+      OptionNames({"--install-service-manual"}),
       "Install " + std::string(kServiceProductName) +
           " as a Windows service which needs to be started manually "
           "(<SERVICE_NAME>='" +
@@ -58,7 +58,7 @@ void add_service_options(CmdArgHandler &arg_handler,
       });
 
   arg_handler.add_option(
-      CmdOption::OptionNames({"--remove-service"}),
+      OptionNames({"--remove-service"}),
       "Remove " + std::string(kServiceProductName) +
           " from a Windows services (<SERVICE_NAME>='" +
           std::string(kDefaultServiceName) + "' if not provided)",
@@ -71,7 +71,7 @@ void add_service_options(CmdArgHandler &arg_handler,
       });
 
   arg_handler.add_option(
-      CmdOption::OptionNames({"--service"}),
+      OptionNames({"--service"}),
       "Used internally by the service manager when " +
           std::string(kServiceProductName) +
           " is started as a Windows service. Fails when called from the "
