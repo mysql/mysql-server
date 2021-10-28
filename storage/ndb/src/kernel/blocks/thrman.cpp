@@ -474,6 +474,7 @@ Thrman::execOVERLOAD_STATUS_REP(Signal *signal)
 {
   Uint32 thr_no = signal->theData[0];
   Uint32 overload_status = signal->theData[1];
+  ndbrequire(thr_no < NDB_ARRAY_SIZE(m_thread_overload_status));
   m_thread_overload_status[thr_no].overload_status = (OverloadStatus)overload_status;
 
   Uint32 node_overload_level = 0;
