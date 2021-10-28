@@ -973,6 +973,7 @@ public:
    * look for the table with the correct backupPtr.
    */
   Uint32 * c_tableMap;
+  Uint32 c_tableMapSize;
   NodeId c_masterNodeId;
   Node_list c_nodes;
   NdbNodeBitmask c_aliveNodes;
