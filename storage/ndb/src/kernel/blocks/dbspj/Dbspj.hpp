@@ -120,6 +120,23 @@ private:
   void removeGuardedPtr(Ptr<ScanFragHandle>);
   bool getGuardedPtr(Ptr<ScanFragHandle>&, Uint32 ptrI);
 
+  /**
+   * Calculate a reasonable good hashKey for an i-pointer.
+   * Lower 13 bits in i-pointer is the page offset, with those above
+   * the page no. As the same page_no is reused for multiple object,
+   * and the objects are of same size, there *will* be repeating patterns.
+   * Thus a good hash function is required, based on murmur3 hash.
+   */
+  static Uint32 hashPtrI(Uint32 ptrI)
+  {
+    Uint32 k = (ptrI >> 13) ^ ptrI;  // Fold page_no and pos
+    // Murmur scramble:
+    k *= 0xcc9e2d51;
+    k = (k << 15) | (k >> 17);
+    k *= 0x1b873593;
+    return k;
+  }
+
 public:
   typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;
@@ -728,7 +745,7 @@ public:
       return key == other.key;
     }
     Uint32 hashValue() const {
-      return key;
+      return hashPtrI(key);
     }
 
     Uint32 key;  // Its own ptrI, used as hash key
@@ -1097,7 +1114,7 @@ public:
       return key == other.key;
     }
     Uint32 hashValue() const {
-      return key;
+      return hashPtrI(key);
     }
 
     Uint32 key;  // Its own ptrI, used as hash key

@@ -547,8 +547,8 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
   m_scanfraghandle_pool.arena_pool_init(&m_arenaAllocator, RT_SPJ_SCANFRAG, pc);
   m_lookup_request_hash.setSize(16);
   m_scan_request_hash.setSize(16);
-  m_treenode_hash.setSize(257);         // Prime number near 256
-  m_scanfraghandle_hash.setSize(1021);  // Prime number near 1024
+  m_treenode_hash.setSize(256);
+  m_scanfraghandle_hash.setSize(1024);
   void* ptr = m_ctx.m_mm.get_memroot();
   m_page_pool.set((RowPage*)ptr, (Uint32)~0);
 
