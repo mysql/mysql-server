@@ -57,6 +57,7 @@ AsyncFile::AsyncFile(Ndbfs& fs) :
   use_enc(0),
   openssl_evp_op(&openssl_evp),
   m_file_format(FF_UNKNOWN),
+  m_next_read_pos(UINT64_MAX),
   m_fs(fs)
 {
   m_thread = 0;
@@ -598,6 +599,21 @@ AsyncFile::openReq(Request * request)
     file_buffer->update_write(out);
   }
 
+  /*
+   * If OM_READ_FORWARD it is expected that application layer read the file
+   * from start to end without gaps.
+   * That allows buffering between read calls which in turn allows file to be
+   * compressed or efficiently decrypted if CBC-mode encrypted.
+   */
+  if (m_open_flags & FsOpenReq::OM_READ_FORWARD)
+  {
+    m_next_read_pos = 0;
+  }
+  else
+  {
+    m_next_read_pos = UINT64_MAX;
+  }
+
   require(request->error == 0);
   return;
 
@@ -807,17 +823,35 @@ AsyncFile::closeReq(Request *request)
 void
 AsyncFile::readReq( Request * request)
 {
+  const bool read_forward = (m_open_flags & FsOpenReq::OM_READ_FORWARD);
+
   for(int i = 0; i < request->par.readWrite.numberOfPages ; i++)
   {
     off_t offset = request->par.readWrite.pages[i].offset;
     size_t size  = request->par.readWrite.pages[i].size;
     char * buf   = request->par.readWrite.pages[i].buf;
 
+    if (read_forward && offset != (off_t)m_next_read_pos)
+    {
+      request->par.readWrite.pages[0].size = 0;
+      if (offset > (off_t)m_next_read_pos)
+      {
+        // assume speculative read beyond end of file
+        if (request->action != Request::readPartial)
+        {
+          request->error = ERR_ReadUnderflow;
+        }
+        return;
+      }
+      request->error = FsRef::fsErrUnknown; // read out sync
+      return;
+    }
     int err = readBuffer(request, buf, size, offset);
     if(err != 0){
       request->error = err;
       return;
     }
+    if (read_forward) m_next_read_pos += request->par.readWrite.pages[0].size;
   }
 }
 

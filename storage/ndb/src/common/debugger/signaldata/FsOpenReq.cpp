@@ -85,6 +85,10 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, ", O_DIRECT_SYNC");
   if (flags & FsOpenReq::OM_ENCRYPT)
     fprintf(output, ", encrypted");
+  if (flags & FsOpenReq::OM_PASSWORD)
+    fprintf(output, ", with password");
+  if (flags & FsOpenReq::OM_READ_FORWARD)
+    fprintf(output, ", read forward");
 
   fprintf(output, "\n");
   return true;

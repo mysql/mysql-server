@@ -2237,7 +2237,8 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
 
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
-  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
+  req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_READ_FORWARD |
+      FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
  
   DEB_RES_OPEN(("(%u)tab(%u,%u) open_data_file data file number = %u",

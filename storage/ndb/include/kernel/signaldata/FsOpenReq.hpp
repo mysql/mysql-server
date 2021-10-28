@@ -114,7 +114,8 @@ public:
   static constexpr Uint32 OM_READ_SIZE = 0x40000;
   static constexpr Uint32 OM_DIRECT_SYNC = 0x80000;
   static constexpr Uint32 OM_ENCRYPT = 0x100000;
-  static constexpr Uint32 OM_PASSWORD = 0x200000; // Not really needed, implicit by section PASSWORD
+  static constexpr Uint32 OM_PASSWORD = 0x200000;
+  static constexpr Uint32 OM_READ_FORWARD = 0x400000;
   
   enum Suffixes {
     S_DATA = 0,

@@ -122,7 +122,8 @@ VoidFs::execFSOPENREQ(Signal* signal)
   releaseSections(handle);
 
   Uint32 flags = fsOpenReq->fileFlags;
-  if(flags == FsOpenReq::OM_READONLY){
+  if ((flags & FsOpenReq::OM_READ_WRITE_MASK) == FsOpenReq::OM_READONLY)
+  {
     // Initialise FsRef signal
     FsRef * const fsRef = (FsRef *)&signal->theData[0];
     fsRef->userPointer = userPointer;

@@ -157,6 +157,7 @@ protected:
   enum { FF_UNKNOWN, FF_RAW, FF_AZ31, FF_NDBXFRM1 } m_file_format;
   unsigned long m_crc32;
   unsigned long m_data_size;
+  Uint64 m_next_read_pos; // if OM_READ_FORWARD else UINT64_MAX
   ndbxfrm_buffer m_compress_buffer;
   ndbxfrm_buffer m_encrypt_buffer;
 
