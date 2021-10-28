@@ -112,8 +112,8 @@ bool BasicRead::do_read()
   // using our structure BasicRow
   NdbRecord* record;
   NdbDictionary::RecordSpecification record_spec[] = {
-    {.column = table->getColumn("ATTR1"), .offset = offsetof(BasicRow, attr1)},
-    {.column = table->getColumn("ATTR2"), .offset = offsetof(BasicRow, attr2)}
+    { table->getColumn("ATTR1"), offsetof(BasicRow, attr1), 0, 0, 0 },
+    { table->getColumn("ATTR2"), offsetof(BasicRow, attr2), 0, 0, 0 }
   };
 
   record = dict->createRecord(table,
