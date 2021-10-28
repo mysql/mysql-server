@@ -65,8 +65,8 @@ int my_access(const char *path, int amode) {
   BOOL result;
 
   result = GetFileAttributesEx(path, GetFileExInfoStandard, &fileinfo);
-  if (!result ||
-      (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK)) {
+  if (!result || ((fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) &&
+                  (amode & W_OK))) {
     errno = EACCES;
     set_my_errno(EACCES);
     return -1;
