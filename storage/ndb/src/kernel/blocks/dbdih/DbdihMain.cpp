@@ -17077,8 +17077,8 @@ Dbdih::getFragstore(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid))) {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     ptrCheckGuard(fragPtr, TfragstoreFileSize, TfragStore);
     fragptr = fragPtr;
     return;
@@ -17096,9 +17096,9 @@ Dbdih::getFragstoreCanFail(const TabRecord * tab,      //In parameter
   Fragmentstore* TfragStore = fragmentstore;
   Uint32 chunkNo = fragNo >> LOG_NO_OF_FRAGS_PER_CHUNK;
   Uint32 chunkIndex = fragNo & (NO_OF_FRAGS_PER_CHUNK - 1);
-  fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
   if (likely(chunkNo < NDB_ARRAY_SIZE(tab->startFid)))
   {
+    fragPtr.i = tab->startFid[chunkNo] + chunkIndex;
     if (fragPtr.i < TfragstoreFileSize)
     {
       ptrAss(fragPtr, TfragStore);
