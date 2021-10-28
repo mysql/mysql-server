@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1578,7 +1578,9 @@ private:
   void initialiseFragstore();
 
   void wait_old_scan(Signal*);
-  Uint32 add_fragments_to_table(Ptr<TabRecord>, const Uint16 buf[]);
+  Uint32 add_fragments_to_table(Ptr<TabRecord>,
+                                const Uint16 buf[],
+                                const Uint32 bufLen);
   Uint32 add_fragment_to_table(Ptr<TabRecord>, Uint32, Ptr<Fragmentstore>&);
 
   void drop_fragments(Signal*, ConnectRecordPtr, Uint32 last);
