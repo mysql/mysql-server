@@ -215,13 +215,6 @@ extern "C" {
 #define HAVE___IS_POD
 #endif
 
-#ifdef HAVE___HAS_TRIVIAL_CONSTRUCTOR
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)     \
-  NDB_STATIC_ASSERT(!__has_trivial_constructor(x))
-#else
-#define ASSERT_TYPE_HAS_CONSTRUCTOR(x)
-#endif
-
 /**
  * visual studio is stricter than gcc for __is_pod, settle for __has_trivial_constructor
  *  until we really really made all signal data classes POD
