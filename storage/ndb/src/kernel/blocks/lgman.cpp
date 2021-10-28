@@ -5074,6 +5074,9 @@ Lgman::execute_undo_record(Signal* signal)
         jam();
         DEB_LGMAN(("LGMAN: CONTINUEB from DBTUP(0)"));
         Uint32 ldm_tup_instance = signal->theData[2];
+        ndbrequire(ldm_tup_instance <
+                   NDB_ARRAY_SIZE(m_pending_undo_records));
+
         if (ldm_tup_instance)
         {
           /**

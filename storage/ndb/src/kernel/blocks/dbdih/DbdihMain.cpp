@@ -1928,6 +1928,7 @@ void Dbdih::execSET_LATEST_LCP_ID(Signal *signal)
 void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
 {
   Uint32 nodeId = signal->theData[0];
+  ndbrequire(nodeId < MAX_NDB_NODES);
   Uint32 latestGci = SYSFILE->lastCompletedGCI[nodeId];
   signal->theData[0] = latestGci;
 }
