@@ -311,6 +311,7 @@ int vio_socket_timeout(Vio *vio, uint which [[maybe_unused]], bool old_mode) {
   DBUG_TRACE;
 
 #if defined(_WIN32)
+  (void)old_mode;  // maybe_unused
   {
     int optname;
     DWORD timeout = 0;
