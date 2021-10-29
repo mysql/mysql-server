@@ -1020,6 +1020,25 @@ TEST_F(RouterRoutingTest, error_counters) {
   }
 }
 
+TEST_F(RouterRoutingTest, spaces_in_destinations_list) {
+  mysql_harness::ConfigBuilder builder;
+  auto bind_port = port_pool_.get_next_available();
+
+  const auto routing_section = builder.build_section(
+      "routing", {
+                     {"destinations",
+                      " localhost:13005, localhost:13003  ,localhost:13004 "},
+                     {"bind_address", "127.0.0.1"},
+                     {"bind_port", std::to_string(bind_port)},
+                     {"routing_strategy", "first-available"},
+                 });
+
+  TempDirectory conf_dir("conf");
+  const auto conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}, EXIT_SUCCESS));
+}
+
 struct RoutingConfigParam {
   const char *test_name;
 

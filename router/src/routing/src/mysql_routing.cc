@@ -58,6 +58,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
+#include "mysql/harness/string_utils.h"  // trim
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
@@ -1599,6 +1600,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
+    mysql_harness::trim(part);
     auto make_res = mysql_harness::make_tcp_address(part);
     if (!make_res) {
       throw std::runtime_error(
