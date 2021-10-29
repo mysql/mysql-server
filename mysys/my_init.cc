@@ -277,9 +277,11 @@ void set_my_abort(void (*new_my_abort_func)()) {
   e.g. iterator out-of-range, but pointing to valid memory.
 */
 
-void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
-                          const wchar_t *file, unsigned int line,
-                          uintptr_t pReserved) {
+void my_parameter_handler(const wchar_t *expression [[maybe_unused]],
+                          const wchar_t *function [[maybe_unused]],
+                          const wchar_t *file [[maybe_unused]],
+                          unsigned int line [[maybe_unused]],
+                          uintptr_t pReserved [[maybe_unused]]) {
 #ifndef NDEBUG
   fprintf(stderr,
           "my_parameter_handler errno %d "

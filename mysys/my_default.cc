@@ -1750,6 +1750,10 @@ int check_file_permissions(const char *file_name, bool is_login_file,
                      file_name);
     return 0;
   }
+#else
+  (void)file_name;      // maybe_unused
+  (void)is_login_file;  // maybe_unused
+  (void)flags;          // maybe_unused
 #endif
   return 2; /* Success */
 }

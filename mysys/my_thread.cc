@@ -121,6 +121,8 @@ int my_thread_join(my_thread_handle *thread, void **value_ptr) {
 #ifndef _WIN32
   return pthread_join(thread->thread, value_ptr);
 #else
+  (void)value_ptr;  // maybe unused
+
   DWORD ret;
   int result = 0;
   ret = WaitForSingleObject(thread->handle, INFINITE);
@@ -156,6 +158,7 @@ void my_thread_exit(void *value_ptr) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
 #else
+  (void)value_ptr;  // maybe_unused
   _endthreadex(0);
 #endif
 }
@@ -208,7 +211,7 @@ void my_thread_self_setname(const char *name [[maybe_unused]]) {
   strncpy(truncated_name, name, sizeof(truncated_name) - 1);
   truncated_name[sizeof(truncated_name) - 1] = '\0';
   pthread_setname_np(pthread_self(), truncated_name);
-#elif HAVE_PTHREAD_SETNAME_NP_MACOS
+#elif defined(HAVE_PTHREAD_SETNAME_NP_MACOS)
   pthread_setname_np(name);
 #elif _WIN32
   /* Check if we can use the new Windows 10 API. */
