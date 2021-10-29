@@ -1187,7 +1187,7 @@ static AccessPath *NewWeedoutAccessPathForTables(
           // the previous (now wrong) decision there.
           filesort->clear_addon_fields();
         }
-        filesort->m_force_sort_positions = true;
+        filesort->m_force_sort_rowids = true;
       }
     }
   }
@@ -3029,7 +3029,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         // Only const fields.
         limit_1_for_dup_filesort = true;
       } else {
-        bool force_sort_positions = false;
+        bool force_sort_rowids = false;
         if (all_order_fields_used) {
           // The ordering for DISTINCT already gave us the right sort order,
           // so no need to sort again.
@@ -3043,19 +3043,19 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         } else if (filesort != nullptr && !filesort->using_addon_fields()) {
           // We have the rather unusual situation here that we have two sorts
           // directly after each other, with no temporary table in-between,
-          // and filesort expects to be able to refer to rows by their position.
+          // and filesort expects to be able to refer to rows by their row ID.
           // Usually, the sort for DISTINCT would be a superset of the sort for
           // ORDER BY, but not always (e.g. when sorting by some expression),
           // so we could end up in a situation where the first sort is by addon
           // fields and the second one is by positions.
           //
-          // Thus, in this case, we force the first sort to be by positions,
+          // Thus, in this case, we force the first sort to use row IDs,
           // so that the result comes from SortFileIndirectIterator or
           // SortBufferIndirectIterator. These will both position the cursor
           // on the underlying temporary table correctly before returning it,
-          // so that the successive filesort will save the right position
+          // so that the successive filesort will save the right row ID
           // for the row.
-          force_sort_positions = true;
+          force_sort_rowids = true;
         }
 
         // Switch to the right slice if applicable, so that we fetch out the
@@ -3063,7 +3063,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
         dup_filesort = new (thd->mem_root) Filesort(
             thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
-            HA_POS_ERROR, /*remove_duplicates=*/true, force_sort_positions,
+            HA_POS_ERROR, /*remove_duplicates=*/true, force_sort_rowids,
             /*unwrap_rollup=*/false);
 
         if (desired_order != nullptr && filesort == nullptr) {
@@ -3072,7 +3072,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
           // potentially addon fields. Create a new one.
           filesort = new (thd->mem_root) Filesort(
               thd, {qep_tab->table()}, /*keep_buffers=*/false, desired_order,
-              HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_positions,
+              HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_rowids,
               /*unwrap_rollup=*/false);
         }
       }

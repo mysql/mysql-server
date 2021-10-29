@@ -330,7 +330,7 @@ class Sort_param {
   /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort,
                            const Mem_root_array<TABLE *> &tables,
-                           bool sort_positions);
+                           bool force_sort_rowids);
 
   /// Reset the decision made in decide_addon_fields(). Only used in exceptional
   /// circumstances (see NewWeedoutAccessPathForTables()).

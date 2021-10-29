@@ -160,7 +160,7 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
 void Sort_param::decide_addon_fields(Filesort *file_sort,
                                      const Mem_root_array<TABLE *> &tables,
-                                     bool force_sort_positions) {
+                                     bool force_sort_rowids) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
     return;
@@ -194,7 +194,7 @@ void Sort_param::decide_addon_fields(Filesort *file_sort,
     }
   }
 
-  if (force_sort_positions) {
+  if (force_sort_rowids) {
     m_addon_fields_status = Addon_fields_status::keep_rowid;
   } else {
     /*
@@ -230,7 +230,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
 
   local_sortorder = sf_array;
 
-  decide_addon_fields(file_sort, tables, file_sort->m_force_sort_positions);
+  decide_addon_fields(file_sort, tables, file_sort->m_force_sort_rowids);
   if (using_addon_fields()) {
     fixed_res_length = m_addon_length;
   } else {
@@ -357,7 +357,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
                              applying WHERE condition.
 
   @note
-    If we sort by position (like if sort_positions is 1) filesort() will
+    If we sort row IDs (as opposed to addon fields), filesort() will
     call table->prepare_for_position().
 
   @returns   False if success, true if error
@@ -669,7 +669,7 @@ void filesort_free_buffers(TABLE *table, bool full) {
 
 Filesort::Filesort(THD *thd, Mem_root_array<TABLE *> tables_arg,
                    bool keep_buffers_arg, ORDER *order, ha_rows limit_arg,
-                   bool remove_duplicates, bool sort_positions,
+                   bool remove_duplicates, bool force_sort_rowids,
                    bool unwrap_rollup)
     : m_thd(thd),
       tables(std::move(tables_arg)),
@@ -678,7 +678,7 @@ Filesort::Filesort(THD *thd, Mem_root_array<TABLE *> tables_arg,
       sortorder(nullptr),
       using_pq(false),
       m_remove_duplicates(remove_duplicates),
-      m_force_sort_positions(sort_positions),
+      m_force_sort_rowids(force_sort_rowids),
       m_sort_order_length(make_sortorder(order, unwrap_rollup)) {}
 
 uint Filesort::make_sortorder(ORDER *order, bool unwrap_rollup) {
@@ -2297,7 +2297,7 @@ Addon_fields *Filesort::get_addon_fields(
 bool Filesort::using_addon_fields() {
   if (m_sort_param.m_addon_fields_status ==
       Addon_fields_status::unknown_status) {
-    m_sort_param.decide_addon_fields(this, tables, m_force_sort_positions);
+    m_sort_param.decide_addon_fields(this, tables, m_force_sort_rowids);
   }
   return m_sort_param.using_addon_fields();
 }

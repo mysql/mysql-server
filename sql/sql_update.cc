@@ -664,7 +664,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         fsort.reset(new (thd->mem_root) Filesort(
             thd, {table}, /*keep_buffers=*/false, order, limit,
             /*remove_duplicates=*/false,
-            /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
+            /*force_sort_rowids=*/true, /*unwrap_rollup=*/false));
         path = NewSortAccessPath(thd, path, fsort.get(),
                                  /*count_examined_rows=*/false);
         iterator = CreateIteratorFromAccessPath(

@@ -4815,7 +4815,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   // by row ID), so if this table is part of a weedout operation, we need
   // to force sorting by row IDs -- sorting rows with addon fields returns
   // rows that have no reference to the underlying table object.
-  bool force_sort_position = false;
+  bool force_sort_rowids = false;
   for (plan_idx i = 0; i <= static_cast<plan_idx>(idx); ++i) {
     if (!qep_tab[i].starts_weedout()) {
       continue;
@@ -4830,7 +4830,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     }
     if (weedout_end != NO_PLAN_IDX &&
         weedout_end > static_cast<plan_idx>(idx)) {
-      force_sort_position = true;
+      force_sort_rowids = true;
       break;
     }
   }
@@ -4851,7 +4851,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     Switch_ref_item_slice slice_switch(this, tab->ref_item_slice);
     tab->filesort = new (thd->mem_root)
         Filesort(thd, {tab->table()}, keep_buffers, sort_order->order,
-                 HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_position,
+                 HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_rowids,
                  /*unwrap_rollup=*/sort_before_group);
     tab->filesort_pushed_order = sort_order->order;
   }
