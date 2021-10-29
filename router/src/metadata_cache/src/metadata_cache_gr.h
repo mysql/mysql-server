@@ -25,9 +25,11 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_GR_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_GR_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "metadata_cache.h"
 
-class METADATA_API GRMetadataCache : public MetadataCache {
+class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
  public:
   /**
    * Initialize a connection to the MySQL Metadata server.

@@ -25,6 +25,8 @@
 #ifndef MYSQLROUTER_METADATA_CACHE_INCLUDED
 #define MYSQLROUTER_METADATA_CACHE_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include <atomic>
 #include <exception>
 #include <list>
@@ -42,20 +44,6 @@
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
 #include "tcp_address.h"
-
-#ifdef _WIN32
-#ifdef metadata_cache_DEFINE_STATIC
-#define METADATA_API
-#else
-#ifdef metadata_cache_EXPORTS
-#define METADATA_API __declspec(dllexport)
-#else
-#define METADATA_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define METADATA_API
-#endif
 
 namespace metadata_cache {
 
@@ -156,7 +144,7 @@ enum class InstanceStatus {
  *
  * Class ManagedInstance represents a server managed by the topology.
  */
-class METADATA_API ManagedInstance {
+class METADATA_CACHE_EXPORT ManagedInstance {
  public:
   ManagedInstance() = default;
   ManagedInstance(const std::string &p_mysql_server_uuid,
@@ -195,7 +183,7 @@ using metadata_servers_list_t = std::vector<metadata_server_t>;
 /** @class ManagedCluster
  * Represents a cluster (a GR group or AR members)
  */
-class METADATA_API ManagedCluster {
+class METADATA_CACHE_EXPORT ManagedCluster {
  public:
   /** @brief List of the members that belong to the cluster */
   cluster_nodes_list_t members;
@@ -223,7 +211,7 @@ class METADATA_API ManagedCluster {
 /** @class ManagedCluster
  * Represents a cluster (a GR group or AR members) and its metadata servers
  */
-struct METADATA_API ClusterTopology {
+struct METADATA_CACHE_EXPORT ClusterTopology {
   ManagedCluster cluster_data;
   metadata_servers_list_t metadata_servers;
 };
@@ -255,7 +243,7 @@ class metadata_error : public std::runtime_error {
  *
  * Class holding result after looking up data in the cache.
  */
-class METADATA_API LookupResult {
+class METADATA_CACHE_EXPORT LookupResult {
  public:
   /** @brief Constructor */
   LookupResult(const cluster_nodes_list_t &instance_vector_)
@@ -279,7 +267,7 @@ struct RouterAttributes {
  *
  *        When state of cluster is changed, notify function is called.
  */
-class METADATA_API ClusterStateListenerInterface {
+class METADATA_CACHE_EXPORT ClusterStateListenerInterface {
  public:
   /**
    * @brief Callback function that is called when state of cluster is
@@ -310,7 +298,7 @@ class METADATA_API ClusterStateListenerInterface {
  * @brief Abstract class that provides interface for listener on
  *        whether the listening sockets acceptors state should be updated.
  */
-class METADATA_API AcceptorUpdateHandlerInterface {
+class METADATA_CACHE_EXPORT AcceptorUpdateHandlerInterface {
  public:
   /**
    * @brief Callback function that is called when the state of the sockets
@@ -337,7 +325,7 @@ class METADATA_API AcceptorUpdateHandlerInterface {
 /**
  * Abstract class that provides interface for listener on metadata refresh.
  */
-class METADATA_API MetadataRefreshListenerInterface {
+class METADATA_CACHE_EXPORT MetadataRefreshListenerInterface {
  public:
   /**
    * Callback that is going to be used on each metadata refresh.
@@ -359,7 +347,7 @@ class METADATA_API MetadataRefreshListenerInterface {
  * ClusterStateListenerInterface::notify function is called
  * for every registered observer.
  */
-class METADATA_API ClusterStateNotifierInterface {
+class METADATA_CACHE_EXPORT ClusterStateNotifierInterface {
  public:
   /**
    * @brief Register observer that is notified when there is a change in the
@@ -395,7 +383,7 @@ class METADATA_API ClusterStateNotifierInterface {
 /**
  * @brief Metadata TTL configuration
  */
-struct METADATA_API MetadataCacheTTLConfig {
+struct METADATA_CACHE_EXPORT MetadataCacheTTLConfig {
   // The time to live for the cached data
   std::chrono::milliseconds ttl;
 
@@ -410,7 +398,7 @@ struct METADATA_API MetadataCacheTTLConfig {
 /**
  * @brief Metadata MySQL session configuration
  */
-struct METADATA_API MetadataCacheMySQLSessionConfig {
+struct METADATA_CACHE_EXPORT MetadataCacheMySQLSessionConfig {
   // User credentials used for the connecting to the metadata server.
   mysqlrouter::UserCredentials user_credentials;
 
@@ -426,7 +414,8 @@ struct METADATA_API MetadataCacheMySQLSessionConfig {
   int connection_attempts;
 };
 
-class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
+class METADATA_CACHE_EXPORT MetadataCacheAPIBase
+    : public ClusterStateNotifierInterface {
  public:
   /** @brief Initialize a MetadataCache object and start caching
    *
@@ -636,7 +625,7 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
   virtual std::chrono::milliseconds ttl() const = 0;
 };
 
-class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
+class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
  public:
   static MetadataCacheAPIBase *instance();
 

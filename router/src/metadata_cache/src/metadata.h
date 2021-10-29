@@ -25,6 +25,8 @@
 #ifndef METADATA_CACHE_METADATA_INTERFACE_INCLUDED
 #define METADATA_CACHE_METADATA_INTERFACE_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "my_rapidjson_size_t.h"
 
 #include <rapidjson/document.h>
@@ -42,7 +44,7 @@
  * The metadata class is used to create a pluggable transport layer
  * from which the metadata is fetched for the metadata cache.
  */
-class METADATA_API MetaData {
+class METADATA_CACHE_EXPORT MetaData {
  public:
   using JsonAllocator = rapidjson::CrtAllocator;
   using JsonDocument = rapidjson::Document;

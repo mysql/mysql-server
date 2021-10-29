@@ -44,6 +44,7 @@ SET(METADATA_CACHE_TESTS_HELPER
 
 SET(include_dirs
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+  ${PROJECT_BINARY_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
   )
@@ -61,7 +62,7 @@ IF(WIN32)
     ${PROTOBUF_LITE_LIBRARY}
     )
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
-    PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+    PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
     PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ELSE()
@@ -100,6 +101,7 @@ FOREACH(test_file
       test-helpers
     INCLUDE_DIRS
       ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
+      ${PROJECT_BINARY_DIR}/src/metadata_cache/include
       ${PROJECT_SOURCE_DIR}/src/metadata_cache/src
       ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper
   )
@@ -107,11 +109,11 @@ ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 
 ROUTERTEST_GET_TARGET(test_target "test_metadata_cache.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 
 ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
@@ -121,19 +123,19 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)

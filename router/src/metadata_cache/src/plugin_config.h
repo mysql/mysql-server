@@ -25,6 +25,8 @@
 #ifndef METADATA_CACHE_PLUGIN_CONFIG_INCLUDED
 #define METADATA_CACHE_PLUGIN_CONFIG_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "mysqlrouter/metadata_cache.h"
 
 #include <chrono>
@@ -32,14 +34,15 @@
 #include <string>
 #include <vector>
 
-#include <mysqlrouter/plugin_config.h>
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
+#include "mysqlrouter/plugin_config.h"
 #include "tcp_address.h"
 
 extern "C" {
-extern mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache;
+extern mysql_harness::Plugin METADATA_CACHE_EXPORT
+    harness_plugin_metadata_cache;
 }
 
 class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {

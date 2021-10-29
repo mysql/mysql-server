@@ -25,6 +25,8 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -51,7 +53,7 @@ class ClusterMetadata;
  * MySQL Server.
  *
  */
-class METADATA_API MetadataCache
+class METADATA_CACHE_EXPORT MetadataCache
     : public metadata_cache::ClusterStateNotifierInterface {
  public:
   /**

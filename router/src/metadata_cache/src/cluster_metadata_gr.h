@@ -25,13 +25,15 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_GR_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_GR_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "cluster_metadata.h"
 #include "gr_notifications_listener.h"
 
 struct GroupReplicationMember;
 class GRMetadataBackend;
 
-class METADATA_API GRClusterMetadata : public ClusterMetadata {
+class METADATA_CACHE_EXPORT GRClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *

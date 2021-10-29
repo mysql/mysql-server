@@ -25,6 +25,8 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "cluster_metadata.h"
 #include "gr_notifications_listener.h"
 
@@ -34,7 +36,7 @@
  * Cluster metadata server.
  *
  */
-class METADATA_API ARClusterMetadata : public ClusterMetadata {
+class METADATA_CACHE_EXPORT ARClusterMetadata : public ClusterMetadata {
  public:
   /** @brief Constructor
    *

@@ -25,13 +25,14 @@
 #ifndef METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 #define METADATA_CACHE_CLUSTER_METADATA_INCLUDED
 
+#include "mysqlrouter/metadata_cache_export.h"
+
 #include "metadata.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "tcp_address.h"
 
-#include <string.h>
 #include <chrono>
 #include <map>
 #include <memory>
@@ -57,7 +58,7 @@ using ConnectCallback =
  * It uses the mysqlrouter::MySQLSession to setup, manage and retrieve results.
  *
  */
-class METADATA_API ClusterMetadata : public MetaData {
+class METADATA_CACHE_EXPORT ClusterMetadata : public MetaData {
  public:
   /** @brief Constructor
    *

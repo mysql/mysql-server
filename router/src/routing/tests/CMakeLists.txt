@@ -34,7 +34,7 @@ TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
                       metadata_cache_static mysql_protocol
                       mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 
-TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -DROUTING_STATIC_DEFINE=1)
 TARGET_INCLUDE_DIRECTORIES(routing_tests PUBLIC $<TARGET_PROPERTY:routing,INCLUDE_DIRECTORIES>)
@@ -110,7 +110,7 @@ ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_metadata_cache_group.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
-  PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+  PRIVATE -DMETADATA_CACHE_STATIC_DEFINE=1)
 
 ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
