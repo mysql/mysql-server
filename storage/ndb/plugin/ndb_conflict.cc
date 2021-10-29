@@ -804,6 +804,27 @@ void st_ndb_slave_state::resetPerAttemptCounters() {
 }
 
 /**
+   saveServerId
+
+   Remember we have see server_id when writing into ndb_apply_status
+   This is so we can avoid overwriting any epochs when applying statements
+*/
+void st_ndb_slave_state::saveServerId(Uint32 server_id) {
+  // Just insert the server_id, most of the time it will already exist and thus
+  // the insert will have no effect
+  source_server_ids.insert(server_id);
+}
+
+/**
+   seenServerId
+
+   Check if we have already written an epoch from a server_id
+ */
+bool st_ndb_slave_state::seenServerId(Uint32 server_id) const {
+  return source_server_ids.count(server_id) != 0;
+}
+
+/**
    atTransactionAbort()
 
    Called by Slave SQL thread during transaction abort.
@@ -1113,6 +1134,10 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
                                            Uint64 row_epoch,
                                            bool is_row_server_id_local) {
   DBUG_TRACE;
+
+  /* Save any remote server_id seen */
+  saveServerId(row_server_id);
+
   if (row_server_id == master_server_id) {
     /* This is an apply status write from the immediate master */
 
@@ -1159,6 +1184,9 @@ void st_ndb_slave_state::atResetSlave() {
   max_rep_epoch = 0;
   last_conflicted_epoch = 0;
   last_stable_epoch = 0;
+
+  /* Forget any source server_id's seen */
+  source_server_ids.clear();
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower

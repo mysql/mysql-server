@@ -19,6 +19,28 @@ echo *** on master it should be empty ***;
 select * from mysql.ndb_apply_status where server_id <> 0;
 
 sync_slave_with_master;
+
+--echo #
+--echo # Bug#14139386 DDL APPLY SET MYSQL.NDB_APPLY_STATUS EPOCH=0
+--echo #  - check that ndb_apply_status.epoch is not set to 0 by DDL
+--echo #
+# ***
+connection slave;
+
+select epoch from mysql.ndb_apply_status into @current_epoch;
+
+connection master;
+alter table t1 add key k(b);
+
+sync_slave_with_master;
+
+connection slave;
+
+select epoch=@current_epoch from mysql.ndb_apply_status;
+
+# ***
+--echo # End of test for Bug#14139386
+
 echo *** on slave there should be one row ***;
 select count(*) from mysql.ndb_apply_status;
 

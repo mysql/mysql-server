@@ -579,8 +579,12 @@ static int check_slave_state(THD *thd) {
 
           int rc = 0;
           while (0 == (rc = sop->nextResult(true))) {
-            Uint32 serverid = server_id_ra->u_32_value();
-            Uint64 epoch = epoch_ra->u_64_value();
+            const Uint32 serverid = server_id_ra->u_32_value();
+            const Uint64 epoch = epoch_ra->u_64_value();
+
+            // Save all server_id's found in ndb_apply_status, they will later
+            // be used to avoid overwriting any epochs
+            g_ndb_slave_state.saveServerId(serverid);
 
             if ((serverid == ::server_id) ||
                 (ndb_mi_get_ignore_server_id(serverid))) {
@@ -7233,6 +7237,14 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update) {
   int r [[maybe_unused]] = 0;
   r |= (op = trans->getNdbOperation(ndbtab)) == 0;
   assert(r == 0);
+
+  if (!do_update) {
+    // Don't overwrite when already seen epochs from this server_id
+    if (g_ndb_slave_state.seenServerId(thd->server_id)) {
+      do_update = true;
+    }
+  }
+
   if (do_update)
     r |= op->updateTuple();
   else

@@ -12,6 +12,16 @@ insert into t1 values (1,1);
 *** on master it should be empty ***
 select * from mysql.ndb_apply_status where server_id <> 0;
 server_id	epoch	log_name	start_pos	end_pos
+#
+# Bug#14139386 DDL APPLY SET MYSQL.NDB_APPLY_STATUS EPOCH=0
+#  - check that ndb_apply_status.epoch is not set to 0 by DDL
+#
+select epoch from mysql.ndb_apply_status into @current_epoch;
+alter table t1 add key k(b);
+select epoch=@current_epoch from mysql.ndb_apply_status;
+epoch=@current_epoch
+1
+# End of test for Bug#14139386
 *** on slave there should be one row ***
 select count(*) from mysql.ndb_apply_status;
 count(*)

@@ -25,6 +25,7 @@
 #ifndef NDB_CONFLICT_H
 #define NDB_CONFLICT_H
 
+#include <unordered_set>
 #include "my_bitmap.h"
 #include "mysql/plugin.h"   // SHOW_VAR
 #include "mysql_com.h"      // NAME_CHAR_LEN
@@ -376,6 +377,9 @@ struct st_ndb_slave_state {
    */
   Uint32 current_refresh_op_count;
 
+  // Tracks server_id's from any source, both immediate and downstream
+  std::unordered_set<Uint32> source_server_ids;
+
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
    */
@@ -412,7 +416,7 @@ struct st_ndb_slave_state {
   Uint64 trans_in_conflict_count;
   Uint64 trans_conflict_commit_count;
 
-  static const Uint32 MAX_RETRY_TRANS_COUNT = 100;
+  static constexpr Uint32 MAX_RETRY_TRANS_COUNT = 100;
 
   /*
     Slave Apply State
@@ -445,6 +449,9 @@ struct st_ndb_slave_state {
   bool verifyNextEpoch(Uint64 next_epoch, Uint32 master_server_id) const;
 
   void resetPerAttemptCounters();
+
+  void saveServerId(Uint32);
+  bool seenServerId(Uint32) const;
 
   static bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
                                            enum_slave_conflict_role new_role,
