@@ -25,6 +25,7 @@
 // Implements the interface defined in
 #include "storage/ndb/plugin/ndb_ddl_transaction_ctx.h"
 
+#include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
@@ -69,6 +70,12 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
 
   DBUG_PRINT("info",
              ("Rollback : Dropping table '%s.%s'", db_name, table_name));
+
+  DBUG_EXECUTE_IF("ndb_simulate_failure_during_rollback", {
+    DBUG_SET("-d,ndb_simulate_failure_during_rollback");
+    thd_ndb->push_warning("Failed to rollback after CREATE TABLE failure.");
+    return false;
+  });
 
   /* Drop the table created during this DDL execution */
   Ndb *ndb = thd_ndb->ndb;

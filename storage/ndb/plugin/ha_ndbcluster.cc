@@ -9339,6 +9339,27 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     // Creating table with temporary name, table will only be access by this
     // MySQL Server -> skip schema distribution
     DBUG_PRINT("info", ("Creating table with temporary name"));
+
+    ndbcluster::ndbrequire(is_prefix(tabname, "#sql2") == 0);
+
+    // Checking if there is no table with given temporary name in NDB
+    // If such a table exists, it will be dropped to allow name reuse
+    Ndb_table_guard ndbtab_g(ndb, dbname, tabname);
+    const NDBTAB *ndbtab = ndbtab_g.get_table();
+    constexpr int flag = NdbDictionary::Dictionary::DropTableCascadeConstraints;
+
+    if (ndbtab != nullptr) {
+      thd_ndb->push_warning(
+          "The temporary named table %s.%s already exists, it will be removed",
+          tabname, dbname);
+      if (ndb->getDictionary()->dropTableGlobal(*ndbtab, flag) != 0) {
+        thd_ndb->push_warning(
+            "Attempt to drop temporary named table %s.%s failed", dbname,
+            tabname);
+        return create.failed_in_NDB(ndb->getDictionary()->getNdbError());
+      }
+    }
+
   } else {
     // Prepare schema distribution
     if (!schema_dist_client.prepare(dbname, tabname)) {
@@ -11982,6 +12003,12 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
 
   if (!(ndb = check_ndb_in_thd(thd))) return HA_ERR_NO_CONNECTION;
 
+  // ignore temporary named tables left behind by copy alter
+  // if the temporary named table exists, it will be removed before creating
+  if (ndb_name_is_temp(name)) {
+    return HA_ERR_NO_SUCH_TABLE;
+  }
+
   const Thd_ndb *thd_ndb = get_thd_ndb(thd);
   if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE)) {
     DBUG_PRINT("exit", ("Simulate that table does not exist in NDB"));
@@ -11994,6 +12021,7 @@ static int ndbcluster_table_exists_in_engine(handlerton *, THD *thd,
     ndb_to_mysql_error(&dict->getNdbError());
     return HA_ERR_NO_SUCH_TABLE;
   }
+
   for (uint i = 0; i < list.count; i++) {
     NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
     if (my_strcasecmp(table_alias_charset, elmt.database, db)) continue;
