@@ -633,7 +633,10 @@ bool get_group_replication_view_change_uuid(std::string &uuid) {
                         &component_sys_variable_register_service_handler);
 
   char *var_value = nullptr;
-  size_t var_len = 36;  // uuid length
+  // uuid length + sizeof('\0')
+  constexpr size_t var_buffer_capacity = UUID_LENGTH + 1;
+  size_t var_len = var_buffer_capacity;
+
   bool error = false;
 
   if (nullptr == component_sys_variable_register_service_handler) {
@@ -645,17 +648,23 @@ bool get_group_replication_view_change_uuid(std::string &uuid) {
       reinterpret_cast<SERVICE_TYPE(component_sys_variable_register) *>(
           component_sys_variable_register_service_handler);
 
-  if ((var_value = new char[var_len + 1]) == nullptr) {
+  if ((var_value = new char[var_len]) == nullptr) {
     error = true; /* purecov: inspected */
     goto end;     /* purecov: inspected */
   }
 
-  // The variable may not exist, thence we use its default value.
-  uuid.assign("AUTOMATIC");
   if (!component_sys_variable_register_service->get_variable(
           "mysql_server", "group_replication_view_change_uuid",
           reinterpret_cast<void **>(&var_value), &var_len)) {
     uuid.assign(var_value, var_len);
+  } else if (var_len != var_buffer_capacity) {
+    // Should never happen: no enough space for UUID in the buffer
+    assert(false);
+    error = true;
+    goto end;
+  } else {
+    // The variable does not exist, thence we use its default value.
+    uuid.assign("AUTOMATIC");
   }
 
 end:
