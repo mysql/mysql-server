@@ -20,8 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/explain_access_path.h"
 
+#include "my_md5.h"
+#include "my_md5_size.h"
 #include "sql/filesort.h"
 #include "sql/item_sum.h"
 #include "sql/iterators/basic_row_iterators.h"
@@ -31,6 +33,7 @@
 #include "sql/iterators/ref_row_iterators.h"
 #include "sql/iterators/sorting_iterator.h"
 #include "sql/iterators/timing_iterator.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/range_optimizer/group_index_skip_scan_plan.h"
@@ -44,7 +47,6 @@
 #include <string>
 #include <vector>
 
-using std::function;
 using std::string;
 using std::vector;
 
@@ -179,7 +181,8 @@ vector<ExplainData::Child> GetAccessPathsFromSelectList(JOIN *join) {
   return ret;
 }
 
-ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join);
+ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
+                              bool include_costs);
 
 // The table iterator could be a slightly more complicated iterator than
 // the basic iterators (in particular, ALTERNATIVE), so show the entire
@@ -188,7 +191,8 @@ static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
                                         vector<string> *description) {
   const AccessPath *subpath = path;
   for (;;) {
-    ExplainData explain = ExplainAccessPath(subpath, join);
+    ExplainData explain =
+        ExplainAccessPath(subpath, join, /*include_costs=*/true);
     for (string str : explain.description) {
       if (explain.children.size() > 1) {
         // This can happen if we have AlternativeIterator.
@@ -466,7 +470,8 @@ static string PrintRanges(const QUICK_RANGE *const *ranges, unsigned num_ranges,
   return ret;
 }
 
-ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
+ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
+                              bool include_costs) {
   vector<string> description;
   vector<ExplainData::Child> children;
   switch (path->type) {
@@ -766,6 +771,17 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::SORT: {
       string ret;
+      if (path->sort().filesort == nullptr) {
+        // This is a hack for when computing digests for forcing subplans (which
+        // happens on non-finalized plans, which don't have a filesort object
+        // yet). It means that sorts won't be correctly forced.
+        // TODO(sgunders): Print based on the flags and order instead of the
+        // filesort object, when using the hypergraph join optimizer.
+        description.push_back("Sort");
+        children.push_back({path->sort().child});
+        break;
+      }
+
       if (path->sort().filesort->using_addon_fields()) {
         ret = "Sort";
       } else {
@@ -838,8 +854,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       // We don't list the table iterator as an explicit child; we mark it in
       // our description instead. (Anything else would look confusingly much
       // like a join.)
-      ExplainData table_explain =
-          ExplainAccessPath(path->temptable_aggregate().table_path, join);
+      ExplainData table_explain = ExplainAccessPath(
+          path->temptable_aggregate().table_path, join, include_costs);
       description = move(table_explain.description);
       description.emplace_back("Aggregate using temporary table");
       children.push_back({path->temptable_aggregate().subquery_path});
@@ -1021,7 +1037,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     }
   }
-  if (path->num_output_rows >= 0.0) {
+  if (include_costs && path->num_output_rows >= 0.0) {
     double first_row_cost;
     if (path->num_output_rows <= 1.0) {
       first_row_cost = path->cost;
@@ -1061,7 +1077,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     description.back() += str;
   }
-  if (current_thd->lex->is_explain_analyze && path->iterator != nullptr) {
+  if (include_costs && current_thd->lex->is_explain_analyze &&
+      path->iterator != nullptr) {
     if (path->num_output_rows < 0.0) {
       // We always want a double space between the iterator name and the costs.
       description.back().push_back(' ');
@@ -1073,7 +1090,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
 }
 
 string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
-                      bool is_root_of_join) {
+                      bool is_root_of_join,
+                      vector<string> *tokens_for_force_subplan) {
   string ret;
 
   if (path == nullptr) {
@@ -1081,13 +1099,22 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
     return ret + "<not executable by iterator executor>\n";
   }
 
-  ExplainData explain = ExplainAccessPath(path, join);
+  ExplainData explain = ExplainAccessPath(path, join, /*include_costs=*/true);
 
   int top_level = level;
 
+  bool print_token = (tokens_for_force_subplan != nullptr);
   for (const string &str : explain.description) {
     ret.append(level * 4, ' ');
     ret += "-> ";
+    if (print_token) {
+      string token = GetForceSubplanToken(path, join);
+      ret += '[';
+      ret += token;
+      ret += "] ";
+      print_token = false;
+      tokens_for_force_subplan->push_back(move(token));
+    }
     ret += str;
     ret += "\n";
     ++level;
@@ -1113,10 +1140,11 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
       ret.append("-> ");
       ret.append(child.description);
       ret.append("\n");
-      ret +=
-          PrintQueryPlan(level + 1, child.path, subjoin, child_is_root_of_join);
+      ret += PrintQueryPlan(level + 1, child.path, subjoin,
+                            child_is_root_of_join, tokens_for_force_subplan);
     } else {
-      ret += PrintQueryPlan(level, child.path, subjoin, child_is_root_of_join);
+      ret += PrintQueryPlan(level, child.path, subjoin, child_is_root_of_join,
+                            tokens_for_force_subplan);
     }
   }
   if (is_root_of_join) {
@@ -1134,8 +1162,42 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
       ret.append(child.description);
       ret.append("\n");
       ret += PrintQueryPlan(top_level + 1, child.path, child.join,
-                            /*is_root_of_join=*/true);
+                            /*is_root_of_join=*/true, tokens_for_force_subplan);
     }
   }
+  return ret;
+}
+
+// 0x
+// truncated_md5(desc1,desc2,...,[child1_desc:]0xchild1,[child2_desc:]0xchild2,...)
+string GetForceSubplanToken(AccessPath *path, JOIN *join) {
+  if (path == nullptr) {
+    return "";
+  }
+  ExplainData explain = ExplainAccessPath(path, join, /*include_costs=*/false);
+
+  string digest = explain.description[0];
+  for (size_t desc_idx = 1; desc_idx < explain.description.size(); ++desc_idx) {
+    digest += ',';
+    digest += explain.description[desc_idx];
+  }
+
+  for (const ExplainData::Child &child : explain.children) {
+    digest += ',';
+    if (!child.description.empty()) {
+      digest += child.description;
+      digest += ':';
+    }
+    digest += GetForceSubplanToken(child.path, join);
+  }
+
+  unsigned char md5sum[MD5_HASH_SIZE];
+  compute_md5_hash(pointer_cast<char *>(md5sum), digest.data(), digest.size());
+
+  char ret[8 * 2 + 2 + 1];
+  snprintf(ret, sizeof(ret), "0x%02x%02x%02x%02x%02x%02x%02x%02x", md5sum[0],
+           md5sum[1], md5sum[2], md5sum[3], md5sum[4], md5sum[5], md5sum[6],
+           md5sum[7]);
+
   return ret;
 }

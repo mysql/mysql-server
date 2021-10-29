@@ -2262,6 +2262,16 @@ enum class PathComparisonResult {
 static inline PathComparisonResult CompareAccessPaths(
     const LogicalOrderings &orderings, const AccessPath &a, const AccessPath &b,
     OrderingSet obsolete_orderings) {
+#ifndef NDEBUG
+  // Manual preference overrides everything else.
+  // If they're both preferred, tie-break by ordering.
+  if (a.forced_by_dbug) {
+    return PathComparisonResult::FIRST_DOMINATES;
+  } else if (b.forced_by_dbug) {
+    return PathComparisonResult::SECOND_DOMINATES;
+  }
+#endif
+
   bool a_is_better = false, b_is_better = false;
   if (a.cost < b.cost) {
     a_is_better = true;
@@ -2468,6 +2478,12 @@ AccessPath *CostingReceiver::ProposeAccessPath(
       assert(path->init_cost <= path->cost_before_filter);
     }
   }
+
+  DBUG_EXECUTE_IF("subplan_tokens", {
+    string token =
+        "force_subplan_" + GetForceSubplanToken(path, m_query_block->join);
+    DBUG_EXECUTE_IF(token.c_str(), path->forced_by_dbug = true;);
+  });
 
   if (existing_paths->empty()) {
     if (m_trace != nullptr) {

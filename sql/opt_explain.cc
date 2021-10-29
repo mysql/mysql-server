@@ -2056,6 +2056,12 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
   }
 
   {
+    vector<string> *token_ptr = nullptr;
+#ifndef NDEBUG
+    vector<string> tokens_for_force_subplan;
+    DBUG_EXECUTE_IF("subplan_tokens", token_ptr = &tokens_for_force_subplan;);
+#endif
+
     std::string explain;
     if (unit != nullptr) {
       int base_level = 0;
@@ -2084,13 +2090,23 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain += PrintQueryPlan(base_level, unit->root_access_path(),
-                                unit->is_union() ? nullptr : join,
-                                /*is_root_of_join=*/!unit->is_union());
+      explain +=
+          PrintQueryPlan(base_level, unit->root_access_path(),
+                         unit->is_union() ? nullptr : join,
+                         /*is_root_of_join=*/!unit->is_union(), token_ptr);
     } else {
       explain += PrintQueryPlan(0, /*path=*/nullptr, /*join=*/nullptr,
-                                /*is_root_of_join=*/false);
+                                /*is_root_of_join=*/false, token_ptr);
     }
+    DBUG_EXECUTE_IF("subplan_tokens", {
+      explain += "\nTo force this plan, use:\nSET DEBUG='+d,subplan_tokens";
+      for (const string &token : tokens_for_force_subplan) {
+        explain += ",force_subplan_";
+        explain += token;
+      }
+      explain += "';\n";
+    });
+
     mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item =
         new Item_string(explain.data(), explain.size(), system_charset_info);

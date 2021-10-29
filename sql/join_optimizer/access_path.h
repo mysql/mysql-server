@@ -275,6 +275,12 @@ struct AccessPath {
   /// Whether it is safe to get row IDs (for sorting) from this access path.
   Safety safe_for_rowid = SAFE;
 
+#ifndef NDEBUG
+  /// Whether this access path is forced preferred over all others by means
+  /// of a SET DEBUG force_subplan_0x... statement.
+  bool forced_by_dbug = false;
+#endif
+
   /// Which ordering the rows produced by this path follow, if any
   /// (see interesting_orders.h). This is really a LogicalOrderings::StateIndex,
   /// but we don't want to add a dependency on interesting_orders.h from
