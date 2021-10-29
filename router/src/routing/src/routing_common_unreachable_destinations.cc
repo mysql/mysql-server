@@ -24,7 +24,10 @@
 
 #include "mysqlrouter/routing_common_unreachable_destinations.h"
 
+#include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 static stdx::expected<void, std::error_code> tcp_port_alive(
     net::io_context &io_ctx, const std::string &host, const uint16_t port,
