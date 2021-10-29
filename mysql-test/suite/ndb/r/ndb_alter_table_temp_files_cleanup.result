@@ -18,13 +18,13 @@ INSERT INTO t2 VALUES (1,10,100), (2,20,200);
 SET debug='+d,ndb_simulate_crash_during_alter_table_rename1';
 ALTER TABLE t1 ALGORITHM=COPY;
 Got one of the listed errors
-# mysqld will restart after crash and remove the the temporary named table during connecting to the cluster
-include/assert_grep.inc [require temporary temple warning message]
+# mysqld will restart after crash and remove the temporary named table during connecting to the cluster
+include/assert_grep.inc [require temporary table warning message]
 # verify that no temporary table left
 SELECT count(*) FROM ndbinfo.dict_obj_info WHERE REGEXP_LIKE(fq_name, '#sql');
 count(*)
 0
-# verify that orignal data has not beed affected by temporary table cleanup
+# verify that original data has not been affected by temporary table cleanup
 SELECT a, b FROM t1 ORDER BY a;
 a	b
 1	10
