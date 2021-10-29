@@ -30,7 +30,7 @@ INCLUDE(ndb_add_test)
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 # Check if this is MySQL Cluster build i.e the MySQL Server
-# version string ends in -ndb-Y.Y.Y[-status]    
+# version string ends in -ndb-Y.Y.Y[-status]
 MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
 
   IF(${version_string} MATCHES "(.*)-ndb-(.*)")
@@ -38,7 +38,7 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
     SET(cluster_version ${CMAKE_MATCH_2})
 
     # Sanity check that the mysql_version matches precalcuated
-    # values from higher level scripts  
+    # values from higher level scripts
     IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
       MESSAGE(FATAL_ERROR "Sanity check of version_string failed!")
     ENDIF()
@@ -218,6 +218,7 @@ INCLUDE_DIRECTORIES(
 # The root of storage/ndb/
 SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
 IF(WITH_NDB_TEST)
@@ -233,7 +234,7 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage
@@ -242,7 +243,7 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
-    SET(WITH_NDBAPI_EXAMPLES ON)
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
   ENDIF()
 ENDIF()
 
@@ -428,7 +429,8 @@ IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
 
-OPTION(WITH_NDBAPI_EXAMPLES "Build the NdbApi example programs" OFF)
+OPTION(WITH_NDBAPI_EXAMPLES
+  "Build the NdbApi example programs" ${WITH_NDBAPI_EXAMPLES_DEFAULT})
 IF(WITH_NDBAPI_EXAMPLES)
   MESSAGE(STATUS "Building the NdbApi example programs")
   ADD_SUBDIRECTORY(ndbapi-examples)
