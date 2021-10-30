@@ -218,6 +218,13 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
                               ostr->charset());
       return true;
     }
+    // If source is a binary string, the string may have to be validated:
+    if (c.collation != &my_charset_bin && ostr->charset() == &my_charset_bin &&
+        !converted.is_valid_string(c.collation)) {
+      report_conversion_error(c.collation, ostr->ptr(), ostr->length(),
+                              ostr->charset());
+      return true;
+    }
 
     char *ptr = thd->strmake(converted.ptr(), converted.length());
     if (ptr == nullptr) return true;
