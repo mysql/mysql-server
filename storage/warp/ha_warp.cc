@@ -1704,7 +1704,7 @@ int ha_warp::rnd_init(bool) {
     }
     //std::cerr << "billy\n";
     for(auto filter_it = pushdown_info->fact_table_filters->begin(); filter_it != pushdown_info->fact_table_filters->end(); ++filter_it) {
-      (filter_it->first)->freeze();
+      
       //std::cerr << "silly\n";
       //std::cerr << (filter_it->first)->dim_alias << " == " << std::string(table->alias) << " ???\n";
       if((filter_it->first)->dim_alias == std::string(table->alias)) {
@@ -1761,6 +1761,7 @@ int ha_warp::rnd_init(bool) {
    deleted.  If the row is deleted, another fetch must be attempted.
 */
 
+#if 0
 static void execute_worker(fetch_worker_info* worker, uint64_t* running_threads, std::mutex* mtx, uint64_t job_num) {
   //std::cerr << "START_WORK [" << job_num << "]\n";
   worker->work();
@@ -1811,6 +1812,7 @@ static void execute_workers(std::vector<fetch_worker_info*> workers) {
   }*/
   delete mtx;
 }
+#endif
 
 void exec_pushdown_join(
   ibis::query* column_query, 
@@ -1875,6 +1877,8 @@ void exec_pushdown_join(
       */
       matching_dim_rowids.push_back(find_it->second);
     }
+    delete column_vals;
+    column_vals = NULL;
     std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << ": " << matching_dim_rowids.size() << "\n";
 
     filter_it->first->mtx.lock();
@@ -1882,8 +1886,7 @@ void exec_pushdown_join(
       filter_it->first->add_matching_rownum(*insert_it, false);
     }
     filter_it->first->mtx.unlock();
-    filter_it->first->freeze();
-    std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << " [after de-dupe]: " << filter_it->first->get_rownums()->size() << "\n";
+    
   }
   if( matching_rids->size() > 0 ) {
     auto tmp = std::string((*part_it)->currentDataDir());
@@ -2063,7 +2066,7 @@ fetch_again:
           
             //std::cerr << "willy 9\n";
             rownum = *current_matching_dim_ridset_it;
-            res = cursor->fetch(*current_matching_dim_ridset_it);
+            res = cursor->fetch((*current_matching_dim_ridset_it)-1);
             ++current_matching_dim_ridset_it;
           
         }

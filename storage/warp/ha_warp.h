@@ -255,63 +255,43 @@ struct fetch_worker_info {
 };
 
 struct warp_filter_info {
-  private:
-    std::set<uint64_t> dim_rownums;
-    bool frozen = false;
-  public:
-    std::string fact_column = "";
-    std::string dim_alias = "";
-    std::string dim_column = "";
+private:
+  std::set<uint64_t> dim_rownums;
+  bool frozen = false;
+public:
+  std::string fact_column = "";
+  std::string dim_alias = "";
+  std::string dim_column = "";
 
-    std::mutex mtx;
+  std::mutex mtx;
 
-    warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
-      this->fact_column = fact_column;
-      this->dim_alias = dim_alias;
-      this->dim_column = dim_column; 
-    }
+  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
+    this->fact_column = fact_column;
+    this->dim_alias = dim_alias;
+    this->dim_column = dim_column; 
+  }
 
-    /* in order to do batch operations, the mutex can be taken manually
-       and then the second parameter should be false
-    */
-    
-    void add_matching_rownum(uint64_t rownum, bool take_lock = true) {
-      if(take_lock) { 
-        mtx.lock();
-      }
-      if(!frozen) {
-        dim_rownums.insert(rownum);
-      }
-      if(take_lock) {
-        mtx.unlock();
-      }
-    }
-
-    void freeze() {
+  /* in order to do batch operations, the mutex can be taken manually
+      and then the second parameter should be false
+  */
+  
+  void add_matching_rownum(uint64_t rownum, bool take_lock = true) {
+    if(take_lock) { 
       mtx.lock();
-      frozen = true;
+    }
+
+    dim_rownums.insert(rownum);
+
+    if(take_lock) {
       mtx.unlock();
     }
+  }
 
-    /* IT IS NOT SAFE TO ACCESS THIS VECTOR IF ANY
-       WRITES TO THE VECTOR ARE TAKING PLACE!!!
-
-       To prevent shooting myself in the foot, the
-       struct must be frozen before the structure can
-       be read from at which point it becomes
-       immutable.
-    */
-    std::set<uint64_t>* get_rownums() {
-      mtx.lock();
-      if(!frozen) {
-        mtx.unlock();
-        return NULL;
-      }
-      mtx.unlock();
-      return &dim_rownums;
-    }
-
-};
+  std::set<uint64_t>* get_rownums() {
+    return &dim_rownums;
+  }
+  
+};  
 
 typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint64_t, uint64_t>*> fact_table_filter;
 
