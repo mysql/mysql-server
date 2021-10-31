@@ -275,16 +275,8 @@ public:
       and then the second parameter should be false
   */
   
-  void add_matching_rownum(uint64_t rownum, bool take_lock = true) {
-    if(take_lock) { 
-      mtx.lock();
-    }
-
+  void add_matching_rownum(uint64_t rownum) {
     dim_rownums.insert(rownum);
-
-    if(take_lock) {
-      mtx.unlock();
-    }
   }
 
   std::set<uint64_t>* get_rownums() {
@@ -725,10 +717,10 @@ class ha_warp : public handler {
   std::string          push_where_clause  = "";
   int64_t pushdown_table_count = 0;
   std::vector<fetch_worker_info*> fetch_workers;
-  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*> matching_ridset;
+  std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
   uint32_t rownum = 0;
-  std::unordered_map<uint32_t, uint8_t>* current_matching_ridset=NULL;
-  std::unordered_map<uint32_t, uint8_t>::iterator current_matching_ridset_it;
+  std::vector<uint32_t>* current_matching_ridset=NULL;
+  std::vector<uint32_t>::iterator current_matching_ridset_it;
   std::set<uint64_t>::iterator current_matching_dim_ridset_it;
   std::set<uint64_t>* current_matching_dim_ridset=NULL;
 

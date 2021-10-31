@@ -74,6 +74,10 @@
 */
 #define WARP_BITMAP_DEBUG
 #include "ha_warp.h"
+#include "include/lemire-sorted-simd/codecfactory.h"
+#include "include/lemire-sorted-simd/intersection.h"
+
+using namespace SIMDCompressionLib;
 
 // Stuff for shares */
 mysql_mutex_t warp_mutex;
@@ -1813,18 +1817,51 @@ static void execute_workers(std::vector<fetch_worker_info*> workers) {
   delete mtx;
 }
 #endif
+void filter_fact_column(
+  ibis::query* column_query, 
+  fact_table_filter::iterator fact_filter, 
+  std::vector<uint32_t>* matching_rids, 
+  std::vector<uint32_t>* matching_dim_rids,
+  uint32_t* running_threads,
+  std::mutex* pushdown_mutex ) 
+  {
+    pushdown_mutex->lock();
+    std::cerr << "Starting filter for fact column " << fact_filter->first->fact_column << " against dim " << fact_filter->first->dim_alias << " column " << fact_filter->first->dim_column << "\n";
+    pushdown_mutex->unlock();
+    //auto matching_rids = new std::vector<uint32_t>;
+    auto column_vals = column_query->getQualifiedInts((fact_filter->first)->fact_column.c_str());
+  
+    uint32_t rownum =0;
+    std::vector<uint64_t> matching_dim_rowids;
+    matching_dim_rowids.clear();
+    for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
+      
+      ++rownum;
+      
+      auto find_it = fact_filter->second->find(*column_it);
+      if( find_it != fact_filter->second->end() ) {
+        matching_rids->push_back(rownum);
+        matching_dim_rids->push_back(find_it->second);
+      }
+      
+  }
+  delete column_vals;
+  column_vals = NULL;
+  
+  pushdown_mutex->lock();
+  std::cerr << "Matching dim_id rownums for " << (fact_filter->first)->fact_column << ": " << matching_dim_rids->size() << "\n";
+  --(*running_threads);
+  pushdown_mutex->unlock();
+}
 
 void exec_pushdown_join(
   ibis::query* column_query, 
   ibis::partList::iterator part_it, 
   fact_table_filter* fact_table_filters,
-  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*>* matching_ridset) {
+  std::unordered_map<std::string, std::vector<uint32_t>*>* matching_ridset) {
 
   auto filter_it = fact_table_filters->begin();        
-          
-  auto matching_rids = new std::unordered_map<uint32_t, uint8_t>;
-  //matching_rids.reserve((*part_it)->nRows());
-  //matching_rids.clear();
+  uint32_t running_threads = 0;
   
   uint64_t processor_count = 12;
   uint8_t filter_exec_count = 0;
@@ -1832,10 +1869,18 @@ void exec_pushdown_join(
 
   std::cerr << "Filtering for join #" << filter_exec_count << "\n";
   
-  auto rid_it = matching_rids->end();
   uint32_t match_count = 0;
-  for (filter_it = fact_table_filters->begin() , filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
 
+  struct filter_result {
+    std::vector<uint32_t> *fact_rids;
+    std::vector<uint32_t> *dim_rids;
+  };
+
+  std::vector<filter_result> filter_results;
+
+  for (filter_it = fact_table_filters->begin() , filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
+    #if 0
+    auto matching_rids = new std::vector<uint32_t>;
     auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
   
     uint32_t rownum =0;
@@ -1844,65 +1889,110 @@ void exec_pushdown_join(
     for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
       
       ++rownum;
-      if( filter_exec_count > 1 ) {
-        /* if this is the second or later pass over column data
-           if this rownum did not already match, then it does not
-           have to be looked up again.  Lookups into filter_it->second
-           are 64 bit while lookups into matching_rids are 32 bit.  That
-           makes this lookup considerably faster than the column lookup.
-        */
-        rid_it = matching_rids->find(rownum);
-        if( rid_it == matching_rids->end() ) {
-          continue;
-        }
-
-        if( rid_it->second != filter_exec_count - 1 ) {
-          continue;
-        }
-
-      }  
+      
       auto find_it = filter_it->second->find(*column_it);
       if( find_it == filter_it->second->end() ) {
         continue;
       }
-      if( filter_exec_count == 1 ) {
-        matching_rids->insert(std::make_pair(rownum,1)); 
-      } else {
-        rid_it->second++;
-      }
-      /* this will hold a mutex attached to the struct, so this is 
-         thread safe as long as the underlying  
-         is not read from while any other threads may be
-         writing to it 
-      */
+      matching_rids->push_back(rownum);
+
       matching_dim_rowids.push_back(find_it->second);
     }
     delete column_vals;
     column_vals = NULL;
     std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << ": " << matching_dim_rowids.size() << "\n";
+    #endif
+    
+    // FIXME: support max concurrency limits here
+    filter_result tmp ;
+    tmp.fact_rids= new std::vector<uint32_t>;
+    tmp.dim_rids = new std::vector<uint32_t>;
+    filter_results.push_back(tmp);
+    pushdown_mtx.lock();
+    ++running_threads;
+    pushdown_mtx.unlock();
+    std::thread ( filter_fact_column,
+                  column_query, 
+                  filter_it, 
+                  tmp.fact_rids, 
+                  tmp.dim_rids,
+                  &running_threads,
+                  &pushdown_mtx ).detach();
+  }
+  
+  // If the join still has any filters processing, we need to wait until they 
+  // all complete.
+  while(1) {
+    pushdown_mtx.lock();
+    if(running_threads > 0) {
+      pushdown_mtx.unlock();
+      struct timespec sleep_time;
+      struct timespec remaining_time;
+      sleep_time.tv_sec = (time_t)0;
+      sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+      continue;
+    }
+    std::cerr << "All jobs completed!\n";
+    // leave the loop
+    pushdown_mtx.unlock();
+    break;
+  }
+  std::cerr << "HG!\n";
 
+  //
+  // Next we are going to test out intersection...
+  //
+  
+  intersectionfunction inter =
+      IntersectionFactory::getFromName("simd"); // using SIMD intersection
+  
+  size_t intersize;
+  size_t current_filter_idx;
+  for(current_filter_idx = 0; current_filter_idx < (filter_results.size()-1); ++current_filter_idx) {
+    std::cerr << "Doing intersection between filters " << current_filter_idx << " and " << (current_filter_idx + 1) << "\n";
+    intersize = inter(
+      filter_results[current_filter_idx+1].fact_rids->data(),
+      filter_results[current_filter_idx+1].fact_rids->size(),
+      filter_results[current_filter_idx].fact_rids->data(),
+      filter_results[current_filter_idx].fact_rids->size(),
+      filter_results[current_filter_idx+1].fact_rids->data()
+    );
+    std::cerr << "Intersection completed\n";
+    filter_results[current_filter_idx+1].fact_rids->resize(intersize);
+    filter_results[current_filter_idx+1].fact_rids->shrink_to_fit();
+    delete filter_results[current_filter_idx].fact_rids;
+    filter_results[current_filter_idx].fact_rids = NULL;
+  }
+  
+
+  for (current_filter_idx = 0, filter_it = fact_table_filters->begin(); filter_it != fact_table_filters->end(); ++filter_it,++current_filter_idx) {
+    std::cerr << "Adding matching dimension rids\n";
     filter_it->first->mtx.lock();
-    for(auto insert_it = matching_dim_rowids.begin(); insert_it != matching_dim_rowids.end(); ++insert_it) {
-      filter_it->first->add_matching_rownum(*insert_it, false);
+    for(auto insert_it = filter_results[current_filter_idx].dim_rids->begin(); insert_it != filter_results[current_filter_idx].dim_rids->end(); ++insert_it) {
+      filter_it->first->add_matching_rownum(*insert_it);
     }
     filter_it->first->mtx.unlock();
-    
+    delete filter_results[current_filter_idx].dim_rids;
+    filter_results[current_filter_idx].dim_rids = NULL;
   }
-  if( matching_rids->size() > 0 ) {
+  std::cerr << "TN!\n";
+  std::cerr << "current_filter_idx: " << current_filter_idx << "\n";
+  --current_filter_idx;
+  if(filter_results[current_filter_idx].fact_rids->size() > 0) {
+    std::cerr << "ABC\n";
+    // Each partition has a dedicated lock-free structure to store the rids on
     auto tmp = std::string((*part_it)->currentDataDir());
     auto find_it = matching_ridset->find(tmp);
     assert(find_it != matching_ridset->end());
-    for(auto it = matching_rids->begin();it != matching_rids->end(); ++it) {
-      if( it->second == fact_table_filters->size() ) {
-        ++match_count;
-      }
-    }
-    find_it->second = matching_rids;
-
-  }
-  
-  std::cerr << "After in-memory weed-out of rowids: " << match_count << "\n";
-
+    std::cerr << "DEF\n";
+    // the last set of rids was not deleted in the intersection loop about.  
+    // update the fact_table_filter to carry the intersected rid values
+    // for iteration in rnd::next
+    std::cerr << "current_filter_idx: " << current_filter_idx << "\n";
+    find_it->second = filter_results[current_filter_idx].fact_rids;
+    std::cerr << "After in-memory weed-out of rowids: " << filter_results[current_filter_idx].fact_rids->size() << "\n";
+  }  
+  std::cerr << "DONE!!!\n";
 }
 int ha_warp::rnd_next(uchar *buf) {
   static uint64_t fetch_count = 0;
@@ -1975,7 +2065,7 @@ fetch_again:
         } else {
           if( matching_ridset.size() == 0 ) {
             for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
-              matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::unordered_map<uint32_t,uint8_t>*)NULL));
+              matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
             }
           }  
           
@@ -2031,23 +2121,12 @@ fetch_again:
   int res = 10;
 
   if( current_matching_ridset != NULL ) {
-    while(1) {
-      
-      if( current_matching_ridset_it == current_matching_ridset->end() ) {
-       break;
-      }
-
-      if( current_matching_ridset_it->second != fact_table_filters.size() ) {
-       ++current_matching_ridset_it;
-
-       continue;
-      } else {
-
-       rownum = current_matching_ridset_it->first;
-       res = cursor->fetch(rownum-1);
-       ++current_matching_ridset_it;
-       break;
-      }
+    if( current_matching_ridset_it != current_matching_ridset->end() ) {
+      rownum = *current_matching_ridset_it;
+      res = cursor->fetch(rownum-1);
+      ++current_matching_ridset_it;
+    } else {
+      res = 10;
     }
   } else { 
     
