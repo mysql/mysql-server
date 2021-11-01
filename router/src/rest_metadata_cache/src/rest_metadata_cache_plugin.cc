@@ -31,6 +31,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"  // ::join()
 

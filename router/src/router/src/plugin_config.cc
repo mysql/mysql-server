@@ -31,6 +31,7 @@
 #include <unistd.h>
 #endif
 
+#include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "tcp_address.h"
 
 namespace mysqlrouter {
@@ -88,7 +89,7 @@ std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
       (result > max_value + 0.0001)) {
     std::stringstream os;
     os << log_prefix << " needs value between " << min_value << " and "
-       << to_string(max_value) << " inclusive";
+       << max_value << " inclusive";
     if (!value.empty()) {
       os << ", was '" << value << "'";
     }
