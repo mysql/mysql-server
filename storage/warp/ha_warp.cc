@@ -1796,11 +1796,7 @@ void exec_pushdown_join(
   ibis::query* column_query, 
   ibis::partList::iterator part_it, 
   fact_table_filter* fact_table_filters,
-#ifdef WARP_USE_SIMD_INTERSECTION
   std::unordered_map<std::string, std::vector<uint32_t>*>* matching_ridset,
-#else
-  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*>* matching_ridset,
-#endif
   uint32_t* running_join_threads, 
   std::mutex* parallel_join_mutex) {      
   std::cerr << "Starting filtering for [" << std::string((*part_it)->currentDataDir()) << "]\n";
@@ -1904,8 +1900,8 @@ void exec_pushdown_join(
   std::cerr << "Filtering for " << std::string((*part_it)->currentDataDir()) << "\n";
   parallel_join_mutex->unlock();
   
-  auto matching_rids = new std::unordered_map<uint32_t, uint8_t>;
-  auto rid_it = matching_rids->begin();
+  std::unordered_map<uint32_t, uint8_t> tmp_matching_rids;
+  auto rid_it = tmp_matching_rids.begin();
   //uint32_t match_count = 0;
   uint8_t filter_exec_count = 0;
   auto filter_it = fact_table_filters->begin();
@@ -1927,8 +1923,8 @@ void exec_pushdown_join(
            are 64 bit while lookups into matching_rids are 32 bit.  That
            makes this lookup considerably faster than the column lookup.
         */
-        rid_it = matching_rids->find(rownum);
-        if( rid_it == matching_rids->end() ) {
+        rid_it = tmp_matching_rids.find(rownum);
+        if( rid_it == tmp_matching_rids.end() ) {
           continue;
         }
 
@@ -1942,7 +1938,7 @@ void exec_pushdown_join(
         continue;
       }
       if( filter_exec_count == 1 ) {
-        matching_rids->insert(std::make_pair(rownum,1)); 
+        tmp_matching_rids.insert(std::make_pair(rownum,1)); 
       } else {
         rid_it->second++;
       }
@@ -1965,14 +1961,23 @@ void exec_pushdown_join(
     filter_it->first->mtx.unlock();    
   }
   
-  if( matching_rids->size() > 0 ) {
+  if( tmp_matching_rids.size() > 0 ) {
     
     auto tmp = std::string((*part_it)->currentDataDir());
     auto find_it = matching_ridset->find(tmp);
     assert(find_it != matching_ridset->end());
 
-    find_it->second = matching_rids;
-
+    auto filtered_matching_ids = new std::vector<uint32_t>;
+    for(auto tmp_it = tmp_matching_rids.begin(); tmp_it != tmp_matching_rids.end(); ++tmp_it) {
+      if( tmp_it->second == fact_table_filters->size() ) {
+        filtered_matching_ids->push_back(tmp_it->first);
+      }
+    }
+    if(filtered_matching_ids->size() > 0) {
+      find_it->second = filtered_matching_ids;
+    } else {
+      find_it->second = NULL;
+    }
   }
 
 #endif
@@ -2042,7 +2047,7 @@ fetch_again:
             
             if( matching_ridset.size() == 0 ) {
               for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
-                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::unordered_map<uint32_t, uint8_t>*)NULL));
+                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
               }
             }  
             
@@ -2164,7 +2169,7 @@ fetch_again:
     }
     
   } else {
-    std::cerr << "[no ridset!]\n";
+    //std::cerr << "[no ridset!]\n";
     if(partitions != NULL && cursor == NULL) {
      
       std::cerr << ":: [cursor creation over single partition (may be filtered)]";
@@ -2185,7 +2190,7 @@ fetch_again:
       std::cerr << "Created cursor\n";
     } else {  
       // table scan (possibly with filters) without any joins
-      std::cerr << ":: HERE";
+      //std::cerr << ":: HERE";
       if(cursor == NULL) {
         std::cerr << ":: [cursor creation over whole table] (may be filtered)\n";
         base_table = ibis::table::create(this->share->data_dir_name);
@@ -2208,36 +2213,15 @@ fetch_again:
   int res = 10;
   
   if(matching_ridset.size() >0 ) {
-    check_rowid:    
     if(current_matching_ridset_it != current_matching_ridset->end()) {
-      auto check_rid = *current_matching_ridset_it;
-      if ( check_rid.second == fact_table_filters.size() ) {
-        rownum = check_rid.first;
-        //std::cerr << (rownum-1) << "\n";
-        res = cursor->fetch(rownum-1);
-        ++current_matching_ridset_it;
-      } else {
-        ++current_matching_ridset_it;
-        if ( current_matching_ridset_it != current_matching_ridset->end()) {
-          //std::cerr << "!\n";
-          goto check_rowid;  
-        }
-        //FIXME:
-        // just to be sure, set res = 10 here, to end iteration
-        res = 10;
-      }
-    } else {
-      //FIXME:
-      // just to be sure, set res = 10 here, to end iteration
-      res = 10;
-    }
-    
-    //std::cerr << ":: [fetch using matching_ridset] [rownum=" <<  std::to_string(rownum-1) <<  "]\n";
-
+      rownum = (*current_matching_ridset_it);
+      res = cursor->fetch(rownum-1);
+      ++current_matching_ridset_it;
+    } 
+    // if end of ridset res still = 10 here and the fetch failure
+    // is handled below, objects are free'd etc..
   } else {
-      
-  
-    std::cerr << ":: HERE 6\n";
+    //std::cerr << ":: HERE 6\n";
     // during pushdown joins the dimensions have a set of buffered rowids
     // this is a scan of one of the dimension tables (because current_matching_ridset_it )
     if( current_matching_dim_ridset != NULL ) {  
@@ -2342,9 +2326,9 @@ fetch_again:
       }
     }  
   }
-  if( fact_table_filters.size() == 0 ) {
-    std::cerr << "[scan row access - find current row]\n";
-  }
+  //if( fact_table_filters.size() == 0 ) {
+  //  std::cerr << "[scan row access - find current row]\n";
+  //}
   //std::cerr << "finding row for rownum " << rownum << "\n";
   find_current_row(buf, cursor);
 
@@ -3364,7 +3348,7 @@ int ha_warp::bitmap_merge_join() {
   
     }
     
-    auto matches = new std::unordered_map<uint64_t, uint64_t>;
+    auto matches = new std::unordered_map<uint32_t, uint32_t>;
     uint64_t rownum = 0;
     while(dim_cursor->fetch() == 0) {
       ++rownum;   

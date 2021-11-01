@@ -193,7 +193,8 @@ SYS_VAR* system_variables[] = {
 
 struct warp_filter_info {
 private:
-  std::set<uint64_t> dim_rownums;
+  // Another place where dimension rows are limited to 4B rows
+  std::set<uint32_t> dim_rownums;
   bool frozen = false;
 public:
   std::string fact_column = "";
@@ -216,13 +217,13 @@ public:
     dim_rownums.insert(rownum);
   }
 
-  std::set<uint64_t>* get_rownums() {
+  std::set<uint32_t>* get_rownums() {
     return &dim_rownums;
   }
   
 };  
 
-typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint64_t, uint64_t>*> fact_table_filter;
+typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint32_t, uint32_t>*> fact_table_filter;
 
 struct WARP_SHARE {
   std::string table_name;
@@ -648,11 +649,18 @@ class ha_warp : public handler {
   std::set<uint64_t>::iterator current_matching_dim_ridset_it;
   std::set<uint64_t>* current_matching_dim_ridset=NULL;
 #else
-  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*> matching_ridset;
-  std::unordered_map<uint32_t, uint8_t>* current_matching_ridset=NULL;
-  std::unordered_map<uint32_t, uint8_t>::iterator current_matching_ridset_it;
-  std::set<uint64_t>::iterator current_matching_dim_ridset_it;
-  std::set<uint64_t>* current_matching_dim_ridset=NULL;
+  std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
+  std::vector<uint32_t>* current_matching_ridset=NULL;
+  std::vector<uint32_t>::iterator current_matching_ridset_it;
+
+  //FIXME?:
+  // This could totally break if a dimension table has more than ~4B rows!
+  // I doubt anybody is going to try to do that with WARP so I am leaving
+  // this as it is until somebody complains!  Will put a note in the 
+  // release notes :)
+  std::set<uint32_t>::iterator current_matching_dim_ridset_it;
+  std::set<uint32_t>* current_matching_dim_ridset=NULL;
+  
 #endif
   uint32_t rownum = 0;
   uint32_t running_join_threads = 0;
