@@ -103,6 +103,7 @@
 #include <signaldata/DropFKImpl.hpp>
 #include <kernel/Interpreter.hpp>
 #include <signaldata/TuxBound.hpp>
+#include "../dbdih/Dbdih.hpp"
 
 #define JAM_FILE_ID 353
 
@@ -994,6 +995,7 @@ void Dbtc::execSTTOR(Signal* signal)
   switch (tphase) {
   case ZSPH1:
     jam();
+    c_dih = (Dbdih*)globalData.getBlock(DBDIH, 0);
     startphase1x010Lab(signal);
     return;
   default:
@@ -6020,8 +6022,7 @@ void Dbtc::diverify010Lab(Signal* signal)
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
       * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
-      EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
-                        2 + sizeof(void*)/sizeof(Uint32), 0);
+      c_dih->execDIVERIFYREQ(signal);
       if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
           signal->theData[3] != 0)
       {
