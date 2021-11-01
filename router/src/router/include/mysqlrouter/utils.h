@@ -85,14 +85,6 @@ uint16_t get_tcp_port(const std::string &data);
  */
 std::string hexdump(const unsigned char *buffer, size_t count);
 
-/** @brief Returns the platform specific error code of last operation
- * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
- * If myerrnum arg is not zero will use GetLastError in Windows (if myerrnum is
- * zero in Unix will read the *current* errno).
- * @return the error code description
- */
-std::string get_last_error(int myerrnum = 0);
-
 /** @brief Returns error number of the last failed socket operation
  */
 int get_socket_errno() noexcept;
@@ -158,11 +150,18 @@ bool my_check_access(const std::string &path);
  */
 void copy_file(const std::string &from, const std::string &to);
 
-/** @brief renames file, returns 0 if succeed, or positive error code if fails.
+/**
+ * renames file.
  *
  * The function will overwrite the 'to' file if already exists.
+ *
+ * @param from old filename
+ * @param to   new filename
+ *
+ * @returns stdx::expected<void, std::error_code>
  */
-int rename_file(const std::string &from, const std::string &to);
+stdx::expected<void, std::error_code> rename_file(const std::string &from,
+                                                  const std::string &to);
 
 /** @brief Returns whether the socket name passed as parameter is valid
  */

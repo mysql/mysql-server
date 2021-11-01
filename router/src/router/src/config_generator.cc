@@ -46,6 +46,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #include <rapidjson/rapidjson.h>
 
@@ -559,11 +560,15 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((path + ".tmp"), path) != 0) {
+    auto rename_res = mysqlrouter::rename_file((path + ".tmp"), path);
+
+    if (!rename_res) {
+      auto ec = rename_res.error();
+
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error("Could not save " + file_desc +
-                               " file to final location");
+      throw std::system_error(
+          ec, "Could not save " + file_desc + " file to final location");
     }
     try {
       // for dynamic config file we need to grant the write access too
@@ -760,13 +765,17 @@ void ConfigGenerator::bootstrap_directory_deployment(
                   << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((config_file_name + ".tmp").c_str(),
-                                 config_file_name.c_str()) != 0) {
+    auto rename_res = mysqlrouter::rename_file(
+        (config_file_name + ".tmp").c_str(), config_file_name.c_str());
+
+    if (!rename_res) {
+      const auto ec = rename_res.error();
+
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error(
-          "Could not move configuration file '" + config_file_name +
-          ".tmp' to final location: " + mysqlrouter::get_last_error());
+      throw std::system_error(ec, "Could not move configuration file '" +
+                                      config_file_name +
+                                      ".tmp' to final location");
     }
 
     try {

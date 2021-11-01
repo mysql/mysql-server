@@ -37,6 +37,7 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -127,10 +128,13 @@ const std::string change_cwd(std::string &dir) {
   auto cwd = get_cwd();
 #ifndef _WIN32
   if (chdir(dir.c_str()) == -1) {
+    std::error_code ec{errno, std::generic_category()};
 #else
   if (!SetCurrentDirectory(dir.c_str())) {
+    std::error_code ec{static_cast<int>(GetLastError()),
+                       std::system_category()};
 #endif
-    throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
+    throw std::system_error(ec, "chdir(" + dir + ") failed");
   }
   return cwd;
 }

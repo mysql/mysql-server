@@ -484,16 +484,16 @@ INSTANTIATE_TEST_SUITE_P(
         // readonly dir : TS_FR11_01 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FOLDER).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly:.*"),
+            "^Error: Failed writing PID to .*/foo/readonly':.*"),
         // readonly file : TS_FR11_02 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(READONLY_FILE).c_str(),
-            "^Error: Failed writing PID to .*/foo/readonly.pid:.*"),
+            "^Error: Failed writing PID to .*/foo/readonly.pid':.*"),
         // nonexisting dir : TS_FR11_03 (M)
         PidFileOptionErrorParams(
             mysql_harness::Path(FOO).join(NONEXISTING).join(PIDFILE).c_str(),
             "^Error: Failed writing PID to "
-            ".*/foo/nonexisting/mysqlrouter.pid:.*")));
+            ".*/foo/nonexisting/mysqlrouter.pid':.*")));
 
 /**
  * @test

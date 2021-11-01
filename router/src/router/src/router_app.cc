@@ -37,6 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "common.h"
@@ -698,9 +699,15 @@ void MySQLRouter::start() {
       pidfile.close();
       log_info("PID %d written to '%s'", pid, pid_file_path_.c_str());
     } else {
-      throw std::runtime_error(
-          string_format("Failed writing PID to %s: %s", pid_file_path_.c_str(),
-                        mysqlrouter::get_last_error(errno).c_str()));
+#ifdef _WIN32
+      const std::error_code ec{static_cast<int>(GetLastError()),
+                               std::system_category()};
+#else
+      const std::error_code ec{errno, std::generic_category()};
+#endif
+
+      throw std::system_error(ec,
+                              "Failed writing PID to '" + pid_file_path_ + "'");
     }
   }
 

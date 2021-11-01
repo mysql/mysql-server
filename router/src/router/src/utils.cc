@@ -36,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
+#include <system_error>
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -58,6 +59,7 @@ extern "C" bool g_windows_service;
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/string_utils.h"
 #include "mysql/harness/utility/string.h"
 
@@ -104,22 +106,28 @@ void copy_file(const std::string &from, const std::string &to) {
   ifile.close();
 }
 
-int rename_file(const std::string &from, const std::string &to) {
+stdx::expected<void, std::error_code> rename_file(const std::string &from,
+                                                  const std::string &to) {
 #ifndef _WIN32
-  return rename(from.c_str(), to.c_str());
+  if (0 != rename(from.c_str(), to.c_str())) {
+    return stdx::make_unexpected(
+        std::error_code{errno, std::generic_category()});
+  }
 #else
-  // In Windows, rename fails if the file destination alreayd exists, so ...
-  if (MoveFileExA(
+  // In Windows, rename fails if the file destination already exists, so ...
+  if (0 ==
+      MoveFileExA(
           from.c_str(), to.c_str(),
           MOVEFILE_REPLACE_EXISTING |  // override existing file
               MOVEFILE_COPY_ALLOWED |  // allow copy of file to different drive
               MOVEFILE_WRITE_THROUGH   // don't return until the operation is
                                        // physically finished
-          ))
-    return 0;
-  else
-    return -1;
+          )) {
+    return stdx::make_unexpected(std::error_code{
+        static_cast<int>(GetLastError()), std::system_category()});
+  }
 #endif
+  return {};
 }
 
 bool substitute_envvar(std::string &line) noexcept {
@@ -228,52 +236,6 @@ std::string hexdump(const unsigned char *buffer, size_t count) {
     os << std::endl;
   }
   return os.str();
-}
-
-/*
- * Returns the last system specific error description (using GetLastError in
- * Windows or errno in Unix/OSX).
- */
-std::string get_last_error(int myerrnum) {
-#ifdef _WIN32
-  DWORD dwCode = myerrnum ? myerrnum : GetLastError();
-  LPTSTR lpMsgBuf;
-
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                    FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL, dwCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR)&lpMsgBuf, 0, NULL);
-  std::string msgerr = "SystemError: ";
-  msgerr += lpMsgBuf;
-  msgerr += " with error code %d.";
-  std::string result = string_format(msgerr.c_str(), dwCode);
-  LocalFree(lpMsgBuf);
-  return result;
-#else
-  char sys_err[64];
-  int errnum = myerrnum ? myerrnum : errno;
-
-  sys_err[0] = 0;  // init, in case strerror_r() fails
-
-  // we do this #ifdef dance because on unix systems strerror_r() will generate
-  // a warning if we don't collect the result (warn_unused_result attribute)
-#if ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) || \
-     (defined _XOPEN_SOURCE && (_XOPEN_SOURCE >= 600))) &&        \
-    !defined _GNU_SOURCE
-  int r = strerror_r(errno, sys_err, sizeof(sys_err));
-  (void)r;  // silence unused variable;
-#elif defined(_GNU_SOURCE) && defined(__GLIBC__)
-  const char *r = strerror_r(errno, sys_err, sizeof(sys_err));
-  (void)r;  // silence unused variable;
-#else
-  strerror_r(errno, sys_err, sizeof(sys_err));
-#endif
-
-  std::string s = sys_err;
-  s += " with errno %d.";
-  std::string result = string_format(s.c_str(), errnum);
-  return result;
-#endif
 }
 
 #ifndef _WIN32
