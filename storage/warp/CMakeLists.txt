@@ -35,7 +35,7 @@ ExternalProject_Add(
 ExternalProject_Add(
   libSIMDCompressionAndIntersection-external
   PREFIX=external
-  GIT_REPOSITORY https://github.com/lemire/SIMDCompressionAndIntersection
+  GIT_REPOSITORY https://github.com/greenlion/SIMDCompressionAndIntersection
   CONFIGURE_COMMAND /usr/bin/bash -c echo "no configuration step needed"
   INSTALL_COMMAND /usr/bin/bash -c echo "no install step needed"
   BUILD_COMMAND make -j12 

@@ -191,69 +191,6 @@ SYS_VAR* system_variables[] = {
   NULL
 };
 
-
-struct fetch_worker_info {
-  private:
-  bool free_base_table = false;
-
-  public:
-  bool completed = false;
-  ibis::table* filtered_table = NULL;
-  std::string filter = "";
-  std::string column_set = "";
-  ibis::mensa::table* base_table = NULL;
-  std::string partition_path = "";
-  
-  bool has_rows = false;
-  ibis::table::cursor* rows = NULL;
-
-  ~fetch_worker_info() {
-    if(rows) {
-      delete rows;
-    }
-    if(filtered_table != NULL) {
-      delete filtered_table;
-    }
-    if(free_base_table && base_table) {
-      delete base_table;
-    }
-    
-  }
-
-  void work() {
-    //std::cerr << "START STORAGE WORKER\n";
-    if(has_rows) {
-      return;
-    }
-
-    if(!base_table && partition_path != "") {
-      base_table = ibis::table::create(partition_path.c_str());
-      if(!base_table) {
-        return;
-      }
-      free_base_table = true;
-    }
-
-    if(filter == "") {
-      filter = "1=1";
-    }
-    
-    filtered_table = base_table->select(column_set.c_str(), filter.c_str());
-
-    if(!filtered_table) {
-      return;
-    }
-    
-    rows = filtered_table->createCursor();
-
-    if(rows) {
-      has_rows = true;
-    }
-    
-  }
-
-};
-
 struct warp_filter_info {
 private:
   std::set<uint64_t> dim_rownums;
@@ -286,8 +223,6 @@ public:
 };  
 
 typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint64_t, uint64_t>*> fact_table_filter;
-
-std::mutex write_mutex;
 
 struct WARP_SHARE {
   std::string table_name;
@@ -382,6 +317,8 @@ class warp_pushdown_information {
 std::unordered_map<THD*, std::unordered_map<std::string, warp_pushdown_information*> * > pd_info;
 // held when accessing or modifying the pushdown info
 std::mutex pushdown_mtx;
+std::mutex fact_filter_mutex;
+std::mutex parallel_join_mutex;
 
 // initializes or returns the pushdown information for a table used in a query
 warp_pushdown_information* get_or_create_pushdown_info(THD* thd, const char* alias, const char* data_dir_name);
@@ -696,10 +633,13 @@ class ha_warp : public handler {
   //bool has_unique_keys();
   //void make_unique_check_clause();
   //uint64_t lookup_in_hash_index(const uchar*, key_part_map, ha_rkey_function);
+  bool bitmap_merge_join_executed = false;
+
   int bitmap_merge_join();
   void cleanup_pushdown_info();
 
   bool close_in_extra = false;
+  std::mutex write_mutex;
 
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
   ibis::table*         base_table         = NULL; 
@@ -716,14 +656,17 @@ class ha_warp : public handler {
   /* WHERE clause constructed from engine condition pushdown */
   std::string          push_where_clause  = "";
   int64_t pushdown_table_count = 0;
-  std::vector<fetch_worker_info*> fetch_workers;
+  
   std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
   uint32_t rownum = 0;
   std::vector<uint32_t>* current_matching_ridset=NULL;
   std::vector<uint32_t>::iterator current_matching_ridset_it;
   std::set<uint64_t>::iterator current_matching_dim_ridset_it;
   std::set<uint64_t>* current_matching_dim_ridset=NULL;
-
+  uint32_t running_join_threads = 0;
+  uint32_t max_threads = 8;
+  uint64_t fetch_count = 0;
+  bool all_jobs_completed = false;
   //static void warp_filter_table(ibis::mensa::table* filtered_table, std::string filter_column, std::vector<std::string>* batch, std::string push_where_clause, std::vector<uint64_t> matching_rowids, std::mutex* mtx, uint64_t* thread_count);
  
   fact_table_filter fact_table_filters;

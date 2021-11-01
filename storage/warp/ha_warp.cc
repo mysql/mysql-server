@@ -1643,6 +1643,7 @@ bool ha_warp::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
 */
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
+  fetch_count = 0;
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
   char* partition_filter = THDVAR(table->in_use, partition_filter);
  
@@ -1706,22 +1707,13 @@ int ha_warp::rnd_init(bool) {
         pushdown_info->cursor=cursor; 
       }
     }
-    //std::cerr << "billy\n";
+ 
     for(auto filter_it = pushdown_info->fact_table_filters->begin(); filter_it != pushdown_info->fact_table_filters->end(); ++filter_it) {
-      
-      //std::cerr << "silly\n";
-      //std::cerr << (filter_it->first)->dim_alias << " == " << std::string(table->alias) << " ???\n";
+ 
       if((filter_it->first)->dim_alias == std::string(table->alias)) {
-        //std::cerr << "hilly\n";
-        //if(filter_it->first == NULL) {
-        //  std::cerr << "I should really use an interactive debugger\n";
-        //}
         auto tmp = (filter_it->first);
-        //if(tmp == NULL) {
-        //  std::cerr << "it is not easy being green!\n";
-        // }
         current_matching_dim_ridset_it = tmp->get_rownums()->begin();
-        //std::cerr << "chilly\n";
+ 
         current_matching_dim_ridset = tmp->get_rownums();
         if(current_matching_dim_ridset == NULL) {
           std::cerr << "DIM_MATCHING_RIDSET_SIZE: NULL" << "\n";
@@ -1737,97 +1729,40 @@ int ha_warp::rnd_init(bool) {
     //fetch_count = 0;
   } else {
     base_table = NULL;
-    partitions = new ibis::partList;
-    // read all partitions unless a filter is set
-    if(partition_filter_partition_name == "") {
-      ibis::util::gatherParts(*partitions, share->data_dir_name, true);
-      part_it = partitions->begin();
+    if( pushdown_info->is_fact_table || partition_filter_partition_name != "" ){
+      partitions = new ibis::partList;
+    
+      // read all partitions unless a filter is set
+      if(partition_filter_partition_name == "") {
+        ibis::util::gatherParts(*partitions, share->data_dir_name, true);
+        part_it = partitions->begin();
+      } else {
+        // only read one partition if filter is set
+        std::string tmpstr = std::string(share->data_dir_name);
+        tmpstr += "/" + partition_filter_partition_name;
+        ibis::util::gatherParts(*partitions, tmpstr.c_str(), true);
+        part_it = partitions->begin();
+      }
     } else {
-      // only read one partition if filter is set
-      std::string tmpstr = std::string(share->data_dir_name);
-      tmpstr += "/" + partition_filter_partition_name;
-      ibis::util::gatherParts(*partitions, tmpstr.c_str(), true);
-      part_it = partitions->begin();
+      std::cerr << "SETTING PARTITIONS TO NULL\n";
+      partitions = NULL;
     }
   }
 
   DBUG_RETURN(0);
 }
 
-/* Moves to the next row in the current cursor which is either the whole table
-   or a subset of rows based on a pushed WHERE condition.
-
-   Returns HA_ERR_END_OF_FILE when there are no rows remaining in the cursor.
-
-   This function (and also other functions which populate rows) must check that
-   the fetched row is visible.  In the future this will include transaction
-   visibility, but right now it only involves checking that the row is not
-   deleted.  If the row is deleted, another fetch must be attempted.
-*/
-
-#if 0
-static void execute_worker(fetch_worker_info* worker, uint64_t* running_threads, std::mutex* mtx, uint64_t job_num) {
-  //std::cerr << "START_WORK [" << job_num << "]\n";
-  worker->work();
-  //mtx->lock();
-  //--(*running_threads);
-  //std::cerr << "END_WORK [" << job_num << "]\n";
-  //mtx->unlock();
-}
-
-static void execute_workers(std::vector<fetch_worker_info*> workers) {
-  uint64_t running_threads = 0;
-  uint64_t max_threads = 1;
-  std::mutex* mtx = new std::mutex();
-  struct timespec sleep_time;
-  struct timespec remaining_time;
-  sleep_time.tv_sec = (time_t)0;
-  sleep_time.tv_nsec = 100000000L; 
-  uint64_t job_num = 0;
-  for(auto worker = workers.begin(); worker != workers.end(); ++worker) {
-    ++job_num;
-    //if( (*worker)->completed == false ) {
-    //  while(1) {
-        /*mtx->lock();
-        if(running_threads >= max_threads) {
-          mtx->unlock();
-          //std::cerr << "Running threads: " << running_threads << "\n";
-          int err = nanosleep(&sleep_time, &remaining_time);
-          continue;
-        }*/
-        //running_threads++;
-        //mtx->unlock();
-        //std::thread (execute_worker, *worker, &running_threads, mtx, job_num).detach();
-        execute_worker(*worker, &running_threads, mtx, job_num);
-        //break;
-     // }
-    //}
-  }
-  /*
-  while(1) {
-    mtx->lock();
-    if(running_threads == 0) {
-      mtx->unlock();
-      break;
-    }
-    mtx->unlock();
-    //std::cerr << "Running threads: " << running_threads << "\n";
-    int err = nanosleep(&sleep_time, &remaining_time);
-  }*/
-  delete mtx;
-}
-#endif
 void filter_fact_column(
   ibis::query* column_query, 
   fact_table_filter::iterator fact_filter, 
   std::vector<uint32_t>* matching_rids, 
-  std::vector<uint32_t>* matching_dim_rids,
-  uint32_t* running_threads,
-  std::mutex* pushdown_mutex ) 
+  std::set<uint32_t>* matching_dim_rids,
+  uint32_t* running_filter_threads,
+  std::mutex* fact_filter_mutex ) 
   {
-    pushdown_mutex->lock();
-    std::cerr << "Starting filter for fact column " << fact_filter->first->fact_column << " against dim " << fact_filter->first->dim_alias << " column " << fact_filter->first->dim_column << "\n";
-    pushdown_mutex->unlock();
+    fact_filter_mutex->lock();
+    //std::cerr << "Starting filter for fact column " << fact_filter->first->fact_column << " against dim " << fact_filter->first->dim_alias << " column " << fact_filter->first->dim_column << "\n";
+    fact_filter_mutex->unlock();
     //auto matching_rids = new std::vector<uint32_t>;
     auto column_vals = column_query->getQualifiedInts((fact_filter->first)->fact_column.c_str());
   
@@ -1841,115 +1776,88 @@ void filter_fact_column(
       auto find_it = fact_filter->second->find(*column_it);
       if( find_it != fact_filter->second->end() ) {
         matching_rids->push_back(rownum);
-        matching_dim_rids->push_back(find_it->second);
+        matching_dim_rids->insert(find_it->second);
       }
-      
   }
   delete column_vals;
   column_vals = NULL;
   
-  pushdown_mutex->lock();
-  std::cerr << "Matching dim_id rownums for " << (fact_filter->first)->fact_column << ": " << matching_dim_rids->size() << "\n";
-  --(*running_threads);
-  pushdown_mutex->unlock();
+  fact_filter_mutex->lock();
+  //std::cerr << "Matching dim_id rownums for " << (fact_filter->first)->fact_column << ": " << matching_dim_rids->size() << "\n";
+  --(*running_filter_threads);
+  fact_filter_mutex->unlock();
+  
 }
 
 void exec_pushdown_join(
   ibis::query* column_query, 
   ibis::partList::iterator part_it, 
   fact_table_filter* fact_table_filters,
-  std::unordered_map<std::string, std::vector<uint32_t>*>* matching_ridset) {
-
-  auto filter_it = fact_table_filters->begin();        
-  uint32_t running_threads = 0;
-  
-  uint64_t processor_count = 12;
-  uint8_t filter_exec_count = 0;
-  uint32_t rownum = 0;
-
-  std::cerr << "Filtering for join #" << filter_exec_count << "\n";
-  
-  uint32_t match_count = 0;
-
+  std::unordered_map<std::string, std::vector<uint32_t>*>* matching_ridset,
+  uint32_t* running_join_threads, 
+  std::mutex* pushdown_mutex) {      
+  std::cerr << "Starting filtering for [" << std::string((*part_it)->currentDataDir()) << "]\n";
   struct filter_result {
     std::vector<uint32_t> *fact_rids;
-    std::vector<uint32_t> *dim_rids;
+    std::set<uint32_t> *dim_rids;
   };
 
   std::vector<filter_result> filter_results;
-
-  for (filter_it = fact_table_filters->begin() , filter_exec_count = 1; filter_it != fact_table_filters->end(); ++filter_it,++filter_exec_count) {
-    #if 0
-    auto matching_rids = new std::vector<uint32_t>;
-    auto column_vals = column_query->getQualifiedInts((filter_it->first)->fact_column.c_str());
-  
-    uint32_t rownum =0;
-    std::vector<uint64_t> matching_dim_rowids;
-    matching_dim_rowids.clear();
-    for(auto column_it = column_vals->begin(); column_it != column_vals->end(); ++column_it) {
-      
-      ++rownum;
-      
-      auto find_it = filter_it->second->find(*column_it);
-      if( find_it == filter_it->second->end() ) {
-        continue;
-      }
-      matching_rids->push_back(rownum);
-
-      matching_dim_rowids.push_back(find_it->second);
-    }
-    delete column_vals;
-    column_vals = NULL;
-    std::cerr << "Matching dim_id rownums for " << (filter_it->first)->fact_column << ": " << matching_dim_rowids.size() << "\n";
-    #endif
-    
+  uint32_t running_filter_threads;
+  auto filter_it = fact_table_filters->begin();
+  //std::cerr << " 1 [" << std::string((*part_it)->currentDataDir()) << "]\n";
+  for (filter_it = fact_table_filters->begin(); filter_it != fact_table_filters->end(); ++filter_it) {
+    std::cerr << " 2 Starting filter thread for [" << std::string((*part_it)->currentDataDir()) << "].[" << filter_it->first->fact_column << "]\n";
     // FIXME: support max concurrency limits here
     filter_result tmp ;
     tmp.fact_rids= new std::vector<uint32_t>;
-    tmp.dim_rids = new std::vector<uint32_t>;
+    tmp.dim_rids = new std::set<uint32_t>;
     filter_results.push_back(tmp);
-    pushdown_mtx.lock();
-    ++running_threads;
-    pushdown_mtx.unlock();
+    fact_filter_mutex.lock();
+    ++running_filter_threads;
+    fact_filter_mutex.unlock();
     std::thread ( filter_fact_column,
                   column_query, 
                   filter_it, 
                   tmp.fact_rids, 
                   tmp.dim_rids,
-                  &running_threads,
-                  &pushdown_mtx ).detach();
+                  &running_filter_threads,
+                  &fact_filter_mutex ).detach();
   }
-  
+  //std::cerr << " 3 [" << std::string((*part_it)->currentDataDir()) << "]\n";
   // If the join still has any filters processing, we need to wait until they 
   // all complete.
   while(1) {
-    pushdown_mtx.lock();
-    if(running_threads > 0) {
-      pushdown_mtx.unlock();
+    fact_filter_mutex.lock();
+    if(running_filter_threads > 0) {
+      fact_filter_mutex.unlock();
       struct timespec sleep_time;
       struct timespec remaining_time;
       sleep_time.tv_sec = (time_t)0;
       sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+      std::cerr << " 4 [" << std::string((*part_it)->currentDataDir()) << "]\n";
+      //nanosleep(&sleep_time, &remaining_time);
+      sleep(1);
       continue;
     }
-    std::cerr << "All jobs completed!\n";
+    //std::cerr << " 5 Filter jobs completed! [" << std::string((*part_it)->currentDataDir()) << "]\n";
     // leave the loop
-    pushdown_mtx.unlock();
+    fact_filter_mutex.unlock();
     break;
   }
-  std::cerr << "HG!\n";
+  //std::cerr << "6 HG <getting factory>!\n";
 
   //
   // Next we are going to test out intersection...
   //
   
   intersectionfunction inter =
-      IntersectionFactory::getFromName("simd"); // using SIMD intersection
+      IntersectionFactory::getFromName("simd_avx2"); // using SIMD intersection
   
   size_t intersize;
   size_t current_filter_idx;
   for(current_filter_idx = 0; current_filter_idx < (filter_results.size()-1); ++current_filter_idx) {
-    std::cerr << "Doing intersection between filters " << current_filter_idx << " and " << (current_filter_idx + 1) << "\n";
+    //std::cerr << "Doing intersection between filters " << current_filter_idx << " and " << (current_filter_idx + 1) << "\n";
     intersize = inter(
       filter_results[current_filter_idx+1].fact_rids->data(),
       filter_results[current_filter_idx+1].fact_rids->size(),
@@ -1957,160 +1865,254 @@ void exec_pushdown_join(
       filter_results[current_filter_idx].fact_rids->size(),
       filter_results[current_filter_idx+1].fact_rids->data()
     );
-    std::cerr << "Intersection completed\n";
+    //std::cerr << "Intersection completed\n";
     filter_results[current_filter_idx+1].fact_rids->resize(intersize);
     filter_results[current_filter_idx+1].fact_rids->shrink_to_fit();
     delete filter_results[current_filter_idx].fact_rids;
     filter_results[current_filter_idx].fact_rids = NULL;
   }
   
-
+  //std::cerr << "6 Fact rowid intersection completed for [" << std::string((*part_it)->currentDataDir()) << "]\n";
   for (current_filter_idx = 0, filter_it = fact_table_filters->begin(); filter_it != fact_table_filters->end(); ++filter_it,++current_filter_idx) {
-    std::cerr << "Adding matching dimension rids\n";
+    //std::cerr << "Adding matching dimension rids\n";
+    //std::cerr << " 8 [" << std::string((*part_it)->currentDataDir()) << "]\n";
     filter_it->first->mtx.lock();
     for(auto insert_it = filter_results[current_filter_idx].dim_rids->begin(); insert_it != filter_results[current_filter_idx].dim_rids->end(); ++insert_it) {
       filter_it->first->add_matching_rownum(*insert_it);
     }
+    //std::cerr << " 9 [" << std::string((*part_it)->currentDataDir()) << "]\n";
     filter_it->first->mtx.unlock();
     delete filter_results[current_filter_idx].dim_rids;
     filter_results[current_filter_idx].dim_rids = NULL;
+    //std::cerr << " 10 [" << std::string((*part_it)->currentDataDir()) << "]\n";
   }
-  std::cerr << "TN!\n";
-  std::cerr << "current_filter_idx: " << current_filter_idx << "\n";
+  //std::cerr << " 11 [" << std::string((*part_it)->currentDataDir()) << "]\n";
   --current_filter_idx;
-  if(filter_results[current_filter_idx].fact_rids->size() > 0) {
-    std::cerr << "ABC\n";
+  if(filter_results[current_filter_idx].fact_rids->size() > 0) {  
     // Each partition has a dedicated lock-free structure to store the rids on
     auto tmp = std::string((*part_it)->currentDataDir());
     auto find_it = matching_ridset->find(tmp);
     assert(find_it != matching_ridset->end());
-    std::cerr << "DEF\n";
+    
     // the last set of rids was not deleted in the intersection loop about.  
     // update the fact_table_filter to carry the intersected rid values
     // for iteration in rnd::next
-    std::cerr << "current_filter_idx: " << current_filter_idx << "\n";
     find_it->second = filter_results[current_filter_idx].fact_rids;
-    std::cerr << "After in-memory weed-out of rowids: " << filter_results[current_filter_idx].fact_rids->size() << "\n";
-  }  
-  std::cerr << "DONE!!!\n";
+    //std::cerr << "After in-memory weed-out of rowids: " << filter_results[current_filter_idx].fact_rids->size() << "\n";
+  }
+  pushdown_mutex->lock();
+  //std::cerr << "12 At completion of join running threads was: " << (*running_join_threads) << " [" << std::string((*part_it)->currentDataDir()) << "]\n";
+  (*running_join_threads)--;
+  //std::cerr << "13 At completion of join running threads now: " << (*running_join_threads) << " [" << std::string((*part_it)->currentDataDir()) << "]\n";
+  pushdown_mutex->unlock();
+  delete column_query;
+  //std::cerr << "200 here\n";
 }
 int ha_warp::rnd_next(uchar *buf) {
-  static uint64_t fetch_count = 0;
   DBUG_ENTER("ha_warp::rnd_next");
+  //std::cerr << "enter rnd_next!\n";
+  // transaction id of the current row
   uint64_t row_trx_id = 0;
-  std::mutex* mtx = new std::mutex;
-  uint64_t running_thread_cnt=0;
   
-  std::unordered_map<uint32_t, uint8_t> matching_rids;
+fetch_again:  
 
-  if( partitions == NULL && base_table == NULL ) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
+  if( partitions != NULL && bitmap_merge_join_executed == false ) {
+    
+    if(1) {
+      
+      if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
+        ++part_it;
+      }
 
-  /* not scanning partitions and table is empty */
-  if( (partitions == NULL && cursor == NULL) || (cursor != NULL && cursor->nRows() <= 0) ) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+      while( part_it != partitions->end() ) {
+        std::cerr << "WORKING ON PARTITION: [" << std::string((*part_it)->currentDataDir()) << "]\n";
+        //std::cerr << " --- \n";
+        //std::cerr << "end of partitions not detected\n";
+        //verify that the partition is valid / not empty
+        base_table = ibis::table::create((*part_it)->currentDataDir());
+        rownum = 0;
+        if(!base_table) {
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
+        }
+        delete base_table;
+        base_table = NULL;
+        filtered_table = NULL;
+        //std::cerr << "creating column_query\n";
+        auto column_query = new ibis::query((const char*)(0), (*part_it), (const char*)(0));
+        if( push_where_clause == "" ) {
+          push_where_clause = "1=1";
+        }
+        //std::cerr << "~~~\n";
+        column_query->addConditions(push_where_clause.c_str());
+        column_query->evaluate();
+        if( column_query->getNumHits() != 0 ) {
+          
+          // nothing happens if this function is called more than once during query evaluation
+          // but it must be executed at least once when parallel hash join is being used
+          bitmap_merge_join();
+          //std::cerr << "completed bitmap_merge_join\n";
+          //std::cerr << " nnnnnn \n";
+          // this is zero if join optimization is not being used
+          if(fact_table_filters.size() == 0) {
+            //std::cerr << " nnnnnn 1\n";
+            if( push_where_clause == "" ) {
+              push_where_clause = "1=1";
+            }
+            
+          } else {
+            
+            if( matching_ridset.size() == 0 ) {
+              for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
+                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
+              }
+            }  
+            
+            while(1) {
+            
+              parallel_join_mutex.lock();
+              auto tmp = running_join_threads;
+              parallel_join_mutex.unlock();
+              if(tmp >= max_threads && (part_it+1) != partitions->end() ) {
+                
+                struct timespec sleep_time;
+                struct timespec remaining_time;
+                sleep_time.tv_sec = (time_t)0;
+                sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+                std::cerr << "Sleeping because there are [" << tmp << "] running threads\n";
+                //nanosleep(&sleep_time, &remaining_time);
+                sleep(1);
+                continue;
+              } else {
+                if((part_it+1) == partitions->end()) {
+                  
+                  break;
+                }
+              }
+              
+              parallel_join_mutex.lock();
+              ++running_join_threads;
+              std::cerr << "dispatching exec_pushdown_join! [" << std::string((*part_it)->currentDataDir()) << "]\n";
+              parallel_join_mutex.unlock();
+              std::thread(exec_pushdown_join,column_query, part_it, &fact_table_filters, &matching_ridset, &running_join_threads, &parallel_join_mutex).detach();
+              break;
+
+            }  
+          }
+        } 
+        ++part_it;
+      } // jobs for joining all the partitions involved in the query have been scheduled   
+      
+      std::cerr << "All join threads scheduled!\n";
+      part_it = partitions->begin();
+      current_matching_ridset = NULL;
+    } 
+    std::cerr << "BEDFORD STYE I LIE IN BED AT NIGHT BLAH BLAH BLAH\n";
   } 
 
-fetch_again:  
-  if( partitions != NULL ) {
-    if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
-      ++part_it;
+  // wait for scheduled jobs to complete
+  while(all_jobs_completed == false) {
+    std::cerr << "ZEBFA\n";
+    parallel_join_mutex.lock();
+    if( running_join_threads == 0 ) {
+      std::cerr << "ZEBFA 2\n";
+      //std::cerr << "All background threads completed\n";
+      parallel_join_mutex.unlock();
+      // next time the mutex won't be held!
+      all_jobs_completed = true;
+      break;
     }
-    if( part_it == partitions->end() ) {
+    std::cerr << "EBDAC\n";
+    //struct timespec sleep_time;
+    //struct timespec remaining_time;
+    //sleep_time.tv_sec = (time_t)1;
+    //sleep_time.tv_nsec = 100000000L; // sleep a millisecond
+    //sleep_time.tv_nsec = 0; // sleep a millisecond
+    std::cerr << "sleeping [remaining running=" << running_join_threads << "] \n";
+    parallel_join_mutex.unlock();
+    sleep(1);
+  }
+
+  
+  //std::cerr << ":: HERE at next_ridset \n";
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  
+  next_ridset:
+  //std::cerr << "matching ridset size: " << matching_ridset.size() << "\n";
+  
+  if( matching_ridset.size() > 0 ) {
+    //std::cerr << ":: [ridset is set]\n";
+    if(part_it == partitions->end()) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-
-    if( cursor == NULL ) {
-      base_table = ibis::table::create((*part_it)->currentDataDir());
-      rownum = 0;
-      if(!base_table) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
-      
-      filtered_table = NULL;
-      
-      auto column_query = new ibis::query((const char*)(0), (*part_it), (const char*)(0));
-      if( push_where_clause == "" ) {
-          push_where_clause = "1=1";
-      }
-
-      column_query->addConditions(push_where_clause.c_str());
-      column_query->evaluate();
-      if( column_query->getNumHits() != 0 ) {
-
-        bitmap_merge_join();
-
-        // this is zero if join optimization is not being used
-        if(fact_table_filters.size() == 0) {
-          if( push_where_clause == "" ) {
-            push_where_clause = "1=1";
-          }
-          filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-          if( !filtered_table ) {
-            delete base_table;
-            base_table = NULL;
-            delete column_query;
-            DBUG_RETURN(HA_ERR_END_OF_FILE);
-          }
-          cursor = filtered_table->createCursor();
-          if( !cursor ) {
-            delete filtered_table;
-            filtered_table = NULL;
-            delete base_table;
-            base_table = NULL;
-            delete column_query;
-            DBUG_RETURN(HA_ERR_END_OF_FILE);
-          }
-        } else {
-          if( matching_ridset.size() == 0 ) {
-            for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
-              matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
-            }
-          }  
-          
-          exec_pushdown_join(column_query, part_it, &fact_table_filters, &matching_ridset);
-          filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
-
-          if( !filtered_table ) {
-            delete base_table;
-            base_table = NULL;
-            delete column_query;
-            DBUG_RETURN(HA_ERR_END_OF_FILE);
-          }
-          cursor = filtered_table->createCursor();
-          if( !cursor ) {
-            delete filtered_table;
-            filtered_table = NULL;
-            delete column_query;
-            DBUG_RETURN(HA_ERR_END_OF_FILE);
-          }    
-        } 
-      }    
-      
-      delete column_query;
-      column_query = NULL;
-      fetch_count = 0;
-    }
-  } 
-
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
-  if( matching_ridset.size() > 0 ) {
     if( current_matching_ridset == NULL ) {
-      //std::cerr << "Searching for rid: " << rownum << "\n";
+      std::cerr << "== [current_matching_ridset is null]\n";
       auto find_it = matching_ridset.find(std::string((*part_it)->currentDataDir()));
+      
+      //std::cerr << "Searching for rid: " << rownum << "\n";
+      
       if( find_it == matching_ridset.end() ) {
-        goto fetch_again;
+        std::cerr << "XX iterate part\n";
+        ++part_it;
+        goto next_ridset;
       }
       if( find_it->second == NULL ) {
-        goto fetch_again;
+        std::cerr << "YY iterate part\n";
+        ++part_it;
+        goto next_ridset;
       } 
 
+      std::cerr << "Setting current_matching_ridset and iterator\n";
       current_matching_ridset = find_it->second;
       current_matching_ridset_it = find_it->second->begin();
+
+      if(base_table != NULL) {
+        std::cerr << "Cleanup!\n";
+        delete cursor;
+        cursor = NULL;
+        delete filtered_table;
+        filtered_table = NULL;
+        delete base_table;
+        base_table = NULL;
+      }
+      
+      base_table = ibis::table::create(find_it->first.c_str());
+      assert(base_table != NULL);
+      // this will do some IO to read in projected columns that where not used for filters
+      filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+      assert(filtered_table);
+      cursor = filtered_table->createCursor();
+      assert(cursor != NULL);
+      std::cerr << "Created cursor\n";
+    }
+  } else {
+    //std::cerr << "[no ridset!]\n";
+    if(partitions != NULL && cursor == NULL) {
+     
+      std::cerr << ":: [cursor creation over single partition (may be filtered)]";
+      if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name) ) {
+        DBUG_RETURN(-1);
+      }
+      base_table = ibis::table::create((*part_it)->currentDataDir());
+      assert(base_table);
+      filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+      assert(filtered_table);
+      cursor = filtered_table->createCursor();
+      assert(cursor);
+
+    } else {  
+      // table scan (possibly with filters) without any joins
+      if(cursor == NULL) {
+        std::cerr << ":: [cursor creation over whole table] (may be filtered)\n";
+        base_table = ibis::table::create(this->share->data_dir_name);
+        assert(base_table != NULL);
+        filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
+        assert(filtered_table != NULL);
+        cursor = filtered_table->createCursor();
+        assert(cursor != NULL);
+      }
     }
   }
-
+  
   if( !cursor ) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
@@ -2119,94 +2121,79 @@ fetch_again:
   // current_matching_ridset the next row is fetched and if the
   // end of the resultset is reached, res will end up non-zero 
   int res = 10;
-
-  if( current_matching_ridset != NULL ) {
-    if( current_matching_ridset_it != current_matching_ridset->end() ) {
-      rownum = *current_matching_ridset_it;
-      res = cursor->fetch(rownum-1);
-      ++current_matching_ridset_it;
-    } else {
-      res = 10;
-    }
-  } else { 
+  
+  if(matching_ridset.size() >0 ) {
     
-    //std::cerr << "willy 5\n";
-    if( current_matching_dim_ridset != NULL ) {
-      //std::cerr << "~~~~~~\n";
-      if( current_matching_dim_ridset->size() == 0) { 
-        //std::cerr << "willy 6\n";
-        res = -1;
-      } else {
-        //std::cerr << "willy 7\n";
-        if( current_matching_dim_ridset_it == current_matching_dim_ridset->end() ) {
-          //std::cerr << "willy 8\n";
+    rownum = *current_matching_ridset_it;
+    //std::cerr << ":: [fetch using matching_ridset] [rownum=" <<  std::to_string(rownum-1) <<  "]\n";
+    res = cursor->fetch(rownum-1);
+    ++current_matching_ridset_it;
+  } else {
+    //std::cerr << ":: HERE 6\n";
+    // during pushdown joins the dimensions have a set of buffered rowids
+    // this is a scan of one of the dimension tables (because current_matching_ridset_it )
+    if( current_matching_dim_ridset != NULL ) {  
+      //std::cerr << ":: HERE 7\n";
+      if( current_matching_dim_ridset_it != current_matching_dim_ridset->end() ) {
+        //std::cerr << ":: HERE 8\n";
+        if( current_matching_dim_ridset->size() == 0) { 
+          //std::cerr << ":: HERE 9\n";
           res = -1;
         } else {
-          
-            //std::cerr << "willy 9\n";
+          //std::cerr << ":: HERE 10\n";
+          if( current_matching_dim_ridset_it == current_matching_dim_ridset->end() ) {
+            //std::cerr << ":: HERE 11\n";
+            res = -1;
+          } else {
             rownum = *current_matching_dim_ridset_it;
+            //std::cerr << ":: [dim fetch by computed rowid] [rownum=" << rownum << "]\n";
             res = cursor->fetch((*current_matching_dim_ridset_it)-1);
             ++current_matching_dim_ridset_it;
-          
+          }
         }
-        //std::cerr << "willy 10\n";
       }
-      //std::cerr << "willy 11\n";
+      //std::cerr << "GOT HERE!\n";
     } else {
-      
-      //std::cerr << "willy 12\n";
-      // THIS IS A BASIC TABLE SCAN (it still might be filtered by bitmap indexes)
-       
+      //std::cerr << ":: [table order fetch]\n";
       res = cursor->fetch();
       ++rownum;
-    
     }
-    
   }
 
-  //std::cerr << "Last fetch result: " << res << " of [" << std::string(table->alias) << "] for rownum: " << rownum << "\n";
-  
   if( res != 0 ) {
+
+    std::cerr << "fetch not successful\n";
     std::cerr << "total fetches: " << fetch_count << "\n";
     fetch_count = 0;
-    if( partitions != NULL ) {
-
+    if( partitions != NULL && fact_table_filters.size() > 0 ) {
+      std::cerr << "Move to next partition\n";
+      // free up the memory used for buffering the matching rowids
       if( current_matching_ridset != NULL ) {
         delete current_matching_ridset;
         auto find_it = matching_ridset.find(std::string((*part_it)->currentDataDir()));
         find_it->second = NULL;
         current_matching_ridset = NULL;
       }
-  
-      if( cursor != NULL ) {
-        delete cursor;
-        cursor = NULL;
-      }
-
-      if( filtered_table != NULL ) {
-        delete filtered_table;
-        filtered_table = NULL;
-      }
-
-      if( base_table != NULL ) {
-        delete base_table;
-        base_table = NULL;
-      }
-
-      delete *part_it;
-      ++part_it;
-      fetch_count = 0;
-      if( part_it == partitions->end() ) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
       
-      goto fetch_again;
+      // move to the next partition
+      ++part_it;
+      goto next_ridset;
     }
-    current_matching_dim_ridset = NULL;
+   
+    if(current_matching_dim_ridset != NULL) {
+      //std::cerr << ":: HERE 16 [cleanup current_matching_dim_ridset]\n";
+      delete current_matching_dim_ridset;
+      current_matching_dim_ridset = NULL;
+    }
+    //std::cerr << ":: HERE 17 [end of file]\n";
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-
   }  
+  //std::cerr << ":: HERE 18 [row access]\n";
   ++fetch_count;
+  //std::cerr << "[row access]\n";
+  //if(partitions != NULL) DBUG_RETURN(-2);
+  //DBUG_RETURN(-3);
+
   cursor->getColumnAsULong("r", current_rowid);
   
   cursor->getColumnAsULong("t", row_trx_id);
@@ -3165,19 +3152,24 @@ int ha_warp::append_column_filter(const Item *cond,
       and fact.dim_id IN(10,15,20);  
 */
 int ha_warp::bitmap_merge_join() {
-  std::cerr << " XXXXXXXXXXXXXXXXXXXX \n";
-  auto fact_pushdown_info=get_pushdown_info(table->in_use, table->alias);
-  if(fact_pushdown_info == NULL || fact_table_filters.size() > 0) {
+  if(bitmap_merge_join_executed != false) {
     return 0;
   }
+  bitmap_merge_join_executed = true;
+  auto fact_pushdown_info=get_pushdown_info(table->in_use, table->alias);
+  if(fact_pushdown_info == NULL) {
+    return 0;
+  }
+
+  std::cerr << "==> BITMAP_MERGE_JOIN_PHASE_1\n";
   //std::string fact_pushdown_clause = "";
   std::string dim_pushdown_clause = "";
   /*if(fact_pushdown_info->filter != "") {
     fact_pushdown_clause = fact_pushdown_info->filter;
   }*/
-  
+  std::cerr << "A\n";
   for(auto join_it = fact_pushdown_info->join_info.begin(); join_it != fact_pushdown_info->join_info.end(); ++join_it) {
-
+    std::cerr << "B\n";
     //if(fact_pushdown_info->filter != "") {
     //  fact_pushdown_clause = fact_pushdown_info->filter;
     //} else {
@@ -3200,7 +3192,7 @@ int ha_warp::bitmap_merge_join() {
     if(dim_pushdown_info == NULL) {
       continue;
     }
-    
+    std::cerr << "E\n";
     std::string fact_colname = std::string("c") + std::to_string(fact_field->field_index());
     std::string fact_nullname = std::string("n") + std::to_string(fact_field->field_index());
     std::string dim_colname = std::string("c") + std::to_string(dim_field->field_index());
@@ -3404,7 +3396,7 @@ int ha_warp::bitmap_merge_join() {
     dim_pushdown_info->fact_table_filters = &fact_table_filters;
 
   } // end of dim tables loop  
- 
+  std::cerr << "E\n";
   return 0;
 }
 
