@@ -660,7 +660,6 @@ class ha_warp : public handler {
   // release notes :)
   std::set<uint32_t>::iterator current_matching_dim_ridset_it;
   std::set<uint32_t>* current_matching_dim_ridset=NULL;
-  
 #endif
   uint32_t rownum = 0;
   uint32_t running_join_threads = 0;

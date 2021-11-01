@@ -1796,7 +1796,11 @@ void exec_pushdown_join(
   ibis::query* column_query, 
   ibis::partList::iterator part_it, 
   fact_table_filter* fact_table_filters,
+#ifdef WARP_USE_SIMD_INTERSECTION
   std::unordered_map<std::string, std::vector<uint32_t>*>* matching_ridset,
+#else
+  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*>* matching_ridset,
+#endif
   uint32_t* running_join_threads, 
   std::mutex* parallel_join_mutex) {      
   std::cerr << "Starting filtering for [" << std::string((*part_it)->currentDataDir()) << "]\n";
@@ -1902,6 +1906,7 @@ void exec_pushdown_join(
   
   std::unordered_map<uint32_t, uint8_t> tmp_matching_rids;
   auto rid_it = tmp_matching_rids.begin();
+
   //uint32_t match_count = 0;
   uint8_t filter_exec_count = 0;
   auto filter_it = fact_table_filters->begin();
@@ -1978,6 +1983,10 @@ void exec_pushdown_join(
     } else {
       find_it->second = NULL;
     }
+=======
+    find_it->second = matching_rids;
+
+>>>>>>> e9d364ff72bb325bbcdce15ee55408b5edeca48f
   }
 
 #endif
@@ -2047,7 +2056,7 @@ fetch_again:
             
             if( matching_ridset.size() == 0 ) {
               for(auto part_it2 = partitions->begin();part_it2 != partitions->end();++part_it2) {
-                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::vector<uint32_t>*)NULL));
+                matching_ridset.emplace(std::make_pair(std::string((*part_it2)->currentDataDir()),(std::unordered_map<uint32_t, uint8_t>*)NULL));
               }
             }  
             
@@ -2169,7 +2178,7 @@ fetch_again:
     }
     
   } else {
-    //std::cerr << "[no ridset!]\n";
+    std::cerr << "[no ridset!]\n";
     if(partitions != NULL && cursor == NULL) {
      
       std::cerr << ":: [cursor creation over single partition (may be filtered)]";
@@ -2221,6 +2230,8 @@ fetch_again:
     // if end of ridset res still = 10 here and the fetch failure
     // is handled below, objects are free'd etc..
   } else {
+      
+  
     //std::cerr << ":: HERE 6\n";
     // during pushdown joins the dimensions have a set of buffered rowids
     // this is a scan of one of the dimension tables (because current_matching_ridset_it )
@@ -2326,10 +2337,6 @@ fetch_again:
       }
     }  
   }
-  //if( fact_table_filters.size() == 0 ) {
-  //  std::cerr << "[scan row access - find current row]\n";
-  //}
-  //std::cerr << "finding row for rownum " << rownum << "\n";
   find_current_row(buf, cursor);
 
   DBUG_RETURN(0);
