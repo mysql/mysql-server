@@ -1037,7 +1037,9 @@ private:
   void execSTART_COPYREF(Signal *);
   void execUPDATE_FRAG_STATEREQ(Signal *);
   void execUPDATE_FRAG_STATECONF(Signal *);
+public:
   void execDIVERIFYREQ(Signal *);
+private:
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
