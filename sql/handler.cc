@@ -6131,6 +6131,29 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       min_endp = range.start_key.length ? &range.start_key : nullptr;
       max_endp = range.end_key.length ? &range.end_key : nullptr;
     }
+
+    /*
+      Return HA_POS_ERROR if the specified keyno is not capable of
+      serving the specified range request. The cases checked for are:
+
+        1) The range contain NULL values and the specified index will
+           fallback to do a full table scan if it find NULLs in the keys.
+        2) The range does not specify all key parts and the key
+           cannot provide partial key searches.
+    */
+    if (range.range_flag & NULL_RANGE &&  // 1)
+        table->file->index_flags(keyno, 0, false) & HA_TABLE_SCAN_ON_NULL) {
+      // The NULL_RANGE will result in a full TABLE_SCAN, reject it.
+      return HA_POS_ERROR;
+    }
+    if (!(range.range_flag & EQ_RANGE) ||  // 2)
+        range.start_key.length < table->key_info[keyno].key_length) {
+      // A full EQ-range was not specified, reject if not OK by index.
+      if (index_flags(keyno, 0, false) & HA_ONLY_WHOLE_INDEX) {
+        return HA_POS_ERROR;
+      }
+    }
+
     /*
       Get the number of rows in the range. This is done by calling
       records_in_range() unless:
@@ -6165,17 +6188,6 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
             table->key_info[keyno].records_per_key(keyparts_used - 1));
       } else {
         /*
-          Return HA_POS_ERROR if the range does not use all key parts and
-          the key cannot use partial key searches.
-        */
-        if ((index_flags(keyno, 0, false) & HA_ONLY_WHOLE_INDEX)) {
-          assert(
-              (range.range_flag & EQ_RANGE) &&
-              !table->key_info[keyno].has_records_per_key(keyparts_used - 1));
-          total_rows = HA_POS_ERROR;
-          break;
-        }
-        /*
           Since records_in_range has not been called, set the rows to 1.
           FORCE INDEX has been used, cost model values will be ignored anyway.
         */
@@ -6187,14 +6199,14 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       if (HA_POS_ERROR ==
           (rows = this->records_in_range(keyno, min_endp, max_endp))) {
         /* Can't scan one range => can't do MRR scan at all */
-        total_rows = HA_POS_ERROR;
-        break;
+        return HA_POS_ERROR;
       }
     }
     total_rows += rows;
   }
 
-  if (total_rows != HA_POS_ERROR) {
+  assert(total_rows != HA_POS_ERROR);
+  {
     const Cost_model_table *const cost_model = table->cost_model();
 
     /* The following calculation is the same as in multi_range_read_info(): */

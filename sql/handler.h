@@ -553,6 +553,13 @@ enum enum_alter_inplace_result {
 */
 #define HA_ONLY_WHOLE_INDEX 16
 /*
+  Index does not store NULL values, even if the column is nullable.
+  (KEY::flags may still contain HA_NULL_PART_KEY)
+  If the key has a NULL-value, the handler need to do a full table scan
+  instead of using this key. This is typically true for NDB hash indexes.
+*/
+#define HA_TABLE_SCAN_ON_NULL 32
+/*
   Does the storage engine support index-only scans on this index.
   Enables use of HA_EXTRA_KEYREAD and HA_EXTRA_NO_KEYREAD
   Used to set Key_map keys_for_keyread and to check in optimiser for
