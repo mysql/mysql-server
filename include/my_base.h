@@ -1104,6 +1104,7 @@ enum key_range_flags {
   */
   GEOM_FLAG = 1 << 7,
   /* Deprecated, currently used only by NDB at row retrieval */
+  // Update: Seems to be unused, even by NDB
   SKIP_RANGE = 1 << 8,
   /*
     Used to indicate that index dives can be skipped. This can happen when:

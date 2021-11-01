@@ -115,6 +115,54 @@ explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 set optimizer_switch = @old_os;
 
+##################
+# Bug#33466554 Prevent optimizer from generating range scans on
+#              unique hash indexes.
+#
+# The query plan for some of the above queries set up a range scan
+# using the HASH-index on (b,c) - That is not an available access type
+# on an 'UNIQUE <key> USING HASH'. Even if set up by the optimizer as such,
+# ha_ndbcluster::read_range_first_to_buf detected that we tried to do
+# use an access type not supported by a UNIQUE_INDEX and did multiple
+# 'full_table_scans' instead.
+
+# Explain some of the relevant queries. Should *not* do
+# range scans on the HASH index. Instead do either full table scan,
+# or a range scan on PK.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where b in (1,2,3) AND c IS NULL;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9;
+
+###############################
+# Bug#33474345  Avoid NULL-constants as part of REF keys.
+#
+# Explains of some tests above where the optimizer set up REF / Index lookup
+# access with a NULL constant on the ix-HASH key, which handler degraded
+# to full_table_scan.
+# Will now reject the usage of ix-index and do an ordered scan on PK instead.
+# More test cases for this bug further below.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+select * from t2 where c IS NULL order by a;
+--replace_regex /  \(cost=.*//
+explain format=tree
+select * from t2 where b = 3 AND c IS NULL order by a;
+
+
 drop table t2;
 
 #
@@ -541,11 +589,41 @@ from
 #  - Table scan(t1) will 'drive' the case above and eventually
 #    cause all ScanOperations / hupp'ed transactions to have been 
 #    consumed
+#
+# Note that after fixing Bug#33474345, see below, the original test case
+# didn't behave as intended. Thus it was rewritten from using
+# 't2.uq IS NULL' to 't2.uq <=> t1.a+NULL'.
+# I.e. from a known NULL-valued key, to an expression evaluating
+# to NULL at execution time. Note the usage of '<=>' operator which
+# compare NULLs as equal.
+#
+# The original test case became a test case for bug#33474345, where
+# we try to avoid doing such repeated scans whenever possible.
 
 explain
 SELECT STRAIGHT_JOIN count(*) FROM 
-   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
 SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq <=> t1.a+NULL;
+
+#
+# Bug#33474345:
+#     Avoid table REF-access in query plan,
+#     when handler does full table scan.
+#
+# There is a known NULL-constant in the key for a potential
+# REF / Index lookup access on t2, using the 'ix' HASH index. Thus the
+# handler would have fallen back to do repeated full table scan.
+# Avoid that when it can be easily detected by the optimizer.
+#
+# Test case below will now do a single table scan on t2 and hash-join(t1,t2),
+# which is about 10x faster for this query
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+SELECT STRAIGHT_JOIN count(*) FROM
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+SELECT STRAIGHT_JOIN count(*) FROM
    t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 
 drop table t1,t2;

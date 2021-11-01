@@ -300,6 +300,10 @@ Key_use *Optimize_table_order::find_best_ref(
              a) the condition for an earlier keypart is of type
                 ref_or_null, and
              b) the condition for the current keypart is ref_or_null
+          4) The keyuse->value is a const-NULL-value and the key
+             is not null_rejecting, while the index key will require a
+             full TABLE_SCAN on NULL keys
+             (Typically a NDB HASH index on a nullable column.)
         */
         if ((excluded_tables & keyuse->used_tables) ||        // 1)
             (remaining_tables & keyuse->used_tables) ||       // 2)
@@ -307,6 +311,19 @@ Key_use *Optimize_table_order::find_best_ref(
              (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)))  // 3b)
           continue;
 
+        if (!(keyuse->used_tables & ~join->const_table_map)) {
+          // keyuse can be const-evaluated, if needed, using the const tables.
+          // Note that if the key is null_rejecting, it is better to still use
+          // the key. RefIterator 'Late NULL filtering' eliminates the Read().
+          if (!keyuse->null_rejecting &&  // 4)
+              keyuse->val->is_null() &&
+              (table->file->index_flags(key, 0, false) &
+               HA_TABLE_SCAN_ON_NULL)) {
+            continue;
+          }
+          const_part |= keyuse->keypart_map;
+        }
+        found_part |= keyuse->keypart_map;
         if (keypart != FT_KEYPART) {
           const bool keyinfo_maybe_null =
               keyinfo->key_part[keypart].field->is_nullable() ||
@@ -315,10 +332,6 @@ Key_use *Optimize_table_order::find_best_ref(
               !keyinfo_maybe_null)
             null_rejecting_part |= keyuse->keypart_map;
         }
-        found_part |= keyuse->keypart_map;
-        if (!(keyuse->used_tables & ~join->const_table_map))
-          const_part |= keyuse->keypart_map;
-
         const double cur_distinct_prefix_rowcount =
             prev_record_reads(join, idx, (table_deps | keyuse->used_tables));
         if (cur_distinct_prefix_rowcount < best_distinct_prefix_rowcount) {

@@ -2716,7 +2716,7 @@ static const ulong index_type_flags[] = {
     HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER,
 
     /* UNIQUE_INDEX */
-    HA_ONLY_WHOLE_INDEX,
+    HA_ONLY_WHOLE_INDEX | HA_TABLE_SCAN_ON_NULL,
 
     /* UNIQUE_ORDERED_INDEX */
     HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER,
@@ -12709,29 +12709,40 @@ void ha_ndbcluster::print_error(int error, myf errflag) {
 /* Determine roughly how many records are in the range specified */
 ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
                                         key_range *max_key) {
-  KEY *key_info = table->key_info + inx;
-  uint key_length = key_info->key_length;
-  NDB_INDEX_TYPE idx_type = get_index_type(inx);
+  const KEY *const key_info = table->key_info + inx;
+  const uint key_length = key_info->key_length;
+  const NDB_INDEX_TYPE idx_type = get_index_type(inx);
 
   DBUG_TRACE;
-  // Prevent partial read of hash indexes by returning HA_POS_ERROR
-  if ((idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX) &&
-      ((min_key && min_key->length < key_length) ||
-       (max_key && max_key->length < key_length)))
-    return HA_POS_ERROR;
 
-  // Read from hash index with full key
-  // This is a "const" table which returns only one record!
-  if ((idx_type != ORDERED_INDEX) &&
-      ((min_key && min_key->length == key_length) &&
-       (max_key && max_key->length == key_length) &&
-       (min_key->key == max_key->key ||
-        memcmp(min_key->key, max_key->key, key_length) == 0)))
-    return 1;
+  if (key_info->flags & HA_NOSAME) {  // 0)
+    // Is a potential single row lookup operation.
+    assert(idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX ||
+           idx_type == UNIQUE_ORDERED_INDEX ||
+           idx_type == PRIMARY_KEY_ORDERED_INDEX);
+    /**
+     * Read from PRIMARY or UNIQUE index with full key
+     * will return (at most) a single record, iff:
+     * 0) Index has flag NOSAME (-> A unique key)
+     * 1) Both min and max keys are fully specified.
+     * 2) Min and max keys are equal.
+     * 3) There are no NULL values in key (NULLs are not unique)
+     */
+    if ((min_key && min_key->length == key_length) &&  // 1a)
+        (max_key && max_key->length == key_length) &&  // 1b)
+        (min_key->key == max_key->key ||               // 2)
+         memcmp(min_key->key, max_key->key, key_length) == 0) &&
+        !check_null_in_key(key_info, min_key->key, key_length))  // 3)
+      return 1;
 
-  // XXX why this if
-  if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
-       idx_type == UNIQUE_ORDERED_INDEX || idx_type == ORDERED_INDEX)) {
+    // Prevent partial read of hash indexes by returning HA_POS_ERROR
+    if (idx_type == UNIQUE_INDEX || idx_type == PRIMARY_KEY_INDEX)
+      return HA_POS_ERROR;
+  }
+  // An UNIQUE_INDEX or PRIMARY_KEY_INDEX would have completed above
+  assert(idx_type == PRIMARY_KEY_ORDERED_INDEX ||
+         idx_type == UNIQUE_ORDERED_INDEX || idx_type == ORDERED_INDEX);
+  {
     THD *thd = current_thd;
     const bool index_stat_enable =
         THDVAR(NULL, index_stat_enable) && THDVAR(thd, index_stat_enable);

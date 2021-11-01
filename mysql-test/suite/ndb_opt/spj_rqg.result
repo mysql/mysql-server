@@ -2248,24 +2248,23 @@ INNER JOIN e AS table4 ON table3.col_int_key = table4.col_int_key OR table3.col_
 ON table2.col_int_unique = table4.col_int_unique
 ON table1.col_int_unique = table2.col_int_unique;
 EXPLAIN
--> Table scan on <temporary>  (cost=0.05..3.29 rows=63)
-    -> Temporary table with deduplication  (cost=7784.35..7787.59 rows=63)
+-> Table scan on <temporary>  (cost=0.02..5.12 rows=210)
+    -> Temporary table with deduplication  (cost=7843.13..7848.23 rows=210)
         -> Nested loop inner join  ()
             -> Nested loop inner join  ()
                 -> Inner hash join (no condition)  ()
-                    -> Index range scan on table1 using ix1 over (NULL < col_int_unique), with pushed condition: (table1.col_int_unique is not null)  ()
+                    -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_unique is not null)  ()
                     -> Hash
                         -> Table scan on table3  ()
-                -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), activating pushed join of 2 tables  ()
+                -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join  ()
             -> Limit: 1 row(s)  ()
                 -> Filter: ((table4.col_int_key = table3.col_int_key) or (table1.col_int_unique = table3.col_int_unique))  ()
-                    -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_unique), child of table2 in pushed join  ()
+                    -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join  ()
 
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Cannot push table 'table2' as child of table 'table3'. Doing so would prevent using join buffer for table 'table1'.
 Note	1003	Cannot push table 'table4' as child of table 'table3'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Table 'table1' is not pushable, access type 'MULTI_UNIQUE_KEY' not implemented
 SELECT
 DISTINCT table2.col_varchar_256_unique AS field1, table1.col_varchar_256_unique AS field2
 FROM d AS table1
