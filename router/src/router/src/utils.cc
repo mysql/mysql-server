@@ -299,14 +299,6 @@ std::string prompt_password(const std::string &prompt) {
   return g_prompt_password(prompt);
 }
 
-int get_socket_errno() noexcept {
-#ifdef _WIN32
-  return GetLastError();
-#else
-  return errno;
-#endif
-}
-
 #ifdef _WIN32
 
 bool is_running_as_service() { return ::g_windows_service; }

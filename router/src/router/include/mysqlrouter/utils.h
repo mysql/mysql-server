@@ -85,10 +85,6 @@ uint16_t get_tcp_port(const std::string &data);
  */
 std::string hexdump(const unsigned char *buffer, size_t count);
 
-/** @brief Returns error number of the last failed socket operation
- */
-int get_socket_errno() noexcept;
-
 /** @brief Prompts for a password from the console.
  */
 std::string prompt_password(const std::string &prompt);

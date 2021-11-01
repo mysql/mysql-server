@@ -56,7 +56,9 @@
 #include "my_inttypes.h"  // ssize_t
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
 #include "test/temp_directory.h"
@@ -141,17 +143,11 @@ const std::string change_cwd(std::string &dir) {
 
 size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
                                uint64_t timeout_in_ms) {
-  // returns epoch time (aka unix time, etc), expressed in milliseconds
-  auto get_epoch_in_ms = []() -> uint64_t {
-    using namespace std::chrono;
-    time_point<system_clock> now = system_clock::now();
-    return static_cast<uint64_t>(
-        duration_cast<milliseconds>(now.time_since_epoch()).count());
-  };
+  using clock_type = std::chrono::system_clock;
 
   // calculate deadline time
-  uint64_t now_in_ms = get_epoch_in_ms();
-  uint64_t deadline_epoch_in_ms = now_in_ms + timeout_in_ms;
+  const auto endtime =
+      clock_type::now() + std::chrono::milliseconds(timeout_in_ms);
 
   // read until 1 of 3 things happen: enough bytes were read, we time out or
   // read() fails
@@ -170,21 +166,20 @@ size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
       return bytes_read;
     }
 
-    if (get_epoch_in_ms() > deadline_epoch_in_ms) {
+    if (clock_type::now() > endtime) {
       throw std::runtime_error("read() timed out");
     }
 
     if (res == -1) {
+      auto ec = net::impl::socket::last_error_code();
+
 #ifndef _WIN32
-      if (errno != EAGAIN) {
-        throw std::runtime_error(std::string("read() failed: ") +
-                                 strerror(errno));
+      if (ec != std::errc::resource_unavailable_try_again) {
+        throw std::system_error(ec, "read() failed");
       }
 #else
-      int err_code = WSAGetLastError();
-      if (err_code != 0) {
-        throw std::runtime_error("recv() failed with error: " +
-                                 get_last_error(err_code));
+      if (ec) {
+        throw std::system_error(ec, "recv() failed");
       }
 
 #endif
@@ -279,8 +274,8 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
     auto sock_id =
         socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
     if (sock_id < 0) {
-      throw std::runtime_error("wait_for_port_ready(): socket() failed: " +
-                               std::to_string(mysqlrouter::get_socket_errno()));
+      throw std::system_error(net::impl::socket::last_error_code(),
+                              "wait_for_port_ready(): socket() failed");
     }
     std::shared_ptr<void> exit_close_socket(
         nullptr, [&](void *) { close_socket(sock_id); });
@@ -297,13 +292,11 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
       // if the address is not available, it is a client side problem.
 #ifdef _WIN32
       if (WSAGetLastError() == WSAEADDRNOTAVAIL) {
-        throw std::system_error(mysqlrouter::get_socket_errno(),
-                                std::system_category());
+        throw std::system_error(net::impl::socket::last_error_code());
       }
 #else
       if (errno == EADDRNOTAVAIL) {
-        throw std::system_error(mysqlrouter::get_socket_errno(),
-                                std::generic_category());
+        throw std::system_error(net::impl::socket::last_error_code());
       }
 #endif
       const auto step = std::min(timeout, step_ms);
