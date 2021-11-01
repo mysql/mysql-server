@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,6 +203,7 @@ Dbtc::getParam(const char* name, Uint32* count)
 
 Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   SimulatedBlock(DBTC, ctx, instanceNo),
+  c_dih(0),
   c_theDefinedTriggers(c_theDefinedTriggerPool),
   c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),

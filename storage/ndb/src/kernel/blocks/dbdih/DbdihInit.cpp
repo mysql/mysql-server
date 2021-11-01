@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,7 +225,6 @@ Dbdih::Dbdih(Block_context& ctx):
                  &Dbdih::execUPDATE_FRAG_STATEREQ);
   addRecSignal(GSN_UPDATE_FRAG_STATECONF,
                  &Dbdih::execUPDATE_FRAG_STATECONF);
-  addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
   addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
   addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_SAVECONF, &Dbdih::execGCP_SAVECONF);
