@@ -3824,7 +3824,13 @@ Dbdict::execLIST_TABLES_CONF(Signal* signal)
     ndbrequire(data.getWords((Uint32*) &ltd, ltdWords));
     ndbrequire(names.getWord(&nameByteLen));
     Uint32 nameWordLen = (nameByteLen + 3) / 4;
+    Uint32 realByteLen = nameWordLen * 4;
+    // Ensure string will fit
+    ndbrequire(realByteLen <= NDB_ARRAY_SIZE(nameBuff));
     ndbrequire(names.getWords((Uint32*) nameBuff, nameWordLen));
+    // Ensure we have string termination
+    ndbrequire(nameByteLen > 0);
+    ndbrequire(nameBuff[nameByteLen - 1] == '\0');
 
     /* Process object */
     switch(ltd.getTableType())

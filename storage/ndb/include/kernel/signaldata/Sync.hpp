@@ -69,6 +69,7 @@ struct SyncPathReq
   Uint32 path[1];
 
   STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( MaxPathLen = 25 - SignalLength );
 };
 
 struct SyncPathConf
