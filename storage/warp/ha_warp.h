@@ -293,23 +293,6 @@ class warp_pushdown_information {
   // free up the fastbit resources once the table is finshed
   // being used
   
-  ~warp_pushdown_information() {
-    if(cursor != NULL) {
-      delete cursor;
-      cursor = NULL;
-    }
-
-    if(filtered_table != NULL) {
-      delete filtered_table;
-      filtered_table = NULL;
-    }
-    
-    if(base_table != NULL) {
-      delete base_table;
-    }
-    
-  }
-
 };
 
 
@@ -601,7 +584,7 @@ class ha_warp : public handler {
   std::string partition_filter_alias;
   std::string partition_filter_partition_name;
 
-  ibis::partList* partitions;
+  ibis::partList* partitions = NULL;
   ibis::partList::iterator part_it;
 
   void update_row_count();
@@ -657,12 +640,21 @@ class ha_warp : public handler {
   std::string          push_where_clause  = "";
   int64_t pushdown_table_count = 0;
   
+  
+#ifdef WARP_USE_SIMD_INTERSECTION
   std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
-  uint32_t rownum = 0;
   std::vector<uint32_t>* current_matching_ridset=NULL;
   std::vector<uint32_t>::iterator current_matching_ridset_it;
   std::set<uint64_t>::iterator current_matching_dim_ridset_it;
   std::set<uint64_t>* current_matching_dim_ridset=NULL;
+#else
+  std::unordered_map<std::string, std::unordered_map<uint32_t, uint8_t>*> matching_ridset;
+  std::unordered_map<uint32_t, uint8_t>* current_matching_ridset=NULL;
+  std::unordered_map<uint32_t, uint8_t>::iterator current_matching_ridset_it;
+  std::set<uint64_t>::iterator current_matching_dim_ridset_it;
+  std::set<uint64_t>* current_matching_dim_ridset=NULL;
+#endif
+  uint32_t rownum = 0;
   uint32_t running_join_threads = 0;
   uint32_t max_threads = 8;
   uint64_t fetch_count = 0;
