@@ -1314,6 +1314,9 @@ void log_persist_enable(log_t &log);
 @param[in,out]	log	redo log */
 void log_persist_crash_safe(log_t &log);
 
+/* PFS key for the redo log buffer's memory */
+extern PSI_memory_key log_buffer_memory_key;
+
 #else /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
