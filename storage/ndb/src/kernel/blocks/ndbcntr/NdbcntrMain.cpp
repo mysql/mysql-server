@@ -3629,6 +3629,7 @@ void Ndbcntr::execCNTR_WAITREP(Signal* signal)
       SectionHandle handle(this, signal);
       SegmentedSectionPtr ptr;
       handle.getSection(ptr, 0);
+      ndbrequire(ptr.sz <= c_start.m_starting.Size);
       copy(c_start.m_starting.rep.data, ptr);
       releaseSections(handle);
     }
