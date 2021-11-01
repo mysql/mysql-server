@@ -226,7 +226,6 @@ Dbdih::Dbdih(Block_context& ctx):
                  &Dbdih::execUPDATE_FRAG_STATEREQ);
   addRecSignal(GSN_UPDATE_FRAG_STATECONF,
                  &Dbdih::execUPDATE_FRAG_STATECONF);
-  addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
   addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
   addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_SAVECONF, &Dbdih::execGCP_SAVECONF);
