@@ -37,6 +37,10 @@
 
 #include <sys/types.h>
 
+#ifndef _WIN32
+#include <sys/stat.h>  // chmod
+#endif
+
 #include "common.h"  // rename_thread, ScopeGuard
 #include "connection.h"
 #include "dest_first_available.h"

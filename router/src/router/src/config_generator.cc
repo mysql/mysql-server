@@ -64,6 +64,7 @@
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/

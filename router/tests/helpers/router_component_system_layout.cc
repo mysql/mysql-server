@@ -25,6 +25,7 @@
 #include "router_component_system_layout.h"
 
 #ifndef _WIN32
+#include <sys/stat.h>  // chmod
 #include <unistd.h>
 #endif
 #include <cstring>

@@ -35,9 +35,10 @@
 #include "mysql/harness/arg_handler.h"
 #include "mysql/harness/loader.h"
 #include "mysqlrouter/keyring_info.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/sys_user_operations.h"
 
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 

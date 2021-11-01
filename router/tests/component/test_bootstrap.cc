@@ -23,6 +23,7 @@
 */
 
 #ifndef _WIN32
+#include <pwd.h>  // getpwuid
 #include <sys/stat.h>
 #endif
 

@@ -29,7 +29,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/vt100_filter.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"  // substitute_envvar
 #include "router_app.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "router_test_helpers.h"

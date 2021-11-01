@@ -34,6 +34,7 @@ SET(lib_source_files
   cluster_metadata.cc
   cluster_metadata_dynamic_state.cc
   router_app.cc
+  sys_user_operations.cc
   utils.cc
   uri.cc
   keyring_info.cc

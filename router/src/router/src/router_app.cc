@@ -55,6 +55,7 @@
 #include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/utils.h"  // string_format
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "welcome_copyright_notice.h"

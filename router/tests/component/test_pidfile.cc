@@ -22,15 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-#include "router_component_test.h"
-
-#include "mysqlrouter/utils.h"
-#include "process_wrapper.h"
-#include "tcp_port_pool.h"
-
 #include <chrono>
+#include <cstdlib>  // setenv
+#include <fstream>
+#include <memory>  // unique_ptr
+#include <string>
 #include <thread>
+
+#include <gmock/gmock.h>
+
+#include "mysql/harness/filesystem.h"
+#include "process_wrapper.h"
+#include "router_component_test.h"
+#include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
 
