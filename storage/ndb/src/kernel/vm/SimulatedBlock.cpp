@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4327,6 +4327,7 @@ SimulatedBlock::execSYNC_PATH_REQ(Signal* signal)
 {
   jamEntry();
   SyncPathReq * req = CAST_PTR(SyncPathReq, signal->getDataPtrSend());
+  ndbrequire(req->pathlen <= SyncPathReq::MaxPathLen);
   if (req->pathlen == 1)
   {
     jam();
