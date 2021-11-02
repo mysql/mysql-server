@@ -121,14 +121,13 @@ Trpman::execOPEN_COMORD(Signal* signal)
   // so far with the node
 
   const BlockReference userRef = signal->theData[0];
-  Uint32 tStartingNode = signal->theData[1];
-  ndbrequire(tStartingNode > 0 && tStartingNode < MAX_NODES);
-  Uint32 tData2 = signal->theData[2];
   jamEntry();
 
   const Uint32 len = signal->getLength();
   if (len == 2)
   {
+    Uint32 tStartingNode = signal->theData[1];
+    ndbrequire(tStartingNode > 0 && tStartingNode < MAX_NODES);
 #ifdef ERROR_INSERT
     if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002))
 	   && c_error_9000_nodes_mask.get(tStartingNode)))
@@ -154,6 +153,7 @@ Trpman::execOPEN_COMORD(Signal* signal)
   }
   else
   {
+    Uint32 tData2 = signal->theData[2];
     for(unsigned int i = 1; i < MAX_NODES; i++ )
     {
       jam();
