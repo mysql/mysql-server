@@ -34,7 +34,6 @@
 
 #include "harness_export.h"
 #include "mysql/harness/utility/string.h"
-#include "router_config.h"
 
 namespace mysql_harness {
 

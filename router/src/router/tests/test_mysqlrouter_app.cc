@@ -31,7 +31,7 @@
 #include "mysql/harness/vt100_filter.h"
 #include "mysqlrouter/utils.h"
 #include "router_app.h"
-#include "router_config.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "router_test_helpers.h"
 #include "test/helpers.h"
 

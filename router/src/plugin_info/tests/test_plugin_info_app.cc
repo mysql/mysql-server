@@ -39,7 +39,7 @@
 #include "mysql/harness/vt100.h"
 #include "mysql/harness/vt100_filter.h"
 #include "print_version.h"
-#include "router_config.h"
+#include "router_config.h"  // MYSQL_ROUTER_PACKAGE_NAME
 #include "welcome_copyright_notice.h"
 
 using mysql_harness::Path;

@@ -36,7 +36,6 @@
 #include "mysql/harness/loader.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/utils.h"
-#include "router_config.h"
 
 #include <cstdint>
 #include <stdexcept>

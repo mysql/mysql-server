@@ -40,7 +40,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "process_launcher.h"
 #include "random_generator.h"
-#include "router_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 

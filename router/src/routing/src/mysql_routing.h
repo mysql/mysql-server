@@ -72,7 +72,6 @@
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
-#include "router_config.h"
 #include "socket_container.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"

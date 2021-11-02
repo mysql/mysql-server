@@ -44,6 +44,7 @@
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils_sqlstring.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "tcp_address.h"
 
 using mysql_harness::EventStateTracker;

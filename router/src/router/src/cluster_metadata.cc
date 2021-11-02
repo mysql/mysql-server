@@ -24,17 +24,19 @@
 
 #include "cluster_metadata.h"
 
+#include <cstring>
+#include <stdexcept>
+
 #include "common.h"
 #include "harness_assert.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqld_error.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"  // strtoui_checked
 #include "mysqlrouter/utils_sqlstring.h"
-IMPORT_LOG_FUNCTIONS()
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 
-#include <string.h>
-#include <stdexcept>
+IMPORT_LOG_FUNCTIONS()
 
 #ifdef _WIN32
 #define strcasecmp _stricmp

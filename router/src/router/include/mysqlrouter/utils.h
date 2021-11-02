@@ -47,8 +47,6 @@
 
 #include "my_compiler.h"
 
-#include "router_config.h"
-
 namespace mysqlrouter {
 
 #ifndef _WIN32

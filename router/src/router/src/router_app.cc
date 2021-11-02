@@ -56,6 +56,7 @@
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/mysql_session.h"
 #include "print_version.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "welcome_copyright_notice.h"
 
 #ifndef _WIN32

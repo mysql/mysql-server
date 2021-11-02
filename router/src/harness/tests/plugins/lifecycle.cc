@@ -49,7 +49,6 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-#include "router_config.h"
 
 #include "my_compiler.h"
 

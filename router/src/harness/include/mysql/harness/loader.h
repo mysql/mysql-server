@@ -614,8 +614,6 @@ end). Actions taken for each plugin function are as follows:
 #ifndef MYSQL_HARNESS_LOADER_INCLUDED
 #define MYSQL_HARNESS_LOADER_INCLUDED
 
-#include "router_config.h"
-
 #include "config_parser.h"
 #include "filesystem.h"
 #include "mysql/harness/dynamic_loader.h"
