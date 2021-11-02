@@ -64,6 +64,7 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/sd_notify.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/utility/string.h"
 #include "utilities.h"
 IMPORT_LOG_FUNCTIONS()
 

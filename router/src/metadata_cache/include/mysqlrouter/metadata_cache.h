@@ -41,7 +41,6 @@
 #include "mysql_router_thread.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
-#include "mysqlrouter/utils.h"
 #include "tcp_address.h"
 
 #ifdef _WIN32

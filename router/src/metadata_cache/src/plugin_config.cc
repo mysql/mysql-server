@@ -25,7 +25,6 @@
 #include "plugin_config.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <climits>
 #include <exception>
 #include <map>
@@ -36,7 +35,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 IMPORT_LOG_FUNCTIONS()
 
 using mysqlrouter::ms_to_seconds_string;

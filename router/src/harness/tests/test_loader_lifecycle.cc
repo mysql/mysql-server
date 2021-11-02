@@ -54,17 +54,6 @@
 #include "my_config.h"
 
 ////////////////////////////////////////
-// Harness include files
-#include "exception.h"
-#include "lifecycle.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/loader.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysql/harness/plugin.h"
-#include "test/helpers.h"
-#include "utilities.h"
-
-////////////////////////////////////////
 // Third-party include files
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -85,6 +74,18 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+////////////////////////////////////////
+// Harness include files
+#include "exception.h"
+#include "lifecycle.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/utility/string.h"
+#include "test/helpers.h"
+#include "utilities.h"
 
 // see loader.cc for more info on this define
 #ifndef _WIN32

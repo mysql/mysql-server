@@ -24,13 +24,14 @@
 
 #include "mysql/harness/arg_handler.h"
 
-#include "utilities.h"
-
 #include <algorithm>
 #include <cassert>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "mysql/harness/utility/string.h"  // wrap_string
+#include "utilities.h"                     // regex_pattern_matches
 
 using mysql_harness::utility::regex_pattern_matches;
 using mysql_harness::utility::string_format;

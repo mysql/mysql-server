@@ -33,7 +33,6 @@
 #include "my_compiler.h"
 
 #include "harness_export.h"
-#include "mysql/harness/utility/string.h"
 
 namespace mysql_harness {
 

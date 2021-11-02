@@ -29,6 +29,8 @@
 #include <cstring>  // vsnprintf
 #include <string>
 
+#include "mysql/harness/utility/string.h"  // wrap_string
+
 namespace mysql_harness::utility {
 
 std::string dirname(const std::string &path) {

@@ -43,6 +43,7 @@
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // string_format
 #include "mysqlrouter/utils_sqlstring.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "tcp_address.h"
@@ -52,8 +53,6 @@ using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
-using mysqlrouter::strtoi_checked;
-using mysqlrouter::strtoui_checked;
 using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 

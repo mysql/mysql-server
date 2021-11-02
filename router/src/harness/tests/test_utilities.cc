@@ -38,6 +38,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "mysql/harness/utility/string.h"  // wrap_string
+
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
 using mysql_harness::utility::strip;
