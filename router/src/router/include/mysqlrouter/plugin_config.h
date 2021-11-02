@@ -205,39 +205,6 @@ class BasePluginConfig {
       const mysql_harness::ConfigSection *section, const std::string &option,
       double min_value = 0.0,
       double max_value = std::numeric_limits<double>::max()) const;
-
-  /** @brief Gets a TCP address using the given option
-   *
-   * Gets a TCP address using the given option. The option value is
-   * split in 2 giving the IP (or address) and the TCP Port. When
-   * require_port is true, a valid port number will be required.
-   *
-   * Throws std::invalid_argument on errors.
-   *
-   * @param section Instance of ConfigSection
-   * @param option Option name in section
-   * @param require_port Whether a TCP port is required
-   * @param default_port default port
-   * @return mysql_harness::TCPAddress
-   */
-  mysql_harness::TCPAddress get_option_tcp_address(
-      const mysql_harness::ConfigSection *section, const std::string &option,
-      bool require_port = false, int default_port = -1);
-
-  /** @brief Gets location of a named socket
-   *
-   * Gets location of a named socket. The option value is checked first
-   * for its validity. For example, on UNIX system the path can be
-   * at most (sizeof(sockaddr_un().sun_path)-1) characters.
-   *
-   * Throws std::invalid_argument on errors.
-   *
-   * @param section Instance of ConfigSection
-   * @param option Option name in section
-   * @return Path object
-   */
-  mysql_harness::Path get_option_named_socket(
-      const mysql_harness::ConfigSection *section, const std::string &option);
 };
 
 }  // namespace mysqlrouter

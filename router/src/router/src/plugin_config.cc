@@ -109,47 +109,4 @@ std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
                                  get_log_prefix(option, section));
 }
 
-mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
-    const mysql_harness::ConfigSection *section, const std::string &option,
-    bool require_port, int default_port) {
-  std::string value = get_option_string(section, option);
-
-  if (value.empty()) {
-    return mysql_harness::TCPAddress{};
-  }
-
-  auto make_res = mysql_harness::make_tcp_address(value);
-  if (!make_res) {
-    throw std::invalid_argument(get_log_prefix(option) + " is invalid");
-  }
-
-  auto address = make_res->address();
-  auto port = make_res->port();
-
-  if (port <= 0) {
-    if (default_port > 0) {
-      port = static_cast<uint16_t>(default_port);
-    } else if (require_port) {
-      throw std::runtime_error("TCP port missing");
-    }
-  }
-
-  return {address, port};
-}
-
-mysql_harness::Path BasePluginConfig::get_option_named_socket(
-    const mysql_harness::ConfigSection *section, const std::string &option) {
-  std::string value = get_option_string(section, option);
-
-  std::string error;
-  if (!is_valid_socket_name(value, error)) {
-    throw std::invalid_argument(error);
-  }
-
-  if (value.empty()) {
-    return mysql_harness::Path();
-  }
-  return mysql_harness::Path(value);
-}
-
 }  // namespace mysqlrouter
