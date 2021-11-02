@@ -1,0 +1,10 @@
+--source suite/collations/include/unicode.inc
+insert into unicode values (0x100001,'CH','Galician CH','Lu');
+insert into unicode values (0x100002,'Ch','Galician Ch','Lt');
+insert into unicode values (0x100003,'ch','Galician ch','Ll');
+insert into unicode values (0x100004,'LL','Galician LL','Lu');
+insert into unicode values (0x100005,'Ll','Galician Ll','Lt');
+insert into unicode values (0x100006,'ll','Galician ll','Ll');
+select hex(convert(uc using utf32)), hex(weight_string(convert(uc using utf8mb4) collate utf8mb4_gl_0900_ai_ci)), name from unicode where category in ('Lu','Ll','Lt','Lm') order by uc  collate utf8mb4_gl_0900_ai_ci, cp;
+select hex(convert(uc using utf32)), hex(weight_string(convert(uc using utf8mb4) collate utf8mb4_gl_0900_as_cs)), name from unicode where category in ('Lu','Ll','Lt','Lm') order by uc  collate utf8mb4_gl_0900_as_cs, cp;
+drop table if exists unicode;

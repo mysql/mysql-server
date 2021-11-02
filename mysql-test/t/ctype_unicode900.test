@@ -199,6 +199,29 @@ INSERT INTO t1 VALUES(_utf16 0x0452), (_utf16 0x0453), (_utf16 0x0403),
        (_utf16 0x1D2B), (_utf16 0x045B), (_utf16 0x045C), (_utf16 0x040C);
 SELECT HEX(CONVERT(a USING utf16)) AS codepoint FROM t1 ORDER BY a, HEX(a);
 DROP TABLE t1;
+
+# Mongolian langauage using Cryllic.
+CREATE TABLE t1 (
+      codepoint CHAR(1) CHARSET utf16 NOT NULL,
+      glyph CHAR(2) CHARSET utf8mb4 COLLATE utf8mb4_mn_cyrl_0900_ai_ci NOT NULL,
+      description VARCHAR(64) NOT NULL);
+INSERT INTO t1 (codepoint, glyph, description) VALUES
+      (0x041E, 'О', 'CYRILLIC CAPITAL LETTER O'),
+      (0x04E8, 'Ө', 'CYRILLIC CAPITAL LETTER BARRED O'),
+      (0x041F, 'П', 'CYRILLIC CAPITAL LETTER PE '),
+      (0x043E, 'о', 'CYRILLIC SMALL LETTER O'),
+      (0x04E9, 'ө', 'CYRILLIC SMALL LETTER BARRED O'),
+      (0x043F, 'п', 'CYRILLIC SMALL LETTER PE'),
+      (0x0423, 'У', 'CYRILLIC CAPITAL LETTER U '),
+      (0x04AE, 'Ү', 'CYRILLIC CAPITAL LETTER STRAIGHT U '),
+      (0x0424, 'Ф', 'CYRILLIC CAPITAL LETTER EF '),
+      (0x0443, 'у', 'CYRILLIC SMALL LETTER U '),
+      (0x04AF, 'ү', 'CYRILLIC SMALL LETTER STRAIGHT U'),
+      (0x0444, 'ф', 'CYRILLIC SMALL LETTER EF');
+ 
+SELECT HEX(codepoint), codepoint, glyph, description FROM t1 ORDER BY glyph, codepoint;
+DROP TABLE t1;
+
 --echo #
 --echo # End of 8.0 tests
 --echo #
