@@ -102,6 +102,7 @@ struct Binlog_user_var_event {
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
 #define LOG_INFO_EMFILE -9
+#define LOG_INFO_BACKUP_LOCK -10
 
 /* bitmap to MYSQL_BIN_LOG::close() */
 #define LOG_CLOSE_INDEX 1

@@ -187,6 +187,7 @@ static bool binlog_recover(Binlog_file_reader *binlog_file_reader,
                            my_off_t *valid_pos);
 static void binlog_prepare_row_images(const THD *thd, TABLE *table);
 static bool is_loggable_xa_prepare(THD *thd);
+static int check_instance_backup_locked();
 
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
   DBUG_TRACE;
@@ -2837,6 +2838,9 @@ static uint purge_log_get_error_code(int res) {
     case LOG_INFO_EMFILE:
       errcode = ER_BINLOG_PURGE_EMFILE;
       break;
+    case LOG_INFO_BACKUP_LOCK:
+      errcode = ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK;
+      break;
     default:
       errcode = ER_LOG_PURGE_UNKNOWN_ERR;
       break;
@@ -3104,11 +3108,15 @@ bool purge_master_logs(THD *thd, const char *to_log) {
     return false;
   }
 
-  mysql_bin_log.make_log_name(search_file_name, to_log);
-  return purge_error_message(
-      thd, mysql_bin_log.purge_logs(
-               search_file_name, false, true /*need_lock_index=true*/,
-               true /*need_update_threads=true*/, nullptr, false));
+  int error = check_instance_backup_locked();
+  if (!error) {
+    mysql_bin_log.make_log_name(search_file_name, to_log);
+    error = mysql_bin_log.purge_logs(
+        search_file_name, false, true /*need_lock_index=true*/,
+        true /*need_update_threads=true*/, nullptr, false);
+  }
+
+  return purge_error_message(thd, error);
 }
 
 /**
@@ -3127,8 +3135,35 @@ bool purge_master_logs_before_date(THD *thd, time_t purge_time) {
     my_ok(thd);
     return false;
   }
-  return purge_error_message(
-      thd, mysql_bin_log.purge_logs_before_date(purge_time, false));
+
+  int error = check_instance_backup_locked();
+  if (!error) error = mysql_bin_log.purge_logs_before_date(purge_time, false);
+
+  return purge_error_message(thd, error);
+}
+
+/**
+  Check whether the instance is backup locked.
+
+  @retval 0 Instance is not backup locked
+  @retval other Instance is backup locked or failure
+*/
+int check_instance_backup_locked() {
+  int res{0};
+
+  auto is_instance_locked = is_instance_backup_locked(current_thd);
+  switch (is_instance_locked) {
+    case Is_instance_backup_locked_result::OOM:
+      res = LOG_INFO_MEM;
+      break;
+    case Is_instance_backup_locked_result::LOCKED:
+      res = LOG_INFO_BACKUP_LOCK;
+      break;
+    case Is_instance_backup_locked_result::NOT_LOCKED:
+      break;
+  }
+
+  return res;
 }
 
 /*
