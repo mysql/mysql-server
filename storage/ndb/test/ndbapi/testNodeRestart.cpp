@@ -9379,6 +9379,59 @@ int runChangeDataNodeConfig(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runChangeDataNodeConfigStr(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_config_vars = ctx->getProperty("NumConfigVars", Uint32(1));
+
+  ctx->setProperty("NumConfigVars", Uint32(0));
+
+  for (int c=1; c <= num_config_vars; c++) {
+    BaseString varId;
+    BaseString varVal;
+    varId.assfmt("ConfigVarId%u", c);
+    varVal.assfmt("ConfigValue%u", c);
+
+    Uint32 new_value_read = 0;
+    int config_var_id =
+      ctx->getProperty(varId.c_str(), (Uint32)new_value_read);
+
+    const char *new_config_value =
+      ctx->getProperty(varVal.c_str(), "NULL");
+
+    g_err << "Setting config " << config_var_id
+          << " val " << new_config_value << endl;
+
+    // Override the config
+    NdbMgmd mgmd;
+    BaseString old_config_value;
+    CHECK(mgmd.change_config_str(new_config_value, old_config_value,
+                                 CFG_SECTION_NODE, config_var_id),
+          "Change config failed");
+
+    g_err << "  Success, old config val : " << old_config_value.c_str()
+          << " is changed to new : " << new_config_value << endl;
+
+    // Save the old_value in the test property 'config_var%u'.
+    ctx->setProperty(varVal.c_str(), old_config_value.c_str());
+    ctx->setProperty("NumConfigVars", Uint32(c));
+  }
+
+  g_err << "Restarting nodes with new config " << endl;
+
+  // Get the restart type from context
+  const Uint32 restart_type = ctx->getProperty("Initial", 1);
+  bool initial = (restart_type == 1);
+
+  // Restart cluster to get the new config value
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll(initial) == 0, "Restart all failed");
+
+  CHECK(restarter.waitClusterStarted() == 0,
+        "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
 int runPauseGcpCommitUntilNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
@@ -10058,6 +10111,58 @@ int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
   return restarter.insertErrorInAllNodes(0);
 }
 
+/**
+ * This method is used to check whether LCP succeeds when a data node
+ * is restarted with empty ldms.
+ * Precondition for calling this method is the data node being restarted
+ * is having ldms < 4. The method :
+ * - changes the config to 4 ldms
+ * - restarts one random data node with delayed COPY_FRAGCONF
+ * - waits until it comes up.
+ *
+ * The test will fail if it does not come up within reasonable time.
+ */
+int runStartOneDBNodeWith4Ldms(NDBT_Context* ctx, NDBT_Step* step) {
+
+  // Override the config
+  const char *four_ldm_cfg = "ldm={count=4}";
+  BaseString old_thread_config;
+  NdbMgmd mgmd;
+  CHECK(mgmd.connect() != 0, "Could not connect to mgmd");
+  CHECK(mgmd.change_config_str(four_ldm_cfg, old_thread_config,
+                               CFG_SECTION_NODE, CFG_DB_MT_THREAD_CONFIG),
+        "Change config execution threads failed");
+
+  g_err << "Config var ThreadConfig changed from "
+        << old_thread_config.c_str() << " to "
+        << four_ldm_cfg << endl;
+
+  NdbRestarter restarter;
+  int db_node_id = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+  // Restart one DB node to get the new config value
+  g_err << "Restarting node " << db_node_id << " with new config "
+        << four_ldm_cfg << endl;
+
+  // initial false, nostart true and other in-parameters false
+  CHECK(restarter.restartOneDbNode(db_node_id, false, true) == 0,
+        "Restarting node failed");
+
+  CHECK(restarter.waitNodesNoStart(&db_node_id, 1) == 0,
+        "Waiting for NoStart state failed");
+
+  CHECK(restarter.insertErrorInNode(db_node_id, 7249) == 0,
+        "Inserting error failed");
+
+  CHECK(restarter.startNodes(&db_node_id, 1) == 0, "Starting node failed");
+
+  CHECK(restarter.waitNodesStarted(&db_node_id, 1) == 0,
+        "Waiting for node to start failed");
+
+  g_err << "Node " << db_node_id << " restarted with new config." << endl;
+
+  return NDBT_OK;
+}
 
 
 NDBT_TESTSUITE(testNodeRestart);
@@ -10881,6 +10986,22 @@ TESTCASE("InplaceCharPkChangeCI",
   FINALIZER(runDropCharKeyTable);
 }
 
+TESTCASE("LCPWithEmptyLDMs",
+         "Check reconfiguring nodes with more ldms "
+         "(resulting in empty ldms) will work, by "
+         "initializing the data nodes with 1 ldm "
+         "reconfiguring and restarting one random data node with 4 ldms "
+         "and finally resetting the changes made by the test case")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(1));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MT_THREAD_CONFIG));
+  TC_PROPERTY("ConfigValue1", "ldm={count=1}");
+  TC_PROPERTY("Initial", (Uint32)1);
+
+  INITIALIZER(runChangeDataNodeConfigStr);
+  STEP(runStartOneDBNodeWith4Ldms);
+  FINALIZER(runChangeDataNodeConfigStr);
+}
 
 NDBT_TESTSUITE_END(testNodeRestart);
 

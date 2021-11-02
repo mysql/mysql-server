@@ -156,6 +156,9 @@ void Dblqh::initData()
   c_is_first_gcp_save_started = false;
   c_max_gci_in_lcp = 0;
 
+  c_lcpId_sent_last_LCP_FRAG_ORD = 0;
+  c_localLcpId_sent_last_LCP_FRAG_ORD = 0;
+
   c_current_local_lcp_instance = 0;
   c_local_lcp_started = false;
   c_full_local_lcp_started = false;

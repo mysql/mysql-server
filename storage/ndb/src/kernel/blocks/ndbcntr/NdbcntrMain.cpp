@@ -6501,13 +6501,34 @@ void Ndbcntr::execWAIT_ALL_COMPLETE_LCP_REQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(m_local_lcp_started);
+
+  if (signal->theData[1] == 0)
+  {
+    /**
+     * The LDM had no fragments to restore and thus no fragments
+     * checkpoint either. We will wait to start the complete of
+     * the checkpoint until at least one LDM with fragments to
+     * restore have sent the signal. The code in DBLQH is not
+     * designed to handle that we start up new LCP_FRAG_ORD's
+     * in the first phase of the Copy fragment and at the same
+     * time complete an LCP. Thus we have to wait with completing
+     * the first local LCP until at least the second phase of
+     * copy fragment has started.
+     */
+    jam();
+    DEB_LCP(("WAIT_ALL_COMPLETE_LCP_REQ received from empty LDM"));
+    return;
+  }
   if (m_received_wait_all)
   {
     /**
      * Ignore, already received it from one of the LDMs.
      * It is sufficient to receive it from one, then we
      * will ensure that all receive the rest of the
-     * interaction.
+     * interaction. At least one fragment exists since someone
+     * decided to start a local LCP. Thus at least one LDM should
+     * send WAIT_ALL_COMPLETE_LCP_REQ with at least 1 fragment to
+     * restore.
      */
     jam();
     return;

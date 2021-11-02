@@ -8720,6 +8720,22 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   jamEntry();
   CRASH_INSERTION(7142);
 
+  if (ERROR_INSERTED(7249))
+  {
+    jam();
+    if (refToNode(signal->senderBlockRef()) != getOwnNodeId())
+    {
+      jam();
+      g_eventLogger->info("ERROR INSERT 7249 : Delaying COPY_FRAGCONF");
+      sendSignalWithDelay(reference(),
+                          GSN_COPY_FRAGCONF,
+                          signal,
+                          5000,
+                          signal->getLength());
+      return;
+    }
+  }
+
   TakeOverRecordPtr takeOverPtr;
   c_takeOverPool.getPtr(takeOverPtr, conf->userPtr);
 

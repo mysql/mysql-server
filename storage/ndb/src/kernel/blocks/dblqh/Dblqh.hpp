@@ -3484,6 +3484,8 @@ private:
 // These variables are used to store block state which do not need arrays
 // of struct's.
 // ------------------------------------------------------------------------
+  Uint32 c_lcpId_sent_last_LCP_FRAG_ORD;
+  Uint32 c_localLcpId_sent_last_LCP_FRAG_ORD;
   Uint32 c_lcpId;
   Uint32 cnoOfFragsCheckpointed;
   Uint32 c_last_force_lcp_time;

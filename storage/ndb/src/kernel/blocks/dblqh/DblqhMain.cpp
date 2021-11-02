@@ -117,8 +117,15 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_TRANSACTION_TIMEOUT 1
 //#define DEBUG_SCHEMA_VERSION 1
 #endif
-#define DEBUG_EARLY_LCP 1
 
+// #define DEB_EMPTY_LCP 1
+#ifdef DEBUG_EMPTY_LCP
+#define DEB_EMPTY_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EMPTY_LCP(arglist) do { } while (0)
+#endif
+
+// #define DEBUG_EARLY_LCP 1
 #ifdef DEBUG_EARLY_LCP
 #define DEB_EARLY_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -17492,7 +17499,7 @@ void Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
    * We are now sure that no more local LCPs can be started,
    * we still need to wait until the current one (if a current
    * one is running) is completed before we proceed with
-   * activation of the REDO logs).
+   * activation of the REDO logs.
    */
   if (!c_local_lcp_started)
   {
@@ -17530,9 +17537,10 @@ void Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
   if (!c_full_local_lcp_started)
   {
     jam();
-    signal->theData[0] = reference();
     c_local_lcp_sent_wait_all_complete_lcp_req = true;
-    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+    signal->theData[0] = reference();
+    signal->theData[1] = c_num_fragments_created_since_restart;
+    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
   }
   ndbrequire(c_localLcpId != 0 ||
              c_local_lcp_sent_wait_complete_conf);
@@ -17670,6 +17678,72 @@ void Dblqh::start_local_lcp(Signal *signal,
   }
 }
 
+/**
+ * A special case is that some LDM can be empty during a local LCP.
+ * This can occur when a node having thread_config with 1 ldm is
+ * restarted with more ldms (can occur when a node running ndbd is
+ * restarted with ndbmtd).
+ *
+ * This requires some special care since in PGMAN we track the number of
+ * LDMs that has sent SYNC_EXTENT_PAGES_REQ to the "extra" PGMAN worker
+ * that handles extent pages. Thus we cannot simply ignore the local LCPs
+ * in the empty LDMs.
+ *
+ * The empty LCP discovers that a local LCP is started by receiving the
+ * below signal START_LOCAL_LCP_ORD from NDBCNTR.
+ *
+ * We discover that we are an empty LDM through the variable
+ * c_num_fragments_created_since_restart, if this is 0 we are an empty
+ * LDM thread, meaning we have no table fragments to manage, thus for
+ * the moment we don't make any use at all. Normally this should be a
+ * temporary state since we will spread tables on all LDMs. But it could
+ * happen temporarily.
+ *
+ * Since we have no fragments to checkpoint we will immediately report back
+ * WAIT_ALL_COMPLETE_LCP_REQ giving NDBCNTR knowledge that we are an empty
+ * LDM thread. NDBCNTR uses this knowledge to ignore this signal and will
+ * not start the process of completing the local LCP. The code in DBLQH is
+ * not designed to receive a signal to complete the LCP before we have
+ * executed phase 1 of the COPY_ACTIVEREQ signals to completion.
+ *
+ * In the empty LDMs nothing more will happen until some other LDM reports
+ * that the local LCP is ready to complete. We prepare for this already
+ * here by setting c_localLcpId = 1 to indicate that a local LCP is ongoing
+ * also in the empty LDMs.
+ *
+ * We can be certain that at least 1 LDM will report the completion of the
+ * LCP since we must have at least SYSTAB_0 defined with at least 1 fragment
+ * in one of the LDM threads.
+ *
+ * This is indicated by sending WAIT_COMPLETE_LCP_REQ to all LDMs.
+ * When we receive this signal we will save the old c_lcpId in preparation
+ * for calling complete_local_lcp.
+ *
+ * Since it isn't a full local LCP we will now start the completion of the
+ * by sending LCP_FRAG_ORD with the last fragment flag set.
+ *
+ * When the empty LDM sees this it will as all other LDM threads start to
+ * interact with the Backup block by sending END_LCPREQ. This in turn will
+ * send the SYNC_EXTENT_PAGES_REQ to PGMAN and receive SYNC_EXTENT_PAGES_CONF
+ * when the synchronisation of extent pages are done. After receiving this
+ * signal the empty LDM will receive END_LCPCONF from the Backup block
+ * and this will trigger a call to complete_local_lcp since we set
+ * c_localLcpId = 1 in the below method. This method will also restore the
+ * old c_lcpId saved when receiving the WAIT_COMPLETE_LCP_REQ signal.
+ *
+ * At this point the EMPTY LDM is done with its participation in the LCP.
+ *
+ * When a distributed LCP occurs the empty LDM will not receive any
+ * LCP_FRAG_ORD other than the one with the last fragment flag. This will
+ * trigger the same interaction as above except that the completion of
+ * a distributed LCP uses the LCP_ALL_COMPLETE protocol rather than just
+ * calling complete_local_lcp. It will trigger the same execution of
+ * signals as described above for local LCPs with END_LCPREQ,
+ * SYNC_EXTENT_PAGES.., and END_LCPCONF.
+ *
+ * When starting a full local LCP we will treat it the same way in an
+ * empty LDM as other local LCPs.
+ */
 void
 Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 {
@@ -17677,7 +17751,9 @@ Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
   {
     jam();
     c_local_lcp_sent_wait_all_complete_lcp_req = true;
-    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+    signal->theData[0] = reference();
+    signal->theData[1] = 0;
+    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
     return;
   }
   Uint32 lcpId = signal->theData[0];
@@ -17691,14 +17767,15 @@ void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
   Uint32 localLcpId = signal->theData[1];
 
   c_full_local_lcp_started = true;
-  if ((c_local_lcp_started &&
-       c_localLcpId == 0) ||
-       c_num_fragments_created_since_restart == 0)
+  if (c_local_lcp_started &&
+      c_localLcpId == 0)
   {
     /**
-     * We have started a local LCP already. If we haven't
-     * already sent WAIT_ALL_COMPLETE_LCP_REQ we will send
-     * it now, if this is sent but not WAIT_COMPLETE_LCP_CONF
+     * We have started a local LCP already and also completed it.
+     * But the local LCP isn't completed in all other threads yet.
+     *
+     * If we haven't already sent WAIT_ALL_COMPLETE_LCP_REQ we will
+     * send it now, if this is sent but not WAIT_COMPLETE_LCP_CONF
      * then we will send that signal.
      */
     if (c_local_lcp_sent_wait_all_complete_lcp_req)
@@ -17723,8 +17800,21 @@ void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
     {
       jam();
       c_local_lcp_sent_wait_all_complete_lcp_req = true;
-      sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+      signal->theData[0] = reference();
+      signal->theData[1] = c_num_fragments_created_since_restart;
+      sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
     }
+    return;
+  }
+  if (c_num_fragments_created_since_restart == 0)
+  {
+    jam();
+    c_local_lcp_sent_wait_all_complete_lcp_req = true;
+    c_localLcpId = 1;
+    c_local_lcp_started = true;
+    signal->theData[0] = reference();
+    signal->theData[1] = 0;
+    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
     return;
   }
   start_local_lcp(signal, lcpId, localLcpId);
@@ -17772,9 +17862,10 @@ void Dblqh::complete_local_lcp(Signal *signal)
     if (!c_local_lcp_sent_wait_all_complete_lcp_req)
     {
       jam();
-      signal->theData[0] = reference();
       c_local_lcp_sent_wait_all_complete_lcp_req = true;
-      sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+      signal->theData[0] = reference();
+      signal->theData[1] = c_num_fragments_created_since_restart;
+      sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 2, JBB);
       return;
     }
   }
@@ -17807,28 +17898,26 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
    */
   c_local_lcp_sent_wait_complete_conf = false;
   c_local_lcp_sent_wait_all_complete_lcp_req = true;
-  if (c_num_fragments_created_since_restart > 0)
+  if (!m_node_restart_first_local_lcp_started &&
+      c_num_fragments_created_since_restart == 0)
   {
-    if (!m_node_restart_first_local_lcp_started)
-    {
-      jam();
-      c_saveLcpId = c_lcpId;
-      complete_local_lcp(signal);
-      return;
-    }
-    if (!c_full_local_lcp_started)
-    {
-      jam();
-      /**
-       * Normal path, no LCP was started due to UNDO log overload.
-       * We still started a LCP and now that all fragments have
-       * completed synchronisation we can complete the
-       * local LCP and as soon as this is done we can continue
-       * the restart processing.
-       */
-      send_lastLCP_FRAG_ORD(signal);
-      return;
-    }
+    jam();
+    c_saveLcpId = c_lcpId;
+    complete_local_lcp(signal);
+    return;
+  }
+  if (!c_full_local_lcp_started)
+  {
+    jam();
+    /**
+     * Normal path, no LCP was started due to UNDO log overload.
+     * We still started a LCP and now that all fragments have
+     * completed synchronisation we can complete the
+     * local LCP and as soon as this is done we can continue
+     * the restart processing.
+     */
+    send_lastLCP_FRAG_ORD(signal);
+    return;
   }
   if (c_localLcpId == 0)
   {
@@ -18849,19 +18938,53 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   {
     jam();
     ndbrequire(c_lcpId == lcpFragOrd->lcpId);
-    if (lcpPtr.p->lastFragmentFlag || clcpCompletedState == LCP_IDLE)
+    if (lcpPtr.p->lastFragmentFlag ||
+        (clcpCompletedState == LCP_IDLE &&
+         ((lcpFragOrd->lcpId < c_lcpId_sent_last_LCP_FRAG_ORD) ||
+          (lcpFragOrd->lcpId == c_lcpId_sent_last_LCP_FRAG_ORD &&
+           c_localLcpId == 0) ||
+          (lcpFragOrd->lcpId == c_lcpId_sent_last_LCP_FRAG_ORD &&
+           c_localLcpId != 0 &&
+           c_localLcpId <= c_localLcpId_sent_last_LCP_FRAG_ORD))))
     {
       jam();
       /**
        * Drop any message received after LCP_FRAG_ORD with last fragment
        * marker, must be ndbd we're running since Proxy should handle this.
-       * Can happen after a master takeover.
+       * Can happen after a master takeover. Can also happen with empty
+       * LDMs.
+       *
+       * If this is the first LCP_FRAG_ORD with last flag AND the LCP
+       * state is IDLE we still need to verify that this isn't an empty
+       * LCP. We do this by checking that we haven't processed this
+       * LCP id yet.
        *
        * DIH doesn't keep track of number of outstanding messages, so
        * no need to do anything when receiving multiple LCP_FRAG_ORDs
        * that are discarded.
+       *
+       * Can happen with LDM threads with no fragments to restore even for
+       * ndbmtd.
+       *
+       * If last flag is already set on LCP we will immediately drop it.
+       * If LCP state is IDLE we will drop it if either of the following
+       * statements are true.
+       *
+       * 1) LCP id is lower than that sent last or before
+       * 2) LCP id is equal to what sent before AND it is distributed LCP
+       * 3) LCP is equal to what sent before AND it is local LCP and
+       *    local LCP is lower than or equal to what sent before
        */
-      ndbrequire(!isNdbMtLqh());
+      DEB_EMPTY_LCP(("(%u) Drop LastFragment LCP_FRAG_ORD"
+                     ", flag: %u, clcpCompletedState = %u"
+                     ", sent_last_LCP_FRAG_ORD(%u,%u), LCP(%u,%u)",
+                     instance(),
+                     lcpPtr.p->lastFragmentFlag,
+                     clcpCompletedState,
+                     c_lcpId_sent_last_LCP_FRAG_ORD,
+                     c_localLcpId_sent_last_LCP_FRAG_ORD,
+                     lcpFragOrd->lcpId,
+                     c_localLcpId));
       return;
     }
   }
@@ -18870,7 +18993,13 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   {
     jam();
     lcpPtr.p->lastFragmentFlag = true;
-    DEB_LCP(("(%u)Received last fragment flag", instance()));
+    c_lcpId_sent_last_LCP_FRAG_ORD = lcpFragOrd->lcpId;
+    c_localLcpId_sent_last_LCP_FRAG_ORD = c_localLcpId;
+    DEB_LCP(("(%u)Received last fragment flag"
+             " set sent_last_LCP_FRAG_ORD to (%u,%u)",
+             instance(),
+             c_lcpId_sent_last_LCP_FRAG_ORD,
+             c_localLcpId_sent_last_LCP_FRAG_ORD));
     CRASH_INSERTION(5054);
     if (is_lcp_idle(lcpPtr.p))
     {
@@ -19897,7 +20026,7 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
     return;
   }
   startLcpFragWatchdog(signal);
-  DEB_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
+  DEB_EMPTY_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->senderData= lcpId;
