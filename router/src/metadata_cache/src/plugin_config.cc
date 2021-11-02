@@ -23,13 +23,10 @@
 */
 
 #include "plugin_config.h"
-#include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 
-#include <limits.h>
 #include <algorithm>
 #include <cerrno>
+#include <climits>
 #include <exception>
 #include <map>
 #include <stdexcept>
@@ -37,12 +34,14 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/metadata_cache.h"
+#include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 IMPORT_LOG_FUNCTIONS()
 
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
-using std::invalid_argument;
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {
@@ -139,7 +138,7 @@ MetadataCachePluginConfig::get_metadata_servers(
       try {
         add_metadata_server(address);
       } catch (const std::runtime_error &exc) {
-        throw invalid_argument(
+        throw std::invalid_argument(
             std::string("cluster-metadata-servers is incorrect (") +
             exc.what() + ")");
       }
@@ -156,8 +155,8 @@ MetadataCachePluginConfig::get_metadata_servers(
       try {
         add_metadata_server(address);
       } catch (const std::runtime_error &exc) {
-        throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
-                               exc.what() + ")");
+        throw std::invalid_argument(get_log_prefix(option) + " is incorrect (" +
+                                    exc.what() + ")");
       }
     }
   }
@@ -174,8 +173,9 @@ mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
     return mysqlrouter::ClusterType::GR_V2;
   }
 
-  throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +
-                         value + "', expected 'rs' or 'gr'");
+  throw std::invalid_argument(get_log_prefix("cluster_type") +
+                              " is incorrect '" + value +
+                              "', expected 'rs' or 'gr'");
 }
 
 std::unique_ptr<ClusterMetadataDynamicState>

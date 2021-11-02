@@ -31,8 +31,6 @@
 #include <iterator>
 #include <ostream>
 
-using std::string;
-
 namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////
@@ -52,8 +50,8 @@ Path::Path(const std::string &path)
     p = path_.find('\\');
   }
 #endif
-  string::size_type pos = path_.find_last_not_of(directory_separator);
-  if (pos != string::npos)
+  std::string::size_type pos = path_.find_last_not_of(directory_separator);
+  if (pos != std::string::npos)
     path_.erase(pos + 1);
   else if (path_.size() > 0)
     path_.erase(1);
@@ -62,7 +60,7 @@ Path::Path(const std::string &path)
 }
 
 // throws std::invalid_argument
-Path::Path(const char *path) : Path(string(path)) {}
+Path::Path(const char *path) : Path(std::string(path)) {}
 
 // throws std::invalid_argument
 void Path::validate_non_empty_path() const {
@@ -79,22 +77,22 @@ bool Path::operator<(const Path &rhs) const { return path_ < rhs.path_; }
 
 Path Path::basename() const {
   validate_non_empty_path();  // throws std::invalid_argument
-  string::size_type pos = path_.find_last_of(directory_separator);
-  if (pos == string::npos)
+  std::string::size_type pos = path_.find_last_of(directory_separator);
+  if (pos == std::string::npos)
     return *this;
   else if (pos > 1)
-    return string(path_, pos + 1);
+    return std::string(path_, pos + 1);
   else
     return Path(root_directory);
 }
 
 Path Path::dirname() const {
   validate_non_empty_path();  // throws std::invalid_argument
-  string::size_type pos = path_.find_last_of(directory_separator);
-  if (pos == string::npos)
+  std::string::size_type pos = path_.find_last_of(directory_separator);
+  if (pos == std::string::npos)
     return Path(".");
   else if (pos > 0)
-    return string(path_, 0, pos);
+    return std::string(path_, 0, pos);
   else
     return Path(root_directory);
 }
@@ -178,7 +176,7 @@ Directory::DirectoryIterator Directory::begin() {
   return DirectoryIterator(*this);
 }
 
-Directory::DirectoryIterator Directory::glob(const string &pattern) {
+Directory::DirectoryIterator Directory::glob(const std::string &pattern) {
   return DirectoryIterator(*this, pattern);
 }
 

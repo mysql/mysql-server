@@ -80,9 +80,6 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
-using mysqlrouter::URI;
-using std::string;
-
 struct Nothing {};
 
 /** @class MySQLRouting
@@ -144,9 +141,9 @@ class MySQLRouting : public MySQLRoutingBase {
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
       uint16_t port, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
-      const string &bind_address = string{"0.0.0.0"},
+      const std::string &bind_address = {"0.0.0.0"},
       const mysql_harness::Path &named_socket = mysql_harness::Path(),
-      const string &route_name = string{},
+      const std::string &route_name = {},
       int max_connections = routing::kDefaultMaxConnections,
       std::chrono::milliseconds destination_connect_timeout =
           routing::kDefaultDestinationConnectionTimeout,

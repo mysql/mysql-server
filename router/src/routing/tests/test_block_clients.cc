@@ -49,14 +49,12 @@
 
 using namespace std::chrono_literals;
 
-using mysql_harness::Path;
-using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
 
-string g_cwd;
-Path g_origin;
+std::string g_cwd;
+mysql_harness::Path g_origin;
 
 class TestBlockClients : public ConsoleOutputTest {
  protected:

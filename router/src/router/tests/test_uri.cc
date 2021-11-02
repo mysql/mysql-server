@@ -33,7 +33,6 @@ using mysqlrouter::URIAuthority;
 using mysqlrouter::URIError;
 using mysqlrouter::URIPath;
 using mysqlrouter::URIQuery;
-using std::string;
 using ::testing::StrEq;
 
 class URISimpleTests : public ::testing::Test {};

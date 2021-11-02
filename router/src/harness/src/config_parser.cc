@@ -46,8 +46,6 @@
 #include "mysql/harness/filesystem.h"
 #include "utilities.h"
 
-using std::ostringstream;
-
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::matches_glob;
 using mysql_harness::utility::strip;
@@ -101,7 +99,7 @@ void ConfigSection::update(const ConfigSection &other) {
 #endif
 
   if (other.name != name || lower(other.key) != lower(key)) {
-    ostringstream buffer;
+    std::ostringstream buffer;
     buffer << "Trying to update section " << name << ":" << key
            << " using section " << other.name << ":" << other.key;
     throw bad_section(buffer.str());
@@ -304,7 +302,7 @@ ConfigSection &Config::add(const std::string &section, const std::string &key) {
   ConfigSection cnfsec(section, key, defaults_);
   auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
   if (!result.second) {
-    ostringstream buffer;
+    std::ostringstream buffer;
     buffer << "Section '" << cnfsec.get_section_name() << "' already exists";
     throw bad_section(buffer.str());
   }
@@ -324,7 +322,7 @@ void Config::read(const Path &path) {
     new_config.do_read_file(path);  // throws std::runtime_error, syntax_error
     update(new_config);
   } else {
-    ostringstream buffer;
+    std::ostringstream buffer;
     buffer << "Path '" << path << "' ";
     if (path.type() == Path::FileType::FILE_NOT_FOUND)
       buffer << "does not exist";
@@ -360,7 +358,7 @@ void Config::read(std::istream &input) {
 void Config::do_read_file(const Path &path) {
   std::ifstream ifs(path.c_str(), std::ifstream::in);
   if (ifs.fail()) {
-    ostringstream buffer;
+    std::ostringstream buffer;
     buffer << "Unable to open file " << path << " for reading";
     throw std::runtime_error(buffer.str());
   }

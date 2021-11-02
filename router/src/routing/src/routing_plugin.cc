@@ -50,11 +50,10 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
-using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
-static const string kSectionName = "routing";
+static const std::string kSectionName = "routing";
 
 static void validate_socket_info(const std::string &err_prefix,
                                  const mysql_harness::ConfigSection *section,
@@ -247,7 +246,7 @@ static std::string get_default_ciphers() {
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
-  string name;
+  std::string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
   } else {

@@ -25,6 +25,11 @@
 #include "mysql/harness/filesystem.h"
 
 #include <direct.h>
+#include <shlwapi.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <windows.h>
+
 #include <cassert>
 #include <cerrno>
 #include <fstream>
@@ -32,15 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-#include <shlwapi.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <windows.h>
 #include <system_error>
-
-using std::ostringstream;
-using std::string;
 
 namespace {
 const std::string extsep(".");
@@ -126,7 +123,8 @@ bool Path::is_readable() const {
 class Directory::DirectoryIterator::State {
  public:
   State();
-  State(const Path &path, const string &pattern);  // throws std::system_error
+  State(const Path &path,
+        const std::string &pattern);  // throws std::system_error
   ~State();
 
   void fill_result(bool first_entry_set = false);  // throws std::system_error
@@ -147,7 +145,7 @@ class Directory::DirectoryIterator::State {
   WIN32_FIND_DATA data_;
   HANDLE handle_;
   bool more_;
-  const string pattern_;
+  const std::string pattern_;
 
  private:
   static const char *dot;
@@ -162,13 +160,13 @@ Directory::DirectoryIterator::State::State()
 
 // throws std::system_error
 Directory::DirectoryIterator::State::State(const Path &path,
-                                           const string &pattern)
+                                           const std::string &pattern)
     : handle_(INVALID_HANDLE_VALUE), more_(true), pattern_(pattern) {
   const Path r_path = path.real_path();
-  const string pat = r_path.join(pattern.size() > 0 ? pattern : "*").str();
+  const std::string pat = r_path.join(pattern.size() > 0 ? pattern : "*").str();
 
   if (pat.size() > MAX_PATH) {
-    ostringstream msg;
+    std::ostringstream msg;
     msg << "Failed to open path '" << path << "'";
     throw std::system_error(std::make_error_code(std::errc::filename_too_long),
                             msg.str());
