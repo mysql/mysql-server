@@ -120,16 +120,6 @@ INSTANTIATE_TEST_SUITE_P(Fail, SubstituteEnvVarFailTest,
 
 class StringFormatTest : public ::testing::Test {};
 
-/*
- * Tests mysqlrouter::string_format()
- */
-TEST_F(StringFormatTest, Simple) {
-  EXPECT_EQ(std::string("5 + 5 = 10"),
-            mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
-  EXPECT_EQ(std::string("Spam is 5"),
-            mysqlrouter::string_format("%s is %d", "Spam", 5));
-}
-
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

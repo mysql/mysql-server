@@ -40,6 +40,7 @@
 #include "group_replication_metadata.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
@@ -177,7 +178,7 @@ ClusterMetadata::get_and_check_metadata_schema_version(
 
   if (!metadata_schema_version_is_compatible(
           mysqlrouter::kRequiredRoutingMetadataSchemaVersion, version)) {
-    throw metadata_cache::metadata_error(mysqlrouter::string_format(
+    throw metadata_cache::metadata_error(mysql_harness::utility::string_format(
         "Unsupported metadata schema on %s. Expected Metadata Schema version "
         "compatible to %s, got %s",
         session.get_address().c_str(),

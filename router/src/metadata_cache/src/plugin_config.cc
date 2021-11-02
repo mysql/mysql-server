@@ -33,13 +33,14 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"  // ms_to_second_string
 IMPORT_LOG_FUNCTIONS()
 
+using mysql_harness::utility::string_format;
 using mysqlrouter::ms_to_seconds_string;
-using mysqlrouter::string_format;
 using mysqlrouter::to_string;
 
 std::string MetadataCachePluginConfig::get_default(

@@ -26,6 +26,7 @@
 
 #include <algorithm>  // replace
 #include <cassert>
+#include <cstdarg>
 #include <cstring>  // vsnprintf
 #include <string>
 

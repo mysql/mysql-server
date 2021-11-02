@@ -44,7 +44,7 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-#include "utilities.h"  // string_format()
+#include "mysql/harness/utility/string.h"  // string_format
 
 using mysql_harness::Path;
 

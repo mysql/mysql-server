@@ -59,8 +59,10 @@ extern "C" bool g_windows_service;
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/string_utils.h"
+#include "mysql/harness/utility/string.h"
 
 using mysql_harness::trim;
+using mysql_harness::utility::string_format;
 
 const char kValidPortChars[] = "0123456789";
 
@@ -166,22 +168,6 @@ std::string substitute_variable(const std::string &s, const std::string &name,
     return path.real_path().str();
   else
     return r;
-}
-
-std::string string_format(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  va_list args_next;
-  va_copy(args_next, args);
-
-  int size = std::vsnprintf(nullptr, 0, format, args);
-  std::vector<char> buf(static_cast<size_t>(size) + 1U);
-  va_end(args);
-
-  std::vsnprintf(buf.data(), buf.size(), format, args_next);
-  va_end(args_next);
-
-  return std::string(buf.begin(), buf.end() - 1);
 }
 
 std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {

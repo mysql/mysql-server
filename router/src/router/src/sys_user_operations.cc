@@ -35,7 +35,9 @@
 #include <unistd.h>  // getgid
 #endif
 
-#include "mysqlrouter/utils.h"  // string_format
+#include "mysql/harness/utility/string.h"  // string_format
+
+using mysql_harness::utility::string_format;
 
 namespace mysqlrouter {
 

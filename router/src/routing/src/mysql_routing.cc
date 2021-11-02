@@ -63,6 +63,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysql/harness/tls_server_context.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -74,7 +75,7 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-using mysqlrouter::string_format;
+using mysql_harness::utility::string_format;
 using routing::AccessMode;
 using routing::RoutingStrategy;
 IMPORT_LOG_FUNCTIONS()

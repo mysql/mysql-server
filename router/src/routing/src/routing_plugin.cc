@@ -36,13 +36,12 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/tls_server_context.h"
-#include "mysql/harness/utility/string.h"  // join
+#include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
-#include "mysqlrouter/utils.h"           // string_format
 #include "plugin_config.h"
 #include "ssl_mode.h"
 
@@ -147,7 +146,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         if (section->name == kSectionName) {
           io_context_work_guards.emplace_back(IoComponent::get_instance());
 
-          const auto err_prefix = mysqlrouter::string_format(
+          const auto err_prefix = mysql_harness::utility::string_format(
               "in [%s%s%s]: ", section->name.c_str(),
               section->key.empty() ? "" : ":", section->key.c_str());
           // Check the configuration

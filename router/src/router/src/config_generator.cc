@@ -427,7 +427,7 @@ void ConfigGenerator::init(
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
                                              schema_version_)) {
-    throw std::runtime_error(mysqlrouter::string_format(
+    throw std::runtime_error(mysql_harness::utility::string_format(
         "This version of MySQL Router is not compatible with the provided "
         "MySQL InnoDB cluster metadata. Expected metadata version %s, "
         "got %s",
@@ -1328,7 +1328,7 @@ void ConfigGenerator::prepare_ssl_certificate_files(
     if (!router_key_path.exists()) missing_files += tls_filenames_.router_key;
     if (!missing_files.empty()) missing_files += ", ";
     if (!router_cert_path.exists()) missing_files += tls_filenames_.router_cert;
-    throw std::runtime_error{mysqlrouter::string_format(
+    throw std::runtime_error{mysql_harness::utility::string_format(
         "Missing certificate files in %s: '%s'. Please provide them or erase "
         "the existing certificate files and re-run bootstrap.",
         datadir_path.c_str(), missing_files.c_str())};

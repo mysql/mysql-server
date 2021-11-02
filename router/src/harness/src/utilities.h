@@ -30,8 +30,6 @@
 #include <string>
 #include <vector>
 
-#include "my_compiler.h"
-
 #include "harness_export.h"
 
 namespace mysql_harness {
@@ -181,10 +179,6 @@ std::string basename(const std::string &path);
 void strip(std::string *str, const char *chars = " \t\n\r\f\v");
 HARNESS_EXPORT
 std::string strip_copy(std::string str, const char *chars = " \t\n\r\f\v");
-
-HARNESS_EXPORT
-MY_ATTRIBUTE((format(printf, 1, 2)))
-std::string string_format(const char *format, ...);
 
 bool matches_glob(const std::string &word, const std::string &pattern);
 

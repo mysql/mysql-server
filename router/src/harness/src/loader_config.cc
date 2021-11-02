@@ -31,7 +31,7 @@
 
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
-#include "utilities.h"
+#include "utilities.h"  // find_range_first
 
 using mysql_harness::utility::find_range_first;
 

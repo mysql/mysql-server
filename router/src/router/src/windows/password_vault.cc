@@ -39,7 +39,9 @@
 #include <strstream>
 #include <vector>
 
-#include "mysqlrouter/utils.h"
+#include "mysql/harness/utility/string.h"
+
+using mysql_harness::utility::string_format;
 
 PasswordVault::PasswordVault() { load_passwords(); }
 
@@ -124,9 +126,9 @@ void PasswordVault::load_passwords() {
   if (!CryptUnprotectData(&buf_encrypted, NULL, NULL, NULL, NULL, 0,
                           &buf_decrypted)) {
     DWORD code = GetLastError();
-    throw std::runtime_error(mysqlrouter::string_format(
-        "Error when decrypting the vault at '%s' with code '%lu'",
-        vault_path.c_str(), code));
+    throw std::runtime_error(
+        string_format("Error when decrypting the vault at '%s' with code '%lu'",
+                      vault_path.c_str(), code));
   }
 
   std::strstream ss(reinterpret_cast<char *>(buf_decrypted.pbData),
@@ -164,8 +166,8 @@ void PasswordVault::store_passwords() {
   if (!CryptProtectData(&buf_decrypted, NULL, NULL, NULL, NULL,
                         CRYPTPROTECT_LOCAL_MACHINE, &buf_encrypted)) {
     DWORD code = GetLastError();
-    throw std::runtime_error(mysqlrouter::string_format(
-        "Error when encrypting the vault with code '%lu'", code));
+    throw std::runtime_error(
+        string_format("Error when encrypting the vault with code '%lu'", code));
   }
 
   const std::string vault_path = get_vault_path();

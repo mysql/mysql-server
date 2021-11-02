@@ -43,8 +43,9 @@
 #include <stdexcept>
 #include <string>
 
-#include "mysql/harness/filesystem.h"
-#include "utilities.h"
+#include "mysql/harness/filesystem.h"      // Path
+#include "mysql/harness/utility/string.h"  // strip
+#include "utilities.h"                     // find_range_first
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::matches_glob;

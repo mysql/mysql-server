@@ -52,10 +52,10 @@
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
-#include "mysql/harness/utility/string.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysql/harness/vt100.h"
 #include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/utils.h"  // string_format
+#include "mysqlrouter/utils.h"  // substitute_envvar
 #include "print_version.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "welcome_copyright_notice.h"
@@ -85,8 +85,8 @@ using namespace std::string_literals;
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
+using mysql_harness::utility::string_format;
 using mysql_harness::utility::wrap_string;
-using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::SysUserOperations;
 using mysqlrouter::SysUserOperationsBase;
@@ -797,7 +797,7 @@ std::vector<std::string> MySQLRouter::check_config_files() {
   if (!res) {
     const auto err = std::move(res.error());
     if (err.ec == make_error_code(ConfigFilePathValidatorErrc::kDuplicate)) {
-      throw std::runtime_error(mysqlrouter::string_format(
+      throw std::runtime_error(string_format(
           "The configuration file '%s' is provided multiple "
           "times.\nAlready known "
           "configuration files:\n\n%s",
@@ -805,9 +805,9 @@ std::vector<std::string> MySQLRouter::check_config_files() {
           mysql_harness::join(err.paths_attempted, "\n").c_str()));
     } else if (err.ec ==
                make_error_code(ConfigFilePathValidatorErrc::kNotReadable)) {
-      throw std::runtime_error(mysqlrouter::string_format(
-          "The configuration file '%s' is not readable.",
-          err.current_filename.c_str()));
+      throw std::runtime_error(
+          string_format("The configuration file '%s' is not readable.",
+                        err.current_filename.c_str()));
     } else if (err.ec ==
                make_error_code(
                    ConfigFilePathValidatorErrc::kExtraWithoutMainConfig)) {
@@ -1783,7 +1783,7 @@ void MySQLRouter::prepare_command_options() noexcept {
       "Updates the credentials for the given section",
       CmdOptionValueReq::required, "section_name",
       [](const std::string &value) {
-        std::string prompt = mysqlrouter::string_format(
+        std::string prompt = string_format(
             "Enter password for config section '%s'", value.c_str());
         std::string pass = mysqlrouter::prompt_password(prompt);
         PasswordVault pv;

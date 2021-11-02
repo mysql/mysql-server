@@ -56,18 +56,6 @@ std::string to_string(const T &data) {
 // represent milliseconds as floating point seconds
 std::string ms_to_seconds_string(const std::chrono::milliseconds &msec);
 
-/** @brief Returns string formatted using given data
- *
- * Returns string formatted using given data accepting the same arguments
- * and format specifies as the typical printf.
- *
- * @param format specify how to format the data
- * @param ... variable argument list containing the data
- * @returns formatted text as string
- */
-MY_ATTRIBUTE((format(printf, 1, 2)))
-std::string string_format(const char *format, ...);
-
 /**
  * Validates a string containing a TCP port
  *
