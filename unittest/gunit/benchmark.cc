@@ -29,7 +29,6 @@
 #include <chrono>
 
 using std::chrono::duration;
-using std::chrono::duration_cast;
 using std::chrono::nanoseconds;
 using std::chrono::steady_clock;
 
@@ -78,16 +77,22 @@ void internal_do_microbenchmark(const char *name, void (*func)(size_t)) {
   StopBenchmarkTiming();
   double seconds_used_per_iteration = seconds_used / calibration_iterations;
 
-  // Scale so that we end up around one second per benchmark
-  // (but never less than 100).
-  size_t num_iterations =
-      std::max<size_t>(lrint(1.0 / seconds_used_per_iteration), 100);
+  size_t num_iterations;
 
-  // Do the actual run.
-  seconds_used = 0.0;
-  StartBenchmarkTiming();
-  func(num_iterations);
-  StopBenchmarkTiming();
+  // Do the actual run, unless we already took more than one second.
+  if (seconds_used < 1.0) {
+    // Scale so that we end up around one second per benchmark
+    // (but never less than 100).
+    num_iterations =
+        std::max<size_t>(lrint(1.0 / seconds_used_per_iteration), 100);
+    seconds_used = 0.0;
+    StartBenchmarkTiming();
+    func(num_iterations);
+    StopBenchmarkTiming();
+  } else {
+    // The calibration already took too long, so just reuse its results.
+    num_iterations = calibration_iterations;
+  }
 #endif
 
   printf("%-40s %10ld iterations %10.0f ns/iter", name,
