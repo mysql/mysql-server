@@ -3959,7 +3959,6 @@ TransporterRegistry::get_trps_for_node(Uint32 nodeId,
                                        Uint32 &num_ids,
                                        Uint32 max_size)
 {
-  require(nodeId > 0 && nodeId < MAX_NDB_NODES);
   Transporter *t = theNodeIdTransporters[nodeId];
   if (!t)
   {
