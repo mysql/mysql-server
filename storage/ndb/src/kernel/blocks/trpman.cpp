@@ -122,6 +122,7 @@ Trpman::execOPEN_COMORD(Signal* signal)
 
   const BlockReference userRef = signal->theData[0];
   Uint32 tStartingNode = signal->theData[1];
+  ndbrequire(tStartingNode > 0 && tStartingNode < MAX_NODES);
   Uint32 tData2 = signal->theData[2];
   jamEntry();
 
