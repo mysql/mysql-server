@@ -220,24 +220,15 @@ uint16_t get_tcp_port(const std::string &data) {
   return static_cast<uint16_t>(port);
 }
 
-std::string hexdump(const unsigned char *buffer, size_t count, long start,
-                    bool literals) {
+std::string hexdump(const unsigned char *buffer, size_t count) {
   std::ostringstream os;
 
-  using std::hex;
-  using std::setfill;
-  using std::setw;
-
   int w = 16;
-  buffer += start;
   size_t n = 0;
   for (const unsigned char *ptr = buffer; n < count; ++n, ++ptr) {
-    if (literals &&
-        ((*ptr >= 0x41 && *ptr <= 0x5a) || (*ptr >= 61 && *ptr <= 0x7a))) {
-      os << setfill(' ') << setw(2) << *ptr;
-    } else {
-      os << setfill('0') << setw(2) << hex << static_cast<int>(*ptr);
-    }
+    os << std::setfill('0') << std::setw(2) << std::hex
+       << static_cast<int>(*ptr);
+
     if (w == 1) {
       os << std::endl;
       w = 16;

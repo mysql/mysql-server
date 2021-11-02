@@ -93,12 +93,9 @@ uint16_t get_tcp_port(const std::string &data);
  *
  * @param buffer char array or front of vector<uint8_t>
  * @param count number of bytes to dump
- * @param start from where to start dumping
- * @param literals whether to show a-zA-Z as-is
  * @return string containing the dump
  */
-std::string hexdump(const unsigned char *buffer, size_t count, long start = 0,
-                    bool literals = false);
+std::string hexdump(const unsigned char *buffer, size_t count);
 
 /** @brief Returns the platform specific error code of last operation
  * Using errno in UNIX & Linux systems and GetLastError in Windows systems.
