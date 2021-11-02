@@ -663,9 +663,13 @@ class ha_warp : public handler {
 #endif
   uint32_t rownum = 0;
   uint32_t running_join_threads = 0;
-  uint32_t max_threads = 8;
+  uint32_t max_threads = 12;
   uint64_t fetch_count = 0;
   bool all_jobs_completed = false;
+  uint32_t running_dimension_merges = 0;
+  std::mutex dimension_merge_mutex;
+  bool all_dimension_merges_completed = false;
+
   //static void warp_filter_table(ibis::mensa::table* filtered_table, std::string filter_column, std::vector<std::string>* batch, std::string push_where_clause, std::vector<uint64_t> matching_rowids, std::mutex* mtx, uint64_t* thread_count);
  
   fact_table_filter fact_table_filters;
