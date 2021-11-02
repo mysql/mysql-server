@@ -199,6 +199,9 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
 
   if (likely(entry == NULL))
   {
+    if (!hostname_cache->size())
+      return;
+
     entry= (Host_entry *) malloc(sizeof (Host_entry));
     if (entry == NULL)
       return;
@@ -264,8 +267,10 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
 
   entry->m_errors.aggregate(errors);
 
-  if (need_add)
-    hostname_cache->add(entry);
+  if (need_add && hostname_cache->add(entry))
+  {
+    free(entry);
+  }
 
   return;
 }
