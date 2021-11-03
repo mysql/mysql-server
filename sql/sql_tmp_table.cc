@@ -1032,7 +1032,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         if (param->m_window == nullptr || !param->m_window->is_last())
           store_column = false;
       }
-      if (item->const_item() && hidden_field_count <= 0)
+      if (item->const_for_execution() && hidden_field_count <= 0)
         continue;  // We don't have to store this
     }
 
