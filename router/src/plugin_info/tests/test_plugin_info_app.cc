@@ -241,7 +241,7 @@ TEST_F(PluginInfoAppTest, NonExistingLibrary) {
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
                                      out_stream_);
 
-  const std::string expected_error = "Could not load plugin file: ";
+  const std::string expected_error = "Could not load plugin file ";
   EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
 
   // that nothing else is printed
