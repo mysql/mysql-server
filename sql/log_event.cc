@@ -10515,8 +10515,18 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
 
   m_data_size = Binary_log_event::TABLE_MAP_HEADER_LEN;
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_source", m_data_size = 6;);
-  m_data_size += m_dblen + 2;   // Include length and terminating \0
-  m_data_size += m_tbllen + 2;  // Include length and terminating \0
+
+  uchar dbuf[sizeof(m_dblen) + 1];
+  uchar tbuf[sizeof(m_tbllen) + 1];
+  uchar *const dbuf_end = net_store_length(dbuf, (size_t)m_dblen);
+  assert(static_cast<size_t>(dbuf_end - dbuf) <= sizeof(dbuf));
+  uchar *const tbuf_end = net_store_length(tbuf, (size_t)m_tbllen);
+  assert(static_cast<size_t>(tbuf_end - tbuf) <= sizeof(tbuf));
+
+  m_data_size +=
+      m_dblen + 1 + (dbuf_end - dbuf);  // Include length and terminating \0
+  m_data_size +=
+      m_tbllen + 1 + (tbuf_end - tbuf);  // Include length and terminating \0
   cbuf_end = net_store_length(cbuf, (size_t)m_colcnt);
   assert(static_cast<size_t>(cbuf_end - cbuf) <= sizeof(cbuf));
   m_data_size += (cbuf_end - cbuf) + m_colcnt;  // COLCNT and column types
@@ -10885,12 +10895,14 @@ bool Table_map_log_event::write_data_header(Basic_ostream *ostream) {
 bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
   assert(!m_dbnam.empty());
   assert(!m_tblnam.empty());
-  /* We use only one byte per length for storage in event: */
-  assert(m_dblen <= 128);
-  assert(m_tbllen <= 128);
 
-  uchar const dbuf[] = {(uchar)m_dblen};
-  uchar const tbuf[] = {(uchar)m_tbllen};
+  uchar dbuf[sizeof(m_dblen) + 1];
+  uchar *const dbuf_end = net_store_length(dbuf, (size_t)m_dblen);
+  assert(static_cast<size_t>(dbuf_end - dbuf) <= sizeof(dbuf));
+
+  uchar tbuf[sizeof(m_tbllen) + 1];
+  uchar *const tbuf_end = net_store_length(tbuf, (size_t)m_tbllen);
+  assert(static_cast<size_t>(tbuf_end - tbuf) <= sizeof(tbuf));
 
   uchar cbuf[sizeof(m_colcnt) + 1];
   uchar *const cbuf_end = net_store_length(cbuf, (size_t)m_colcnt);
@@ -10902,10 +10914,10 @@ bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
   uchar mbuf[2 * sizeof(m_field_metadata_size)];
   uchar *const mbuf_end = net_store_length(mbuf, m_field_metadata_size);
 
-  return (wrapper_my_b_safe_write(ostream, dbuf, sizeof(dbuf)) ||
+  return (wrapper_my_b_safe_write(ostream, dbuf, (size_t)(dbuf_end - dbuf)) ||
           wrapper_my_b_safe_write(ostream, (const uchar *)m_dbnam.c_str(),
                                   m_dblen + 1) ||
-          wrapper_my_b_safe_write(ostream, tbuf, sizeof(tbuf)) ||
+          wrapper_my_b_safe_write(ostream, tbuf, (size_t)(tbuf_end - tbuf)) ||
           wrapper_my_b_safe_write(ostream, (const uchar *)m_tblnam.c_str(),
                                   m_tbllen + 1) ||
           wrapper_my_b_safe_write(ostream, cbuf, (size_t)(cbuf_end - cbuf)) ||
