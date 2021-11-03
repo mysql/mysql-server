@@ -3328,42 +3328,42 @@ ISNULL(d)
 from table_24532;
 describe view_24532_a;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int unsigned	NO		0	
-a IS NOT TRUE	int unsigned	NO		0	
-a IS FALSE	int unsigned	NO		0	
-a IS NOT FALSE	int unsigned	NO		0	
-a IS UNKNOWN	int unsigned	NO		0	
-a IS NOT UNKNOWN	int unsigned	NO		0	
-a is NULL	int unsigned	NO		0	
-a IS NOT NULL	int unsigned	NO		0	
-ISNULL(a)	int unsigned	NO		0	
-b IS TRUE	int unsigned	NO		0	
-b IS NOT TRUE	int unsigned	NO		0	
-b IS FALSE	int unsigned	NO		0	
-b IS NOT FALSE	int unsigned	NO		0	
-b IS UNKNOWN	int unsigned	NO		0	
-b IS NOT UNKNOWN	int unsigned	NO		0	
-b is NULL	int unsigned	NO		0	
-b IS NOT NULL	int unsigned	NO		0	
-ISNULL(b)	int unsigned	NO		0	
-c IS TRUE	int unsigned	NO		0	
-c IS NOT TRUE	int unsigned	NO		0	
-c IS FALSE	int unsigned	NO		0	
-c IS NOT FALSE	int unsigned	NO		0	
-c IS UNKNOWN	int unsigned	NO		0	
-c IS NOT UNKNOWN	int unsigned	NO		0	
-c is NULL	int unsigned	NO		0	
-c IS NOT NULL	int unsigned	NO		0	
-ISNULL(c)	int unsigned	NO		0	
-d IS TRUE	int unsigned	NO		0	
-d IS NOT TRUE	int unsigned	NO		0	
-d IS FALSE	int unsigned	NO		0	
-d IS NOT FALSE	int unsigned	NO		0	
-d IS UNKNOWN	int unsigned	NO		0	
-d IS NOT UNKNOWN	int unsigned	NO		0	
-d is NULL	int unsigned	NO		0	
-d IS NOT NULL	int unsigned	NO		0	
-ISNULL(d)	int unsigned	NO		0	
+a IS TRUE	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+a IS FALSE	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+a IS UNKNOWN	int	NO		0	
+a IS NOT UNKNOWN	int	NO		0	
+a is NULL	int	NO		0	
+a IS NOT NULL	int	NO		0	
+ISNULL(a)	int	NO		0	
+b IS TRUE	int	NO		0	
+b IS NOT TRUE	int	NO		0	
+b IS FALSE	int	NO		0	
+b IS NOT FALSE	int	NO		0	
+b IS UNKNOWN	int	NO		0	
+b IS NOT UNKNOWN	int	NO		0	
+b is NULL	int	NO		0	
+b IS NOT NULL	int	NO		0	
+ISNULL(b)	int	NO		0	
+c IS TRUE	int	NO		0	
+c IS NOT TRUE	int	NO		0	
+c IS FALSE	int	NO		0	
+c IS NOT FALSE	int	NO		0	
+c IS UNKNOWN	int	NO		0	
+c IS NOT UNKNOWN	int	NO		0	
+c is NULL	int	NO		0	
+c IS NOT NULL	int	NO		0	
+ISNULL(c)	int	NO		0	
+d IS TRUE	int	NO		0	
+d IS NOT TRUE	int	NO		0	
+d IS FALSE	int	NO		0	
+d IS NOT FALSE	int	NO		0	
+d IS UNKNOWN	int	NO		0	
+d IS NOT UNKNOWN	int	NO		0	
+d is NULL	int	NO		0	
+d IS NOT NULL	int	NO		0	
+ISNULL(d)	int	NO		0	
 create view view_24532_b as
 select
 a IS TRUE,
@@ -3377,13 +3377,13 @@ if(ifnull(a, 1), 1, 0) as old_isnotfalse
 from table_24532;
 describe view_24532_b;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int unsigned	NO		0	
+a IS TRUE	int	NO		0	
 old_istrue	int	NO		0	
-a IS NOT TRUE	int unsigned	NO		0	
+a IS NOT TRUE	int	NO		0	
 old_isnottrue	int	NO		0	
-a IS FALSE	int unsigned	NO		0	
+a IS FALSE	int	NO		0	
 old_isfalse	int	NO		0	
-a IS NOT FALSE	int unsigned	NO		0	
+a IS NOT FALSE	int	NO		0	
 old_isnotfalse	int	NO		0	
 show create view view_24532_b;
 View	Create View	character_set_client	collation_connection

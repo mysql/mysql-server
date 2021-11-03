@@ -1334,7 +1334,6 @@ class Item : public Parse_tree_node {
     set_data_type(MYSQL_TYPE_LONGLONG);
     collation.set_numeric();
     max_length = 1;
-    unsigned_flag = true;
   }
 
   /**
