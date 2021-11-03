@@ -59,6 +59,7 @@
 #include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
 #include "test/temp_directory.h"
@@ -87,7 +88,7 @@ Path get_cmake_source_dir() {
 
   if (env_value == nullptr) {
     // try a few places
-    result = Path(get_cwd()).join("..");
+    result = Path(stdx::filesystem::current_path().native()).join("..");
     result = Path(result).real_path();
   } else {
     result = Path(env_value).real_path();
