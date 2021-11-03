@@ -81,14 +81,6 @@ class MockSysUserOperations : public SysUserOperationsBase {
 
 #endif  // #ifndef _WIN32
 
-const std::string get_cwd() {
-  char buffer[FILENAME_MAX];
-  if (!getcwd(buffer, FILENAME_MAX)) {
-    throw std::runtime_error("getcwd failed: " + string(strerror(errno)));
-  }
-  return buffer;
-}
-
 Path g_origin;
 
 class AppTest : public ::testing::Test {
