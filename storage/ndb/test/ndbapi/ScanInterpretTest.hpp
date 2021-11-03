@@ -343,12 +343,8 @@ ScanInterpretTest::scanReadVerify(Ndb* pNdb,
     
     
     pOp = pTrans->getNdbScanOperation(tab.getName());	
-    if (pOp == NULL) {  if (pOp->getValue("KOL2") == 0){
-    NDB_ERR(pNdb->getNdbError());
-    return NDBT_FAILED;
-  }
-  
-
+    if (pOp == NULL || pOp->getValue("KOL2") == NULL)
+    {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return NDBT_FAILED;
