@@ -4412,6 +4412,7 @@ Suma::execTRANSID_AI(Signal* signal)
     SegmentedSectionPtr dataPtr;
     handle.getSection(dataPtr, 0);
     length = dataPtr.sz;
+    ndbrequire(length <= (NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength));
     copy(data->attrData, dataPtr);
     releaseSections(handle);
   }
@@ -4426,8 +4427,10 @@ Suma::execTRANSID_AI(Signal* signal)
   
   const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
   for(Uint32 i = 0; i<attribs; i++){
+    ndbrequire(src < end);
     Uint32 tmp = * src++;
     Uint32 len = AttributeHeader::getDataSize(tmp);
+    ndbrequire((src + len) <= end);
     
     /**
      * Separate AttributeHeaders and data in separate
