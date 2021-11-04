@@ -121,7 +121,6 @@ static constexpr unsigned kMaxPasswordRetries = 10000;
 
 using mysql_harness::DIM;
 using mysql_harness::get_from_map;
-using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
 using namespace mysqlrouter;
@@ -565,8 +564,6 @@ void ConfigGenerator::bootstrap_system_deployment(
     if (!rename_res) {
       auto ec = rename_res.error();
 
-      // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-      //  config_file_path.c_str(), get_strerror(errno));
       throw std::system_error(
           ec, "Could not save " + file_desc + " file to final location");
     }
@@ -632,12 +629,13 @@ void ConfigGenerator::bootstrap_directory_deployment(
   if (!path.exists()) {
     int err = mysql_harness::mkdir(directory, kStrictDirectoryPerm);
     if (err != 0) {
+      auto ec = std::error_code{err, std::generic_category()};
       log_error("Cannot create directory '%s': %s",
-                truncate_string(directory).c_str(), get_strerror(err).c_str());
+                truncate_string(directory).c_str(), ec.message().c_str());
 #ifndef _WIN32
       if (err == EACCES || err == EPERM) log_error(kAppArmorMsg);
 #endif
-      throw std::runtime_error("Could not create deployment directory");
+      throw std::system_error(ec, "Could not create deployment directory");
     }
     auto_clean.add_directory_delete(directory, true);
   }
@@ -701,12 +699,14 @@ void ConfigGenerator::bootstrap_directory_deployment(
       int res =
           mysql_harness::mkdir(options[option_name], kStrictDirectoryPerm);
       if (res != 0) {
+        std::error_code ec{res, std::generic_category()};
         if (res != EEXIST) {
           log_error("Cannot create directory '%s': %s",
                     truncate_string(options[option_name]).c_str(),
-                    get_strerror(errno).c_str());
-          throw std::runtime_error("Could not create " + option_name +
-                                   " directory: " + options[option_name]);
+                    ec.message().c_str());
+          throw std::system_error(ec,
+                                  "Could not create " + option_name +
+                                      " directory: " + options[option_name]);
         }
       } else {
         auto_clean.add_directory_delete(options[option_name]);
@@ -771,8 +771,6 @@ void ConfigGenerator::bootstrap_directory_deployment(
     if (!rename_res) {
       const auto ec = rename_res.error();
 
-      // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
-      //  config_file_path.c_str(), get_strerror(errno));
       throw std::system_error(ec, "Could not move configuration file '" +
                                       config_file_name +
                                       ".tmp' to final location");
@@ -824,10 +822,10 @@ void ConfigGenerator::bootstrap_directory_deployment(
     set_user(orig_user_name);
 
     if (!user_has_access) {
-      throw std::runtime_error("Could not access the config file as user '" +
-                               user_name +
-                               "' after the bootstrap in the directory " +
-                               directory + " : " + get_strerror(errno));
+      std::error_code ec{errno, std::generic_category()};
+      throw std::system_error(
+          ec, "Could not access the config file as user '" + user_name +
+                  "' after the bootstrap in the directory " + directory);
     }
   }
 #endif
@@ -3235,8 +3233,10 @@ void ConfigGenerator::set_script_permissions(
   UNREFERENCED_PARAMETER(options);
 #else
   if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
+    std::error_code ec{errno, std::generic_category()};
+
     std::cerr << "Could not change permissions for " << script_path << ": "
-              << get_strerror(errno) << "\n";
+              << ec.message() << "\n";
   }
   set_file_owner(options, script_path);
 #endif
@@ -3254,8 +3254,9 @@ void ConfigGenerator::create_start_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "$env:path += \";" << find_plugin_path() << "\"" << std::endl;
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
@@ -3273,8 +3274,9 @@ void ConfigGenerator::create_start_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "#!/bin/bash\n";
   script << "basedir=" << directory << "\n";
@@ -3343,8 +3345,9 @@ void ConfigGenerator::create_stop_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", "
             "\"Process\")"
@@ -3366,8 +3369,9 @@ void ConfigGenerator::create_stop_script(
 
   script.open(script_path);
   if (script.fail()) {
-    throw std::runtime_error("Could not open " + script_path +
-                             " for writing: " + get_strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec,
+                            "Could not open " + script_path + " for writing");
   }
   script << "#!/bin/bash\n";
   script << "if [ -f " + directory + "/mysqlrouter.pid ]; then\n";

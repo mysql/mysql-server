@@ -132,7 +132,7 @@ bool init_keyring(const std::string &keyring_file_path,
   errno = 0;
   try {
     mkf.load();
-  } catch (std::exception &) {
+  } catch (const std::exception &) {
     if (errno == ENOENT && create_if_needed) {
       // ignore the error and proceed to create the file
     } else
@@ -150,9 +150,9 @@ bool init_keyring(const std::string &keyring_file_path,
     flush_keyring();
     try {
       mkf.save();
-    } catch (...) {
-      throw std::runtime_error("Unable to save master key to " +
-                               master_key_path + ": " + get_strerror(errno));
+    } catch (const std::system_error &e) {
+      throw std::system_error(
+          e.code(), "Unable to save master key to " + master_key_path);
     }
   }
   return existed;
