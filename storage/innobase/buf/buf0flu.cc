@@ -2806,7 +2806,7 @@ static ulint pc_sleep_if_needed(
 
   if (next_loop_time > cur_time) {
     auto sleep_time = next_loop_time - cur_time;
-    if (sleep_time < std::chrono::seconds{1}) {
+    if (sleep_time > std::chrono::seconds{1}) {
       sleep_time = std::chrono::seconds{1};
     }
 
