@@ -4811,14 +4811,17 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, 0); // Keys
-    Uint32 sz = ptr.sz;
+    const Uint32 sz = ptr.sz;
+    ndbrequire(sz <= SUMA_BUF_SZ);
     copy(f_buffer, ptr);
 
     handle.getSection(ptr, 2); // After values
+    ndbrequire(ptr.sz <= (SUMA_BUF_SZ - sz));
     copy(f_buffer + sz, ptr);
     f_trigBufferSize = sz + ptr.sz;
 
     handle.getSection(ptr, 1); // Before values
+    ndbrequire(ptr.sz <= SUMA_BUF_SZ);
     copy(b_buffer, ptr);
     b_trigBufferSize = ptr.sz;
     releaseSections(handle);
