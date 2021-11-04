@@ -40,7 +40,7 @@
 #include <sys/types.h>  // timeval
 
 // Harness interface include files
-#include "common.h"  // rename_thread()
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -50,7 +50,7 @@
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"
-#include "scope_guard.h"  // rename_thread()
+#include "scope_guard.h"
 
 #include "http_auth.h"
 #include "http_server_plugin.h"
@@ -355,7 +355,7 @@ void HttpServer::start(size_t max_threads) {
     auto &thr = thread_contexts_[ndx];
 
     sys_threads_.emplace_back([&]() {
-      mysql_harness::rename_thread("HttpSrv Worker");
+      my_thread_self_setname("HttpSrv Worker");
 
       thr.set_request_router(request_router_);
       thr.accept_socket();
@@ -403,7 +403,7 @@ void HttpsServer::start(size_t max_threads) {
     auto &thr = thread_contexts_[ndx];
 
     sys_threads_.emplace_back([&]() {
-      mysql_harness::rename_thread("HttpSrv Worker");
+      my_thread_self_setname("HttpSrv Worker");
 
       thr.set_request_router(request_router_);
       thr.accept_socket();
@@ -642,7 +642,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   // - important log messages
   // - mismatch between group-membership and metadata
 
-  mysql_harness::rename_thread("HttpSrv Main");
+  my_thread_self_setname("HttpSrv Main");
 
   try {
     auto srv = http_servers.at(get_config_section(env)->name);

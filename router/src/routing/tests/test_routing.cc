@@ -30,8 +30,8 @@
 #include <gtest/gtest.h>
 #include <gtest/gtest_prod.h>  // FRIEND_TEST
 
-#include "common.h"  // rename_thread
 #include "context.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/loader.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/impl/poll.h"
@@ -149,7 +149,7 @@ class MockServer {
   void stop_after_n_accepts(int c) { max_expected_accepts_ = c; }
 
   void runloop() {
-    mysql_harness::rename_thread("Mock::runloop");
+    my_thread_self_setname("Mock::runloop");
     std::vector<std::thread> client_threads;
 
     while (!stop_ && (max_expected_accepts_ == 0 ||
@@ -188,7 +188,7 @@ class MockServer {
             : self_{self}, sock_client_{std::move(sock_client)} {}
 
         void operator()() {
-          mysql_harness::rename_thread("new_client()");
+          my_thread_self_setname("new_client()");
           self_->num_connections_++;
 
           do {
@@ -378,7 +378,7 @@ static bool call_until(std::function<bool()> f, int timeout = 2) {
 // Bug#24841281 NOT ABLE TO CONNECT ANY CLIENTS WHEN ROUTER IS CONFIGURED WITH
 // SOCKETS OPTION
 TEST_F(RoutingTests, bug_24841281) {
-  mysql_harness::rename_thread("TEST_F()");
+  my_thread_self_setname("TEST_F()");
 
   TcpPortPool port_pool_;
 

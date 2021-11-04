@@ -33,10 +33,10 @@
 #include <string>
 #include <thread>
 
-#include "common.h"  // rename_thread
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
@@ -180,7 +180,7 @@ class MetadataServersStateListener
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::rename_thread("MDC Main");
+  my_thread_self_setname("MDC Main");
 
   mysqlrouter::MySQLClientThreadToken api_token;
 

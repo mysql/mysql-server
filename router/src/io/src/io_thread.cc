@@ -26,7 +26,7 @@
 
 #include <string>
 
-#include "common.h"  // mysqlrouter::rename_thread
+#include "my_thread.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/thread_affinity.h"
 
@@ -48,6 +48,6 @@ void IoThread::operator()() {
   // ensure the .run() doesn't exit by itself as it has no more work
   auto work_guard = net::make_work_guard(io_ctx_);
 
-  mysql_harness::rename_thread(("io-"s + std::to_string(ndx_)).c_str());
+  my_thread_self_setname(("io-"s + std::to_string(ndx_)).c_str());
   io_ctx_.run();
 }

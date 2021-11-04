@@ -41,7 +41,6 @@
 #include <sys/stat.h>  // chmod
 #endif
 
-#include "common.h"  // rename_thread
 #include "connection.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
@@ -49,6 +48,7 @@
 #include "dest_round_robin.h"
 #include "destination_ssl_context.h"
 #include "hostname_validator.h"
+#include "my_thread.h"                 // my_thread_self_setname
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -152,9 +152,8 @@ MySQLRouting::MySQLRouting(
 }
 
 void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::rename_thread(
-      get_routing_thread_name(context_.get_name(), "RtM")
-          .c_str());  // "Rt main" would be too long :(
+  my_thread_self_setname(get_routing_thread_name(context_.get_name(), "RtM")
+                             .c_str());  // "Rt main" would be too long :(
   if (context_.get_bind_address().port() > 0) {
     // routing strategy and mode are mutually-exclusive (mode is legacy)
     if (routing_strategy_ != RoutingStrategy::kUndefined)

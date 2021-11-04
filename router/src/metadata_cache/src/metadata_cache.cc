@@ -30,7 +30,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "common.h"  // rename_thread
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -82,7 +82,7 @@ void *MetadataCache::run_thread(void *context) {
 }
 
 void MetadataCache::refresh_thread() {
-  mysql_harness::rename_thread("MDC Refresh");
+  my_thread_self_setname("MDC Refresh");
   log_info("Starting metadata cache refresh thread");
 
   // this will be only useful if the TTL is set to some value that is more than

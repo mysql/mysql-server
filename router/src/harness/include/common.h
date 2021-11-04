@@ -40,12 +40,6 @@
 
 namespace mysql_harness {
 
-/** @brief Rename a thread (useful for debugging purposes).
- *
- * @param thread_name thread name, 15 chars max
- */
-void HARNESS_EXPORT rename_thread(const char thread_name[16]);
-
 /** @brief Return a truncated version of input string (fast version)
  *
  * WARNING!

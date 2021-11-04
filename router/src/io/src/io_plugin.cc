@@ -40,7 +40,7 @@
 #include <thread>
 
 // Harness interface include files
-#include "common.h"  // rename_thread
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -181,7 +181,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 }
 
 static void run(mysql_harness::PluginFuncEnv * /* env */) {
-  mysql_harness::rename_thread("io_main");
+  my_thread_self_setname("io_main");
   // run events in the mainloop until the app signals a shutdown
   IoComponent::get_instance().run();
 }

@@ -29,7 +29,7 @@
 #include <system_error>
 #include <thread>
 
-#include "common.h"  // rename_thread()
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -205,7 +205,7 @@ void GRNotificationListener::Impl::listener_thread_func() {
   size_t sessions_qty{0};
   std::unique_ptr<pollfd[]> fds;
 
-  mysql_harness::rename_thread("GR Notify");
+  my_thread_self_setname("GR Notify");
 
   while (!terminate) {
     // first check if the set of fds did not change and we shouldn't reconfigure

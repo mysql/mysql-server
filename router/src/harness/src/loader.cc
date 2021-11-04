@@ -51,12 +51,12 @@
 ////////////////////////////////////////
 // Package include files
 #include "builtin_plugins.h"
-#include "common.h"  // mysql_harness::rename_thread()
 #include "designator.h"
 #include "dim.h"
 #include "exception.h"
 #include "harness_assert.h"
 #include "my_stacktrace.h"
+#include "my_thread.h"  // my_thread_self_setname
 #include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -495,7 +495,7 @@ void Loader::spawn_signal_handler_thread() {
 #ifdef USE_POSIX_SIGNALS
   std::promise<void> signal_handler_thread_setup_done;
   signal_thread_ = std::thread([this] {
-    mysql_harness::rename_thread("sig handler");
+    my_thread_self_setname("sig handler");
 
     sigset_t ss;
     sigemptyset(&ss);
