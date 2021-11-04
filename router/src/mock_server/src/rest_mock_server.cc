@@ -45,9 +45,9 @@
 
 #include "mysqlrouter/plugin_config.h"
 
-#include "common.h"  // ScopeGuard
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/mock_server_component.h"
+#include "scope_guard.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -302,12 +302,12 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 
   srv.add_route(kRestGlobalsUri,
                 std::make_unique<RestApiV1MockServerGlobals>());
-  mysql_harness::ScopeGuard global_route_guard(
+  Scope_guard global_route_guard(
       [&srv]() { srv.remove_route(kRestGlobalsUri); });
 
   srv.add_route(kRestConnectionsUri,
                 std::make_unique<RestApiV1MockServerConnections>());
-  mysql_harness::ScopeGuard connection_route_guard(
+  Scope_guard connection_route_guard(
       [&srv]() { srv.remove_route(kRestConnectionsUri); });
 
   mysql_harness::on_service_ready(env);

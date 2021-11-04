@@ -50,6 +50,7 @@
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"
+#include "scope_guard.h"  // rename_thread()
 
 #include "http_auth.h"
 #include "http_server_plugin.h"
@@ -572,8 +573,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       has_started = true;
 
       Event::initialize_threads();
-      mysql_harness::ScopeGuard initialization_finished(
-          []() { Event::shutdown(); });
+      Scope_guard initialization_finished([]() { Event::shutdown(); });
 
       HttpServerPluginConfig config{section};
 
@@ -608,7 +608,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                                config.static_basedir, config.require_realm));
       }
 
-      initialization_finished.dismiss();
+      initialization_finished.commit();
     }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());

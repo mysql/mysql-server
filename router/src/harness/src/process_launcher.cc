@@ -47,6 +47,8 @@
 #include <unistd.h>
 #endif
 
+#include "scope_guard.h"
+
 using namespace std::chrono_literals;
 using namespace std::string_literals;
 
@@ -239,7 +241,7 @@ void ProcessLauncher::start() {
         last_error_code(),
         "Failed to HeapAlloc() when launchin a process " + arguments);
   }
-  mysql_harness::ScopeGuard clean_attribute_list_guard(
+  Scope_guard clean_attribute_list_guard(
       [&]() { DeleteProcThreadAttributeList(attribute_list); });
 
   if (InitializeProcThreadAttributeList(attribute_list, 1, 0, &size) == FALSE) {

@@ -41,7 +41,7 @@
 #include <sys/stat.h>  // chmod
 #endif
 
-#include "common.h"  // rename_thread, ScopeGuard
+#include "common.h"  // rename_thread
 #include "connection.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
@@ -73,6 +73,7 @@
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
+#include "scope_guard.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
@@ -1160,8 +1161,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 
   // make sure to stop the acceptors in case of possible exceptions, otherwise
   // we can deadlock the process
-  mysql_harness::ScopeGuard stop_acceptors_guard(
-      [&]() { stop_socket_acceptors(env); });
+  Scope_guard stop_acceptors_guard([&]() { stop_socket_acceptors(env); });
 
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
@@ -1233,7 +1233,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   routing_stopped_ = true;
   clear_shared_quarantine();
 
-  stop_acceptors_guard.dismiss();
+  stop_acceptors_guard.commit();
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors(env);
 

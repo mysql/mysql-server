@@ -50,6 +50,7 @@
 #include "mysqlrouter/io_backend.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing.h"
+#include "scope_guard.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"  // init_test_logger
 #include "test/temp_directory.h"
@@ -456,7 +457,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   std::thread thd(&MySQLRouting::start, &routing, &env);
 
-  mysql_harness::ScopeGuard guard([&]() {
+  Scope_guard guard([&]() {
     env.clear_running();  // shut down MySQLRouting
     routing.stop_socket_acceptors(&env);
     server.stop();
