@@ -4604,6 +4604,7 @@ Suma::execTRANSID_AI(Signal* signal)
     SegmentedSectionPtr dataPtr;
     handle.getSection(dataPtr, 0);
     length = dataPtr.sz;
+    ndbrequire(length <= (NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength));
     copy(data->attrData, dataPtr);
     releaseSections(handle);
   }
@@ -4618,8 +4619,10 @@ Suma::execTRANSID_AI(Signal* signal)
   
   const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
   for(Uint32 i = 0; i<attribs; i++){
+    ndbrequire(src < end);
     Uint32 tmp = * src++;
     Uint32 len = AttributeHeader::getDataSize(tmp);
+    ndbrequire((src + len) <= end);
     
     /**
      * Separate AttributeHeaders and data in separate
@@ -5060,18 +5063,21 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, 0); // Keys
-    Uint32 sz = ptr.sz;
+    const Uint32 sz = ptr.sz;
+    ndbrequire(sz <= SUMA_BUF_SZ);
     copy(f_buffer, ptr);
     lsptr[0].sz = ptr.sz;
     lsptr[0].p = f_buffer;
 
     handle.getSection(ptr, 2); // After values
+    ndbrequire(ptr.sz <= (SUMA_BUF_SZ - sz));
     copy(f_buffer + sz, ptr);
     f_trigBufferSize = sz + ptr.sz;
     lsptr[2].sz = ptr.sz;
     lsptr[2].p = f_buffer + sz;
 
     handle.getSection(ptr, 1); // Before values
+    ndbrequire(ptr.sz <= SUMA_BUF_SZ);
     copy(b_buffer, ptr);
     b_trigBufferSize = ptr.sz;
     lsptr[1].sz = ptr.sz;
