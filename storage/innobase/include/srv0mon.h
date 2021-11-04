@@ -660,10 +660,9 @@ counter, and set the MONITOR_STATUS. */
   }
 
 #ifdef UNIV_DEBUG_VALGRIND
-#define MONITOR_CHECK_DEFINED(value)  \
-  do {                                \
-    mon_type_t m = value;             \
-    UNIV_MEM_ASSERT_RW(&m, sizeof m); \
+#define MONITOR_CHECK_DEFINED(value)          \
+  do {                                        \
+    UNIV_MEM_ASSERT_RW(&value, sizeof value); \
   } while (0)
 #else /* UNIV_DEBUG_VALGRIND */
 #define MONITOR_CHECK_DEFINED(value) (void)0

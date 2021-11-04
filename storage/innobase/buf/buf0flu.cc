@@ -2941,7 +2941,7 @@ Do flush for one slot.
 @return	the number of the slots which has not been treated yet. */
 static ulint pc_flush_slot(void) {
   std::chrono::steady_clock::duration lru_time;
-  std::chrono::steady_clock::duration flush_list_time;
+  std::chrono::steady_clock::duration flush_list_time{};
   int lru_pass = 0;
   int list_pass = 0;
 
