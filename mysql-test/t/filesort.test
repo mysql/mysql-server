@@ -189,3 +189,24 @@ SELECT
   LIMIT 1
 );
 DROP TABLE t;
+
+--echo #
+--echo # Bug #32738705: "OUT OF SORT MEMORY ERROR" HAS AN INCONSISTENT RELATIONSHIP WITH THE BUFFER SIZE
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b TEXT );
+INSERT INTO t1 VALUES (1, REPEAT('x', 40001));
+INSERT INTO t1 VALUES (2, REPEAT('x', 40002));
+INSERT INTO t1 VALUES (3, REPEAT('x', 40003));
+INSERT INTO t1 VALUES (4, REPEAT('x', 40005));
+INSERT INTO t1 VALUES (5, REPEAT('x', 40008));
+INSERT INTO t1 VALUES (6, REPEAT('x', 40013));
+
+# Set up a sort with large addons (since b is TEXT and not HUGETEXT,
+# it's treated as a packed addon). We can keep one row and then some
+# in the sort buffer, but not two, so we need special handling during merging.
+SET sort_buffer_size=65536;
+SELECT a, LENGTH(b) FROM t1 ORDER BY a DESC;
+SET sort_buffer_size=DEFAULT;
+
+DROP TABLE t1;
