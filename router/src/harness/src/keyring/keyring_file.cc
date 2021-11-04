@@ -30,14 +30,7 @@
 #include <stdexcept>
 #include <system_error>
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
-
-#ifdef _WIN32
-#include <aclapi.h>
-#else
-#include <sys/stat.h>
-#endif
 
 const std::array<char, 4> kKeyringFileSignature = {'M', 'R', 'K', 'R'};
 

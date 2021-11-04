@@ -51,7 +51,7 @@
 #include <rapidjson/rapidjson.h>
 
 #include "certificate_handler.h"
-#include "common.h"
+#include "common.h"  // truncate_string
 #include "config_builder.h"
 #include "dim.h"
 #include "harness_assert.h"

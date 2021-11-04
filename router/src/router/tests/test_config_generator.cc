@@ -42,7 +42,7 @@
 #include <mysql.h>
 
 #include "cluster_metadata.h"
-#include "common.h"
+#include "common.h"  // list_elements
 #include "config_generator.h"
 #include "dim.h"
 #include "gtest_consoleoutput.h"

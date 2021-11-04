@@ -28,7 +28,6 @@
 #include <memory>
 #include <mutex>
 
-#include "common.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysqlrouter/routing.h"

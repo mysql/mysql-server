@@ -30,7 +30,7 @@
 #include <gtest/gtest.h>
 #include <gtest/gtest_prod.h>  // FRIEND_TEST
 
-#include "common.h"
+#include "common.h"  // rename_thread
 #include "context.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/net_ts/buffer.h"

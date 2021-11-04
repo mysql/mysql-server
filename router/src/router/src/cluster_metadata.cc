@@ -27,7 +27,7 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "common.h"
+#include "common.h"  // get_from_map
 #include "harness_assert.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"

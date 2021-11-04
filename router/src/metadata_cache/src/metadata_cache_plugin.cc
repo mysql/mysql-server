@@ -33,7 +33,7 @@
 #include <string>
 #include <thread>
 
-#include "common.h"
+#include "common.h"  // rename_thread
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "metadata_cache.h"

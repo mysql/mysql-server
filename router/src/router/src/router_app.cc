@@ -40,7 +40,7 @@
 #include <system_error>
 #include <vector>
 
-#include "common.h"
+#include "common.h"  // truncate_string
 #include "config_files.h"
 #include "config_generator.h"
 #include "dim.h"

@@ -71,10 +71,11 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include <mysql.h>
 #include <iostream>
 #include <stdexcept>
-#include "common.h"
+
+#include <mysql.h>
+
 #include "dim.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"

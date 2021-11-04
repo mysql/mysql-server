@@ -22,12 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gmock/gmock.h>
-
 #include <fstream>
 #include <sstream>
 
-#include "common.h"
+#include <gmock/gmock.h>
+
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/filesystem.h"
 #include "router_test_helpers.h"

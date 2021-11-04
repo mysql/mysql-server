@@ -29,9 +29,8 @@
 #include <sstream>
 #include <vector>
 
-#include "common.h"  // make_file_private
 #include "mysql/harness/arg_handler.h"
-#include "mysql/harness/filesystem.h"
+#include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/utils.h"         // prompt_password
 #include "print_version.h"             // build_version

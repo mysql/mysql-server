@@ -36,7 +36,6 @@
 
 ////////////////////////////////////////
 // Internal interfaces
-#include "common.h"
 #include "dim.h"
 #include "include/magic.h"
 #include "mysql/harness/filesystem.h"

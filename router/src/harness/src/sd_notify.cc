@@ -35,7 +35,6 @@
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include "common.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"

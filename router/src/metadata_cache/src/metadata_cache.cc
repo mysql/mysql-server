@@ -30,7 +30,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "common.h"
+#include "common.h"  // rename_thread
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"

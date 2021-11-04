@@ -35,9 +35,9 @@
 #include <set>
 #include <stdexcept>
 
-#include "common.h"
+#include <gtest/gtest.h>
+
 #include "dim.h"
-#include "gtest/gtest.h"
 #include "keyring/keyring_memory.h"
 #include "random_generator.h"
 #include "test/helpers.h"

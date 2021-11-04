@@ -24,12 +24,11 @@
 
 #include "keyring/keyring_manager.h"
 
-#include <string.h>
+#include <cstring>
 #include <random>
 #include <stdexcept>
 #include <system_error>
 
-#include "common.h"
 #include "dim.h"
 #include "keyring/keyring_file.h"
 #include "keyring/master_key_file.h"

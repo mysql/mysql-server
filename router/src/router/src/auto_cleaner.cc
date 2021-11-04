@@ -28,7 +28,6 @@
 #include <exception>
 #include <utility>  // make_pair
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/utils.h"  // copy_file

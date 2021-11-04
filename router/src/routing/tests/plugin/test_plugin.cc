@@ -34,8 +34,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "common.h"
-
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/logging/logging.h"

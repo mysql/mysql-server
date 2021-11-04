@@ -22,26 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdexcept>
-#include <system_error>
-
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
-// Standard include files
-
 #ifdef _WIN32
 #include <aclapi.h>
 #else
 #include <sys/stat.h>
 #endif
 
-#include "common.h"
+#include <stdexcept>
+#include <system_error>
+
+#include <gtest/gtest.h>
+
 #include "keyring/keyring_file.h"
+#include "test/helpers.h"
 
 constexpr char kAesKey[] = "AesKey";
 constexpr char kKeyringFileName[] = "keyring_config";
