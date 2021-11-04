@@ -52,6 +52,7 @@ ADD_SUBDIRECTORY(plugins)
 SET(TEST_MODULE harness)
 
 SET(TESTS
+  test_access_rights.cc
   test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
@@ -168,3 +169,7 @@ ADD_DEPENDENCIES(mysqlrouter_all net_ts_accept)
 MYSQL_ADD_EXECUTABLE(net_ts_forward net_ts_forward.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(net_ts_forward harness_net_ts)
 ADD_DEPENDENCIES(mysqlrouter_all net_ts_forward)
+
+MYSQL_ADD_EXECUTABLE(acl_cli acl_cli.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(acl_cli harness-library)
+ADD_DEPENDENCIES(mysqlrouter_all acl_cli)

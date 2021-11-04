@@ -325,4 +325,24 @@ int mkdir(const std::string &dir, perm_mode mode, bool recursive) {
   return mkdir_recursive(mysql_harness::Path(dir), mode);
 }
 
+void check_file_access_rights(const std::string &file_name) {
+  auto rights_res = access_rights_get(file_name);
+  if (!rights_res) {
+    auto ec = rights_res.error();
+
+    if (ec == std::errc::no_such_file_or_directory) return;
+
+    throw std::system_error(
+        ec, "getting access rights for '" + file_name + "' failed");
+  }
+
+  auto verify_res =
+      access_rights_verify(rights_res.value(), DenyOtherReadWritableVerifier());
+  if (!verify_res) {
+    const auto ec = verify_res.error();
+
+    throw std::system_error(ec, "'" + file_name + "' has insecure permissions");
+  }
+}
+
 }  // namespace mysql_harness
