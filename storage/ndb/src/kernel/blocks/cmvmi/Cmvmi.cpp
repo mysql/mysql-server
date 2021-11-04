@@ -689,13 +689,13 @@ void Cmvmi::execEVENT_REP(Signal* signal)
 
   Uint32 buf[MAX_EVENT_REP_SIZE_WORDS];
   Uint32 *data = signal->theData;
+  const Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
+  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
   if (num_sections > 0)
   {
     copy(&buf[0], segptr);
     data = &buf[0];
   }
-  Uint32 sz = (num_sections > 0) ? segptr.sz : signal->getLength();
-  ndbrequire(sz <= MAX_EVENT_REP_SIZE_WORDS);
 
   Uint32 saveBuf = Uint32(eventCategory);
   if (saveBuf >= NDB_ARRAY_SIZE(m_saved_event_buffer) - 1)
