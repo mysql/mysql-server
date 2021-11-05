@@ -32,8 +32,9 @@
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "mysql_com.h"    // NAME_LEN
 
-/* Not used yet */
-#define ROLENAME_LENGTH 32
+/* Not used yet. */
+#define ROLENAME_CHAR_LENGTH 32
+#define ROLENAME_LENGTH (ROLENAME_CHAR_LENGTH * SYSTEM_CHARSET_MBMAXLEN)
 
 struct CHARSET_INFO;
 class Field;
