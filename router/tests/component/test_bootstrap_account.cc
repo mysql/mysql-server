@@ -56,7 +56,6 @@
 #include "router_test_helpers.h"  // get_file_output
 #include "script_generator.h"
 #include "socket_operations.h"
-#include "utils.h"
 
 /**
  * @file

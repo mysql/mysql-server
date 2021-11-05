@@ -135,6 +135,15 @@ path current_path(std::error_code &ec) noexcept {
   return {};
 }
 
+path current_path() {
+  std::error_code ec;
+
+  auto p = current_path(ec);
+  if (ec) throw std::system_error(ec);
+
+  return p;
+}
+
 bool remove(const path &p, std::error_code &ec) noexcept {
   ec.clear();
 

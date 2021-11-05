@@ -23,8 +23,9 @@
 */
 
 #include "router_component_clusterset.h"
-#include "mock_server_rest_client.h"
+
 #include "mock_server_testutils.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 
 void RouterComponentClusterSetTest::create_clusterset(
     uint64_t view_id, int target_cluster_id, int primary_cluster_id,

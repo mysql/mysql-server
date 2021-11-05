@@ -19,8 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-INCLUDE_DIRECTORIES(../include ../src ../../../tests/helpers)
-
 SET(TESTS
   test_certificate_generator.cc
   test_certificate_handler.cc
@@ -42,7 +40,9 @@ FOREACH(TEST_FILE ${TESTS})
     MODULE "router"
     #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
     LIB_DEPENDS test-helpers
-    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include
+    INCLUDE_DIRS
+      ../include/
+      ../src/
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
@@ -51,8 +51,8 @@ ADD_TEST_FILE(test_keyring_frontend.cc
   #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   LIB_DEPENDS test-helpers
   INCLUDE_DIRS
-    ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+    ../include/
+    ../src/
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
   EXTRA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../src/keyring_frontend.cc
   )
@@ -63,8 +63,12 @@ FOREACH(test_file
     )
   ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE issues
-  LIB_DEPENDS test-helpers
-  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
+    LIB_DEPENDS test-helpers
+    INCLUDE_DIRS
+      ../include/
+      ../src/
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+  )
 ENDFOREACH()
 
 IF(MY_COMPILER_IS_CLANG)

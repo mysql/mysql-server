@@ -24,14 +24,15 @@
 
 #include "router_component_system_layout.h"
 
-#include "mysql/harness/filesystem.h"
-#include "utils.h"
-
 #ifndef _WIN32
+#include <sys/stat.h>  // chmod
 #include <unistd.h>
 #endif
 #include <cstring>
 #include <stdexcept>
+
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/utils.h"  // copy_file
 
 RouterSystemLayout::RouterSystemLayout() = default;
 

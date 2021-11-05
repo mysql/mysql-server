@@ -22,16 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+
 #include "metadata_cache_ar.h"
 #include "metadata_cache_gr.h"
 #include "metadata_factory.h"
 #include "mysqlrouter/metadata_cache.h"
 
 #include "cluster_metadata.h"
-
-#include <map>
-#include <memory>
-#include <stdexcept>
 
 // routing's destination_* and the metadata-cache plugin itself
 // may work on the cache in parallel.
@@ -46,8 +49,8 @@ const uint16_t kDefaultMetadataPort{32275};
 const std::chrono::milliseconds kDefaultMetadataTTL{500ms};
 const std::chrono::milliseconds kDefaultAuthCacheTTL{-1s};
 const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{2000ms};
-const std::string kDefaultMetadataAddress{
-    "127.0.0.1:" + mysqlrouter::to_string(kDefaultMetadataPort)};
+const std::string kDefaultMetadataAddress{"127.0.0.1:" +
+                                          std::to_string(kDefaultMetadataPort)};
 const std::string kDefaultMetadataUser{""};
 const std::string kDefaultMetadataPassword{""};
 const std::string kDefaultMetadataCluster{""};

@@ -30,10 +30,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "cluster_metadata.h"
 #include "config_builder.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"  // join
+#include "mysqlrouter/cluster_metadata.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"  // init_windows_socket()
 

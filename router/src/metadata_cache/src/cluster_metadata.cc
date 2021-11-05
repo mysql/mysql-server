@@ -40,10 +40,13 @@
 #include "group_replication_metadata.h"
 #include "mysql/harness/event_state_tracker.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"  // string_format
 #include "mysqlrouter/utils_sqlstring.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 #include "tcp_address.h"
 
 using mysql_harness::EventStateTracker;
@@ -51,8 +54,6 @@ using mysql_harness::logging::LogLevel;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
-using mysqlrouter::strtoi_checked;
-using mysqlrouter::strtoui_checked;
 using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 
@@ -177,7 +178,7 @@ ClusterMetadata::get_and_check_metadata_schema_version(
 
   if (!metadata_schema_version_is_compatible(
           mysqlrouter::kRequiredRoutingMetadataSchemaVersion, version)) {
-    throw metadata_cache::metadata_error(mysqlrouter::string_format(
+    throw metadata_cache::metadata_error(mysql_harness::utility::string_format(
         "Unsupported metadata schema on %s. Expected Metadata Schema version "
         "compatible to %s, got %s",
         session.get_address().c_str(),

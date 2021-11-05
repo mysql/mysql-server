@@ -45,6 +45,7 @@
 #include "mysqlrouter/utils.h"
 #include "print_version.h"  // build_version
 #include "random_generator.h"
+#include "router_config.h"             // MYSQL_ROUTER_PACKAGE_NAME
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using namespace std::string_literals;

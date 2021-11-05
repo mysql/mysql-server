@@ -24,18 +24,14 @@
 
 #include "mysql/harness/arg_handler.h"
 
-#include "utilities.h"
-
-#include <assert.h>
 #include <algorithm>
-#include <iostream>
+#include <cassert>
 #include <sstream>
 #include <string>
 #include <vector>
 
-using std::string;
-using std::unique_ptr;
-using std::vector;
+#include "mysql/harness/utility/string.h"  // wrap_string
+#include "utilities.h"                     // regex_pattern_matches
 
 using mysql_harness::utility::regex_pattern_matches;
 using mysql_harness::utility::string_format;
@@ -91,7 +87,8 @@ OptionContainer::const_iterator CmdArgHandler::find_option(
  * Some compilers, like gcc 4.8, have no support for C++11 regular expression.
  * @endinternal
  */
-bool CmdArgHandler::is_valid_option_name(const string &name) const noexcept {
+bool CmdArgHandler::is_valid_option_name(
+    const std::string &name) const noexcept {
   // Handle tokens like -h or -v
   if (name.size() == 2 && name.at(1) != '-') {
     return name.at(0) == '-';
@@ -103,25 +100,26 @@ bool CmdArgHandler::is_valid_option_name(const string &name) const noexcept {
 }
 
 namespace {
-bool is_valid_option_value(const string &value) {
+bool is_valid_option_value(const std::string &value) {
   return value.find_first_of("\n") == std::string::npos;
 }
 }  // namespace
 
-void CmdArgHandler::process(const vector<string> &arguments) {
+void CmdArgHandler::process(const std::vector<std::string> &arguments) {
   rest_arguments_.clear();
 
-  vector<std::pair<CmdOption::ActionFunc, string>> schedule;
-  vector<std::pair<CmdOption::AtEndActionFunc, string>> at_end_schedule;
+  std::vector<std::pair<CmdOption::ActionFunc, std::string>> schedule;
+  std::vector<std::pair<CmdOption::AtEndActionFunc, std::string>>
+      at_end_schedule;
 
   const auto args_end = arguments.end();
   for (auto part = arguments.begin(); part < args_end; ++part) {
-    string argpart;
-    string value;
+    std::string argpart;
+    std::string value;
     bool got_value{false};
 
     size_t pos;
-    if ((pos = (*part).find('=')) != string::npos) {
+    if ((pos = (*part).find('=')) != std::string::npos) {
       // Option like --config=/path/to/config.conf
       argpart = (*part).substr(0, pos);
       value = (*part).substr(pos + 1);
@@ -277,11 +275,11 @@ void CmdArgHandler::process(const vector<string> &arguments) {
   }
 }
 
-vector<string> CmdArgHandler::usage_lines_if(
-    const string &prefix, const string &rest_metavar, size_t width,
+std::vector<std::string> CmdArgHandler::usage_lines_if(
+    const std::string &prefix, const std::string &rest_metavar, size_t width,
     UsagePredicate predicate) const noexcept {
   std::stringstream ss;
-  vector<string> usage;
+  std::vector<std::string> usage;
 
   for (auto option : options_) {
     bool accepted;
@@ -291,7 +289,7 @@ vector<string> CmdArgHandler::usage_lines_if(
     if (!accepted) continue;
 
     ss.clear();
-    ss.str(string());
+    ss.str({});
 
     bool has_multiple_names = option.names.size() > 1;
 
@@ -328,19 +326,19 @@ vector<string> CmdArgHandler::usage_lines_if(
 
   if (allow_rest_arguments && !rest_metavar.empty()) {
     ss.clear();
-    ss.str(string());
+    ss.str({});
     ss << "[" << rest_metavar << "]";
     usage.push_back(ss.str());
   }
 
   ss.clear();
-  ss.str(string());
+  ss.str({});
   size_t line_size = 0;
-  vector<string> result{};
+  std::vector<std::string> result{};
 
   ss << prefix;
   line_size = ss.str().size();
-  auto indent = string(line_size, ' ');
+  auto indent = std::string(line_size, ' ');
 
   auto end_usage = usage.end();
   for (auto item = usage.begin(); item != end_usage; ++item) {
@@ -351,7 +349,7 @@ vector<string> CmdArgHandler::usage_lines_if(
     if (need_newline) {
       result.push_back(ss.str());
       ss.clear();
-      ss.str(string());
+      ss.str({});
       ss << indent;
     }
 
@@ -365,15 +363,15 @@ vector<string> CmdArgHandler::usage_lines_if(
   return result;
 }
 
-vector<string> CmdArgHandler::option_descriptions(
+std::vector<std::string> CmdArgHandler::option_descriptions(
     size_t width, size_t indent) const noexcept {
   std::stringstream ss;
-  vector<string> desc_lines;
+  std::vector<std::string> desc_lines;
 
   for (auto option = options_.begin(); option != options_.end(); ++option) {
     auto value_req = option->value_req;
     ss.clear();
-    ss.str(string());
+    ss.str({});
 
     ss << "  ";
     for (auto iter_name = option->names.begin();
@@ -399,9 +397,9 @@ vector<string> CmdArgHandler::option_descriptions(
     desc_lines.push_back(ss.str());
 
     ss.clear();
-    ss.str(string());
+    ss.str({});
 
-    string desc = option->description;
+    std::string desc = option->description;
     for (auto line : wrap_string(option->description, width, indent)) {
       desc_lines.push_back(line);
     }

@@ -38,6 +38,7 @@
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "router_config.h"  // MYSQL_ROUTER_VERSION
 
 IMPORT_LOG_FUNCTIONS()
 

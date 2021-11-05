@@ -22,8 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "cluster_metadata_dynamic_state.h"
-#include "mysql/harness/dynamic_state.h"
+#include "mysqlrouter/cluster_metadata_dynamic_state.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
@@ -36,9 +35,7 @@
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
 
-#include "common.h"
-#include "dim.h"
-#include "utils.h"
+#include "mysql/harness/dynamic_state.h"
 
 namespace {
 constexpr const char kSectionName[] = "metadata-cache";

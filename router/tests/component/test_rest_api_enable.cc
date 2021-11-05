@@ -46,14 +46,17 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/tls_context.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/http_client.h"
+#include "mysqlrouter/utils.h"
 #include "process_wrapper.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 using namespace std::chrono_literals;
+
+using mysql_harness::utility::string_format;
 
 class TestRestApiEnable : public RouterComponentTest {
  public:
@@ -668,9 +671,9 @@ TEST_P(RestApiEnableUserCertificates, ensure_rest_works_with_user_certs) {
   create_cert_files(GetParam());
   auto &router_bootstrap =
       do_bootstrap({"--https-port", std::to_string(custom_port)});
-  const auto expected_message = mysqlrouter::string_format(
-      "- Using existing certificates from the '%s' directory",
-      datadir_path.real_path().c_str());
+  const auto expected_message =
+      string_format("- Using existing certificates from the '%s' directory",
+                    datadir_path.real_path().c_str());
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr(expected_message));
 
@@ -741,7 +744,7 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
   if (!missing_files.empty()) missing_files += ", ";
   if (!has_file(cert_file_t::k_router_cert))
     missing_files += router_cert_filename;
-  const std::string output = mysqlrouter::string_format(
+  const std::string output = string_format(
       "Error: Missing certificate files in %s: '%s'. Please provide them or "
       "erase the existing certificate files and re-run bootstrap.",
       datadir_path.real_path().c_str(), missing_files.c_str());
@@ -808,9 +811,9 @@ TEST_P(RestApiInvalidUserCerts,
   }
 
   auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
-  const auto expected_message = mysqlrouter::string_format(
-      "- Using existing certificates from the '%s' directory",
-      datadir_path.real_path().c_str());
+  const auto expected_message =
+      string_format("- Using existing certificates from the '%s' directory",
+                    datadir_path.real_path().c_str());
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr(expected_message));
 

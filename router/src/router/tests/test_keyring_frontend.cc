@@ -43,11 +43,13 @@
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/string_utils.h"    // mysql_harness::split_string
 #include "mysql/harness/utility/string.h"  // mysql_harness::join
-#include "mysqlrouter/utils.h"
-#include "print_version.h"             // build_version
-#include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "mysqlrouter/utils.h"             // set_prompt_password
+#include "print_version.h"                 // build_version
+#include "router_config.h"                 // MYSQL_ROUTER_PACKAGE_NAME
+#include "welcome_copyright_notice.h"      // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 constexpr const char kAppExeFileName[]{"mysqlrouter_keyring"};
 
@@ -934,19 +936,12 @@ TEST_P(KeyringFrontendTest, ensure) {
       is_absolute = tmpdir.name().at(0) == '/';
 #endif
       if (!is_absolute) {
-#ifdef _WIN32
-        std::array<char, MAX_PATH> cwd;
-#else
-        std::array<char, PATH_MAX> cwd;
-#endif
-        if (nullptr == getcwd(cwd.data(), cwd.size())) {
-          throw std::system_error(errno, std::generic_category(),
-                                  "getcwd() failed");
-        }
-        keyring_filename = mysql_harness::Path(cwd.data())
-                               .join(tmpdir.name())
-                               .join("Key ring")
-                               .str();
+        // current_path throws if something goes wrong.
+        keyring_filename =
+            mysql_harness::Path(stdx::filesystem::current_path().native())
+                .join(tmpdir.name())
+                .join("Key ring")
+                .str();
       } else {
         keyring_filename =
             mysql_harness::Path(tmpdir.name()).join("Key ring").str();

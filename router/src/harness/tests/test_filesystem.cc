@@ -46,10 +46,6 @@
 #define EXPECT_NO_ERROR(x) \
   EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
 
-using std::back_inserter;
-using std::cout;
-using std::endl;
-
 using mysql_harness::Directory;
 using mysql_harness::Path;
 

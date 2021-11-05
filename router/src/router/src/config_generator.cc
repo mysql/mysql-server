@@ -46,6 +46,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #include <rapidjson/rapidjson.h>
 
@@ -64,13 +65,14 @@
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/uri.h"
+#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "sha1.h"  // compute_sha1_hash() from mysql's include/
 IMPORT_LOG_FUNCTIONS()
 
 #include "cluster_metadata.h"
-#include "cluster_metadata_dynamic_state.h"
+#include "mysqlrouter/cluster_metadata_dynamic_state.h"
 
 static const int kDefaultRWPort = 6446;
 static const int kDefaultROPort = 6447;
@@ -426,7 +428,7 @@ void ConfigGenerator::init(
 
   if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
                                              schema_version_)) {
-    throw std::runtime_error(mysqlrouter::string_format(
+    throw std::runtime_error(mysql_harness::utility::string_format(
         "This version of MySQL Router is not compatible with the provided "
         "MySQL InnoDB cluster metadata. Expected metadata version %s, "
         "got %s",
@@ -558,11 +560,15 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((path + ".tmp"), path) != 0) {
+    auto rename_res = mysqlrouter::rename_file((path + ".tmp"), path);
+
+    if (!rename_res) {
+      auto ec = rename_res.error();
+
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error("Could not save " + file_desc +
-                               " file to final location");
+      throw std::system_error(
+          ec, "Could not save " + file_desc + " file to final location");
     }
     try {
       // for dynamic config file we need to grant the write access too
@@ -759,13 +765,17 @@ void ConfigGenerator::bootstrap_directory_deployment(
                   << config_file_name << ".bak'" << std::endl;
     }
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((config_file_name + ".tmp").c_str(),
-                                 config_file_name.c_str()) != 0) {
+    auto rename_res = mysqlrouter::rename_file(
+        (config_file_name + ".tmp").c_str(), config_file_name.c_str());
+
+    if (!rename_res) {
+      const auto ec = rename_res.error();
+
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
-      throw std::runtime_error(
-          "Could not move configuration file '" + config_file_name +
-          ".tmp' to final location: " + mysqlrouter::get_last_error());
+      throw std::system_error(ec, "Could not move configuration file '" +
+                                      config_file_name +
+                                      ".tmp' to final location");
     }
 
     try {
@@ -1327,7 +1337,7 @@ void ConfigGenerator::prepare_ssl_certificate_files(
     if (!router_key_path.exists()) missing_files += tls_filenames_.router_key;
     if (!missing_files.empty()) missing_files += ", ";
     if (!router_cert_path.exists()) missing_files += tls_filenames_.router_cert;
-    throw std::runtime_error{mysqlrouter::string_format(
+    throw std::runtime_error{mysql_harness::utility::string_format(
         "Missing certificate files in %s: '%s'. Please provide them or erase "
         "the existing certificate files and re-run bootstrap.",
         datadir_path.c_str(), missing_files.c_str())};

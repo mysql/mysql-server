@@ -104,52 +104,6 @@ mysql_harness::Path get_cmake_source_dir();
 mysql_harness::Path get_envvar_path(const std::string &envvar,
                                     mysql_harness::Path alternative);
 
-/** @brief Returns the current working directory
- *
- * Uses `getcwd()` and returns the current working directory as as std::string.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string get_cwd();
-
-/** @brief Changes the current working directory
- *
- * Uses `chdir()` to change the current working directory. When succesfully
- * change to the folder, the old working directory is returned.
- *
- * Throws std::runtime_error on errors.
- *
- * @return std::string
- */
-const std::string change_cwd(std::string &dir);
-
-/** @brief Reads a specified number of bytes from a non-blocking socket
- *
- * reads a non-blocking socket until one of three things happen:
- *   1. specified number of bytes have been read - returns this number
- *   2. timeout expires - throws, describing the error
- *   3. read() fails    - throws, describing the error
- *
- * Returns number of bytes read (should be the number of bytes requested,
- * can be less on EOF).  Throws std::runtime_error on I/O error or timeout;
- * the reason can be extracted from the thrown object with what() method.
- *
- * @param sockfd file decriptor
- * @param buffer to store read bytes
- * @param n_bytes of bytes to read
- * @param timeout_in_ms expressed in milliseconds
- *
- * @return number of bytes read
- */
-size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
-                               uint64_t timeout_in_ms);
-
-#ifdef _WIN32
-std::string get_last_error(int err_code);
-#endif
-
 /** @brief Checks if the given regex pattern can be found in the input string
  *
  *

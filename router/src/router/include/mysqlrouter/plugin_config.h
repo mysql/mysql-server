@@ -25,16 +25,12 @@
 #ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 #define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 
-#include <cerrno>
-#include <cstdlib>
-#include <iostream>
+#include <chrono>
 #include <map>
 #include <string>
 
 #include "mysql/harness/config_option.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/utils.h"
+#include "mysql/harness/filesystem.h"  // Path
 #include "tcp_address.h"
 
 namespace mysqlrouter {

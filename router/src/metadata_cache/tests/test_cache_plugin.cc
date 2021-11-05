@@ -26,18 +26,18 @@
  * Tests the metadata cache plugin implementation.
  */
 
-#include "mock_metadata.h"
-#include "mysqlrouter/cluster_metadata.h"
-#include "mysqlrouter/metadata_cache.h"
-#include "tcp_address.h"
-#include "test/helpers.h"
-
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 #include <vector>
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
+#include "mock_metadata.h"
+#include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/metadata_cache.h"
+#include "tcp_address.h"
+#include "test/helpers.h"
 
 /**
  * Constants that are used throughout the test cases.
@@ -60,7 +60,6 @@ const std::vector<mysql_harness::TCPAddress> metadata_server_vector = {
     bootstrap_server};
 
 using metadata_cache::ManagedInstance;
-using std::thread;
 
 class MetadataCachePluginTest : public ::testing::Test {
  public:

@@ -36,7 +36,6 @@
 
 ////////////////////////////////////////
 // Internal interfaces
-#include "../src/utilities.h"  // string_format()
 #include "common.h"
 #include "dim.h"
 #include "include/magic.h"
@@ -47,6 +46,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/stdx/process.h"
+#include "mysql/harness/utility/string.h"  // string_format()
 #include "test/helpers.h"
 #include "test/temp_directory.h"
 

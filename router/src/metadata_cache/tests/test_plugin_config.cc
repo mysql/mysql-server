@@ -24,13 +24,14 @@
 
 #include <typeinfo>
 
+#include <gmock/gmock.h>
+
 #include "../src/metadata_cache.h"
 #include "../src/plugin_config.h"
 
+#include "mysqlrouter/utils.h"  // ms_to_second_string
 #include "router_test_helpers.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
 
 using ::testing::ContainerEq;
 using ::testing::Eq;

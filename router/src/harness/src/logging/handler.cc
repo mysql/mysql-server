@@ -25,15 +25,7 @@
 /** @file
  * Module for implementing the Logger functionality.
  */
-
 #include "mysql/harness/logging/handler.h"
-#include "mysql/harness/logging/logging.h"
-
-#include "common.h"
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/plugin.h"
-#include "utilities.h"  // string_format()
 
 #include <algorithm>
 #include <cerrno>
@@ -48,17 +40,13 @@
 #include <unistd.h>
 #endif
 
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
+#include "mysql/harness/utility/string.h"  // string_format
+
 using mysql_harness::Path;
-
-#if defined(_MSC_VER) && defined(logger_EXPORTS)
-/* We are building this library */
-#define LOGGER_API __declspec(dllexport)
-#else
-#define LOGGER_API
-#endif
-
-using std::ofstream;
-using std::ostringstream;
 
 using namespace std::chrono_literals;
 
@@ -260,7 +248,7 @@ void FileHandler::reopen(const std::string dst) {  // namespace logging
 #ifdef _WIN32
   const bool created = !file_path_.exists();
 #endif
-  fstream_.open(file_path_.str(), ofstream::app);
+  fstream_.open(file_path_.str(), std::ofstream::app);
   if (fstream_.fail()) {
     // get the last-error early as with VS2015 it has been seen
     // that something in std::system_error() called SetLastError(0)

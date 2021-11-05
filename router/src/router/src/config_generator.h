@@ -40,8 +40,8 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/keyring_info.h"
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/sys_user_operations.h"
 #include "mysqlrouter/uri.h"
-#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "tcp_address.h"
 #include "unique_ptr.h"
@@ -50,58 +50,8 @@ namespace mysql_harness {
 class Path;
 }
 
-// GCC 4.8.4 requires all classes to be forward-declared before used with
-// "friend class <friendee>", if they're in a different namespace than the
-// friender
 #ifdef FRIEND_TEST
-#include "mysqlrouter/utils.h"  // DECLARE_TEST
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_one);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_three);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets);
-DECLARE_TEST(ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_password_directly);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
-DECLARE_TEST(ConfigGeneratorTest,
-             create_accounts_using_hashed_password_if_not_exists);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_using_hashed_password);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts_multiple_accounts);
-DECLARE_TEST(ConfigGeneratorTest,
-             create_accounts_multiple_accounts_if_not_exists);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_1);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_2);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_3);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_4);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_5);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_6);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_7);
-DECLARE_TEST(ConfigGeneratorTest, create_accounts___users_exist_parser_8);
-DECLARE_TEST(ConfigGeneratorTest, create_router_accounts);
-DECLARE_TEST(ConfigGeneratorTest, fill_options);
-DECLARE_TEST(ConfigGeneratorTest, bootstrap_invalid_name);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
-DECLARE_TEST(ConfigGeneratorTest, ssl_stage3_create_config);
-DECLARE_TEST(ConfigGeneratorTest, empty_config_file);
-DECLARE_TEST(ConfigGeneratorTest, warn_on_no_ssl);
-DECLARE_TEST(ConfigGeneratorTest, set_file_owner_no_user);
-DECLARE_TEST(ConfigGeneratorTest, set_file_owner_user_empty);
-DECLARE_TEST(ConfigGeneratorTest, start_sh);
-DECLARE_TEST(ConfigGeneratorTest, stop_sh);
-DECLARE_TEST(ConfigGeneratorTest, register_router_error_message);
-DECLARE_TEST(ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
-DECLARE_TEST(ConfigGeneratorTest, get_account_host_args);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_basic);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_system_instance);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_base_port);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_skip_tcp);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_use_sockets);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_bind_address);
-DECLARE_TEST(CreateConfigGeneratorTest, create_config_disable_rest);
+class TestConfigGenerator;
 #endif
 
 namespace mysqlrouter {
@@ -599,55 +549,7 @@ class ConfigGenerator {
   mysqlrouter::MetadataSchemaVersion schema_version_;
 
 #ifdef FRIEND_TEST
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_one);
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_three);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              fetch_bootstrap_servers_multiple_replicasets);
-  FRIEND_TEST(::ConfigGeneratorTest, fetch_bootstrap_servers_invalid);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_password_directly);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_using_hashed_password);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              create_accounts_using_hashed_password_if_not_exists);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts_multiple_accounts);
-  FRIEND_TEST(::ConfigGeneratorTest,
-              create_accounts_multiple_accounts_if_not_exists);
-
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_1);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_2);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_3);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_4);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___show_warnings_parser_5);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_1);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_2);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_3);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_4);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_5);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_6);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_7);
-  FRIEND_TEST(::ConfigGeneratorTest, create_accounts___users_exist_parser_8);
-  FRIEND_TEST(::ConfigGeneratorTest, create_router_accounts);
-  FRIEND_TEST(::ConfigGeneratorTest, fill_options);
-  FRIEND_TEST(::ConfigGeneratorTest, bootstrap_invalid_name);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage2_bootstrap_connection);
-  FRIEND_TEST(::ConfigGeneratorTest, ssl_stage3_create_config);
-  FRIEND_TEST(::ConfigGeneratorTest, empty_config_file);
-  FRIEND_TEST(::ConfigGeneratorTest, warn_on_no_ssl);
-  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_no_user);
-  FRIEND_TEST(::ConfigGeneratorTest, set_file_owner_user_empty);
-  FRIEND_TEST(::ConfigGeneratorTest, start_sh);
-  FRIEND_TEST(::ConfigGeneratorTest, stop_sh);
-  FRIEND_TEST(::ConfigGeneratorTest, register_router_error_message);
-  FRIEND_TEST(::ConfigGeneratorTest, ensure_router_id_is_ours_error_message);
-  FRIEND_TEST(::ConfigGeneratorTest, get_account_host_args);
-
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_basic);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_system_instance);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_base_port);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_skip_tcp);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_use_sockets);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_bind_address);
-  FRIEND_TEST(::CreateConfigGeneratorTest, create_config_disable_rest);
+  friend class ::TestConfigGenerator;
 #endif
 };
 }  // namespace mysqlrouter

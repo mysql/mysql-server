@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/stat.h>  // chmod
 #include <sys/un.h>
 #include <unistd.h>
 #else

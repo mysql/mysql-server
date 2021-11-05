@@ -23,6 +23,16 @@
 */
 
 ////////////////////////////////////////
+// Standard include files
+#include <climits>
+#include <fstream>
+#include <iostream>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
 // Harness interface include files
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
@@ -32,19 +42,6 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
-// Standard include files
-#include <climits>
-#include <fstream>
-#include <iostream>
-
-using std::cout;
-using std::endl;
 
 using mysql_harness::Loader;
 using mysql_harness::Path;

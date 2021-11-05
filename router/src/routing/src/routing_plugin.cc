@@ -36,13 +36,12 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/tls_server_context.h"
-#include "mysql/harness/utility/string.h"  // join
+#include "mysql/harness/utility/string.h"  // join, string_format
 #include "mysql_routing.h"
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
-#include "mysqlrouter/utils.h"           // string_format
 #include "plugin_config.h"
 #include "ssl_mode.h"
 
@@ -50,11 +49,10 @@ using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
-using std::string;
 IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
-static const string kSectionName = "routing";
+static const std::string kSectionName = "routing";
 
 static void validate_socket_info(const std::string &err_prefix,
                                  const mysql_harness::ConfigSection *section,
@@ -148,7 +146,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         if (section->name == kSectionName) {
           io_context_work_guards.emplace_back(IoComponent::get_instance());
 
-          const auto err_prefix = mysqlrouter::string_format(
+          const auto err_prefix = mysql_harness::utility::string_format(
               "in [%s%s%s]: ", section->name.c_str(),
               section->key.empty() ? "" : ":", section->key.c_str());
           // Check the configuration
@@ -247,7 +245,7 @@ static std::string get_default_ciphers() {
 static void start(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
-  string name;
+  std::string name;
   if (!section->key.empty()) {
     name = section->name + ":" + section->key;
   } else {

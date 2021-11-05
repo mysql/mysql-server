@@ -28,8 +28,9 @@
 #include <chrono>
 #include <string>
 #include <vector>
-#include "mysql_session.h"
+
 #include "mysqlrouter/cluster_metadata.h"
+#include "mysqlrouter/mysql_session.h"
 
 std::string create_state_file_content(
     const std::string &cluster_type_specific_id,

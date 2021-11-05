@@ -37,7 +37,7 @@
 #include <rapidjson/error/en.h>
 
 #include "config_builder.h"
-#include "mock_server_rest_client.h"
+#include "mysqlrouter/mock_server_rest_client.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 

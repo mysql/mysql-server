@@ -23,14 +23,13 @@
 */
 
 #include <array>
+#include <fstream>
 
 #include <gmock/gmock.h>
 
-#include "common.h"
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-#include "utils.h"
 
 #ifndef _WIN32
 #include <unistd.h>

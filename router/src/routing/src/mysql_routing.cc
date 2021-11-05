@@ -37,6 +37,10 @@
 
 #include <sys/types.h>
 
+#ifndef _WIN32
+#include <sys/stat.h>  // chmod
+#endif
+
 #include "common.h"  // rename_thread, ScopeGuard
 #include "connection.h"
 #include "dest_first_available.h"
@@ -60,6 +64,7 @@
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysql/harness/string_utils.h"  // trim
 #include "mysql/harness/tls_server_context.h"
+#include "mysql/harness/utility/string.h"  // string_format
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -71,7 +76,7 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-using mysqlrouter::string_format;
+using mysql_harness::utility::string_format;
 using routing::AccessMode;
 using routing::RoutingStrategy;
 IMPORT_LOG_FUNCTIONS()
@@ -103,8 +108,8 @@ static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
 MySQLRouting::MySQLRouting(
     net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
     uint16_t port, const Protocol::Type protocol,
-    const routing::AccessMode access_mode, const string &bind_address,
-    const mysql_harness::Path &named_socket, const string &route_name,
+    const routing::AccessMode access_mode, const std::string &bind_address,
+    const mysql_harness::Path &named_socket, const std::string &route_name,
     int max_connections, std::chrono::milliseconds destination_connect_timeout,
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
@@ -1584,7 +1589,7 @@ std::unique_ptr<RouteDestination> create_standalone_destination(
 }
 }  // namespace
 
-void MySQLRouting::set_destinations_from_csv(const string &csv) {
+void MySQLRouting::set_destinations_from_csv(const std::string &csv) {
   std::stringstream ss(csv);
   std::string part;
 

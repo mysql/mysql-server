@@ -55,6 +55,7 @@
 #include "test/temp_directory.h"
 
 using mysql_harness::TCPAddress;
+using mysqlrouter::URI;
 using routing::AccessMode;
 using namespace std::chrono_literals;
 

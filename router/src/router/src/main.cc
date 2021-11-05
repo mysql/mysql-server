@@ -81,11 +81,10 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/tty.h"
 #include "mysql/harness/vt100_filter.h"
-#include "mysql_session.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"
 #include "random_generator.h"
 #include "router_app.h"
-#include "utils.h"
 #include "windows/main-windows.h"
 
 IMPORT_LOG_FUNCTIONS()

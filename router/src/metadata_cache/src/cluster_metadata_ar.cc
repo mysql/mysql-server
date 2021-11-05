@@ -26,7 +26,7 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_session.h"
-#include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils.h"  // strtoull_checked
 #include "mysqlrouter/utils_sqlstring.h"
 
 using mysqlrouter::MySQLSession;
