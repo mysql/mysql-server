@@ -48,13 +48,9 @@ struct THR_LOCK;
 /** A row of PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_INSTANCE. */
 struct row_file_summary_by_instance {
   /** Column FILE_NAME. */
-  const char *m_filename;
-  /** Length in bytes of @c m_filename. */
-  uint m_filename_length;
-
+  PFS_file_name m_file_name;
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
-
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
   /**

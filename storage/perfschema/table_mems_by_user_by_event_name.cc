@@ -250,7 +250,7 @@ int table_mems_by_user_by_event_name::read_row_values(TABLE *table,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* USER */
-          m_row.m_user.set_field(f);
+          m_row.m_user.set_nullable_field(f);
           break;
         case 1: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);

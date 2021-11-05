@@ -32,6 +32,7 @@
 
 #include "include/mysql/psi/mysql_ps.h"
 #include "my_inttypes.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_stat.h"
 
@@ -62,12 +63,10 @@ struct PFS_ALIGNED PFS_prepared_stmt : public PFS_instr {
   enum_object_type m_owner_object_type;
 
   /** Column OBJECT_OWNER_SCHEMA. */
-  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
-  uint m_owner_object_schema_length;
+  PFS_schema_name m_owner_object_schema;
 
   /** Column OBJECT_OWNER_NAME. */
-  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
-  uint m_owner_object_name_length;
+  PFS_object_name m_owner_object_name;
 
   /** COLUMN TIMER_PREPARE. Prepared statement prepare stat. */
   PFS_single_stat m_prepare_stat;

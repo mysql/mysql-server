@@ -36,6 +36,7 @@
 #include "my_inttypes.h"
 #include "storage/perfschema/cursor_by_thread.h"
 #include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_name.h"
 
 struct PFS_thread;
 
@@ -51,19 +52,13 @@ struct row_processlist {
   /** Column ID. */
   ulonglong m_processlist_id;
   /** Column USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
-  /** Column HOST. */
+  PFS_user_name m_user_name;
+  /** Column HOST (and PORT). */
   char m_hostname[HOST_AND_PORT_LENGTH];
   /** Length in bytes of @c m_hostname. */
   uint m_hostname_length;
-  /** Port. */
-  uint m_port;
   /** Column DB. */
-  char m_dbname[NAME_LEN];
-  /** Length in bytes of @c m_dbname. */
-  uint m_dbname_length;
+  PFS_schema_name m_db_name;
   /** Column COMMAND. */
   int m_command;
   /** Column TIME. */

@@ -65,9 +65,9 @@ static PFS_file *lookup_file_by_name(const char *name) {
       to "/path/to/current/directory/foo", so we remove the
       directory name here to find it back.
     */
-    dirlen = dirname_length(pfs->m_filename);
-    filename = pfs->m_filename + dirlen;
-    filename_length = pfs->m_filename_length - dirlen;
+    dirlen = dirname_length(pfs->m_file_name.ptr());
+    filename = pfs->m_file_name.ptr() + dirlen;
+    filename_length = pfs->m_file_name.length() - dirlen;
     if ((len == filename_length) &&
         (strncmp(name, filename, filename_length) == 0))
       return pfs;

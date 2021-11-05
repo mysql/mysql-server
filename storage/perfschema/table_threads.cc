@@ -236,23 +236,8 @@ int table_threads::make_row(PFS_thread *pfs) {
   /* Protect this reader against session attribute changes */
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
-  m_row.m_username_length = pfs->m_username_length;
-  if (unlikely(m_row.m_username_length > sizeof(m_row.m_username))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_username_length != 0) {
-    memcpy(m_row.m_username, pfs->m_username, m_row.m_username_length);
-  }
-
-  m_row.m_hostname_length = pfs->m_hostname_length;
-  if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_hostname_length != 0) {
-    memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
-  }
+  m_row.m_user_name = pfs->m_user_name;
+  m_row.m_host_name = pfs->m_host_name;
 
   m_row.m_groupname_length = pfs->m_groupname_length;
   if (unlikely(m_row.m_groupname_length > sizeof(m_row.m_groupname))) {
@@ -273,21 +258,14 @@ int table_threads::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_username_length = 0;
-    m_row.m_hostname_length = 0;
+    m_row.m_user_name.reset();
+    m_row.m_host_name.reset();
   }
 
   /* Protect this reader against statement attributes changes */
   pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
-  m_row.m_dbname_length = pfs->m_dbname_length;
-  if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname))) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  if (m_row.m_dbname_length != 0) {
-    memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
-  }
+  m_row.m_db_name = pfs->m_db_name;
 
   m_row.m_processlist_info_ptr = &pfs->m_processlist_info[0];
   m_row.m_processlist_info_length = pfs->m_processlist_info_length;
@@ -302,7 +280,7 @@ int table_threads::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
-    m_row.m_dbname_length = 0;
+    m_row.m_db_name.reset();
     m_row.m_processlist_info_length = 0;
   }
 
@@ -384,24 +362,25 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 4: /* PROCESSLIST_USER */
-          if (m_row.m_username_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_username,
-                                   m_row.m_username_length);
+          if (m_row.m_user_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_user_name.ptr(),
+                                   m_row.m_user_name.length());
           } else {
             f->set_null();
           }
           break;
         case 5: /* PROCESSLIST_HOST */
-          if (m_row.m_hostname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_hostname,
-                                   m_row.m_hostname_length);
+          if (m_row.m_host_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_host_name.ptr(),
+                                   m_row.m_host_name.length());
           } else {
             f->set_null();
           }
           break;
         case 6: /* PROCESSLIST_DB */
-          if (m_row.m_dbname_length > 0) {
-            set_field_varchar_utf8(f, m_row.m_dbname, m_row.m_dbname_length);
+          if (m_row.m_db_name.length() > 0) {
+            set_field_varchar_utf8(f, m_row.m_db_name.ptr(),
+                                   m_row.m_db_name.length());
           } else {
             f->set_null();
           }

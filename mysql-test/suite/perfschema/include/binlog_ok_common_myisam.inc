@@ -60,20 +60,20 @@ select * from performance_schema.setup_actors
 
 insert into performance_schema.setup_objects
   (object_type, object_schema, object_name, enabled, timed)
-  values ('TABLE', 'DB1', 'AAA', 'YES', 'YES'),
-         ('TABLE', 'DB1', 'BBB', 'NO', 'NO'),
-         ('TABLE', 'DB2', 'CCC', 'YES', 'NO'),
-         ('TABLE', 'DB2', 'DDD', 'NO', 'YES');
+  values ('TABLE', 'db1', 'aaa', 'YES', 'YES'),
+         ('TABLE', 'db1', 'bbb', 'NO', 'NO'),
+         ('TABLE', 'db2', 'ccc', 'YES', 'NO'),
+         ('TABLE', 'db2', 'ddd', 'NO', 'YES');
 
 select * from performance_schema.setup_objects
-  where object_schema like 'DB%' order by object_name;
+  where object_schema like 'db%' order by object_name;
 
 use test;
 drop table if exists marker_insert_select;
 
 # Note:
 # The queries used here do not make any sense (no semantic).
-# What this test is interrested in, is check the behavior
+# What this test is interested in, is check the behavior
 # when replicating queries that mix both:
 # - non replicated tables
 # - replicated tables

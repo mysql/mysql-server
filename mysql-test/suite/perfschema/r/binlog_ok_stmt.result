@@ -46,17 +46,17 @@ YYY	YYY	YYY	YES	YES
 ZZZ	ZZZ	ZZZ	YES	YES
 insert into performance_schema.setup_objects
 (object_type, object_schema, object_name, enabled, timed)
-values ('TABLE', 'DB1', 'AAA', 'YES', 'YES'),
-('TABLE', 'DB1', 'BBB', 'NO', 'NO'),
-('TABLE', 'DB2', 'CCC', 'YES', 'NO'),
-('TABLE', 'DB2', 'DDD', 'NO', 'YES');
+values ('TABLE', 'db1', 'aaa', 'YES', 'YES'),
+('TABLE', 'db1', 'bbb', 'NO', 'NO'),
+('TABLE', 'db2', 'ccc', 'YES', 'NO'),
+('TABLE', 'db2', 'ddd', 'NO', 'YES');
 select * from performance_schema.setup_objects
-where object_schema like 'DB%' order by object_name;
+where object_schema like 'db%' order by object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
-TABLE	DB1	AAA	YES	YES
-TABLE	DB1	BBB	NO	NO
-TABLE	DB2	CCC	YES	NO
-TABLE	DB2	DDD	NO	YES
+TABLE	db1	aaa	YES	YES
+TABLE	db1	bbb	NO	NO
+TABLE	db2	ccc	YES	NO
+TABLE	db2	ddd	NO	YES
 use test;
 drop table if exists marker_insert_select;
 Warnings:

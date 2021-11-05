@@ -326,22 +326,11 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_name = klass->m_name.str();
   m_row.m_name_length = klass->m_name.length();
 
-  m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
-  if (m_row.m_current_schema_name_length > 0)
-    memcpy(m_row.m_current_schema_name, statement->m_current_schema_name,
-           m_row.m_current_schema_name_length);
+  m_row.m_current_schema_name = statement->m_current_schema_name;
 
   m_row.m_object_type = statement->m_sp_type;
-
-  m_row.m_schema_name_length = statement->m_schema_name_length;
-  if (m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, statement->m_schema_name,
-           m_row.m_schema_name_length);
-
-  m_row.m_object_name_length = statement->m_object_name_length;
-  if (m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, statement->m_object_name,
-           m_row.m_object_name_length);
+  m_row.m_schema_name = statement->m_schema_name;
+  m_row.m_object_name = statement->m_object_name;
 
   make_source_column(statement->m_source_file, statement->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),
@@ -506,35 +495,20 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         case 12: /* CURRENT_SCHEMA */
-          if (m_row.m_current_schema_name_length)
-            set_field_varchar_utf8(f, m_row.m_current_schema_name,
-                                   m_row.m_current_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_schema_name(f, &m_row.m_current_schema_name);
           break;
         case 13: /* OBJECT_TYPE */
-          if (m_row.m_object_name_length > 0) {
+          if (m_row.m_object_name.length() > 0) {
             set_field_object_type(f, m_row.m_object_type);
           } else {
             f->set_null();
           }
           break;
         case 14: /* OBJECT_SCHEMA */
-          if (m_row.m_schema_name_length)
-            set_field_varchar_utf8(f, m_row.m_schema_name,
-                                   m_row.m_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_schema_name(f, &m_row.m_schema_name);
           break;
         case 15: /* OBJECT_NAME */
-          if (m_row.m_object_name_length)
-            set_field_varchar_utf8(f, m_row.m_object_name,
-                                   m_row.m_object_name_length);
-          else {
-            f->set_null();
-          }
+          set_nullable_field_object_name(f, &m_row.m_object_name);
           break;
         case 16: /* OBJECT_INSTANCE_BEGIN */
           f->set_null();

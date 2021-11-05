@@ -68,12 +68,10 @@ struct row_prepared_stmt_instances {
   enum_object_type m_owner_object_type;
 
   /** Column OWNER_OBJECT_SCHEMA */
-  char m_owner_object_schema[COL_OBJECT_SCHEMA_SIZE];
-  int m_owner_object_schema_length;
+  PFS_schema_name m_owner_object_schema;
 
   /** Column OWNER_OBJECT_NAME */
-  char m_owner_object_name[COL_OBJECT_NAME_SIZE];
-  int m_owner_object_name_length;
+  PFS_object_name m_owner_object_name;
 
   /** Columns TIMER_PREPARE. */
   PFS_stat_row m_prepare_stat;

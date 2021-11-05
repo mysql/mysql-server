@@ -105,17 +105,13 @@ PFS_prepared_stmt *create_prepared_stmt(
 
     /* If this statement prepare is called from a SP. */
     if (pfs_program) {
-      pfs->m_owner_object_type = pfs_program->m_type;
-      strncpy(pfs->m_owner_object_schema, pfs_program->m_schema_name,
-              pfs_program->m_schema_name_length);
-      pfs->m_owner_object_schema_length = pfs_program->m_schema_name_length;
-      strncpy(pfs->m_owner_object_name, pfs_program->m_object_name,
-              pfs_program->m_object_name_length);
-      pfs->m_owner_object_name_length = pfs_program->m_object_name_length;
+      pfs->m_owner_object_type = pfs_program->m_key.m_type;
+      pfs->m_owner_object_schema = pfs_program->m_key.m_schema_name;
+      pfs->m_owner_object_name = pfs_program->m_key.m_object_name;
     } else {
       pfs->m_owner_object_type = NO_OBJECT_TYPE;
-      pfs->m_owner_object_schema_length = 0;
-      pfs->m_owner_object_name_length = 0;
+      pfs->m_owner_object_schema.reset();
+      pfs->m_owner_object_name.reset();
     }
 
     if (pfs_stmt) {

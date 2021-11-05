@@ -2888,10 +2888,8 @@ void pfs_create_file_vc(PSI_file_key key, const char *name, File file) {
 */
 struct PFS_spawn_thread_arg {
   ulonglong m_thread_internal_id;
-  char m_username[USERNAME_LENGTH];
-  uint m_username_length;
-  char m_hostname[HOSTNAME_LENGTH];
-  uint m_hostname_length;
+  PFS_user_name m_user_name;
+  PFS_host_name m_host_name;
 
   PSI_thread_key m_child_key;
   PSI_thread_seqnum m_child_seqnum;
@@ -2919,11 +2917,8 @@ static void *pfs_spawn_thread(void *arg) {
 
       pfs->m_parent_thread_internal_id = typed_arg->m_thread_internal_id;
 
-      memcpy(pfs->m_username, typed_arg->m_username, sizeof(pfs->m_username));
-      pfs->m_username_length = typed_arg->m_username_length;
-
-      memcpy(pfs->m_hostname, typed_arg->m_hostname, sizeof(pfs->m_hostname));
-      pfs->m_hostname_length = typed_arg->m_hostname_length;
+      pfs->m_user_name = typed_arg->m_user_name;
+      pfs->m_host_name = typed_arg->m_host_name;
 
       set_thread_account(pfs);
     }
@@ -2982,17 +2977,12 @@ int pfs_spawn_thread_vc(PSI_thread_key key, PSI_thread_seqnum seqnum,
     */
     psi_arg->m_thread_internal_id = parent->m_thread_internal_id;
 
-    memcpy(psi_arg->m_username, parent->m_username,
-           sizeof(psi_arg->m_username));
-    psi_arg->m_username_length = parent->m_username_length;
-
-    memcpy(psi_arg->m_hostname, parent->m_hostname,
-           sizeof(psi_arg->m_hostname));
-    psi_arg->m_hostname_length = parent->m_hostname_length;
+    psi_arg->m_user_name = parent->m_user_name;
+    psi_arg->m_host_name = parent->m_host_name;
   } else {
     psi_arg->m_thread_internal_id = 0;
-    psi_arg->m_username_length = 0;
-    psi_arg->m_hostname_length = 0;
+    psi_arg->m_user_name.reset();
+    psi_arg->m_host_name.reset();
   }
 
   int result = my_thread_create(thread, attr, pfs_spawn_thread, psi_arg);
@@ -3137,10 +3127,6 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((user != nullptr) || (user_len == 0));
-  assert(user_len >= 0);
-  assert((uint)user_len <= sizeof(pfs->m_username));
-
   if (unlikely(pfs == nullptr)) {
     return;
   }
@@ -3151,10 +3137,7 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
 
   clear_thread_account(pfs);
 
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
+  pfs->m_user_name.set(user, user_len);
 
   set_thread_account(pfs);
 
@@ -3164,9 +3147,8 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
     enabled = pfs->m_account->m_enabled;
     history = pfs->m_account->m_history;
   } else {
-    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0)) {
-      lookup_setup_actor(pfs, pfs->m_username, pfs->m_username_length,
-                         pfs->m_hostname, pfs->m_hostname_length, &enabled,
+    if ((pfs->m_user_name.length() > 0) && (pfs->m_host_name.length() > 0)) {
+      lookup_setup_actor(pfs, &pfs->m_user_name, &pfs->m_host_name, &enabled,
                          &history);
     } else {
       /* There is no setting for background threads */
@@ -3189,14 +3171,6 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((user != nullptr) || (user_len == 0));
-  assert(user_len >= 0);
-  assert((uint)user_len <= sizeof(pfs->m_username));
-  assert((host != nullptr) || (host_len == 0));
-  assert(host_len >= 0);
-
-  host_len = min<size_t>(host_len, sizeof(pfs->m_hostname));
-
   if (unlikely(pfs == nullptr)) {
     return;
   }
@@ -3205,15 +3179,8 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 
   clear_thread_account(pfs);
 
-  if (host_len > 0) {
-    memcpy(pfs->m_hostname, host, host_len);
-  }
-  pfs->m_hostname_length = host_len;
-
-  if (user_len > 0) {
-    memcpy(pfs->m_username, user, user_len);
-  }
-  pfs->m_username_length = user_len;
+  pfs->m_user_name.set(user, user_len);
+  pfs->m_host_name.set(host, host_len);
 
   set_thread_account(pfs);
 
@@ -3223,9 +3190,8 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
     enabled = pfs->m_account->m_enabled;
     history = pfs->m_account->m_history;
   } else {
-    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0)) {
-      lookup_setup_actor(pfs, pfs->m_username, pfs->m_username_length,
-                         pfs->m_hostname, pfs->m_hostname_length, &enabled,
+    if ((pfs->m_user_name.length() > 0) && (pfs->m_host_name.length() > 0)) {
+      lookup_setup_actor(pfs, &pfs->m_user_name, &pfs->m_host_name, &enabled,
                          &history);
     } else {
       /* There is no setting for background threads */
@@ -3246,17 +3212,10 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 void pfs_set_thread_db_vc(const char *db, int db_len) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  assert((db != nullptr) || (db_len == 0));
-  assert(db_len >= 0);
-  assert((uint)db_len <= sizeof(pfs->m_dbname));
-
   if (likely(pfs != nullptr)) {
     pfs_dirty_state dirty_state;
     pfs->m_stmt_lock.allocated_to_dirty(&dirty_state);
-    if (db_len > 0) {
-      memcpy(pfs->m_dbname, db, db_len);
-    }
-    pfs->m_dbname_length = db_len;
+    pfs->m_db_name.set(db, db_len);
     pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
   }
 }
@@ -3412,6 +3371,7 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
                           PSI_thread_attrs *thread_attrs)
 
 {
+  size_t len;
   int result = 0;
   pfs_optimistic_state lock = pfs_optimistic_state();
   pfs_optimistic_state session_lock = pfs_optimistic_state();
@@ -3445,16 +3405,18 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
     memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
   }
 
-  assert(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
-  thread_attrs->m_username_length = pfs->m_username_length;
-  if (pfs->m_username_length > 0) {
-    memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
+  len = pfs->m_user_name.length();
+  assert(len <= sizeof(PSI_thread_attrs::m_username));
+  thread_attrs->m_username_length = len;
+  if (len > 0) {
+    memcpy(thread_attrs->m_username, pfs->m_user_name.ptr(), len);
   }
 
-  assert(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
-  thread_attrs->m_hostname_length = pfs->m_hostname_length;
-  if (pfs->m_hostname_length > 0) {
-    memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+  len = pfs->m_host_name.length();
+  assert(len <= sizeof(PSI_thread_attrs::m_hostname));
+  thread_attrs->m_hostname_length = len;
+  if (len > 0) {
+    memcpy(thread_attrs->m_hostname, pfs->m_host_name.ptr(), len);
   }
 
   assert(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
@@ -5995,7 +5957,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_vc(
       pfs->m_timer_start = 0;
       pfs->m_timer_end = 0;
       pfs->m_lock_time = 0;
-      pfs->m_current_schema_name_length = 0;
+      pfs->m_current_schema_name.reset();
       pfs->m_sqltext_length = 0;
       pfs->m_sqltext_truncated = false;
       pfs->m_sqltext_cs_number = system_charset_info->number; /* default */
@@ -6064,17 +6026,13 @@ PSI_statement_locker *pfs_get_thread_statement_locker_vc(
       /* Set parent Stored Procedure information for this statement. */
       if (sp_share) {
         PFS_program *parent_sp = reinterpret_cast<PFS_program *>(sp_share);
-        pfs->m_sp_type = parent_sp->m_type;
-        memcpy(pfs->m_schema_name, parent_sp->m_schema_name,
-               parent_sp->m_schema_name_length);
-        pfs->m_schema_name_length = parent_sp->m_schema_name_length;
-        memcpy(pfs->m_object_name, parent_sp->m_object_name,
-               parent_sp->m_object_name_length);
-        pfs->m_object_name_length = parent_sp->m_object_name_length;
+        pfs->m_sp_type = parent_sp->m_key.m_type;
+        pfs->m_schema_name = parent_sp->m_key.m_schema_name;
+        pfs->m_object_name = parent_sp->m_key.m_object_name;
       } else {
         pfs->m_sp_type = NO_OBJECT_TYPE;
-        pfs->m_schema_name_length = 0;
-        pfs->m_object_name_length = 0;
+        pfs->m_schema_name.reset();
+        pfs->m_object_name.reset();
       }
 
       state->m_statement = pfs;
@@ -6220,11 +6178,7 @@ void pfs_start_statement_vc(PSI_statement_locker *locker, const char *db,
     pfs->m_source_file = src_file;
     pfs->m_source_line = src_line;
 
-    assert(db_len <= sizeof(pfs->m_current_schema_name));
-    if (db_len > 0) {
-      memcpy(pfs->m_current_schema_name, db, db_len);
-    }
-    pfs->m_current_schema_name_length = db_len;
+    pfs->m_current_schema_name.set(db, db_len);
   }
 
   state->m_query_sample = nullptr;

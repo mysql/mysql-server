@@ -64,11 +64,9 @@ struct row_esms_by_program {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column OBJECT_SCHEMA. */
-  char m_schema_name[COL_OBJECT_SCHEMA_SIZE];
-  int m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[COL_OBJECT_NAME_SIZE];
-  int m_object_name_length;
+  PFS_routine_name m_object_name;
 
   /**
     Columns COUNT_STAR

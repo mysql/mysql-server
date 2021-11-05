@@ -293,17 +293,11 @@ void PFS_data_lock_container::add_lock_row(
 
   row.m_index_row.m_object_row.m_object_type = OBJECT_TYPE_TABLE;
 
-  if (table_schema_length > 0) {
-    memcpy(row.m_index_row.m_object_row.m_schema_name, table_schema,
-           table_schema_length);
-  }
-  row.m_index_row.m_object_row.m_schema_name_length = table_schema_length;
+  row.m_index_row.m_object_row.m_schema_name.set(table_schema,
+                                                 table_schema_length);
 
-  if (table_name_length > 0) {
-    memcpy(row.m_index_row.m_object_row.m_object_name, table_name,
-           table_name_length);
-  }
-  row.m_index_row.m_object_row.m_object_name_length = table_name_length;
+  row.m_index_row.m_object_row.m_object_name.set_as_table(table_name,
+                                                          table_name_length);
 
   row.m_partition_name = partition_name;
   row.m_partition_name_length = partition_name_length;

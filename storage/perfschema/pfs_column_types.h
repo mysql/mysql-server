@@ -30,11 +30,13 @@
   Data types for columns used in the performance schema tables (declarations)
 */
 
-/** Size of the OBJECT_SCHEMA columns. */
-#define COL_OBJECT_SCHEMA_SIZE 64
+/** Size of the OBJECT_SCHEMA columns, in characters. */
+#define COL_OBJECT_SCHEMA_CHAR_SIZE 64
+/** Size of the OBJECT_SCHEMA columns, in bytes. */
+#define COL_OBJECT_SCHEMA_SIZE (COL_OBJECT_SCHEMA_CHAR_SIZE * 1)
 
 /**
-  Size of the extended OBJECT_NAME columns.
+  Size of the extended OBJECT_NAME columns, in characters.
   'Extended' columns are used when the object name also represents
   the name of a non SQL object, such as a file name.
   Size in bytes of:
@@ -42,25 +44,35 @@
   - performance_schema.events_waits_history (OBJECT_NAME)
   - performance_schema.events_waits_history_long (OBJECT_NAME)
 */
-#define COL_OBJECT_NAME_EXTENDED_SIZE 512
+#define COL_OBJECT_NAME_EXTENDED_CHAR_SIZE 512
+/** Size of the extended OBJECT_NAME columns, in bytes. */
+#define COL_OBJECT_NAME_EXTENDED_SIZE (COL_OBJECT_NAME_EXTENDED_CHAR_SIZE * 1)
 
-/** Size of the OBJECT_NAME columns. */
-#define COL_OBJECT_NAME_SIZE 64
+/** Size of the OBJECT_NAME columns, in characters. */
+#define COL_OBJECT_NAME_CHAR_SIZE 64
+/** Size of the OBJECT_NAME columns, in bytes. */
+#define COL_OBJECT_NAME_SIZE (COL_OBJECT_NAME_CHAR_SIZE * 1)
 
-/** Size of the INDEX_NAME columns. */
-#define COL_INDEX_NAME_SIZE 64
+/** Size of the INDEX_NAME columns, in characters. */
+#define COL_INDEX_NAME_CHAR_SIZE 64
+/** Size of the INDEX_NAME columns, in bytes. */
+#define COL_INDEX_NAME_SIZE (COL_INDEX_NAME_CHAR_SIZE * 1)
 
 /**
-  Size of INFO columns.
-  Size in bytes of:
+  Size of INFO columns, in characters.
+  Size of:
   - performance_schema.events_statement_current (INFO)
   - performance_schema.events_statement_history (INFO)
   - performance_schema.events_statement_history_long (INFO)
 */
-#define COL_INFO_SIZE 1024
+#define COL_INFO_CHAR_SIZE 1024
+/** Size of INFO columns, in bytes. */
+#define COL_INFO_SIZE (COL_INFO_CHAR_SIZE * 1)
 
-/** Size of the SOURCE columns. */
-#define COL_SOURCE_SIZE 64
+/** Size of the SOURCE columns, in characters. */
+#define COL_SOURCE_CHAR_SIZE 64
+/** Size of the SOURCE columns, in bytes. */
+#define COL_SOURCE_SIZE (COL_SOURCE_CHAR_SIZE * 1)
 
 /**
   Enum values for the TIMER_NAME columns.
@@ -206,7 +218,7 @@ enum enum_operation_type {
 /**
   Enum values for the various OBJECT_TYPE columns.
 */
-enum enum_object_type {
+enum enum_object_type : char {
   NO_OBJECT_TYPE = 0,
 
   /* Advertised in SQL ENUM */

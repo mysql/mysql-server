@@ -66,6 +66,7 @@ class THD;
 #include "storage/perfschema/pfs_events_waits.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/pfs_stat.h"
 #include "violite.h" /* enum_vio_type */
@@ -178,9 +179,7 @@ struct PFS_ALIGNED PFS_file : public PFS_instr {
   /** File identity */
   const void *m_identity;
   /** File name. */
-  char m_filename[FN_REFLEN];
-  /** File name length in bytes. */
-  uint m_filename_length;
+  PFS_file_name m_file_name;
   /** File class. */
   PFS_file_class *m_class;
   /** File usage statistics. */
@@ -573,32 +572,20 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
     User name.
     Protected by @c m_session_lock.
   */
-  char m_username[USERNAME_LENGTH];
-  /**
-    Length of @c m_username.
-    Protected by @c m_session_lock.
-  */
-  uint m_username_length;
+  PFS_user_name m_user_name;
+
   /**
     Host name.
     Protected by @c m_session_lock.
   */
-  char m_hostname[HOSTNAME_LENGTH];
-  /**
-    Length of @c m_hostname.
-    Protected by @c m_session_lock.
-  */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
+
   /**
     Database name.
     Protected by @c m_stmt_lock.
   */
-  char m_dbname[NAME_LEN];
-  /**
-    Length of @c m_dbname.
-    Protected by @c m_stmt_lock.
-  */
-  uint m_dbname_length;
+  PFS_schema_name m_db_name;
+
   /**
     Resource group name.
     Protected by @c m_session_lock.

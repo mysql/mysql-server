@@ -109,7 +109,7 @@ PFS_engine_table_share table_esms_by_program::m_share = {
 
 bool PFS_index_esms_by_program::match(PFS_program *pfs) {
   if (m_fields >= 1) {
-    if (!m_key_1.match(pfs->m_type)) {
+    if (!m_key_1.match(pfs->m_key.m_type)) {
       return false;
     }
   }
@@ -213,17 +213,9 @@ int table_esms_by_program::make_row(PFS_program *program) {
 
   program->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type = program->m_type;
-
-  m_row.m_object_name_length = program->m_object_name_length;
-  if (m_row.m_object_name_length > 0)
-    memcpy(m_row.m_object_name, program->m_object_name,
-           m_row.m_object_name_length);
-
-  m_row.m_schema_name_length = program->m_schema_name_length;
-  if (m_row.m_schema_name_length > 0)
-    memcpy(m_row.m_schema_name, program->m_schema_name,
-           m_row.m_schema_name_length);
+  m_row.m_object_type = program->m_key.m_type;
+  m_row.m_schema_name = program->m_key.m_schema_name;
+  m_row.m_object_name = program->m_key.m_object_name;
 
   /* Get stored program's over all stats. */
   m_row.m_sp_stat.set(m_normalizer, &program->m_sp_stat);
@@ -259,20 +251,10 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 1: /* OBJECT_SCHEMA */
-          if (m_row.m_schema_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_schema_name,
-                                   m_row.m_schema_name_length);
-          else {
-            f->set_null();
-          }
+          set_field_schema_name(f, &m_row.m_schema_name);
           break;
         case 2: /* OBJECT_NAME */
-          if (m_row.m_object_name_length > 0)
-            set_field_varchar_utf8(f, m_row.m_object_name,
-                                   m_row.m_object_name_length);
-          else {
-            f->set_null();
-          }
+          set_field_routine_name(f, &m_row.m_object_name);
           break;
         case 3: /* COUNT_STAR */
         case 4: /* SUM_TIMER_WAIT */

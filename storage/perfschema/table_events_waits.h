@@ -75,9 +75,7 @@ struct row_events_waits {
   /** Length in bytes of @c m_object_type. */
   uint m_object_type_length;
   /** Column OBJECT_SCHEMA. */
-  char m_object_schema[COL_OBJECT_SCHEMA_SIZE];
-  /** Length in bytes of @c m_object_schema. */
-  uint m_object_schema_length;
+  PFS_schema_name m_object_schema;
   /** Column OBJECT_NAME. */
   char m_object_name[COL_OBJECT_NAME_EXTENDED_SIZE];
   /** Length in bytes of @c m_object_name. */

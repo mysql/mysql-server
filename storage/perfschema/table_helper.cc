@@ -436,6 +436,81 @@ void set_field_json(Field *f, const Json_wrapper *json) {
   f2->store_json(json);
 }
 
+void set_nullable_field_schema_name(Field *f, const PFS_schema_name *schema) {
+  assert(f->is_nullable());
+  size_t len = schema->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_varchar_utf8(f, schema->ptr(), len);
+  }
+}
+
+void set_field_schema_name(Field *f, const PFS_schema_name *schema) {
+  assert(!f->is_nullable());
+  set_field_varchar_utf8(f, schema->ptr(), schema->length());
+}
+
+void set_nullable_field_object_name(Field *f, const PFS_object_name *object) {
+  assert(f->is_nullable());
+  size_t len = object->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_varchar_utf8(f, object->ptr(), len);
+  }
+}
+
+void set_field_object_name(Field *f, const PFS_object_name *object) {
+  assert(!f->is_nullable());
+  set_field_varchar_utf8(f, object->ptr(), object->length());
+}
+
+void set_nullable_field_routine_name(Field *f, const PFS_routine_name *object) {
+  assert(f->is_nullable());
+  size_t len = object->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_varchar_utf8(f, object->ptr(), len);
+  }
+}
+
+void set_field_routine_name(Field *f, const PFS_routine_name *object) {
+  assert(!f->is_nullable());
+  set_field_varchar_utf8(f, object->ptr(), object->length());
+}
+
+void set_field_host_name(Field *f, const PFS_host_name *host) {
+  assert(!f->is_nullable());
+  set_field_char_utf8(f, host->ptr(), host->length());
+}
+
+void set_nullable_field_host_name(Field *f, const PFS_host_name *host) {
+  assert(f->is_nullable());
+  size_t len = host->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_char_utf8(f, host->ptr(), len);
+  }
+}
+
+void set_field_user_name(Field *f, const PFS_user_name *user) {
+  assert(!f->is_nullable());
+  set_field_char_utf8(f, user->ptr(), user->length());
+}
+
+void set_nullable_field_user_name(Field *f, const PFS_user_name *user) {
+  assert(f->is_nullable());
+  size_t len = user->length();
+  if (len == 0) {
+    f->set_null();
+  } else {
+    set_field_char_utf8(f, user->ptr(), len);
+  }
+}
+
 void format_sqltext(const char *source_sqltext, size_t source_length,
                     const CHARSET_INFO *source_cs, bool truncated,
                     String &sqltext) {
@@ -499,78 +574,54 @@ void make_source_column(const char *source_file, size_t source_line,
 }
 
 int PFS_host_row::make_row(PFS_host *pfs) {
-  m_hostname_length = pfs->m_hostname_length;
-  if (m_hostname_length > sizeof(m_hostname)) {
-    return 1;
-  }
-  if (m_hostname_length > 0) {
-    memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
-  }
+  m_host_name = pfs->m_key.m_host_name;
   return 0;
 }
 
-void PFS_host_row::set_field(Field *f) {
-  if (m_hostname_length > 0) {
-    set_field_char_utf8(f, m_hostname, m_hostname_length);
-  } else {
-    f->set_null();
-  }
+void PFS_host_row::set_field(Field *f) { set_field_host_name(f, &m_host_name); }
+
+void PFS_host_row::set_nullable_field(Field *f) {
+  set_nullable_field_host_name(f, &m_host_name);
 }
 
 int PFS_user_row::make_row(PFS_user *pfs) {
-  m_username_length = pfs->m_username_length;
-  if (m_username_length > sizeof(m_username)) {
-    return 1;
-  }
-  if (m_username_length > 0) {
-    memcpy(m_username, pfs->m_username, sizeof(m_username));
-  }
+  m_user_name = pfs->m_key.m_user_name;
   return 0;
 }
 
-void PFS_user_row::set_field(Field *f) {
-  if (m_username_length > 0) {
-    set_field_char_utf8(f, m_username, m_username_length);
-  } else {
-    f->set_null();
-  }
+void PFS_user_row::set_field(Field *f) { set_field_user_name(f, &m_user_name); }
+
+void PFS_user_row::set_nullable_field(Field *f) {
+  set_nullable_field_user_name(f, &m_user_name);
 }
 
 int PFS_account_row::make_row(PFS_account *pfs) {
-  m_username_length = pfs->m_username_length;
-  if (m_username_length > sizeof(m_username)) {
-    return 1;
-  }
-  if (m_username_length > 0) {
-    memcpy(m_username, pfs->m_username, sizeof(m_username));
-  }
-
-  m_hostname_length = pfs->m_hostname_length;
-  if (m_hostname_length > sizeof(m_hostname)) {
-    return 1;
-  }
-  if (m_hostname_length > 0) {
-    memcpy(m_hostname, pfs->m_hostname, sizeof(m_hostname));
-  }
-
+  m_user_name = pfs->m_key.m_user_name;
+  m_host_name = pfs->m_key.m_host_name;
   return 0;
 }
 
 void PFS_account_row::set_field(uint index, Field *f) {
   switch (index) {
     case 0: /* USER */
-      if (m_username_length > 0) {
-        set_field_char_utf8(f, m_username, m_username_length);
-      } else {
-        f->set_null();
-      }
+      set_field_user_name(f, &m_user_name);
       break;
     case 1: /* HOST */
-      if (m_hostname_length > 0) {
-        set_field_char_utf8(f, m_hostname, m_hostname_length);
-      } else {
-        f->set_null();
-      }
+      set_field_host_name(f, &m_host_name);
+      break;
+    default:
+      assert(false);
+      break;
+  }
+}
+
+void PFS_account_row::set_nullable_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* USER */
+      set_nullable_field_user_name(f, &m_user_name);
+      break;
+    case 1: /* HOST */
+      set_nullable_field_host_name(f, &m_host_name);
       break;
     default:
       assert(false);
@@ -579,13 +630,7 @@ void PFS_account_row::set_field(uint index, Field *f) {
 }
 
 int PFS_digest_row::make_row(PFS_statements_digest_stat *pfs) {
-  m_schema_name_length = pfs->m_digest_key.m_schema_name_length;
-  if (m_schema_name_length > sizeof(m_schema_name)) {
-    m_schema_name_length = 0;
-  }
-  if (m_schema_name_length > 0)
-    memcpy(m_schema_name, pfs->m_digest_key.m_schema_name,
-           m_schema_name_length);
+  m_schema_name = pfs->m_digest_key.m_schema_name;
 
   size_t safe_byte_count = pfs->m_digest_storage.m_byte_count;
   if (safe_byte_count > pfs_max_digest_length) {
@@ -624,8 +669,8 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat *pfs) {
 void PFS_digest_row::set_field(uint index, Field *f) {
   switch (index) {
     case 0: /* SCHEMA_NAME */
-      if (m_schema_name_length > 0) {
-        set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+      if (m_schema_name.length() > 0) {
+        set_field_varchar_utf8(f, m_schema_name.ptr(), m_schema_name.length());
       } else {
         f->set_null();
       }
@@ -652,44 +697,16 @@ void PFS_digest_row::set_field(uint index, Field *f) {
 
 int PFS_object_row::make_row(PFS_table_share *pfs) {
   m_object_type = pfs->get_object_type();
-
-  m_schema_name_length = pfs->m_schema_name_length;
-  if (m_schema_name_length > sizeof(m_schema_name)) {
-    return 1;
-  }
-  if (m_schema_name_length > 0) {
-    memcpy(m_schema_name, pfs->m_schema_name, sizeof(m_schema_name));
-  }
-
-  m_object_name_length = pfs->m_table_name_length;
-  if (m_object_name_length > sizeof(m_object_name)) {
-    return 1;
-  }
-  if (m_object_name_length > 0) {
-    memcpy(m_object_name, pfs->m_table_name, sizeof(m_object_name));
-  }
+  m_schema_name = pfs->m_key.m_schema_name;
+  m_object_name = pfs->m_key.m_table_name;
 
   return 0;
 }
 
 int PFS_object_row::make_row(PFS_program *pfs) {
-  m_object_type = pfs->m_type;
-
-  m_schema_name_length = pfs->m_schema_name_length;
-  if (m_schema_name_length > sizeof(m_schema_name)) {
-    return 1;
-  }
-  if (m_schema_name_length > 0) {
-    memcpy(m_schema_name, pfs->m_schema_name, sizeof(m_schema_name));
-  }
-
-  m_object_name_length = pfs->m_object_name_length;
-  if (m_object_name_length > sizeof(m_object_name)) {
-    return 1;
-  }
-  if (m_object_name_length > 0) {
-    memcpy(m_object_name, pfs->m_object_name, sizeof(m_object_name));
-  }
+  m_object_type = pfs->m_key.m_type;
+  m_schema_name = pfs->m_key.m_schema_name;
+  m_object_name = pfs->m_key.m_object_name;
 
   return 0;
 }
@@ -837,10 +854,10 @@ void PFS_object_row::set_field(uint index, Field *f) {
       set_field_object_type(f, m_object_type);
       break;
     case 1: /* SCHEMA_NAME */
-      set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
+      set_field_schema_name(f, &m_schema_name);
       break;
     case 2: /* OBJECT_NAME */
-      set_field_varchar_utf8(f, m_object_name, m_object_name_length);
+      set_field_object_name(f, &m_object_name);
       break;
     default:
       assert(false);
@@ -857,18 +874,10 @@ void PFS_object_row::set_nullable_field(uint index, Field *f) {
       }
       break;
     case 1: /* SCHEMA_NAME */
-      if (m_schema_name_length > 0) {
-        set_field_varchar_utf8(f, m_schema_name, m_schema_name_length);
-      } else {
-        f->set_null();
-      }
+      set_nullable_field_schema_name(f, &m_schema_name);
       break;
     case 2: /* OBJECT_NAME */
-      if (m_object_name_length > 0) {
-        set_field_varchar_utf8(f, m_object_name, m_object_name_length);
-      } else {
-        f->set_null();
-      }
+      set_nullable_field_object_name(f, &m_object_name);
       break;
     default:
       assert(false);
@@ -955,6 +964,25 @@ void PFS_index_row::set_field(uint index, Field *f) {
     case 1: /* SCHEMA_NAME */
     case 2: /* OBJECT_NAME */
       m_object_row.set_field(index, f);
+      break;
+    case 3: /* INDEX_NAME */
+      if (m_index_name_length > 0) {
+        set_field_varchar_utf8(f, m_index_name, m_index_name_length);
+      } else {
+        f->set_null();
+      }
+      break;
+    default:
+      assert(false);
+  }
+}
+
+void PFS_index_row::set_nullable_field(uint index, Field *f) {
+  switch (index) {
+    case 0: /* OBJECT_TYPE */
+    case 1: /* SCHEMA_NAME */
+    case 2: /* OBJECT_NAME */
+      m_object_row.set_nullable_field(index, f);
       break;
     case 3: /* INDEX_NAME */
       if (m_index_name_length > 0) {
@@ -1913,43 +1941,51 @@ bool PFS_key_event_name::match_view(uint view) {
 }
 
 bool PFS_key_user::match(const PFS_thread *pfs) {
-  bool record_null = (pfs->m_username_length == 0);
-  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+  bool record_null = (pfs->m_user_name.length() == 0);
+  return do_match(record_null, pfs->m_user_name.ptr(),
+                  pfs->m_user_name.length());
 }
 
 bool PFS_key_user::match(const PFS_user *pfs) {
-  bool record_null = (pfs->m_username_length == 0);
-  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+  bool record_null = (pfs->m_key.m_user_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_user_name.ptr(),
+                  pfs->m_key.m_user_name.length());
 }
 
 bool PFS_key_user::match(const PFS_account *pfs) {
-  bool record_null = (pfs->m_username_length == 0);
-  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+  bool record_null = (pfs->m_key.m_user_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_user_name.ptr(),
+                  pfs->m_key.m_user_name.length());
 }
 
 bool PFS_key_user::match(const PFS_setup_actor *pfs) {
-  bool record_null = (pfs->m_username_length == 0);
-  return do_match(record_null, pfs->m_username, pfs->m_username_length);
+  bool record_null = (pfs->m_key.m_user_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_user_name.ptr(),
+                  pfs->m_key.m_user_name.length());
 }
 
 bool PFS_key_host::match(const PFS_thread *pfs) {
-  bool record_null = (pfs->m_hostname_length == 0);
-  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+  bool record_null = (pfs->m_host_name.length() == 0);
+  return do_match(record_null, pfs->m_host_name.ptr(),
+                  pfs->m_host_name.length());
 }
 
 bool PFS_key_host::match(const PFS_host *pfs) {
-  bool record_null = (pfs->m_hostname_length == 0);
-  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+  bool record_null = (pfs->m_key.m_host_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_host_name.ptr(),
+                  pfs->m_key.m_host_name.length());
 }
 
 bool PFS_key_host::match(const PFS_account *pfs) {
-  bool record_null = (pfs->m_hostname_length == 0);
-  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+  bool record_null = (pfs->m_key.m_host_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_host_name.ptr(),
+                  pfs->m_key.m_host_name.length());
 }
 
 bool PFS_key_host::match(const PFS_setup_actor *pfs) {
-  bool record_null = (pfs->m_hostname_length == 0);
-  return do_match(record_null, pfs->m_hostname, pfs->m_hostname_length);
+  bool record_null = (pfs->m_key.m_host_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_host_name.ptr(),
+                  pfs->m_key.m_host_name.length());
 }
 
 bool PFS_key_host::match(const char *hostname, size_t hostname_length) {
@@ -1958,14 +1994,15 @@ bool PFS_key_host::match(const char *hostname, size_t hostname_length) {
 }
 
 bool PFS_key_role::match(const PFS_setup_actor *pfs) {
-  bool record_null = (pfs->m_rolename_length == 0);
-  return do_match(record_null, pfs->m_rolename, pfs->m_rolename_length);
+  bool record_null = (pfs->m_key.m_role_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_role_name.ptr(),
+                  pfs->m_key.m_role_name.length());
 }
 
 bool PFS_key_schema::match(const PFS_statements_digest_stat *pfs) {
-  bool record_null = (pfs->m_digest_key.m_schema_name_length == 0);
-  return do_match(record_null, pfs->m_digest_key.m_schema_name,
-                  pfs->m_digest_key.m_schema_name_length);
+  bool record_null = (pfs->m_digest_key.m_schema_name.length() == 0);
+  return do_match(record_null, pfs->m_digest_key.m_schema_name.ptr(),
+                  pfs->m_digest_key.m_schema_name.length());
 }
 
 bool PFS_key_digest::match(PFS_statements_digest_stat *pfs) {
@@ -2058,7 +2095,7 @@ bool PFS_key_statement_name::match(const PFS_prepared_stmt *pfs) {
 }
 
 bool PFS_key_file_name::match(const PFS_file *pfs) {
-  return do_match(false, pfs->m_filename, pfs->m_filename_length);
+  return do_match(false, pfs->m_file_name.ptr(), pfs->m_file_name.length());
 }
 
 void PFS_key_object_type::read(PFS_key_reader &reader,
@@ -2093,8 +2130,8 @@ bool PFS_key_object_type::match(const PFS_column_row *pfs) {
 }
 
 bool PFS_key_object_type::match(const PFS_program *pfs) {
-  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
-  return do_match(record_null, pfs->m_type);
+  bool record_null = (pfs->m_key.m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_key.m_type);
 }
 
 bool PFS_key_object_type::do_match(bool record_null,
@@ -2161,8 +2198,8 @@ bool PFS_key_object_type_enum::match(const PFS_object_row *pfs) {
 }
 
 bool PFS_key_object_type_enum::match(const PFS_program *pfs) {
-  bool record_null = (pfs->m_type == NO_OBJECT_TYPE);
-  return do_match(record_null, pfs->m_type);
+  bool record_null = (pfs->m_key.m_type == NO_OBJECT_TYPE);
+  return do_match(record_null, pfs->m_key.m_type);
 }
 
 bool PFS_key_object_type_enum::do_match(bool record_null,
@@ -2201,21 +2238,24 @@ bool PFS_key_object_type_enum::do_match(bool record_null,
 }
 
 bool PFS_key_object_schema::match(const PFS_table_share *share) {
-  return do_match(false, share->m_schema_name, share->m_schema_name_length);
+  return do_match(false, share->m_key.m_schema_name.ptr(),
+                  share->m_key.m_schema_name.length());
 }
 
 bool PFS_key_object_schema::match(const PFS_program *pfs) {
-  return do_match(false, pfs->m_schema_name, pfs->m_schema_name_length);
+  return do_match(false, pfs->m_key.m_schema_name.ptr(),
+                  pfs->m_key.m_schema_name.length());
 }
 
 bool PFS_key_object_schema::match(const PFS_prepared_stmt *pfs) {
-  return do_match(false, pfs->m_owner_object_schema,
-                  pfs->m_owner_object_schema_length);
+  return do_match(false, pfs->m_owner_object_schema.ptr(),
+                  pfs->m_owner_object_schema.length());
 }
 
 bool PFS_key_object_schema::match(const PFS_object_row *pfs) {
-  bool record_null = (pfs->m_object_name_length == 0);
-  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+  bool record_null = (pfs->m_object_name.length() == 0);
+  return do_match(record_null, pfs->m_schema_name.ptr(),
+                  pfs->m_schema_name.length());
 }
 
 bool PFS_key_object_schema::match(const PFS_column_row *pfs) {
@@ -2224,8 +2264,9 @@ bool PFS_key_object_schema::match(const PFS_column_row *pfs) {
 }
 
 bool PFS_key_object_schema::match(const PFS_setup_object *pfs) {
-  bool record_null = (pfs->m_schema_name_length == 0);
-  return do_match(record_null, pfs->m_schema_name, pfs->m_schema_name_length);
+  bool record_null = (pfs->m_key.m_schema_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_schema_name.ptr(),
+                  pfs->m_key.m_schema_name.length());
 }
 
 bool PFS_key_object_schema::match(const char *schema_name,
@@ -2235,21 +2276,24 @@ bool PFS_key_object_schema::match(const char *schema_name,
 }
 
 bool PFS_key_object_name::match(const PFS_table_share *share) {
-  return do_match(false, share->m_table_name, share->m_table_name_length);
+  return do_match(false, share->m_key.m_table_name.ptr(),
+                  share->m_key.m_table_name.length());
 }
 
 bool PFS_key_object_name::match(const PFS_program *pfs) {
-  return do_match(false, pfs->m_object_name, pfs->m_object_name_length);
+  return do_match(false, pfs->m_key.m_object_name.ptr(),
+                  pfs->m_key.m_object_name.length());
 }
 
 bool PFS_key_object_name::match(const PFS_prepared_stmt *pfs) {
-  return do_match(false, pfs->m_owner_object_name,
-                  pfs->m_owner_object_name_length);
+  return do_match(false, pfs->m_owner_object_name.ptr(),
+                  pfs->m_owner_object_name.length());
 }
 
 bool PFS_key_object_name::match(const PFS_object_row *pfs) {
-  bool record_null = (pfs->m_object_name_length == 0);
-  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+  bool record_null = (pfs->m_object_name.length() == 0);
+  return do_match(record_null, pfs->m_object_name.ptr(),
+                  pfs->m_object_name.length());
 }
 
 bool PFS_key_object_name::match(const PFS_column_row *pfs) {
@@ -2263,8 +2307,9 @@ bool PFS_key_object_name::match(const PFS_index_row *pfs) {
 }
 
 bool PFS_key_object_name::match(const PFS_setup_object *pfs) {
-  bool record_null = (pfs->m_object_name_length == 0);
-  return do_match(record_null, pfs->m_object_name, pfs->m_object_name_length);
+  bool record_null = (pfs->m_key.m_object_name.length() == 0);
+  return do_match(record_null, pfs->m_key.m_object_name.ptr(),
+                  pfs->m_key.m_object_name.length());
 }
 
 bool PFS_key_object_name::match(const char *object_name,

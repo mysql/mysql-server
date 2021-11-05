@@ -55,17 +55,11 @@ struct row_threads {
   /** Length in bytes of @c m_name. */
   uint m_name_length;
   /** Column PROCESSLIST_USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
   /** Column PROCESSLIST_HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
   /** Column PROCESSLIST_DB. */
-  char m_dbname[NAME_LEN];
-  /** Length in bytes of @c m_dbname. */
-  uint m_dbname_length;
+  PFS_schema_name m_db_name;
   /** Column PROCESSLIST_COMMAND. */
   int m_command;
   /** Column PROCESSLIST_TIME. */

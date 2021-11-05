@@ -258,7 +258,7 @@ int table_status_by_user::read_row_values(TABLE *table, unsigned char *buf,
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* USER */
-          m_row.m_user.set_field(f);
+          m_row.m_user.set_nullable_field(f);
           break;
         case 1: /* VARIABLE_NAME */
           set_field_varchar_utf8(f, m_row.m_variable_name.m_str,

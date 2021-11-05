@@ -246,7 +246,7 @@ int table_ees_by_account_by_error::read_row_values(TABLE *table,
       switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index(), f);
+          m_row.m_account.set_nullable_field(f->field_index(), f);
           break;
         case 2: /* ERROR NUMBER */
         case 3: /* ERROR NAME */

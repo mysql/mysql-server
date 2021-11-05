@@ -318,10 +318,10 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 5: /* OBJECT_SCHEMA */
-          m_row->m_index_row.set_field(1, f);
+          m_row->m_index_row.set_nullable_field(1, f);
           break;
         case 6: /* OBJECT_NAME  */
-          m_row->m_index_row.set_field(2, f);
+          m_row->m_index_row.set_nullable_field(2, f);
           break;
         case 7: /* PARTITION_NAME */
           if (m_row->m_partition_name_length > 0) {
@@ -340,7 +340,7 @@ int table_data_locks::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 9: /* INDEX_NAME */
-          m_row->m_index_row.set_field(3, f);
+          m_row->m_index_row.set_nullable_field(3, f);
           break;
         case 10: /* OBJECT_INSTANCE_BEGIN */
           set_field_ulonglong(f, (intptr)m_row->m_identity);

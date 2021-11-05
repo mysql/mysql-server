@@ -42,6 +42,7 @@
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/pfs_events.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_timer.h"
@@ -49,7 +50,9 @@
 struct PFS_host;
 struct PFS_user;
 struct PFS_account;
+struct PFS_schema_name;
 struct PFS_object_name;
+struct PFS_routine_name;
 struct PFS_program;
 class System_variable;
 class Status_variable;
@@ -461,6 +464,15 @@ ulong get_field_year(Field *f);
 */
 void set_field_json(Field *f, const Json_wrapper *json);
 
+void set_nullable_field_schema_name(Field *f, const PFS_schema_name *schema);
+void set_field_schema_name(Field *f, const PFS_schema_name *schema);
+
+void set_nullable_field_object_name(Field *f, const PFS_object_name *object);
+void set_field_object_name(Field *f, const PFS_object_name *object);
+
+void set_nullable_field_routine_name(Field *f, const PFS_routine_name *object);
+void set_field_routine_name(Field *f, const PFS_routine_name *object);
+
 /**
   Helper, format sql text for output.
 
@@ -528,52 +540,45 @@ struct PFS_object_view_constants {
 /** Row fragment for column HOST. */
 struct PFS_host_row {
   /** Column HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_host *pfs);
   /** Set a table field from the row. */
   void set_field(Field *f);
+  void set_nullable_field(Field *f);
 };
 
 /** Row fragment for column USER. */
 struct PFS_user_row {
   /** Column USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_user *pfs);
   /** Set a table field from the row. */
   void set_field(Field *f);
+  void set_nullable_field(Field *f);
 };
 
 /** Row fragment for columns USER, HOST. */
 struct PFS_account_row {
   /** Column USER. */
-  char m_username[USERNAME_LENGTH];
-  /** Length in bytes of @c m_username. */
-  uint m_username_length;
+  PFS_user_name m_user_name;
   /** Column HOST. */
-  char m_hostname[HOSTNAME_LENGTH];
-  /** Length in bytes of @c m_hostname. */
-  uint m_hostname_length;
+  PFS_host_name m_host_name;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_account *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
 };
 
 /** Row fragment for columns DIGEST, DIGEST_TEXT. */
 struct PFS_digest_row {
   /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column DIGEST. */
   char m_digest[DIGEST_HASH_TO_STRING_LENGTH + 1];
   /** Length in bytes of @c m_digest. */
@@ -612,13 +617,9 @@ struct PFS_object_row {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  size_t m_schema_name_length;
+  PFS_schema_name m_schema_name;
   /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  size_t m_object_name_length;
+  PFS_object_name m_object_name;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
@@ -667,6 +668,7 @@ struct PFS_index_row {
                uint table_index);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
 };
 
 /** Row fragment for single statistics columns (COUNT, SUM, MIN, AVG, MAX) */

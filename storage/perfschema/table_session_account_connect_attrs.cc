@@ -83,21 +83,11 @@ bool table_session_account_connect_attrs::thread_fits(PFS_thread *thread) {
   /* The thread we compare to, by definition, has some instrumentation. */
   assert(thread != nullptr);
 
-  uint username_length = current_thread->m_username_length;
-  uint hostname_length = current_thread->m_hostname_length;
-
-  if ((thread->m_username_length != username_length) ||
-      (thread->m_hostname_length != hostname_length)) {
+  if (thread->m_user_name.sort(&current_thread->m_user_name) != 0) {
     return false;
   }
 
-  if (memcmp(thread->m_username, current_thread->m_username, username_length) !=
-      0) {
-    return false;
-  }
-
-  if (memcmp(thread->m_hostname, current_thread->m_hostname, hostname_length) !=
-      0) {
+  if (thread->m_host_name.sort(&current_thread->m_host_name) != 0) {
     return false;
   }
 
