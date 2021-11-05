@@ -23,26 +23,18 @@
 */
 
 ////////////////////////////////////////
-// Test system include files
-#include "dim.h"
-#include "test/helpers.h"
-
-////////////////////////////////////////
 // Standard include files
 #include <memory>
 
 ////////////////////////////////////////
 // Third-party include files
 
-// #include GMock, but ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#include "gmock/gmock.h"
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+#include <gmock/gmock.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "dim.h"
+#include "test/helpers.h"
 
 using mysql_harness::UniquePtr;
 using ::testing::_;

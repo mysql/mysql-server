@@ -30,7 +30,7 @@
 
 #include <memory>
 
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
 
 using mysql_harness::Path;
 using std::string;

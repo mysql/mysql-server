@@ -25,16 +25,16 @@
 #ifndef MYSQL_HARNESS_HELPERS_INCLUDED
 #define MYSQL_HARNESS_HELPERS_INCLUDED
 
-// Third-party headers
-#include "gtest/gtest.h"
-
-#include "mysql/harness/loader.h"
-
 // Standard headers
 #include <algorithm>
 #include <list>
 #include <string>
 #include <vector>
+
+// Third-party headers
+#include <gtest/gtest.h>
+
+#include "mysql/harness/loader.h"
 
 template <typename T>
 std::ostream &operator<<(std::ostream &out, const std::vector<T> &v) {

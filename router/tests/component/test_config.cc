@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
+
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 

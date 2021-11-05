@@ -29,15 +29,10 @@
 #include <set>
 #include <utility>
 
-// enable support for move-only support in googlemock with gmock 1.8.0 on msvc
-//
-// works around https://github.com/google/googletest/issues/799
-#ifndef GTEST_LANG_CXX11
-#define GTEST_LANG_CXX11 1
-#endif
-
 // include before header with FRIEND_TEST is used.
 #include <gtest/gtest_prod.h>
+
+#include <gmock/gmock.h>
 
 #include "cluster_metadata_gr.h"
 #include "dim.h"
@@ -45,21 +40,6 @@
 #include "metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
 #include "test/helpers.h"
-
-// ignore GMock warnings
-#ifdef __clang__
-#ifndef __has_warning
-#define __has_warning(x) 0
-#endif
-#pragma clang diagnostic push
-#if __has_warning("-Winconsistent-missing-override")
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#endif
-#if __has_warning("-Wsign-conversion")
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#endif
-#include <gmock/gmock.h>
 
 using ::testing::_;
 using ::testing::Assign;

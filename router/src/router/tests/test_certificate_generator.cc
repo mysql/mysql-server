@@ -34,8 +34,8 @@
 #include "router_test_helpers.h"
 #include "test/helpers.h"
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 class CertificateGeneratorTest : public ::testing::Test {
  public:

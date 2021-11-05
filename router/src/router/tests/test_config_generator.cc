@@ -23,32 +23,21 @@
 */
 
 // must be the first header, don't move it
-#include <gtest/gtest_prod.h>
+#include <gtest/gtest_prod.h>  // FRIEND_TEST
 
-#include <cstring>
-#include <fstream>
-#include <sstream>
-#include <stdexcept>
-#include <streambuf>
-#include "keyring/keyring_manager.h"
-#include "mysql/harness/stdx/expected.h"
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #endif
 
-// ignore GMock warnings
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <streambuf>
 
 #include <gmock/gmock.h>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #include <mysql.h>
 
@@ -57,8 +46,10 @@
 #include "config_generator.h"
 #include "dim.h"
 #include "gtest_consoleoutput.h"
+#include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
 #include "mysql_session_replayer.h"
 #include "mysqld_error.h"
