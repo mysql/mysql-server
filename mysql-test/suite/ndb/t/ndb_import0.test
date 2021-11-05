@@ -770,6 +770,21 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --file_exists $MYSQLTEST_VARDIR/tmp/t10.rej
 
 
+delete from t10;
+
+--echo # check order matters when using --csvopt and --fields-terminated-by
+--error 1
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --csvopt=cqn
+ --fields-terminated-by=':'
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
+ --fields-terminated-by=':'
+ --csvopt=cqn
+ test $MYSQLTEST_VARDIR/tmp/t10_no_match.csv -t t10 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+
 drop table tpersons;
 
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
