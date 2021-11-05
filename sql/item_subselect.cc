@@ -807,7 +807,7 @@ bool Item_subselect::resolve_type(THD *) {
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
   DBUG_TRACE;
-  if (!has_aggregation() && !const_item()) {
+  if (!has_aggregation() && !const_for_execution()) {
     Item *result = new Item_field(result_field);
     return result;
   }

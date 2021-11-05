@@ -2053,3 +2053,25 @@ t	CREATE TABLE `t` (
   `y` decimal(9,1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t;
+#
+# Bug #32384355 INSERT,SELECT FROM SAME TABLE WITH AGGREGATE
+# AND NOW() COLUMNS PRODUCES ERROR
+#
+CREATE TABLE t1 (
+i1 INT,
+d1 DATETIME
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result max(1) AS `MAX(1)`,now() AS `NOW()` from `test`.`t1`
+INSERT INTO t1 SELECT MAX(1), NOW() FROM t1;
+SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
+i1	EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1))
+NULL	0
+DROP TABLE t1;

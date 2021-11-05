@@ -865,7 +865,7 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
   */
-  if (!has_aggregation() && !const_item() && !has_wf()) {
+  if (!has_aggregation() && !const_for_execution() && !has_wf()) {
     Item *result = new Item_field(result_field);
     return result;
   }
