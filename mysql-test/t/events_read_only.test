@@ -4,6 +4,9 @@
 --echo #
 --echo
 
+--echo # Set up.
+--echo
+
 # We need to have performance_schema.error_log to ourselves:
 --source include/not_parallel.inc
 
@@ -16,7 +19,7 @@ SELECT FROM_UNIXTIME(VARIABLE_VALUE/1000000)
   FROM performance_schema.global_status
  WHERE VARIABLE_NAME LIKE "Error_log_latest_write";
 
---echo # Create a test user that is not root.
+--echo # Create a test-user that is not root.
 CREATE USER 'user31633859'@'127.0.0.1';
 GRANT SELECT, EVENT, RELOAD ON *.* TO 'user31633859'@'127.0.0.1';
 
@@ -66,7 +69,7 @@ SELECT COUNT(thread_id)
 SELECT @@global.event_scheduler;
 
 --echo
---echo # Clean up.
+--echo # Show that we now restart the scheduler when turning off SUPER_READ_ONLY.
 --echo
 
 SET @@global.super_read_only=OFF;
@@ -78,6 +81,73 @@ let $wait_condition=
 
 --echo # Show that the event scheduler is now running again:
 SELECT COUNT(thread_id)>0 FROM performance_schema.threads WHERE name='thread/sql/event_scheduler';
+
+--echo #
+--echo # Bug#33539082: BUG#31633859 does not consider SET @@global.read_only=OFF
+--echo #
+--echo
+
+--echo # Set up.
+--echo
+
+SELECT logged
+  FROM performance_schema.error_log
+ WHERE error_code='MY-010045' AND logged>=@pfs_errlog_latest
+  INTO @pfs_errlog_latest;
+
+--echo # Create an environment where the event (created for 31633859) will fail.
+SET @@global.offline_mode=ON;
+SET @@global.read_only=ON;
+SET @@global.super_read_only=ON;
+
+--echo # Wait till the event scheduler is no longer running:
+let $wait_condition=
+  SELECT COUNT(thread_id)=0 FROM performance_schema.threads WHERE name='thread/sql/event_scheduler';
+--source include/wait_condition.inc
+
+--echo # Show state of relevant configuration:
+SELECT @@global.offline_mode;
+SELECT @@global.super_read_only;
+SELECT @@global.read_only;
+
+--echo # Show the error log entry for the failed event:
+SELECT error_code,data
+  FROM performance_schema.error_log
+ WHERE error_code='MY-010045' AND logged>@pfs_errlog_latest;
+
+--echo # Show that the event scheduler has stopped:
+SELECT COUNT(thread_id)
+  FROM performance_schema.threads
+ WHERE name='thread/sql/event_scheduler';
+
+--echo # Show that the scheduler is still switched on (indicating that the user
+--echo # wishes for it to run, not that it's actually running):
+SELECT @@global.event_scheduler;
+
+--echo
+--echo # Show that we now restart the scheduler when turning off READ_ONLY.
+--echo # (Turning off READ_ONLY implicitly unsets SUPER_READ_ONLY as well.)
+--echo
+
+SET @@global.read_only=OFF;
+
+--echo # Wait till the event scheduler is running again:
+let $wait_condition=
+  SELECT COUNT(thread_id)>0 FROM performance_schema.threads WHERE name='thread/sql/event_scheduler';
+--source include/wait_condition.inc
+
+--echo # Show that the event scheduler is now running again:
+SELECT COUNT(thread_id)>0 FROM performance_schema.threads WHERE name='thread/sql/event_scheduler';
+
+--echo # Show state of relevant configuration:
+SELECT @@global.offline_mode;
+SELECT @@global.super_read_only;
+SELECT @@global.read_only;
+
+
+--echo
+--echo # Clean up.
+--echo
 
 SET @@global.read_only=OFF;
 SET @@global.offline_mode=OFF;
