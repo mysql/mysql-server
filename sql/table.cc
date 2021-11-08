@@ -5438,9 +5438,6 @@ void TABLE::prepare_for_position() {
 /**
   Mark column as either read or written (or none) according to mark_used.
 
-  @note If marking a written field, set thd->dup_field if the column is
-        already marked.
-
   @note If TABLE::get_fields_in_item_tree is set, set the flag bit
         GET_FIXED_FIELDS_FLAG for the field.
 

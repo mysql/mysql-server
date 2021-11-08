@@ -1787,3 +1787,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select '{"id": "2", "name": "bar"}' AS `doc`,'2' AS `id` from `test`.`t1` where true
 DROP TABLE t1;
+# Bug#33142135: Assert for fields not marked as READ
+CREATE TABLE v1(v2 INT SERIAL DEFAULT VALUE, v3 INT AS (DEFAULT(v2)/1 IS NULL));
+ERROR HY000: Generated column 'v3' cannot refer to auto-increment column.
+CREATE TABLE v1(v2 INT DEFAULT 10, v3 INT AS (DEFAULT(v2)/1 IS NULL));
+SHOW CREATE TABLE v1;
+Table	Create Table
+v1	CREATE TABLE `v1` (
+  `v2` int DEFAULT '10',
+  `v3` int GENERATED ALWAYS AS (((default(`v2`) / 1) is null)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE v1;
