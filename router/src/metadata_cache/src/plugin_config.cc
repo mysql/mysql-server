@@ -46,7 +46,7 @@ using mysqlrouter::to_string;
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {
   static const std::map<std::string, std::string> defaults{
-      {"address", metadata_cache::kDefaultMetadataAddress},
+      {"address", std::string{metadata_cache::kDefaultMetadataAddress}},
       {"ttl", ms_to_seconds_string(metadata_cache::kDefaultMetadataTTL)},
       {"auth_cache_ttl",
        ms_to_seconds_string(metadata_cache::kDefaultAuthCacheTTL)},
