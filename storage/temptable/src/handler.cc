@@ -129,11 +129,12 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     DBUG_EXECUTE_IF("temptable_create_return_non_result_type_exception",
                     throw 42;);
 
+    size_t per_table_limit = thd_get_tmp_table_size(ha_thd());
     auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
     const auto insert_result = kv_store.emplace(
         std::piecewise_construct, std::forward_as_tuple(table_name),
         std::forward_as_tuple(mysql_table, m_shared_block,
-                              all_columns_are_fixed_size));
+                              all_columns_are_fixed_size, per_table_limit));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
 
