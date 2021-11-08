@@ -427,6 +427,7 @@ extern PSI_mutex_key key_LOCK_error_log;
 extern PSI_mutex_key key_LOCK_thd_data;
 extern PSI_mutex_key key_LOCK_thd_sysvar;
 extern PSI_mutex_key key_LOCK_thd_protocol;
+extern PSI_mutex_key key_LOCK_thd_security_ctx;
 extern PSI_mutex_key key_LOG_LOCK_log;
 extern PSI_mutex_key key_source_info_data_lock;
 extern PSI_mutex_key key_source_info_run_lock;

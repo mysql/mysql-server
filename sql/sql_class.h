@@ -1201,6 +1201,12 @@ class THD : public MDL_context_owner,
   mysql_mutex_t LOCK_thd_protocol;
 
   /**
+    Protects THD::m_security_ctx from inspection (e.g. by old-style
+    SHOW PROCESSLIST) while COM_CHANGE_USER changes the context.
+  */
+  mysql_mutex_t LOCK_thd_security_ctx;
+
+  /**
     Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
     while another thread explains it. Following structures are protected by
     this mutex:
