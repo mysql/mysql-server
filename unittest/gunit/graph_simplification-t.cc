@@ -606,9 +606,9 @@ static void BM_FullySimplifyCliqueJoin10(size_t num_iterations) {
 static void BM_FullySimplifyCliqueJoin20(size_t num_iterations) {
   BM_FullySimplifyCliqueJoin(20, num_iterations);
 }
-// static void BM_FullySimplifyCliqueJoin30(size_t num_iterations) {
-//   BM_FullySimplifyCliqueJoin(30, num_iterations);
-// }
+static void BM_FullySimplifyCliqueJoin30(size_t num_iterations) {
+  BM_FullySimplifyCliqueJoin(30, num_iterations);
+}
 // static void BM_FullySimplifyCliqueJoin40(size_t num_iterations) {
 //   BM_FullySimplifyCliqueJoin(40, num_iterations);
 // }
@@ -617,6 +617,9 @@ static void BM_FullySimplifyCliqueJoin20(size_t num_iterations) {
 // }
 BENCHMARK(BM_FullySimplifyCliqueJoin10)
 BENCHMARK(BM_FullySimplifyCliqueJoin20)
-// BENCHMARK(BM_FullySimplifyCliqueJoin30)  // Too slow to run currently.
+BENCHMARK(BM_FullySimplifyCliqueJoin30)
+
+// Too slow to run on every commit, but can be enabled manually without
+// problems.
 // BENCHMARK(BM_FullySimplifyCliqueJoin40)
 // BENCHMARK(BM_FullySimplifyCliqueJoin50)

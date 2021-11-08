@@ -23,10 +23,12 @@
 #include "sql/join_optimizer/graph_simplification.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 
 #include <algorithm>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -45,6 +47,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/trivial_receiver.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
@@ -56,6 +59,7 @@ using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::fill;
 using std::max;
+using std::min;
 using std::move;
 using std::string;
 using std::swap;
@@ -502,13 +506,97 @@ GraphSimplifier::GraphSimplifier(JoinHypergraph *graph, MEM_ROOT *mem_root)
       m_edge_cardinalities(Bounds_checked_array<EdgeCardinalities>::Alloc(
           mem_root, graph->edges.size())),
       m_graph(graph),
-      m_cycles(FindJoinDependencies(graph->graph, mem_root)) {
+      m_cycles(FindJoinDependencies(graph->graph, mem_root)),
+      m_cache(Bounds_checked_array<NeighborCache>::Alloc(mem_root,
+                                                         graph->edges.size())),
+      m_pq(CompareByBenefit(),
+           {Mem_root_allocator<NeighborCache *>{mem_root}}) {
   for (size_t edge_idx = 0; edge_idx < graph->edges.size(); ++edge_idx) {
     m_edge_cardinalities[edge_idx].left =
         GetCardinality(graph->graph.edges[edge_idx * 2].left, *graph, m_cycles);
     m_edge_cardinalities[edge_idx].right = GetCardinality(
         graph->graph.edges[edge_idx * 2].right, *graph, m_cycles);
+    m_cache[edge_idx].best_step.benefit = -HUGE_VAL;
   }
+
+  for (size_t edge_idx = 0; edge_idx < graph->edges.size(); ++edge_idx) {
+    RecalculateNeighbors(edge_idx, edge_idx + 1, m_graph->edges.size());
+  }
+}
+
+void GraphSimplifier::UpdatePQ(size_t edge_idx) {
+  NeighborCache &cache = m_cache[edge_idx];
+  if (cache.index_in_pq == -1) {
+    if (cache.best_neighbor != -1) {
+      // Push into the queue for the first time.
+      m_pq.push(&cache);
+    }
+  } else {
+    if (cache.best_neighbor == -1) {
+      // No neighbors remaining, so take it out of the queue.
+      m_pq.remove(cache.index_in_pq);
+      cache.index_in_pq = -1;
+    } else {
+      m_pq.update(cache.index_in_pq);
+    }
+  }
+  assert(m_pq.is_valid());
+}
+
+void GraphSimplifier::RecalculateNeighbors(size_t edge1_idx, size_t begin,
+                                           size_t end) {
+  // Go through the neighbors of edge1_idx that are stored on other nodes
+  // (because they are numerically lower).
+  for (size_t edge2_idx = begin; edge2_idx < min(edge1_idx, end); ++edge2_idx) {
+    NeighborCache &other_cache = m_cache[edge2_idx];
+    ProposedSimplificationStep step;
+    if (EdgesAreNeighboring(edge2_idx, edge1_idx, &step)) {
+      if ((other_cache.best_neighbor == -1 ||
+           step.benefit >= other_cache.best_step.benefit) &&
+          !m_cycles.EdgeWouldCreateCycle(step.before_edge_idx,
+                                         step.after_edge_idx)) {
+        // This is the new top for the other node. (This includes the case
+        // where it was already the top, but has increased.)
+        other_cache.best_neighbor = edge1_idx;
+        other_cache.best_step = step;
+        UpdatePQ(edge2_idx);
+        continue;
+      }
+      // Fall through.
+    }
+    if (other_cache.best_neighbor == static_cast<int>(edge1_idx)) {
+      // This pair was the best neighbor for the other side,
+      // and has either decreased in benefit or is no longer
+      // an (allowed) neighbor, so we need to re-check
+      // if some other node is the best one now.
+      //
+      // Since edge2_idx < edge1_idx, the recursion is guaranteed
+      // to terminate.
+      RecalculateNeighbors(edge2_idx, 0, m_graph->edges.size());
+    }
+  }
+
+  // Add the neighbors that are stored on this node. This is a much simpler
+  // case, since we can just throw away everything and start afresh.
+  NeighborCache &cache = m_cache[edge1_idx];
+  cache.best_neighbor = -1;
+  cache.best_step.benefit = -HUGE_VAL;
+  for (size_t edge2_idx = max(begin, edge1_idx + 1); edge2_idx < end;
+       ++edge2_idx) {
+    ProposedSimplificationStep step;
+    if (EdgesAreNeighboring(edge1_idx, edge2_idx, &step)) {
+      // Stored on this node, so insert it.
+      if ((cache.best_neighbor == -1 ||
+           step.benefit > cache.best_step.benefit) &&
+          !m_cycles.EdgeWouldCreateCycle(step.before_edge_idx,
+                                         step.after_edge_idx)) {
+        // This is the new top.
+        cache.best_neighbor = edge2_idx;
+        cache.best_step = step;
+      }
+    }
+  }
+  UpdatePQ(edge1_idx);
 }
 
 bool GraphSimplifier::EdgesAreNeighboring(
@@ -666,26 +754,18 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
     return APPLIED_REDO_STEP;
   }
 
-  // Search through each pair of hyperedges to find neighboring ones,
-  // then find the safest available ordering to forbid.
-  ProposedSimplificationStep best_step{0.0, -1, -1};
-  for (size_t edge1_idx = 0; edge1_idx < m_graph->edges.size(); ++edge1_idx) {
-    for (size_t edge2_idx = edge1_idx + 1; edge2_idx < m_graph->edges.size();
-         ++edge2_idx) {
-      GraphSimplifier::ProposedSimplificationStep step;
-      if (!EdgesAreNeighboring(edge1_idx, edge2_idx, &step)) {
-        continue;
-      }
-      if (step.benefit > best_step.benefit &&
-          !m_cycles.EdgeWouldCreateCycle(step.before_edge_idx,
-                                         step.after_edge_idx)) {
-        best_step = step;
-      }
-    }
-  }
-  if (best_step.benefit < 1.0) {
+  if (m_pq.empty()) {
     // No (further) simplifications were possible.
     return NO_SIMPLIFICATION_POSSIBLE;
+  }
+  NeighborCache *cache = m_pq.top();
+  ProposedSimplificationStep best_step = cache->best_step;
+  if (m_cycles.EdgeWouldCreateCycle(best_step.before_edge_idx,
+                                    best_step.after_edge_idx)) {
+    // This edge has become illegal since we calculated the neighbors.
+    // Recalculate, and try again.
+    RecalculateNeighbors(best_step.after_edge_idx, 0, m_graph->edges.size());
+    return DoSimplificationStep();
   }
 
   // Make so that e1 is ordered before e2 (i.e., e2 requires e1).
@@ -715,6 +795,7 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
     m_cycles.AddEdge(full_step.after_edge_idx, full_step.before_edge_idx);
     return DoSimplificationStep();
   }
+  RecalculateNeighbors(best_step.after_edge_idx, 0, m_graph->edges.size());
   m_done_steps.push_back(full_step);
   return APPLIED_SIMPLIFICATION;
 }

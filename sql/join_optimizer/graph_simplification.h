@@ -67,8 +67,10 @@
 #include <stddef.h>
 
 #include <string>
+#include <vector>
 
 #include "my_compiler.h"
+#include "priority_queue.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/online_cycle_finder.h"
 #include "sql/mem_root_array.h"
@@ -77,6 +79,8 @@
 class THD;
 struct JoinHypergraph;
 struct MEM_ROOT;
+template <class T>
+class Mem_root_allocator;
 
 // Exposed for unit testing.
 class GraphSimplifier {
@@ -120,6 +124,37 @@ class GraphSimplifier {
   int num_steps_done() const { return m_done_steps.size(); }
 
  private:
+  // Update the given join's cache in the priority queue (or take it in
+  // or out of the queue), presumably after best_step.benefit has changed
+  // for that join.
+  //
+  // After this operation, m_pq should be in a consistent state.
+  void UpdatePQ(size_t edge_idx);
+
+  // Recalculate the benefit of all orderings involving the given edge,
+  // i.e., the advantage of ordering any other neighboring join before
+  // or after it. (These are stored in m_cache; see NeighborCache for
+  // more information on the scheme.) You will typically need to call this
+  // after having modified the given join (hyperedge endpoint). Note that
+  // if a given ordering has become less advantageous, this may entail
+  // recalculating other nodes recursively as well, but this should be rare
+  // (again, see the comments on NeighborCache).
+  //
+  // “begin” and “end” are the range of other joins to compare against
+  // (edge1_idx itself is always excluded). It should normally be set to
+  // 0 and N (the number of edges) to compare against all, but during the
+  // initial population in the constructor, where every pair is considered,
+  // it is be used to avoid redundant computation.
+  //
+  // It would have been nice to somehow be able to use neighbor-of-neighbor
+  // information to avoid rescanning all candidates for neighbors
+  // (and the paper mentions “materializing all neighbors of a join”),
+  // but given how hyperedges work, there doesn't seem to be a trivial way
+  // of doing that (after A has absorbed B's into one of its hyperedges,
+  // it seems it could gain new neighbors that were neither neighbors of
+  // A nor B).
+  void RecalculateNeighbors(size_t edge1_idx, size_t begin, size_t end);
+
   struct ProposedSimplificationStep {
     double benefit;
     int before_edge_idx;
@@ -179,6 +214,71 @@ class GraphSimplifier {
   // so that we don't end up with impossibilities. See OnlineCycleFinder
   // for more information.
   OnlineCycleFinder m_cycles;
+
+  // Used for storing which neighbors are possible to simplify,
+  // and how attractive they are. This speeds up repeated application of
+  // DoSimplificationStep() significantly, as we don't have to recompute
+  // the same information over and over again. This is keyed on the numerically
+  // lowest join of the join pair, i.e., information about the benefit of
+  // ordering join A before or after join B is stored on m_cache[min(A,B)].
+  // These take part in a priority queue (see m_pq below), so that we always
+  // know cheaply which one is the most attractive.
+  //
+  // There is a maybe surprising twist here; for any given cache node (join),
+  // we only store the most beneficial ordering, and throw away all others.
+  // This is because our benefit values keep changing all the time; once we've
+  // chosen to put A before B, it means we've changed B, and that means every
+  // single join pair involving B now needs to be recalculated anyway
+  // (the costs, and thus ordering benefits, are highly dependent on the
+  // hyperedge of B). Thus, storing only the best one (and by extension,
+  // not having information about the other ones in the priority queue)
+  // allows us to very quickly and easily throw away half of the invalidated
+  // ones. We still need to check the other half (the ones that may be the best
+  // for other nodes) to see if we need to invalidate them, but actual
+  // invalidation is rare, as it only happens for the best simplification
+  // involving that node (i.e., 1/N).
+  //
+  // It's unclear if this is the same scheme that the paper alludes to;
+  // it mentions a priority queue and ordering by neighbor-involving joins,
+  // but very little detail.
+  struct NeighborCache {
+    // The best simplification involving this join and a higher-indexed join,
+    // and the index of that other node. (best_neighbor could be inferred
+    // from the indexes in best_step and this index, but we keep it around
+    // for simplicity.) best_neighbor == -1 indicates that there are no
+    // possible reorderings involving this join and a higher-indexed one
+    // (so it should not take part in the priority queue).
+    int best_neighbor = -1;
+    ProposedSimplificationStep best_step;
+
+    // Where we are in the priority queue (heap index);
+    // Priority_queue will update this for us (through MarkNeighborCache)
+    // whenever we are insert into or moved around in the queue.
+    // This is so that we can easily tell the PQ to recalculate our position
+    // whenever best_step.benefit changes. -1 means that we are
+    // currently not in the priority queue.
+    int index_in_pq = -1;
+  };
+  Bounds_checked_array<NeighborCache> m_cache;
+
+  // A priority queue of which simplifications are the most attractive,
+  // containing pointers into m_cache. See the documentation on NeighborCache
+  // for more information.
+  struct CompareByBenefit {
+    bool operator()(const NeighborCache *a, const NeighborCache *b) const {
+      return a->best_step.benefit < b->best_step.benefit;
+    }
+  };
+  struct MarkNeighborCache {
+    void operator()(size_t index, NeighborCache **cache) {
+      (*cache)->index_in_pq = index;
+    }
+  };
+  Priority_queue<
+      NeighborCache *,
+      std::vector<NeighborCache *, Mem_root_allocator<NeighborCache *>>,
+      CompareByBenefit, MarkNeighborCache>
+      m_pq;
 };
 
 // See comment in .cc file.
