@@ -1059,16 +1059,18 @@ static std::string get_router_option_str(const std::string &options,
     return default_value;
   }
 
-  if (!json_doc.HasMember(name.c_str())) {
+  const auto it =
+      json_doc.FindMember(rapidjson::Value{name.data(), name.size()});
+  if (it == json_doc.MemberEnd()) {
     return default_value;
   }
 
-  if (!json_doc[name.c_str()].IsString()) {
+  if (!it->value.IsString()) {
     out_error = "options." + name + " not a string";
     return default_value;
   }
 
-  return json_doc[name.c_str()].GetString();
+  return it->value.GetString();
 }
 
 static bool update_router_options_from_metadata(
