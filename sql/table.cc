@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <scope_guard.h>
 #include <stdio.h>
 #include <algorithm>
 #include <memory>
@@ -2341,12 +2342,12 @@ static bool validate_value_generator_expr(Item *expr,
 }
 
 /**
-  Process the generated expression, generated default value of the column or
+  Resolve the generated expression, generated default value of the column or
   check constraint expression.
 
   @param thd             The thread object
   @param table           The table to which the column belongs
-  @param val_generator   The expression to unpack
+  @param val_generator   The expression to resolve
   @param source          Source of value generator(a generated column, a regular
                          column with generated default value or
                          a check constraint).
@@ -2358,147 +2359,135 @@ static bool validate_value_generator_expr(Item *expr,
   @retval true An error occurred, something was wrong with the function.
   @retval false Ok, generated expression is fixed sucessfully
  */
-static bool fix_value_generators_fields(THD *thd, TABLE *table,
-                                        Value_generator *val_generator,
-                                        Value_generator_source source,
-                                        const char *source_name, Field *field) {
-  uint dir_length, home_dir_length;
-  bool result = true;
-  Item *func_expr = val_generator->expr_item;
-  TABLE_LIST tables;
-  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
-  int error;
-  Name_resolution_context *context;
-  const char *save_where;
-  char *db_name;
-  char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
-  std::unique_ptr<Functional_index_error_handler>
-      functional_index_error_handler;
-  enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
-  assert(func_expr);
+static bool fix_value_generator_fields(THD *thd, TABLE *table,
+                                       Value_generator *val_generator,
+                                       Value_generator_source source,
+                                       const char *source_name, Field *field) {
   DBUG_TRACE;
+  Item *val_generator_expr = val_generator->expr_item;
+  assert(val_generator_expr != nullptr);
 
   // Insert a error handler that takes care of converting column names to
   // functional index names. Since functional indexes is implemented as
   // indexed hidden generated columns, we may end up printing out the
   // auto-generated column name if we don't have an extra error handler.
+  std::unique_ptr<Functional_index_error_handler>
+      functional_index_error_handler;
   if (source == VGS_GENERATED_COLUMN)
     functional_index_error_handler =
         std::unique_ptr<Functional_index_error_handler>(
             new Functional_index_error_handler(field, thd));
 
-  /*
-    Set-up the TABLE_LIST object to be a list with a single table
-    Set alias and real name to table name and get database name from file name.
-  */
-
-  tables.alias = tables.table_name = table->s->table_name.str;
+  // Set up a TABLE_LIST object for the table.
+  TABLE_LIST tables;
+  // Set alias and real name to table name
+  tables.alias = table->s->table_name.str;
+  tables.table_name = table->s->table_name.str;
   tables.table = table;
   tables.next_local = nullptr;
   tables.next_name_resolution_table = nullptr;
-  my_stpmov(db_name_string, table->s->normalized_path.str);
-  dir_length = dirname_length(db_name_string);
-  db_name_string[dir_length ? dir_length - 1 : 0] = 0;
-  home_dir_length = dirname_length(db_name_string);
-  db_name = &db_name_string[home_dir_length];
-  tables.db = db_name;
+  // Set the database name
+  tables.db = table->s->db.str;
 
   thd->mark_used_columns = MARK_COLUMNS_NONE;
-
-  context = thd->lex->current_context();
   table->get_fields_in_item_tree = true;
-  save_table_list = context->table_list;
-  save_first_table = context->first_name_resolution_table;
-  save_last_table = context->last_name_resolution_table;
+
+  // Save the name resolution context and use_only_table_context
+  Name_resolution_context *context = thd->lex->current_context();
+  TABLE_LIST *save_table_list = context->table_list;
+  TABLE_LIST *save_first_table = context->first_name_resolution_table;
+  TABLE_LIST *save_last_table = context->last_name_resolution_table;
   context->table_list = &tables;
   context->first_name_resolution_table = &tables;
   context->last_name_resolution_table = nullptr;
   Item_ident::Change_context ctx(context);
-  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                  (uchar *)&ctx);
-  save_where = thd->where;
+  val_generator_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
+                           (uchar *)&ctx);
+  bool save_use_only_table_context = thd->lex->use_only_table_context;
+  thd->lex->use_only_table_context = true;
 
+  const char *save_where = thd->where;
   std::string where_str;
   if (source == VGS_GENERATED_COLUMN || source == VGS_DEFAULT_EXPRESSION) {
-    thd->where = field->is_field_for_functional_index()
-                     ? "functional index"
-                     : (source == VGS_GENERATED_COLUMN)
-                           ? "generated column function"
-                           : "default value expression";
+    if (field->is_field_for_functional_index()) {
+      where_str.append(STRING_WITH_LEN("functional index"));
+    } else if (source == VGS_GENERATED_COLUMN) {
+      where_str.append(STRING_WITH_LEN("generated column function"));
+    } else {
+      where_str.append(STRING_WITH_LEN("default value expression"));
+    }
   } else {
     assert(source == VGS_CHECK_CONSTRAINT);
     where_str.reserve(256);
     where_str.append(STRING_WITH_LEN("check constraint "));
     where_str.append(source_name);
     where_str.append(STRING_WITH_LEN(" expression"));
-    thd->where = where_str.c_str();
   }
-
-  /* Save the context before fixing the fields*/
-  save_use_only_table_context = thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context = true;
+  thd->where = where_str.c_str();
 
   bool charset_switched = false;
-  const CHARSET_INFO *saved_collation_connection = func_expr->default_charset();
+  const CHARSET_INFO *saved_collation_connection = Item::default_charset();
   if (saved_collation_connection != table->s->table_charset) {
     thd->variables.collation_connection = table->s->table_charset;
     charset_switched = true;
   }
 
-  Item *new_func = func_expr;
   if (field && field->is_field_for_functional_index())
-    func_expr->allow_array_cast();
-  error = func_expr->fix_fields(thd, &new_func);
+    val_generator_expr->allow_array_cast();
 
-  /* Virtual columns expressions that substitute themselves are invalid */
-  assert(new_func == func_expr);
+  // Fix the fields for the value generator expression
+  Item *new_func = val_generator_expr;
+  int fix_fields_error = val_generator_expr->fix_fields(thd, &new_func);
 
-  /* Restore the current connection character set and collation. */
+  // Virtual columns expressions that substitute themselves are invalid
+  assert(new_func == val_generator_expr);
+
+  // Restore the current connection character set and collation.
   if (charset_switched)
     thd->variables.collation_connection = saved_collation_connection;
 
-  /* Restore the original context*/
+  // Restore the original name resolution context
   thd->lex->use_only_table_context = save_use_only_table_context;
   context->table_list = save_table_list;
   context->first_name_resolution_table = save_first_table;
   context->last_name_resolution_table = save_last_table;
 
   /*
-    Above, 'context' is either the one of unpack_value_generator()'s temporary
-    fresh LEX 'new_lex', or the one of the top query as used in
-    TABLE::refix_value_generator_items(). None of them reflects where the val
-    generator is situated in the query.  Moreover, a gcol_info may be shared
+    Above, 'context' is either the one of unpack_value_generator()'s
+    temporary fresh LEX 'new_lex', or the one of the top query as used in
+    TABLE::bind_value_generators_to_fields(). None of them reflects where the
+    val generator is situated in the query.  Moreover, a gcol_info may be shared
     by N references to the same gcol, each ref being in a different context
     (top query, subquery). So, underlying items are not situated in a defined
     place: give them a null context.
   */
-  Item_ident::Change_context nul_ctx(nullptr);
-  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                  (uchar *)&nul_ctx);
+  Item_ident::Change_context to_null_context(nullptr);
+  val_generator_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
+                           (uchar *)&to_null_context);
 
-  if (unlikely(error)) {
+  // Properties that needed to be restored before leaving the scope.
+  auto cleanup_guard =
+      create_scope_guard([&]() { table->get_fields_in_item_tree = false; });
+
+  if (fix_fields_error) {
     DBUG_PRINT("info",
                ("Field in generated column function not part of table"));
-    goto end;
+    return true;
   }
   thd->where = save_where;
-  /*
-    Checking if all items are valid to be part of the expression.
-  */
-  if (validate_value_generator_expr(func_expr, source, source_name,
-                                    field ? field->field_index() : 0))
-    goto end;
 
-  result = false;
+  // Check whether the expression is valid as a value generator.
+  if (validate_value_generator_expr(val_generator_expr, source, source_name,
+                                    field ? field->field_index() : 0)) {
+    return true;
+  }
 
-  func_expr->walk(&Item::strip_db_table_name_processor, enum_walk::POSTFIX,
-                  nullptr);
+  // Strip the db/table name off of the generated fields as inplace ALTER
+  // can reallocate them, making pointers invalid.
+  val_generator_expr->walk(&Item::strip_db_table_name_processor,
+                           enum_walk::POSTFIX, nullptr);
 
-end:
-  table->get_fields_in_item_tree = false;
-  thd->mark_used_columns = save_mark_used_columns;
-  return result;
+  return false;
 }
 
 /**
@@ -2557,35 +2546,42 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   assert(field == nullptr || field->table == table);
 
   LEX_STRING *val_gen_expr = &(*val_generator)->expr_str;
-  assert(val_gen_expr);
-  assert(!(*val_generator)->expr_item);  // No Item in TABLE_SHARE
-  /*
-    Step 1: Construct a statement for the parser.
-    The parsed string needs to take the following format:
-    "PARSE_GCOL_EXPR (<expr_string_from_frm>)"
-  */
-  char *gcol_expr_str;
-  int str_len = 0;
-  const CHARSET_INFO *old_character_set_client;
-  bool disable_strict_mode = false;
-  bool status;
+  // There is a val_generator in text format and it is not unpacked yet.
+  assert(val_gen_expr != nullptr && (*val_generator)->expr_item == nullptr);
 
-  Strict_error_handler strict_handler;
-
-  LEX *const old_lex = thd->lex;
+  LEX *const save_lex = thd->lex;
   LEX new_lex;
   thd->lex = &new_lex;
   if (lex_start(thd)) {
-    thd->lex = old_lex;
+    thd->lex = save_lex;
     return true;  // OOM
   }
 
-  if (!(gcol_expr_str = (char *)table->mem_root.Alloc(
-            val_gen_expr->length + PARSE_GCOL_KEYWORD.length + 3))) {
-    return true;
-  }
+  // Setup thd for parsing.
+  Query_arena *save_stmt_arena_ptr = thd->stmt_arena;
+  Query_arena save_arena;
+  Query_arena val_generator_arena(&table->mem_root,
+                                  Query_arena::STMT_REGULAR_EXECUTION);
+  thd->swap_query_arena(val_generator_arena, &save_arena);
+  thd->stmt_arena = &val_generator_arena;
+  ulong save_old_privilege = thd->want_privilege;
+  thd->want_privilege = 0;
+
+  const CHARSET_INFO *save_character_set_client =
+      thd->variables.character_set_client;
+  // Subquery is not allowed in generated expression
+  const bool save_allow_subselects = thd->lex->expr_allows_subselect;
+  thd->lex->expr_allows_subselect = false;
+  // allow_sum_func is also 0, banning group aggregates and window functions.
+  assert(thd->lex->allow_sum_func == 0);
+
+  // Construct a statement for the parser. The parsed string needs to take
+  // the following format: "PARSE_GCOL_EXPR (<expr_string_from_frm>)"
+  char *gcol_expr_str = static_cast<char *>(table->mem_root.Alloc(
+      val_gen_expr->length + PARSE_GCOL_KEYWORD.length + 3));
+  if (gcol_expr_str == nullptr) return true;  // OOM
+  int str_len = PARSE_GCOL_KEYWORD.length;
   memcpy(gcol_expr_str, PARSE_GCOL_KEYWORD.str, PARSE_GCOL_KEYWORD.length);
-  str_len = PARSE_GCOL_KEYWORD.length;
   memcpy(gcol_expr_str + str_len, "(", 1);
   str_len++;
   memcpy(gcol_expr_str + str_len, val_gen_expr->str, val_gen_expr->length);
@@ -2594,100 +2590,80 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   str_len++;
   memcpy(gcol_expr_str + str_len, "\0", 1);
   str_len++;
+
+  bool disable_strict_mode = false;
+
+  // Properties that need to be restored before leaving the scope.
+  auto cleanup = [&]() {
+    if (disable_strict_mode) {
+      thd->pop_internal_handler();
+      thd->variables.sql_mode &= ~MODE_STRICT_ALL_TABLES;
+    }
+    lex_end(thd->lex);
+    thd->lex = save_lex;
+    thd->stmt_arena = save_stmt_arena_ptr;
+    thd->swap_query_arena(save_arena, &val_generator_arena);
+    thd->variables.character_set_client = save_character_set_client;
+    thd->want_privilege = save_old_privilege;
+    thd->lex->expr_allows_subselect = save_allow_subselects;
+  };
+
+  // Properties that need to be restored before leaving the scope if an
+  // error occurs.
+  auto cleanup_guard = create_scope_guard([&]() {
+    // Any memory allocated to unpack the expression is freed next.
+    *val_generator = nullptr;
+    // Any created window is eliminated as not allowed:
+    thd->lex->current_query_block()->m_windows.clear();
+    // cleanup memory allocated
+    thd->free_items();
+    cleanup();
+  });
+
+  // Parse the expression and build an Item tree.
   Gcol_expr_parser_state parser_state;
   parser_state.init(thd, gcol_expr_str, str_len);
+  if (parse_sql(thd, &parser_state, nullptr)) return true;
 
-  /*
-    Step 2: Setup thd for parsing.
-  */
-  Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
-  Query_arena backup_arena;
-  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_REGULAR_EXECUTION);
-  thd->swap_query_arena(gcol_arena, &backup_arena);
-  thd->stmt_arena = &gcol_arena;
-  ulong save_old_privilege = thd->want_privilege;
-  thd->want_privilege = 0;
+  // From now on use val_generator generated by the parser in expr_item
+  *val_generator = parser_state.result;
+  assert((*val_generator)->expr_item != nullptr &&
+         (*val_generator)->expr_str.str == nullptr);
 
-  old_character_set_client = thd->variables.character_set_client;
-  // Subquery is not allowed in generated expression
-  const bool save_allow_subselects = thd->lex->expr_allows_subselect;
-  thd->lex->expr_allows_subselect = false;
-  // allow_sum_func is also 0, banning group aggregates and window functions.
-
-  /*
-    Step 3: Use the parser to build an Item object from.
-  */
-  if (parse_sql(thd, &parser_state, nullptr)) {
-    goto parse_err;
-  }
   thd->lex->expr_allows_subselect = save_allow_subselects;
 
-  /*
-    From now on use val_generator generated by the parser. It has an
-    expr_item, and no expr_str.
-  */
-  *val_generator = parser_state.result;
-  /* Keep attribute of generated column */
+  // Set the stored_in_db attribute of the column it depends on (if any)
   if (field != nullptr) (*val_generator)->set_field_stored(field->stored_in_db);
 
-  assert((*val_generator)->expr_item && !(*val_generator)->expr_str.str);
-
-  /* Use strict mode regardless of strict mode setting when validating */
+  Strict_error_handler strict_handler;
+  // Use strict mode regardless of strict mode setting when validating
   if (!thd->is_strict_mode()) {
     thd->variables.sql_mode |= MODE_STRICT_ALL_TABLES;
     thd->push_internal_handler(&strict_handler);
     disable_strict_mode = true;
   }
 
-  /* Validate the Item tree. */
-  status = fix_value_generators_fields(thd, table, (*val_generator), source,
-                                       source_name, field);
-
-  // Permanent changes to the item_tree are completed.
-  if (!thd->lex->is_ps_or_view_context_analysis())
-    (*val_generator)->permanent_changes_completed = true;
-
-  if (disable_strict_mode) {
-    thd->pop_internal_handler();
-    thd->variables.sql_mode &= ~MODE_STRICT_ALL_TABLES;
+  // Fix and validate the Item tree
+  if (fix_value_generator_fields(thd, table, *val_generator, source,
+                                 source_name, field)) {
+    // During CREATE/ALTER TABLE it is ok to receive errors here.
+    // It is not ok if it happens during the opening of an frm
+    // file as part of a normal query.
+    if (is_create_table) *error_reported = true;
+    return true;
   }
-  if (status) {
-    if (is_create_table) {
-      /*
-        During CREATE/ALTER TABLE it is ok to receive errors here.
-        It is not ok if it happens during the opening of an frm
-        file as part of a normal query.
-      */
-      *error_reported = true;
-    }
-    // Any memory allocated in this function is freed in parse_err
-    *val_generator = nullptr;
-    goto parse_err;
-  }
-  if ((*val_generator)->register_base_columns(table)) goto parse_err;
-  lex_end(thd->lex);
-  thd->lex = old_lex;
+
+  // calculate column dependencies for this expression in base_columns_map.
+  if ((*val_generator)->register_base_columns(table)) return true;
+
+  // Revert thd changes and clean up.
+  cleanup();
+  cleanup_guard.commit();
+
+  (*val_generator)->item_list = val_generator_arena.item_list();
   (*val_generator)->backup_stmt_unsafe_flags(new_lex.get_stmt_unsafe_flags());
-  thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->swap_query_arena(backup_arena, &gcol_arena);
-  (*val_generator)->item_list = gcol_arena.item_list();
-  thd->want_privilege = save_old_privilege;
-  thd->lex->expr_allows_subselect = save_allow_subselects;
 
   return false;
-
-parse_err:
-  // Any created window is eliminated as not allowed:
-  thd->lex->current_query_block()->m_windows.clear();
-  thd->free_items();
-  lex_end(thd->lex);
-  thd->lex = old_lex;
-  thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->swap_query_arena(backup_arena, &gcol_arena);
-  thd->variables.character_set_client = old_character_set_client;
-  thd->want_privilege = save_old_privilege;
-  thd->lex->expr_allows_subselect = save_allow_subselects;
-  return true;
 }
 
 // Unpack partition
@@ -3059,6 +3035,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     outparam->vfield = vfield_ptr;
 
+    // Unpack stored/virtual generated columns and functional indexes
     for (field_ptr = outparam->field; *field_ptr; field_ptr++) {
       if ((*field_ptr)->gcol_info) {
         if (unpack_value_generator(thd, outparam, &(*field_ptr)->gcol_info,
@@ -3093,7 +3070,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     goto err;
   }
 
-  // Unpack generated default fields and store reference to this type of fields
+  // Unpack generated default value expressions
   outparam->gen_def_fields_ptr = nullptr;
   if (share->gen_def_field_count) {
     Field **gen_def_field =
@@ -3134,8 +3111,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             share->check_constraint_share_list->size()))
       goto err;  // OOM
 
+    // Unpack check constraint expressions.
     for (auto &cc_share : *share->check_constraint_share_list) {
-      // Unpack check constraint expression.
       Value_generator val_gen;
       val_gen.expr_str = to_lex_string(cc_share.expr_str());
       Value_generator *val_gen_ptr = &val_gen;
@@ -4109,21 +4086,21 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   assert(!db_stat || !file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
   /*
-    Do not call refix_value_generator_items() for tables which are not directly
-    used by the statement (i.e. used by the substatements of routines or
-    triggers to be invoked by the statement).
+    Do not call bind_value_generators_to_fields() for tables which are not
+    directly used by the statement (i.e. used by the substatements of routines
+    or triggers to be invoked by the statement).
 
-    Firstly, there will be call to refix_value_generator_items() at the start
-    of execution of substatement which directly uses this table anyway.
+    Firstly, there will be call to bind_value_generators_to_fields() at the
+    start of execution of substatement which directly uses this table anyway.
     Secondly, cleanup of generated column (call to
     cleanup_value_generator_items()) for the table will be done only at the
     end of execution of substatement which uses it. Because of this call to
-    refix_value_generator_items() for prelocking
+    bind_value_generators_to_fields() for prelocking
     placeholder will miss corresponding call to cleanup_value_generator_items()
     if substatement which uses the table is not executed for some reason.
   */
   if (!pos_in_table_list->prelocking_placeholder) {
-    refix_value_generator_items(thd);
+    bind_value_generators_to_fields();
   }
 }
 
@@ -4224,12 +4201,12 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   return false;
 }
 
-void TABLE::refix_value_generator_items(THD *) {
+void TABLE::bind_value_generators_to_fields() {
   if (vfield) {
-    for (Field **vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
-      Field *vfield = *vfield_ptr;
-      assert(vfield->gcol_info && vfield->gcol_info->expr_item);
-      refix_inner_value_generator_items(vfield->gcol_info);
+    for (Field **val_generator = vfield; *val_generator; val_generator++) {
+      assert((*val_generator)->gcol_info &&
+             (*val_generator)->gcol_info->expr_item);
+      bind_fields((*val_generator)->gcol_info->expr_item);
     }
   }
 
@@ -4238,21 +4215,16 @@ void TABLE::refix_value_generator_items(THD *) {
          gen_def_col++) {
       Value_generator *gen_def_expr = (*gen_def_col)->m_default_val_expr;
       assert(gen_def_expr && gen_def_expr->expr_item);
-      refix_inner_value_generator_items(gen_def_expr);
+      bind_fields(gen_def_expr->expr_item);
     }
 
   if (table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table_check_constraint_list) {
       Value_generator *cc_expr = table_cc.value_generator();
       assert(cc_expr != nullptr && cc_expr->expr_item != nullptr);
-      refix_inner_value_generator_items(cc_expr);
+      bind_fields(cc_expr->expr_item);
     }
   }
-}
-
-void TABLE::refix_inner_value_generator_items(Value_generator *g_expr) {
-  assert(g_expr->expr_item && g_expr->expr_item->fixed);
-  bind_fields(g_expr->expr_item);
 }
 
 void TABLE::cleanup_value_generator_items() {

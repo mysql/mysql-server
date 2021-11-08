@@ -2033,26 +2033,17 @@ struct TABLE {
   const Cost_model_table *cost_model() const { return &m_cost_model; }
 
   /**
-    Fix table's generated columns' (GC) and/or default expressions
+    Bind all the table's value generator columns in all the forms:
+    stored/virtual GC, default expressions and checked constraints.
 
     @details When a table is opened from the dictionary, the Value Generator
-    expressions are fixed during opening (see fix_value_generators_fields()).
+    expressions are bound during opening (see fix_value_generator_fields()).
     After query execution, Item::cleanup() is called on them
     (see cleanup_value_generator_items()). When the table is opened from the
-    table cache, the Value Generetor(s) need to be fixed again and this
+    table cache, the Value Generetor(s) need to be bound again and this
     function does that.
-
-    @param[in] thd     the current thread
   */
-  void refix_value_generator_items(THD *thd);
-
-  /**
-    Helper function for refix_value_generator_items() that fixes one column's
-    expression (be it GC or default expression) and check constraint expression.
-
-    @param[in,out] g_expr       the expression who's items needs to be fixed
-  */
-  void refix_inner_value_generator_items(Value_generator *g_expr);
+  void bind_value_generators_to_fields();
 
   /**
     Clean any state in items associated with generated columns to be ready for
@@ -4050,33 +4041,39 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpacks the definition of a generated column, default expression or check
-   constraint expression passed as argument. Parses the text obtained from
-   TABLE_SHARE and produces an Item.
+   Unpacks the definition of a value generator in all its forms: generated
+   column, default expression or checked constraint.
+   The function parses the text defintion of this expression, resolves its
+   items and runs validation and calculates the base_columns_map which is used
+   for tracking the columns the expression depends on.
 
-  @param thd                  Thread handler
-  @param table                Table with the checked field
-  @param val_generator        The expression to unpack.
-  @param source               Source of value generator(a generated column,
-                              a regular column with generated default value or
-                              a check constraint).
-  @param source_name          Name of the source (generated column, a reguler
-                              column with generated default value or a check
-                              constraint).
-  @param field                Pointer to Field object
-  @param is_create_table      Indicates that table is opened as part
-                              of CREATE or ALTER and does not yet exist in SE
-  @param error_reported       updated flag for the caller that no other error
-                              messages are to be generated.
+  @param thd[in]               Thread handler
+  @param table[in]             Table having the value generator to be unpacked
+  @param val_generator[in,out] Contains the expression in string format, and,
+                               if successful will be replaced by the parser
+                               with a new one having the unpacked expression.
+  @param source[in]            Source of value generator(a generated column,
+                               a regular column with generated default value or
+                               a check constraint).
+  @param source_name[in]       Name of the source (generated column, a regular
+                               column with generated default value or a check
+                               constraint).
+  @param field[in]             The column the value generator depends on. Can
+                               be null for checked constraints which do not
+                               depend on a single column.
+  @param is_create_table[in]   Indicates that table is opened as part
+                               of CREATE or ALTER and does not yet exist in SE
+  @param error_reported[out]   updated flag for the caller that no other error
+                               messages are to be generated.
 
   @retval true Failure.
   @retval false Success.
 */
 
-bool unpack_value_generator(THD *thd, TABLE *table,
+bool unpack_value_generator(THD *thd, TABLE *base_table,
                             Value_generator **val_generator,
                             Value_generator_source source,
-                            const char *source_name, Field *field,
+                            const char *source_name, Field *base_field,
                             bool is_create_table, bool *error_reported);
 
 /**

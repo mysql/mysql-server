@@ -488,7 +488,7 @@ class Value_generator {
     even if it's a generated column; that makes sense, as an Item tree cannot
     be shared.
   */
-  Item *expr_item;
+  Item *expr_item{nullptr};
   /**
     Text of the expression. Used in only one case:
     - the text read from the DD is put into the Value_generator::expr_str of
@@ -496,40 +496,29 @@ class Value_generator {
     to produce expr_item for the Field of every TABLE derived from this
     TABLE_SHARE.
   */
-  LEX_STRING expr_str;
+  LEX_STRING expr_str{nullptr, 0};
 
   /**
     Bit field indicating the type of statement for binary logging.
     It needs to be saved because this is determined only once when it is parsed
     but it needs to be set on the lex for each statement that uses this
     value generator. And since unpacking is done once on table open, it will
-    be set for the rest of the statements in refix_inner_value_generator_items.
+    be set for the rest of the statements in bind_value_generator_to_fields.
   */
   uint32 m_backup_binlog_stmt_flags{0};
 
   /// List of all items created when parsing and resolving generated expression
-  Item *item_list;
+  Item *item_list{nullptr};
   /// Bitmap records base columns which a generated column depends on.
   MY_BITMAP base_columns_map;
 
-  Value_generator()
-      : expr_item(nullptr),
-        item_list(nullptr),
-        field_type(MYSQL_TYPE_LONG),
-        stored_in_db(false),
-        num_non_virtual_base_cols(0),
-        permanent_changes_completed(false) {
-    expr_str.str = nullptr;
-    expr_str.length = 0;
-  }
-  ~Value_generator() = default;
   enum_field_types get_real_type() const { return field_type; }
 
   void set_field_type(enum_field_types fld_type) { field_type = fld_type; }
 
   /**
      Set the binary log flags in m_backup_binlog_stmt_flags
-     @param backup_binlog_stmt_flags the falgs to be backed up
+     @param backup_binlog_stmt_flags the flags to be backed up
   */
   void backup_stmt_unsafe_flags(uint32 backup_binlog_stmt_flags) {
     m_backup_binlog_stmt_flags = backup_binlog_stmt_flags;
@@ -568,23 +557,17 @@ class Value_generator {
   */
   void print_expr(THD *thd, String *out);
 
- private:
   /*
-    The following data is only updated by the parser and read
-    when a Create_field object is created/initialized.
-  */
-  enum_field_types field_type; /* Real field type*/
-  bool stored_in_db;           /* Indication that the field is
-                                  phisically stored in the database*/
+   The following data is only updated by the parser and read
+   when a Create_field object is created/initialized.
+   */
+ private:
+  /// Real field type
+  enum_field_types field_type{MYSQL_TYPE_INVALID};
+  /// Indicates if the field is physically stored in the database
+  bool stored_in_db{false};
   /// How many non-virtual base columns in base_columns_map
-  uint num_non_virtual_base_cols;
-
- public:
-  /**
-     Used to make sure permanent changes to the item tree of expr_item are
-     made only once.
-  */
-  bool permanent_changes_completed;
+  uint num_non_virtual_base_cols{0};
 };
 
 class Field {
@@ -814,8 +797,8 @@ class Field {
  public:
   /* Generated column data */
   Value_generator *gcol_info{nullptr};
-  /*
-    Indication that the field is phycically stored in tables
+  /**
+    Indication that the field is physically stored in tables
     rather than just generated on SQL queries.
     As of now, false can only be set for virtual generated columns.
   */
@@ -4710,7 +4693,7 @@ const char *get_field_name_or_expression(THD *thd, const Field *field);
   Perform per item-type checks to determine if the expression is allowed for
   a generated column, default value expression, a functional index or a check
   constraint. Note that validation of the specific function is done later in
-  procedures open_table_from_share and fix_value_generators_fields.
+  procedures open_table_from_share and fix_value_generator_fields.
 
   @param expression           the expression to check for validity
   @param name                 used for error reporting
