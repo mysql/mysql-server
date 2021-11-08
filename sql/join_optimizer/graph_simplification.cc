@@ -319,6 +319,50 @@ double GetCardinality(NodeMap tables_to_join, const JoinHypergraph &graph,
 }
 
 /**
+  A special, much faster version of GetCardinality() that can be used
+  when joining two partitions along a known edge. It reuses the existing
+  cardinalities, and just applies the single edge and any missing WHERE
+  predicates; this allows it to just make a single pass over those predicates
+  and do no other work.
+ */
+double GetCardinalitySingleJoin(NodeMap left, NodeMap right, double left_rows,
+                                double right_rows, const JoinHypergraph &graph,
+                                const JoinPredicate &pred) {
+  assert(!Overlaps(left, right));
+  double cardinality = FindOutputRowsForJoin(left_rows, right_rows, &pred);
+
+  // Mark off which multiple equalities we've seen.
+  uint64_t multiple_equality_bitmap = 0;
+  for (int pred_idx = pred.expr->join_predicate_first;
+       pred_idx < pred.expr->join_predicate_last; ++pred_idx) {
+    int source_multiple_equality_idx =
+        graph.predicates[pred_idx].source_multiple_equality_idx;
+    if (source_multiple_equality_idx != -1) {
+      multiple_equality_bitmap |= uint64_t{1} << source_multiple_equality_idx;
+    }
+  }
+
+  // Apply all newly applicable WHERE predicates.
+  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+    const Predicate &where_pred = graph.predicates[i];
+    if (IsSubset(where_pred.total_eligibility_set, left | right) &&
+        Overlaps(where_pred.total_eligibility_set, left) &&
+        Overlaps(where_pred.total_eligibility_set, right) &&
+        (where_pred.source_multiple_equality_idx == -1 ||
+         !IsBitSet(where_pred.source_multiple_equality_idx,
+                   multiple_equality_bitmap))) {
+      cardinality *= where_pred.selectivity;
+      if (where_pred.source_multiple_equality_idx != -1) {
+        multiple_equality_bitmap |= uint64_t{1}
+                                    << where_pred.source_multiple_equality_idx;
+      }
+    }
+  }
+
+  return cardinality;
+}
+
+/**
   Initialize a DAG containing all inferred join dependencies from the
   hypergraph. These are join dependencies that we cannot violate no matter
   what we do, so we need to make sure we do not try to force join reorderings
@@ -721,18 +765,43 @@ GraphSimplifier::ConcretizeSimplificationStep(
   full_step.new_edge = e2;
   if (IsSubset(e1.left, e2.left) || IsSubset(e2.left, e1.left) ||
       IsSubset(e1.right, e2.left) || IsSubset(e2.left, e1.right)) {
-    NodeMap nodes_to_add = (e1.left | e1.right) & ~e2.right;
-    full_step.new_edge.left |= nodes_to_add;
-    m_edge_cardinalities[step.after_edge_idx].left =
-        GetCardinality(full_step.new_edge.left, *m_graph, m_cycles);
+    if (!Overlaps(e2.right, e1.left | e1.right)) {
+      m_edge_cardinalities[step.after_edge_idx].left = GetCardinalitySingleJoin(
+          e1.left, e1.right, m_edge_cardinalities[step.before_edge_idx].left,
+          m_edge_cardinalities[step.before_edge_idx].right, *m_graph,
+          m_graph->edges[step.before_edge_idx]);
+      full_step.new_edge.left |= e1.left | e1.right;
+    } else {
+      // We ended up in a situation where the two edges were not
+      // clearly separated, so recalculate the cardinality from scratch
+      // to be sure. This is slow, but happens fairly rarely.
+      NodeMap nodes_to_add = (e1.left | e1.right) & ~e2.right;
+      full_step.new_edge.left |= nodes_to_add;
+      m_edge_cardinalities[step.after_edge_idx].left =
+          GetCardinality(full_step.new_edge.left, *m_graph, m_cycles);
+    }
   } else {
     assert(IsSubset(e1.left, e2.right) || IsSubset(e2.right, e1.left) ||
            IsSubset(e1.right, e2.right) || IsSubset(e2.right, e1.right));
-    NodeMap nodes_to_add = (e1.left | e1.right) & ~e2.left;
-    full_step.new_edge.right |= nodes_to_add;
-    m_edge_cardinalities[step.after_edge_idx].right =
-        GetCardinality(full_step.new_edge.right, *m_graph, m_cycles);
+    if (!Overlaps(e2.left, e1.left | e1.right)) {
+      m_edge_cardinalities[step.after_edge_idx].right =
+          GetCardinalitySingleJoin(
+              e1.left, e1.right,
+              m_edge_cardinalities[step.before_edge_idx].left,
+              m_edge_cardinalities[step.before_edge_idx].right, *m_graph,
+              m_graph->edges[step.before_edge_idx]);
+      full_step.new_edge.right |= e1.left | e1.right;
+    } else {
+      // We ended up in a situation where the two edges were not
+      // clearly separated, so recalculate the cardinality from scratch
+      // to be sure. This is slow, but happens fairly rarely.
+      NodeMap nodes_to_add = (e1.left | e1.right) & ~e2.left;
+      full_step.new_edge.right |= nodes_to_add;
+      m_edge_cardinalities[step.after_edge_idx].right =
+          GetCardinality(full_step.new_edge.right, *m_graph, m_cycles);
+    }
   }
+  assert(!Overlaps(full_step.new_edge.left, full_step.new_edge.right));
   assert(!Overlaps(full_step.new_edge.left, full_step.new_edge.right));
 
   return full_step;
