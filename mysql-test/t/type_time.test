@@ -507,3 +507,17 @@ execute ps using @var;
 
 set @var = '23:59:60';
 execute ps using @var;
+
+--echo # Bug#33539844: Parser for TIME values differ between plain and prepared
+
+CREATE TABLE t1(t TIME);
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES ('10-11-12');
+
+SET @t = '10-11-12';
+prepare s from "INSERT INTO t1 VALUES (?)";
+--error ER_TRUNCATED_WRONG_VALUE
+execute s using @t;
+
+DROP TABLE t1;

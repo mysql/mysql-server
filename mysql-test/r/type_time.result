@@ -2754,6 +2754,8 @@ prepare stmt from "SELECT TIME'01:01:01' = ?";
 execute stmt using @d_str;
 TIME'01:01:01' = ?
 0
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-01-01'
 prepare stmt from "SELECT TIME'01:01:01' = ?";
 execute stmt using @t_str;
 TIME'01:01:01' = ?
@@ -2829,3 +2831,12 @@ TIME'01:01:01' = ?
 NULL
 Warnings:
 Warning	1292	Truncated incorrect time value: '23:59:60'
+# Bug#33539844: Parser for TIME values differ between plain and prepared
+CREATE TABLE t1(t TIME);
+INSERT INTO t1 VALUES ('10-11-12');
+ERROR 22007: Incorrect time value: '10-11-12' for column 't' at row 1
+SET @t = '10-11-12';
+prepare s from "INSERT INTO t1 VALUES (?)";
+execute s using @t;
+ERROR 22007: Incorrect time value: '10-11-12' for column 't' at row 1
+DROP TABLE t1;
