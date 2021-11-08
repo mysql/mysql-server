@@ -1606,8 +1606,15 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // the fewest amount of rows. (This has lower initial cost, and the same
       // cost.) When cost estimates are supplied by the secondary engine,
       // explore both orders, since the secondary engine might unilaterally
-      // decide to prefer or reject one particular order.
-      if (is_commutative && m_secondary_engine_cost_hook == nullptr) {
+      // decide to prefer or reject one particular order. (TODO: Remove this,
+      // as the only relevant secondary engine does its own flipping.)
+      //
+      // Finally, if either of the sides are parameterized on something
+      // external, flipping the order will not necessarily be allowed (and would
+      // cause us to not give a hash join for these tables at all).
+      if (is_commutative && m_secondary_engine_cost_hook == nullptr &&
+          !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
+                    RAND_TABLE_BIT)) {
         if (left_path->num_output_rows < right_path->num_output_rows) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
                           new_obsolete_orderings,
@@ -1676,10 +1683,10 @@ void CostingReceiver::ProposeHashJoin(
   if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
 
   if (Overlaps(left_path->parameter_tables, right) ||
-      right_path->parameter_tables != 0) {
-    // Parameterized paths must be solved by nested loop.
-    // We can still have parameters from outside the join,
-    // but only on the outer side.
+      Overlaps(right_path->parameter_tables, left | RAND_TABLE_BIT)) {
+    // Parameterizations must be resolved by nested loop.
+    // We can still have parameters from outside the join, though
+    // (even in the hash table; but it must be cleared for each Init() then).
     return;
   }
 
@@ -1757,9 +1764,10 @@ void CostingReceiver::ProposeHashJoin(
 
   const double hash_memory_used_bytes =
       edge->estimated_bytes_per_row * right_path->num_output_rows;
-  if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9) {
-    // Fits in memory (with 10% estimation margin), so the hash table can be
-    // reused.
+  if (hash_memory_used_bytes <= m_thd->variables.join_buff_size * 0.9 &&
+      right_path->parameter_tables == 0) {
+    // Fits in memory (with 10% estimation margin), and has
+    // no external dependencies, so the hash table can be reused.
     join_path.init_once_cost = build_cost + left_path->init_once_cost;
   } else {
     join_path.init_once_cost =
@@ -2100,7 +2108,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
   join_path.nested_loop_join().join_predicate = edge;
 
   const AccessPath *inner = join_path.nested_loop_join().inner;
-  double inner_rescan_cost = inner->cost - inner->init_once_cost;
+  double inner_rescan_cost = inner->rescan_cost();
 
   double right_path_already_applied_selectivity = 1.0;
   join_path.nested_loop_join().equijoin_predicates = OverflowBitset{};
@@ -2285,9 +2293,9 @@ static inline PathComparisonResult CompareAccessPaths(
     b_is_better = true;
   }
 
-  if (a.init_once_cost < b.init_once_cost) {
+  if (a.rescan_cost() < b.rescan_cost()) {
     a_is_better = true;
-  } else if (b.init_once_cost < a.init_once_cost) {
+  } else if (b.rescan_cost() < a.rescan_cost()) {
     b_is_better = true;
   }
 

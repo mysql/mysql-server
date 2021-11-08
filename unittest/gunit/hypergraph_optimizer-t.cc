@@ -1653,6 +1653,76 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
                   root->num_output_rows);
 }
 
+// Verify that we can push ref access into a hash join's hash table.
+TEST_F(HypergraphOptimizerTest, RefIntoHashJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.y=t3.y) ON t1.x=t3.x",
+      /*nullable=*/true);
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+  ulong rec_per_key_int[] = {1};
+  float rec_per_key[] = {0.1f};
+  t3->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
+
+  // Hash join between t2/t3 is attractive, but hash join between t1 and t2/t3
+  // should not be.
+  m_fake_tables["t1"]->file->stats.records = 10;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t3"]->file->stats.records = 10000000;
+  m_fake_tables["t3"]->file->stats.data_file_length = 1e6;
+
+  // Forbid changing the order of t2/t3, just to get the plan we want.
+  // (In a more real situation, we could have e.g. an antijoin outside a left
+  // join, but it's a bit tricky to set up in a test.)
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                               SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        if (path->type == AccessPath::NESTED_LOOP_JOIN) {
+          AccessPath *outer = path->nested_loop_join().outer;
+          if (outer->type == AccessPath::TABLE_SCAN &&
+              strcmp(outer->table_scan().table->alias, "t3") == 0) {
+            return true;
+          }
+          if (outer->type == AccessPath::REF &&
+              strcmp(outer->ref().table->alias, "t3") == 0) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The t1-{t2,t3} join should be nested loop.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::OUTER, root->nested_loop_join().join_type);
+
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+
+  // The inner part, however, should be a hash join.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::HASH_JOIN, inner->type);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN,
+            inner->hash_join().join_predicate->expr->type);
+
+  // ...and t3 should be on the right, as a ref access against t1.
+  AccessPath *t3_path = inner->hash_join().inner;
+  ASSERT_EQ(AccessPath::REF, t3_path->type);
+  EXPECT_EQ(m_fake_tables["t3"], t3_path->ref().table);
+  EXPECT_EQ(0, t3_path->ref().ref->key);
+  EXPECT_EQ("t1.x", ItemToString(t3_path->ref().ref->items[0]));
+}
+
 // Verify that we can make sargable predicates out of multiple equalities.
 TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
   Query_block *query_block = ParseAndResolve(

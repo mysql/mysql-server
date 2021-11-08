@@ -599,14 +599,24 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       // to outer tables (in the same query block) down in under the hash
       // operation, so without analysis of each filter and join condition, we
       // cannot say for sure, and thus have to turn it off. But the hypergraph
-      // optimizer is strictly modular, and will never do this -- so it's safe.
+      // optimizer sets parameter_tables properly, so we're safe if we just
+      // check that.
       //
       // Regardless of optimizer, we can push outer references down in under the
       // hash, but join->hash_table_generation will increase whenever we need to
       // recompute the query block (in JOIN::clear_hash_tables()).
-      uint64_t *hash_table_generation = thd->lex->using_hypergraph_optimizer
-                                            ? &join->hash_table_generation
-                                            : nullptr;
+      //
+      // TODO(sgunders): The old optimizer had a concept of _when_ to clear
+      // derived tables (invalidators), and this is somehow similar. If it
+      // becomes a performance issue, consider reintroducing them.
+      //
+      // TODO(sgunders): Should this perhaps be set as a flag on the access path
+      // instead of being computed here? We do make the same checks in the cost
+      // model, so perhaps it should set the flag as well.
+      uint64_t *hash_table_generation =
+          (thd->lex->using_hypergraph_optimizer && path->parameter_tables == 0)
+              ? &join->hash_table_generation
+              : nullptr;
 
       iterator = NewIterator<HashJoinIterator>(
           thd, mem_root, move(inner),

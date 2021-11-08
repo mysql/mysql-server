@@ -334,6 +334,14 @@ struct AccessPath {
   /// This is currently not printed in EXPLAIN, only optimizer trace.
   double init_once_cost{0.0};
 
+  /// Return the cost of scanning the given path for the second time
+  /// (or later) in the given query block. This is really the interesting
+  /// metric, not init_once_cost in itself, but since nearly all paths
+  /// have zero init_once_cost, storing that instead allows us to skip
+  /// a lot of repeated path->init_once_cost = path->init_cost calls
+  /// in the code.
+  double rescan_cost() const { return cost - init_once_cost; }
+
   /// If no filter, identical to num_output_rows, cost, respectively.
   /// init_cost is always the same (filters have zero initialization cost).
   double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
