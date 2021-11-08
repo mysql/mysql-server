@@ -7,11 +7,7 @@
 # Finally we cause core dump to happen.
 # See opt file for the config:
 #   (1) --innodb-buffer-pool-in-core-file is set to ON initially
-#   (2) the buffer pool is set to be 1G so that with the large
-#       memory buffers the core size would be much greater than 1.3GB
-#       (the actual observed size is ~1.7GB for 64k and ~2.1GB for 4k pages)
-#       and without them is less then 1.3GB
-#       (the actual observed size is ~0.7GB for 64k and ~0.9GB for 4k pages)
+#   (2) the buffer pool is set equal to limit below
 
 # madvise MADV_DONTDUMP is non-posix extension available in Linux 3.4
 --let $minimum_required_linux_version = 3.4
@@ -42,7 +38,11 @@ SELECT @@global.innodb_buffer_pool_in_core_file;
 SET GLOBAL innodb_buffer_pool_in_core_file = OFF;
 SELECT @@global.innodb_buffer_pool_in_core_file;
 
---let $expected_max_core_size = 1300
+# This size should be not larger than the `--innodb-buffer-pool-size`
+# setting used in the .opt file. This will assure that if the core
+# file contains buffer pool, then the core size will for sure be
+# larger than this limit.
+--let $expected_max_core_size = 1450
 --source include/mysqld_core_dump.inc
 
 --remove_file $LOG_FILE
