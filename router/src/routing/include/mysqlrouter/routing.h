@@ -31,67 +31,63 @@
 
 namespace routing {
 
-/** @brief Timeout for idling clients (in seconds)
+/** Timeout for idling clients (in seconds).
  *
  * Constant defining how long (in seconds) a client can keep the connection
  * idling. This is similar to the wait_timeout variable in the MySQL Server.
+ *
+ * 0 == no timeout used.
  */
-extern const int kDefaultWaitTimeout;
+constexpr const int kDefaultWaitTimeout{0};
 
-/** @brief Max number of active routes for this routing instance */
-extern const int kDefaultMaxConnections;
+/** Max number of active routes for this routing instance.
+ *
+ * 0 == no limit per route
+ */
+constexpr const int kDefaultMaxConnections{0};
 
-/** @brief Timeout connecting to destination (in seconds)
+/** Timeout connecting to destination (in seconds).
  *
  * Constant defining how long we wait to establish connection with the server
  * before we give up.
  */
-extern const std::chrono::seconds kDefaultDestinationConnectionTimeout;
+constexpr const std::chrono::seconds kDefaultDestinationConnectionTimeout{1};
 
-/** @brief Maximum connect or handshake errors per host
+/** Maximum connect or handshake errors per host.
  *
  * Maximum connect or handshake errors after which a host will be
  * blocked. Such errors can happen when the client does not reply
  * the handshake, sends an incorrect packet, or garbage.
- *
  */
-extern const unsigned long long kDefaultMaxConnectErrors;
+constexpr const unsigned long long kDefaultMaxConnectErrors{100};
 
-/** @brief Maximum connect or handshake errors per host
- *
- * Maximum connect or handshake errors after which a host will be
- * blocked. Such errors can happen when the client does not reply
- * the handshake, sends an incorrect packet, or garbage.
- *
+/**
+ * Default bind address.
  */
-extern const unsigned long long kDefaultMaxConnectErrors;
+constexpr const std::string_view kDefaultBindAddress{"127.0.0.1"};
 
-/** @brief Default bind address
- *
- */
-extern const std::string kDefaultBindAddress;
-
-/** @brief Default net buffer length
+/** Default net buffer length.
  *
  * Default network buffer length which can be set in the MySQL Server.
  *
  * This should match the default of the latest MySQL Server.
  */
-extern const unsigned int kDefaultNetBufferLength;
+constexpr const unsigned int kDefaultNetBufferLength{16384};
 
-/** @brief Timeout waiting for handshake response from client
+/**
+ * Timeout waiting for handshake response from client.
  *
  * The number of seconds that MySQL Router waits for a handshake response.
  * The default value is 9 seconds (default MySQL Server minus 1).
- *
  */
-extern const std::chrono::seconds kDefaultClientConnectTimeout;
+constexpr const std::chrono::seconds kDefaultClientConnectTimeout{9};
 
 /**
  * The number of seconds that MySQL Router waits between checking for
  * reachability of an unreachable destination.
  */
-extern const std::chrono::seconds kDefaultUnreachableDestinationRefreshInterval;
+constexpr const std::chrono::seconds
+    kDefaultUnreachableDestinationRefreshInterval{1};
 
 /** @brief Modes supported by Routing plugin */
 enum class AccessMode {
