@@ -50,38 +50,6 @@ class MockReceiver {
   MOCK_METHOD3(FoundSubgraphPair, bool(NodeMap, NodeMap, int));
 };
 
-class TrivialReceiver {
- public:
-  explicit TrivialReceiver(const Hypergraph &g) : m_g(g) {}
-
-  bool HasSeen(NodeMap subgraph) const {
-    return seen_subgraphs.count(subgraph) != 0;
-  }
-  bool FoundSingleNode(int node_idx) {
-    printf("Found node R%d\n", node_idx + 1);
-    seen_subgraphs.insert(TableBitmap(node_idx));
-    return false;
-  }
-
-  // Called EmitCsgCmp() in the paper.
-  bool FoundSubgraphPair(NodeMap left, NodeMap right,
-                         int edge_idx [[maybe_unused]]) {
-    printf("Found sets %s and %s, connected by edge %s-%s\n",
-           PrintSet(left).c_str(), PrintSet(right).c_str(),
-           PrintSet(m_g.edges[edge_idx].left).c_str(),
-           PrintSet(m_g.edges[edge_idx].right).c_str());
-    assert(left != 0);
-    assert(right != 0);
-    assert((left & right) == 0);
-    seen_subgraphs.insert(left | right);
-    return false;
-  }
-
- private:
-  std::unordered_set<NodeMap> seen_subgraphs;
-  const Hypergraph &m_g;
-};
-
 TEST(DPhypTest, ExampleHypergraph) {
   /*
     The example graph from the DPhyp paper. One large
