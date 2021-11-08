@@ -2968,7 +2968,9 @@ void CostingReceiver::ProposeHashJoin(
   }
 
   double num_output_rows = FindOutputRowsForJoin(
-      left_path, right_path, edge, right_path_already_applied_selectivity);
+      left_path->num_output_rows,
+      right_path->num_output_rows / right_path_already_applied_selectivity,
+      edge);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
@@ -3456,8 +3458,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
   join_path.num_output_rows_before_filter = join_path.num_output_rows =
-      FindOutputRowsForJoin(left_path, right_path, edge,
-                            right_path_already_applied_selectivity);
+      FindOutputRowsForJoin(
+          left_path->num_output_rows,
+          right_path->num_output_rows / right_path_already_applied_selectivity,
+          edge);
   join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +

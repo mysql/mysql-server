@@ -99,8 +99,7 @@ void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
 void EstimateAggregateCost(AccessPath *path, const Query_block *query_block);
 void EstimateDeleteRowsCost(AccessPath *path);
-double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
-                             const JoinPredicate *edge,
-                             double right_path_already_applied_selectivity);
+double FindOutputRowsForJoin(double left_rows, double right_rows,
+                             const JoinPredicate *edge);
 
 #endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

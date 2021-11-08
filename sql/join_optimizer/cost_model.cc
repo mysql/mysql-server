@@ -240,13 +240,9 @@ void EstimateDeleteRowsCost(AccessPath *path) {
                                  child->num_output_rows;
 }
 
-double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
-                             const JoinPredicate *edge,
-                             double right_path_already_applied_selectivity) {
-  const double inner_rows =
-      right_path->num_output_rows / right_path_already_applied_selectivity;
-
-  double fanout = inner_rows * edge->selectivity;
+double FindOutputRowsForJoin(double left_rows, double right_rows,
+                             const JoinPredicate *edge) {
+  double fanout = right_rows * edge->selectivity;
   if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
     // For outer joins, every outer row produces at least one row (if none
     // are matching, we get a NULL-complemented row).
@@ -266,5 +262,5 @@ double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
     // It's better to estimate too high than too low here.
     fanout = std::max(1.0 - fanout, 0.1);
   }
-  return left_path->num_output_rows * fanout;
+  return left_rows * fanout;
 }
