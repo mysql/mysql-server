@@ -24,10 +24,9 @@
 
 #include "mysql/harness/dynamic_state.h"
 
-#include "common.h"
-
 #include <fstream>
 #include <stdexcept>
+#include <system_error>
 
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>
@@ -114,9 +113,9 @@ DynamicState::~DynamicState() = default;
 std::ifstream DynamicState::open_for_read() {
   std::ifstream input_file(file_name_);
   if (input_file.fail()) {
-    throw std::runtime_error(
-        "Could not open dynamic state file '" + file_name_ +
-        "' for reading: " + mysql_harness::get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        "Could not open dynamic state file '" + file_name_ + "' for reading");
   }
 
   return input_file;
@@ -125,9 +124,9 @@ std::ifstream DynamicState::open_for_read() {
 std::ofstream DynamicState::open_for_write() {
   std::ofstream output_file(file_name_);
   if (output_file.fail()) {
-    throw std::runtime_error(
-        "Could not open dynamic state file '" + file_name_ +
-        "' for writing: " + mysql_harness::get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        "Could not open dynamic state file '" + file_name_ + "' for writing");
   }
 
   return output_file;

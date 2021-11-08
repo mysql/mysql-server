@@ -40,13 +40,6 @@
 
 namespace mysql_harness {
 
-/** @brief Wrapper for thread safe function returning error string.
- *
- * @param err error number
- * @return string describing the error
- */
-std::string HARNESS_EXPORT get_strerror(int err);
-
 /** @brief Rename a thread (useful for debugging purposes).
  *
  * @param thread_name thread name, 15 chars max

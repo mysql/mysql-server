@@ -56,7 +56,6 @@ extern "C" bool g_windows_service;
 }
 #endif
 
-#include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
@@ -91,13 +90,13 @@ void copy_file(const std::string &from, const std::string &to) {
   ofile.open(to,
              std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
   if (ofile.fail()) {
-    throw std::runtime_error("Could not create file '" + to +
-                             "': " + mysql_harness::get_strerror(errno));
+    throw std::system_error(errno, std::generic_category(),
+                            "Could not create file '" + to + "'");
   }
   ifile.open(from, std::ofstream::in | std::ofstream::binary);
   if (ifile.fail()) {
-    throw std::runtime_error("Could not open file '" + from +
-                             "': " + mysql_harness::get_strerror(errno));
+    throw std::system_error(errno, std::generic_category(),
+                            "Could not open file '" + from + "'");
   }
 
   ofile << ifile.rdbuf();

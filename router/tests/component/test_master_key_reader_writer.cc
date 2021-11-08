@@ -38,7 +38,6 @@
 
 #include "config_builder.h"
 #include "dim.h"
-#include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/string_utils.h"  // split_string

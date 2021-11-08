@@ -24,7 +24,9 @@
 
 #include <chrono>
 #include <thread>
-#include "gmock/gmock.h"
+
+#include <gmock/gmock.h>
+
 #include "router_component_test.h"
 
 /** @file

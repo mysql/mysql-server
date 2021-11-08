@@ -234,7 +234,8 @@ static bool check_file_private(const std::string &file) {
 #else
   struct stat st;
   if (stat(file.c_str(), &st) < 0) {
-    throw std::runtime_error(file + ": " + strerror(errno));
+    std::error_code ec{errno, std::generic_category()};
+    throw std::system_error(ec, file);
   }
   if ((st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO)) == (S_IRUSR | S_IWUSR))
     return true;
@@ -248,8 +249,10 @@ class FileChangeChecker {
     std::ifstream f;
     std::stringstream ss;
     f.open(file, std::ifstream::binary);
-    if (f.fail())
-      throw std::runtime_error(file + " " + mysql_harness::get_strerror(errno));
+    if (f.fail()) {
+      std::error_code ec{errno, std::generic_category()};
+      throw std::system_error(ec, file);
+    }
     ss << f.rdbuf();
     contents_ = ss.str();
     f.close();
@@ -259,9 +262,10 @@ class FileChangeChecker {
     std::ifstream f;
     std::stringstream ss;
     f.open(path_, std::ifstream::binary);
-    if (f.fail())
-      throw std::runtime_error(path_ + " " +
-                               mysql_harness::get_strerror(errno));
+    if (f.fail()) {
+      std::error_code ec{errno, std::generic_category()};
+      throw std::system_error(ec, path_);
+    }
     ss << f.rdbuf();
     f.close();
     return ss.str() == contents_;

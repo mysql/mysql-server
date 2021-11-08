@@ -26,8 +26,10 @@
  * BUG22084430 IPV6 ADDRESS IN LOGS DOES NOT USE []
  *
  */
+#include <map>
+#include <string>
 
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
 
 #include "router_test_helpers.h"
 #include "tcp_address.h"
@@ -38,10 +40,7 @@
 
 using mysql_harness::TCPAddress;
 
-class Bug22084430 : public ::testing::Test {
-  void SetUp() override {}
-  void TearDown() override {}
-};
+class Bug22084430 : public ::testing::Test {};
 
 TEST_F(Bug22084430, LogCorrectIPv6Address) {
   std::map<std::string, TCPAddress> address{

@@ -176,9 +176,9 @@ void check_config_file_access_rights(const std::string &file_name,
   struct stat status;
 
   if (stat(file_name.c_str(), &status) != 0) {
+    std::error_code ec{errno, std::generic_category()};
     if (errno == ENOENT) return;
-    FAIL() << "stat() failed (" << file_name
-           << "): " << mysql_harness::get_strerror(errno);
+    FAIL() << "stat() failed (" << file_name << "): " << ec.message();
   }
 
   static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);

@@ -25,27 +25,23 @@
 #include "mysql/harness/dynamic_state.h"
 
 ////////////////////////////////////////
-// Test system include files
-#include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
 // Standard include files
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
+// Test system include files
+#include "test/helpers.h"
+
 using mysql_harness::DynamicState;
 
-class DynamicConfigTest : public ::testing::Test {
- protected:
-  void SetUp() override {}
-};
+class DynamicConfigTest : public ::testing::Test {};
 
 namespace {
 
@@ -88,8 +84,6 @@ TEST_F(DynamicConfigTest, MultipleSectionsUpdate) {
   EXPECT_EQ("{\"a\":\"b2\",\"c\":\"d2\",\"version\":\"1.0.0\"}",
             conf_to_str(conf));
 }
-
-// TODO: more tests
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
