@@ -3136,6 +3136,22 @@ int ha_federated::execute_simple_query(const char *query, int len) {
   return 0;
 }
 
+int ha_federated::rnd_pos_by_record(uchar *record [[maybe_unused]]) {
+  int error;
+  assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+  error = ha_rnd_init(false);
+  if (error != 0) return error;
+
+  if (stored_result) {
+    position(record);
+    error = ha_rnd_pos(record, ref);
+  }
+
+  ha_rnd_end();
+  return error;
+}
+
 struct st_mysql_storage_engine federated_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 
