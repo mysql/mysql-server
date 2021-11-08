@@ -1,6 +1,7 @@
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
 --source include/not_hypergraph.inc
+--source include/not_log_bin.inc
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, data BLOB);
 DELIMITER |;
