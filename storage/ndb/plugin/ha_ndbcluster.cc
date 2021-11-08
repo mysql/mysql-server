@@ -37,7 +37,6 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "mysql/plugin.h"
 #include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
@@ -408,18 +407,8 @@ static constexpr uint NDB_AUTO_INCREMENT_RETRIES = 100;
 
 static int ndbcluster_inited = 0;
 
-/*
-   Indicator used to delay client and slave
-   connections until Ndb has Binlog setup
-   (bug#46955)
-*/
-int ndb_setup_complete = 0;  // Use ndbcluster_mutex & ndbcluster_cond
 extern Ndb *g_ndb;
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
-
-/// Handler synchronization
-mysql_mutex_t ndbcluster_mutex;
-mysql_cond_t ndbcluster_cond;
 
 static const char *ndbcluster_hton_name = "ndbcluster";
 static const int ndbcluster_hton_name_length = sizeof(ndbcluster_hton_name) - 1;
@@ -6706,6 +6695,7 @@ void ha_ndbcluster::position(const uchar *record) {
     } else
       key_length = ref_length;
 #ifndef NDEBUG
+    constexpr uint NDB_HIDDEN_PRIMARY_KEY_LENGTH = 8;
     const int hidden_no = Ndb_table_map::num_stored_fields(table);
     const NDBCOL *hidden_col = m_table->getColumn(hidden_no);
     assert(hidden_col->getPrimaryKey() && hidden_col->getAutoIncrement() &&
@@ -12212,76 +12202,31 @@ static bool is_supported_system_table(const char *, const char *, bool) {
   return false;
 }
 
-/* Call back after cluster connect */
-static int connect_callback() {
-  mysql_mutex_lock(&ndbcluster_mutex);
-  update_status_variables(NULL, &g_ndb_status, g_ndb_cluster_connection);
-
-  mysql_cond_broadcast(&ndbcluster_cond);
-  mysql_mutex_unlock(&ndbcluster_mutex);
-  return 0;
-}
-
-/**
-  @brief Check if there are any live data nodes in cluster with the given
-  cluster connection
-
-  @param connection         Cluster conneciton that needs to be checked.
-  @param max_wait_sec       Maximum time to wait for the conenction to get
-  ready
-
-  @return true if a live data node is found within the given time
-*/
-bool ndbcluster_is_ready(Ndb_cluster_connection *connection,
-                         uint max_wait_sec) {
-  uint count = 0;
-
-  while ((count < (max_wait_sec * 10)) && (connection->get_no_ready() <= 0)) {
-    count++;
-    ndb_milli_sleep(100);
-  }
-  if (count < (max_wait_sec * 10)) {
-    // Found a alive data node in cluster
-    return true;
-  }
-
-  // timeout occured
-  return false;
-}
-
 Ndb_index_stat_thread ndb_index_stat_thread;
 Ndb_metadata_change_monitor ndb_metadata_change_monitor_thread;
 
 extern THD *ndb_create_thd(char *stackptr);
 
-static int ndb_wait_setup_func(ulong max_wait) {
+//
+// Functionality used for delaying MySQL Server startup until
+// connection to NDB and setup (of index stat plus binlog) has completed
+//
+static bool wait_setup_completed(ulong max_wait_seconds) {
   DBUG_TRACE;
 
-  mysql_mutex_lock(&ndbcluster_mutex);
+  const auto timeout_time =
+      std::chrono::steady_clock::now() + std::chrono::seconds(max_wait_seconds);
 
-  struct timespec abstime;
-  set_timespec(&abstime, 1);
-
-  while (max_wait &&
-         (!ndb_setup_complete || !Ndb_index_stat_thread::is_setup_complete())) {
-    const int rc =
-        mysql_cond_timedwait(&ndbcluster_cond, &ndbcluster_mutex, &abstime);
-    if (rc) {
-      if (rc == ETIMEDOUT) {
-        DBUG_PRINT("info", ("1s elapsed waiting"));
-        max_wait--;
-        set_timespec(&abstime, 1); /* 1 second from now*/
-      } else {
-        DBUG_PRINT("info", ("Bad mysql_cond_timedwait rc : %u", rc));
-        assert(false);
-        break;
-      }
+  while (std::chrono::steady_clock::now() < timeout_time) {
+    if (ndb_binlog_is_initialized() &&
+        Ndb_index_stat_thread::is_setup_complete()) {
+      return true;
     }
+    ndb_milli_sleep(100);
   }
 
-  mysql_mutex_unlock(&ndbcluster_mutex);
-
-  return (ndb_setup_complete == 1) ? 0 : 1;
+  // Timer expired
+  return false;
 }
 
 /*
@@ -12289,17 +12234,18 @@ static int ndb_wait_setup_func(ulong max_wait) {
   connections are allowed. Wait for --ndb-wait-setup= seconds
   for ndbcluster connect to NDB and complete setup.
 */
-
 static int ndb_wait_setup_server_startup(void *) {
   DBUG_TRACE;
   ndbcluster_hton->notify_alter_table = ndbcluster_notify_alter_table;
   ndbcluster_hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
+
   // Signal components that server is started
   ndb_index_stat_thread.set_server_started();
   ndbcluster_binlog_set_server_started();
   ndb_metadata_change_monitor_thread.set_server_started();
 
-  if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
+  // Wait for connection to NDB and thread(s) setup
+  if (wait_setup_completed(opt_ndb_wait_setup) == false) {
     ndb_log_error(
         "Tables not available after %lu seconds. Consider "
         "increasing --ndb-wait-setup value",
@@ -12335,8 +12281,9 @@ static bool upgrade_migrate_privilege_tables() {
   Function installed as server hook that runs after DD upgrades.
 */
 static int ndb_dd_upgrade_hook(void *) {
-  if (!ndbcluster_is_ready(g_ndb_cluster_connection, opt_ndb_wait_connected)) {
-    ndb_log_error("Timeout waiting to connect to cluster.");
+  if (!ndb_connection_is_ready(g_ndb_cluster_connection,
+                               opt_ndb_wait_connected)) {
+    ndb_log_error("Timeout waiting for connection to NDB.");
     return 1;
   }
 
@@ -12357,7 +12304,7 @@ static int ndb_dd_upgrade_hook(void *) {
 static int ndb_wait_setup_replication_applier(void *) {
   DBUG_TRACE;
   g_ndb_slave_state.applier_sql_thread_start = true;
-  if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
+  if (wait_setup_completed(opt_ndb_wait_setup) == false) {
     ndb_log_error(
         "NDB Replica: Tables not available after %lu seconds. Consider "
         "increasing --ndb-wait-setup value",
@@ -12615,10 +12562,7 @@ static int ndbcluster_init(void *handlerton_ptr) {
         "Failed to initialize NDB Metadata Change Monitor");
   }
 
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(PSI_INSTRUMENT_ME, &ndbcluster_cond);
   ndb_dictionary_is_mysqld = 1;
-  ndb_setup_complete = 0;
 
   ndbcluster_hton = hton;
   hton->state = SHOW_OPTION_YES;
@@ -12683,9 +12627,9 @@ static int ndbcluster_init(void *handlerton_ptr) {
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select = THDVAR(NULL, optimized_node_selection);
   if (ndbcluster_connect(
-          connect_callback, opt_ndb_wait_connected,
-          opt_ndb_cluster_connection_pool, opt_connection_pool_nodeids_str,
-          (global_opti_node_select & 1), opt_ndb_connectstring, opt_ndb_nodeid,
+          opt_ndb_wait_connected, opt_ndb_cluster_connection_pool,
+          opt_connection_pool_nodeids_str, (global_opti_node_select & 1),
+          opt_ndb_connectstring, opt_ndb_nodeid,
           opt_ndb_recv_thread_activation_threshold,
           opt_ndb_data_node_neighbour)) {
     return ndbcluster_init_abort("Failed to initialize connection(s)");
@@ -12770,9 +12714,6 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
   ndbcluster_disconnect();
 
   ndb_index_stat_thread.deinit();
-
-  mysql_mutex_destroy(&ndbcluster_mutex);
-  mysql_cond_destroy(&ndbcluster_cond);
 
   ndb_pfs_deinit();
 

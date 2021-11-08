@@ -501,7 +501,7 @@ void Ndb_metadata_change_monitor::do_run() {
   for (;;) {
     // Outer loop to ensure that if the connection to NDB is lost, a fresh
     // connection is established before the thread continues its processing
-    while (!ndbcluster_is_ready(thd_ndb->connection, 1)) {
+    while (!ndb_connection_is_ready(thd_ndb->connection, 1)) {
       // No connection to NDB yet. Retry until connection is established while
       // checking if stop has been requested at 1 second intervals
       if (is_stop_requested()) {
@@ -579,7 +579,7 @@ void Ndb_metadata_change_monitor::do_run() {
       }
 
       // Check if NDB connection is still valid
-      if (!ndbcluster_is_ready(thd_ndb->connection, 1)) {
+      if (!ndb_connection_is_ready(thd_ndb->connection, 1)) {
         // Break out of inner loop
         log_info(
             "Connection to NDB was lost. Attempting to establish a new "
