@@ -347,9 +347,9 @@ inline NodeMap FindNeighborhood(const Hypergraph &g, NodeMap subgraph,
 //
 // Called EmitCsg() in the DPhyp paper.
 template <class Receiver>
-bool EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
-                            NodeMap subgraph, NodeMap full_neighborhood,
-                            NodeMap neighborhood, Receiver *receiver) {
+[[nodiscard]] bool EnumerateComplementsTo(
+    const Hypergraph &g, size_t lowest_node_idx, NodeMap subgraph,
+    NodeMap full_neighborhood, NodeMap neighborhood, Receiver *receiver) {
   NodeMap forbidden = TablesBetween(0, lowest_node_idx);
 
   HYPERGRAPH_PRINTF("Enumerating complements to %s, neighborhood=%s\n",
@@ -406,8 +406,10 @@ bool EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
     NodeMap new_full_neighborhood = 0;  // Unused; see comment on TryConnecting.
     NodeMap new_neighborhood = FindNeighborhood(g, seed, new_forbidden, seed,
                                                 &cache, &new_full_neighborhood);
-    ExpandComplement(g, lowest_node_idx, subgraph, full_neighborhood, seed,
-                     new_neighborhood, new_forbidden, receiver);
+    if (ExpandComplement(g, lowest_node_idx, subgraph, full_neighborhood, seed,
+                         new_neighborhood, new_forbidden, receiver)) {
+      return true;
+    }
   }
   return false;
 }
@@ -419,10 +421,10 @@ bool EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
 //
 // Called EnumerateCsgRec() in the paper.
 template <class Receiver>
-bool ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
-                    NodeMap subgraph, NodeMap full_neighborhood,
-                    NodeMap neighborhood, NodeMap forbidden,
-                    Receiver *receiver) {
+[[nodiscard]] bool ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
+                                  NodeMap subgraph, NodeMap full_neighborhood,
+                                  NodeMap neighborhood, NodeMap forbidden,
+                                  Receiver *receiver) {
   HYPERGRAPH_PRINTF(
       "Expanding connected subgraph, subgraph=%s neighborhood=%s "
       "forbidden=%s\n",
@@ -526,9 +528,9 @@ bool ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
 // complement, and picked the one with fewest nodes to study, but it doesn't
 // seem to be worth it.
 template <class Receiver>
-bool TryConnecting(const Hypergraph &g, NodeMap subgraph,
-                   NodeMap subgraph_full_neighborhood, NodeMap complement,
-                   Receiver *receiver) {
+[[nodiscard]] bool TryConnecting(const Hypergraph &g, NodeMap subgraph,
+                                 NodeMap subgraph_full_neighborhood,
+                                 NodeMap complement, Receiver *receiver) {
   for (size_t node_idx : BitsSetIn(complement & subgraph_full_neighborhood)) {
     // Simple edges.
     if (Overlaps(g.nodes[node_idx].simple_neighborhood, subgraph)) {
@@ -575,10 +577,11 @@ bool TryConnecting(const Hypergraph &g, NodeMap subgraph,
 //
 // Called EnumerateCmpRec() in the paper.
 template <class Receiver>
-bool ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
-                      NodeMap subgraph, NodeMap subgraph_full_neighborhood,
-                      NodeMap complement, NodeMap neighborhood,
-                      NodeMap forbidden, Receiver *receiver) {
+[[nodiscard]] bool ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
+                                    NodeMap subgraph,
+                                    NodeMap subgraph_full_neighborhood,
+                                    NodeMap complement, NodeMap neighborhood,
+                                    NodeMap forbidden, Receiver *receiver) {
   assert(IsSubset(subgraph, forbidden));
   assert(!IsSubset(complement, forbidden));
 
