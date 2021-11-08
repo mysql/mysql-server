@@ -185,6 +185,13 @@ durability_properties thd_get_durability_property(const THD *thd);
 void thd_get_autoinc(const THD *thd, ulong *off, ulong *inc);
 
 /**
+  Get the tmp_table_size threshold.
+  @param thd Thread object
+  @return Value of currently set tmp_table_size threshold.
+*/
+size_t thd_get_tmp_table_size(const THD *thd);
+
+/**
   Is strict sql_mode set.
   Needed by InnoDB.
   @param thd	Thread object

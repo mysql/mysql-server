@@ -287,6 +287,24 @@ void thd_get_autoinc(const THD *thd, ulong *off, ulong *inc) {
   *inc = thd->variables.auto_increment_increment;
 }
 
+size_t thd_get_tmp_table_size(const THD *thd) {
+  // We are intentionally narrowing the unsigned long long int (type of
+  // thd->variables.tmp_table_size) to size_t here. Issue with the former is
+  // that it represents more memory than one can address, in particular this is
+  // the case with 32-bit builds because unsigned long long int is guaranteed
+  // to be _at least_ 64 bits wide. That is much larger than the available
+  // address space.
+  //
+  // Given that tmp_table_size sysvar is about limiting the consumed (virtual)
+  // memory, size_t is the type which actually only makes sense to use here as
+  // it represents exactly the theoretical maximum sized object
+  if (thd->variables.tmp_table_size < std::numeric_limits<size_t>::max()) {
+    return thd->variables.tmp_table_size;
+  } else {
+    return std::numeric_limits<size_t>::max();
+  }
+}
+
 bool thd_is_strict_mode(const THD *thd) { return thd->is_strict_mode(); }
 
 bool thd_is_error(const THD *thd) { return thd->is_error(); }

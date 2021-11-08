@@ -1558,9 +1558,9 @@ The following options may be given as the first argument:
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --tls-ciphersuites=name 
- --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
- storage engine exceeds this size, MySQL will
- automatically convert it to an on-disk table
+ --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
+ TempTable storage engine exceeds this size, MySQL will
+ automatically convert it to an on-disk table 
  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
  separated by a semicolon (;), in this case they are used
  in a round-robin fashion
