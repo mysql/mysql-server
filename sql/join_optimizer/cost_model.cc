@@ -239,28 +239,3 @@ void EstimateDeleteRowsCost(AccessPath *path) {
                                  PopulationCount(buffered_tables) *
                                  child->num_output_rows;
 }
-
-double FindOutputRowsForJoin(double left_rows, double right_rows,
-                             const JoinPredicate *edge) {
-  double fanout = right_rows * edge->selectivity;
-  if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
-    // For outer joins, every outer row produces at least one row (if none
-    // are matching, we get a NULL-complemented row).
-    fanout = std::max(fanout, 1.0);
-  } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
-    // Semi- and antijoin estimation is pretty tricky, since we want isn't
-    // really selectivity; we want the probability that at least one row
-    // is matching, which is something else entirely. However, given that
-    // we only have selectivity to work with, we don't really have anything
-    // better than to estimate it as a normal join and cap the result
-    // at selectivity 1.0 (ie., each outer row generates at most one inner row).
-    fanout = std::min(fanout, 1.0);
-  } else if (edge->expr->type == RelationalExpression::ANTIJOIN) {
-    // Antijoin are estimated as simply the opposite of semijoin (see above),
-    // but wrongly estimating 0 rows (or, of course, a negative amount) could be
-    // really bad, so we assume at least 10% coming out as a fudge factor.
-    // It's better to estimate too high than too low here.
-    fanout = std::max(1.0 - fanout, 0.1);
-  }
-  return left_rows * fanout;
-}
