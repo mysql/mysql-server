@@ -309,6 +309,7 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins) {
 
   // No simplification steps should be possible, except for that we should
   // discover that t1-{t2,t4} must come late (see above).
+  EXPECT_EQ(GraphSimplifier::APPLIED_NOOP, s.DoSimplificationStep());
   EXPECT_EQ(GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE,
             s.DoSimplificationStep());
 
@@ -365,6 +366,10 @@ TEST(GraphSimplificationTest, IndirectHierarcicalJoins2) {
 
   GraphSimplifier s(&g, &mem_root);
 
+  // We want first to put {t1,t4,t5}-t2 before t3-t4, but discover it is
+  // impossible, so we apply the opposite.
+  EXPECT_EQ(GraphSimplifier::APPLIED_NOOP, s.DoSimplificationStep());
+
   // t1-{t3,t4} can be ordered relative to {t1}-{t5}, but after that,
   // no further simplifications should be possible.
   EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
@@ -413,8 +418,8 @@ TEST(GraphSimplificationTest, ConflictRules) {
   // in theory (t1-t2 before t2-t3), because it's not immediately
   // obvious that it's a no-op. But our implementation chooses to
   // force-insert that as an edge when we try the failed “t2-t3
-  // before t1-t2” simplification, so we just get nothing right away
-  // (which is arguably the right choice).
+  // before t1-t2” simplification, so we get the opposite first.
+  EXPECT_EQ(GraphSimplifier::APPLIED_NOOP, s.DoSimplificationStep());
   EXPECT_EQ(GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE,
             s.DoSimplificationStep());
 

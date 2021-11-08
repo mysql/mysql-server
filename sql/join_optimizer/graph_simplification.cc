@@ -551,10 +551,8 @@ void GraphSimplifier::RecalculateNeighbors(size_t edge1_idx, size_t begin,
     NeighborCache &other_cache = m_cache[edge2_idx];
     ProposedSimplificationStep step;
     if (EdgesAreNeighboring(edge2_idx, edge1_idx, &step)) {
-      if ((other_cache.best_neighbor == -1 ||
-           step.benefit >= other_cache.best_step.benefit) &&
-          !m_cycles.EdgeWouldCreateCycle(step.before_edge_idx,
-                                         step.after_edge_idx)) {
+      if (other_cache.best_neighbor == -1 ||
+          step.benefit >= other_cache.best_step.benefit) {
         // This is the new top for the other node. (This includes the case
         // where it was already the top, but has increased.)
         other_cache.best_neighbor = edge1_idx;
@@ -586,10 +584,7 @@ void GraphSimplifier::RecalculateNeighbors(size_t edge1_idx, size_t begin,
     ProposedSimplificationStep step;
     if (EdgesAreNeighboring(edge1_idx, edge2_idx, &step)) {
       // Stored on this node, so insert it.
-      if ((cache.best_neighbor == -1 ||
-           step.benefit > cache.best_step.benefit) &&
-          !m_cycles.EdgeWouldCreateCycle(step.before_edge_idx,
-                                         step.after_edge_idx)) {
+      if (cache.best_neighbor == -1 || step.benefit > cache.best_step.benefit) {
         // This is the new top.
         cache.best_neighbor = edge2_idx;
         cache.best_step = step;
@@ -760,12 +755,15 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
   }
   NeighborCache *cache = m_pq.top();
   ProposedSimplificationStep best_step = cache->best_step;
+  bool forced = false;
   if (m_cycles.EdgeWouldCreateCycle(best_step.before_edge_idx,
                                     best_step.after_edge_idx)) {
-    // This edge has become illegal since we calculated the neighbors.
-    // Recalculate, and try again.
-    RecalculateNeighbors(best_step.after_edge_idx, 0, m_graph->edges.size());
-    return DoSimplificationStep();
+    // We cannot allow this ordering, so apply the opposite ordering
+    // to the graph. This has zero benefit in itself (it just makes
+    // explicit what is already true), but it means we will never
+    // try to do this step anymore.
+    swap(best_step.before_edge_idx, best_step.after_edge_idx);
+    forced = true;
   }
 
   // Make so that e1 is ordered before e2 (i.e., e2 requires e1).
@@ -777,7 +775,7 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
   m_cycles.AddEdge(best_step.before_edge_idx, best_step.after_edge_idx);
   m_graph->graph.ModifyEdge(best_step.after_edge_idx * 2,
                             full_step.new_edge.left, full_step.new_edge.right);
-  if (!GraphIsJoinable(*m_graph, m_cycles)) {
+  if (!forced && !GraphIsJoinable(*m_graph, m_cycles)) {
     // The change we did introduced an impossibility; we made the graph
     // unjoinable. This happens very rarely, but it does, since our
     // happens-before join detection is incomplete (see GraphIsJoinable()
@@ -792,12 +790,13 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
     // Then, we insert the opposite constraint of what we just tried
     // (because we just inferred that it's implicitly in our current graph)
     // and then try again to find a simplification.
+    // (We don't modify the graph, but the next iteration will.)
     m_cycles.AddEdge(full_step.after_edge_idx, full_step.before_edge_idx);
     return DoSimplificationStep();
   }
   RecalculateNeighbors(best_step.after_edge_idx, 0, m_graph->edges.size());
   m_done_steps.push_back(full_step);
-  return APPLIED_SIMPLIFICATION;
+  return forced ? APPLIED_NOOP : APPLIED_SIMPLIFICATION;
 }
 
 void GraphSimplifier::UndoSimplificationStep() {

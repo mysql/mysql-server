@@ -98,7 +98,15 @@ class GraphSimplifier {
     // another).
     APPLIED_SIMPLIFICATION,
 
+    // We applied a simplification, but it was one that was forced upon us;
+    // we inteded to apply the opposite, but discovered it would leave the graph
+    // in an impossible state. Thus, the graph has been changed, but the actual
+    // available join orderings are exactly as they were.
+    APPLIED_NOOP,
+
     // We applied a step that was earlier undone using UndoSimplificationStep().
+    // (We do not know whether it was originally APPLIED_SIMPLIFICATION or
+    // APPLIED_NOOP.)
     APPLIED_REDO_STEP
   };
   SimplificationResult DoSimplificationStep();
