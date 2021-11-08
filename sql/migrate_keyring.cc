@@ -344,6 +344,8 @@ bool Migrate_keyring::execute() {
   return false;
 
 error:
+  /* clear the SSL error stack first as the connection could be encrypted */
+  ERR_clear_error();
   /*
    Enable keyring_operations in case of error
   */
