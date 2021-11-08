@@ -1,3 +1,4 @@
+set optimizer_max_subgraph_pairs=10000;
 CREATE TABLE t1 ( c INTEGER, b INTEGER, a INTEGER, KEY (b), KEY (a) );
 CREATE TABLE t2 ( pk INTEGER, b INTEGER, KEY (pk), KEY (b) );
 CREATE TABLE t3 ( a INTEGER, KEY (a) );

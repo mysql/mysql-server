@@ -21,6 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/join_optimizer/hypergraph.h"
+
+#include <assert.h>
+#include <memory>
+
 #include "sql/join_optimizer/bit_utils.h"
 
 namespace hypergraph {
@@ -38,7 +42,54 @@ void Hypergraph::AddEdge(NodeMap left, NodeMap right) {
 
   size_t left_first_idx = edges.size() - 2;
   size_t right_first_idx = edges.size() - 1;
+  AttachEdgeToNodes(left_first_idx, right_first_idx, left, right);
+}
 
+// Roughly the same as std::erase_if, but assumes there's exactly one element
+// matching, and doesn't care about the relative order after deletion.
+template <class T>
+static void RemoveElement(const T &element, std::vector<T> *vec) {
+  auto it = find(vec->begin(), vec->end(), element);
+  assert(it != vec->end());
+  *it = vec->back();
+  vec->pop_back();
+}
+
+void Hypergraph::ModifyEdge(unsigned edge_idx, NodeMap new_left,
+                            NodeMap new_right) {
+  NodeMap left = edges[edge_idx].left;
+  NodeMap right = edges[edge_idx].right;
+
+  // Take out the old edge. Pretty much exactly the opposite of
+  // AttachEdgeToNodes().
+  if (IsSingleBitSet(left) && IsSingleBitSet(right)) {
+    Node &left_node = nodes[*BitsSetIn(left).begin()];
+    left_node.simple_neighborhood &= ~right;
+    RemoveElement(edge_idx, &left_node.simple_edges);
+
+    Node &right_node = nodes[*BitsSetIn(right).begin()];
+    right_node.simple_neighborhood &= ~left;
+    RemoveElement(edge_idx ^ 1, &right_node.simple_edges);
+  } else {
+    for (size_t left_node : BitsSetIn(left)) {
+      RemoveElement(edge_idx, &nodes[left_node].complex_edges);
+    }
+    for (size_t right_node : BitsSetIn(right)) {
+      RemoveElement(edge_idx ^ 1, &nodes[right_node].complex_edges);
+    }
+  }
+
+  edges[edge_idx].left = new_left;
+  edges[edge_idx].right = new_right;
+  edges[edge_idx ^ 1].left = new_right;
+  edges[edge_idx ^ 1].right = new_left;
+
+  AttachEdgeToNodes(edge_idx, edge_idx ^ 1, new_left, new_right);
+}
+
+void Hypergraph::AttachEdgeToNodes(size_t left_first_idx,
+                                   size_t right_first_idx, NodeMap left,
+                                   NodeMap right) {
   if (IsSingleBitSet(left) && IsSingleBitSet(right)) {
     size_t left_node = *BitsSetIn(left).begin();
     size_t right_node = *BitsSetIn(right).begin();

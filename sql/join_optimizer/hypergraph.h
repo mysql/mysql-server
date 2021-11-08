@@ -36,8 +36,7 @@
   The main user of Hypergraph is subgraph_enumeration.h.
  */
 
-#include <stdint.h>
-
+#include <stddef.h>
 #include <algorithm>
 #include <vector>
 
@@ -84,11 +83,23 @@ struct Hyperedge {
 };
 
 struct Hypergraph {
+ public:
   std::vector<Node> nodes;  // Maximum 8*sizeof(NodeMap) elements.
   std::vector<Hyperedge> edges;
 
   void AddNode();
   void AddEdge(NodeMap left, NodeMap right);
+
+  // NOTE: Since every edge is stored twice (see AddEdge), also updates the
+  // corresponding opposite-direction edge automatically. Also note that this
+  // will shift internal edge lists around, so even after no-op changes,
+  // you are not guaranteed to get back subgraph pairs in the same order
+  // as before.
+  void ModifyEdge(unsigned edge_idx, NodeMap new_left, NodeMap new_right);
+
+ private:
+  void AttachEdgeToNodes(size_t left_first_idx, size_t right_first_idx,
+                         NodeMap left, NodeMap right);
 };
 
 }  // namespace hypergraph

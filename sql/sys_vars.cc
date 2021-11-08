@@ -3184,6 +3184,19 @@ static Sys_var_ulong Sys_optimizer_search_depth(
     HINT_UPDATEABLE SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, MAX_TABLES + 1), DEFAULT(MAX_TABLES + 1), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_optimizer_max_subgraph_pairs(
+    "optimizer_max_subgraph_pairs",
+    "Maximum depth of subgraph pairs a query can have before the "
+    "hypergraph join optimizer starts reducing the search space "
+    "heuristically. Larger values may result in better query plans "
+    "for large queries, but also more time and memory spent during planning. "
+    "Increasing this larger than the actual number of subgraph pairs "
+    "in the query will have no further effect. "
+    "Ignored by the old (non-hypergraph) join optimizer",
+    HINT_UPDATEABLE SESSION_VAR(optimizer_max_subgraph_pairs),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, INT_MAX), DEFAULT(100000),
+    BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_range_optimizer_max_mem_size(
     "range_optimizer_max_mem_size",
     "Maximum amount of memory used by the range optimizer "

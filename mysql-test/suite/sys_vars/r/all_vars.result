@@ -62,6 +62,8 @@ master_verify_checksum
 master_verify_checksum
 max_length_for_sort_data
 max_length_for_sort_data
+optimizer_max_subgraph_pairs
+optimizer_max_subgraph_pairs
 partial_revokes
 partial_revokes
 password_require_current

@@ -230,6 +230,7 @@ SET(SERVER_TESTS
   gis_union
   gis_wkb_parser
   gis_wkb_writer
+  graph_simplification
   handler
   hash_join
   histograms
@@ -315,6 +316,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/online_cycle_finder.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/overflow_bitset.cc
   ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )

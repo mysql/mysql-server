@@ -161,4 +161,6 @@ hypergraph::NodeMap GetNodeMapFromTableMap(
     table_map table_map,
     const std::array<int, MAX_TABLES> &table_num_to_node_num);
 
+std::string PrintDottyHypergraph(const JoinHypergraph &graph);
+
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

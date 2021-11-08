@@ -27,11 +27,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <array>
 #include <bitset>
-#include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -66,10 +67,12 @@
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/find_contained_subqueries.h"
+#include "sql/join_optimizer/graph_simplification.h"
 #include "sql/join_optimizer/interesting_orders.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/online_cycle_finder.h"
 #include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
@@ -77,10 +80,14 @@
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/key.h"
+#include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
+#include "sql/opt_costmodel.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/index_range_scan_plan.h"
+#include "sql/range_optimizer/internal.h"
 #include "sql/range_optimizer/range_analysis.h"
+#include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_array.h"
@@ -111,7 +118,6 @@ struct Hyperedge;
 using hypergraph::Hyperedge;
 using hypergraph::Node;
 using hypergraph::NodeMap;
-using std::array;
 using std::bitset;
 using std::find_if;
 using std::min;
@@ -162,7 +168,7 @@ class CostingReceiver {
       NodeMap fulltext_tables, uint64_t sargable_fulltext_predicates,
       table_map update_delete_target_tables,
       table_map immediate_update_delete_candidates, bool need_rowid,
-      SecondaryEngineFlags engine_flags,
+      SecondaryEngineFlags engine_flags, int subgraph_pair_limit,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
@@ -180,6 +186,7 @@ class CostingReceiver {
             immediate_update_delete_candidates, graph.table_num_to_node_num)),
         m_need_rowid(need_rowid),
         m_engine_flags(engine_flags),
+        m_subgraph_pair_limit(subgraph_pair_limit),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
         m_trace(trace) {
     // At least one join type must be supported.
@@ -347,6 +354,13 @@ class CostingReceiver {
   /// The flags declared by the secondary engine. In particular, it describes
   /// what kind of access path types should not be created.
   SecondaryEngineFlags m_engine_flags;
+
+  /// The maximum number of pairs of subgraphs we are willing to accept,
+  /// or -1 if no limit. If this limit gets hit, we stop traversing the graph
+  /// and return an error; the caller will then have to modify the hypergraph
+  /// (see GraphSimplifier) to make for a graph with fewer options, so that
+  /// planning time will come under an acceptable limit.
+  int m_subgraph_pair_limit;
 
   /// Pointer to a function that modifies the cost estimates of an access path
   /// for execution in a secondary storage engine, or nullptr otherwise.
@@ -2705,9 +2719,10 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
   if (m_thd->is_error()) return true;
 
-  if (++m_num_seen_subgraph_pairs > 100000) {
-    // Bail out; we're going to be needing graph simplification
-    // (a separate worklog).
+  if (++m_num_seen_subgraph_pairs > m_subgraph_pair_limit &&
+      m_subgraph_pair_limit >= 0) {
+    // Bail out; we're going to be needing graph simplification,
+    // which the caller will handle for us.
     return true;
   }
 
@@ -2973,6 +2988,7 @@ void CostingReceiver::ProposeHashJoin(
       edge);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
+  // NOTE: Keep this in sync with SimulateJoin().
   const double build_cost =
       right_path->cost + right_path->num_output_rows * kHashBuildOneRowCost;
   double cost = left_path->cost + build_cost +
@@ -5598,11 +5614,42 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       &active_indexes, &fulltext_searches, fulltext_tables,
       sargable_fulltext_predicates, update_delete_target_tables,
       immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
-      secondary_engine_cost_hook, trace);
+      thd->variables.optimizer_max_subgraph_pairs, secondary_engine_cost_hook,
+      trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");
-    return nullptr;
+    SimplifyQueryGraph(thd, thd->variables.optimizer_max_subgraph_pairs, &graph,
+                       trace);
+
+    // Reset the receiver and run the query again, this time with
+    // the simplified hypergraph (and no query limit, in case the
+    // given limit was just inherently too low, e.g., one subgraph pair
+    // and three tables).
+    //
+    // It's not given that we _must_ reset the receiver; we could
+    // probably have reused its state (which could save time and
+    // even lead to a better plan, if we have simplified away some
+    // join orderings that have already been evaluated).
+    // However, more subgraph pairs also often means we get more access
+    // paths on the Pareto frontier for each subgraph, and given
+    // that we don't currently have any heuristics to curb the
+    // amount of those, it is probably good to get the second-order
+    // effect as well and do a full reset.
+    if (trace) {
+      *trace += "Simplified hypergraph:\n";
+      *trace += PrintDottyHypergraph(graph);
+      *trace += "\nRestarting query planning with the new graph.\n";
+    }
+    receiver = CostingReceiver(
+        thd, query_block, graph, &orderings, &sort_ahead_orderings,
+        &active_indexes, &fulltext_searches, fulltext_tables,
+        sargable_fulltext_predicates, update_delete_target_tables,
+        immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
+        /*subgraph_pair_limit=*/-1, secondary_engine_cost_hook, trace);
+    if (EnumerateAllConnectedPartitions(graph.graph, &receiver)) {
+      assert(thd->is_error());
+      return nullptr;
+    }
   }
   if (thd->is_error()) return nullptr;
 

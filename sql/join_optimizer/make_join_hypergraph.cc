@@ -2264,6 +2264,8 @@ table_map FindTESForCondition(table_map used_tables,
   }
 }
 
+}  // namespace
+
 /**
   For the given hypergraph, make a textual representation in the form
   of a dotty graph. You can save this to a file and then use Graphviz
@@ -2373,6 +2375,8 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   digraph += "}\n";
   return digraph;
 }
+
+namespace {
 
 NodeMap IntersectIfNotDegenerate(NodeMap used_nodes, NodeMap available_nodes) {
   if (!Overlaps(used_nodes, available_nodes)) {

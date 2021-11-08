@@ -40,19 +40,16 @@
 
     - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
-    - Too large queries (too many possible subgraphs).
-
-  For unsupported queries, we will return an error; every valid SQL
-  query should either give such an error a correct result set.
+    - UPDATE.
 
   There are also have many optimization features it does not yet support;
   among them:
 
     - Aggregation through a temporary table.
-    - Queries with a very large amount of possible orderings, e.g. 30-way
-      star joins. (Less extreme queries, such as 30-way chain joins,
-      will be fine.) They will receive a similar error message as with
-      unsupported SQL features, instead of timing out.
+    - Some range optimizer features (notably MIN/MAX optimization).
+    - Materialization of arbitrary access paths (note that nested loop
+      joins against these can enable a limited form of hash join
+      that preserves ordering on the left side).
  */
 
 #include <string>

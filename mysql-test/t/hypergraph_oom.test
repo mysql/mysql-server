@@ -2,14 +2,16 @@
 # discarded access paths; before bug #33139205, it would use ~40 GB RAM
 # before hitting the maximum limit of 100k subgraph pairs. After that bug,
 # it still takes a very long time (since there is no reasonable pruning yet,
-# we keep way too many access paths on the Pareto frontier), and still does
-# not return an answer, but it should not OOM. Eventually, of course,
-# the query should be planned quickly and also not hit the 100k limit,
-# but for now, this gives the strange (but expected) result that the hypergraph
-# optimizer “does not support all queries” in hypergraph_oom.test.
+# we keep way too many access paths on the Pareto frontier), but it should not
+# OOM. Eventually, of course, the query should be planned quickly, but for now,
+# we use this as a verification that setting a lower optimizer_max_subgraph_pairs
+# helps it be planned in reasonable time. If you wish to use it to study
+# memory usage, you can simply increase optimizer_max_subgraph_pairs again.
 #
 # Even though this is to test the hypergraph optimizer, it runs just fine
 # under the old one, so we don't include have_hypergraph.inc.
+
+set optimizer_max_subgraph_pairs=10000;
 
 CREATE TABLE t1 ( c INTEGER, b INTEGER, a INTEGER, KEY (b), KEY (a) );
 CREATE TABLE t2 ( pk INTEGER, b INTEGER, KEY (pk), KEY (b) );

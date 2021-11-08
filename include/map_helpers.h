@@ -287,6 +287,24 @@ class mem_root_unordered_map
 };
 
 /**
+  std::unordered_multimap, but allocated on a MEM_ROOT.
+ */
+template <class Key, class Value, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
+class mem_root_unordered_multimap
+    : public std::unordered_multimap<
+          Key, Value, Hash, KeyEqual,
+          Mem_root_allocator<std::pair<const Key, Value>>> {
+ public:
+  explicit mem_root_unordered_multimap(MEM_ROOT *mem_root, Hash hash = Hash())
+      : std::unordered_multimap<
+            Key, Value, Hash, KeyEqual,
+            Mem_root_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, hash, KeyEqual(),
+            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
+};
+
+/**
   std::unordered_map, but collation aware and allocated on a MEM_ROOT.
 */
 template <class Key, class Value>
