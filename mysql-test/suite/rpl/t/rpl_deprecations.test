@@ -74,7 +74,7 @@ The syntax 'log_slave_updates' is deprecated and will be removed in a future rel
 
 while($i > 0) {
     if ($i == 2) {
-        --let $rpl_server_parameters = --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --disconnect-slave-event-count=2 --abort-slave-event-count=1 --no-console
+        --let $rpl_server_parameters = --master-info-repository=TABLE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-replica-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --transaction-write-set-extraction=XXHASH64 --disconnect-slave-event-count=2 --abort-slave-event-count=1
     }
 
     if ($i == 1)
@@ -100,7 +100,7 @@ while($i > 0) {
         --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 
         --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
-        --let $rpl_server_parameters= --skip-replica-start --no-console
+        --let $rpl_server_parameters=
     }
 
   --let $rpl_omit_print_server_parameters = 2

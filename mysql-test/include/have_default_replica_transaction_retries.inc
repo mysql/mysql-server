@@ -1,5 +1,5 @@
 --let $retry_num = `SELECT @@GLOBAL.replica_transaction_retries`
-if ($retry_num != 'DEFAULT')
+if ($retry_num != 10)
 {
-   --skip Test requires requires replica_transaction_retries = default
+   --skip Test requires replica_transaction_retries = default
 }
