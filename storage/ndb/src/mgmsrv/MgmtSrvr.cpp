@@ -3408,8 +3408,15 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   int b  = 0;
   std::memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
+    if (b == NDB_ARRAY_SIZE(buf))
+    {
+      return -1;
+    }
+    if (numArgs == NDB_ARRAY_SIZE(args_array))
+    {
+      return -1;
+    }
     if (args[i] == ' ' || args[i] == 0){
-      assert(b < BufSz);
       assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
