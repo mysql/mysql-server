@@ -190,6 +190,20 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
 
   query_block->prepare(m_thd, nullptr);
 
+  // Give the fields proper names, for easier reading of index lookups (refs).
+  // Sadly, this must come after resolving, or we get into lots of trouble
+  // with ACL checking and similar.
+  for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
+       tl = tl->next_global) {
+    TABLE *table = tl->table;
+    if (table->s->fields == 4) {
+      table->field[0]->field_name = "x";
+      table->field[1]->field_name = "y";
+      table->field[2]->field_name = "z";
+      table->field[3]->field_name = "w";
+    }
+  }
+
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
   query_block->join = new (m_thd->mem_root) JOIN(m_thd, query_block);
   query_block->join->where_cond = query_block->where_cond();
@@ -1999,26 +2013,26 @@ TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
 
   ASSERT_EQ(2, graph.nodes[0].sargable_predicates.size());
   EXPECT_EQ(
-      "t1.field_1 -> t2.x [(t1.x = t2.x)]",
+      "t1.x -> t2.x [(t1.x = t2.x)]",
       PrintSargablePredicate(graph.nodes[0].sargable_predicates[0], graph));
   EXPECT_EQ(
-      "t1.field_1 -> t3.x [(t1.x = t3.x)]",
+      "t1.x -> t3.x [(t1.x = t3.x)]",
       PrintSargablePredicate(graph.nodes[0].sargable_predicates[1], graph));
 
   ASSERT_EQ(2, graph.nodes[1].sargable_predicates.size());
   EXPECT_EQ(
-      "t2.field_1 -> t3.x [(t2.x = t3.x)]",
+      "t2.x -> t3.x [(t2.x = t3.x)]",
       PrintSargablePredicate(graph.nodes[1].sargable_predicates[0], graph));
   EXPECT_EQ(
-      "t2.field_1 -> t1.x [(t1.x = t2.x)]",
+      "t2.x -> t1.x [(t1.x = t2.x)]",
       PrintSargablePredicate(graph.nodes[1].sargable_predicates[1], graph));
 
   ASSERT_EQ(2, graph.nodes[2].sargable_predicates.size());
   EXPECT_EQ(
-      "t3.field_1 -> t2.x [(t2.x = t3.x)]",
+      "t3.x -> t2.x [(t2.x = t3.x)]",
       PrintSargablePredicate(graph.nodes[2].sargable_predicates[0], graph));
   EXPECT_EQ(
-      "t3.field_1 -> t1.x [(t1.x = t3.x)]",
+      "t3.x -> t1.x [(t1.x = t3.x)]",
       PrintSargablePredicate(graph.nodes[2].sargable_predicates[1], graph));
 }
 
