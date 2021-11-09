@@ -1539,6 +1539,8 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
       ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x=3", /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -1553,6 +1555,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
   EXPECT_EQ(0, root->ref().ref->key);
   EXPECT_EQ(8, root->ref().ref->key_length);
   EXPECT_EQ(1, root->ref().ref->key_parts);
+  EXPECT_FLOAT_EQ(10.0, root->num_output_rows);
 }
 
 TEST_F(HypergraphOptimizerTest, NotPredicatePushdownToRef) {
