@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2988,8 +2988,15 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   int b  = 0;
   memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
+    if (b == NDB_ARRAY_SIZE(buf))
+    {
+      return -1;
+    }
+    if (numArgs == NDB_ARRAY_SIZE(args_array))
+    {
+      return -1;
+    }
     if (args[i] == ' ' || args[i] == 0){
-      assert(b < BufSz);
       assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
