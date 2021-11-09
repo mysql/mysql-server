@@ -1690,10 +1690,7 @@ void PushDownToSargableCondition(Item *cond, RelationalExpression *expr,
     if (cond->has_subquery()) {
       return;
     }
-    if (!IsSubset(cond->used_tables() & ~PSEUDO_TABLE_BITS,
-                  expr->tables_in_subtree)) {
-      expr->join_conditions_pushable_to_this.push_back(cond);
-    }
+    expr->join_conditions_pushable_to_this.push_back(cond);
     return;
   }
 
