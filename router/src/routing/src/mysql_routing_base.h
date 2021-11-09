@@ -73,7 +73,6 @@ class MySQLRoutingBase : public DestinationQuarantineHandlerInterface {
       const mysql_harness::PluginFuncEnv *env) = 0;
   virtual void stop_socket_acceptors(
       const mysql_harness::PluginFuncEnv *env) = 0;
-  virtual ~MySQLRoutingBase() {}
 };
 
 #endif  // ROUTING_MYSQL_ROUTING_BASE_INCLUDED
