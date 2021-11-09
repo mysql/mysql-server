@@ -835,6 +835,11 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                            null_rejecting_key) &&
                           matched_keyparts == usable_keyparts;
   if (single_row) {
+    // FIXME: This can cause inconsistent row estimates between different access
+    // paths doing the same thing, which is bad (it causes index lookups to be
+    // unfairly preferred, especially as we add more tables to the join -- and
+    // it also causes access path pruning to work less efficiently). See
+    // comments in EstimateFieldSelectivity().
     num_output_rows = std::min(num_output_rows, 1.0);
   }
 

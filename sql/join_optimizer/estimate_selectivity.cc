@@ -39,6 +39,7 @@
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
+#include "sql/sql_select.h"
 #include "sql/table.h"
 #include "template_utils.h"
 
@@ -68,21 +69,49 @@ using std::string;
   Returns -1.0 if no index was found. Lifted from
   Item_equal::get_filtering_effect.
  */
-static double EstimateFieldSelectivity(Field *field, string *trace) {
+static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
+                                       string *trace) {
   const TABLE *table = field->table;
   double selectivity = -1.0;
   for (uint j = 0; j < table->s->keys; j++) {
-    if (field->key_start.is_set(j) &&
-        table->key_info[j].has_records_per_key(0)) {
-      double field_selectivity =
-          static_cast<double>(table->key_info[j].records_per_key(0)) /
-          table->file->stats.records;
-      if (trace != nullptr) {
-        *trace +=
-            StringPrintf(" - found candidate index %s with selectivity %f\n",
-                         table->key_info[j].name, field_selectivity);
+    KEY *key = &table->key_info[j];
+
+    if (field->key_start.is_set(j)) {
+      if (key->has_records_per_key(0)) {
+        double field_selectivity =
+            static_cast<double>(table->key_info[j].records_per_key(0)) /
+            table->file->stats.records;
+        if (trace != nullptr) {
+          *trace +=
+              StringPrintf(" - found candidate index %s with selectivity %f\n",
+                           table->key_info[j].name, field_selectivity);
+        }
+        selectivity = std::max(selectivity, field_selectivity);
       }
-      selectivity = std::max(selectivity, field_selectivity);
+
+      // This is a less precise version of the single-row check in
+      // CostingReceiver::ProposeRefAccess(). If true, we know that this index
+      // can at most have selectivity 1/N, and we can use that as a global cap.
+      // Importantly, unlike the capping in the EQ_REF code, this capping is
+      // consistent between nested-loop index plans and hash join. Ideally, we'd
+      // also support multi-predicate selectivities here and get rid of the
+      // entire EQ_REF-specific code, but that requires a more holistic
+      // selectivity handling (for multipart indexes) and pulling out some of
+      // the sargable code for precise detection of null-rejecting predicates.
+      //
+      // Note that since we're called only for field = field here, which
+      // is null-rejecting, we don't have a check for HA_NULL_PART_KEY.
+      const bool single_row = Overlaps(actual_key_flags(key), HA_NOSAME) &&
+                              key->actual_key_parts == 1;
+      if (single_row) {
+        if (trace != nullptr) {
+          *trace += StringPrintf(
+              " - capping selectivity to %f since index is unique\n",
+              1.0 / table->file->stats.records);
+        }
+        *selectivity_cap =
+            std::min(*selectivity_cap, 1.0 / table->file->stats.records);
+      }
     }
   }
 
@@ -115,6 +144,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   // to find a better selectivity estimate. We look for indexes on both
   // fields, and pick the least selective (see EstimateFieldSelectivity()
   // for why).
+  double selectivity_cap = 1.0;
   if (condition->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
@@ -125,9 +155,11 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
       for (Field *field : {down_cast<Item_field *>(left)->field,
                            down_cast<Item_field *>(right)->field}) {
         selectivity =
-            std::max(selectivity, EstimateFieldSelectivity(field, trace));
+            std::max(selectivity,
+                     EstimateFieldSelectivity(field, &selectivity_cap, trace));
       }
       if (selectivity >= 0.0) {
+        selectivity = std::min(selectivity, selectivity_cap);
         if (trace != nullptr) {
           *trace +=
               StringPrintf(" - used an index for %s, selectivity = %.3f\n",
@@ -178,10 +210,12 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
 
     double selectivity = -1.0;
     for (Item_field &field : equal->get_fields()) {
-      selectivity =
-          std::max(selectivity, EstimateFieldSelectivity(field.field, trace));
+      selectivity = std::max(
+          selectivity,
+          EstimateFieldSelectivity(field.field, &selectivity_cap, trace));
     }
     if (selectivity >= 0.0) {
+      selectivity = std::min(selectivity, selectivity_cap);
       if (trace != nullptr) {
         *trace += StringPrintf(" - used an index for %s, selectivity = %.3f\n",
                                ItemToString(condition).c_str(), selectivity);
@@ -211,6 +245,7 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
       /*fields_to_ignore=*/&empty,
       /*rows_in_table=*/1000.0);
 
+  selectivity = std::min(selectivity, selectivity_cap);
   if (trace != nullptr) {
     *trace += StringPrintf(" - fallback selectivity for %s = %.3f\n",
                            ItemToString(condition).c_str(), selectivity);

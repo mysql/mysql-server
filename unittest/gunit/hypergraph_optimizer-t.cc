@@ -2157,6 +2157,32 @@ TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
 }
 
+TEST_F(HypergraphOptimizerTest, UniqueIndexCapsBothWays) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x=t2.x",
+                      /*nullable=*/false);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t1->file->stats.records = 1000;
+  t2->file->stats.records = 1000;
+  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The unique index on t1 isn't usable, but it should inform
+  // the selectivity for the hash join nevertheless. (Without it,
+  // we would see an estimate of 100k rows, since we don't have
+  // selectivity information in our index and fall back to the
+  // default selectivity of 0.1 for field = field.)
+  EXPECT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_FLOAT_EQ(1000.0, root->num_output_rows);
+}
+
 /*
   Sets up this join graph:
 

@@ -1916,8 +1916,10 @@ INSERT INTO t1 VALUES (0,0),(1,1);
 
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='m';
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('m');
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('m');
 
 SELECT * FROM t1 WHERE b='m';
@@ -1928,8 +1930,10 @@ SELECT * FROM t1 WHERE b=COALESCE('m');
 
 SELECT a FROM t1 FORCE INDEX(a) WHERE a='';
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=CONCAT('');
 
+--skip_if_hypergraph  # Does not support FORCE INDEX, leading to different warnings.
 SELECT a FROM t1 FORCE INDEX(a) WHERE a=COALESCE('');
 
 SELECT * FROM t1 WHERE b='';
