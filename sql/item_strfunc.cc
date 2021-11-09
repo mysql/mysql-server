@@ -3734,7 +3734,7 @@ err:
 void Item_func_conv::fix_length_and_dec()
 {
   collation.set(default_charset());
-  max_length=64;
+  fix_char_length(64);
   maybe_null= 1;
   reject_geometry_args(arg_count, args, this);
 }
