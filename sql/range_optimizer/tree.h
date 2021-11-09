@@ -559,7 +559,8 @@ class SEL_ARG {
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *, const uchar *, const uchar *, bool asc);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
-          uint8 min_flag, uint8 max_flag, bool maybe_flag, bool asc);
+          uint8 min_flag, uint8 max_flag, bool maybe_flag, bool asc,
+          ha_rkey_function gis_flag);
   /**
     Note that almost all SEL_ARGs are created on the MEM_ROOT,
     so this destructor will only rarely be called.
@@ -611,20 +612,22 @@ class SEL_ARG {
     }
     return new (mem_root)
         SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-                maybe_flag && arg->maybe_flag, is_ascending);
+                maybe_flag && arg->maybe_flag, is_ascending,
+                min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_first(SEL_ARG *arg,
                        MEM_ROOT *mem_root) {  // arg->min <= X < arg->min
-    return new (mem_root)
-        SEL_ARG(field, part, min_value, arg->min_value, min_flag,
-                arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-                maybe_flag || arg->maybe_flag, is_ascending);
+    return new (mem_root) SEL_ARG(
+        field, part, min_value, arg->min_value, min_flag,
+        arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX, maybe_flag || arg->maybe_flag,
+        is_ascending, min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_last(SEL_ARG *arg,
                       MEM_ROOT *mem_root) {  // arg->min <= X <= key_max
     return new (mem_root)
         SEL_ARG(field, part, min_value, arg->max_value, min_flag, arg->max_flag,
-                maybe_flag || arg->maybe_flag, is_ascending);
+                maybe_flag || arg->maybe_flag, is_ascending,
+                min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 

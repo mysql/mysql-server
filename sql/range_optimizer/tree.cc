@@ -325,12 +325,12 @@ SEL_ARG::SEL_ARG(Field *f, const uchar *min_value_arg,
 
 SEL_ARG::SEL_ARG(Field *field_, uint8 part_, uchar *min_value_,
                  uchar *max_value_, uint8 min_flag_, uint8 max_flag_,
-                 bool maybe_flag_, bool asc)
+                 bool maybe_flag_, bool asc, ha_rkey_function gis_flag)
     : min_flag(min_flag_),
       max_flag(max_flag_),
       maybe_flag(maybe_flag_),
       part(part_),
-      rkey_func_flag(HA_READ_INVALID),
+      rkey_func_flag(gis_flag),
       field(field_),
       min_value(min_value_),
       max_value(max_value_),
@@ -350,7 +350,8 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
 
   if (!(tmp = new (param->temp_mem_root)
             SEL_ARG(field, part, min_value, max_value, min_flag, max_flag,
-                    maybe_flag, is_ascending)))
+                    maybe_flag, is_ascending,
+                    min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID)))
     return nullptr;  // OOM
   tmp->parent = new_parent;
   tmp->set_next_key_part(next_key_part);

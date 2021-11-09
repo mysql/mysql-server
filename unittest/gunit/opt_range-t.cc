@@ -1876,6 +1876,22 @@ TEST_F(OptRangeTest, TreeRootGetsUpdated) {
   EXPECT_NE(args[0], root.root);
 }
 
+TEST_F(OptRangeTest, CloneSpatialKey) {
+  Fake_RANGE_OPT_PARAM param(thd(), &m_alloc, 2, false);
+  Mock_SEL_ARG key1, key2;
+  key1.min_flag |= GEOM_FLAG;
+  key1.rkey_func_flag = HA_READ_MBR_CONTAIN;
+  SEL_ROOT key1_root(&key1), key2_root(&key2);
+  key1_root.use_count = 2;
+  key1_root.elements = 2;
+  key2_root.type = SEL_ROOT::Type::MAYBE_KEY;
+  // check if tree is cloned along with gis flag.
+  SEL_ROOT *cloned_key1 = key_and(&param, &key1_root, &key2_root);
+  EXPECT_NE(cloned_key1, &key1_root);
+  EXPECT_EQ(cloned_key1->root->rkey_func_flag, key1_root.root->rkey_func_flag);
+  key1_root.use_count = 0;
+}
+
 }  // namespace opt_range_unittest
 
 #undef create_tree
