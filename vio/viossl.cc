@@ -667,6 +667,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   } else {
     ssl = *sslptr;
   }
+  ERR_clear_error();
 
   size_t loop_ret;
   if ((loop_ret = ssl_handshake_loop(vio, ssl, func, ssl_errno_holder))) {
