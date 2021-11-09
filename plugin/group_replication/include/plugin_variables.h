@@ -39,11 +39,11 @@ struct plugin_local_variables {
   rpl_sidno view_change_sidno;
 
   mysql_mutex_t force_members_running_mutex;
-  mysql_mutex_t plugin_running_mutex;
   mysql_mutex_t plugin_online_mutex;
   mysql_mutex_t plugin_modules_termination_mutex;
   mysql_cond_t plugin_online_condition;
   Plugin_waitlock *online_wait_mutex;
+  Checkable_rwlock *plugin_running_lock;
   Checkable_rwlock *plugin_stop_lock;
   std::atomic<bool> plugin_is_stopping;
   std::atomic<bool> group_replication_running;
@@ -86,6 +86,7 @@ struct plugin_local_variables {
     view_change_sidno = 0;
 
     online_wait_mutex = nullptr;
+    plugin_running_lock = nullptr;
     plugin_stop_lock = nullptr;
     plugin_is_stopping = false;
     group_replication_running = false;

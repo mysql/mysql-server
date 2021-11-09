@@ -148,7 +148,8 @@ int Delayed_initialization_thread::initialization_thread_handler() {
       { is_server_engine_initialized = false; });
   if (is_server_engine_initialized) {
     // Protect this delayed start against other start/stop requests
-    MUTEX_LOCK(lock, get_plugin_running_lock());
+    Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                              Checkable_rwlock::WRITE_LOCK);
 
     set_plugin_is_setting_read_mode(true);
 
