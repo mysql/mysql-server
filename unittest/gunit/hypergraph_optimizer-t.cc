@@ -1678,7 +1678,7 @@ TEST_F(HypergraphOptimizerTest, RefIntoHashJoin) {
   Fake_TABLE *t3 = m_fake_tables["t3"];
   t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
   ulong rec_per_key_int[] = {1};
-  float rec_per_key[] = {0.1f};
+  float rec_per_key[] = {0.001f};
   t3->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
 
   // Hash join between t2/t3 is attractive, but hash join between t1 and t2/t3
@@ -2225,6 +2225,7 @@ TEST_F(HypergraphOptimizerTest, SubsumedSargableInDoubleCycle) {
   t2->file->stats.records = 100;
   t3->file->stats.records = 100;
   t4->file->stats.records = 100;
+  t4->file->stats.data_file_length = 100e6;
   t3->create_index(t3->field[0], nullptr, /*unique=*/false);
   t4->create_index(t4->field[0], t4->field[1], /*unique=*/false);
 
@@ -2240,6 +2241,10 @@ TEST_F(HypergraphOptimizerTest, SubsumedSargableInDoubleCycle) {
   // Prints out the query plan on failure.
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
+
+  // The four tables combined together, with three 0.1 selectivities in the
+  // x multi-equality and then one on y.
+  EXPECT_FLOAT_EQ(10000.0, root->num_output_rows);
 
   // We should have an index lookup into t4, covering both t1=t4 conditions.
   bool found_t4_index_lookup = false;

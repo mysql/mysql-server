@@ -406,6 +406,10 @@ class CostingReceiver {
       const AccessPath *right_path, int join_predicate_first,
       int join_predicate_last, bool materialize_subqueries,
       AccessPath *join_path, FunctionalDependencySet *new_fd_set);
+  double FindAlreadyAppliedSelectivity(const JoinPredicate *edge,
+                                       const AccessPath *left_path,
+                                       const AccessPath *right_path,
+                                       NodeMap left, NodeMap right);
 
   void CommitBitsetsToHeap(AccessPath *path) const;
   bool BitsetsAreCommitted(AccessPath *path) const;
@@ -1742,9 +1746,18 @@ void CostingReceiver::ProposeHashJoin(
         m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
   }
 
-  double num_output_rows =
-      FindOutputRowsForJoin(left_path, right_path, edge,
-                            /*right_path_already_applied_selectivity=*/1.0);
+  // TODO(sgunders): Consider removing redundant join conditions.
+  // Normally, it's better to have more equijoin conditions than fewer,
+  // but in this case, every row should fall into the same hash bucket anyway,
+  // so they do not help.
+  double right_path_already_applied_selectivity =
+      FindAlreadyAppliedSelectivity(edge, left_path, right_path, left, right);
+  if (right_path_already_applied_selectivity < 0.0) {
+    return;
+  }
+
+  double num_output_rows = FindOutputRowsForJoin(
+      left_path, right_path, edge, right_path_already_applied_selectivity);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
@@ -1995,6 +2008,8 @@ bool CostingReceiver::RedundantThroughSargable(
                                         uint64_t right_applied) {
     return redundant_sargable & (left_applied | right_applied);
   };
+  bool redundant_against_something_in_left = false;
+  bool redundant_against_something_in_right = false;
   for (size_t predicate_idx :
        OverflowBitsetBitsIn<3, decltype(redundant_and_applied)>(
            {redundant_against_sargable_predicates,
@@ -2002,10 +2017,30 @@ bool CostingReceiver::RedundantThroughSargable(
             right_applied_sargable_join_predicates},
            redundant_and_applied)) {
     // The sargable condition must work as a join condition for this join
-    // (not between tables we've already joined in).
+    // (not between tables we've already joined in). Note that the joining
+    // could be through two different sargable predicates; they do not have
+    // to be the same. E.g., if we have
+    //
+    //   - t1, with sargable t1.x = t3.x
+    //   - t2, with sargable t2.x = t3.x
+    //   - Join condition t1.x = t2.x
+    //
+    // then the join condition is redundant and should be refused,
+    // even though neither sargable condition joins t1 and t2 directly.
+    //
+    // Note that there are more complicated situations, e.g. if t2 instead
+    // had t2.x = t4.x in the example above, where we could reject non-redundant
+    // join orderings. However, in nearly all such cases,
+    // DisallowParameterizedJoinPath() would reject them anyway, and it is not
+    // an issue for successfully planning the query, as there would always exist
+    // a non-parameterized path that we could use instead.
     const Predicate &sargable_predicate = m_graph.predicates[predicate_idx];
-    if (Overlaps(sargable_predicate.used_nodes, left) &&
-        Overlaps(sargable_predicate.used_nodes, right)) {
+    redundant_against_something_in_left |=
+        Overlaps(sargable_predicate.used_nodes, left);
+    redundant_against_something_in_right |=
+        Overlaps(sargable_predicate.used_nodes, right);
+    if (redundant_against_something_in_left &&
+        redundant_against_something_in_right) {
       return true;
     }
   }
@@ -2133,13 +2168,18 @@ void CostingReceiver::ProposeNestedLoopJoin(
     // the cost here.
     double rows_after_filtering = inner->num_output_rows;
 
+    right_path_already_applied_selectivity =
+        FindAlreadyAppliedSelectivity(edge, left_path, right_path, left, right);
+    if (right_path_already_applied_selectivity < 0.0) {
+      return;
+    }
+
     // num_output_rows is only for cost calculation and display purposes;
     // we hard-code the use of edge->selectivity below, so that we're
     // seeing the same number of rows as for hash join. This might throw
     // the filtering cost off slightly.
     MutableOverflowBitset equijoin_predicates{
         m_thd->mem_root, edge->expr->equijoin_conditions.size()};
-    int filter_idx = 0;
     for (size_t join_cond_idx = 0;
          join_cond_idx < edge->expr->equijoin_conditions.size();
          ++join_cond_idx) {
@@ -2149,34 +2189,13 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
       const auto [already_applied_as_sargable, subsumed] =
           AlreadyAppliedAsSargable(condition, left_path, right_path);
-      if (already_applied_as_sargable) {
-        // This predicate was already applied as a ref access earlier.
-        // Make sure not to double-count its selectivity, and also
-        // that we don't reapply it if it was subsumed by the ref access.
-        const auto it = m_graph.sargable_join_predicates.find(condition);
-        right_path_already_applied_selectivity *=
-            m_graph.predicates[it->second].selectivity;
-      } else if (RedundantThroughSargable(
-                     properties.redundant_against_sargable_predicates,
-                     left_path->applied_sargable_join_predicates(),
-                     right_path->applied_sargable_join_predicates(), left,
-                     right)) {
-        if (m_trace != nullptr) {
-          *m_trace +=
-              " - " + PrintCost(*right_path, m_graph, "") +
-              " has a sargable predicate that is redundant with our join "
-              "predicate, skipping\n";
-        }
-        return;
-      }
       if (!subsumed) {
-        equijoin_predicates.SetBit(filter_idx);
+        equijoin_predicates.SetBit(join_cond_idx);
         inner_rescan_cost += EstimateFilterCost(m_thd, rows_after_filtering,
                                                 properties.contained_subqueries)
                                  .cost_if_not_materialized;
         rows_after_filtering *= properties.selectivity;
       }
-      ++filter_idx;
     }
     for (const CachedPropertiesForPredicate &properties :
          edge->expr->properties_for_join_conditions) {
@@ -2250,6 +2269,49 @@ void CostingReceiver::ProposeNestedLoopJoin(
                                        ? "dedup to inner nested loop, mat. subq"
                                        : "nested loop, mat. subq");
   }
+}
+
+/**
+  Go through all equijoin conditions for the given join, and find out how much
+  of its selectivity that has already been applied as ref accesses (which should
+  thus be divided away from the join's selectivity).
+
+  Returns -1.0 if there is at least one sargable predicate that is entirely
+  redundant, and that this subgraph pair should not be attempted joined at all.
+ */
+double CostingReceiver::FindAlreadyAppliedSelectivity(
+    const JoinPredicate *edge, const AccessPath *left_path,
+    const AccessPath *right_path, NodeMap left, NodeMap right) {
+  double already_applied = 1.0;
+  for (size_t join_cond_idx = 0;
+       join_cond_idx < edge->expr->equijoin_conditions.size();
+       ++join_cond_idx) {
+    Item_func_eq *condition = edge->expr->equijoin_conditions[join_cond_idx];
+    const CachedPropertiesForPredicate &properties =
+        edge->expr->properties_for_equijoin_conditions[join_cond_idx];
+
+    const auto [already_applied_as_sargable, subsumed] =
+        AlreadyAppliedAsSargable(condition, left_path, right_path);
+    if (already_applied_as_sargable) {
+      // This predicate was already applied as a ref access earlier.
+      // Make sure not to double-count its selectivity, and also
+      // that we don't reapply it if it was subsumed by the ref access.
+      const auto it = m_graph.sargable_join_predicates.find(condition);
+      already_applied *= m_graph.predicates[it->second].selectivity;
+    } else if (RedundantThroughSargable(
+                   properties.redundant_against_sargable_predicates,
+                   left_path->applied_sargable_join_predicates(),
+                   right_path->applied_sargable_join_predicates(), left,
+                   right)) {
+      if (m_trace != nullptr) {
+        *m_trace += " - " + PrintCost(*right_path, m_graph, "") +
+                    " has a sargable predicate that is redundant with our join "
+                    "predicate, skipping\n";
+      }
+      return -1.0;
+    }
+  }
+  return already_applied;
 }
 
 enum class PathComparisonResult {
@@ -3925,7 +3987,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
 
       // Cache information about what sargable conditions this join condition
       // would be redundant against, for RedundantThroughSargable().
-      // But doon't deduplicate against ourselves (in case we're sargable).
+      // But don't deduplicate against ourselves (in case we're sargable).
       MutableOverflowBitset redundant(thd->mem_root, graph->predicates.size());
       for (unsigned sargable_pred_idx = graph->num_where_predicates;
            sargable_pred_idx < graph->predicates.size(); ++sargable_pred_idx) {
