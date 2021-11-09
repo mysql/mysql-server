@@ -3408,6 +3408,8 @@ struct TABLE_LIST {
 
   const Lock_descriptor &lock_descriptor() const { return m_lock_descriptor; }
 
+  bool is_derived_unfinished_materialization() const;
+
  private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.

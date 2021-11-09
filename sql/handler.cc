@@ -6184,8 +6184,10 @@ ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     } else {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
       assert(min_endp || max_endp);
-      if (HA_POS_ERROR ==
-          (rows = this->records_in_range(keyno, min_endp, max_endp))) {
+      rows = table->pos_in_table_list->is_derived_unfinished_materialization()
+                 ? HA_POS_ERROR
+                 : this->records_in_range(keyno, min_endp, max_endp);
+      if (rows == HA_POS_ERROR) {
         /* Can't scan one range => can't do MRR scan at all */
         total_rows = HA_POS_ERROR;
         break;

@@ -1299,22 +1299,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       param->keyinfo->set_rec_per_key_array(nullptr, nullptr);
       param->keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
-      // Set up records-per-key estimates.
-      ulong *rec_per_key = share->mem_root.ArrayAlloc<ulong>(
-          param->keyinfo->user_defined_key_parts);
-      rec_per_key_t *rec_per_key_float =
-          share->mem_root.ArrayAlloc<rec_per_key_t>(
-              param->keyinfo->user_defined_key_parts);
-      if (rec_per_key == nullptr || rec_per_key_float == nullptr)
-        return nullptr;
-      param->keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
-      for (unsigned key_part_idx = 0;
-           key_part_idx < param->keyinfo->user_defined_key_parts;
-           ++key_part_idx) {
-        param->keyinfo->rec_per_key[key_part_idx] = 0;
-        param->keyinfo->set_records_per_key(key_part_idx, REC_PER_KEY_UNKNOWN);
-      }
-
       /* Create a distinct key over the columns we are going to return */
       for (unsigned i = param->hidden_field_count; i < share->fields;
            i++, key_part_info++) {

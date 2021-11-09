@@ -532,6 +532,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
         assert(min_range.length > 0);
+        assert(
+            !table->pos_in_table_list->is_derived_unfinished_materialization());
         records =
             table->file->records_in_range(scan->keynr, &min_range, &max_range);
       } else {

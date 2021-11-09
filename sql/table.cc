@@ -7256,6 +7256,11 @@ bool TABLE_LIST::set_recursive_reference() {
   return false;
 }
 
+bool TABLE_LIST::is_derived_unfinished_materialization() const {
+  return (is_view_or_derived() &&
+          derived_query_expression()->unfinished_materialization());
+}
+
 void LEX_MFA::copy(LEX_MFA *m, MEM_ROOT *alloc) {
   nth_factor = m->nth_factor;
   uses_identified_by_clause = m->uses_identified_by_clause;

@@ -3123,14 +3123,14 @@ TRACE
                       "access_type": "ref",
                       "index": "<auto_key0>",
                       "rows": 1,
-                      "cost": 0.35,
+                      "cost": 0.6,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
                       "index": "<auto_key1>",
                       "rows": 1,
-                      "cost": 0.35,
+                      "cost": 0.6,
                       "chosen": false
                     },
                     {
@@ -3144,7 +3144,7 @@ TRACE
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 0.35,
+                "cost_for_plan": 0.6,
                 "rest_of_plan": [
                   {
                     "plan_prefix": [
@@ -3157,14 +3157,14 @@ TRACE
                           "access_type": "ref",
                           "index": "<auto_key0>",
                           "rows": 1,
-                          "cost": 0.35,
+                          "cost": 0.6,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
                           "index": "<auto_key1>",
                           "rows": 1,
-                          "cost": 0.35,
+                          "cost": 0.6,
                           "chosen": false
                         },
                         {
@@ -3178,7 +3178,7 @@ TRACE
                     } /* best_access_path */,
                     "condition_filtering_pct": 100,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 0.7,
+                    "cost_for_plan": 1.2,
                     "chosen": true
                   }
                 ] /* rest_of_plan */
@@ -3193,14 +3193,14 @@ TRACE
                       "access_type": "ref",
                       "index": "<auto_key0>",
                       "rows": 1,
-                      "cost": 0.35,
+                      "cost": 0.6,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
                       "index": "<auto_key1>",
                       "rows": 1,
-                      "cost": 0.35,
+                      "cost": 0.6,
                       "chosen": false
                     },
                     {
@@ -3214,7 +3214,7 @@ TRACE
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
-                "cost_for_plan": 0.35,
+                "cost_for_plan": 0.6,
                 "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */
