@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(GenerateExportHeader)
+
 # MS Visual C++ specifics
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)  # bypass Warning C4996 (getenv)
@@ -60,13 +62,10 @@ IF(WIN32)
     ../../harness/src/logging/eventlog_rc/MSG00001.bin)
 ENDIF()
 
-IF(WIN32)
-  # on Windows, we statically link the router lib to otherwise avoid
-  # exporting a bunch of symbols
-  ADD_LIBRARY(router_lib STATIC ${lib_source_files})
-ELSE()
-  ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
-ENDIF()
+ADD_LIBRARY(router_lib
+  SHARED
+  ${lib_source_files}
+  ${common_files})
 TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
   harness-library
@@ -77,7 +76,8 @@ TARGET_LINK_LIBRARIES(router_lib
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib
   PUBLIC
-  ../include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include
+  ${CMAKE_CURRENT_BINARY_DIR}/../include
   )
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
@@ -99,6 +99,9 @@ ENDIF()
 
 ADD_INSTALL_RPATH_FOR_OPENSSL(router_lib)
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(router_lib)
+
+GENERATE_EXPORT_HEADER(router_lib
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_export.h)
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter
   ${source_files}

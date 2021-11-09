@@ -25,6 +25,8 @@
 #ifndef _ROUTER_MYSQL_SESSION_H_
 #define _ROUTER_MYSQL_SESSION_H_
 
+#include "mysqlrouter/router_export.h"
+
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -149,7 +151,7 @@ class Option<Opt, std::nullptr_t> {
 
 // mysql_options() may be used with MYSQL * == nullptr to get global values.
 
-class MySQLSession {
+class ROUTER_LIB_EXPORT MySQLSession {
  public:
   static const int kDefaultConnectTimeout = 15;
   static const int kDefaultReadTimeout = 30;
@@ -325,16 +327,16 @@ class MySQLSession {
     Row row_;
   };
 
-  struct LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategy {
     virtual void log(const std::string &msg) = 0;
     virtual ~LoggingStrategy() = default;
   };
 
-  struct LoggingStrategyNone : public LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategyNone : public LoggingStrategy {
     virtual void log(const std::string & /*msg*/) override {}
   };
 
-  struct LoggingStrategyDebugLogger : public LoggingStrategy {
+  struct ROUTER_LIB_EXPORT LoggingStrategyDebugLogger : public LoggingStrategy {
     virtual void log(const std::string &msg) override;
   };
 

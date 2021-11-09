@@ -39,7 +39,7 @@ class DynamicState;
  * @brief ClusterMetadataDynamicState represents a dynamic state that the
  * metadata cache module wants to persist in the file.
  */
-class ClusterMetadataDynamicState {
+class ROUTER_LIB_EXPORT ClusterMetadataDynamicState {
  public:
   /**
    * @brief Creates and initializes a metadata cache dynamic state object.

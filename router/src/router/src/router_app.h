@@ -25,6 +25,8 @@
 #ifndef ROUTER_MYSQL_ROUTER_INCLUDED
 #define ROUTER_MYSQL_ROUTER_INCLUDED
 
+#include "mysqlrouter/router_export.h"
+
 /** @file
  * @brief Defining the main class MySQLRouter
  *
@@ -68,7 +70,7 @@ class ConfigFiles;
  *     }
  *
  */
-class MySQLRouter {
+class ROUTER_LIB_EXPORT MySQLRouter {
  public:
   /** @brief Default constructor
    *

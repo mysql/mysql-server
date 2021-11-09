@@ -25,6 +25,8 @@
 #ifndef MYSQLROUTER_UTILS_INCLUDED
 #define MYSQLROUTER_UTILS_INCLUDED
 
+#include "mysqlrouter/router_export.h"
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -60,7 +62,8 @@ std::string to_string(const T &data) {
 }
 
 // represent milliseconds as floating point seconds
-std::string ms_to_seconds_string(const std::chrono::milliseconds &msec);
+std::string ROUTER_LIB_EXPORT
+ms_to_seconds_string(const std::chrono::milliseconds &msec);
 
 /**
  * Validates a string containing a TCP port
@@ -93,17 +96,17 @@ std::string hexdump(const unsigned char *buffer, size_t count);
 
 /** @brief Prompts for a password from the console.
  */
-std::string prompt_password(const std::string &prompt);
+std::string ROUTER_LIB_EXPORT prompt_password(const std::string &prompt);
 
 /** @brief Override default prompt password function
  */
-void set_prompt_password(
-    const std::function<std::string(const std::string &)> &f);
+void ROUTER_LIB_EXPORT
+set_prompt_password(const std::function<std::string(const std::string &)> &f);
 
 #ifdef _WIN32
 /** @brief Returns whether if the router process is running as a Windows Service
  */
-bool is_running_as_service();
+bool ROUTER_LIB_EXPORT is_running_as_service();
 
 /** @brief Writes to the Windows event log.
  *
@@ -111,7 +114,7 @@ bool is_running_as_service();
  *
  * @throws std::runtime_error in case of an error
  */
-void write_windows_event_log(const std::string &msg);
+void ROUTER_LIB_EXPORT write_windows_event_log(const std::string &msg);
 
 #endif
 
@@ -167,7 +170,8 @@ stdx::expected<void, std::error_code> rename_file(const std::string &from,
 
 /** @brief Returns whether the socket name passed as parameter is valid
  */
-bool is_valid_socket_name(const std::string &socket, std::string &err_msg);
+bool ROUTER_LIB_EXPORT is_valid_socket_name(const std::string &socket,
+                                            std::string &err_msg);
 
 /** @brief Converts char array to signed integer, intuitively.
  *
@@ -198,11 +202,11 @@ int strtoi_checked(const char *value, signed int default_result = 0) noexcept;
  * @param value           char array to get converted
  * @param default_result  value to return in case of nullptr being passed
  */
-unsigned strtoui_checked(const char *value,
-                         unsigned int default_result = 0) noexcept;
+unsigned ROUTER_LIB_EXPORT
+strtoui_checked(const char *value, unsigned int default_result = 0) noexcept;
 
-uint64_t strtoull_checked(const char *value,
-                          uint64_t default_result = 0) noexcept;
+uint64_t ROUTER_LIB_EXPORT
+strtoull_checked(const char *value, uint64_t default_result = 0) noexcept;
 
 }  // namespace mysqlrouter
 

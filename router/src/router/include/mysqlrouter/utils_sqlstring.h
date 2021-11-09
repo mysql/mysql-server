@@ -25,6 +25,8 @@
 #ifndef _UTILS_SQLSTRING_H_
 #define _UTILS_SQLSTRING_H_
 
+#include "mysqlrouter/router_export.h"
+
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS 1
 #endif
@@ -42,16 +44,17 @@ enum SqlStringFlags {
   EndOfInput = 1 << 7
 };
 
-std::string escape_sql_string(
-    const std::string &string,
-    bool wildcards = false);  // "strings" or 'strings'
-std::string escape_backticks(const std::string &string);  // `identifier`
-std::string quote_identifier(const std::string &identifier,
-                             const char quote_char);
-std::string quote_identifier_if_needed(const std::string &ident,
-                                       const char quote_char);
+std::string ROUTER_LIB_EXPORT
+escape_sql_string(const std::string &string,
+                  bool wildcards = false);  // "strings" or 'strings'
+std::string ROUTER_LIB_EXPORT
+escape_backticks(const std::string &string);  // `identifier`
+std::string ROUTER_LIB_EXPORT quote_identifier(const std::string &identifier,
+                                               const char quote_char);
+std::string ROUTER_LIB_EXPORT
+quote_identifier_if_needed(const std::string &ident, const char quote_char);
 
-class sqlstring {
+class ROUTER_LIB_EXPORT sqlstring {
  public:
   struct sqlstringformat {
     int _flags;

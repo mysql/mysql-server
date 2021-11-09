@@ -42,7 +42,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     )
   TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/router/include/
+    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
     )
   LIBFUZZER_ADD_TEST(routerfuzz_router_uri
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri
@@ -70,7 +70,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     )
   TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri_tostring
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/router/include/
+    $<TARGET_PROPERTY:router_lib,INCLUDE_DIRECTORIES>
     )
   LIBFUZZER_ADD_TEST(routerfuzz_router_uri_tostring
     INITIAL_CORPUS_DIR

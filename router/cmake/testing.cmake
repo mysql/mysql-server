@@ -238,3 +238,36 @@ FUNCTION(CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD TARGET DIRECTORY_NAME)
     ENDFOREACH()
   ENDIF()
 ENDFUNCTION()
+
+# create a static-library from a library target
+#
+# build a static library using:
+#
+# - the same sources
+# - the same include dirs
+# - the same library dependencies
+#
+# as the source library.
+#
+# @param TO    targetname of the newly created static library
+# @param FROM  targetname of the library to get sources from
+FUNCTION(STATICLIB_FROM_TARGET TO FROM)
+  # library as object-lib for testing
+  #
+  # SOURCES is relative to SOURCE_DIR
+  GET_TARGET_PROPERTY(_SOURCES ${FROM} SOURCES)
+  GET_TARGET_PROPERTY(_SOURCE_DIR ${FROM} SOURCE_DIR)
+
+  SET(_LIB_SOURCES)
+  FOREACH(F ${_SOURCES})
+    LIST(APPEND _LIB_SOURCES ${_SOURCE_DIR}/${F})
+  ENDFOREACH()
+
+  ADD_LIBRARY(${TO}
+    STATIC ${_LIB_SOURCES})
+  TARGET_INCLUDE_DIRECTORIES(${TO}
+    PUBLIC $<TARGET_PROPERTY:${FROM},INCLUDE_DIRECTORIES>)
+  TARGET_LINK_LIBRARIES(${TO}
+    PUBLIC $<TARGET_PROPERTY:${FROM},LINK_LIBRARIES>
+    )
+ENDFUNCTION()

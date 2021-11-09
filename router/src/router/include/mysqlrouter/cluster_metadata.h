@@ -25,6 +25,8 @@
 #ifndef MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 #define MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 
+#include "mysqlrouter/router_export.h"
+
 #include <stdexcept>
 #include <string>
 
@@ -72,7 +74,7 @@ struct MetadataSchemaVersion {
   }
 };
 
-std::string to_string(const MetadataSchemaVersion &version);
+std::string ROUTER_LIB_EXPORT to_string(const MetadataSchemaVersion &version);
 
 // Semantic version numbers that this Router version supports for bootstrap mode
 constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{1, 0, 0},
@@ -91,9 +93,10 @@ constexpr MetadataSchemaVersion kClusterSetsMetadataVersion{2, 1, 0};
 // Version that will be is set while the metadata is being updated
 constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
 
-MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
+MetadataSchemaVersion ROUTER_LIB_EXPORT
+get_metadata_schema_version(MySQLSession *mysql);
 
-bool metadata_schema_version_is_compatible(
+bool ROUTER_LIB_EXPORT metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
 
@@ -129,14 +132,16 @@ enum class ClusterType {
   RS_V2  /* ReplicaSet (metadata 2.x) */
 };
 
-ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
-                             MySQLSession *mysql, unsigned int router_id = 0);
+ClusterType ROUTER_LIB_EXPORT
+get_cluster_type(const MetadataSchemaVersion &schema_version,
+                 MySQLSession *mysql, unsigned int router_id = 0);
 
-std::string to_string(const ClusterType cluster_type);
+std::string ROUTER_LIB_EXPORT to_string(const ClusterType cluster_type);
 
 class MetadataUpgradeInProgressException : public std::exception {};
 
-stdx::expected<void, std::string> setup_metadata_session(MySQLSession &session);
+stdx::expected<void, std::string> ROUTER_LIB_EXPORT
+setup_metadata_session(MySQLSession &session);
 
 class TargetCluster {
  public:

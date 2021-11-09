@@ -25,6 +25,8 @@
 #ifndef URI_ROUTING_INCLUDED
 #define URI_ROUTING_INCLUDED
 
+#include "mysqlrouter/router_export.h"
+
 #include <cstdint>
 #include <exception>
 #include <map>
@@ -64,7 +66,7 @@ class URIError : public std::runtime_error {
  * * (RFC 3986)[https://tools.ietf.org/html/rfc3986)
  *
  */
-class URI {
+class ROUTER_LIB_EXPORT URI {
  public:
   /** @brief Delimiter used in the Query part */
   static const char query_delimiter = '&';
