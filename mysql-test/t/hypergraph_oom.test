@@ -11,8 +11,6 @@
 # Even though this is to test the hypergraph optimizer, it runs just fine
 # under the old one, so we don't include have_hypergraph.inc.
 
---source include/big_test.inc  # Takes a long time with the hypergraph optimizer.
-
 CREATE TABLE t1 ( c INTEGER, b INTEGER, a INTEGER, KEY (b), KEY (a) );
 CREATE TABLE t2 ( pk INTEGER, b INTEGER, KEY (pk), KEY (b) );
 CREATE TABLE t3 ( a INTEGER, KEY (a) );

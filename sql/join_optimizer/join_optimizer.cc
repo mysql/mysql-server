@@ -102,6 +102,7 @@ struct Hyperedge;
 }  // namespace hypergraph
 
 using hypergraph::Hyperedge;
+using hypergraph::Node;
 using hypergraph::NodeMap;
 using std::array;
 using std::bitset;
@@ -109,6 +110,7 @@ using std::min;
 using std::pair;
 using std::string;
 using std::swap;
+using std::vector;
 
 namespace {
 
@@ -1497,6 +1499,99 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
 }
 
 /**
+  Find the set of tables we can join directly against, given that we have the
+  given set of tables on one of the sides (effectively the same concept as
+  DPhyp's “neighborhood”). Note that having false negatives here is fine
+  (it will only make DisallowParameterizedJoinPath() slightly less effective),
+  but false positives is not (it may disallow valid parameterized paths,
+  ultimately even making LATERAL queries impossible to plan). Thus, we need
+  to check conflict rules, and our handling of hyperedges with more than one
+  table on the other side may also be a bit too strict (this may need
+  adjustments when we get FULL OUTER JOIN).
+
+  If this calculation turns out to be slow, we could probably cache it in
+  AccessPathSet, or even try to build it incrementally.
+ */
+NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
+  const vector<Node> &nodes = graph.graph.nodes;
+  const vector<Hyperedge> &edges = graph.graph.edges;
+
+  NodeMap reachable = 0;
+  for (int node_idx : BitsSetIn(tables)) {
+    reachable |= nodes[node_idx].simple_neighborhood;
+    for (int edge_idx : nodes[node_idx].complex_edges) {
+      if (IsSubset(edges[edge_idx].left, tables)) {
+        NodeMap others = edges[edge_idx].right & ~tables;
+        if (IsSingleBitSet(others) && !Overlaps(others, reachable) &&
+            PassesConflictRules(tables, graph.edges[edge_idx / 2].expr)) {
+          reachable |= others;
+        }
+      }
+    }
+  }
+  return reachable;
+}
+
+// Returns whether the given set of parameter tables is partially, but not
+// fully, resolved by joining towards the other side.
+bool PartiallyResolvedParameterization(NodeMap parameter_tables,
+                                       NodeMap other_side) {
+  return (parameter_tables & ~other_side) != 0 &&
+         (parameter_tables & ~other_side) != parameter_tables;
+}
+
+/**
+  Decide whether joining the two given paths would create a disallowed
+  parameterized path. Parameterized paths are disallowed if they delay
+  joining in their parameterizations without reason (ie., they could
+  join in a parameterization right away, but don't). This is a trick
+  borrowed from Postgres, which essentially forces inner-join ref-lookup
+  plans to be left-deep (since such plans never gain anything from being
+  bushy), reducing the search space significantly without compromising
+  plan quality.
+ */
+bool DisallowParameterizedJoinPath(AccessPath *left_path,
+                                   AccessPath *right_path, NodeMap left,
+                                   NodeMap right, NodeMap left_reachable,
+                                   NodeMap right_reachable) {
+  const NodeMap left_parameters = left_path->parameter_tables & ~RAND_TABLE_BIT;
+  const NodeMap right_parameters =
+      right_path->parameter_tables & ~RAND_TABLE_BIT;
+
+  if (IsSubset(left_parameters | right_parameters, left | right)) {
+    // Not creating a parameterized path, so it's always fine.
+    return false;
+  }
+
+  if (!Overlaps(right_parameters, right_reachable) &&
+      !Overlaps(left_parameters, left_reachable)) {
+    // Either left or right cannot resolve any of their parameterizations yet
+    // (e.g., we're still on the inside of an outer join that we cannot
+    // finish yet), so we cannot avoid keeping them if we want to use index
+    // lookups here at all.
+    return false;
+  }
+
+  // If the outer table partially, but not fully, resolves the inner table's
+  // parameterization, we still allow it (otherwise, we could not have
+  // multi-part index lookups where the keyparts come from different tables).
+  // This is the so-called “star-schema exception”.
+  //
+  // We need to check both ways, in case we try to swap them for a hash join.
+  // Only one of these will ever be true in any given join anyway (joins where
+  // we try to resolve the outer path's parameterizations with the inner one
+  // are disallowed), so we do not allow more than is required.
+  if (PartiallyResolvedParameterization(left_parameters, right) ||
+      PartiallyResolvedParameterization(right_parameters, left)) {
+    return false;
+  }
+
+  // Disallow this join; left or right (or both) should resolve their
+  // parameterizations before we try to combine them.
+  return true;
+}
+
+/**
   Called to signal that it's possible to connect the non-overlapping
   table subsets “left” and “right” through the edge given by “edge_idx”
   (which corresponds to an index in m_graph.edges), ie., we have found
@@ -1581,6 +1676,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   bool wrote_trace = false;
 
+  const NodeMap left_reachable = FindReachableTablesFrom(left, m_graph);
+  const NodeMap right_reachable = FindReachableTablesFrom(right, m_graph);
   for (AccessPath *right_path : right_it->second.paths) {
     assert(BitsetsAreCommitted(right_path));
     if (edge->expr->join_conditions_reject_all_rows &&
@@ -1607,6 +1704,11 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       CommitBitsetsToHeap(right_path);
     }
     for (AccessPath *left_path : left_it->second.paths) {
+      if (DisallowParameterizedJoinPath(left_path, right_path, left, right,
+                                        left_reachable, right_reachable)) {
+        continue;
+      }
+
       assert(BitsetsAreCommitted(left_path));
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes

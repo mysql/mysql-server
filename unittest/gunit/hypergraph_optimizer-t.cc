@@ -1768,24 +1768,24 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  // The optimal plan consists of only nested-loop joins.
+  // The optimal plan consists of only nested-loop joins (notably left-deep).
   // We don't verify costs.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
   EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
 
-  // t1 is on the outside.
-  AccessPath *outer = root->nested_loop_join().outer;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
-  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
-
   // The inner part should also be nested-loop.
-  AccessPath *inner = root->nested_loop_join().inner;
-  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->type);
-  EXPECT_EQ(JoinType::INNER, inner->nested_loop_join().join_type);
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, outer->type);
+  EXPECT_EQ(JoinType::INNER, outer->nested_loop_join().join_type);
+
+  // t1 is on the very left side.
+  AccessPath *t1 = outer->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_EQ(m_fake_tables["t1"], t1->table_scan().table);
 
   // We have two index lookups; t2 and t3. We don't care about the order.
-  ASSERT_EQ(AccessPath::EQ_REF, inner->nested_loop_join().outer->type);
-  ASSERT_EQ(AccessPath::EQ_REF, inner->nested_loop_join().inner->type);
+  ASSERT_EQ(AccessPath::EQ_REF, outer->nested_loop_join().inner->type);
+  ASSERT_EQ(AccessPath::EQ_REF, root->nested_loop_join().inner->type);
 }
 
 TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
@@ -1949,9 +1949,49 @@ TEST_F(HypergraphOptimizerTest, DoNotExpandJoinFiltersMultipleTimes) {
                   });
 }
 
+// Verifies that DisallowParameterizedJoinPath() is doing its job.
+TEST_F(HypergraphOptimizerTest, InnerNestloopShouldBeLeftDeep) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 WHERE t1.x=t2.x AND t2.y=t3.y AND "
+      "t3.z=t4.z",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  Fake_TABLE *t4 = m_fake_tables["t4"];
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[1], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[1], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[2], /*column2=*/nullptr, /*unique=*/false);
+  t4->create_index(t4->field[2], /*column2=*/nullptr, /*unique=*/false);
+
+  // We use the secondary engine hook to check that we never try a join between
+  // ref accesses. They are not _wrong_, but they are redundant in this
+  // situation, so we should prune them out.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        if (path->type == AccessPath::NESTED_LOOP_JOIN) {
+          AccessPath *outer = path->nested_loop_join().outer;
+          AccessPath *inner = path->nested_loop_join().inner;
+          EXPECT_FALSE(outer->type == AccessPath::REF &&
+                       inner->type == AccessPath::REF);
+        }
+        return false;
+      };
+
+  EXPECT_NE(nullptr, FindBestQueryPlanAndFinalize(m_thd, query_block,
+                                                  /*trace=*/nullptr));
+
+  // We don't verify the plan in itself.
+}
+
 TEST_F(HypergraphOptimizerTest, InsertCastsInSelectExpressions) {
   Mock_field_datetime t1_x;
-  Mock_field_long t1_y(/*unsigned=*/false);
+  Mock_field_long t1_y(/*is_unsigned=*/false);
   t1_x.field_name = "x";
   t1_y.field_name = "y";
 

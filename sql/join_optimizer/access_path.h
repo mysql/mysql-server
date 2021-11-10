@@ -421,7 +421,9 @@ struct AccessPath {
   /// t1.x=t2.x that is pushed down into an index lookup (ref access), t2 will
   /// be set in this bitmap. We can still join in other tables, deferring t2,
   /// but the bit(s) will then propagate, and we cannot be on the right side of
-  /// a hash join until parameter_tables is zero again.
+  /// a hash join until parameter_tables is zero again. (Also see
+  /// DisallowParameterizedJoinPath() for when we disallow such deferring,
+  /// as an optimization.)
   ///
   /// As a special case, we allow setting RAND_TABLE_BIT, even though it
   /// is normally part of a table_map, not a NodeMap. In this case, it specifies
