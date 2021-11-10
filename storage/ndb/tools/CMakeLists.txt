@@ -25,8 +25,6 @@ INCLUDE(ndb_downgrade_warnings)
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
-    "error=stringop-truncation"
     # Downgrade -Werror=implicit-fallthrough to warning for
     # NdbImportCsvGram.cpp
     "error=implicit-fallthrough"
