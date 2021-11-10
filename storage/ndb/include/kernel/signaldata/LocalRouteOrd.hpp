@@ -33,6 +33,16 @@
 struct LocalRouteOrd
 {
   STATIC_CONST( StaticLen = 3 );
+  /**
+   * Paths (2 words each) and destinations (1 word each) must
+   * fit in the signal body.  Assuming min of 1 path, can
+   * have absolute max of 20 destinations.
+   * Assuming min of 1 dst, can have absolute max path len
+   * of 10.
+   * Actual maxima depend on mix.
+   */
+  STATIC_CONST( MaxDstCount = (25 - (StaticLen + 2)));
+  STATIC_CONST( MaxPathLen = ((25 - (StaticLen + 1)) / 2));
 
   Uint32 cnt; // 16-bit path, 16-bit destination
   Uint32 gsn; // Final gsn

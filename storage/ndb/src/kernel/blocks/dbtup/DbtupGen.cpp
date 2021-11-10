@@ -346,6 +346,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
+    ndbrequire(ssptr.sz <= NDB_ARRAY_SIZE(c_proxy_undo_data));
     ::copy(c_proxy_undo_data, ssptr);
     releaseSections(handle);
     disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);

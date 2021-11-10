@@ -1786,6 +1786,7 @@ void
 Ndbcntr::execCM_ADD_REP(Signal* signal)
 {
   jamEntry();
+  ndbrequire(signal->theData[0] < MAX_NDB_NODES);
   c_clusterNodes.set(signal->theData[0]);
 }
 
