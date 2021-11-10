@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,6 +346,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
+    ndbrequire(ssptr.sz <= NDB_ARRAY_SIZE(c_proxy_undo_data));
     ::copy(c_proxy_undo_data, ssptr);
     releaseSections(handle);
     disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
