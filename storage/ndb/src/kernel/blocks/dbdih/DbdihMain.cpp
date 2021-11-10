@@ -12128,6 +12128,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         When we come here the the exact partition is specified
         and there is an array of node groups sent along as well.
       */
+      ndbrequire(noOfFragments <= NDB_ARRAY_SIZE(node_group_id));
       memcpy(&node_group_id[0], &signal->theData[25], 2 * noOfFragments);
       Uint16 next_replica_node[MAX_NDB_NODES];
       memset(next_replica_node,0,sizeof(next_replica_node));
