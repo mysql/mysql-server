@@ -15837,7 +15837,6 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
   }
 
   tabPtr.p->m_scan_count[0]++;
-  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
   {
     DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
@@ -15856,7 +15855,7 @@ Dbdih::start_scan_on_table(TabRecordPtr tabPtr,
     conf->fragmentCount = tabPtr.p->partitionCount;
 
     conf->noOfBackups = tabPtr.p->noOfBackups;
-    conf->scanCookie = tabPtr.p->m_map_ptr_i;
+    conf->scanCookie = tabPtr.p->m_scan_reorg_flag;
     conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
     NdbMutex_Unlock(&tabPtr.p->theMutex);
     return;
@@ -15875,7 +15874,7 @@ error:
 
 void
 Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
-                              Uint32 map_ptr_i,
+                              Uint32 scanCookie,
                               EmulatedJamBuffer *jambuf)
 {
   /**
@@ -15888,16 +15887,18 @@ Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
 
   Uint32 line;
   NdbMutex_Lock(&tabPtr.p->theMutex);
-  if (map_ptr_i == tabPtr.p->m_map_ptr_i)
+  if (scanCookie == tabPtr.p->m_scan_reorg_flag)
   {
+    /* Scan started + completed in same reorg state */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[0]);
+    ndbrequire(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
+    /* Scan started + completed in diff reorg states */
     line = __LINE__;
-    ndbassert(tabPtr.p->m_scan_count[1]);
+    ndbrequire(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
@@ -16151,7 +16152,7 @@ Dbdih::make_new_table_read_and_writeable(TabRecordPtr tabPtr,
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
     /* These variables are only protected by mutex. */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     tabPtr.p->m_scan_reorg_flag = 1;
@@ -16198,7 +16199,7 @@ Dbdih::make_old_table_non_writeable(TabRecordPtr tabPtr,
      * REORG_NOT_MOVED flag set we also start waiting for those
      * scans to complete here.
      */
-    ndbassert(tabPtr.p->m_scan_count[1] == 0);
+    ndbrequire(tabPtr.p->m_scan_count[1] == 0);
     tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
     tabPtr.p->m_scan_count[0] = 0;
     wait_flag = true;
