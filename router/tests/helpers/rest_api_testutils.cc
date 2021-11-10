@@ -234,11 +234,18 @@ std::string RestApiComponentTest::create_password_file() {
   const std::string userfile =
       mysql_harness::Path(conf_dir_.name()).join("users").str();
   {
+    ProcessWrapper::OutputResponder responder{
+        [](const std::string &line) -> std::string {
+          if (line == "Please enter password: ")
+            return std::string(kRestApiPassword) + "\n";
+
+          return "";
+        }};
+
     auto &cmd =
         launch_command(get_origin().join("mysqlrouter_passwd").str(),
-                       {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true);
-    cmd.register_response("Please enter password",
-                          std::string(kRestApiPassword) + "\n");
+                       {"set", userfile, kRestApiUsername}, EXIT_SUCCESS, true,
+                       std::chrono::milliseconds(-1), responder);
     check_exit_code(cmd, EXIT_SUCCESS);
   }
 

@@ -274,13 +274,21 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
         [](mysql_harness::RandomGeneratorInterface *) {});
 #if 1
     {
+      ProcessWrapper::OutputResponder responder{
+          [](const std::string &line) -> std::string {
+            if (line == "Please enter password: ")
+              return std::string(kRestApiPassword) + "\n";
+
+            return "";
+          }};
+
       auto &cmd = launch_command(
           ProcessManager::get_origin().join("mysqlrouter_passwd").str(),
           {"set",
            mysql_harness::Path(temp_test_dir_.name()).join("users").str(),
            kRestApiUsername},
-          EXIT_SUCCESS, true);
-      cmd.register_response("Please enter password", kRestApiPassword + "\n");
+          EXIT_SUCCESS, true,
+          std::vector<std::pair<std::string, std::string>>{}, responder);
       EXPECT_EQ(cmd.wait_for_exit(), 0);
     }
 #endif

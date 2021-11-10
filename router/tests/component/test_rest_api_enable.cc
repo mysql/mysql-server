@@ -89,8 +89,6 @@ class TestRestApiEnable : public RouterComponentTest {
               std::back_inserter(cmdline));
     auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
 
-    router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                       k_root_password + "\n");
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
     EXPECT_TRUE(router_bootstrap.expect_output(
@@ -234,8 +232,6 @@ class TestRestApiEnable : public RouterComponentTest {
         "-d", path.str()};
     auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
 
-    router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                       k_root_password + "\n");
     check_exit_code(router_bootstrap, EXIT_SUCCESS);
 
     auto custom_config_path = path.join("mysqlrouter.conf");
@@ -314,16 +310,19 @@ class TestRestApiEnable : public RouterComponentTest {
 
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
-      std::chrono::milliseconds wait_for_notify_ready = -1s) {
+      std::chrono::milliseconds wait_for_notify_ready = -1s,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     return ProcessManager::launch_router(
         params, expected_exit_code,
-        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready);
+        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready,
+        output_responder);
   }
 
   TlsLibraryContext m_tls_lib_ctx;
   const std::string gr_member_ip{"127.0.0.1"};
   const std::string cluster_id{"3a0be5af-0022-11e8-9655-0800279e6a88"};
-  const std::string k_root_password{"fake-pass"};
+
   uint16_t cluster_node_port;
   uint16_t cluster_http_port;
   uint16_t custom_port;
@@ -722,9 +721,6 @@ TEST_P(RestApiEnableNotEnoughFiles, ensure_rest_fail) {
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
-
-  router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                     k_root_password + "\n");
   check_exit_code(router_bootstrap, EXIT_FAILURE);
 
   const auto &files = GetParam();
@@ -900,8 +896,6 @@ TEST_F(TestRestApiEnable, ensure_certificate_files_cleanup) {
   //    queries in the rest_api_enable.js file.
   // 3. Certificates are cleaned up.
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
-  router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
@@ -1007,8 +1001,6 @@ TEST_F(TestRestApiEnableBootstrapFailover,
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name(), "--strict"};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
-  router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(router_bootstrap.get_full_output(),
@@ -1037,8 +1029,6 @@ TEST_F(TestRestApiEnableBootstrapFailover,
       "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
       "-d", temp_test_dir.name()};
   auto &router_bootstrap = launch_router(cmdline, EXIT_FAILURE);
-  router_bootstrap.register_response("Please enter MySQL password for root: ",
-                                     k_root_password + "\n");
 
   check_exit_code(router_bootstrap, EXIT_FAILURE);
   EXPECT_THAT(

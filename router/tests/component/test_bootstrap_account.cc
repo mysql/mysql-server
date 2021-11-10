@@ -449,19 +449,6 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
     };
   }
 
-  void add_login_hook(ProcessWrapper &router,
-                      const std::string &account_password,
-                      const std::string &username = kAccountUser,
-                      bool root_password_on_cmdline = false) {
-    router.register_response(
-        "Please enter MySQL password for " + username + ": ",
-        account_password + "\n");
-
-    if (root_password_on_cmdline == false)
-      router.register_response("Please enter MySQL password for root: ",
-                               "fake-root-pass\n");
-  }
-
   ////////////////////////////////////////////////////////////////////////////////
   // other functions
   ////////////////////////////////////////////////////////////////////////////////
@@ -479,6 +466,8 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   ProcessWrapper &launch_bootstrap(int exp_exit_code, uint16_t server_port,
                                    const std::string &bootstrap_directory,
                                    const std::vector<std::string> &extra_args,
+                                   const std::string &account_password,
+                                   const std::string &username = kAccountUser,
                                    bool root_password_on_cmdline = false) {
     std::vector<std::string> args = {
         "--bootstrap",
@@ -489,7 +478,20 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
         "-d",
         bootstrap_directory};
     for (const std::string &a : extra_args) args.push_back(a);
-    return launch_router_for_bootstrap(args, exp_exit_code);
+
+    ProcessWrapper::OutputResponder output_responder{
+        [=](const std::string &line) -> std::string {
+          if (line == "Please enter MySQL password for " + username + ": ")
+            return account_password + "\n";
+
+          if (!root_password_on_cmdline &&
+              line == "Please enter MySQL password for root: ")
+            return "fake-root-pass\n";
+          return "";
+        }};
+
+    return launch_router_for_bootstrap(args, exp_exit_code, true,
+                                       output_responder);
   }
 
   static std::string get_local_hostname() {
@@ -1208,9 +1210,9 @@ TEST_F(AccountReuseTest, simple) {
   launch_mock_server(server_port, server_http_port);
 
   // run bootstrap
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -1254,11 +1256,9 @@ TEST_F(AccountReuseTest, no_host_patterns) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -1313,11 +1313,9 @@ TEST_F(AccountReuseTest, multiple_host_patterns) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -1865,9 +1863,9 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password, username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password, username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -1933,11 +1931,9 @@ TEST_F(AccountReuseReconfigurationTest, user_exists_then_account) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2003,11 +1999,9 @@ TEST_F(AccountReuseReconfigurationTest,
                                    cr1.stmts + "," + cr2.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2074,11 +2068,9 @@ TEST_F(AccountReuseReconfigurationTest,
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2140,11 +2132,9 @@ TEST_F(AccountReuseReconfigurationTest,
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2202,11 +2192,9 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_account) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2266,11 +2254,9 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2333,11 +2319,9 @@ TEST_F(AccountReuseReconfigurationTest, noaccount_then_noaccount) {
     set_mock_server_sql_statements(server_http_port, cr.stmts);
 
     // run bootstrap
-    ProcessWrapper &router =
-        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
-                         args, root_password_on_cmdline);
-    add_login_hook(router, exp_password, exp_username,
-                   root_password_on_cmdline);
+    ProcessWrapper &router = launch_bootstrap(
+        exp_exit_code, server_port, bootstrap_directory.name(), args,
+        exp_password, exp_username, root_password_on_cmdline);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2385,9 +2369,9 @@ TEST_F(AccountReuseReconfigurationTest, account_then_noaccount___no_keyring) {
   set_mock_server_sql_statements(server_http_port, cr.stmts);
 
   // run bootstrap
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password);
 
   // check outcome
   ASSERT_NO_THROW(check_exit_code(router, exp_exit_code));
@@ -2459,9 +2443,9 @@ TEST_F(AccountReuseReconfigurationTest,
   launch_mock_server(server_port, server_http_port);
 
   // run bootstrap
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2552,9 +2536,9 @@ TEST_F(AccountReuseReconfigurationTest,
   // mock level, only with simpler code
 
   // run bootstrap
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, "account password will not be asked");
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, "account password will not be asked");
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, exp_exit_code));
@@ -2637,9 +2621,9 @@ TEST_F(ShowWarningsProcessorTest, no_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2719,9 +2703,9 @@ TEST_F(ShowWarningsProcessorTest, one_account_exists) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2801,9 +2785,9 @@ TEST_F(ShowWarningsProcessorTest, two_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2873,9 +2857,9 @@ TEST_F(ShowWarningsProcessorTest, all_accounts_exist) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -2970,9 +2954,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3059,9 +3043,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_unrecognised_hostname) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3158,9 +3142,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3247,9 +3231,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_returns_invalid_column_names) {
       extra_args.push_back(h);
     }
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router = launch_bootstrap(
-        exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-    add_login_hook(router, password);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         extra_args, password);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3363,9 +3347,9 @@ TEST_F(ShowWarningsProcessorTest,
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3443,9 +3427,9 @@ TEST_F(ShowWarningsProcessorTest, show_warnings_fails_to_execute) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3649,9 +3633,9 @@ TEST_P(UndoCreateUserTestP, grant_fails) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3794,9 +3778,9 @@ TEST_P(UndoCreateUserTestP, grant_fails_and_drop_user_also_fails) {
     extra_args.push_back(h);
   }
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -3903,9 +3887,9 @@ TEST_F(UndoCreateUserTest, failure_after_account_creation) {
     extra_args.emplace_back("--account-host");
     extra_args.push_back(h);
   }
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -4013,9 +3997,9 @@ TEST_F(UndoCreateUserTest,
     extra_args.emplace_back("--account-host");
     extra_args.push_back(h);
   }
-  ProcessWrapper &router = launch_bootstrap(
-      exp_exit_code, server_port, bootstrap_directory.name(), extra_args);
-  add_login_hook(router, password);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       extra_args, password);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(check_bootstrap_success(router, exp_output));
@@ -4072,9 +4056,9 @@ TEST_F(AccountValidationTest, sunny_day_scenario) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(
@@ -4138,9 +4122,9 @@ TEST_F(AccountValidationTest, account_exists_wrong_password) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(
@@ -4203,9 +4187,9 @@ TEST_F(AccountValidationTest, account_exists_wrong_password_strict) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(
@@ -4266,9 +4250,9 @@ TEST_F(AccountValidationTest, warn_on_conn_failure) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(
@@ -4328,9 +4312,9 @@ TEST_F(AccountValidationTest, error_on_conn_failure) {
 
   // run bootstrap
   TempDirectory bootstrap_directory;
-  ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                            bootstrap_directory.name(), args);
-  add_login_hook(router, exp_password, exp_username);
+  ProcessWrapper &router =
+      launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                       args, exp_password, exp_username);
 
   // check outcome
   ASSERT_NO_FATAL_FAILURE(
@@ -4393,9 +4377,9 @@ TEST_F(AccountValidationTest, warn_on_query_failure) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                              bootstrap_directory.name(), args);
-    add_login_hook(router, exp_password, exp_username);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, exp_password, exp_username);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(
@@ -4461,9 +4445,9 @@ TEST_F(AccountValidationTest, error_on_query_failure) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                              bootstrap_directory.name(), args);
-    add_login_hook(router, exp_password, exp_username);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, exp_password, exp_username);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(
@@ -4531,9 +4515,9 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___no_strict) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                              bootstrap_directory.name(), args);
-    add_login_hook(router, exp_password, exp_username);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, exp_password, exp_username);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(
@@ -4602,9 +4586,9 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
 
     // run bootstrap
     TempDirectory bootstrap_directory;
-    ProcessWrapper &router = launch_bootstrap(exp_exit_code, server_port,
-                                              bootstrap_directory.name(), args);
-    add_login_hook(router, exp_password, exp_username);
+    ProcessWrapper &router =
+        launch_bootstrap(exp_exit_code, server_port, bootstrap_directory.name(),
+                         args, exp_password, exp_username);
 
     // check outcome
     ASSERT_NO_FATAL_FAILURE(
@@ -4645,11 +4629,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
     // launch the router in bootstrap mode
-    auto &router = launch_router_for_bootstrap(cmdline);
-
-    // add login hook
-    router.register_response("Please enter MySQL password for root: ",
-                             kRootPassword + "\n"s);
+    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful
@@ -4749,10 +4729,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "--report-host",
        my_hostname, "-d", bootstrap_directory.name(), "--account-host",
        "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"},
-      EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
+      EXIT_FAILURE, true);
 
   EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
@@ -4782,11 +4759,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
         launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
     // launch the router in bootstrap mode
-    auto &router = launch_router_for_bootstrap(cmdline);
-
-    // add login hook
-    router.register_response("Please enter MySQL password for root: ",
-                             kRootPassword + "\n"s);
+    auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, true);
 
     EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful

@@ -135,7 +135,10 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
  **/
 class RouterComponentBootstrapTest : virtual public RouterComponentTest {
  public:
+  using OutputResponder = ProcessWrapper::OutputResponder;
+
   static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
+  static const OutputResponder kBootstrapOutputResponder;
 
  protected:
   TempDirectory bootstrap_dir;
@@ -168,12 +171,14 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
 
   ProcessWrapper &launch_router_for_bootstrap(
       std::vector<std::string> params, int expected_exit_code = EXIT_SUCCESS,
-      const bool disable_rest = true) {
+      const bool disable_rest = true,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     if (disable_rest) params.push_back("--disable-rest");
 
     return ProcessManager::launch_router(
         params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/std::chrono::seconds(-1));
+        /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
   }
 
   static constexpr const char kRootPassword[] = "fake-pass";

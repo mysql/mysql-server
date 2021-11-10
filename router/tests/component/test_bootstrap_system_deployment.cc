@@ -46,7 +46,7 @@ using namespace std::chrono_literals;
  */
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
-class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
+class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
                                             public RouterSystemLayout {
  protected:
   void SetUp() override {
@@ -75,10 +75,12 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
 
   ProcessWrapper &launch_router_for_bootstrap(
       const std::vector<std::string> &params,
-      int expected_exit_code = EXIT_SUCCESS) {
+      int expected_exit_code = EXIT_SUCCESS,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     return ProcessManager::launch_router(
         params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/-1s);
+        /*wait_for_notify_ready=*/-1s, output_responder);
   }
 
   uint16_t server_port_;
@@ -99,10 +101,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
       "--report-host",
       "dont.query.dns",
   });
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -135,10 +133,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
           "dont.query.dns",
       },
       EXIT_FAILURE);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   check_exit_code(router, EXIT_FAILURE);
 
@@ -173,10 +167,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
           "dont.query.dns",
       },
       EXIT_FAILURE);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   check_exit_code(router, EXIT_FAILURE);
 
@@ -224,10 +214,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
-
   check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
@@ -268,10 +254,6 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
           "dont.query.dns",
       },
       EXIT_FAILURE);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   check_exit_code(router, EXIT_FAILURE);
 

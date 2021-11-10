@@ -480,10 +480,18 @@ class FileAuthBackendWithMetadataAuthSettings : public MetadataHttpAuthTest {
 };
 
 TEST_F(FileAuthBackendWithMetadataAuthSettings, MixedBackendSettings) {
+  ProcessWrapper::OutputResponder responder{
+      [](const std::string &line) -> std::string {
+        if (line == "Please enter password: ")
+          return std::string(kRestApiPassword) + "\n";
+
+        return "";
+      }};
+
   auto &cmd = launch_command(
       ProcessManager::get_origin().join("mysqlrouter_passwd").str(),
-      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true);
-  cmd.register_response("Please enter password", "password\n");
+      {"set", passwd_file.str(), kRestApiUsername}, EXIT_SUCCESS, true, -1ms,
+      responder);
   EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
 
   set_mock_metadata({}, cluster_http_port, cluster_id, cluster_node_port, false,

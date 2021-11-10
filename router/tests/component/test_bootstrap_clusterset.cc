@@ -128,10 +128,6 @@ TEST_P(ClusterSetBootstrapTargetClusterTest, ClusterSetBootstrapTargetCluster) {
 
   auto &router = launch_router_for_bootstrap(bootstrap_params, EXIT_SUCCESS);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
   check_exit_code(router, EXIT_SUCCESS, 5s);
 
   const std::string conf_file_path =
@@ -476,10 +472,6 @@ TEST_P(ClusterSetConfUseGrNotificationParamTest,
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(bootstrap_params);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
   check_exit_code(router, EXIT_SUCCESS, 5s);
 
   const std::string state_file_path =
@@ -575,9 +567,6 @@ TEST_P(ClusterSetBootstrapParamsErrorTest, ClusterSetBootstrapParamsError) {
                           GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
 
@@ -748,9 +737,6 @@ TEST_P(ClusterSetBootstrapClusterNotFoundErrorTest,
                           GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
 
@@ -859,9 +845,6 @@ TEST_F(RouterClusterSetBootstrapTest, ClusterSetBootstrapNoPrimaryError) {
   };
 
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged
   EXPECT_NO_THROW(router.wait_for_exit());
@@ -891,9 +874,6 @@ TEST_P(ClusterSetBootstrapParamsNoBootstrapErrorTest,
                        GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(router_params, EXIT_FAILURE);
-  //  // add login hook
-  //  router.register_response("Please enter MySQL password for root: ",
-  //                           kRootPassword + "\n"s);
 
   //  // verify that appropriate message was logged
 

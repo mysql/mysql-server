@@ -452,10 +452,6 @@ void ProcessLauncher::end_of_write() {
   child_in_wr_closed = true;
 }
 
-uint64_t ProcessLauncher::get_fd_write() const { return (uint64_t)child_in_wr; }
-
-uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)child_out_rd; }
-
 #else
 
 static std::vector<const char *> get_params(
@@ -631,6 +627,9 @@ int ProcessLauncher::close() {
     }
   }
 
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+  std::lock_guard<std::mutex> fd_out_lock(fd_out_mtx_);
+
   if (fd_out[0] != -1) ::close(fd_out[0]);
   if (fd_in[1] != -1) ::close(fd_in[1]);
 
@@ -642,12 +641,17 @@ int ProcessLauncher::close() {
 }
 
 void ProcessLauncher::end_of_write() {
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+
   if (fd_in[1] != -1) ::close(fd_in[1]);
   fd_in[1] = -1;
 }
 
 int ProcessLauncher::read(char *buf, size_t count,
                           std::chrono::milliseconds timeout) {
+  std::lock_guard<std::mutex> fd_out_lock(fd_out_mtx_);
+  if (fd_out[0] == -1) return 0;
+
   int n;
   fd_set set;
   struct timeval timeout_tv;
@@ -671,6 +675,10 @@ int ProcessLauncher::read(char *buf, size_t count,
 
 int ProcessLauncher::write(const char *buf, size_t count) {
   int n;
+
+  std::lock_guard<std::mutex> fd_in_lock(fd_in_mtx_);
+  if (fd_in[1] == -1) return 0;
+
   if ((n = (int)::write(fd_in[1], buf, count)) >= 0) return n;
 
   auto ec = last_error_code();
@@ -725,10 +733,6 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
     }
   } while (true);
 }
-
-uint64_t ProcessLauncher::get_fd_write() const { return (uint64_t)fd_in[1]; }
-
-uint64_t ProcessLauncher::get_fd_read() const { return (uint64_t)fd_out[0]; }
 
 #endif
 

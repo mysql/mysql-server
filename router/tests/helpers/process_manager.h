@@ -66,6 +66,8 @@ class ProcessManager {
   using notify_socket_t = local::datagram_protocol::socket;
 #endif
 
+  using OutputResponder = ProcessWrapper::OutputResponder;
+
   /**
    * set origin path.
    */
@@ -104,6 +106,11 @@ class ProcessManager {
       return *this;
     }
 
+    Spawner &output_responder(OutputResponder resp) {
+      output_responder_ = std::move(resp);
+      return *this;
+    }
+
     ProcessWrapper &spawn(
         const std::vector<std::string> &params,
         const std::vector<std::pair<std::string, std::string>> &env_vars);
@@ -115,9 +122,10 @@ class ProcessManager {
     friend class ProcessManager;
 
    private:
-    Spawner(std::string executable, std::string logging_dir,
-            std::string logging_file, std::string notify_socket_path,
-            std::list<std::tuple<ProcessWrapper, int>> &processes)
+    Spawner(
+        std::string executable, std::string logging_dir,
+        std::string logging_file, std::string notify_socket_path,
+        std::list<std::tuple<std::unique_ptr<ProcessWrapper>, int>> &processes)
         : executable_{std::move(executable)},
           logging_dir_{std::move(logging_dir)},
           logging_file_{std::move(logging_file)},
@@ -148,12 +156,13 @@ class ProcessManager {
     bool catch_stderr_{true};
     std::chrono::milliseconds sync_point_timeout_{5000};
     SyncPoint sync_point_{SyncPoint::READY};
+    OutputResponder output_responder_{kEmptyResponder};
 
     std::string logging_dir_;
     std::string logging_file_;
     std::string notify_socket_path_;
 
-    std::list<std::tuple<ProcessWrapper, int>> &processes_;
+    std::list<std::tuple<std::unique_ptr<ProcessWrapper>, int>> &processes_;
   };
 
   Spawner spawner(std::string executable, std::string logging_file = "");
@@ -227,14 +236,17 @@ class ProcessManager {
    * is the time in milliseconds - how long the it should wait for the process
    * to notify it is ready. if < 0 is should not use (open) the notification
    * socket to wait for ready notification
+   * @param output_responder method to be called when the process outputs a line
+   * returning string that should be send back to the process input (if not
+   * empty)
    *
    * @returns handle to the launched proccess
    */
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params, int expected_exit_code = 0,
       bool catch_stderr = true, bool with_sudo = false,
-      std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(5));
+      std::chrono::milliseconds wait_for_notify_ready = std::chrono::seconds(5),
+      OutputResponder output_responder = kEmptyResponder);
 
   /** @brief Launches the MySQLServerMock process.
    *
@@ -291,13 +303,17 @@ class ProcessManager {
    * stdout)
    * @param env_vars      environment variables that shoould be passed to the
    * process
+   * @param output_responder method to be called when the process outputs a line
+   * returning string that should be send back to the process input (if not
+   * empty)
    *
    * @returns handle to the launched proccess
    */
   ProcessWrapper &launch_command(
       const std::string &command, const std::vector<std::string> &params,
       int expected_exit_code, bool catch_stderr,
-      std::vector<std::pair<std::string, std::string>> env_vars);
+      std::vector<std::pair<std::string, std::string>> env_vars,
+      OutputResponder output_responder = kEmptyResponder);
 
   /** @brief Launches a process.
    *
@@ -309,15 +325,18 @@ class ProcessManager {
    * @param wait_notify_ready if >=0 time in milliseconds - how long the
    * launching command should wait for the process to notify it is ready.
    * Otherwise the caller does not want to wait for the notification.
+   * @param output_responder method to be called when the process outputs a line
+   * returning string that should be send back to the process input (if not
+   * empty)
    *
    * @returns handle to the launched proccess
    */
-  ProcessWrapper &launch_command(const std::string &command,
-                                 const std::vector<std::string> &params,
-                                 int expected_exit_code = 0,
-                                 bool catch_stderr = true,
-                                 std::chrono::milliseconds wait_notify_ready =
-                                     std::chrono::milliseconds(-1));
+  ProcessWrapper &launch_command(
+      const std::string &command, const std::vector<std::string> &params,
+      int expected_exit_code = 0, bool catch_stderr = true,
+      std::chrono::milliseconds wait_notify_ready =
+          std::chrono::milliseconds(-1),
+      OutputResponder output_responder = kEmptyResponder);
 
   /** @brief Gets path to the directory containing testing data
    *         (conf files, json files).
@@ -468,7 +487,8 @@ class ProcessManager {
   TempDirectory logging_dir_;
   TempDirectory test_dir_;
 
-  std::list<std::tuple<ProcessWrapper, int>> processes_;
+  std::list<std::tuple<std::unique_ptr<ProcessWrapper>, int>> processes_;
+  static const OutputResponder kEmptyResponder;
 };
 
 #endif  // _PROCESS_MANAGER_H_

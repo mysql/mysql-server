@@ -142,10 +142,18 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
         mysql_harness::Path(config_dir).join("users").str();
 
     {
-      auto &cmd = launch_command(get_origin().join("mysqlrouter_passwd").str(),
-                                 {"set", passwd_filename, kRestApiUsername},
-                                 EXIT_SUCCESS, true);
-      cmd.register_response("Please enter password", kRestApiPassword + "\n");
+      ProcessWrapper::OutputResponder responder{
+          [](const std::string &line) -> std::string {
+            if (line == "Please enter password: ")
+              return std::string(kRestApiPassword) + "\n";
+
+            return "";
+          }};
+
+      auto &cmd = launch_command(
+          get_origin().join("mysqlrouter_passwd").str(),
+          {"set", passwd_filename, kRestApiUsername}, EXIT_SUCCESS, true,
+          std::vector<std::pair<std::string, std::string>>{}, responder);
       check_exit_code(cmd, EXIT_SUCCESS);
     }
 
