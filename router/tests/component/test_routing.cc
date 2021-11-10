@@ -104,10 +104,8 @@ TEST_F(RouterRoutingTest, RoutingOk) {
           "-d",
           bootstrap_dir.name(),
       },
-      EXIT_SUCCESS, true, false, -1s);
-
-  router_bootstrapping.register_response(
-      "Please enter MySQL password for root: ", "fake-pass\n");
+      EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 

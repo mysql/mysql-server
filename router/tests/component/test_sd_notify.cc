@@ -176,11 +176,13 @@ class NotifyTest : public RestApiComponentTest {
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params,
       const std::vector<std::pair<std::string, std::string>> &env_vars,
-      int expected_exit_code) {
+      int expected_exit_code,
+      ProcessWrapper::OutputResponder output_responder =
+          RouterComponentBootstrapTest::kBootstrapOutputResponder) {
     // wait_for_notify_ready is false as we do it manually in those tests
     auto &router =
         launch_command(get_mysqlrouter_exec().str(), params, expected_exit_code,
-                       /*catch_stderr*/ true, env_vars);
+                       /*catch_stderr*/ true, env_vars, output_responder);
     router.set_logging_path(get_logging_dir().str(), "mysqlrouter.log");
 
     return router;
@@ -922,9 +924,8 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
        "-d=" + temp_test_dir.name()},
-      env_vars, EXIT_SUCCESS);
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      env_vars, EXIT_SUCCESS,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   SCOPED_TRACE("// Bootstrap should be successful");
   check_exit_code(router, EXIT_SUCCESS, 10s);

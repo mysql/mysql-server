@@ -73,12 +73,16 @@ class RouterLoggingTest : public RouterComponentTest {
 
   ProcessWrapper &launch_router_for_fail(
       const std::vector<std::string> &params) {
-    return launch_router(params, EXIT_FAILURE, true, false, -1s);
+    return launch_router(
+        params, EXIT_FAILURE, true, false, -1s,
+        RouterComponentBootstrapTest::kBootstrapOutputResponder);
   }
 
   ProcessWrapper &launch_router_for_success(
       const std::vector<std::string> &params) {
-    return launch_router(params, EXIT_SUCCESS, true, false, 5s);
+    return launch_router(
+        params, EXIT_SUCCESS, true, false, 5s,
+        RouterComponentBootstrapTest::kBootstrapOutputResponder);
   }
 };
 
@@ -1702,9 +1706,6 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
       "-d",
       bootstrap_dir.name(),
   });
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   // wait for router to exit
   check_exit_code(router, EXIT_FAILURE);
@@ -1745,11 +1746,8 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
           "-d",
           bootstrap_dir.name(),
       },
-      EXIT_SUCCESS, true, false, -1s);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1793,11 +1791,8 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, true, false, -1s);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1843,11 +1838,8 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, true, false, -1s);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
@@ -1901,11 +1893,8 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
           "-c",
           conf_file,
       },
-      EXIT_SUCCESS, /*catch_stderr=*/false, false, -1s);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+      EXIT_SUCCESS, /*catch_stderr=*/false, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);

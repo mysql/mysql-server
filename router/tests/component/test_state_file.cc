@@ -1120,10 +1120,9 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
       temp_test_dir.name()};
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
-                                               true, false, -1s);
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+  auto &router = ProcessManager::launch_router(
+      router_cmdline, EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 20s));
 
@@ -1180,10 +1179,9 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
-                                               true, false, -1s);
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
+  auto &router = ProcessManager::launch_router(
+      router_cmdline, EXIT_SUCCESS, true, false, -1s,
+      RouterComponentBootstrapTest::kBootstrapOutputResponder);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
 

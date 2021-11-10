@@ -246,11 +246,12 @@ static std::string generate_notify_socket_path(const std::string &tmp_dir) {
 ProcessWrapper &ProcessManager::Spawner::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     const std::vector<std::pair<std::string, std::string>> &env_vars) {
-  ProcessWrapper process(command, params, env_vars, catch_stderr_);
+  std::unique_ptr<ProcessWrapper> pw{new ProcessWrapper(
+      command, params, env_vars, catch_stderr_, output_responder_)};
 
-  processes_.emplace_back(std::move(process), expected_exit_code_);
+  processes_.emplace_back(std::move(pw), expected_exit_code_);
 
-  return std::get<0>(processes_.back());
+  return *std::get<0>(processes_.back()).get();
 }
 
 ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
@@ -367,34 +368,40 @@ ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     int expected_exit_code, bool catch_stderr,
-    std::vector<std::pair<std::string, std::string>> env_vars) {
+    std::vector<std::pair<std::string, std::string>> env_vars,
+    OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(-1s)
+      .output_responder(std::move(output_resp))
       .spawn(params, env_vars);
 }
 
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     int expected_exit_code, bool catch_stderr,
-    std::chrono::milliseconds wait_for_notify_ready) {
+    std::chrono::milliseconds wait_for_notify_ready,
+    OutputResponder output_resp) {
   return spawner(command)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
       .spawn(params);
 }
 
 ProcessWrapper &ProcessManager::launch_router(
     const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
     bool catch_stderr /*= true*/, bool with_sudo /*= false*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/,
+    OutputResponder output_resp) {
   return router_spawner()
       .with_sudo(with_sudo)
       .catch_stderr(catch_stderr)
       .expected_exit_code(expected_exit_code)
       .wait_for_notify_ready(wait_for_notify_ready)
+      .output_responder(std::move(output_resp))
       .spawn(params);
 }
 
@@ -571,7 +578,7 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
 void ProcessManager::shutdown_all() {
   // stop all the processes
   for (auto &proc : processes_) {
-    std::get<0>(proc).send_shutdown_event();
+    std::get<0>(proc)->send_shutdown_event();
   }
 }
 
@@ -579,13 +586,13 @@ void ProcessManager::dump_all() {
   std::stringstream ss;
   for (auto &proc : processes_) {
     ss << "# Process: \n"
-       << std::get<0>(proc).get_command_line() << "\n"
+       << std::get<0>(proc)->get_command_line() << "\n"
        << "PID:\n"
-       << std::get<0>(proc).get_pid() << "\n"
+       << std::get<0>(proc)->get_pid() << "\n"
        << "Console output:\n"
-       << std::get<0>(proc).get_current_output() + "\n"
+       << std::get<0>(proc)->get_current_output() + "\n"
        << "Log content:\n"
-       << std::get<0>(proc).get_full_logfile() + "\n";
+       << std::get<0>(proc)->get_full_logfile() + "\n";
   }
 
   FAIL() << ss.str();
@@ -594,9 +601,9 @@ void ProcessManager::dump_all() {
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
-      check_exit_code(std::get<0>(proc), std::get<1>(proc));
+      check_exit_code(*std::get<0>(proc), std::get<1>(proc));
     } catch (const std::exception &) {
-      FAIL() << "PID: " << std::get<0>(proc).get_pid()
+      FAIL() << "PID: " << std::get<0>(proc)->get_pid()
              << " didn't exit as expected";
     }
   }
@@ -683,3 +690,6 @@ void ProcessManager::set_origin(const Path &dir) {
 
   data_dir_ = COMPONENT_TEST_DATA_DIR;
 }
+
+const ProcessManager::OutputResponder ProcessManager::kEmptyResponder{
+    [](const std::string &) -> std::string { return ""; }};

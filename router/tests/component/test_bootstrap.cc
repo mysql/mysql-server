@@ -1367,10 +1367,6 @@ TEST_F(RouterBootstrapTest,
       bootstrap_directory.name(), "--report-host", "host.foo.bar"};
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
   check_exit_code(router, EXIT_FAILURE, 5s);
   // expect config write error
   EXPECT_THAT(router.get_full_output(),
@@ -1653,10 +1649,6 @@ TEST_P(ConfUseGrNotificationParamTest, ConfUseGrNotificationParam) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(bootsrtap_params);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
   check_exit_code(router, EXIT_SUCCESS);
 
   const std::string conf_file =
@@ -1808,9 +1800,6 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
           bootstrap_directory.name(),
       },
       EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged (first line) and error message
   // printed (last line)
@@ -1837,9 +1826,6 @@ TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
           "-d", bootstrap_directory.name(),                           //
       },
       EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.get_full_output(),
@@ -1886,9 +1872,6 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
           bootstrap_directory.name(),
       },
       EXIT_FAILURE);
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   // verify that appropriate message was logged (all but last) and error message
   // printed (last line)
@@ -1939,10 +1922,6 @@ TEST_F(ErrorReportTest,
       },
       EXIT_FAILURE);
 
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
-
   // verify that appropriate message was logged (all but last) and error message
   // printed (last line)
   std::string err_msg =
@@ -1973,10 +1952,6 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
       {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
        bootstrap_directory.name(), "--conf-use-gr-notifications"},
       EXIT_FAILURE);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           "fake-pass\n");
 
   EXPECT_NO_THROW(router.wait_for_exit());
   EXPECT_THAT(
@@ -2013,10 +1988,6 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
       {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
        bootstrap_directory.name()},
       EXIT_FAILURE);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   check_exit_code(router, EXIT_FAILURE);
 
@@ -2057,10 +2028,6 @@ TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(bootsrtap_params, EXIT_SUCCESS,
                                              /*disable rest*/ false);
-
-  // add login hook
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   check_exit_code(router, EXIT_SUCCESS);
 
@@ -2211,8 +2178,6 @@ TEST_P(ConfSetOptionErrorTest, ErrorTest) {
   }
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
   check_exit_code(router, EXIT_FAILURE, 5s);
 
   // let's check if the expected error was reported:
@@ -2316,8 +2281,6 @@ TEST_P(ConfSetOptionParamTest, Spec) {
                  GetParam().bootstrap_params.end());
 
   auto &router = launch_router_for_bootstrap(cmdline, EXIT_SUCCESS, false);
-  router.register_response("Please enter MySQL password for root: ",
-                           kRootPassword + "\n"s);
 
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS));
 
