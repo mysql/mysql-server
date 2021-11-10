@@ -21,9 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/join_optimizer/interesting_orders.h"
+
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"
@@ -32,6 +34,7 @@
 #include "sql/parse_tree_nodes.h"
 #include "sql/sql_class.h"
 
+using std::all_of;
 using std::bind;
 using std::distance;
 using std::equal;
@@ -47,8 +50,6 @@ using std::string;
 using std::swap;
 using std::unique;
 using std::upper_bound;
-using std::placeholders::_1;
-using std::placeholders::_2;
 
 namespace {
 
@@ -76,7 +77,7 @@ constexpr int kMaxDFSMStates = 2000;
 template <class T>
 Bounds_checked_array<T> DuplicateArray(THD *thd,
                                        Bounds_checked_array<T> array) {
-  static_assert(std::is_pod<T>::value, "");
+  static_assert(std::is_pod<T>::value);
   T *items = thd->mem_root->ArrayAlloc<T>(array.size());
   if (!array.empty()) {
     memcpy(items, &array[0], sizeof(*items) * array.size());
@@ -257,8 +258,7 @@ LogicalOrderings::StateIndex LogicalOrderings::ApplyFDs(
 
     // Pick an arbitrary one and follow it. Note that this part assumes
     // kMaxSupportedFDs <= 64.
-    static_assert(kMaxSupportedFDs <= sizeof(unsigned long long) * CHAR_BIT,
-                  "");
+    static_assert(kMaxSupportedFDs <= sizeof(unsigned long long) * CHAR_BIT);
     int fd_idx = FindLowestBitSet(relevant_fds.to_ullong()) + 1;
     state_idx = m_dfsm_states[state_idx].next_state[fd_idx];
 
@@ -456,7 +456,9 @@ void LogicalOrderings::RecanonicalizeGroupings() {
   for (OrderingWithInfo &ordering : m_orderings) {
     if (IsGrouping(ordering.ordering)) {
       sort(ordering.ordering.begin(), ordering.ordering.end(),
-           bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
+           [this](const OrderElement &a, const OrderElement &b) {
+             return ItemBeforeInGroup(a, b);
+           });
     }
   }
 }
@@ -854,13 +856,10 @@ void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
           ordering.size() > grouping.size()) {
         continue;
       }
-      bool can_cover = true;
-      for (size_t i = 0; i < ordering.size(); ++i) {
-        if (!Contains(grouping, ordering[i].item)) {
-          can_cover = false;
-          break;
-        }
-      }
+      bool can_cover = all_of(ordering.begin(), ordering.end(),
+                              [&grouping](const OrderElement &element) {
+                                return Contains(grouping, element.item);
+                              });
       if (!can_cover) {
         continue;
       }
@@ -877,9 +876,9 @@ void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
         tmpbuf[i] = ordering[i];
       }
       int len = ordering.size();
-      for (size_t i = 0; i < grouping.size(); ++i) {
-        if (!Contains(ordering, grouping[i].item)) {
-          tmpbuf[len].item = grouping[i].item;
+      for (const OrderElement &element : grouping) {
+        if (!Contains(ordering, element.item)) {
+          tmpbuf[len].item = element.item;
           tmpbuf[len].direction = ORDER_ASC;  // Arbitrary.
           ++len;
         }
@@ -1070,7 +1069,9 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
   if (IsGrouping(reduced_ordering)) {
     // We've replaced some items, so we need to re-sort.
     sort(tmpbuf, tmpbuf + length,
-         bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
+         [this](const OrderElement &a, const OrderElement &b) {
+           return ItemBeforeInGroup(a, b);
+         });
   }
 
   AddOrderingInternal(thd, Ordering(tmpbuf, length),
@@ -1386,7 +1387,9 @@ void LogicalOrderings::AddGroupingFromOrdering(THD *thd, int state_idx,
     }
   }
   sort(tmpbuf, tmpbuf + ordering.size(),
-       bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
+       [this](const OrderElement &a, const OrderElement &b) {
+         return ItemBeforeInGroup(a, b);
+       });
   AddEdge(thd, state_idx, /*required_fd_idx=*/0,
           Ordering(tmpbuf, ordering.size()));
 }

@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _HYPERGRAPH_H
-#define _HYPERGRAPH_H 1
+#ifndef SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_
+#define SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_ 1
 
 /**
   @file
@@ -72,7 +72,7 @@ struct Node {
       sizeof(std::vector<unsigned>) * 2 + sizeof(NodeMap);
   char padding[std::max<int>(1, 64 - Size)];
 };
-static_assert(sizeof(Node) >= 64, "");
+static_assert(sizeof(Node) >= 64);
 
 struct Hyperedge {
   // The endpoints (hypernodes) of this hyperedge. See the comment about
@@ -93,4 +93,4 @@ struct Hypergraph {
 
 }  // namespace hypergraph
 
-#endif  // !defined(_HYPERGRAPH_H)
+#endif  // SQL_JOIN_OPTIMIZER_HYPERGRAPH_H_

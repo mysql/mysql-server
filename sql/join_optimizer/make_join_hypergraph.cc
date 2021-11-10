@@ -903,7 +903,7 @@ bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
   for (Item *item : expr.join_conditions) {
-    if (cond->eq(item, /*binary_eq=*/true)) {
+    if (cond->eq(item, /*binary_cmp=*/true)) {
       return true;
     }
   }

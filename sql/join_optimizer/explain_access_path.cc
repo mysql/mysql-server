@@ -634,7 +634,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
     }
     case AccessPath::INDEX_MERGE: {
       const auto &param = path->index_merge();
-      description.push_back("Sort-deduplicate by row ID");
+      description.emplace_back("Sort-deduplicate by row ID");
       for (AccessPath *child : *path->index_merge().children) {
         if (param.table->file->primary_key_is_clustered() &&
             child->index_range_scan().index == param.table->s->primary_key) {
@@ -647,14 +647,14 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       break;
     }
     case AccessPath::ROWID_INTERSECTION: {
-      description.push_back("Intersect rows sorted by row ID");
+      description.emplace_back("Intersect rows sorted by row ID");
       for (AccessPath *child : *path->rowid_intersection().children) {
         children.push_back({child});
       }
       break;
     }
     case AccessPath::ROWID_UNION: {
-      description.push_back("Deduplicate rows sorted by row ID");
+      description.emplace_back("Deduplicate rows sorted by row ID");
       for (AccessPath *child : *path->rowid_union().children) {
         children.push_back({child});
       }
@@ -777,7 +777,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
         // yet). It means that sorts won't be correctly forced.
         // TODO(sgunders): Print based on the flags and order instead of the
         // filesort object, when using the hypergraph join optimizer.
-        description.push_back("Sort");
+        description.emplace_back("Sort");
         children.push_back({path->sort().child});
         break;
       }

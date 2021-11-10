@@ -99,11 +99,9 @@
 
 namespace hypergraph {
 struct Hyperedge;
-struct Hypergraph;
 }  // namespace hypergraph
 
 using hypergraph::Hyperedge;
-using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::array;
 using std::bitset;
@@ -913,7 +911,7 @@ void CostingReceiver::ProposeAccessPathForIndex(
         m_thd->mem_root, path->subsumed_sargable_join_predicates(),
         subsumed_sargable_join_predicates);
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
+        TableBitmap(node_idx), new_fd_set, /*obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
 
     if (!Overlaps(path->filter_predicates, m_graph.materializable_predicates)) {
@@ -1389,7 +1387,7 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
+        TableBitmap(node_idx), new_fd_set, /*obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
 
     if (!Overlaps(path->filter_predicates, m_graph.materializable_predicates)) {

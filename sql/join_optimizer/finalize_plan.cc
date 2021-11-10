@@ -159,8 +159,8 @@ static TABLE *CreateTemporaryTableFromSelectList(
     // This works because the base fields are always included. The logic is
     // very similar to what happens in change_to_use_tmp_fields_except_sums().
     //
-    // TODO: Consider removing the rollup group items on the inner levels,
-    // similar to what change_to_use_tmp_fields_except_sums() does.
+    // TODO(sgunders): Consider removing the rollup group items on the inner
+    // levels, similar to what change_to_use_tmp_fields_except_sums() does.
     auto new_end = std::remove_if(
         temp_table_param->items_to_copy->begin(),
         temp_table_param->items_to_copy->end(),
@@ -308,7 +308,7 @@ static void UpdateReferencesToMaterializedItems(
     path->sort().filesort = new (thd->mem_root)
         Filesort(thd, std::move(tables),
                  /*keep_buffers=*/false, path->sort().order, limit_rows,
-                 path->sort().remove_duplicates, /*force_sort_positions=*/false,
+                 path->sort().remove_duplicates, /*force_sort_rowids=*/false,
                  path->sort().unwrap_rollup);
     join->filesorts_to_cleanup.push_back(path->sort().filesort);
     if (!path->sort().filesort->using_addon_fields()) {
