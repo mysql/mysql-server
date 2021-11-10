@@ -3518,20 +3518,85 @@ static bool check_require_secure_transport(sys_var *, THD *,
 #endif
 }
 
+static void event_scheduler_restart(THD *thd) {
+  /*
+    Restart event scheduler if needed.
+
+    At present, turning on SUPER_READ_ONLY means that we
+    can no longer acquire an MDL to update mysql.*.
+    As a result of this, updating the "last run at ..."
+    timestamp of events fails, and the event scheduler
+    shuts down when trying to do so.
+
+    As a convenience, we restart the event scheduler when
+    [SUPER_]READ_ONLY is turned off while the scheduler is
+    enabled (in the settings), but not actually running.
+  */
+  if (Events::opt_event_scheduler == Events::EVENTS_ON) {
+    bool evsched_error;       // Did we fail to start the event scheduler?
+    int evsched_errcode = 0;  // If we failed, what was the actual error code?
+
+    /*
+      We must not hold the lock while starting the event scheduler,
+      as that will internally try to take the lock while creating a THD.
+    */
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    evsched_error = Events::start(&evsched_errcode);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+    if (evsched_error) {
+      /*
+        The user requested a change of super_read_only.
+        That change succeeded, so we do not signal a failure here,
+        since it is only the side-effect/convenience of restarting
+        the event scheduler that failed.
+        We do however notify them of that failure, since we're
+        just that nice.
+        We also do not modify opt_event_scheduler, since user
+        intent has not changed. If this policy ever changes,
+        opt_event_scheduler should probably be unset when the
+        event scheduler shuts down.
+      */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_EVENT_SET_VAR_ERROR,
+                          ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
+    }
+  }
+}
+
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
   bool result = true;
   bool new_read_only = read_only;  // make a copy before releasing a mutex
   DBUG_TRACE;
 
+  /*
+    If we're not newly turning on READ_ONLY, we don't have to worry
+    about locks.
+  */
   if (read_only == false || read_only == opt_readonly) {
+    opt_readonly = read_only;
+
+    /*
+      If we're turning off READ_ONLY here, turn off
+      SUPER_READ_ONLY as well (if on).
+    */
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
+
+      // Do this last as it temporarily releases the global sys-var lock.
+      event_scheduler_restart(thd);
     }
-    opt_readonly = read_only;
     return false;
   }
 
+  /*
+    Check whether we can change read_only state without causing a deadlock.
+
+    Not to be confused with check_readonly(), which checks in a
+    standardized way whether the current settings of opt_readonly
+    and opt_super_readonly prohibit certain operations.
+  */
   if (check_read_only(self, thd, nullptr))  // just in case
     goto end;
 
@@ -3542,11 +3607,15 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
+    opt_readonly = read_only;
+
     if (opt_super_readonly && !read_only) {
       opt_super_readonly = false;
       super_read_only = false;
+
+      // Do this last as it temporarily releases the global sys-var lock.
+      event_scheduler_restart(thd);
     }
-    opt_readonly = read_only;
     return false;
   }
 
@@ -3596,50 +3665,8 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   if (super_read_only == false) {
     opt_super_readonly = false;
 
-    /*
-      Restart event scheduler if needed.
-
-      At present, turning on super_read_only means that we
-      can no longer acquire an MDL to update mysql.*.
-      As a result of this, updating the "last run at ..."
-      timestamp of events fails, and the event scheduler
-      shuts down when trying to do so.
-
-      As a convenience, we restart the event scheduler when
-      super_read_only is turned off, and the scheduler is
-      turned on (in the settings), but not actually running
-      (anymore).
-    */
-    if (Events::opt_event_scheduler == Events::EVENTS_ON) {
-      bool evsched_error;       // Did we fail to start the event scheduler?
-      int evsched_errcode = 0;  // If we failed, what was the actual error code?
-
-      /*
-        We must not hold the lock while starting the event scheduler,
-        as that will internally try to take the lock while creating a THD.
-      */
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      evsched_error = Events::start(&evsched_errcode);
-      mysql_mutex_lock(&LOCK_global_system_variables);
-
-      if (evsched_error) {
-        /*
-          The user requested a change of super_read_only.
-          That change succeeded, so we do not signal a failure here,
-          since it is only the side-effect/convenience of restarting
-          the event scheduler that failed.
-          We do however notify them of that failure, since we're
-          just that nice.
-          We also do not modify opt_event_scheduler, since user
-          intent has not changed. If this policy ever changes,
-          opt_event_scheduler should probably be unset when the
-          event scheduler shuts down.
-        */
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_EVENT_SET_VAR_ERROR,
-            ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
-      }
-    }
+    // Do this last as it temporarily releases the global sys-var lock.
+    event_scheduler_restart(thd);
 
     return false;
   }

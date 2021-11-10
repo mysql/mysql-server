@@ -563,7 +563,7 @@ const char *THD::proc_info(const System_variables &sysvars) const {
       static_cast<terminology_use_previous::enum_compatibility_version>(
           sysvars.terminology_use_previous);
   DBUG_PRINT("info", ("session.terminology_use_previous=%d", (int)version));
-  if (version != terminology_use_previous::NONE) {
+  if ((ret != nullptr) && (version != terminology_use_previous::NONE)) {
     auto compatible_name_info =
         terminology_use_previous::lookup(PFS_CLASS_STAGE, ret, false);
 #ifndef NDEBUG
