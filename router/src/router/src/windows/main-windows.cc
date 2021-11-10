@@ -32,6 +32,7 @@
 #include <winsock2.h>
 
 #include "harness_assert.h"
+#include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
 #include "mysqlrouter/utils.h"  // write_windows_event_log
