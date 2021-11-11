@@ -22,11 +22,13 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <gtest/gtest-matchers.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -44,6 +46,7 @@
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"  // join
 #include "mysql/harness/tls_client_context.h"
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/utility/string.h"  // string_format
@@ -52,6 +55,7 @@
 #include "process_wrapper.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
@@ -103,43 +107,83 @@ class TestRestApiEnable : public RouterComponentTest {
 
   void assert_rest_config(const mysql_harness::Path &config_path,
                           const bool is_enabled) const {
-    const static char *nl = R"(((.|\r\n)*\s*))";
+    auto content = get_file_output(config_path.str());
 
-    EXPECT_EQ(is_enabled, file_contains_regex(config_path, "\\[rest_api\\]"));
+    std::string rest_api_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[rest_api]",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(config_path,
-                                  std::string{"\\[http_server\\]"} + nl +
-                                      "port=.*" + nl + "ssl=1" + nl +
-                                      "ssl_cert=.*" + nl + "ssl_key=.*"));
+    std::string http_server_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            R"(\[http_server\])",
+            R"(port=.+)",
+            R"(ssl=1)",
+            R"(ssl_cert=.*)",
+            R"(ssl_key=.*)",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(
-                  config_path,
-                  std::string{"\\[http_auth_backend:default_auth_backend\\]"} +
-                      nl + "backend=metadata_cache"));
+    std::string http_auth_backend_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[http_auth_backend:default_auth_backend]",
+            "backend=metadata_cache",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(
-                  config_path,
-                  std::string{"\\[http_auth_realm:default_auth_realm\\]"} + nl +
-                      "backend=default_auth_backend" + nl + "method=basic" +
-                      nl + "name=default_realm"));
+    std::string http_auth_realm_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[http_auth_realm:default_auth_realm]",
+            "backend=default_auth_backend",
+            "method=basic",
+            "name=default_realm",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(config_path,
-                                  std::string{"\\[rest_router\\]"} + nl +
-                                      "require_realm=default_auth_realm"));
+    std::string rest_router_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[rest_router]",
+            "require_realm=default_auth_realm",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(config_path,
-                                  std::string{"\\[rest_routing\\]"} + nl +
-                                      "require_realm=default_auth_realm"));
+    std::string rest_routing_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[rest_routing]",
+            "require_realm=default_auth_realm",
+        },
+        "\n");
 
-    EXPECT_EQ(is_enabled,
-              file_contains_regex(
-                  config_path, std::string{"\\[rest_metadata_cache\\]"} + nl +
-                                   "require_realm=default_auth_realm"));
+    std::string rest_metadata_cache_section = mysql_harness::join(
+        std::initializer_list<const char *>{
+            "[rest_metadata_cache]",
+            "require_realm=default_auth_realm",
+        },
+        "\n");
+
+    if (is_enabled) {
+      EXPECT_THAT(content, ::testing::AllOf(
+                               ::testing::HasSubstr(rest_api_section),
+                               ::testing::ContainsRegex(http_server_section),
+                               ::testing::HasSubstr(http_auth_backend_section),
+                               ::testing::HasSubstr(http_auth_realm_section),
+                               ::testing::HasSubstr(rest_router_section),
+                               ::testing::HasSubstr(rest_routing_section),
+                               ::testing::HasSubstr(rest_metadata_cache_section)
+
+                                   ));
+    } else {
+      EXPECT_THAT(content,
+                  ::testing::Not(::testing::AnyOf(
+                      ::testing::HasSubstr(rest_api_section),
+                      ::testing::ContainsRegex(http_server_section),
+                      ::testing::HasSubstr(http_auth_backend_section),
+                      ::testing::HasSubstr(http_auth_realm_section),
+                      ::testing::HasSubstr(rest_router_section),
+                      ::testing::HasSubstr(rest_routing_section),
+                      ::testing::HasSubstr(rest_metadata_cache_section))));
+    }
   }
 
   enum class CertFile { k_ca_key, k_ca_cert, k_router_key, k_router_cert };

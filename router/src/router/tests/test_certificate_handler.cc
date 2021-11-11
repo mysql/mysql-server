@@ -26,13 +26,13 @@
 
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <system_error>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "filesystem_utils.h"
 #include "mysql/harness/filesystem.h"
 #include "test/helpers.h"
 #include "test/temp_directory.h"
@@ -100,13 +100,27 @@ TEST_F(CertificateHandlerTest, router_cert_file_exist) {
   EXPECT_FALSE(cert_handler.router_cert_files_exists());
 }
 
+namespace {
+std::string file_content(const std::string &filename) {
+  std::ifstream f(filename);
+  std::stringstream ss;
+  ss << f.rdbuf();
+
+  return ss.str();
+}
+}  // namespace
+
 TEST_F(CertificateHandlerTest, create_success) {
   EXPECT_NO_THROW(cert_handler.create());
 
-  EXPECT_TRUE(file_contains_regex(ca_key_path, "BEGIN RSA PRIVATE KEY"));
-  EXPECT_TRUE(file_contains_regex(router_key_path, "BEGIN RSA PRIVATE KEY"));
-  EXPECT_TRUE(file_contains_regex(ca_cert_path, "BEGIN CERTIFICATE"));
-  EXPECT_TRUE(file_contains_regex(router_cert_path, "BEGIN CERTIFICATE"));
+  EXPECT_THAT(file_content(ca_key_path.str()),
+              ::testing::HasSubstr("BEGIN RSA PRIVATE KEY"));
+  EXPECT_THAT(file_content(router_key_path.str()),
+              ::testing::HasSubstr("BEGIN RSA PRIVATE KEY"));
+  EXPECT_THAT(file_content(ca_cert_path.str()),
+              ::testing::HasSubstr("BEGIN CERTIFICATE"));
+  EXPECT_THAT(file_content(router_cert_path.str()),
+              ::testing::HasSubstr("BEGIN CERTIFICATE"));
 }
 
 TEST_F(CertificateHandlerTest, create_fail) {
