@@ -4873,7 +4873,7 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
     Uint32 gsn = ord->gsn;
     Uint32 prio = ord->prio;
     ndbrequire(dstcnt <= LocalRouteOrd::MaxDstCount);
-    NDB_STATIC_ASSERT(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
+    static_assert(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
     memcpy(signal->theData+25, ord->path, 4*dstcnt);
     SectionHandle handle(this, signal);
     if (sigLen > LocalRouteOrd::StaticLen + dstcnt)
