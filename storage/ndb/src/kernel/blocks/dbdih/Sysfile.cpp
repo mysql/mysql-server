@@ -443,6 +443,8 @@ Sysfile::unpack_sysfile_format_v2(const Uint32 cdata[], Uint32* cdata_size_ptr)
   index++;
 
   Uint32 lcp_active_words = ((max_node_id) + 31) / 32;
+  require(lcp_active_words <= NdbNodeBitmask::Size);
+  require(index + lcp_active_words <= cdata_size);
   for (Uint32 i = 0; i < lcp_active_words; i++)
   {
     lcpActive[i] = cdata[index];

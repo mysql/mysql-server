@@ -1192,6 +1192,7 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   jamEntry();
   DBUG_ENTER("Suma::execAPI_FAILREQ");
   Uint32 failedApiNode = signal->theData[0];
+  ndbrequire(failedApiNode < MAX_NODES);
   ndbrequire(signal->theData[1] == QMGR_REF); // As callback hard-codes QMGR
 
   c_connected_nodes.clear(failedApiNode);
