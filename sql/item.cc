@@ -1763,11 +1763,19 @@ bool Item_splocal::val_json(Json_wrapper *result) {
   return ret;
 }
 
-void Item_splocal::print(const THD *, String *str, enum_query_type) const {
+void Item_splocal::print(const THD *, String *str,
+                         enum_query_type query_type) const {
+  // With QT_DERIVED_TABLE_ORIG_FIELD_NAMES, print the SP variable name.
+  // Without QT_DERIVED_TABLE_ORIG_FIELD_NAMES, print the SP variable
+  // name, followed by '@' and the variable index.
+  // The first is used when cloning this item during condition pushdown
+  // to derived tables.
   str->reserve(m_name.length() + 8);
   str->append(m_name);
-  str->append('@');
-  qs_append(m_var_idx, str);
+  if (!(query_type & QT_DERIVED_TABLE_ORIG_FIELD_NAMES)) {
+    str->append('@');
+    qs_append(m_var_idx, str);
+  }
 }
 
 bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it) {
