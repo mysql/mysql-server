@@ -2736,6 +2736,8 @@ PRIMARY KEY(c) - UniqueHashIndex
 NDBT_ProgramExit: 0 - OK
 
 drop table t1,t2,t3,t5;
+Bug 33523991 Ndb online reorg : Scan count verification
+Scan count issue on complete phase of reorg
 create table t1 (a int primary key, b int, c int, d int, unique(b), unique(c)) engine=ndb;
 Populate some data
 insert into t1 values (1,1,1,1);
