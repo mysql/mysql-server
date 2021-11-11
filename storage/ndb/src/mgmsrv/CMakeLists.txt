@@ -71,4 +71,7 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgmd ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
-NDB_ADD_TEST(MgmConfig-t testConfig.cpp LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp
+  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
+NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
+  LIBS ndbconf ndbgeneral ndbportlib)

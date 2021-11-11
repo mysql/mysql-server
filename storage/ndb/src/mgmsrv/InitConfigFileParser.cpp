@@ -33,6 +33,7 @@
 #include <m_string.h>
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
+#include <stdlib.h>
 
 extern EventLogger *g_eventLogger;
 
@@ -425,42 +426,78 @@ bool InitConfigFileParser::isEmptyLine(const char* line) const {
 //  Convert String to Int
 //****************************************************************************
 bool InitConfigFileParser::convertStringToUint64(const char* s, 
-						 Uint64& val,
-						 Uint32 log10base) {
+                                                 Uint64& val)
+{
   if (s == NULL)
     return false;
-  if (strlen(s) == 0) 
-    return false;
 
-  errno = 0;
+  while (*s != '\0' && isspace(*s)) s++;
+  const bool negative = (*s == '-');
+
+  union {
+    signed long long vs;
+    unsigned long long vu;
+  };
   char* p;
-  Int64 v = my_strtoll(s, &p, log10base);
-  if (errno != 0)
-    return false;
-  
-  long mul = 0;
-  if (p != &s[strlen(s)]){
-    char * tmp = strdup(p);
-    trim(tmp);
-    switch(tmp[0]){
-    case 'k':
-    case 'K':
-      mul = 10;
-      break;
-    case 'M':
-      mul = 20;
-      break;
-    case 'G':
-      mul = 30;
-      break;
-    default:
-      free(tmp);
+  const int log10base = 0;
+  errno = 0;
+  if (negative)
+  {
+    vs = strtoll(s, &p, log10base);
+    if ((vs == LLONG_MIN || vs == LLONG_MAX) && errno == ERANGE)
+    {
       return false;
     }
-    free(tmp);
   }
-  
-  val = (v << mul);
+  else
+  {
+    vu = strtoull(s, &p, log10base);
+    if (vu == ULLONG_MAX && errno == ERANGE)
+    {
+      return false;
+    }
+  }
+  if (p == s)
+    return false;
+
+  int mul = 0;
+
+  switch(*p)
+  {
+  case '\0':
+    break;
+  case 'k':
+  case 'K':
+    mul = 10;
+    p++;
+    break;
+  case 'M':
+    mul = 20;
+    p++;
+    break;
+  case 'G':
+    mul = 30;
+    p++;
+    break;
+  default:
+    return false;
+  }
+  if (*p != '\0')
+    return false;
+  if (negative)
+  {
+    Int64 v = (vs << mul);
+    if ((v >> mul) != vs)
+      return false;
+    val = v;
+  }
+  else
+  {
+    Uint64 v = (vu << mul);
+    if ((v >> mul) != vu)
+      return false;
+    val = v;
+  }
   return true;
 }
 
@@ -1037,3 +1074,58 @@ template class Vector<struct my_option>;
 /*
   See include/my_getopt.h for the declaration of struct my_option
 */
+
+
+#ifdef TEST_INITCONFIGFILEPARSER
+
+#include "../../../../unittest/mytap/tap.h"
+
+int main()
+{
+  plan(29);
+
+  // Check the string to int parsing function convertStringToUint64()
+  Uint64 value;
+  ok1(InitConfigFileParser::convertStringToUint64("37", value));
+  ok1(value == 37);
+  ok1(InitConfigFileParser::convertStringToUint64("0", value));
+  ok1(value == 0);
+  ok1(InitConfigFileParser::convertStringToUint64("-0", value)); // ??
+  ok1(static_cast<Int64>(value) == -0);
+  ok1(InitConfigFileParser::convertStringToUint64("-1", value));
+  ok1(static_cast<Int64>(value) == -1);
+  ok1(InitConfigFileParser::convertStringToUint64("-37", value));
+  ok1(static_cast<Int64>(value) == -37);
+
+  // Valid multipliers
+  ok1(InitConfigFileParser::convertStringToUint64("37k", value));
+  ok1(value == 37ull * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37K", value));
+  ok1(value == 37ull * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37M", value));
+  ok1(value == 37ull * 1024 * 1024);
+  ok1(InitConfigFileParser::convertStringToUint64("37G", value));
+  ok1(value == 37ull * 1024 * 1024 * 1024);
+#ifdef NOT_YET
+  ok1(InitConfigFileParser::convertStringToUint64("37T", value));
+  ok1(value == 37ull * 1024 * 1024 * 1024 * 1024);
+#endif
+
+  // Invalid multipliers
+  ok1(InitConfigFileParser::convertStringToUint64("10kB", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 M", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 \"M12L\"", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10 'M12L'", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10M12L", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("10T'", value) == false);
+
+  ok1(InitConfigFileParser::convertStringToUint64("M", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("MAX_UINT", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("Magnus'", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("", value) == false);
+  ok1(InitConfigFileParser::convertStringToUint64("trettisju", value) == false);
+
+  return exit_status();
+}
+
+#endif
