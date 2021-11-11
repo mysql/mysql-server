@@ -199,7 +199,7 @@ void check_config_overwrites(const CmdArgHandler::ConfigOverwrites &overwrites,
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
-MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
+MySQLRouter::MySQLRouter(const std::string &program_name,
                          const std::vector<std::string> &arguments,
                          std::ostream &out_stream, std::ostream &err_stream
 #ifndef _WIN32
@@ -212,7 +212,7 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
       arg_handler_(),
       can_start_(false),
       showing_info_(false),
-      origin_(origin),
+      origin_(mysql_harness::Path(find_full_path(program_name)).dirname()),
       out_stream_(out_stream),
       err_stream_(err_stream)
 #ifndef _WIN32
@@ -222,7 +222,9 @@ MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
 {
   set_log_reopen_complete_callback(default_log_reopen_complete_cb);
   set_signal_handlers();
-  init(arguments);  // throws MySQLSession::Error, std::runtime_error,
+
+  init(program_name,
+       arguments);  // throws MySQLSession::Error, std::runtime_error,
                     // std::out_of_range, std::logic_error, ...?
 }
 
@@ -235,7 +237,7 @@ MySQLRouter::MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
                          SysUserOperationsBase *sys_user_operations
 #endif
                          )
-    : MySQLRouter(mysql_harness::Path(find_full_path(argv[0])).dirname(),
+    : MySQLRouter(std::string(argv[0]),
                   std::vector<std::string>({argv + 1, argv + argc}), out_stream,
                   err_stream
 #ifndef _WIN32
@@ -258,7 +260,8 @@ void MySQLRouter::parse_command_options(
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
-void MySQLRouter::init(const std::vector<std::string> &arguments) {
+void MySQLRouter::init(const std::string &program_name,
+                       const std::vector<std::string> &arguments) {
   set_default_config_files(CONFIG_FILES);
 
   parse_command_options(arguments);  // throws std::runtime_error
@@ -316,6 +319,7 @@ void MySQLRouter::init(const std::vector<std::string> &arguments) {
     init_main_logger(config, true);  // true = raw logging mode
 
     bootstrap(
+        program_name,
         bootstrap_uri_);  // throws MySQLSession::Error, std::runtime_error,
                           // std::out_of_range, std::logic_error, ...?
     return;
@@ -1803,7 +1807,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ... ?
-void MySQLRouter::bootstrap(const std::string &server_url) {
+void MySQLRouter::bootstrap(const std::string &program_name,
+                            const std::string &server_url) {
   mysqlrouter::ConfigGenerator config_gen(out_stream_, err_stream_
 #ifndef _WIN32
                                           ,
@@ -1863,15 +1868,15 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     keyring_info_.set_master_key_file(master_key_path);
     config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_system_deployment(
-        config_file_path, state_file_path, bootstrap_options_,
+        program_name, config_file_path, state_file_path, bootstrap_options_,
         bootstrap_multivalue_options_, default_paths);
   } else {
     keyring_info_.set_keyring_file(kDefaultKeyringFileName);
     keyring_info_.set_master_key_file("mysqlrouter.key");
     config_gen.set_keyring_info(keyring_info_);
     config_gen.bootstrap_directory_deployment(
-        bootstrap_directory_, bootstrap_options_, bootstrap_multivalue_options_,
-        default_paths);
+        program_name, bootstrap_directory_, bootstrap_options_,
+        bootstrap_multivalue_options_, default_paths);
   }
 }
 

@@ -98,13 +98,14 @@ class ConfigGenerator {
   bool warn_on_no_ssl(const std::map<std::string, std::string> &options);
 
   void bootstrap_system_deployment(
-      const std::string &config_file_path, const std::string &state_file_path,
+      const std::string &program_name, const std::string &config_file_path,
+      const std::string &state_file_path,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths);
 
   void bootstrap_directory_deployment(
-      const std::string &directory,
+      const std::string &program_name, const std::string &directory,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const std::map<std::string, std::string> &default_paths);
@@ -246,7 +247,8 @@ class ConfigGenerator {
                        const std::map<std::string, std::string> &default_paths,
                        const ExistingConfigOptions &existing_config_options);
 
-  void create_start_script(const std::string &directory,
+  void create_start_script(const std::string &program_name,
+                           const std::string &directory,
                            bool interactive_master_key,
                            const std::map<std::string, std::string> &options);
 
@@ -260,8 +262,8 @@ class ConfigGenerator {
 
   // returns bootstrap report (several lines of human-readable text) if desired
   std::string bootstrap_deployment(
-      std::ostream &config_file, std::ostream &state_file,
-      const mysql_harness::Path &config_file_path,
+      const std::string &program_name, std::ostream &config_file,
+      std::ostream &state_file, const mysql_harness::Path &config_file_path,
       const mysql_harness::Path &state_file_path, const std::string &name,
       const std::map<std::string, std::string> &options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
@@ -287,13 +289,11 @@ class ConfigGenerator {
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
 
-  std::string get_bootstrap_report_text(const std::string &config_file_name,
-                                        const std::string &router_name,
-                                        const std::string &metadata_cluster,
-                                        const std::string &cluster_type_name,
-                                        const std::string &hostname,
-                                        bool is_system_deployment,
-                                        const Options &options);
+  std::string get_bootstrap_report_text(
+      const std::string &program_name, const std::string &config_file_name,
+      const std::string &router_name, const std::string &metadata_cluster,
+      const std::string &cluster_type_name, const std::string &hostname,
+      bool is_system_deployment, const Options &options);
 
   void set_log_file_permissions(
       const std::map<std::string, std::string> &default_paths,
