@@ -14259,7 +14259,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     signal->theData[4] = connectPtr.i;
     signal->theData[5] = Uint32(now.getUint64() >> 32);
     signal->theData[6] = Uint32(now.getUint64());
-    signal->theData[7] = 3; // Seconds to wait
+    signal->theData[7] = 10; // Seconds to wait
     sendSignal(reference(), GSN_CONTINUEB, signal, 8, JBB);
     return;
   }
@@ -14393,24 +14393,18 @@ Dbdih::wait_old_scan(Signal* signal)
   const NDB_TICKS now  = NdbTick_getCurrentTicks();
   const Uint32 elapsed = (Uint32)NdbTick_Elapsed(start,now).seconds();
 
-  if (elapsed > wait)
+  if (elapsed >= wait)
   {
-    infoEvent("Waiting(%u) for scans(%u) to complete on table %u",
+    infoEvent("Waiting %us for %u scans to complete on table %u",
               elapsed,
               tabPtr.p->m_scan_count[1],
               tabPtr.i);
 
-    if (wait == 3)
-    {
-      signal->theData[7] = 3 + 7;
-    }
-    else
-    {
-      signal->theData[7] = 2 * wait;
-    }
+
+    signal->theData[7] = wait + 10;
   }
 
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 8);
 }
 
 Uint32
