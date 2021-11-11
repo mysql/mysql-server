@@ -107,12 +107,16 @@ using hypergraph::NodeMap;
 using std::array;
 using std::bitset;
 using std::min;
+using std::optional;
 using std::pair;
 using std::string;
 using std::swap;
 using std::vector;
 
 namespace {
+
+string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
+                       const char *description_for_trace);
 
 using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
@@ -355,6 +359,7 @@ class CostingReceiver {
     return Overlaps(m_engine_flags, MakeSecondaryEngineFlags(flag));
   }
 
+  void TraceAccessPaths(NodeMap nodes);
   void ProposeAccessPathForBaseTable(int node_idx,
                                      const char *description_for_trace,
                                      AccessPath *path);
@@ -489,6 +494,54 @@ Item_func_match *GetSargableFullTextPredicate(const Predicate &predicate) {
   }
 }
 
+void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
+  auto it = m_access_paths.find(nodes);
+  if (it == m_access_paths.end()) {
+    *m_trace += " - ";
+    *m_trace += PrintSet(nodes);
+    *m_trace += " has no access paths (this should not normally happen)\n";
+    return;
+  }
+
+  *m_trace += " - current access paths for ";
+  *m_trace += PrintSet(nodes);
+  *m_trace += ": ";
+
+  bool first = true;
+  for (const AccessPath *path : it->second.paths) {
+    if (!first) {
+      *m_trace += ", ";
+    }
+    *m_trace += PrintAccessPath(*path, m_graph, "");
+    first = false;
+  }
+  *m_trace += ")\n";
+
+  // Verify that all row counts are consistent; we can only do this for
+  // unparameterized tables (even though most such inconsistencies probably
+  // originate further down the tree), since tables with different
+  // parameterizations can have different sargable predicates.
+  // (If we really wanted to, we could probably fix that as well, though.)
+  // These should never happen, up to numerical issues, but they currently do;
+  // see bug #33550360. When that bug is fully fixed, this segment should
+  // be replaced with an assert in ProposeAccessPath() that they are
+  // indeed consistent, but for now, they help track down the issues.
+  optional<double> rows;
+  for (const AccessPath *path : it->second.paths) {
+    if (path->parameter_tables == 0) {
+      if (!rows.has_value()) {
+        rows = path->num_output_rows;
+      } else if (path->num_output_rows < rows.value() * 0.99 ||
+                 path->num_output_rows > rows.value() * 1.01) {
+        *m_trace +=
+            " - WARNING: Row counts are not consistent between access paths. "
+            "This is a bug.\n";
+        break;
+      }
+    }
+  }
+}
+
 /**
   Called for each table in the query block, at some arbitrary point before we
   start seeing subsets where it's joined to other tables.
@@ -590,6 +643,9 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     }
   }
 
+  if (m_trace != nullptr) {
+    TraceAccessPaths(TableBitmap(node_idx));
+  }
   return false;
 }
 
@@ -1757,6 +1813,10 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       m_overflow_bitset_mem_root.ClearForReuse();
     }
   }
+
+  if (m_trace != nullptr) {
+    TraceAccessPaths(left | right);
+  }
   return false;
 }
 
@@ -1771,7 +1831,7 @@ AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
   AccessPath *dedup_path;
   if (semijoin_group_size == 0) {
     dedup_path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
-                                          /*calc_found_rows=*/false,
+                                          /*count_all_rows=*/false,
                                           /*reject_multiple_rows=*/false,
                                           /*send_records_override=*/nullptr);
   } else {
@@ -1905,10 +1965,10 @@ void CostingReceiver::ProposeHashJoin(
 
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
-    *m_trace += StringPrintf(
-        "\nFound sets %s and %s, connected by condition %s [rows=%.0f]\n",
-        PrintSet(left).c_str(), PrintSet(right).c_str(),
-        GenerateExpressionLabel(edge->expr).c_str(), join_path.num_output_rows);
+    *m_trace +=
+        StringPrintf("\nFound sets %s and %s, connected by condition %s\n",
+                     PrintSet(left).c_str(), PrintSet(right).c_str(),
+                     GenerateExpressionLabel(edge->expr).c_str());
     for (int pred_idx : BitsSetIn(join_path.filter_predicates)) {
       *m_trace += StringPrintf(
           " - applied (delayed) predicate %s\n",
@@ -1928,8 +1988,7 @@ void CostingReceiver::ProposeHashJoin(
     join_path.ordering_state = m_orderings->ApplyFDs(
         m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &join_path,
-                                   "hash join");
+                                   new_obsolete_orderings, &join_path, "");
   }
 
   if (Overlaps(join_path.filter_predicates,
@@ -1945,7 +2004,7 @@ void CostingReceiver::ProposeHashJoin(
         m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
                                    new_obsolete_orderings, &join_path,
-                                   "hash join, mat. subq");
+                                   "mat. subq");
   }
 }
 
@@ -2076,9 +2135,6 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     join_path->init_once_cost += materialize_cost;
   }
 }
-
-string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
-                 const char *description_for_trace);
 
 /**
   Check if we're about to apply a join condition that would be redundant
@@ -2352,8 +2408,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
         join_path.ordering_state, new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(
         left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
-        &join_path,
-        rewrite_semi_to_inner ? "dedup to inner nested loop" : "nested loop");
+        &join_path, rewrite_semi_to_inner ? "dedup to inner nested loop" : "");
   }
 
   if (Overlaps(join_path.filter_predicates,
@@ -2369,7 +2424,7 @@ void CostingReceiver::ProposeNestedLoopJoin(
                                    new_obsolete_orderings, &join_path,
                                    rewrite_semi_to_inner
                                        ? "dedup to inner nested loop, mat. subq"
-                                       : "nested loop, mat. subq");
+                                       : "mat. subq");
   }
 }
 
@@ -2406,7 +2461,7 @@ double CostingReceiver::FindAlreadyAppliedSelectivity(
                    right_path->applied_sargable_join_predicates(), left,
                    right)) {
       if (m_trace != nullptr) {
-        *m_trace += " - " + PrintCost(*right_path, m_graph, "") +
+        *m_trace += " - " + PrintAccessPath(*right_path, m_graph, "") +
                     " has a sargable predicate that is redundant with our join "
                     "predicate, skipping\n";
       }
@@ -2528,12 +2583,144 @@ static inline PathComparisonResult CompareAccessPaths(
   }
 }
 
-string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
-                 const char *description_for_trace) {
-  string str =
-      StringPrintf("{cost=%.1f, init_cost=%.1f", path.cost, path.init_cost);
+string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
+                       const char *description_for_trace) {
+  string str = "{";
+  switch (path.type) {
+    case AccessPath::TABLE_SCAN:
+      str += "TABLE_SCAN";
+      break;
+    case AccessPath::INDEX_SCAN:
+      str += "INDEX_SCAN";
+      break;
+    case AccessPath::REF:
+      str += "REF";
+      break;
+    case AccessPath::REF_OR_NULL:
+      str += "REF_OR_NULL";
+      break;
+    case AccessPath::EQ_REF:
+      str += "EQ_REF";
+      break;
+    case AccessPath::PUSHED_JOIN_REF:
+      str += "PUSHED_JOIN_REF";
+      break;
+    case AccessPath::FULL_TEXT_SEARCH:
+      str += "FULL_TEXT_SEARCH";
+      break;
+    case AccessPath::CONST_TABLE:
+      str += "CONST_TABLE";
+      break;
+    case AccessPath::MRR:
+      str += "MRR";
+      break;
+    case AccessPath::FOLLOW_TAIL:
+      str += "FOLLOW_TAIL";
+      break;
+    case AccessPath::INDEX_RANGE_SCAN:
+      str += "INDEX_RANGE_SCAN";
+      break;
+    case AccessPath::INDEX_MERGE:
+      str += "INDEX_MERGE";
+      break;
+    case AccessPath::ROWID_INTERSECTION:
+      str += "ROWID_INTERSECTION";
+      break;
+    case AccessPath::ROWID_UNION:
+      str += "ROWID_UNION";
+      break;
+    case AccessPath::INDEX_SKIP_SCAN:
+      str += "INDEX_SKIP_SCAN";
+      break;
+    case AccessPath::GROUP_INDEX_SKIP_SCAN:
+      str += "GROUP_INDEX_SKIP_SCAN";
+      break;
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      str += "DYNAMIC_INDEX_RANGE_SCAN";
+      break;
+    case AccessPath::TABLE_VALUE_CONSTRUCTOR:
+      str += "TABLE_VALUE_CONSTRUCTOR";
+      break;
+    case AccessPath::FAKE_SINGLE_ROW:
+      str += "FAKE_SINGLE_ROW";
+      break;
+    case AccessPath::ZERO_ROWS:
+      str += "ZERO_ROWS";
+      break;
+    case AccessPath::ZERO_ROWS_AGGREGATED:
+      str += "ZERO_ROWS_AGGREGATED";
+      break;
+    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+      str += "MATERIALIZED_TABLE_FUNCTION";
+      break;
+    case AccessPath::UNQUALIFIED_COUNT:
+      str += "UNQUALIFIED_COUNT";
+      break;
+    case AccessPath::NESTED_LOOP_JOIN:
+      str += "NESTED_LOOP_JOIN";
+      break;
+    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+      str += "NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL";
+      break;
+    case AccessPath::BKA_JOIN:
+      str += "BKA_JOIN";
+      break;
+    case AccessPath::HASH_JOIN:
+      str += "HASH_JOIN";
+      break;
+    case AccessPath::FILTER:
+      str += "FILTER";
+      break;
+    case AccessPath::SORT:
+      str += "SORT";
+      break;
+    case AccessPath::AGGREGATE:
+      str += "AGGREGATE";
+      break;
+    case AccessPath::TEMPTABLE_AGGREGATE:
+      str += "TEMPTABLE_AGGREGATE";
+      break;
+    case AccessPath::LIMIT_OFFSET:
+      str += "LIMIT_OFFSET";
+      break;
+    case AccessPath::STREAM:
+      str += "STREAM";
+      break;
+    case AccessPath::MATERIALIZE:
+      str += "MATERIALIZE";
+      break;
+    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
+      str += "MATERIALIZE_INFORMATION_SCHEMA_TABLE";
+      break;
+    case AccessPath::APPEND:
+      str += "APPEND";
+      break;
+    case AccessPath::WINDOW:
+      str += "WINDOW";
+      break;
+    case AccessPath::WEEDOUT:
+      str += "WEEDOUT";
+      break;
+    case AccessPath::REMOVE_DUPLICATES:
+      str += "REMOVE_DUPLICATES";
+      break;
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
+      str += "REMOVE_DUPLICATES_ON_INDEX";
+      break;
+    case AccessPath::ALTERNATIVE:
+      str += "ALTERNATIVE";
+      break;
+    case AccessPath::CACHE_INVALIDATOR:
+      str += "CACHE_INVALIDATOR";
+      break;
+    case AccessPath::DELETE_ROWS:
+      str += "DELETE_ROWS";
+      break;
+  }
+
+  str += StringPrintf(", cost=%.1f, init_cost=%.1f", path.cost, path.init_cost);
   if (path.init_once_cost != 0.0) {
-    str += StringPrintf(", init_once_cost=%.1f", path.init_once_cost);
+    str += StringPrintf(", rescan_cost=%.1f", path.rescan_cost());
   }
   str += StringPrintf(", rows=%.1f", path.num_output_rows);
 
@@ -2564,6 +2751,12 @@ string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   } else if (path.safe_for_rowid == AccessPath::UNSAFE) {
     str += StringPrintf(", unsafe_for_rowid");
   }
+
+  DBUG_EXECUTE_IF("subplan_tokens", {
+    str += ", token=";
+    str += GetForceSubplanToken(const_cast<AccessPath *>(&path),
+                                graph.query_block()->join);
+  });
 
   if (strcmp(description_for_trace, "") == 0) {
     return str + "}";
@@ -2662,7 +2855,8 @@ AccessPath *CostingReceiver::ProposeAccessPath(
 
   if (existing_paths->empty()) {
     if (m_trace != nullptr) {
-      *m_trace += " - " + PrintCost(*path, m_graph, description_for_trace) +
+      *m_trace += " - " +
+                  PrintAccessPath(*path, m_graph, description_for_trace) +
                   " is first alternative, keeping\n";
     }
     AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
@@ -2683,9 +2877,10 @@ AccessPath *CostingReceiver::ProposeAccessPath(
         result == PathComparisonResult::SECOND_DOMINATES) {
       assert(insert_position == nullptr);
       if (m_trace != nullptr) {
-        *m_trace += " - " + PrintCost(*path, m_graph, description_for_trace) +
+        *m_trace += " - " +
+                    PrintAccessPath(*path, m_graph, description_for_trace) +
                     " is not better than existing path " +
-                    PrintCost(*(*existing_paths)[i], m_graph, "") +
+                    PrintAccessPath(*(*existing_paths)[i], m_graph, "") +
                     ", discarding\n";
       }
       return nullptr;
@@ -2711,17 +2906,9 @@ AccessPath *CostingReceiver::ProposeAccessPath(
 
   if (insert_position == nullptr) {
     if (m_trace != nullptr) {
-      *m_trace += " - " + PrintCost(*path, m_graph, description_for_trace) +
-                  " is potential alternative, appending to existing list: (";
-      bool first = true;
-      for (const AccessPath *other_path : *existing_paths) {
-        if (!first) {
-          *m_trace += ", ";
-        }
-        *m_trace += PrintCost(*other_path, m_graph, "");
-        first = false;
-      }
-      *m_trace += ")\n";
+      *m_trace += " - " +
+                  PrintAccessPath(*path, m_graph, description_for_trace) +
+                  " is potential alternative, keeping\n";
     }
     insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->emplace_back(insert_position);
@@ -2732,33 +2919,21 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   if (m_trace != nullptr) {
     if (existing_paths->size() == 1) {  // Only one left.
       if (num_dominated == 1) {
-        *m_trace += " - " + PrintCost(*path, m_graph, description_for_trace) +
-                    " is better than previous " +
-                    PrintCost(*insert_position, m_graph, "") + ", replacing\n";
+        *m_trace +=
+            " - " + PrintAccessPath(*path, m_graph, description_for_trace) +
+            " is better than previous " +
+            PrintAccessPath(*insert_position, m_graph, "") + ", replacing\n";
       } else {
         *m_trace +=
-            " - " + PrintCost(*path, m_graph, description_for_trace) +
+            " - " + PrintAccessPath(*path, m_graph, description_for_trace) +
             " is better than all previous alternatives, replacing all\n";
       }
     } else {
       assert(num_dominated > 0);
       *m_trace += StringPrintf(
-          " - %s is better than %d others, replacing them, remaining are: ",
-          PrintCost(*path, m_graph, description_for_trace).c_str(),
+          " - %s is better than %d others, replacing them\n",
+          PrintAccessPath(*path, m_graph, description_for_trace).c_str(),
           num_dominated);
-      bool first = true;
-      for (const AccessPath *other_path : *existing_paths) {
-        if (other_path == insert_position) {
-          // Will be replaced by ourselves momentarily, so don't print it.
-          continue;
-        }
-        if (!first) {
-          *m_trace += ", ";
-        }
-        *m_trace += PrintCost(*other_path, m_graph, "");
-        first = false;
-      }
-      *m_trace += ")\n";
     }
   }
   *insert_position = *path;
@@ -2921,7 +3096,7 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
       return path;
     }
     AccessPath *stream_path = NewStreamingAccessPath(
-        thd, path, join, /*temp_table_param=*/nullptr, /*temp_table=*/nullptr,
+        thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
         /*ref_slice=*/-1);
     stream_path->num_output_rows = path->num_output_rows;
     stream_path->cost = path->cost;
@@ -3848,7 +4023,7 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
   for (AccessPath *root_path : root_candidates) {
     if (trace) {
       *trace += "Considering window order on top of " +
-                PrintCost(*root_path, graph, "") + "\n";
+                PrintAccessPath(*root_path, graph, "") + "\n";
     }
 
     // First, go through and check which windows we can do without
