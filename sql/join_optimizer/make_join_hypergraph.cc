@@ -3195,6 +3195,16 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     *trace += '\n';
   }
 
+  // Ask the storage engine to update stats.records, if needed.
+  // We need to do this before MakeJoinGraphFromRelationalExpression(),
+  // which determines selectivities that are in part based on it.
+  // NOTE: ha_archive breaks without this call! (That is probably a bug in
+  // ha_archive, though.)
+  for (TABLE_LIST *tl = graph->query_block()->leaf_tables; tl != nullptr;
+       tl = tl->next_leaf) {
+    tl->fetch_number_of_rows();
+  }
+
   // Construct the hypergraph from the relational expression.
 #ifndef NDEBUG
   std::fill(begin(graph->table_num_to_node_num),

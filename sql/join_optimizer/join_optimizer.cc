@@ -557,11 +557,6 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   TABLE *table = m_graph.nodes[node_idx].table;
   TABLE_LIST *tl = table->pos_in_table_list;
 
-  // Ask the storage engine to update stats.records, if needed.
-  // NOTE: ha_archive breaks without this call! (That is probably a bug in
-  // ha_archive, though.)
-  tl->fetch_number_of_rows();
-
   if (ProposeTableScan(table, node_idx, tl->is_recursive_reference())) {
     return true;
   }
