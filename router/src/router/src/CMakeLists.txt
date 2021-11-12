@@ -38,7 +38,6 @@ SET(lib_source_files
   utils.cc
   uri.cc
   keyring_info.cc
-  plugin_config.cc
   common/log_filter.cc
   common/mysql_session.cc
   common/utils_sqlstring.cc

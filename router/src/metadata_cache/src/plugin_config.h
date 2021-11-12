@@ -36,6 +36,7 @@
 
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
 #include "mysqlrouter/plugin_config.h"
 #include "tcp_address.h"
@@ -45,7 +46,7 @@ extern mysql_harness::Plugin METADATA_CACHE_EXPORT
     harness_plugin_metadata_cache;
 }
 
-class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
+class MetadataCachePluginConfig final : public mysql_harness::BasePluginConfig {
  public:
   /** @brief Constructor
    *

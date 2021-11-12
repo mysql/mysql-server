@@ -41,11 +41,11 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
 #include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/plugin_config.h"
 
 #include "http_auth_backend.h"
 #include "http_auth_backend_metadata_cache.h"
@@ -56,12 +56,12 @@ static constexpr const char kSectionName[]{"http_auth_backend"};
 static std::vector<std::string> registered_backends;
 
 namespace {
-class HtpasswdPluginConfig : public mysqlrouter::BasePluginConfig {
+class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string filename;
 
   explicit HtpasswdPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         filename(get_option_string(section, "filename")) {}
 
   std::string get_default(const std::string &option) const override {
@@ -100,13 +100,13 @@ class HttpAuthBackendFactory {
   }
 };
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string filename;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         backend(get_option_string(section, "backend")) {}
 
   std::string get_default(const std::string & /* option */) const override {

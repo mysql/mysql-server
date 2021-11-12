@@ -22,18 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
-#define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
+#ifndef MYSQL_HARNESS_PLUGIN_CONFIG_INCLUDED
+#define MYSQL_HARNESS_PLUGIN_CONFIG_INCLUDED
 
 #include <chrono>
 #include <map>
 #include <string>
 
+#include "harness_export.h"
+#include "logging/logging.h"
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"  // Path
-#include "tcp_address.h"
 
-namespace mysqlrouter {
+namespace mysql_harness {
 
 /** Exception that gets thrown when the configuarion option is missing
  */
@@ -57,7 +58,7 @@ class option_empty : public std::invalid_argument {
  * to derive their own class retrieving configuration from, for example,
  * Harness `ConfigSection instances`.
  */
-class BasePluginConfig {
+class HARNESS_EXPORT BasePluginConfig {
  public:
   using defaults_map = std::map<std::string, std::string>;
 
@@ -207,6 +208,6 @@ class BasePluginConfig {
       double max_value = std::numeric_limits<double>::max()) const;
 };
 
-}  // namespace mysqlrouter
+}  // namespace mysql_harness
 
-#endif  // MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
+#endif  // MYSQL_HARNESS_PLUGIN_CONFIG_INCLUDED

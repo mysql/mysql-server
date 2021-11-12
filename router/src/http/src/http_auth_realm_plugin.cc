@@ -50,12 +50,12 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_auth_realm_export.h"
-#include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -64,7 +64,7 @@ using namespace std::string_literals;
 static constexpr const char kSectionName[]{"http_auth_realm"};
 static std::vector<std::string> registered_realms;
 
-class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
+class HttpAuthRealmPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string backend;
   std::string method;
@@ -73,7 +73,7 @@ class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
 
   explicit HttpAuthRealmPluginConfig(
       const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         backend(get_option_string(section, "backend")),
         method(get_option_string(section, "method")),
         require(get_option_string(section, "require")),
