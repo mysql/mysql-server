@@ -271,7 +271,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               },
 
                               {
-                                  typeid(mysqlrouter::option_not_present),
+                                  typeid(mysql_harness::option_not_present),
                                   "option user in [metadata_cache] is required",
                               }},
                              // ttl is garbage
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
                               }},
                          })));
 
-using mysqlrouter::BasePluginConfig;
+using mysql_harness::BasePluginConfig;
 
 // Valid millisecond configuration values
 using GetOptionMillisecondsOkTestData =

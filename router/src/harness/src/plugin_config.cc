@@ -22,7 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysqlrouter/plugin_config.h"
+#include "mysql/harness/plugin_config.h"
 
 #include <stdexcept>
 
@@ -31,10 +31,9 @@
 #include <unistd.h>
 #endif
 
-#include "mysqlrouter/utils.h"  // is_valid_socket_name
 #include "tcp_address.h"
 
-namespace mysqlrouter {
+namespace mysql_harness {
 
 std::string BasePluginConfig::get_section_name(
     const mysql_harness::ConfigSection *section) const noexcept {
@@ -109,4 +108,4 @@ std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
                                  get_log_prefix(option, section));
 }
 
-}  // namespace mysqlrouter
+}  // namespace mysql_harness

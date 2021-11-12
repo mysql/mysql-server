@@ -49,6 +49,7 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/utility/string.h"
 
 #include "http_auth.h"
@@ -57,7 +58,6 @@
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
-#include "mysqlrouter/plugin_config.h"
 #include "static_files.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -430,7 +430,7 @@ void HttpServer::remove_route(const std::string &url_regex) {
   }
 }
 
-class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
+class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string static_basedir;
   std::string srv_address;
@@ -444,7 +444,7 @@ class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
   uint16_t srv_port;
 
   explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         static_basedir(get_option_string(section, "static_folder")),
         srv_address(get_option_string(section, "bind_address")),
         require_realm(get_option_string(section, "require_realm")),

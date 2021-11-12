@@ -29,7 +29,7 @@
 
 #include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"  // Path
-#include "mysqlrouter/plugin_config.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/routing.h"  // RoutingStrategy, AccessMode
 #include "mysqlrouter/routing_export.h"
 #include "protocol/protocol.h"  // Protocol::Type
@@ -40,7 +40,7 @@
  * route specific configuration.
  */
 class ROUTING_EXPORT RoutingPluginConfig
-    : public mysqlrouter::BasePluginConfig {
+    : public mysql_harness::BasePluginConfig {
  private:
   // is this [routing] entry for static routing or metadata-cache ?
   // it's mutable because we discover it while calling getter for

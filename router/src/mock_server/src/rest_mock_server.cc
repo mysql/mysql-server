@@ -42,8 +42,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-
-#include "mysqlrouter/plugin_config.h"
+#include "mysql/harness/plugin_config.h"
 
 #include "common.h"  // ScopeGuard
 #include "mysqlrouter/http_server_component.h"

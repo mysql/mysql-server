@@ -35,13 +35,13 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/plugin_config.h"
 #include "mysql/harness/stdx/filesystem.h"
 #include "mysql/harness/string_utils.h"  // split_string
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysql_server_mock.h"
 #include "mysqlrouter/io_component.h"
-#include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -91,7 +91,7 @@ static mysql_ssl_mode get_option_ssl_mode(
                               ". Allowed are: " + allowed_names + ".");
 }
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string trace_filename;
   std::vector<std::string> module_prefixes;
@@ -117,7 +117,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   }
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
-      : mysqlrouter::BasePluginConfig(section),
+      : mysql_harness::BasePluginConfig(section),
         trace_filename(get_option_string(section, "filename")),
         module_prefixes(get_option_strings(section, "module_prefix")),
         srv_address(get_option_string(section, "bind_address")),
