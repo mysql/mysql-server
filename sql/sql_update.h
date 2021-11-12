@@ -37,6 +37,7 @@
 class COPY_INFO;
 class Copy_field;
 class Item;
+class JOIN;
 class Query_block;
 class Query_expression;
 class Select_lex_visitor;
@@ -177,5 +178,16 @@ class Sql_cmd_update final : public Sql_cmd_dml {
   /// The values used to update fields
   mem_root_deque<Item *> *update_value_list;
 };
+
+/// Find out which of the target tables can be updated immediately while
+/// scanning. This is used by the old optimizer *after* the plan has been
+/// created. The hypergraph optimizer does not use this function, as it makes
+/// the decision about immediate update *during* planning, not after planning.
+///
+/// @param join The top-level JOIN object of the UPDATE statement.
+/// @param single_target True if the UPDATE statement has exactly
+///                      one target table.
+/// @return Map of tables to update while scanning.
+table_map GetImmediateUpdateTable(const JOIN *join, bool single_target);
 
 #endif /* SQL_UPDATE_INCLUDED */

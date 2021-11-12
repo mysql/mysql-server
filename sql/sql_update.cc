@@ -1913,6 +1913,61 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   return false;
 }
 
+// Collects all columns of the given table that are referenced in join
+// conditions. The given table is assumed to be the first (outermost) table in
+// the join order. The referenced columns are collected into TABLE::tmp_set.
+static void CollectColumnsReferencedInJoinConditions(
+    const JOIN *join, const TABLE_LIST *table_ref) {
+  TABLE *table = table_ref->table;
+
+  // Verify tmp_set is not in use.
+  assert(bitmap_is_clear_all(&table->tmp_set));
+
+  for (uint i = 1; i < join->tables; ++i) {
+    const QEP_shared_owner *tab;
+    if (join->qep_tab != nullptr) {
+      tab = &join->qep_tab[i];
+    } else {
+      tab = join->best_ref[i];
+    }
+    if (!tab->position()) continue;
+    if (tab->condition())
+      tab->condition()->walk(&Item::add_field_to_set_processor,
+                             enum_walk::SUBQUERY_POSTFIX,
+                             pointer_cast<uchar *>(table));
+    /*
+      On top of checking conditions, we need to check conditions
+      referenced by index lookup on the following tables. They implement
+      conditions too, but their corresponding search conditions might
+      have been optimized away. The second table is an exception: even if
+      rows are read from it using index lookup which references a column
+      of main_table, the implementation of ref access will see the
+      before-update value;
+      consider this flow of a nested loop join:
+      read a row from main_table and:
+      - init ref access (construct_lookup_ref() in RefIterator):
+        copy referenced value from main_table into 2nd table's ref buffer
+      - look up a first row in 2nd table (RefIterator::Read())
+        - if it joins, update row of main_table on the fly
+      - look up a second row in 2nd table (again RefIterator::Read()).
+      Because construct_lookup_ref() is not called again, the
+      before-update value of the row of main_table is still in the 2nd
+      table's ref buffer. So the lookup is not influenced by the just-done
+      update of main_table.
+    */
+    if (i > 1) {
+      for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
+           key_part_idx++) {
+        Item *ref_item = tab->ref().items[key_part_idx];
+        if ((table_ref->map() & ref_item->used_tables()) != 0)
+          ref_item->walk(&Item::add_field_to_set_processor,
+                         enum_walk::SUBQUERY_POSTFIX,
+                         pointer_cast<uchar *>(table));
+      }
+    }
+  }
+}
+
 /**
   Check if table is safe to update on the fly
 
@@ -1932,8 +1987,8 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   @returns true if it is safe to update on the fly.
 */
 
-static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
-                               TABLE_LIST *all_tables) {
+static bool safe_update_on_fly(QEP_shared_owner *join_tab,
+                               TABLE_LIST *table_ref, TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
 
   // Check that the table is not joined to itself:
@@ -1999,7 +2054,6 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
 */
 
 bool Query_result_update::optimize() {
-  TABLE_LIST *table_ref;
   DBUG_TRACE;
 
   Query_block *const select = unit->first_query_block();
@@ -2040,8 +2094,16 @@ bool Query_result_update::optimize() {
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
     return true;
+
+  // TODO(khatlen): Get all this from the access path.
   main_table = join->best_ref[0]->table();
   table_to_update = nullptr;
+  const table_map immediate_update_tables =
+      GetImmediateUpdateTable(join, update_tables->next_local == nullptr);
+  if (immediate_update_tables != 0) {
+    assert(immediate_update_tables == main_table->pos_in_table_list->map());
+    table_to_update = main_table;
+  }
 
   if (prepare_partial_update(&thd->opt_trace, *fields, *values))
     return true; /* purecov: inspected */
@@ -2063,7 +2125,7 @@ bool Query_result_update::optimize() {
       down_cast<Item_field *>(*VisibleFields(*fields).begin())->table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
-  for (table_ref = update_tables; table_ref;
+  for (TABLE_LIST *table_ref = update_tables; table_ref != nullptr;
        table_ref = table_ref->next_local) {
     TABLE *table = table_ref->table;
     uint cnt = table_ref->shared;
@@ -2074,60 +2136,6 @@ bool Query_result_update::optimize() {
     if (thd->lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)  // First table in join
     {
-      /*
-        If there are at least two tables to update, t1 and t2, t1 being
-        before t2 in the plan, we need to collect all fields of t1 which
-        influence the selection of rows from t2. If those fields are also
-        updated, it will not be possible to update t1 on-the-fly.
-        Due to how the nested loop join algorithm works, when collecting
-        we can ignore the condition attached to t1 - a row of t1 is read
-        only one time.
-
-        Fields are collected in main_table->tmp_set, which is then checked in
-        safe_update_on_fly().
-      */
-      if (update_tables->next_local) {
-        // Verify it's not used
-        assert(bitmap_is_clear_all(&main_table->tmp_set));
-        for (uint i = 1; i < join->tables; ++i) {
-          JOIN_TAB *tab = join->best_ref[i];
-          if (!tab->position()) continue;
-          if (tab->condition())
-            tab->condition()->walk(&Item::add_field_to_set_processor,
-                                   enum_walk::SUBQUERY_POSTFIX,
-                                   reinterpret_cast<uchar *>(main_table));
-          /*
-            On top of checking conditions, we need to check conditions
-            referenced by index lookup on the following tables. They implement
-            conditions too, but their corresponding search conditions might
-            have been optimized away. The second table is an exception: even if
-            rows are read from it using index lookup which references a column
-            of main_table, the implementation of ref access will see the
-            before-update value;
-            consider this flow of a nested loop join:
-            read a row from main_table and:
-            - init ref access (construct_lookup_ref() in RefIterator):
-              copy referenced value from main_table into 2nd table's ref buffer
-            - look up a first row in 2nd table (RefIterator::Read())
-              - if it joins, update row of main_table on the fly
-            - look up a second row in 2nd table (again RefIterator::Read()).
-            Because construct_lookup_ref() is not called again, the
-            before-update value of the row of main_table is still in the 2nd
-            table's ref buffer. So the lookup is not influenced by the just-done
-            update of main_table.
-          */
-          if (i > 1) {
-            for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
-                 key_part_idx++) {
-              Item *ref_item = tab->ref().items[key_part_idx];
-              if ((table_ref->map() & ref_item->used_tables()) != 0)
-                ref_item->walk(&Item::add_field_to_set_processor,
-                               enum_walk::SUBQUERY_POSTFIX,
-                               reinterpret_cast<uchar *>(main_table));
-            }
-          }
-        }
-      }
       // As it's the first table in the join, and we're doing a nested loop
       // join thanks to SELECT_NO_JOIN_CACHE, the table is the left argument
       // of that NL join; thus, we can ask for semi-consistent read.
@@ -2136,13 +2144,11 @@ bool Query_result_update::optimize() {
       // hand control over to iterators.
       table->file->try_semi_consistent_read(true);
 
-      if (safe_update_on_fly(join->best_ref[0], table_ref,
-                             select->get_table_list())) {
-        bitmap_clear_all(&main_table->tmp_set);
+      if (table == table_to_update) {
+        assert(bitmap_is_clear_all(&table->tmp_set));
         table->mark_columns_needed_for_update(
             thd, true /*mark_binlog_columns=true*/);
         if (table->setup_partial_update()) return true; /* purecov: inspected */
-        table_to_update = table;  // Update table on the fly
         continue;
       }
       bitmap_clear_all(&main_table->tmp_set);
@@ -2312,7 +2318,6 @@ void Query_result_update::cleanup(THD *thd) {
 }
 
 bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
-  TABLE_LIST *cur_table;
   DBUG_TRACE;
   if (main_table->file->was_semi_consistent_read()) {
     // This will let the nested-loop iterator repeat the read of the same row if
@@ -2320,7 +2325,7 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
     return false;
   }
 
-  for (cur_table = update_tables; cur_table;
+  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     TABLE *table = cur_table->table;
     uint offset = cur_table->shared;
@@ -2522,7 +2527,6 @@ void Query_result_update::abort_result_set(THD *thd) {
 }
 
 bool Query_result_update::do_updates(THD *thd) {
-  TABLE_LIST *cur_table;
   int local_error = 0;
   ha_rows org_updated;
   TABLE *table, *tmp_table;
@@ -2545,7 +2549,7 @@ bool Query_result_update::do_updates(THD *thd) {
       the binary log when the format is STMT or MIXED.
     */
     if (mysql_bin_log.is_open()) {
-      for (cur_table = update_tables; cur_table;
+      for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
            cur_table = cur_table->next_local) {
         table = cur_table->table;
         transactional_tables |= table->file->has_transactions();
@@ -2560,12 +2564,12 @@ bool Query_result_update::do_updates(THD *thd) {
   // If we're updating based on an outer join, the executor may have left some
   // rows in NULL row state. Reset them before we start looking at rows,
   // so that generated fields don't inadvertedly get NULL inputs.
-  for (cur_table = update_tables; cur_table;
+  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     cur_table->table->reset_null_row();
   }
 
-  for (cur_table = update_tables; cur_table;
+  for (TABLE_LIST *cur_table = update_tables; cur_table != nullptr;
        cur_table = cur_table->next_local) {
     uint offset = cur_table->shared;
 
@@ -2902,4 +2906,54 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
     if (walk_item(select->select_limit, visitor)) return true;
   }
   return visitor->visit(select);
+}
+
+table_map GetImmediateUpdateTable(const JOIN *join, bool single_target) {
+  if (join->zero_result_cause != nullptr) {
+    // The entire statement was optimized away. Typically because of an
+    // impossible WHERE clause.
+    return 0;
+  }
+
+  // The hypergraph optimizer determines the immediate update tables during
+  // planning, not after planning.
+  assert(!join->thd->lex->using_hypergraph_optimizer);
+
+  // In some cases, rows may be updated immediately as they are read from the
+  // outermost table in the join. Look it up in qep_tab or best_ref, depending
+  // on which is available (we could be called in different stages after the
+  // join order is determined).
+  QEP_shared_owner *first_table;
+  TABLE_LIST *first_table_ref;
+  if (join->qep_tab != nullptr) {
+    first_table = &join->qep_tab[0];
+    first_table_ref = join->qep_tab[0].table_ref;
+  } else {
+    ASSERT_BEST_REF_IN_JOIN_ORDER(join);
+    first_table = join->best_ref[0];
+    first_table_ref = join->best_ref[0]->table_ref;
+  }
+
+  if (!first_table_ref->is_updated()) {
+    return 0;
+  }
+
+  // If there are at least two tables to update, t1 and t2, t1 being before t2
+  // in the plan, we need to collect all fields of t1 which influence the
+  // selection of rows from t2. If those fields are also updated, it will not be
+  // possible to update t1 on-the-fly.
+  //
+  // Fields are collected in table->tmp_set, which is then checked in
+  // safe_update_on_fly().
+  if (!single_target) {
+    CollectColumnsReferencedInJoinConditions(join, first_table_ref);
+  }
+
+  const bool can_update_on_the_fly =
+      safe_update_on_fly(first_table, first_table_ref, join->tables_list);
+
+  // Restore the original state of table->tmp_set.
+  bitmap_clear_all(&first_table_ref->table->tmp_set);
+
+  return can_update_on_the_fly ? first_table_ref->map() : 0;
 }
