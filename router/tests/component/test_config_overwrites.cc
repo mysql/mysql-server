@@ -399,7 +399,8 @@ INSTANTIATE_TEST_SUITE_P(
              "--routing:Main01.bind_address", "0.0.0.0",
              "--routing:Main01.routing_strategy", "first-available",
              "--routing:Main01.client_ssl_mode", "Yes"},
-            "Configuration error: invalid value 'Yes' for client_ssl_mode. "
+            "Configuration error: invalid value 'Yes' for option "
+            "client_ssl_mode in [routing:Main01]. "
             "Allowed are: DISABLED,PREFERRED,REQUIRED,PASSTHROUGH."},
         OverwriteErrorTestParam{
             {"--http_server.port=-5"},

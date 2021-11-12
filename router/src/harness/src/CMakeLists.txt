@@ -65,6 +65,7 @@ SET(harness_source
   loader.cc
   dynamic_loader.cc
   utilities.cc
+  config_option.cc
   config_parser.cc
   plugin_config.cc
   designator.cc

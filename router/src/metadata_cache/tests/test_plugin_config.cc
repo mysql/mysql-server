@@ -327,7 +327,7 @@ TEST_P(GetOptionMillisecondsOkTest, StringToMilliseconds) {
   GetOptionMillisecondsOkTestData test_data = GetParam();
 
   ASSERT_EQ(test_data.second,
-            BasePluginConfig::get_option_milliseconds(test_data.first));
+            mysql_harness::MilliSecondsOption()(test_data.first, "someoption"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -368,9 +368,9 @@ class GetOptionMillisecondsBadTest
 TEST_P(GetOptionMillisecondsBadTest, StringToMilliseconds) {
   GetOptionMillisecondsBadTestData test_data = GetParam();
 
-  ASSERT_THROW_LIKE(
-      BasePluginConfig::get_option_milliseconds(test_data.first, 0.0, 3600.0),
-      std::invalid_argument, test_data.second);
+  ASSERT_THROW_LIKE(mysql_harness::MilliSecondsOption(0.0, 3600.0)(
+                        test_data.first, "someoption"),
+                    std::invalid_argument, test_data.second);
 }
 
 INSTANTIATE_TEST_SUITE_P(

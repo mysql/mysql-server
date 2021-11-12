@@ -29,6 +29,7 @@
 #include <array>
 #include <string>
 
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -49,13 +50,15 @@ static const char kSectionName[]{"rest_router"};
 // one shared setting
 std::string require_realm_router;
 
+using StringOption = mysql_harness::StringOption;
+
 class RestRouterPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
 
   explicit RestRouterPluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option_string(section, "require_realm")) {}
+        require_realm(get_option(section, "require_realm", StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};

@@ -54,6 +54,8 @@ static const char kRequireRealm[]{"require_realm"};
 // one shared setting
 std::string require_realm_metadata_cache;
 
+using StringOption = mysql_harness::StringOption;
+
 class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string require_realm;
@@ -61,7 +63,7 @@ class RestMetadataCachePluginConfig : public mysql_harness::BasePluginConfig {
   explicit RestMetadataCachePluginConfig(
       const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        require_realm(get_option_string(section, kRequireRealm)) {}
+        require_realm(get_option(section, kRequireRealm, StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return {};

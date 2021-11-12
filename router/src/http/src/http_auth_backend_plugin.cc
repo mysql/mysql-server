@@ -37,6 +37,7 @@
 #include <sys/types.h>
 
 // Harness interface include files
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -55,6 +56,8 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[]{"http_auth_backend"};
 static std::vector<std::string> registered_backends;
 
+using StringOption = mysql_harness::StringOption;
+
 namespace {
 class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
  public:
@@ -62,7 +65,7 @@ class HtpasswdPluginConfig : public mysql_harness::BasePluginConfig {
 
   explicit HtpasswdPluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        filename(get_option_string(section, "filename")) {}
+        filename(get_option(section, "filename", StringOption{})) {}
 
   std::string get_default(const std::string &option) const override {
     if (option == "filename") return "users";
@@ -107,7 +110,7 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        backend(get_option_string(section, "backend")) {}
+        backend(get_option(section, "backend", StringOption{})) {}
 
   std::string get_default(const std::string & /* option */) const override {
     return std::string();

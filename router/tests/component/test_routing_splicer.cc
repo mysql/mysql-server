@@ -280,9 +280,9 @@ const SplicerFailParam splicer_fail_params[] = {
          {"client_ssl_mode", "unknown"},
      },
      [](const std::vector<std::string> &output_lines) {
-       ASSERT_THAT(
-           output_lines,
-           ::testing::Contains(::testing::HasSubstr("for client_ssl_mode")));
+       ASSERT_THAT(output_lines, ::testing::Contains(::testing::HasSubstr(
+                                     "invalid value 'unknown' for option "
+                                     "client_ssl_mode in [routing]")));
      }},
     {"client_ssl_key_no_cert",
      {

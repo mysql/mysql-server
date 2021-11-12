@@ -53,41 +53,7 @@ class MetadataCachePluginConfig final : public mysql_harness::BasePluginConfig {
    *
    * @param section from configuration file provided as ConfigSection
    */
-  MetadataCachePluginConfig(const mysql_harness::ConfigSection *section)
-      : BasePluginConfig(section),
-        metadata_cache_dynamic_state(get_dynamic_state(section)),
-        metadata_servers_addresses(get_metadata_servers(
-            section, metadata_cache::kDefaultMetadataPort)),
-        user(get_option_string(section, "user")),
-        ttl(get_option_milliseconds(section, "ttl", 0.0, 3600.0)),
-        auth_cache_ttl(
-            get_option_milliseconds(section, "auth_cache_ttl", -1, 3600.0)),
-        auth_cache_refresh_interval(get_option_milliseconds(
-            section, "auth_cache_refresh_interval", 0.001, 3600.0)),
-        cluster_name(get_option_string(section, "metadata_cluster")),
-        connect_timeout(
-            get_uint_option<uint16_t>(section, "connect_timeout", 1)),
-        read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
-        thread_stack_size(
-            get_uint_option<uint32_t>(section, "thread_stack_size", 1, 65535)),
-        use_gr_notifications(get_uint_option<uint16_t>(
-                                 section, "use_gr_notifications", 0, 1) == 1),
-        cluster_type(get_cluster_type(section)),
-        router_id(get_uint_option<uint32_t>(section, "router_id")) {
-    if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
-        section->has("use_gr_notifications")) {
-      throw std::invalid_argument(
-          "option 'use_gr_notifications' is not valid for cluster type 'rs'");
-    }
-    if (auth_cache_ttl > std::chrono::seconds(-1) &&
-        auth_cache_ttl < std::chrono::milliseconds(1)) {
-      throw std::invalid_argument(
-          "'auth_cache_ttl' option value '" +
-          get_option_string(section, "auth_cache_ttl") +
-          "' should be in range 0.001 and 3600 inclusive or -1 for "
-          "auth_cache_ttl disabled");
-    }
-  }
+  MetadataCachePluginConfig(const mysql_harness::ConfigSection *section);
 
   /**
    * @param option name of the option

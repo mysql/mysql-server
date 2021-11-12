@@ -45,7 +45,8 @@
 
 IMPORT_LOG_FUNCTIONS()
 
-static constexpr std::array<std::pair<const char *, mysql_ssl_mode>, 3>
+namespace {
+constexpr const std::array<std::pair<const char *, mysql_ssl_mode>, 3>
     allowed_ssl_modes = {{
         {"DISABLED", SSL_MODE_DISABLED},
         {"PREFERRED", SSL_MODE_PREFERRED},
@@ -54,42 +55,51 @@ static constexpr std::array<std::pair<const char *, mysql_ssl_mode>, 3>
 
 static constexpr const char kSectionName[]{"mock_server"};
 
-static mysql_ssl_mode get_option_ssl_mode(
-    const mysql_harness::ConfigSection *section,
-    const mysql_harness::ConfigOption &option) {
-  auto res = option.get_option_string(section);
-  if (!res) {
-    throw std::invalid_argument(res.error().message());
-  }
+class SslModeOption {
+ public:
+  mysql_ssl_mode operator()(const std::string &value,
+                            const std::string &option_desc) {
+    std::string name = value;
+    // convert name to upper-case to get case-insenstive comparison.
+    std::transform(value.begin(), value.end(), name.begin(), ::toupper);
 
-  // convert name to upper-case to get case-insenstive comparison.
-  auto name = res.value();
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-
-  // check if the mode is known
-  const auto it =
-      std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
-                   [name](auto const &allowed_ssl_mode) {
-                     return name == allowed_ssl_mode.first;
-                   });
-  if (it != allowed_ssl_modes.end()) {
-    return it->second;
-  }
-
-  // build list of allowed modes, but don't mention the default case.
-  std::string allowed_names;
-  for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
-    if (!allowed_names.empty()) {
-      allowed_names.append(",");
+    // check if the mode is known
+    const auto it =
+        std::find_if(allowed_ssl_modes.begin(), allowed_ssl_modes.end(),
+                     [name](auto const &allowed_ssl_mode) {
+                       return name == allowed_ssl_mode.first;
+                     });
+    if (it != allowed_ssl_modes.end()) {
+      return it->second;
     }
 
-    allowed_names += allowed_ssl_mode.first;
-  }
+    // build list of allowed modes, but don't mention the default case.
+    std::string allowed_names;
+    for (const auto &allowed_ssl_mode : allowed_ssl_modes) {
+      if (!allowed_names.empty()) {
+        allowed_names.append(",");
+      }
 
-  throw std::invalid_argument("invalid value '" + res.value() + "' for " +
-                              option.name() +
-                              ". Allowed are: " + allowed_names + ".");
-}
+      allowed_names += allowed_ssl_mode.first;
+    }
+
+    throw std::invalid_argument("invalid value '" + value + "' in option " +
+                                option_desc +
+                                ". Allowed values: " + allowed_names);
+  }
+};
+
+class StringsOption {
+ public:
+  std::vector<std::string> operator()(const std::string &value,
+                                      const std::string & /* option_desc */) {
+    return mysql_harness::split_string(value, ',');
+  }
+};
+}  // namespace
+
+using mysql_harness::IntOption;
+using mysql_harness::StringOption;
 
 class PluginConfig : public mysql_harness::BasePluginConfig {
  public:
@@ -108,31 +118,22 @@ class PluginConfig : public mysql_harness::BasePluginConfig {
   mysql_ssl_mode ssl_mode;
   std::string tls_version;
 
-  std::vector<std::string> get_option_strings(
-      const mysql_harness::ConfigSection *section,
-      const std::string &option_name) {
-    auto val = get_option_string(section, option_name);
-
-    return mysql_harness::split_string(val, ',');
-  }
-
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        trace_filename(get_option_string(section, "filename")),
-        module_prefixes(get_option_strings(section, "module_prefix")),
-        srv_address(get_option_string(section, "bind_address")),
-        srv_port(get_uint_option<uint16_t>(section, "port")),
-        srv_protocol(get_option_string(section, "protocol")),
-        ssl_ca(get_option_string(section, "ssl_ca")),
-        ssl_capath(get_option_string(section, "ssl_capath")),
-        ssl_cert(get_option_string(section, "ssl_cert")),
-        ssl_key(get_option_string(section, "ssl_key")),
-        ssl_cipher(get_option_string(section, "ssl_cipher")),
-        ssl_crl(get_option_string(section, "ssl_crl")),
-        ssl_crlpath(get_option_string(section, "ssl_crlpath")),
-        ssl_mode(get_option_ssl_mode(
-            section, mysql_harness::ConfigOption("ssl_mode", "disabled"))),
-        tls_version(get_option_string(section, "tls_version")) {}
+        trace_filename(get_option(section, "filename", StringOption{})),
+        module_prefixes(get_option(section, "module_prefix", StringsOption{})),
+        srv_address(get_option(section, "bind_address", StringOption{})),
+        srv_port(get_option(section, "port", IntOption<uint16_t>{})),
+        srv_protocol(get_option(section, "protocol", StringOption{})),
+        ssl_ca(get_option(section, "ssl_ca", StringOption{})),
+        ssl_capath(get_option(section, "ssl_capath", StringOption{})),
+        ssl_cert(get_option(section, "ssl_cert", StringOption{})),
+        ssl_key(get_option(section, "ssl_key", StringOption{})),
+        ssl_cipher(get_option(section, "ssl_cipher", StringOption{})),
+        ssl_crl(get_option(section, "ssl_crl", StringOption{})),
+        ssl_crlpath(get_option(section, "ssl_crlpath", StringOption{})),
+        ssl_mode(get_option(section, "ssl_mode", SslModeOption{})),
+        tls_version(get_option(section, "tls_version", StringOption{})) {}
 
   std::string get_default(const std::string &option) const override {
     std::error_code ec;

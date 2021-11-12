@@ -26,13 +26,13 @@
 #define MYSQL_HARNESS_PLUGIN_CONFIG_INCLUDED
 
 #include <chrono>
-#include <map>
+#include <limits>
+#include <optional>
 #include <string>
 
 #include "harness_export.h"
-#include "logging/logging.h"
 #include "mysql/harness/config_option.h"
-#include "mysql/harness/filesystem.h"  // Path
+#include "mysql/harness/config_parser.h"
 
 namespace mysql_harness {
 
@@ -51,8 +51,8 @@ class option_empty : public std::invalid_argument {
   using std::invalid_argument::invalid_argument;
 };
 
-/** @class BasePluginConfig
- * @brief Retrieve and manage plugin configuration
+/**
+ * Retrieve and manage plugin configuration.
  *
  * BasePluginConfig is an abstract class which can be used to by plugins
  * to derive their own class retrieving configuration from, for example,
@@ -60,69 +60,29 @@ class option_empty : public std::invalid_argument {
  */
 class HARNESS_EXPORT BasePluginConfig {
  public:
-  using defaults_map = std::map<std::string, std::string>;
-
-  /** @brief Constructor
-   */
-  BasePluginConfig() = default;
-
   /**
    * destructor
    */
   virtual ~BasePluginConfig() = default;
 
-  /** @brief Gets value of given option as string
+  /**
+   * get description of the option.
    *
-   * @throws option_not_present if the required option is missing
-   * @throws option_empty if the required option is present but empty
+   * For example, option wait_timeout in section [routing:homepage] will
+   * return a prefix (without quotes):
    *
-   * @param section Instance of ConfigSection
-   * @param option name of the option
-   * @return Option value as std::string
+   *     option wait_timeout in [routing:homepage]
    *
+   * @param option Name of the option
+   *
+   * @return Prefix as std::string
    */
-  std::string get_option_string(const mysql_harness::ConfigSection *section,
-                                const std::string &option) const;
+  std::string get_option_description(
+      const mysql_harness::ConfigSection *section,
+      const std::string &option) const;
 
-  /** @brief Gets a number of milliseconds from a string value
-   *
-   * The expected option value is a string with floating point number in seconds
-   * (with '.' as a decimal separator) in standard or scientific notation
-   * Example:
-   *  for value = "1.0" expected result is std::chrono:milliseconds(1000)
-   *  for value = "0.01" expected result is std::chrono:milliseconds(10)
-   *  for value = "1.6E-2" expected result is std::chrono:milliseconds(16)
-   *
-   * @param value Instance of ConfigSection
-   * @param min_value Minimum value
-   * @param max_value Maximum value
-   * @param log_prefix prefix to be used when creating a message for the
-   *        exception
-   * @return value converted to milliseconds
-   * @throws std::invalid_argument on errors
-   */
-  static std::chrono::milliseconds get_option_milliseconds(
-      const std::string &value, double min_value = 0.0,
-      double max_value = std::numeric_limits<double>::max(),
-      const std::string &log_prefix = "");
-
-  /** @brief Name of the section */
-  std::string section_name;
-
- protected:
-  /** @brief Constructor for derived classes */
-  BasePluginConfig(const mysql_harness::ConfigSection *section)
-      : section_name(get_section_name(section)) {}
-
-  /** @brief Generate the name for this configuration
-   *
-   * @param section Instance of ConfigSection
-   * @return the name for this configuration
-   */
-  virtual std::string get_section_name(
-      const mysql_harness::ConfigSection *section) const noexcept;
-
-  /** @brief Gets the default for the given option
+  /**
+   * Gets the default for the given option.
    *
    * Gets the default value of the given option. If no default option
    * is available, an empty string is returned.
@@ -132,33 +92,79 @@ class HARNESS_EXPORT BasePluginConfig {
    */
   virtual std::string get_default(const std::string &option) const = 0;
 
-  /** @brief Returns whether the given option is required
+  /**
+   * Returns whether the given option is required.
    *
    * @return bool
    */
   virtual bool is_required(const std::string &option) const = 0;
 
   /**
-   * @brief Returns message prefix for option and section
+   * get option value.
    *
-   * Gets the message prefix of option and section. The option
-   * name will be mentioned as well as the section from the configuration.
+   * gets the option from a config-section (or its default value if it doesn't
+   * exist) and converts it with a transformation function.
    *
-   * For example, option wait_timeout in section [routing:homepage] will
-   * return a prefix (without quotes):
-   *   "option wait_timeout in [routing:homepage]"
-   *
-   * This is useful when reporting errors.
-   *
-   * @param option Name of the option
-   * @param section Pointer to Instance of ConfigSection, nullptr by default
-   * @return Prefix as std::string
+   * @param transformer transformation function. The signature of the
+   * transformation function should be equivalent to:
+   *   @c (const std::string &value, const std::string &option_description)
+   *   and returns the transformed value.
+   * @returns return value of the the transformation function.
    */
-  virtual std::string get_log_prefix(
-      const std::string &option,
-      const mysql_harness::ConfigSection *section = nullptr) const noexcept;
+  template <class Func>
+  decltype(auto) get_option(const mysql_harness::ConfigSection *section,
+                            const std::string &option,
+                            Func &&transformer) const {
+    const auto value = get_option_string_or_default_(section, option);
 
-  /** @brief Gets an unsigned integer using the given option
+    return transformer(value, get_option_description(section, option));
+  }
+
+  /**
+   * get option value.
+   *
+   * gets the option from a config-section and converts it with a transformation
+   * function.
+   *
+   * does not call get_default().
+   *
+   * @param transformer transformation function. The signature of the
+   * transformation function should be equivalent to:
+   *   @c (const std::string &value, const std::string &option_description)
+   *   and returns the transformed value.
+   * @returns transformed value.
+   */
+  template <class Func>
+  decltype(auto) get_option_no_default(
+      const mysql_harness::ConfigSection *section, const std::string &option,
+      Func &&transformer) const {
+    const auto value = get_option_string_(section, option);
+
+    return transformer(value, get_option_description(section, option));
+  }
+
+  /**
+   * Gets value of given option as string.
+   *
+   * @throws option_not_present if the required option is missing
+   * @throws option_empty if the required option is present but empty
+   *
+   * @param section Instance of ConfigSection
+   * @param option name of the option
+   * @return Option value as std::string
+   *
+   */
+  [[deprecated("use get_option(..., StringOption{}) instead")]]
+  // line-break
+  std::string
+  get_option_string(const mysql_harness::ConfigSection *section,
+                    const std::string &option) const {
+    return get_option(section, option,
+                      [](auto const &value, auto const &) { return value; });
+  }
+
+  /**
+   * Gets an unsigned integer using the given option.
    *
    * Gets an unsigned integer using the given option. The type can be
    * any unsigned integer type such as uint16_t.
@@ -176,36 +182,88 @@ class HARNESS_EXPORT BasePluginConfig {
    * @param max_value Maximum value
    * @return value read from the configuration
    */
-  template <typename T>
+  template <class T>
+  [[deprecated("used get_option(..., IntOption<T>{}) instead")]]
+  // line-break
   T get_uint_option(const mysql_harness::ConfigSection *section,
-                    const std::string &option, T min_value = 0,
-                    T max_value = std::numeric_limits<T>::max()) {
-    std::string value = get_option_string(section, option);
-
-    return mysql_harness::option_as_uint(value, get_log_prefix(option, section),
-                                         min_value, max_value);
+                  const std::string &option, T min_value = 0,
+                  T max_value = std::numeric_limits<T>::max()) const {
+    return get_option(section, option, IntOption<T>{min_value, max_value});
   }
 
-  /** @brief Gets a number of milliseconds using the given option
+  /**
+   * Gets a number of milliseconds using the given option.
    *
    * The expected option value is a string with floating point number in seconds
    * (with '.' as a decimal separator) in standard or scientific notation
-   * Example:
-   *  for value = "1.0" expected result is std::chrono:milliseconds(1000)
-   *  for value = "0.01" expected result is std::chrono:milliseconds(10)
-   *  for value = "1.6E-2" expected result is std::chrono:milliseconds(16)
+   *
+   * - for value = "1.0" expected result is std::chrono:milliseconds(1000)
+   * - for value = "0.01" expected result is std::chrono:milliseconds(10)
+   * - for value = "1.6E-2" expected result is std::chrono:milliseconds(16)
    *
    * @param section Instance of ConfigSection
    * @param option Option name in section
    * @param min_value Minimum value
    * @param max_value Maximum value
-   * @return value read from the configuration converted to milliseconds
+   *
+   * @return value converted to milliseconds
    * @throws std::invalid_argument on errors
    */
-  std::chrono::milliseconds get_option_milliseconds(
+  [[deprecated("used get_option(..., MilliSecondsOption{}) instead")]]
+  // line-break
+  std::chrono::milliseconds
+  get_option_milliseconds(
       const mysql_harness::ConfigSection *section, const std::string &option,
       double min_value = 0.0,
-      double max_value = std::numeric_limits<double>::max()) const;
+      double max_value = std::numeric_limits<double>::max()) const {
+    return get_option(section, option,
+                      MilliSecondsOption{min_value, max_value});
+  }
+
+ protected:
+  /**
+   * Constructor for derived classes.
+   */
+  BasePluginConfig(const mysql_harness::ConfigSection *section)
+      : section_name_{get_section_name(section)} {}
+
+  /**
+   * Generate the name for this configuration.
+   *
+   * @param section Instance of ConfigSection
+   * @return the name for this configuration
+   */
+  static std::string get_section_name(
+      const mysql_harness::ConfigSection *section);
+
+ private:
+  /**
+   * Name of the section
+   */
+  std::string section_name_;
+
+  /**
+   * get value of an option from a config-section.
+   *
+   * does not call get_default()
+   *
+   * @return a value of the option if it exists.
+   */
+  std::optional<std::string> get_option_string_(
+      const mysql_harness::ConfigSection *section,
+      const std::string &option) const;
+
+  /**
+   * get value of an option from a config-section.
+   *
+   * gets value from get_default() if the option-value
+   * is not present or empty.
+   *
+   * @return a value of the option if it exists.
+   */
+  std::string get_option_string_or_default_(
+      const mysql_harness::ConfigSection *section,
+      const std::string &option) const;
 };
 
 }  // namespace mysql_harness

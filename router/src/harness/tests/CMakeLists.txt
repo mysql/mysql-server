@@ -75,6 +75,7 @@ SET(TESTS
   test_tcp_address.cc
   test_config_builder.cc
   test_event_state_tracker.cc
+  test_config_option.cc
 )
 
 FOREACH(TEST ${TESTS})

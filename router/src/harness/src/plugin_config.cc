@@ -35,77 +35,67 @@
 
 namespace mysql_harness {
 
+/* static */
 std::string BasePluginConfig::get_section_name(
-    const mysql_harness::ConfigSection *section) const noexcept {
-  auto name = section->name;
-  if (!section->key.empty()) {
-    name += ":" + section->key;
-  }
-  return name;
+    const mysql_harness::ConfigSection *section) {
+  if (section->key.empty()) return section->name;
+
+  return section->name + ":" + section->key;
 }
 
-std::string BasePluginConfig::get_option_string(
+static std::string option_description(const std::string &section_name,
+                                      const std::string &option) {
+  return "option " + option + " in [" + section_name + "]";
+}
+
+std::string BasePluginConfig::get_option_description(
     const mysql_harness::ConfigSection *section,
     const std::string &option) const {
-  bool required = is_required(option);
-  std::string value;
-
-  try {
-    value = section->get(option);
-  } catch (const mysql_harness::bad_option &) {
-    if (required) {
-      throw option_not_present(get_log_prefix(option) + " is required");
-    }
+  auto section_name = section->get_section_name(option);
+  // if get_section_name can't resolve the section name because the option is
+  // unknown, fall back to the current section-name.
+  if (section_name.empty()) {
+    section_name = section_name_;
   }
-
-  if (value.empty()) {
-    if (required) {
-      throw option_empty(get_log_prefix(option) + " needs a value");
-    }
-    value = get_default(option);
-  }
-
-  return value;
+  return option_description(section_name, option);
 }
 
-std::string BasePluginConfig::get_log_prefix(
-    const std::string &option,
-    const mysql_harness::ConfigSection *section) const noexcept {
-  return "option " + option + " in [" +
-         (section ? section->get_section_name(option) : section_name) + "]";
-}
+std::optional<std::string> BasePluginConfig::get_option_string_(
+    const mysql_harness::ConfigSection *section,
+    const std::string &option) const {
+  std::optional<std::string> value;
 
-/*static*/
-std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
-    const std::string &value, double min_value, double max_value,
-    const std::string &log_prefix) {
-  std::istringstream ss(value);
-  // we want to make sure the decinal separator is always '.' regardless of the
-  // user locale settings so we force classic locale
-  ss.imbue(std::locale("C"));
-  double result = 0.0;
-  if (!(ss >> result) || !ss.eof() || (result < min_value - 0.0001) ||
-      (result > max_value + 0.0001)) {
-    std::stringstream os;
-    os << log_prefix << " needs value between " << min_value << " and "
-       << max_value << " inclusive";
-    if (!value.empty()) {
-      os << ", was '" << value << "'";
+  if (is_required(option)) {
+    try {
+      value = section->get(option);
+    } catch (const mysql_harness::bad_option &) {
+      throw option_not_present(get_option_description(section, option) +
+                               " is required");
     }
-    throw std::invalid_argument(os.str());
-  }
 
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::duration<double>(result));
+    if (value->empty()) {
+      throw option_empty(get_option_description(section, option) +
+                         " needs a value");
+    }
+
+    return value;
+  } else {
+    try {
+      return value = section->get(option);
+    } catch (const mysql_harness::bad_option &) {
+      return {};
+    }
+  }
 }
 
-std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
-    const mysql_harness::ConfigSection *section, const std::string &option,
-    double min_value, double max_value) const {
-  std::string value = get_option_string(section, option);
+std::string BasePluginConfig::get_option_string_or_default_(
+    const mysql_harness::ConfigSection *section,
+    const std::string &option) const {
+  std::optional<std::string> value = get_option_string_(section, option);
 
-  return get_option_milliseconds(value, min_value, max_value,
-                                 get_log_prefix(option, section));
+  if (value && !value->empty()) return value.value();
+
+  return get_default(option);
 }
 
 }  // namespace mysql_harness

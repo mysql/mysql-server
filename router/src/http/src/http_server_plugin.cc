@@ -41,6 +41,7 @@
 
 // Harness interface include files
 #include "my_thread.h"  // my_thread_self_setname
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -431,6 +432,9 @@ void HttpServer::remove_route(const std::string &url_regex) {
   }
 }
 
+using mysql_harness::IntOption;
+using mysql_harness::StringOption;
+
 class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
  public:
   std::string static_basedir;
@@ -446,16 +450,16 @@ class HttpServerPluginConfig : public mysql_harness::BasePluginConfig {
 
   explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
       : mysql_harness::BasePluginConfig(section),
-        static_basedir(get_option_string(section, "static_folder")),
-        srv_address(get_option_string(section, "bind_address")),
-        require_realm(get_option_string(section, "require_realm")),
-        ssl_cert(get_option_string(section, "ssl_cert")),
-        ssl_key(get_option_string(section, "ssl_key")),
-        ssl_cipher(get_option_string(section, "ssl_cipher")),
-        ssl_dh_params(get_option_string(section, "ssl_dh_param")),
-        ssl_curves(get_option_string(section, "ssl_curves")),
-        with_ssl(get_uint_option<uint8_t>(section, "ssl", 0, 1)),
-        srv_port(get_uint_option<uint16_t>(section, "port")) {}
+        static_basedir(get_option(section, "static_folder", StringOption{})),
+        srv_address(get_option(section, "bind_address", StringOption{})),
+        require_realm(get_option(section, "require_realm", StringOption{})),
+        ssl_cert(get_option(section, "ssl_cert", StringOption{})),
+        ssl_key(get_option(section, "ssl_key", StringOption{})),
+        ssl_cipher(get_option(section, "ssl_cipher", StringOption{})),
+        ssl_dh_params(get_option(section, "ssl_dh_param", StringOption{})),
+        ssl_curves(get_option(section, "ssl_curves", StringOption{})),
+        with_ssl(get_option(section, "ssl", IntOption<bool>{})),
+        srv_port(get_option(section, "port", IntOption<uint16_t>{})) {}
 
   std::string get_default_ciphers() const {
     return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
