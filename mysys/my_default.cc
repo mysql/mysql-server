@@ -1194,8 +1194,10 @@ static mysql_file_getline_ret mysql_file_getline(char *buff, int size,
   static unsigned char my_key[LOGIN_KEY_LEN];
   int length = 0, cipher_len = 0;
 
-  /* If the supplied buff/size is enough to store the line, then we return the
-   * buff itself. In this case, we use this noop deleter */
+  /*
+    If the supplied buff/size is enough to store the line, then we return the
+    buff itself. In this case, we use this noop deleter
+  */
   static auto noop_free = [](void *) noexcept {};
 
   if (is_login_file) {
@@ -1206,31 +1208,25 @@ static mysql_file_getline_ret mysql_file_getline(char *buff, int size,
           LOGIN_KEY_LEN)
         return {nullptr, noop_free};
     }
-
     if (mysql_file_fread(file, len_buf, MAX_CIPHER_STORE_LEN, MYF(MY_WME)) ==
         MAX_CIPHER_STORE_LEN) {
       cipher_len = sint4korr(len_buf);
+      /*
+        This is safe to do since mysql_config_editor never writes
+        lines longer than 4k
+      */
+      if (cipher_len > size) return {nullptr, noop_free};
     } else
       return {nullptr, noop_free};
-
-    mysql_file_getline_ret str = {buff, noop_free};
-    if (cipher_len >= size) {
-      char *strbuff = static_cast<char *>(malloc(cipher_len + 1));
-      if (strbuff == nullptr) return {nullptr, noop_free};
-      str = {strbuff, std::free};
-    }
-
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
-    if ((length = my_aes_decrypt(
-             cipher, cipher_len, pointer_cast<unsigned char *>(str.get()),
-             my_key, LOGIN_KEY_LEN, my_aes_128_ecb, nullptr)) < 0) {
+    if ((length =
+             my_aes_decrypt(cipher, cipher_len, (unsigned char *)buff, my_key,
+                            LOGIN_KEY_LEN, my_aes_128_ecb, nullptr)) < 0) {
       /* Attempt to decrypt failed. */
       return {nullptr, noop_free};
     }
-    str.get()[length] = 0;
-
-    return str;
-
+    buff[length] = 0;
+    return {buff, noop_free};
   } else {
     mysql_file_getline_ret line{nullptr, noop_free}; /* The output line */
     size_t lineLen = 0;                              /* Cached length of line */
