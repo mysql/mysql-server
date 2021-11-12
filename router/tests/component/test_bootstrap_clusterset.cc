@@ -35,7 +35,6 @@
 #include <rapidjson/writer.h>
 
 #include "dim.h"
-#include "filesystem_utils.h"
 #include "harness_assert.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
