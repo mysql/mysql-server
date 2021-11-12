@@ -38,7 +38,6 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/plugin_config.h"
 #include "mysqlrouter/cluster_metadata_dynamic_state.h"
-#include "mysqlrouter/plugin_config.h"
 #include "tcp_address.h"
 
 extern "C" {
