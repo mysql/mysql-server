@@ -41,7 +41,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "filesystem_utils.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -200,7 +199,7 @@ class TestRestApiEnable : public RouterComponentTest {
   }
 
   std::string read_cert(CertFile cert) const {
-    return read_file(datadir_path.join(cert_filenames.at(cert)).str());
+    return get_file_output(datadir_path.join(cert_filenames.at(cert)).str());
   }
 
   bool certificate_files_not_modified(
@@ -860,11 +859,13 @@ TEST_P(RestApiInvalidUserCerts,
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
        cert_file_t::k_router_cert}));
-  EXPECT_EQ(read_file(datadir_path.join(ca_key_filename).str()), GetParam());
-  EXPECT_EQ(read_file(datadir_path.join(ca_cert_filename).str()), GetParam());
-  EXPECT_EQ(read_file(datadir_path.join(router_key_filename).str()),
+  EXPECT_EQ(get_file_output(datadir_path.join(ca_key_filename).str()),
             GetParam());
-  EXPECT_EQ(read_file(datadir_path.join(router_cert_filename).str()),
+  EXPECT_EQ(get_file_output(datadir_path.join(ca_cert_filename).str()),
+            GetParam());
+  EXPECT_EQ(get_file_output(datadir_path.join(router_key_filename).str()),
+            GetParam());
+  EXPECT_EQ(get_file_output(datadir_path.join(router_cert_filename).str()),
             GetParam());
   assert_rest_config(config_path, true);
 

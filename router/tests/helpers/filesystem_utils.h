@@ -32,6 +32,4 @@
 void check_config_file_access_rights(const std::string &file_name,
                                      const bool read_only);
 
-std::string read_file(const std::string &filename);
-
 #endif  // MYSQLROUTER_TESTS_FILESYSTEM_UTILS_INCLUDED

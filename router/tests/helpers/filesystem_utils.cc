@@ -190,10 +190,3 @@ void check_config_file_access_rights(const std::string &file_name,
               " (only RW for file's owner is allowed).";
 #endif
 }
-
-std::string read_file(const std::string &filename) {
-  std::ifstream file_stream(filename);
-  std::stringstream buffer;
-  buffer << file_stream.rdbuf();
-  return buffer.str();
-}
