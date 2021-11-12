@@ -8685,6 +8685,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   assert(field_name == nullptr);
   field_name = arg->item_name.ptr();
 
+  // Always allow a "read" from the default value.
+  field->table->mark_column_used(field, MARK_COLUMNS_READ);
+
   return false;
 }
 
@@ -8694,6 +8697,8 @@ void Item_default_value::bind_fields() {
   field->move_field_offset(
       (ptrdiff_t)(field->table->s->default_values - m_rowbuffer_saved));
   m_rowbuffer_saved = field->table->s->default_values;
+  // Always allow a "read" from the default value.
+  field->table->mark_column_used(field, MARK_COLUMNS_READ);
 }
 
 void Item_default_value::print(const THD *thd, String *str,
