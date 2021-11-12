@@ -41,6 +41,7 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysqld_error.h"
+#include "sql/check_stack.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/key_spec.h"
@@ -1031,6 +1032,8 @@ class PT_option_value_list : public PT_option_value_list_head {
       : super(delimiter_pos_arg, tail, tail_pos), head(head_arg) {}
 
   bool contextualize(Parse_context *pc) override {
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
     return head->contextualize(pc) || super::contextualize(pc);
   }
 };
