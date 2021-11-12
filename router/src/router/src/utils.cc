@@ -51,9 +51,8 @@
 #include <io.h>
 #include <stdio.h>
 #include <windows.h>
-namespace {
-extern "C" bool g_windows_service;
-}
+
+extern "C" bool g_windows_service = false;
 #endif
 
 #include "mysql/harness/filesystem.h"

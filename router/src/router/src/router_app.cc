@@ -43,6 +43,7 @@
 #include "common.h"
 #include "config_files.h"
 #include "config_generator.h"
+#include "default_paths.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
@@ -93,46 +94,6 @@ using mysqlrouter::SysUserOperationsBase;
 
 static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
-
-// throws std::runtime_error, ...?
-/*static*/
-std::string MySQLRouter::find_full_path(const std::string &argv0) {
-#ifdef _WIN32
-  UNREFERENCED_PARAMETER(argv0);
-
-  // the bin folder is not usually in the path, just the lib folder
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
-    return std::string(szPath);
-#else
-  mysql_harness::Path p_argv0(argv0);
-  // Path normalizes '\' to '/'
-  if (p_argv0.str().find('/') != std::string::npos) {
-    // Path is either absolute or relative to the current working dir, so
-    // we can use realpath() to find the full absolute path
-    mysql_harness::Path path2(p_argv0.real_path());
-    const char *tmp = path2.c_str();
-    std::string path(tmp);
-    return path;
-  } else {
-    // Program was found via PATH lookup by the shell, so we
-    // try to find the program in one of the PATH dirs
-    std::string path(std::getenv("PATH"));
-    char *last = nullptr;
-    char *p = strtok_r(&path[0], path_sep.c_str(), &last);
-    while (p) {
-      std::string tmp(std::string(p) + dir_sep + argv0);
-      if (mysqlrouter::my_check_access(tmp)) {
-        mysql_harness::Path path1(tmp.c_str());
-        mysql_harness::Path path2(path1.real_path());
-        return path2.str();
-      }
-      p = strtok_r(nullptr, path_sep.c_str(), &last);
-    }
-  }
-#endif
-  throw std::logic_error("Could not find own installation directory");
-}
 
 namespace {
 
@@ -212,7 +173,9 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
       arg_handler_(),
       can_start_(false),
       showing_info_(false),
-      origin_(mysql_harness::Path(find_full_path(program_name)).dirname()),
+      origin_(mysql_harness::Path(
+                  mysqlrouter::find_full_executable_path(program_name))
+                  .dirname()),
       out_stream_(out_stream),
       err_stream_(err_stream)
 #ifndef _WIN32
@@ -422,70 +385,17 @@ void MySQLRouter::init_keyring_using_prompted_password() {
                                        master_key, false);
 }
 
-/** @brief Returns `<path>` if it is absolute[*], `<basedir>/<path>` otherwise
- *
- * [*] `<path>` is considered absolute if it starts with one of:
- *   Unix:    '/'
- *   Windows: '/' or '\' or '.:' (where . is any character)
- *   both:    '{origin}' or 'ENV{'
- * else:
- *   it's considered relative (empty `<path>` is also relative in such respect)
- *
- * @param path Absolute or relative path; absolute path may start with
- *        '{origin}' or 'ENV{'
- * @param basedir Path to grandparent directory of mysqlrouter.exe, i.e.
- *        for '/path/to/bin/mysqlrouter.exe/' it will be '/path/to'
- */
-static std::string ensure_absolute_path(const std::string &path,
-                                        const std::string &basedir) {
-  if (path.empty()) return basedir;
-  if (path.compare(0, strlen("{origin}"), "{origin}") == 0) return path;
-  if (path.find("ENV{") != std::string::npos) return path;
-#ifdef _WIN32
-  // if the path is not absolute, it must be relative to the origin
-  return (mysql_harness::Path(path).is_absolute() ? path
-                                                  : basedir + "\\" + path);
-#else
-  // if the path is not absolute, it must be relative to the origin
-  return (mysql_harness::Path(path).is_absolute() ? path
-                                                  : basedir + "/" + path);
-#endif
-}
-
+#if 0
 /*static*/
 std::map<std::string, std::string> MySQLRouter::get_default_paths(
     const mysql_harness::Path &origin) {
-  std::string basedir = mysql_harness::Path(origin)
-                            .dirname()
-                            .str();  // throws std::invalid_argument
-
-  std::map<std::string, std::string> params = {
-      {"program", kProgramName},
-      {"origin", origin.str()},
-#ifdef _WIN32
-      {"event_source_name", MYSQL_ROUTER_PACKAGE_NAME},
-#endif
-      {"logging_folder",
-       ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
-      {"plugin_folder",
-       ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
-      {"runtime_folder",
-       ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
-      {"config_folder",
-       ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
-      {"data_folder", ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
-
-  // foreach param, s/{origin}/<basedir>/
-  for (auto it : params) {
-    std::string &param = params.at(it.first);
-    param.assign(
-        mysqlrouter::substitute_variable(param, "{origin}", origin.str()));
-  }
-  return params;
+  return mysqlrouter::get_default_paths(origin);
 }
+#endif
 
 std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
-  return get_default_paths(origin_);  // throws std::invalid_argument
+  return mysqlrouter::get_default_paths(
+      origin_);  // throws std::invalid_argument
 }
 
 /*static*/

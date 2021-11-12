@@ -53,6 +53,7 @@
 #include "certificate_handler.h"
 #include "common.h"
 #include "config_builder.h"
+#include "default_paths.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
@@ -2002,53 +2003,18 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id,
 #ifdef _WIN32
 // This is only for Windows
 static std::string find_plugin_path() {
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    mysql_harness::Path mypath(szPath);
-    mysql_harness::Path mypath2(mypath.dirname().dirname());
-    mypath2.append("lib");
-    return std::string(mypath2.str());
+  std::array<char, MAX_PATH> szPath;
+  if (GetModuleFileName(NULL, szPath.data(), szPath.size()) != 0) {
+    // bin/mysqlrouter/../../lib/
+    auto p = mysql_harness::Path(szPath.data()).dirname().dirname();
+
+    p.append("lib");
+
+    return p.str();
   }
   throw std::logic_error("Could not find own installation directory");
 }
 #endif
-
-static std::string find_executable_path(const std::string &program_name) {
-#ifdef _WIN32
-  (void)program_name;
-  // the bin folder is not usually in the path, just the lib folder
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    char *pc = szPath - 1;
-    while (*++pc)
-      if (*pc == '\\') *pc = '/';
-    return std::string(szPath);
-  }
-#else
-  harness_assert(!program_name.empty());
-
-  if (program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(program_name.c_str(), nullptr);
-    harness_assert(tmp);  // will fail if program_name provides bogus path
-    std::string path(tmp);
-    free(tmp);
-    return path;
-  } else {
-    std::string path(std::getenv("PATH"));
-    char *last = nullptr;
-    char *p = strtok_r(&path[0], ":", &last);
-    while (p) {
-      if (*p && p[strlen(p) - 1] == '/') p[strlen(p) - 1] = 0;
-      std::string tmp(std::string(p) + "/" + program_name);
-      if (access(tmp.c_str(), R_OK | X_OK) == 0) {
-        return tmp;
-      }
-      p = strtok_r(nullptr, ":", &last);
-    }
-  }
-#endif
-  throw std::logic_error("Could not find own installation directory");
-}
 
 namespace {
 
@@ -3260,8 +3226,9 @@ void ConfigGenerator::create_start_script(
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
          << "\"" << directory << "\\"
          << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  script << "Start-Process \"" << find_executable_path(program_name)
-         << "\" \" -c " << directory << "/mysqlrouter.conf\""
+  script << "Start-Process \""
+         << mysqlrouter::find_full_executable_path(program_name) << "\" \" -c "
+         << directory << "/mysqlrouter.conf\""
          << " -WindowStyle Hidden" << std::endl;
   script.close();
 
@@ -3290,9 +3257,10 @@ void ConfigGenerator::create_start_script(
 
   // Router launch command
   {
-    std::string main_cmd = "ROUTER_PID=$basedir/mysqlrouter.pid " +
-                           find_executable_path(program_name) +
-                           " -c $basedir/mysqlrouter.conf ";
+    std::string main_cmd =
+        "ROUTER_PID=$basedir/mysqlrouter.pid " +
+        mysqlrouter::find_full_executable_path(program_name) +
+        " -c $basedir/mysqlrouter.conf ";
 
     if (options.find("user") != options.end()) {
       // if --user was given, we use it to generate shell code that works for

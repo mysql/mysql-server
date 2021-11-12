@@ -25,6 +25,8 @@
 #include "mysqlrouter/windows/service_operations.h"
 #include "mysqlrouter/windows/router_service_names.h"
 
+#ifdef _WIN32
+
 void add_service_options(CmdArgHandler &arg_handler,
                          ServiceConfOptions &conf_opts) {
   using OptionNames = CmdOption::OptionNames;
@@ -85,3 +87,4 @@ void add_service_options(CmdArgHandler &arg_handler,
             name.empty() ? kDefaultServiceDisplayName : name;
       });
 }
+#endif
