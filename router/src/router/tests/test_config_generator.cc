@@ -37,7 +37,9 @@
 #include <stdexcept>
 #include <streambuf>
 
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <mysql.h>
 
@@ -49,6 +51,7 @@
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
 #include "mysql_session_replayer.h"
@@ -4122,8 +4125,15 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
       "hostname.");
 }
 
+class GlobalTestEnv : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    auto init_res = net::impl::socket::init();
+    ASSERT_TRUE(init_res) << init_res.error();
+  }
+};
+
 int main(int argc, char *argv[]) {
-  init_windows_sockets();
   g_origin = mysql_harness::Path(argv[0]).dirname();
   g_cwd = mysql_harness::Path(argv[0]).dirname().str();
 
@@ -4131,6 +4141,8 @@ int main(int argc, char *argv[]) {
   // "/fake/path/to/mysqlrouter", but unfortunately, this path goes through
   // realpath() and therefore has to actually exist.
   g_program_name = "/";
+
+  ::testing::AddGlobalTestEnvironment(new GlobalTestEnv);
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

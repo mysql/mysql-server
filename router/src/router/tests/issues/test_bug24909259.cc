@@ -34,7 +34,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "dim.h"
 #include "keyring/keyring_manager.h"
@@ -43,7 +43,6 @@
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_app.h"
-#include "router_test_helpers.h"
 
 static mysql_harness::Path g_origin;
 
