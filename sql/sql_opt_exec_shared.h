@@ -50,7 +50,7 @@ struct POSITION;
    before-first-table" (firstmatch_return==PRE_FIRST_PLAN_IDX) from "No
    FirstMatch" (firstmatch_return==NO_PLAN_IDX).
 */
-typedef int8 plan_idx;
+using plan_idx = int;
 #define NO_PLAN_IDX (-2)  ///< undefined index
 #define PRE_FIRST_PLAN_IDX \
   (-1)  ///< right before the first (first's index is 0)
@@ -487,7 +487,10 @@ class QEP_shared_owner {
   // (before optimization).
   plan_idx idx() const { return m_qs->idx(); }
   void set_idx(plan_idx i) { return m_qs->set_idx(i); }
-  qep_tab_map idx_map() const { return qep_tab_map{1} << m_qs->idx(); }
+  qep_tab_map idx_map() const {
+    assert(m_qs->idx() < static_cast<plan_idx>(CHAR_BIT * sizeof(qep_tab_map)));
+    return qep_tab_map{1} << m_qs->idx();
+  }
 
   TABLE *table() const { return m_qs->table(); }
   POSITION *position() const { return m_qs->position(); }

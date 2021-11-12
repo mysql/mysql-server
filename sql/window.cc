@@ -1086,6 +1086,12 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
                             List<Window> *windows) {
   // Only possible at resolution time.
   assert(thd->lex->current_query_block()->first_execution);
+
+  if (windows->elements > kMaxWindows) {
+    my_error(ER_TOO_MANY_WINDOWS, MYF(0), windows->elements, kMaxWindows);
+    return true;
+  }
+
   /*
     We can encounter aggregate functions in the ORDER BY and PARTITION clauses
     of window function, so make sure we allow it:
