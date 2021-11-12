@@ -1076,7 +1076,8 @@ void JOIN::create_access_paths_for_zero_rows() {
     // Send no row at all (so also no need to check HAVING or LIMIT).
     m_root_access_path = NewZeroRowsAccessPath(thd, zero_result_cause);
   }
-  m_root_access_path = attach_access_path_for_delete(m_root_access_path);
+  m_root_access_path =
+      attach_access_path_for_update_or_delete(m_root_access_path);
 }
 
 /**

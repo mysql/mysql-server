@@ -41,7 +41,6 @@ class PT_select_var;
 class Query_expression;
 class THD;
 struct CHARSET_INFO;
-struct TABLE_LIST;
 template <class Element_type>
 class mem_root_deque;
 
@@ -162,18 +161,6 @@ class Query_result {
     @return true if it is an interceptor, false otherwise
   */
   virtual bool is_interceptor() const { return false; }
-
-  /**
-    If this Query_result performs modifications to tables: tells if it modifies
-    the given table's row as it's read (a.k.a. "on the fly"), or rather buffers
-    it to a temporary structure and modifies it in a post-all-reads phase.
-    @param t  TABLE to answer for
-    @return   true if "on the fly"
-  */
-  virtual bool immediate_update(TABLE_LIST *t [[maybe_unused]]) const {
-    assert(false);
-    return false;
-  }
 };
 
 /*

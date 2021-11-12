@@ -1009,7 +1009,7 @@ class JOIN {
   /** @{ Helpers for create_access_paths. */
   AccessPath *create_root_access_path_for_join();
   AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path);
-  AccessPath *attach_access_path_for_delete(AccessPath *path);
+  AccessPath *attach_access_path_for_update_or_delete(AccessPath *path);
   /** @} */
 
   /**

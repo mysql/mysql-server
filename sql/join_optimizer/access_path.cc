@@ -94,6 +94,18 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
+AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map update_tables,
+                                    table_map immediate_tables) {
+  assert(IsSubset(immediate_tables, update_tables));
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::UPDATE_ROWS;
+  path->update_rows().child = child;
+  path->update_rows().tables_to_update = update_tables;
+  path->update_rows().immediate_tables = immediate_tables;
+  return path;
+}
+
 static AccessPath *FindSingleAccessPathOfType(AccessPath *path,
                                               AccessPath::Type type) {
   AccessPath *found_path = nullptr;
@@ -1104,6 +1116,19 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         iterator = NewIterator<DeleteRowsIterator>(
             thd, mem_root, move(job.children[0]), join,
             param.tables_to_delete_from, param.immediate_tables);
+        break;
+      }
+      case AccessPath::UPDATE_ROWS: {
+        const auto &param = path->update_rows();
+        if (job.children.is_null()) {
+          SetupJobsForChildren(mem_root, param.child, join,
+                               eligible_for_batch_mode, &job, &todo);
+          continue;
+        }
+        // TODO(khatlen): We should have an iterator for the update operation.
+        // For now, return the child. Query_result_update will act as a
+        // substitute for the update rows iterator.
+        iterator = std::move(job.children[0]);
         break;
       }
     }

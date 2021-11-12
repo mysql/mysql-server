@@ -103,6 +103,7 @@
 #include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
+#include "sql/sql_update.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Mem_root_vector
 #include "sql/visible_fields.h"
@@ -1442,6 +1443,9 @@ AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
       case AccessPath::DELETE_ROWS:
         bottom_of_table_path->delete_rows().child = path;
         break;
+      case AccessPath::UPDATE_ROWS:
+        bottom_of_table_path->update_rows().child = path;
+        break;
       case AccessPath::ZERO_ROWS:
         // There's nothing to materialize for ZERO_ROWS, so we can drop the
         // entire MATERIALIZE node.
@@ -2761,29 +2765,51 @@ static AccessPath *ConnectJoins(
   return path;
 }
 
-static table_map get_delete_target_tables(const JOIN *join) {
-  table_map delete_tables = 0;
+static table_map get_update_or_delete_target_tables(const JOIN *join) {
+  table_map target_tables = 0;
 
   for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
-    if (tr->is_deleted()) {
-      delete_tables |= tr->map();
+    if (tr->updating) {
+      target_tables |= tr->map();
     }
   }
 
-  return delete_tables;
+  return target_tables;
 }
 
-AccessPath *JOIN::attach_access_path_for_delete(AccessPath *path) {
-  // If this is the top-level query block of a multi-table DELETE statement,
-  // wrap the path in a DELETE_ROWS path.
-  if (thd->lex->m_sql_cmd != nullptr &&
-      thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_DELETE_MULTI &&
-      query_block->outer_query_block() == nullptr) {
-    const table_map delete_tables = get_delete_target_tables(this);
+// If this is the top-level query block of a multi-table UPDATE or multi-table
+// DELETE statement, wrap the path in an UPDATE_ROWS or DELETE_ROWS path.
+AccessPath *JOIN::attach_access_path_for_update_or_delete(AccessPath *path) {
+  if (thd->lex->m_sql_cmd == nullptr) {
+    // It is not an UPDATE or DELETE statement.
+    return path;
+  }
+
+  if (query_block->outer_query_block() != nullptr) {
+    // It is not the top-level query block.
+    return path;
+  }
+
+  const enum_sql_command command = thd->lex->m_sql_cmd->sql_command_code();
+
+  // Single-table update or delete does not use access paths and iterators in
+  // the old optimizer. (The hypergraph optimizer uses a unified code path for
+  // single-table and multi-table, and always identifies itself as MULTI, so
+  // these asserts hold for both optimizers.)
+  assert(command != SQLCOM_UPDATE);
+  assert(command != SQLCOM_DELETE);
+
+  if (command == SQLCOM_UPDATE_MULTI) {
+    const table_map target_tables = get_update_or_delete_target_tables(this);
+    path = NewUpdateRowsAccessPath(
+        thd, path, target_tables,
+        GetImmediateUpdateTable(this, IsSingleBitSet(target_tables)));
+  } else if (command == SQLCOM_DELETE_MULTI) {
+    const table_map target_tables = get_update_or_delete_target_tables(this);
     path =
-        NewDeleteRowsAccessPath(thd, path, delete_tables,
-                                GetImmediateDeleteTables(this, delete_tables));
+        NewDeleteRowsAccessPath(thd, path, target_tables,
+                                GetImmediateDeleteTables(this, target_tables));
     EstimateDeleteRowsCost(path);
   }
 
@@ -2795,7 +2821,7 @@ void JOIN::create_access_paths() {
 
   AccessPath *path = create_root_access_path_for_join();
   path = attach_access_paths_for_having_and_limit(path);
-  path = attach_access_path_for_delete(path);
+  path = attach_access_path_for_update_or_delete(path);
 
   m_root_access_path = path;
 }

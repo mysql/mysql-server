@@ -1073,6 +1073,26 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join,
       children.push_back({path->delete_rows().child});
       break;
     }
+    case AccessPath::UPDATE_ROWS: {
+      string tables;
+      for (TABLE_LIST *t = join->query_block->leaf_tables; t != nullptr;
+           t = t->next_leaf) {
+        if (Overlaps(t->map(), path->update_rows().tables_to_update)) {
+          if (!tables.empty()) {
+            tables.append(", ");
+          }
+          tables.append(t->alias);
+          if (Overlaps(t->map(), path->update_rows().immediate_tables)) {
+            tables.append(" (immediate)");
+          } else {
+            tables.append(" (buffered)");
+          }
+        }
+      }
+      description.push_back(string("Update ") + tables);
+      children.push_back({path->update_rows().child});
+      break;
+    }
   }
   if (include_costs && path->num_output_rows >= 0.0) {
     double first_row_cost;

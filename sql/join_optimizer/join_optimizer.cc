@@ -3888,6 +3888,9 @@ string PrintAccessPath(const AccessPath &path, const JoinHypergraph &graph,
     case AccessPath::DELETE_ROWS:
       str += "DELETE_ROWS";
       break;
+    case AccessPath::UPDATE_ROWS:
+      str += "UPDATE_ROWS";
+      break;
   }
 
   str += StringPrintf(", cost=%.1f, init_cost=%.1f", path.cost, path.init_cost);

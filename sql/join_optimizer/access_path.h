@@ -253,6 +253,7 @@ struct AccessPath {
 
     // Access paths that modify tables.
     DELETE_ROWS,
+    UPDATE_ROWS,
   } type;
 
   /// A general enum to describe the safety of a given operation.
@@ -829,6 +830,14 @@ struct AccessPath {
     assert(type == DELETE_ROWS);
     return u.delete_rows;
   }
+  auto &update_rows() {
+    assert(type == UPDATE_ROWS);
+    return u.update_rows;
+  }
+  const auto &update_rows() const {
+    assert(type == UPDATE_ROWS);
+    return u.update_rows;
+  }
 
  private:
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
@@ -1184,6 +1193,11 @@ struct AccessPath {
       table_map tables_to_delete_from;
       table_map immediate_tables;
     } delete_rows;
+    struct {
+      AccessPath *child;
+      table_map tables_to_update;
+      table_map immediate_tables;
+    } update_rows;
   } u;
 };
 static_assert(std::is_trivially_destructible<AccessPath>::value,
@@ -1676,6 +1690,10 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
 }
 
 AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
+                                    table_map delete_tables,
+                                    table_map immediate_tables);
+
+AccessPath *NewUpdateRowsAccessPath(THD *thd, AccessPath *child,
                                     table_map delete_tables,
                                     table_map immediate_tables);
 

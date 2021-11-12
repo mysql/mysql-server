@@ -134,8 +134,6 @@ class Query_result_update final : public Query_result_interceptor {
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
-
-  bool immediate_update(TABLE_LIST *t) const override;
 };
 
 class Sql_cmd_update final : public Sql_cmd_dml {

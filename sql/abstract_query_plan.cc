@@ -657,6 +657,11 @@ void Join_plan::construct(Join_nest *nest_ctx, AccessPath *path) {
                 path->delete_rows().child);
       break;
     }
+    case AccessPath::UPDATE_ROWS: {
+      construct(new (m_thd->mem_root) Join_nest(nest_ctx),
+                path->update_rows().child);
+      break;
+    }
     /////////////// Not fully supported yet ////////////////////////////
     // TODO: Some new Accesspath operations, how to handle these?
     // Believe they are only some unexposed path types used as part of
