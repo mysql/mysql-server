@@ -174,12 +174,13 @@ struct Key_sort_buffer_cursor : public Load_cursor {
 struct File_cursor : public Load_cursor {
   /** Constructor.
   @param[in] builder            The index build driver.
-  @param[in] fd                 File descriptor to read from.
+  @param[in] file               File to read from.
   @param[in] buffer_size        IO buffer size to use for reads.
   @param[in] size               Size of the file in bytes.
   @param[in,out] stage          PFS observability. */
-  File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-              os_offset_t size, Alter_stage *stage) noexcept;
+  File_cursor(Builder *builder, const Unique_os_file_descriptor &file,
+              size_t buffer_size, os_offset_t size,
+              Alter_stage *stage) noexcept;
 
   /** Destructor. */
   ~File_cursor() override = default;
@@ -238,12 +239,14 @@ dberr_t File_reader::get_tuple(Builder *builder, mem_heap_t *heap,
   }
 }
 
-File_cursor::File_cursor(Builder *builder, os_fd_t fd, size_t buffer_size,
-                         os_offset_t size, Alter_stage *stage) noexcept
+File_cursor::File_cursor(Builder *builder,
+                         const Unique_os_file_descriptor &file,
+                         size_t buffer_size, os_offset_t size,
+                         Alter_stage *stage) noexcept
     : Load_cursor(builder, nullptr),
-      m_reader(fd, builder->index(), buffer_size, size),
+      m_reader(file, builder->index(), buffer_size, size),
       m_stage(stage) {
-  ut_a(fd != OS_FD_CLOSED);
+  ut_a(m_reader.m_file.is_open());
 }
 
 dberr_t File_cursor::open() noexcept {
@@ -344,10 +347,10 @@ bool Merge_cursor::Compare::operator()(const File_cursor *lhs,
 
 dberr_t Merge_cursor::add_file(const ddl::file_t &file,
                                size_t buffer_size) noexcept {
-  ut_a(file.m_fd != OS_FD_CLOSED);
+  ut_a(file.m_file.is_open());
 
   auto cursor = ut::new_withkey<File_cursor>(
-      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_fd, buffer_size,
+      ut::make_psi_memory_key(mem_key_ddl), m_builder, file.m_file, buffer_size,
       file.m_size, m_stage);
 
   if (cursor == nullptr) {
@@ -567,8 +570,6 @@ Builder::Thread_ctx::Thread_ctx(size_t id, Key_sort_buffer *key_buffer) noexcept
     : m_id(id), m_key_buffer(key_buffer) {}
 
 Builder::Thread_ctx::~Thread_ctx() noexcept {
-  file_destroy(&m_file);
-
   if (m_key_buffer != nullptr) {
     ut::delete_(m_key_buffer);
   }
@@ -1143,21 +1144,21 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
   return DB_SUCCESS;
 }
 
-os_fd_t Builder::create_file(ddl::file_t &file) noexcept {
-  ut_a(file.m_fd == OS_FD_CLOSED);
+bool Builder::create_file(ddl::file_t &file) noexcept {
+  ut_a(!file.m_file.is_open());
 
-  if (ddl::file_create(&file, m_tmpdir) != OS_FD_CLOSED) {
+  if (ddl::file_create(&file, m_tmpdir)) {
     MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-    ut_a(file.m_fd != OS_FD_CLOSED);
-    return file.m_fd;
+    ut_a(file.m_file.is_open());
+    return true;
   } else {
-    return OS_FD_CLOSED;
+    return false;
   }
 }
 
 dberr_t Builder::append(ddl::file_t &file, IO_buffer io_buffer) noexcept {
-  const auto fd = file.m_fd;
-  auto err = ddl::pwrite(fd, io_buffer.first, io_buffer.second, file.m_size);
+  auto err = ddl::pwrite(file.m_file.get(), io_buffer.first, io_buffer.second,
+                         file.m_size);
 
   if (err != DB_SUCCESS) {
     set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1468,10 +1469,8 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
 
     IF_ENABLED("ddl_ins_spatial_fail", set_error(DB_FAIL); return get_error();)
 
-    if (thread_ctx->m_file.m_fd == OS_FD_CLOSED) {
-      auto fd = create_file(thread_ctx->m_file);
-
-      if (fd == OS_FD_CLOSED) {
+    if (!thread_ctx->m_file.m_file.is_open()) {
+      if (!create_file(thread_ctx->m_file)) {
         set_error(DB_IO_ERROR);
         return get_error();
       }
@@ -1493,7 +1492,8 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
       }
       ut_a(n >= IO_BLOCK_SIZE);
 
-      auto err = ddl::pwrite(file.m_fd, io_buffer.first, n, file.m_size);
+      auto err =
+          ddl::pwrite(file.m_file.get(), io_buffer.first, n, file.m_size);
 
       if (err != DB_SUCCESS) {
         set_error(DB_TEMP_FILE_WRITE_FAIL);
@@ -1630,15 +1630,6 @@ dberr_t Builder::dtuple_copy_blobs(dtuple_t *dtuple, ulint *offsets,
   return DB_SUCCESS;
 }
 
-void Builder::file_destroy(ddl::file_t *file) noexcept {
-  ut_ad(!srv_read_only_mode);
-
-  if (file->m_fd != OS_FD_CLOSED) {
-    ddl::file_destroy_low(file->m_fd);
-    file->m_fd = OS_FD_CLOSED;
-  }
-}
-
 dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
   Merge_cursor cursor(this, nullptr, m_local_stage);
   const auto buffer_size = m_ctx.scan_buffer_size(m_thread_ctxs.size());
@@ -1725,7 +1716,7 @@ dberr_t Builder::btree_build() noexcept {
   dberr_t err{DB_SUCCESS};
 
   for (auto thread_ctx : m_thread_ctxs) {
-    if (thread_ctx->m_file.m_fd == OS_FD_CLOSED) {
+    if (!thread_ctx->m_file.m_file.is_open()) {
       continue;
     }
 
@@ -1888,9 +1879,7 @@ dberr_t Builder::fts_sort_and_build() noexcept {
   auto err = fts.m_ptr->insert(this);
 
   for (auto thread_ctx : m_thread_ctxs) {
-    if (thread_ctx->m_file.m_fd != OS_FD_CLOSED) {
-      file_destroy(&thread_ctx->m_file);
-    }
+    thread_ctx->m_file.m_file.close();
   }
 
   if (fts.m_ptr != nullptr) {
@@ -1950,8 +1939,7 @@ dberr_t Builder::merge_sort(size_t thread_id) noexcept {
 
   /* If there is a single (or no) list of rows then there is nothing to merge
   and the file must already be sorted. */
-  if (thread_ctx->m_file.m_fd != OS_FD_CLOSED &&
-      thread_ctx->m_offsets.size() > 1) {
+  if (thread_ctx->m_file.m_file.is_open() && thread_ctx->m_offsets.size() > 1) {
     Merge_file_sort::Context merge_ctx;
     Dup dup = {m_index, m_ctx.m_table, m_ctx.m_col_map, 0};
 
@@ -2008,9 +1996,7 @@ dberr_t Builder::finish() noexcept {
   ut_a(get_state() == State::FINISH);
 
   for (auto thread_ctx : m_thread_ctxs) {
-    if (thread_ctx->m_file.m_fd != OS_FD_CLOSED) {
-      file_destroy(&thread_ctx->m_file);
-    }
+    thread_ctx->m_file.m_file.close();
   }
 
   dberr_t err{DB_SUCCESS};
@@ -2135,7 +2121,5 @@ dberr_t Loader::Task::operator()() noexcept {
 
   return err;
 }
-
-void file_destroy(ddl::file_t *file) noexcept { Builder::file_destroy(file); }
 
 }  // namespace ddl
