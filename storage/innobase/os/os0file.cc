@@ -7063,7 +7063,6 @@ therefore no other thread is allowed to do the freeing!
 static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
                                       void **m2, IORequest *type) {
   Slot *slot;
-  dberr_t err;
   AIO *array{};
   ulint orig_seg = segment;
 
@@ -7134,14 +7133,11 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 
   BOOL retry = FALSE;
 
+  dberr_t err = DB_IO_ERROR;
   if (ret && slot->n_bytes == slot->len) {
     err = DB_SUCCESS;
-
   } else if (os_file_handle_error(slot->name, "Windows aio")) {
     retry = true;
-
-  } else {
-    err = DB_IO_ERROR;
   }
 
   array->release();

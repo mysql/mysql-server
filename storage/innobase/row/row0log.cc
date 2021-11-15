@@ -1528,7 +1528,8 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 
   do {
     n_index++;
-    if (!(index = index->next())) {
+    index = index->next();
+    if (!index) {
       break;
     }
 

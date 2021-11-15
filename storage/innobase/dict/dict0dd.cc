@@ -606,7 +606,9 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
   }
 
   /* Ignore missing tablespaces for secondary indexes. */
-  while ((index = index->next())) {
+  for (;;) {
+    index = index->next();
+    if (!index) break;
     if (!index->is_corrupted() && fil_space_get(index->space) == nullptr) {
       dict_set_corrupted(index);
     }

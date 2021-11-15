@@ -459,8 +459,6 @@ class Tablespace_files {
 
       return (n_erased == 1);
     }
-
-    return false;
   }
 
   /** Clear all the tablespace data. */
@@ -6871,7 +6869,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     os_offset_t end = os_file_get_size(file->handle);
     ut_a(end != static_cast<os_offset_t>(-1) && end >= node_start);
 
-    os_has_said_disk_full = !(success = (end == node_start + len));
+    success = (end == node_start + len);
+    os_has_said_disk_full = !success;
 
     pages_added = static_cast<page_no_t>(end / phy_page_size);
 
@@ -8890,11 +8889,9 @@ void fil_adjust_name_import(dict_table_t *table, const char *path,
 
   /* On failure we need to check if file exists in different letter case
   for partitioned table. */
-#ifdef _WIN32
-  /* Safe check. Never needed on Windows. */
-  return;
-#endif /* WIN32 */
 
+  /* Safe check. Never needed on Windows. */
+#ifndef _WIN32
   /* Needed only for case sensitive file system. */
   if (lower_case_file_system) {
     return;
@@ -8956,6 +8953,7 @@ void fil_adjust_name_import(dict_table_t *table, const char *path,
   if (found_path) {
     fil_rename_partition_file(saved_path, extn, false, true);
   }
+#endif /* !WIN32 */
 
   return;
 }
@@ -11624,10 +11622,10 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
 
 static bool fil_get_partition_file(const std::string &old_path,
                                    ib_file_suffix extn, std::string &new_path) {
-#ifdef _WIN32
   /* Safe check. Never needed on Windows. */
+#ifdef _WIN32
   return false;
-#endif /* WIN32 */
+#else /* WIN32 */
 
 #ifndef UNIV_HOTBACKUP
   /* Needed only for case sensitive file system. */
@@ -11667,6 +11665,7 @@ static bool fil_get_partition_file(const std::string &old_path,
 #endif /* !UNIV_HOTBACKUP */
 
   return true;
+#endif /* WIN32 */
 }
 
 #ifndef UNIV_HOTBACKUP

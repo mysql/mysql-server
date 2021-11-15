@@ -1041,7 +1041,6 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
                      dict_sys->mutex around call to pars_sql. */
                      trx_t *trx) /*!< in: trx */
 {
-  que_thr_t *thr;
   que_t *graph;
 
   DBUG_TRACE;
@@ -1060,7 +1059,8 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
 
   graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
 
-  ut_a(thr = que_fork_start_command(graph));
+  auto thr = que_fork_start_command(graph);
+  ut_a(thr);
 
   que_run_threads(thr);
 

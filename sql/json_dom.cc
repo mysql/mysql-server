@@ -1395,17 +1395,17 @@ void Json_wrapper_object_iterator::initialize_current_member() {
 }
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value, bool alias)
-    : m_dom_value(dom_value), m_dom_alias(alias), m_is_dom(true) {
+    : m_dom{dom_value, alias}, m_is_dom(true) {
   if (!dom_value) {
-    m_dom_alias = true;  //!< no deallocation, make us empty
+    m_dom.m_alias = true;  //!< no deallocation, make us empty
   }
 }
 
 Json_wrapper::Json_wrapper(Json_wrapper &&old) noexcept
     : m_is_dom(old.m_is_dom) {
   if (m_is_dom) {
-    m_dom_alias = old.m_dom_alias;
-    m_dom_value = old.m_dom_value;
+    m_dom.m_alias = old.m_dom.m_alias;
+    m_dom.m_value = old.m_dom.m_value;
     // Mark old as aliased. Any ownership is effectively transferred to this.
     old.set_alias();
   } else {
@@ -1418,18 +1418,18 @@ Json_wrapper::Json_wrapper(const json_binary::Value &value)
 
 Json_wrapper::Json_wrapper(const Json_wrapper &old) : m_is_dom(old.m_is_dom) {
   if (m_is_dom) {
-    m_dom_alias = old.m_dom_alias;
-    m_dom_value =
-        m_dom_alias ? old.m_dom_value : old.m_dom_value->clone().release();
+    m_dom.m_alias = old.m_dom.m_alias;
+    m_dom.m_value = m_dom.m_alias ? old.m_dom.m_value
+                                  : old.m_dom.m_value->clone().release();
   } else {
     m_value = old.m_value;
   }
 }
 
 Json_wrapper::~Json_wrapper() {
-  if (m_is_dom && !m_dom_alias) {
+  if (m_is_dom && !m_dom.m_alias) {
     // we own our own copy, so we are responsible for deallocation
-    delete m_dom_value;
+    delete m_dom.m_value;
   }
 }
 
@@ -1466,17 +1466,17 @@ Json_dom *Json_wrapper::to_dom(const THD *thd) {
   if (!m_is_dom) {
     // Build a DOM from the binary JSON value and
     // convert this wrapper to hold the DOM instead
-    m_dom_value = Json_dom::parse(thd, m_value).release();
+    m_dom.m_value = Json_dom::parse(thd, m_value).release();
     m_is_dom = true;
-    m_dom_alias = false;
+    m_dom.m_alias = false;
   }
 
-  return m_dom_value;
+  return m_dom.m_value;
 }
 
 Json_dom_ptr Json_wrapper::clone_dom(const THD *thd) const {
   // If we already have a DOM, return a clone of it.
-  if (m_is_dom) return m_dom_value ? m_dom_value->clone() : nullptr;
+  if (m_is_dom) return m_dom.m_value ? m_dom.m_value->clone() : nullptr;
 
   // Otherwise, produce a new DOM tree from the binary representation.
   return Json_dom::parse(thd, m_value);
@@ -1490,7 +1490,7 @@ bool Json_wrapper::to_binary(const THD *thd, String *str) const {
     /* purecov: end */
   }
 
-  if (m_is_dom) return json_binary::serialize(thd, m_dom_value, str);
+  if (m_is_dom) return json_binary::serialize(thd, m_dom.m_value, str);
 
   return m_value.raw_binary(thd, str);
 }
@@ -1796,7 +1796,7 @@ enum_json_type Json_wrapper::type() const {
   }
 
   if (m_is_dom) {
-    return m_dom_value->json_type();
+    return m_dom.m_value->json_type();
   }
 
   json_binary::Value::enum_type typ = m_value.type();
@@ -1825,7 +1825,7 @@ enum_json_type Json_wrapper::type() const {
 
 enum_field_types Json_wrapper::field_type() const {
   if (m_is_dom) {
-    return down_cast<Json_opaque *>(m_dom_value)->type();
+    return down_cast<Json_opaque *>(m_dom.m_value)->type();
   }
 
   return m_value.field_type();
@@ -1835,7 +1835,7 @@ enum_field_types Json_wrapper::field_type() const {
 Json_wrapper Json_wrapper::lookup(const MYSQL_LEX_CSTRING &key) const {
   assert(type() == enum_json_type::J_OBJECT);
   if (m_is_dom) {
-    const Json_object *object = down_cast<const Json_object *>(m_dom_value);
+    const Json_object *object = down_cast<const Json_object *>(m_dom.m_value);
     Json_wrapper wr(object->get(key));
     wr.set_alias();  // wr doesn't own the supplied DOM: part of array DOM
     return wr;
@@ -1850,7 +1850,7 @@ Json_wrapper Json_wrapper::operator[](size_t index) const {
   assert(type() == enum_json_type::J_ARRAY || index == 0);
   if (type() != enum_json_type::J_ARRAY) return *this;
   if (m_is_dom) {
-    const Json_array *o = down_cast<const Json_array *>(m_dom_value);
+    const Json_array *o = down_cast<const Json_array *>(m_dom.m_value);
     Json_wrapper wr((*o)[index]);
     wr.set_alias();  // wr doesn't own the supplied DOM: part of array DOM
     return wr;
@@ -1862,8 +1862,8 @@ Json_wrapper Json_wrapper::operator[](size_t index) const {
 const char *Json_wrapper::get_data() const {
   if (m_is_dom) {
     return type() == enum_json_type::J_STRING
-               ? down_cast<Json_string *>(m_dom_value)->value().c_str()
-               : down_cast<Json_opaque *>(m_dom_value)->value();
+               ? down_cast<Json_string *>(m_dom.m_value)->value().c_str()
+               : down_cast<Json_opaque *>(m_dom.m_value)->value();
   }
 
   return m_value.get_data();
@@ -1872,8 +1872,8 @@ const char *Json_wrapper::get_data() const {
 size_t Json_wrapper::get_data_length() const {
   if (m_is_dom) {
     return type() == enum_json_type::J_STRING
-               ? down_cast<Json_string *>(m_dom_value)->size()
-               : down_cast<Json_opaque *>(m_dom_value)->size();
+               ? down_cast<Json_string *>(m_dom.m_value)->size()
+               : down_cast<Json_opaque *>(m_dom.m_value)->size();
   }
 
   return m_value.get_data_length();
@@ -1881,7 +1881,7 @@ size_t Json_wrapper::get_data_length() const {
 
 bool Json_wrapper::get_decimal_data(my_decimal *d) const {
   if (m_is_dom) {
-    *d = *down_cast<Json_decimal *>(m_dom_value)->value();
+    *d = *down_cast<Json_decimal *>(m_dom.m_value)->value();
     return false;
   }
 
@@ -1891,7 +1891,7 @@ bool Json_wrapper::get_decimal_data(my_decimal *d) const {
 
 double Json_wrapper::get_double() const {
   if (m_is_dom) {
-    return down_cast<Json_double *>(m_dom_value)->value();
+    return down_cast<Json_double *>(m_dom.m_value)->value();
   }
 
   return m_value.get_double();
@@ -1899,7 +1899,7 @@ double Json_wrapper::get_double() const {
 
 longlong Json_wrapper::get_int() const {
   if (m_is_dom) {
-    return down_cast<Json_int *>(m_dom_value)->value();
+    return down_cast<Json_int *>(m_dom.m_value)->value();
   }
 
   return m_value.get_int64();
@@ -1907,7 +1907,7 @@ longlong Json_wrapper::get_int() const {
 
 ulonglong Json_wrapper::get_uint() const {
   if (m_is_dom) {
-    return down_cast<Json_uint *>(m_dom_value)->value();
+    return down_cast<Json_uint *>(m_dom.m_value)->value();
   }
 
   return m_value.get_uint64();
@@ -1915,7 +1915,7 @@ ulonglong Json_wrapper::get_uint() const {
 
 void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
   if (m_is_dom) {
-    *t = *down_cast<Json_datetime *>(m_dom_value)->value();
+    *t = *down_cast<Json_datetime *>(m_dom.m_value)->value();
   } else {
     Json_datetime::from_packed(m_value.get_data(), m_value.field_type(), t);
   }
@@ -1924,7 +1924,7 @@ void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
 #ifdef MYSQL_SERVER
 const char *Json_wrapper::get_datetime_packed(char *buffer) const {
   if (m_is_dom) {
-    down_cast<Json_datetime *>(m_dom_value)->to_packed(buffer);
+    down_cast<Json_datetime *>(m_dom.m_value)->to_packed(buffer);
     return buffer;
   }
 
@@ -1935,7 +1935,7 @@ const char *Json_wrapper::get_datetime_packed(char *buffer) const {
 
 bool Json_wrapper::get_boolean() const {
   if (m_is_dom) {
-    return down_cast<Json_boolean *>(m_dom_value)->value();
+    return down_cast<Json_boolean *>(m_dom.m_value)->value();
   }
 
   return m_value.type() == json_binary::Value::LITERAL_TRUE;
@@ -2241,11 +2241,11 @@ size_t Json_wrapper::length() const {
   }
 
   if (m_is_dom) {
-    switch (m_dom_value->json_type()) {
+    switch (m_dom.m_value->json_type()) {
       case enum_json_type::J_ARRAY:
-        return down_cast<Json_array *>(m_dom_value)->size();
+        return down_cast<Json_array *>(m_dom.m_value)->size();
       case enum_json_type::J_OBJECT:
-        return down_cast<Json_object *>(m_dom_value)->cardinality();
+        return down_cast<Json_object *>(m_dom.m_value)->cardinality();
       default:
         return 1;
     }
@@ -3720,11 +3720,11 @@ bool Json_wrapper::binary_remove(const Field_json *field,
 
 void Json_wrapper::sort(const CHARSET_INFO *cs) {
   assert(type() == enum_json_type::J_ARRAY && is_dom());
-  down_cast<Json_array *>(m_dom_value)->sort(cs);
+  down_cast<Json_array *>(m_dom.m_value)->sort(cs);
 }
 
 void Json_wrapper::remove_duplicates(const CHARSET_INFO *cs) {
   assert(type() == enum_json_type::J_ARRAY && is_dom());
-  down_cast<Json_array *>(m_dom_value)->remove_duplicates(cs);
+  down_cast<Json_array *>(m_dom.m_value)->remove_duplicates(cs);
 }
 #endif  // ifdef MYSQL_SERVER

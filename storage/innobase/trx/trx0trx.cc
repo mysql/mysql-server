@@ -1804,7 +1804,7 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
   gtid_persistor.get_gtid_info() calls gtid_persistor.has_gtid() which checks
   if trx->state is TRX_STATE_PREPARED when thd == nullptr, and updates the thd
   with thd_get_current_thd() in such case. */
-  Gtid_desc gtid_desc;
+  Gtid_desc gtid_desc{};
   if (serialised) {
     auto &gtid_persistor = clone_sys->get_gtid_persistor();
     gtid_persistor.get_gtid_info(trx, gtid_desc);

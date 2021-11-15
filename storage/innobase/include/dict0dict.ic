@@ -842,8 +842,9 @@ static inline enum online_index_status dict_index_get_online_status(
       return (status);
   }
   ut_error;
-#endif /* UNIV_DEBUG */
+#else /* UNIV_DEBUG */
   return (status);
+#endif
 }
 
 /** Sets the status of online index creation. */

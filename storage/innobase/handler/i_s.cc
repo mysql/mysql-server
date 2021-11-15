@@ -1157,7 +1157,6 @@ static int i_s_cmp_per_index_fill_low(
   TABLE *table = tables->table;
   Field **fields = table->field;
   int status = 0;
-  int error;
 
   DBUG_TRACE;
 
@@ -1221,7 +1220,8 @@ static int i_s_cmp_per_index_fill_low(
             .count(),
         true);
 
-    if ((error = schema_table_store_record2(thd, table, false))) {
+    auto error = schema_table_store_record2(thd, table, false);
+    if (error) {
       dict_sys_mutex_exit();
       if (convert_heap_table_to_ondisk(thd, table, error) != 0) {
         status = 1;

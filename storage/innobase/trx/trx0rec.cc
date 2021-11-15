@@ -2680,7 +2680,7 @@ void trx_undo_read_v_cols(const dict_table_t *table, const byte *ptr,
   while (ptr < end_ptr) {
     dfield_t *dfield;
     dfield_t multi_value_field;
-    const byte *field;
+    const byte *field = nullptr;
     ulint field_no;
     ulint len = 0;
     ulint orig_len = 0;

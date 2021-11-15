@@ -1015,7 +1015,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   for (KEY *new_key = ha_alter_info->key_info_buffer;
        new_key < ha_alter_info->key_info_buffer + ha_alter_info->key_count;
        new_key++) {
-    /* Do not support adding/droping a vritual column, while
+    /* Do not support adding/dropping a virtual column, while
     there is a table rebuild caused by adding a new FTS_DOC_ID */
     if ((new_key->flags & HA_FULLTEXT) && add_drop_v_cols &&
         !DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_FTS_HAS_DOC_ID)) {
@@ -1027,18 +1027,15 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     for (KEY_PART_INFO *key_part = new_key->key_part;
          key_part < new_key->key_part + new_key->user_defined_key_parts;
          key_part++) {
-      const Create_field *new_field;
+      const Create_field *new_field = nullptr;
 
       assert(key_part->fieldnr < altered_table->s->fields);
 
       cf_it.rewind();
-      for (uint fieldnr = 0; (new_field = cf_it++); fieldnr++) {
-        if (fieldnr == key_part->fieldnr) {
-          break;
-        }
+      for (auto fieldnr = 0; fieldnr != key_part->fieldnr + 1; fieldnr++) {
+        new_field = cf_it++;
+        assert(new_field);
       }
-
-      assert(new_field);
 
       key_part->field = altered_table->field[key_part->fieldnr];
       /* In some special cases InnoDB emits "false"
@@ -3115,7 +3112,7 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
   bool modify = false;
   dict_index_t *index = table->first_index();
 
-  while ((index = index->next())) {
+  for (index = index->next(); index != nullptr; index = index->next()) {
     if (dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED) {
       dict_index_t *prev = UT_LIST_GET_PREV(indexes, index);
 
