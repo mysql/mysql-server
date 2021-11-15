@@ -45,6 +45,11 @@ innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an u
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
 
+# Tests that run ALTER on the "mysql" database
+innodb.mysql_ts_alter_encrypt_1                 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
+component_keyring_file.mysql_ts_alter_encrypt_1 : BUG#29531106 - ATTACHABLE_TRX(): ASSERTION `!M_THD->TRANSACTION_ROLLBACK_REQUEST' FAILED
+
+
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
 
