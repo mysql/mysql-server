@@ -2412,6 +2412,23 @@ template <typename T, typename... Args>
 std::enable_if_t<detail::is_bounded_array_v<T>> make_unique(
     PSI_memory_key_t key, Args &&...) = delete;
 
+/** The following is a common type that is returned by all the ut::make_unique
+    (non-aligned) specializations listed above. This is effectively a if-ladder
+    for the following list of conditions on the input type:
+    !std::is_array<T>::value -> std::unique_ptr<T, detail::Deleter<T>>
+    detail::is_unbounded_array_v<T> ->
+      std::unique_ptr<T,detail::Array_deleter<std::remove_extent_t<T>>> else (or
+    else if detail::is_bounded_array_v<T>) -> void (we do not support bounded
+     array ut::make_unique)
+ */
+template <typename T>
+using unique_ptr = std::conditional_t<
+    !std::is_array<T>::value, std::unique_ptr<T, detail::Deleter<T>>,
+    std::conditional_t<
+        detail::is_unbounded_array_v<T>,
+        std::unique_ptr<T, detail::Array_deleter<std::remove_extent_t<T>>>,
+        void>>;
+
 /** Dynamically allocates storage for an object of type T at address aligned to
     the requested alignment. Constructs the object of type T with provided Args.
     Wraps the pointer to T instance into the std::unique_ptr.
