@@ -25,6 +25,7 @@
 #include "plugin_config.h"
 
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <exception>
 #include <map>
@@ -42,6 +43,11 @@ IMPORT_LOG_FUNCTIONS()
 using mysql_harness::utility::string_format;
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::to_string;
+
+const std::array<const char *, 11> metadata_cache_supported_options{
+    {"user", "ttl", "auth_cache_ttl", "auth_cache_refresh_interval",
+     "metadata_cluster", "connect_timeout", "read_timeout", "router_id",
+     "thread_stack_size", "use_gr_notifications", "cluster_type"}};
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {

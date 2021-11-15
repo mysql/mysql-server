@@ -486,6 +486,13 @@ struct Plugin {
   void (*stop)(PluginFuncEnv *env);  // not allowed to throw!
 
   bool declares_readiness;
+
+  /**
+   * Array of names of option this plugin supports.
+   *
+   */
+  size_t supported_options_length;
+  const char *const *supported_options;
 };
 
 /**

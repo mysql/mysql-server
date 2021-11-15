@@ -24,6 +24,7 @@
 
 #include "syslog_plugin.h"
 
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/plugin.h"  // Plugin
 
 extern "C" {
@@ -41,5 +42,7 @@ mysql_harness::Plugin harness_plugin_syslog = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    sink_supported_options.size(),
+    sink_supported_options.data(),
 };
 }

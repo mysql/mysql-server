@@ -118,6 +118,17 @@ class bad_option : public std::runtime_error {
 };
 
 /**
+ * Exception thrown for option value problems.
+ *
+ * @ingroup ConfigParser
+ */
+
+class bad_option_value : public std::runtime_error {
+ public:
+  explicit bad_option_value(const std::string &msg) : std::runtime_error(msg) {}
+};
+
+/**
  * Configuration section.
  *
  * @ingroup ConfigParser
@@ -421,6 +432,8 @@ class HARNESS_EXPORT Config {
   /** @overload */
   SectionList get(const std::string &section);
 
+  ConfigSection &get_default_section() const;
+
   /**
    * Get a section by name and key.
    *
@@ -482,6 +495,8 @@ class HARNESS_EXPORT Config {
    * Get a list of all sections in the configuration.
    */
   ConstSectionList sections() const;
+
+  bool error_on_unsupported_option{false};
 
  protected:
   using SectionMap = std::map<SectionKey, ConfigSection>;

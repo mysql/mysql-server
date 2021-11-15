@@ -270,18 +270,26 @@ static const std::array<const char *, 2> plugin_requires = {{
     "logger",
 }};
 
+const std::array<const char *, 1> supported_options{"require_realm"};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
-    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_API", VERSION_NUMBER(0, 0, 1),
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "REST_API",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    plugin_requires.size(), plugin_requires.data(),
+    plugin_requires.size(),
+    plugin_requires.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

@@ -666,13 +666,17 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-const static std::array<const char *, 3> required = {{
+static const std::array<const char *, 3> required = {{
     "logger",
     "router_openssl",
     // as long as this plugin links against http_auth_backend_lib which links
     // against metadata_cache there is a need to cleanup protobuf
     "router_protobuf",
 }};
+
+static const std::array<const char *, 10> supported_options{
+    "static_folder", "bind_address", "require_realm", "ssl_cert", "ssl_key",
+    "ssl_cipher",    "ssl_dh_param", "ssl_curves",    "ssl",      "port"};
 
 extern "C" {
 mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
@@ -681,13 +685,17 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     "HTTP_SERVER",                           // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

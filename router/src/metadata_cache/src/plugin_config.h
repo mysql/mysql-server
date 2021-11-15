@@ -45,6 +45,8 @@ extern mysql_harness::Plugin METADATA_CACHE_EXPORT
     harness_plugin_metadata_cache;
 }
 
+extern const std::array<const char *, 11> metadata_cache_supported_options;
+
 class MetadataCachePluginConfig final : public mysql_harness::BasePluginConfig {
  public:
   /** @brief Constructor

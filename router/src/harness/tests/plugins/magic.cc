@@ -72,13 +72,17 @@ mysql_harness::Plugin MAGIC_API harness_plugin_routertestplugin_magic = {
     "A magic plugin",                        // name
     VERSION_NUMBER(1, 2, 3),
     // required
-    0, nullptr,
+    0,
+    nullptr,
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
     false,    // declares_readiness
+    0,
+    nullptr,
 };
 }

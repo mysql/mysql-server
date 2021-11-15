@@ -424,14 +424,18 @@ LIFECYCLE_API mysql_harness::Plugin harness_plugin_routertestplugin_lifecycle =
         "Lifecycle test plugin",                 // name
         VERSION_NUMBER(1, 0, 0),
         // requires
-        requires.size(), requires.data(),
+        requires.size(),
+        requires.data(),
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,    // init
         deinit,  // deinit
         start,   // start
         stop,    // stop
         false,   // declares_readiness
+        0,
+        nullptr,
 };
 
 LIFECYCLE_API void lifecycle_init(int flags) {

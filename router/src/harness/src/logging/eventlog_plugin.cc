@@ -25,6 +25,7 @@
 #include "mysql/harness/logging/eventlog_plugin.h"
 
 #include "eventlog_rc/message.h"
+#include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 
@@ -182,5 +183,7 @@ mysql_harness::Plugin harness_plugin_eventlog = {
     nullptr,  // start,
     nullptr,  // stop
     false,    // declares_readiness
+    sink_supported_options.size(),
+    sink_supported_options.data(),
 };
 }

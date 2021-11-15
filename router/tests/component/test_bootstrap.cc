@@ -110,6 +110,8 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
 
   // let's check if the actual config file output is what we expect:
 
+  const char *expected_config_default_part = "unknown_config_option=error";
+
   const char *expected_config_gr_part1 =
       R"([metadata_cache:mycluster]
 cluster_type=gr
@@ -206,9 +208,11 @@ protocol=x)";
 
   const std::string config_file_str = get_file_output(config_file);
 
-  EXPECT_THAT(config_file_str,
-              ::testing::AllOf(::testing::HasSubstr(config_file_expected1),
-                               ::testing::HasSubstr(config_file_expected2)));
+  EXPECT_THAT(
+      config_file_str,
+      ::testing::AllOf(::testing::HasSubstr(expected_config_default_part),
+                       ::testing::HasSubstr(config_file_expected1),
+                       ::testing::HasSubstr(config_file_expected2)));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -2092,6 +2096,7 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
   // --conf-set-option=logger.level=DEBUG
   // --conf-set-option=DEFAULT.read_timeout=50
   // --conf-set-option=DEFAULT.connect_timeout=38
+  // --conf-set-option=DEFAULT.unknown_config_option=warning
 
   const uint16_t classic_rw_port = 1234;
   const uint16_t classic_ro_port = 2345;
@@ -2117,7 +2122,8 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
       "--conf-set-option=logger.level=" + log_level,
       "--conf-set-option=DEFAULT.read_timeout=" + std::to_string(read_tout),
       "--conf-set-option=DEFAULT.connect_timeout=" +
-          std::to_string(connect_tout)};
+          std::to_string(connect_tout),
+      "--conf-set-option=DEFAULT.unknown_config_option=warning"};
 
   ASSERT_NO_FATAL_FAILURE(
       bootstrap_failover(mock_servers, ClusterType::GR_V2, cmdline));
@@ -2150,6 +2156,13 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
       << config_file_str;
   EXPECT_TRUE(config_file_contains(
       config_file_str, "connect_timeout=" + std::to_string(connect_tout)))
+      << config_file_str;
+
+  EXPECT_TRUE(
+      config_file_contains(config_file_str, "unknown_config_option=warning"))
+      << config_file_str;
+  EXPECT_FALSE(
+      config_file_contains(config_file_str, "unknown_config_option=error"))
       << config_file_str;
 }
 

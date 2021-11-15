@@ -50,6 +50,35 @@
 using namespace std::string_view_literals;
 IMPORT_LOG_FUNCTIONS()
 
+const std::array<const char *, 27> routing_supported_options{
+    "protocol",
+    "destinations",
+    "bind_port",
+    "bind_address",
+    "socket",
+    "connect_timeout",
+    "mode",
+    "routing_strategy",
+    "max_connect_errors",
+    "client_connect_timeout",
+    "net_buffer_length",
+    "thread_stack_size",
+    "client_ssl_mode",
+    "client_ssl_cert",
+    "client_ssl_key",
+    "client_ssl_cipher",
+    "client_ssl_curves",
+    "client_ssl_dh_params",
+    "server_ssl_mode",
+    "server_ssl_verify",
+    "disabled",
+    "server_ssl_cipher",
+    "server_ssl_ca",
+    "server_ssl_capath",
+    "server_ssl_crl",
+    "server_ssl_crlpath",
+    "server_ssl_curves"};
+
 static std::string get_log_prefix(const mysql_harness::ConfigSection *section,
                                   const mysql_harness::ConfigOption &option) {
   // get_section_name() knows about the options from the DEFAULT section

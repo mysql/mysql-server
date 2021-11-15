@@ -195,19 +195,26 @@ static std::array<const char *, 1> required = {{
     "logger",
 }};
 
+static std::array<const char *, 2> supported_options{"backend", "threads"};
+
 extern "C" {
 mysql_harness::Plugin IO_EXPORT harness_plugin_io = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
     mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch-descriptor
-    "IO", VERSION_NUMBER(0, 0, 1),
+    "IO",
+    VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     run,      // run
     nullptr,  // on_signal_stop
     false,    // signals ready
+    supported_options.size(),
+    supported_options.data(),
 };
 }

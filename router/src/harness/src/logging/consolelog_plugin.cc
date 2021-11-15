@@ -23,6 +23,7 @@
 */
 
 #include "consolelog_plugin.h"
+#include "mysql/harness/logging/logger_plugin.h"
 
 extern "C" {
 mysql_harness::Plugin harness_plugin_consolelog = {
@@ -39,5 +40,7 @@ mysql_harness::Plugin harness_plugin_consolelog = {
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    sink_supported_options.size(),
+    sink_supported_options.data(),
 };
 }

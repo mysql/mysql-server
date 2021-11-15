@@ -321,6 +321,11 @@ static const std::array<const char *, 4> required = {{
     "io",
 }};
 
+static const std::array<const char *, 14> supported_options{
+    "filename", "module_prefix", "bind_address", "port",       "protocol",
+    "ssl_ca",   "ssl_capath",    "ssl_cert",     "ssl_key",    "ssl_cipher",
+    "ssl_crl",  "ssl_crlpath",   "ssl_mode",     "tls_version"};
+
 extern "C" {
 mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -328,13 +333,17 @@ mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     "Mock MySQL Server for testing",         // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

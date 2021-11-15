@@ -281,6 +281,8 @@ static const std::array<const char *, 2> rest_router_plugin_requires = {
     "rest_api",
 };
 
+static const std::array<const char *, 2> supported_options{"require_realm"};
+
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -288,13 +290,17 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
     "REST_ROUTER",                           // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    rest_router_plugin_requires.size(), rest_router_plugin_requires.data(),
+    rest_router_plugin_requires.size(),
+    rest_router_plugin_requires.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

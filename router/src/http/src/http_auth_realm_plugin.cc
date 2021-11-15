@@ -190,6 +190,9 @@ static const std::array<const char *, 1> required = {{
     "logger",
 }};
 
+static const std::array<const char *, 4> supported_options{"backend", "method",
+                                                           "require", "name"};
+
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -197,13 +200,17 @@ mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
     "HTTP_AUTH_REALM",                       // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

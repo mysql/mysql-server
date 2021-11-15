@@ -208,6 +208,8 @@ static const std::array<const char *, 2> required = {{
     "router_protobuf",
 }};
 
+const std::array<const char *, 1> supported_options{"backend"};
+
 extern "C" {
 mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
     harness_plugin_http_auth_backend = {
@@ -216,13 +218,17 @@ mysql_harness::Plugin HTTP_AUTH_BACKEND_EXPORT
         "HTTP_AUTH_BACKEND",                     // name
         VERSION_NUMBER(0, 0, 1),
         // requires
-        required.size(), required.data(),
+        required.size(),
+        required.data(),
         // conflicts
-        0, nullptr,
+        0,
+        nullptr,
         init,     // init
         deinit,   // deinit
         start,    // start
         nullptr,  // stop
         false,    // declares_readiness
+        supported_options.size(),
+        supported_options.data(),
 };
 }

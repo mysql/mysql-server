@@ -49,11 +49,17 @@ mysql_harness::Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_one = {
     "A bad plugin",                          // name
     VERSION_NUMBER(1, 0, 0),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr, init, deinit,
+    0,
+    nullptr,
+    init,
+    deinit,
     nullptr,  // start
     nullptr,  // stop
     false,    // declares_readiness
+    0,
+    nullptr,
 };
 }

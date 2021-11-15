@@ -2313,7 +2313,8 @@ void ConfigGenerator::create_config(
       .add_line("server_ssl_cipher", options.server_ssl_cipher)
       .add_line("server_ssl_curves", options.server_ssl_curves)
       .add_line("server_ssl_mode", options.server_ssl_mode)
-      .add_line("server_ssl_verify", options.server_ssl_verify);
+      .add_line("server_ssl_verify", options.server_ssl_verify)
+      .add_line("unknown_config_option", "error");
 
   save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
                              cluster_info.metadata_servers);

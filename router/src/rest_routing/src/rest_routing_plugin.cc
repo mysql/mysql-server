@@ -1197,6 +1197,8 @@ static std::array<const char *, 2> required = {{
     "rest_api",
 }};
 
+static const std::array<const char *, 2> supported_options{kRequireRealm};
+
 extern "C" {
 mysql_harness::Plugin REST_ROUTING_EXPORT harness_plugin_rest_routing = {
     mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
@@ -1204,13 +1206,17 @@ mysql_harness::Plugin REST_ROUTING_EXPORT harness_plugin_rest_routing = {
     "REST_ROUTING",                          // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    supported_options.size(),
+    supported_options.data(),
 };
 }

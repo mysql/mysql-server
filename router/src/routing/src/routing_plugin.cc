@@ -462,12 +462,16 @@ mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
     "servers",  // name
     VERSION_NUMBER(0, 0, 1),
     // requires
-    required.size(), required.data(),
+    required.size(),
+    required.data(),
     // conflicts
-    0, nullptr,
+    0,
+    nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
+    routing_supported_options.size(),
+    routing_supported_options.data(),
 };

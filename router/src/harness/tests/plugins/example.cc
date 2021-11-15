@@ -81,6 +81,8 @@ Plugin EXAMPLE_API harness_plugin_routertestplugin_example = {
     start,    // start
     nullptr,  // stop
     false,    // declares_readiness
+    0,
+    nullptr,
 };
 }
 

@@ -555,4 +555,6 @@ void Config::apply_overwrites() {
   }
 }
 
+ConfigSection &Config::get_default_section() const { return *defaults_; }
+
 }  // namespace mysql_harness

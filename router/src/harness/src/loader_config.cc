@@ -75,6 +75,22 @@ void LoaderConfig::fill_and_check() {
       throw bad_section(buffer.str());
     }
   }
+
+  std::string unknown_config_option_str = "warning";
+  if (has_default("unknown_config_option")) {
+    unknown_config_option_str = get_default("unknown_config_option");
+    std::transform(unknown_config_option_str.begin(),
+                   unknown_config_option_str.end(),
+                   unknown_config_option_str.begin(), ::tolower);
+    if (unknown_config_option_str != "warning" &&
+        unknown_config_option_str != "error") {
+      throw bad_option_value(
+          "Invalid value for DEFAULT.unknown_config_option: '" +
+          get_default("unknown_config_option") +
+          "'. Allowed are: 'error' or 'warning'");
+    }
+  }
+  this->error_on_unsupported_option = unknown_config_option_str == "error";
 }
 
 void LoaderConfig::read(const Path &path) {

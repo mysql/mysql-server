@@ -184,6 +184,273 @@ INSTANTIATE_TEST_SUITE_P(Spec, RouterConfigServiceTest,
 
 #endif  // _WIN32
 
+using config_section_t =
+    std::pair<std::string, std::map<std::string, std::string>>;
+using config_sections_t = std::vector<config_section_t>;
+
+using config_option_t = std::pair<std::string, std::string>;
+
+void add_options(config_section_t &section,
+                 const std::vector<config_option_t> &options) {
+  for (const auto &option : options) {
+    section.second.emplace(option.first, option.second);
+  }
+}
+
+config_section_t default_section(const std::vector<config_option_t> &options) {
+  config_section_t result{"DEFAULT", {}};
+  add_options(result, options);
+
+  return result;
+}
+
+config_section_t keepalive_section(
+    const std::vector<config_option_t> &options = {}) {
+  config_section_t result{"keepalive", {{"interval", "1"}}};
+  add_options(result, options);
+
+  return result;
+}
+
+config_section_t routing_section(
+    const std::string &name, const std::vector<config_option_t> &options = {}) {
+  TcpPortPool port_pool;
+
+  config_section_t result{
+      "routing:" + name,
+      {{"destinations", "127.0.0.1:3060"},
+       {"routing_strategy", "first-available"},
+       {"bind_address", "127.0.0.1"},
+       {"bind_port", std::to_string(port_pool.get_next_available())}}};
+
+  add_options(result, options);
+
+  return result;
+}
+
+class RouterConfigUnknownOptionTest : public RouterComponentTest {
+ protected:
+  ConfigWriter create_config(const config_sections_t &conf_sections) {
+    ConfigWriter::sections_type sections;
+
+    sections.emplace("DEFAULT", get_DEFAULT_defaults());
+    for (const auto &section : conf_sections) {
+      if (sections.count(section.first) == 0) {
+        sections.emplace(section);
+      } else {
+        sections[section.first].insert(section.second.begin(),
+                                       section.second.end());
+      }
+    }
+
+    ConfigWriter conf_writer(conf_dir.name(), std::move(sections));
+    return conf_writer;
+  }
+
+  TempDirectory conf_dir{"conf"};
+};
+
+struct UnknownConfigOptionParam {
+  std::string unknown_option;
+  config_sections_t conf_sections;
+};
+
+class UnknownConfigOptionWarningCaseInsensitiveTest
+    : public RouterConfigUnknownOptionTest,
+      public ::testing::WithParamInterface<UnknownConfigOptionParam> {};
+
+TEST_P(UnknownConfigOptionWarningCaseInsensitiveTest,
+       UnknownConfigOptionWarningCaseInsensitive) {
+  auto conf_writer = create_config(GetParam().conf_sections);
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::READY)
+          .expected_exit_code(EXIT_SUCCESS)
+          .spawn({"-c", conf_writer.write()});
+
+  EXPECT_TRUE(wait_log_contains(router,
+                                "main WARNING .* option '" +
+                                    GetParam().unknown_option +
+                                    "' is not supported",
+                                10s));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    UnknownConfigOptionWarningCaseInsensitive,
+    UnknownConfigOptionWarningCaseInsensitiveTest,
+    ::testing::Values(
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "Warning"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "WARNING"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "warning"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.unknown",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "warning"},
+                                 {"unknown", "yes"}})}},
+        UnknownConfigOptionParam{
+            "keepalive.unknown",
+            config_sections_t{
+                keepalive_section({{"unknown", "yes"}}),
+                default_section({{"unknown_config_option", "warning"}})}},
+        UnknownConfigOptionParam{
+            "routing.unknown",
+            config_sections_t{
+                routing_section("TestingCS_ro", {{"unknown", "yes"}}),
+                default_section({{"unknown_config_option", "warning"}})}},
+        UnknownConfigOptionParam{
+            "keepalive.unknown",
+            config_sections_t{keepalive_section({{"unknown", "1"}}),
+                              default_section({})}}));
+
+class UnknownConfigOptionErrorCaseInsensitiveTest
+    : public RouterConfigUnknownOptionTest,
+      public ::testing::WithParamInterface<UnknownConfigOptionParam> {};
+
+TEST_P(UnknownConfigOptionErrorCaseInsensitiveTest,
+       UnknownConfigOptionErrorCaseInsensitive) {
+  auto conf_writer = create_config(GetParam().conf_sections);
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
+          .expected_exit_code(EXIT_FAILURE)
+          .spawn({"-c", conf_writer.write()});
+
+  check_exit_code(router, EXIT_FAILURE, 5s);
+
+  EXPECT_TRUE(wait_log_contains(router,
+                                "main ERROR .* option '" +
+                                    GetParam().unknown_option +
+                                    "' is not supported",
+                                10s));
+}
+
+class UnknownConfigOptionValidConfigTest
+    : public RouterConfigUnknownOptionTest {};
+
+TEST_F(UnknownConfigOptionValidConfigTest, UnknownConfigOptionValidConfig) {
+  auto conf_writer =
+      create_config({keepalive_section(), routing_section("test")});
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::READY)
+          .expected_exit_code(EXIT_SUCCESS)
+          .spawn({"-c", conf_writer.write()});
+
+  router.kill();
+
+  check_exit_code(router, EXIT_SUCCESS, 5s);
+
+  EXPECT_THAT(
+      router.get_full_logfile(),
+      ::testing::Not(::testing::ContainsRegex("WARNING .* unknown .*")));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    UnknownConfigOptionErrorCaseInsensitive,
+    UnknownConfigOptionErrorCaseInsensitiveTest,
+    ::testing::Values(
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "Error"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "ERROR"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.testing",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "error"},
+                                 {"testing", "123"}})}},
+        UnknownConfigOptionParam{
+            "DEFAULT.unknown",
+            config_sections_t{
+                keepalive_section(),
+                default_section({{"unknown_config_option", "error"},
+                                 {"unknown", "yes"}})}},
+        UnknownConfigOptionParam{
+            "keepalive.unknown",
+            config_sections_t{
+                keepalive_section({{"unknown", "yes"}}),
+                default_section({{"unknown_config_option", "error"}})}},
+        UnknownConfigOptionParam{
+            "routing.unknown",
+            config_sections_t{
+                routing_section("TestingCS_ro", {{"unknown", "yes"}}),
+                default_section({{"unknown_config_option", "error"}})}}));
+
+struct UnknownConfigOptionvalidValueParam {
+  std::string unknown_conf_option_value;
+  config_sections_t conf_sections;
+};
+
+class UnknownConfigOptionInvalidValueTest
+    : public RouterConfigUnknownOptionTest,
+      public ::testing::WithParamInterface<UnknownConfigOptionvalidValueParam> {
+};
+
+TEST_P(UnknownConfigOptionInvalidValueTest, UnknownConfigOptionInvalidValue) {
+  auto conf_writer = create_config(GetParam().conf_sections);
+
+  auto &router =
+      router_spawner()
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
+          .expected_exit_code(EXIT_FAILURE)
+          .spawn({"-c", conf_writer.write()});
+
+  check_exit_code(router, EXIT_FAILURE, 5s);
+  // check that bootstrap outputs debug logs
+
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: Configuration error: Invalid value for "
+                           "DEFAULT.unknown_config_option: '" +
+                           GetParam().unknown_conf_option_value +
+                           "'. Allowed are: 'error' or 'warning'."));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    UnknownConfigOptionInvalidValue, UnknownConfigOptionInvalidValueTest,
+    ::testing::Values(
+        UnknownConfigOptionvalidValueParam{
+            "ERROR2",
+            config_sections_t{
+                {keepalive_section(),
+                 default_section({{"unknown_config_option", "ERROR2"}})}}},
+        UnknownConfigOptionvalidValueParam{
+            "", config_sections_t{{keepalive_section(),
+                                   default_section({{"unknown_config_option",
+                                                     ""}})}}},
+        UnknownConfigOptionvalidValueParam{
+            "Warning 4",
+            config_sections_t{
+                {keepalive_section(),
+                 default_section({{"unknown_config_option", "Warning 4"}})}}}));
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());
