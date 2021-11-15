@@ -169,7 +169,8 @@ class base_list {
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline bool push_back(void *info) {
-    if (((*last) = new (*THR_MALLOC) list_node(info, &end_of_list))) {
+    *last = new (*THR_MALLOC) list_node(info, &end_of_list);
+    if (*last) {
       last = &(*last)->next;
       elements++;
       return false;
@@ -177,7 +178,8 @@ class base_list {
     return true;
   }
   inline bool push_back(void *info, MEM_ROOT *mem_root) {
-    if (((*last) = new (mem_root) list_node(info, &end_of_list))) {
+    *last = new (mem_root) list_node(info, &end_of_list);
+    if (*last) {
       last = &(*last)->next;
       elements++;
       return false;

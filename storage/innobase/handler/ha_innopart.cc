@@ -2311,7 +2311,6 @@ void ha_innopart::update_create_info(HA_CREATE_INFO *create_info) {
   uint num_parts;
   uint part;
   bool display_tablespace = false;
-  dict_table_t *table;
   List_iterator<partition_element> part_it(m_part_info->partitions);
   partition_element *part_elem;
   partition_element *sub_elem;
@@ -2339,21 +2338,24 @@ void ha_innopart::update_create_info(HA_CREATE_INFO *create_info) {
     return;
   }
   part = 0;
-  while ((part_elem = part_it++)) {
+  for (part_elem = part_it++; part_elem != nullptr;
+       part_elem = part_it++, part++) {
     if (part >= num_parts) {
       return;
     }
     if (m_part_info->is_sub_partitioned()) {
       List_iterator<partition_element> subpart_it(part_elem->subpartitions);
       uint subpart = 0;
-      while ((sub_elem = subpart_it++)) {
+      for (sub_elem = subpart_it++; sub_elem != nullptr;
+           sub_elem = subpart_it++) {
         if (subpart >= num_subparts) {
           return;
         }
-        table = m_part_share->get_table_part(part * num_subparts + subpart);
+        auto table_part =
+            m_part_share->get_table_part(part * num_subparts + subpart);
 
         if (sub_elem->tablespace_name != nullptr ||
-            table->tablespace != nullptr || table->space == 0) {
+            table_part->tablespace != nullptr || table_part->space == 0) {
           display_tablespace = true;
         }
         subpart++;
@@ -2362,14 +2364,13 @@ void ha_innopart::update_create_info(HA_CREATE_INFO *create_info) {
         return;
       }
     } else {
-      table = m_part_share->get_table_part(part);
+      auto table_part = m_part_share->get_table_part(part);
 
-      if (table->space == 0 || table->tablespace != nullptr ||
+      if (table_part->space == 0 || table_part->tablespace != nullptr ||
           part_elem->tablespace_name != nullptr) {
         display_tablespace = true;
       }
     }
-    part++;
   }
   if (part != num_parts) {
     return;
@@ -2381,16 +2382,17 @@ void ha_innopart::update_create_info(HA_CREATE_INFO *create_info) {
 
   part = 0;
   part_it.rewind();
-  while ((part_elem = part_it++)) {
+  for (part_elem = part_it++; part_elem != nullptr; part_elem = part_it++) {
     if (m_part_info->is_sub_partitioned()) {
       List_iterator<partition_element> subpart_it(part_elem->subpartitions);
-      while ((sub_elem = subpart_it++)) {
-        table = m_part_share->get_table_part(part++);
-        update_part_elem(sub_elem, table, display_tablespace);
+      for (sub_elem = subpart_it++; sub_elem != nullptr;
+           sub_elem = subpart_it++) {
+        auto table_part = m_part_share->get_table_part(part++);
+        update_part_elem(sub_elem, table_part, display_tablespace);
       }
     } else {
-      table = m_part_share->get_table_part(part++);
-      update_part_elem(part_elem, table, display_tablespace);
+      auto table_part = m_part_share->get_table_part(part++);
+      update_part_elem(part_elem, table_part, display_tablespace);
     }
   }
 }
@@ -2522,12 +2524,12 @@ int ha_innopart::create(const char *name, TABLE *form,
   std::vector<const char *> tablespace_names;
   List_iterator_fast<partition_element> part_it(form->part_info->partitions);
   partition_element *part_elem;
-  while ((part_elem = part_it++)) {
+  for (part_elem = part_it++; part_elem != nullptr; part_elem = part_it++) {
     const char *tablespace;
     if (form->part_info->is_sub_partitioned()) {
       List_iterator_fast<partition_element> sub_it(part_elem->subpartitions);
       partition_element *sub_elem;
-      while ((sub_elem = sub_it++)) {
+      for (sub_elem = sub_it++; sub_elem != nullptr; sub_elem = sub_it++) {
         tablespace = partition_get_tablespace(table_level_tablespace_name,
                                               part_elem, sub_elem);
         if (is_shared_tablespace(tablespace)) {

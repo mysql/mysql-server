@@ -1173,10 +1173,10 @@ class Json_wrapper {
   union {
     /// The DOM representation, only used if m_is_dom is true.
     struct {
-      Json_dom *m_dom_value;
+      Json_dom *m_value;
       /// If true, don't deallocate m_dom_value in destructor.
-      bool m_dom_alias;
-    };
+      bool m_alias;
+    } m_dom;
     /// The binary representation, only used if m_is_dom is false.
     json_binary::Value m_value;
   };
@@ -1195,7 +1195,7 @@ class Json_wrapper {
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_dom_value(nullptr), m_dom_alias(true), m_is_dom(true) {}
+  Json_wrapper() : m_dom{nullptr, true}, m_is_dom(true) {}
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
@@ -1222,7 +1222,7 @@ class Json_wrapper {
     deallocated in the wrapper's destructor. Useful if one wants a wrapper
     around a DOM owned by someone else.
   */
-  void set_alias() { m_dom_alias = true; }
+  void set_alias() { m_dom.m_alias = true; }
 
   /**
     Wrap a binary value. Does not copy the underlying buffer, so
@@ -1273,7 +1273,7 @@ class Json_wrapper {
 
     @return true if the wrapper is empty.
   */
-  bool empty() const { return m_is_dom && !m_dom_value; }
+  bool empty() const { return m_is_dom && !m_dom.m_value; }
 
   /**
     Does this wrapper contain a DOM?
@@ -1299,7 +1299,7 @@ class Json_wrapper {
   */
   const Json_dom *get_dom() const {
     assert(m_is_dom);
-    return m_dom_value;
+    return m_dom.m_value;
   }
 
   /**

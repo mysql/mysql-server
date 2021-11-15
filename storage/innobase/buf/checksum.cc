@@ -491,7 +491,6 @@ bool BlockReporter::is_corrupted() const {
   }
 
   ut_error;
-  return (false);
 }
 
 /** Calculate the compressed page checksum.

@@ -272,16 +272,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/wd4459")
   # C4389: '==': signed/unsigned mismatch
   ADD_COMPILE_OPTIONS("/wd4389")
-  # C4201: nonstandard extension used: nameless struct/union
-  ADD_COMPILE_OPTIONS("/wd4201")
-  # C4701: potentially uninitialized local variable 'X' used
-  ADD_COMPILE_OPTIONS("/wd4701")
-  # C4702: unreachable code
-  ADD_COMPILE_OPTIONS("/wd4702")
-  # C4703: potentially uninitialized local pointer variable 'X' used
-  ADD_COMPILE_OPTIONS("/wd4703")
-  # C4706: assignment within conditional expression
-  ADD_COMPILE_OPTIONS("/wd4706")
 ENDIF()
 
 # There seems to be a bug in gcc for Oracle Linux 8 on ARM.

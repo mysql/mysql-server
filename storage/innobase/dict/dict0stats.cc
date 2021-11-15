@@ -507,8 +507,10 @@ static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
   const dict_index_t *src_idx;
 
   for (dst_idx = dst->first_index(), src_idx = src->first_index();
-       dst_idx != nullptr; dst_idx = dst_idx->next(),
-      (src_idx != nullptr && (src_idx = src_idx->next()))) {
+       dst_idx != nullptr; dst_idx = dst_idx->next()) {
+    if (src_idx != nullptr) {
+      src_idx = src_idx->next();
+    }
     if (dict_stats_should_ignore_index(dst_idx)) {
       if (!(dst_idx->type & DICT_FTS)) {
         dict_stats_empty_index(dst_idx);

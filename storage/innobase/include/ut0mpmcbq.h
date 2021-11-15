@@ -178,8 +178,6 @@ class mpmc_bq {
         pos = m_dequeue_pos.load(std::memory_order_relaxed);
       }
     }
-
-    return (false);
   }
 
  private:

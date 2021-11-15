@@ -106,7 +106,6 @@ struct Gen_sequence : public ddl::Context::FTS::Sequence {
   @return the current document ID. */
   doc_id_t fetch(const dtuple_t *dtuple = nullptr) noexcept override {
     ut_error;
-    return 0;
   }
 
   /** Advance the document ID. */

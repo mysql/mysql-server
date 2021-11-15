@@ -88,10 +88,7 @@ struct Fetch_sequence : public Context::FTS::Sequence {
 
   /** Not supported.
   @return the current document ID. */
-  [[nodiscard]] doc_id_t current() noexcept override {
-    ut_error;
-    return 0;
-  }
+  [[nodiscard]] doc_id_t current() noexcept override { ut_error; }
 
   /** Not supported. */
   void increment() noexcept override { ut_error; }
@@ -102,10 +99,7 @@ struct Fetch_sequence : public Context::FTS::Sequence {
   [[nodiscard]] doc_id_t fetch(const dtuple_t *dtuple) noexcept override;
 
   /** @return the number of document IDs generated. */
-  doc_id_t generated_count() const noexcept override {
-    ut_error;
-    return 0;
-  }
+  doc_id_t generated_count() const noexcept override { ut_error; }
 
   /** @return the maximum document ID seen so far. */
   [[nodiscard]] doc_id_t max_doc_id() const noexcept override {

@@ -226,10 +226,7 @@ struct ref_t {
   @return true if LOB is big enough, false otherwise. */
   static bool is_big(const page_size_t &page_size, const ulint lob_length) {
     /* Disable a performance optimization */
-    return (true);
-
-    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
-    return (lob_length >= limit);
+    return true;
   }
 
   /** Check if this LOB is big enough to do partial update.
@@ -237,11 +234,7 @@ struct ref_t {
   @return true if LOB is big enough, false otherwise. */
   bool is_big(const page_size_t &page_size) const {
     /* Disable a performance optimization */
-    return (true);
-
-    const ulint limit = page_size.physical() * LOB_BIG_THRESHOLD_SIZE;
-    const ulint lob_length = length();
-    return (lob_length >= limit);
+    return true;
   }
 
   /** Parse the LOB reference object and copy data into the given

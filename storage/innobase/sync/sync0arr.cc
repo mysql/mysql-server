@@ -681,8 +681,6 @@ static bool sync_array_detect_deadlock(
     default:
       ut_error;
   }
-
-  return (true);
 }
 #endif /* UNIV_DEBUG */
 

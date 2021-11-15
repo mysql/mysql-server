@@ -3859,7 +3859,6 @@ static ICP_RESULT row_search_idx_cond_check(
   }
 
   ut_error;
-  return (result);
 }
 
 /** Check the pushed-down end-range condition to avoid extra traversal

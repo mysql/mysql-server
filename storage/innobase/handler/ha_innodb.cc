@@ -7075,8 +7075,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
       dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-      if (!(ib_table =
-                dd_open_table(client, table, norm_name, table_def, thd))) {
+      ib_table = dd_open_table(client, table, norm_name, table_def, thd);
+      if (!ib_table) {
         set_my_errno(ENOENT);
         return HA_ERR_NO_SUCH_TABLE;
       }
@@ -8863,7 +8863,8 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
     innobase_get_auto_increment(). */
     m_prebuilt->autoinc_error = DB_SUCCESS;
 
-    if ((error_result = update_auto_increment())) {
+    error_result = update_auto_increment();
+    if (error_result) {
       /* We don't want to mask autoinc overflow errors. */
 
       /* Handle the case where the AUTOINC sub-system
@@ -13515,8 +13516,9 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   if (primary_key_no != MAX_KEY) {
     /* In InnoDB the clustered index must always be created
     first */
-    if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
-                              primary_key_no, dd_table))) {
+    error = create_index(m_trx, m_form, m_flags, m_table_name, primary_key_no,
+                         dd_table);
+    if (error) {
       return error;
     }
   }
@@ -13570,8 +13572,8 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
 
   for (i = 0; i < m_form->s->keys; i++) {
     if (i != primary_key_no) {
-      if ((error = create_index(m_trx, m_form, m_flags, m_table_name, i,
-                                dd_table))) {
+      error = create_index(m_trx, m_form, m_flags, m_table_name, i, dd_table);
+      if (error) {
         return error;
       }
     }
@@ -13840,12 +13842,13 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
     return (error);
   }
 
-  if ((error =
-           info.create_table(dd_tab != nullptr ? &dd_tab->table() : nullptr))) {
+  error = info.create_table(dd_tab != nullptr ? &dd_tab->table() : nullptr);
+  if (error) {
     goto cleanup;
   }
 
-  if ((error = info.create_table_update_global_dd(dd_tab))) {
+  error = info.create_table_update_global_dd(dd_tab);
+  if (error) {
     goto cleanup;
   }
 
@@ -18664,7 +18667,8 @@ static int innodb_show_status(handlerton *hton, THD *thd,
   /* allocate buffer for the string, and
   read the contents of the temporary file */
 
-  if (!(str = (char *)my_malloc(PSI_INSTRUMENT_ME, usable_len + 1, MYF(0)))) {
+  str = (char *)my_malloc(PSI_INSTRUMENT_ME, usable_len + 1, MYF(0));
+  if (!str) {
     mutex_exit(&srv_monitor_file_mutex);
     return 1;
   }

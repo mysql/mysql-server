@@ -156,8 +156,9 @@ static inline enum trx_dict_op_t trx_get_dict_operation(
       return (op);
   }
   ut_error;
-#endif /* UNIV_DEBUG */
+#else /* UNIV_DEBUG */
   return (op);
+#endif
 }
 /** Flag a transaction a dictionary operation. */
 static inline void trx_set_dict_operation(
