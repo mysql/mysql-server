@@ -77,10 +77,8 @@ static std::atomic<bool> s_fatal_info_printed{false};
   that we can perform and much more, @see handle_fatal_signal
 
   @param sig Signal number
-  @param write_core Allows to enable core writing. On linux it generates a
-  signal, and leads to program termination.
 */
-void print_fatal_signal(int sig, bool write_core) {
+void print_fatal_signal(int sig) {
   s_fatal_info_printed = true;
 #ifdef _WIN32
   SYSTEMTIME utc_time;
@@ -167,11 +165,6 @@ void print_fatal_signal(int sig, bool write_core) {
       "information that should help you find out what is causing the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
-
-  if (write_core && (test_flags & TEST_CORE_ON_SIGNAL) != 0) {
-    my_safe_printf_stderr("%s", "Writing a core file\n");
-    my_write_core(sig);
-  }
 }
 
 /**
@@ -201,7 +194,12 @@ extern "C" void handle_fatal_signal(int sig) {
   s_handler_being_processed = true;
 
   if (!s_fatal_info_printed) {
-    print_fatal_signal(sig, true);
+    print_fatal_signal(sig);
+  }
+
+  if ((test_flags & TEST_CORE_ON_SIGNAL) != 0) {
+    my_safe_printf_stderr("%s", "Writing a core file\n");
+    my_write_core(sig);
   }
 
 #ifndef _WIN32
@@ -239,7 +237,7 @@ void my_server_abort() {
     This actually takes some time, some or many other threads may call
     my_server_abort in meantime.
   */
-  print_fatal_signal(SIGABRT, false);
+  print_fatal_signal(SIGABRT);
   abort_processing = false;
   /*
     If there are no other threads pending abort then we call real abort as the
