@@ -2590,7 +2590,7 @@ String *Item_func_rpad::val_str(String *str) {
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
-  if (count > INT_MAX32) count = INT_MAX32;
+  if (static_cast<ulonglong>(count) > INT_MAX32) count = INT_MAX32;
 
   const size_t res_char_length = res->numchars();
   const size_t res_byte_length = res->length();
@@ -2611,7 +2611,8 @@ String *Item_func_rpad::val_str(String *str) {
 
   // Must be ulonglong to avoid overflow
   const ulonglong target_byte_size =
-      res_byte_length + remainder_char_length * collation.collation->mbmaxlen;
+      res_byte_length + static_cast<ulonglong>(remainder_char_length) *
+                            collation.collation->mbmaxlen;
   if (target_byte_size > current_thd->variables.max_allowed_packet) {
     return push_packet_overflow_warning(current_thd, func_name());
   }
@@ -2794,7 +2795,7 @@ String *Item_func_lpad::val_str(String *str) {
 
   /* Assumes that the maximum length of a String is < INT_MAX32. */
   /* Set here so that rest of code sees out-of-bound value as such. */
-  if (count > INT_MAX32) count = INT_MAX32;
+  if (static_cast<ulonglong>(count) > INT_MAX32) count = INT_MAX32;
 
   const size_t res_char_length = res->numchars();
   const size_t res_byte_length = res->length();
