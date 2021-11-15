@@ -131,13 +131,16 @@ struct FTS::Parser {
   @return DB_SUCCESS or error code. */
   dberr_t init(size_t n_threads) noexcept;
 
-  /** @return the i'th file. */
-  const file_t &get_file(size_t id) noexcept { return m_handlers[id]->m_file; }
+  /** Releases ownership of the i'th file used.
+  @return the i'th file. */
+  file_t release_file(size_t id) noexcept {
+    return std::move(m_handlers[id]->m_file);
+  }
 
   /** Data structures for building an index. */
   struct Handler {
     /** Constructor.
-    @param[in] id             Auxilliary index ID.
+    @param[in] id             Auxiliary index ID.
     @param[in,out] index      Index to create.
     @param[in] size           IO buffer size. */
     explicit Handler(size_t id, dict_index_t *index, size_t size) noexcept;
@@ -204,7 +207,7 @@ struct FTS::Parser {
 
   /** FTS plugin parser 'myql_add_word' callback function for row merge.
   Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
-  @param[in] param              Parser paramter.
+  @param[in] param              Parser parameter.
   @param[in] word               Token word.
   @param[in] word_len           Word len.
   @param[in] boolean_info       Boolean info.
@@ -284,10 +287,10 @@ struct FTS::Inserter {
   @param[in] id                 Aux index ID.
   @param[in] file               File to merge and insert.
   @return DB_SUCCESS or error code. */
-  dberr_t add_file(size_t id, const file_t &file) noexcept {
+  dberr_t add_file(size_t id, file_t file) noexcept {
     auto &handler = m_handlers[id];
 
-    handler.m_files.push_back(file);
+    handler.m_files.push_back(std::move(file));
 
     return DB_SUCCESS;
   }
@@ -295,18 +298,18 @@ struct FTS::Inserter {
   /** Write out a single word's data as new entry/entries in the INDEX table.
   @param[in] ins_ctx	            Insert context.
   @param[in] word	                Word string.
-  @param[in] node	                Node colmns.
+  @param[in] node	                Node columns.
   @return	DB_SUCCUESS if insertion runs fine, otherwise error code */
   dberr_t write_node(const Insert *ins_ctx, const fts_string_t *word,
                      const fts_node_t *node) noexcept;
 
-  /** Insert processed FTS data to auxillary index tables.
+  /** Insert processed FTS data to auxiliary index tables.
   @param[in] ins_ctx              Insert context.
   @param[in] word                 Sorted and tokenized word.
   @return DB_SUCCESS if insertion runs fine */
   dberr_t write_word(Insert *ins_ctx, fts_tokenizer_word_t *word) noexcept;
 
-  /** Read sorted FTS data files and insert data tuples to auxillary tables.
+  /** Read sorted FTS data files and insert data tuples to auxiliary tables.
   @param[in] ins_ctx              Insert context.
   @param[in] word                 Last processed tokenized word.
   @param[in] positions            Word position.
@@ -369,7 +372,7 @@ dberr_t FTS::Parser::init(size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-    if (file_create(&handler->m_file, path) < 0) {
+    if (!file_create(&handler->m_file, path)) {
       return DB_OUT_OF_MEMORY;
     }
   }
@@ -622,7 +625,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
         /* Parse the whole doc and cache tokens. */
         tokenize(doc, parser, t_ctx);
 
-        /* Just indictate we have parsed all the word. */
+        /* Just indicate we have parsed all the word. */
         t_ctx->m_processed_len += 1;
       }
 
@@ -778,7 +781,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
   }
 
   if (!buf_full) {
-    /* we pad one byte between text accross two fields */
+    /* we pad one byte between text across two fields */
     t_ctx->m_init_pos += doc->text.f_len + 1;
   }
 
@@ -1591,14 +1594,14 @@ dberr_t FTS::insert(Builder *builder) noexcept {
 dberr_t FTS::setup_insert_phase() noexcept {
   for (auto parser : m_parsers) {
     for (size_t i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      auto &file = parser->get_file(i);
+      auto file = parser->release_file(i);
 
       if (file.m_n_recs == 0) {
         /* Ignore empty files. */
         continue;
       }
 
-      const auto err = m_inserter->add_file(i, file);
+      const auto err = m_inserter->add_file(i, std::move(file));
 
       if (err != DB_SUCCESS) {
         break;

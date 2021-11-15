@@ -365,7 +365,7 @@ static ib_err_t ib_read_tuple(
     if (rec_offs_nth_extern(offsets, i)) {
       const page_size_t page_size(dict_table_page_size(index->table));
 
-      /** Passing nullptr to the transaction object.  This
+      /* Passing nullptr to the transaction object.  This
       means that partial update of LOB is not supported
       via this interface.*/
       data = lob::btr_rec_copy_externally_stored_field(

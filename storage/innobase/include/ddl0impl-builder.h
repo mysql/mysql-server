@@ -216,10 +216,6 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t check_state_of_online_build_log() noexcept;
 
-  /** Destroy a merge file.
-  @param[in,out] file           Merge file to delete. */
-  static void file_destroy(ddl::file_t *file) noexcept;
-
   /** Write an MLOG_INDEX_LOAD record to indicate in the redo-log
   that redo-logging of individual index pages was disabled, and
   the flushing of such pages to the data files was completed.
@@ -388,10 +384,10 @@ struct Builder {
   dberr_t insert_direct(Cursor &cursor, const Row &row,
                         size_t thread_id) noexcept;
 
-  /** Create the file, if needed.
+  /** Create the merge file, if needed.
   @param[in,out] file           File handle.
-  @return file handle for the merge file. */
-  [[nodiscard]] os_fd_t create_file(ddl::file_t &file) noexcept;
+  @return true if file was opened successfully . */
+  [[nodiscard]] bool create_file(ddl::file_t &file) noexcept;
 
   /** Check for duplicates in the first block
   @param[in] dupcheck           Files to check for duplicates.

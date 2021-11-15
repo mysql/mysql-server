@@ -64,8 +64,8 @@ using Merge_offsets = std::deque<os_offset_t, ut::allocator<os_offset_t>>;
 
 /** Information about temporary files used in merge sort */
 struct file_t {
-  /** File descriptor */
-  os_fd_t m_fd{OS_FD_CLOSED};
+  /** File. */
+  Unique_os_file_descriptor m_file;
 
   /** Size of the file in bytes. */
   os_offset_t m_size;
@@ -154,8 +154,8 @@ struct Row {
 /** Create a merge file int the given location.
 @param[out] file                Temporary generated during DDL.
 @param[in] path                 Location for creating temporary file
-@return file descriptor, or OS_FD_CLOSED  on failure */
-[[nodiscard]] os_fd_t file_create(file_t *file, const char *path) noexcept;
+@return true if file is created successfully */
+[[nodiscard]] bool file_create(file_t *file, const char *path) noexcept;
 
 /** Write a merge block to the file system.
 @param[in] fd                   File descriptor
@@ -173,10 +173,6 @@ dberr_t pwrite(os_fd_t fd, void *ptr, size_t size, os_offset_t offset) noexcept;
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t pread(os_fd_t fd, void *ptr, size_t len,
                             os_offset_t offset) noexcept;
-
-/** Destroy a merge file.
-@param[out] file                Temporary generated during DDL. */
-void file_destroy(file_t *file) noexcept;
 
 }  // namespace ddl
 
