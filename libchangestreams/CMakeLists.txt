@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 OPTION(WITH_CS_PROTOBUF
-  "Compile change streams library with protobuf based functionality" ON)
+  "Compile change streams library with protobuf based functionality" OFF)
 
 ADD_WSHADOW_WARNING()
 DISABLE_MISSING_PROFILE_WARNING()
