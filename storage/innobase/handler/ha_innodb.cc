@@ -625,6 +625,8 @@ const struct _ft_vft_ext ft_vft_ext_result = {
 #ifdef HAVE_PSI_INTERFACE
 #define PSI_KEY(n, flag, volatility, doc) \
   { &(n##_key.m_value), #n, flag, volatility, doc }
+#define PSI_MEMORY_KEY(n, flag, volatility, doc) \
+  { &(n##_key), #n, flag, volatility, doc }
 #define PSI_MUTEX_KEY(n, flag, volatility, doc) \
   { &(n##_key.m_value), #n, flag, volatility, doc }
 /* All RWLOCK used in Innodb are SX-locks */
@@ -649,6 +651,13 @@ static PSI_mutex_info all_pthread_mutexes[] = {
 static PSI_cond_info all_innodb_conds[] = {
     PSI_KEY(commit_cond, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(resume_encryption_cond, 0, 0, PSI_DOCUMENT_ME)};
+
+#ifdef UNIV_PFS_MEMORY
+/* pfs keys related to memory that is performance schema instrumented
+when "UNIV_PFS_MEMORY" is defined */
+static PSI_memory_info pfs_instrumented_innodb_memory[] = {
+    PSI_MEMORY_KEY(log_buffer_memory, 0, 0, "Redo log buffer")};
+#endif /* UNIV_PFS_MEMORY */
 
 #ifdef UNIV_PFS_MUTEX
 /* all_innodb_mutexes array contains mutexes that are
@@ -5086,6 +5095,11 @@ static int innodb_init(void *p) {
 #ifdef UNIV_DEBUG
   global_count += count;
 #endif /* UNIV_DEBUG */
+
+#ifdef UNIV_PFS_MEMORY
+  count = static_cast<int>(array_elements(pfs_instrumented_innodb_memory));
+  mysql_memory_register("innodb", pfs_instrumented_innodb_memory, count);
+#endif /* UNIV_PFS_MEMORY */
 
 #ifdef UNIV_PFS_MUTEX
   count = static_cast<int>(array_elements(all_innodb_mutexes));
