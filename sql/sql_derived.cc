@@ -571,8 +571,17 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item,
   // query block.
   thd->lex->unit = context->query_block->master_query_expression();
   thd->lex->set_current_query_block(context->query_block);
+  // If this query block is part of a stored procedure, we might have to
+  // parse a stored procedure variable (if present). Set the context
+  // correctly.
+  thd->lex->set_sp_current_parsing_ctx(old_lex->get_sp_current_parsing_ctx());
+  thd->lex->sphead = old_lex->sphead;
+
   bool result = parse_sql(thd, &parser_state, nullptr);
 
+  // lex_end() would try to destroy sphead if set. So we reset it.
+  thd->lex->set_sp_current_parsing_ctx(nullptr);
+  thd->lex->sphead = nullptr;
   // End of parsing.
   lex_end(thd->lex);
   thd->lex = old_lex;
