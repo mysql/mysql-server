@@ -147,6 +147,17 @@ static inline void my_thread_yield() {
 #endif
 }
 
+inline bool operator==(const my_thread_handle &a, const my_thread_handle &b) {
+  return (a.thread == b.thread
+#ifdef WIN32
+          && a.handle == b.handle
+#endif /* WIN32 */
+  );
+}
+inline bool operator!=(const my_thread_handle &a, const my_thread_handle &b) {
+  return !(a == b);
+}
+
 int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
