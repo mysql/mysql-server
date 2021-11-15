@@ -4255,14 +4255,20 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg) const {
 
   const uint32 max_characters =
       group_concat_max_len / collation.collation->mbminlen;
+
+  // Avoid arithmetic overflow
+  const uint32 field_length = min<uint64>(
+      static_cast<uint64>(max_characters) * collation.collation->mbmaxlen,
+      UINT_MAX32);
+
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC)
-        Field_blob(max_characters * collation.collation->mbmaxlen,
-                   is_nullable(), item_name.ptr(), collation.collation, true);
+        Field_blob(field_length, is_nullable(), item_name.ptr(),
+                   collation.collation, true);
   else
-    field = new (*THR_MALLOC) Field_varstring(
-        max_characters * collation.collation->mbmaxlen, is_nullable(),
-        item_name.ptr(), table_arg->s, collation.collation);
+    field = new (*THR_MALLOC)
+        Field_varstring(field_length, is_nullable(), item_name.ptr(),
+                        table_arg->s, collation.collation);
 
   if (field) field->init(table_arg);
   return field;
@@ -4371,7 +4377,10 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
     group_concat_max_len =
         static_cast<uint>(thd->variables.group_concat_max_len);
   uint32 max_chars = group_concat_max_len / collation.collation->mbminlen;
-  uint32 max_byte_length = max_chars * collation.collation->mbmaxlen;
+  // Avoid arithmetic overflow
+  uint32 max_byte_length = min<uint64>(
+      static_cast<uint64>(max_chars) * collation.collation->mbmaxlen,
+      UINT_MAX32);
   max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
                                         : set_data_type_string(max_chars);
 
