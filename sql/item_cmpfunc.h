@@ -1174,6 +1174,17 @@ class Item_func_reject_if : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+  /**
+    We add RAND_TABLE_BIT to prevent moving this item from the JOIN condition:
+    it might raise an error too early: only if the join condition succeeds is
+    it relevant and should be evaluated. Cf.
+    Query_block::decorrelate_derived_scalar_subquery_post
+
+    @return Always RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const override {
+    return RAND_TABLE_BIT;
+  }
 };
 
 /**
