@@ -27,6 +27,7 @@
 #include <time.h>
 #include <iostream>
 #include <locale>
+#include <memory>
 
 using namespace std;
 

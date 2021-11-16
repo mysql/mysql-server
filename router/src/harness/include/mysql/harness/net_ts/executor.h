@@ -36,6 +36,7 @@
 #include <thread>
 #include <type_traits>  // decay_t, enable_if
 #include <unordered_map>
+#include <utility>
 
 #include "my_compiler.h"
 #include "mysql/harness/net_ts/netfwd.h"

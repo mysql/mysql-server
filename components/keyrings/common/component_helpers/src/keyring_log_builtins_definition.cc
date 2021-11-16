@@ -25,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
+#include <memory>
 #include <sstream>
 
 #include <m_string.h>
