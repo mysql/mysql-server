@@ -338,6 +338,35 @@ static bool skip_own_peer_address(
   return false;
 }
 
+static constexpr const char *get_signaling_error() {
+  return "The group communication engine could not set up its internal event "
+         "notification mechanism. This may be due to one or more invalid "
+         "configuration settings. Double-check your group replication local "
+         "address, firewall"
+#if !defined(_WIN32)
+         ", SE Linux"
+#endif
+         " and TLS configurations and try "
+         "restarting Group Replication on this server.";
+}
+
+static const std::string get_connection_test_error(const std::string &address,
+                                                   int port) {
+  std::stringstream retval;
+  retval << "The group communication engine failed to test connectivity to the "
+            "local group communication engine on "
+         << address << ":" << port
+         << ". This may be due to one or more invalid configuration settings. "
+            "Double-check your group replication local address, firewall";
+#if !defined(_WIN32)
+  retval << ", SE Linux";
+#endif
+  retval << " and TLS configurations and try restarting Group Replication on "
+            "this server.";
+
+  return retval.str();
+};
+
 enum_gcs_error Gcs_xcom_control::retry_do_join() {
   /* Used to initialize xcom */
   int local_port = m_local_node_address->get_member_port();
@@ -383,8 +412,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
      * Tested by the TEST_F(XComControlTest,
      * JoinTestFailedToConnectToXComQueueSignallingMechanism) GCS smoke test.
      */
-    MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
-                        << " engine instance.")
+    MYSQL_GCS_LOG_ERROR(get_signaling_error());
     goto err;
     /* purecov: end */
   }
@@ -403,8 +431,10 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
       m_local_node_address->get_member_ip(),
       m_local_node_address->get_member_port());
   if (!could_connect_to_local_xcom) {
-    MYSQL_GCS_LOG_ERROR("Error testing to the local group communication"
-                        << " engine instance.")
+    MYSQL_GCS_LOG_ERROR(
+        get_connection_test_error(m_local_node_address->get_member_ip(),
+                                  m_local_node_address->get_member_port())
+            .c_str());
     goto err;
   }
 
