@@ -328,7 +328,7 @@ class Checkable_rwlock {
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock() { mysql_rwlock_destroy(&m_rwlock); }
 
-  enum enum_lock_type { NO_LOCK, READ_LOCK, WRITE_LOCK };
+  enum enum_lock_type { NO_LOCK, READ_LOCK, WRITE_LOCK, TRY_READ_LOCK };
 
   /**
     RAII class to acquire a lock for the duration of a block.
@@ -351,6 +351,9 @@ class Checkable_rwlock {
         case WRITE_LOCK:
           wrlock();
           break;
+        case TRY_READ_LOCK:
+          tryrdlock();
+          break;
         case NO_LOCK:
           break;
       }
@@ -370,6 +373,7 @@ class Checkable_rwlock {
         case WRITE_LOCK:
           lock.assert_some_wrlock();
           break;
+        case TRY_READ_LOCK:
         case NO_LOCK:
           break;
       }
@@ -410,6 +414,18 @@ class Checkable_rwlock {
       assert(m_lock_type == NO_LOCK);
       int ret = m_lock.trywrlock();
       if (ret == 0) m_lock_type = WRITE_LOCK;
+      return ret;
+    }
+
+    /**
+      Try to acquire a read lock, and fail if it cannot be
+      immediately granted.
+    */
+    int tryrdlock() {
+      DBUG_TRACE;
+      assert(m_lock_type == NO_LOCK);
+      int ret = m_lock.tryrdlock();
+      if (ret == 0) m_lock_type = READ_LOCK;
       return ret;
     }
 

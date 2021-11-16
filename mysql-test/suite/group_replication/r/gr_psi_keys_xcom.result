@@ -39,7 +39,6 @@ wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_modules_termination	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_action_phase	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_action_notification	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_primary_process_run	YES	YES	singleton	0	NULL
@@ -73,6 +72,7 @@ wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_view_change_observers	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_group_event_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_plugin_running	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_transaction_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_transaction_consistency_manager_map	YES	YES	singleton	0	NULL

@@ -190,8 +190,7 @@ extern SERVICE_TYPE_NO_CONST(mysql_runtime_error) * mysql_runtime_error_service;
 // Plugin global methods
 bool server_engine_initialized();
 void *get_plugin_pointer();
-mysql_mutex_t *get_plugin_running_lock();
-Plugin_waitlock *get_plugin_online_lock();
+Checkable_rwlock *get_plugin_running_lock();
 int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
                                Delayed_initialization_thread *delayed_init_thd);
 int initialize_plugin_modules(gr_modules::mask modules_to_init);

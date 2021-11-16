@@ -198,8 +198,25 @@ bool get_group_member_stats(
         "wait_for signal.resume_get_group_member_stats";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-  // Check if the group replication has started and a valid certifier exists
-  MUTEX_LOCK(lock, get_plugin_running_lock());
+
+  Checkable_rwlock::Guard g(*get_plugin_running_lock(),
+                            Checkable_rwlock::READ_LOCK);
+
+  DBUG_EXECUTE_IF(
+      "group_replication_get_group_member_stats_plugin_running_lock_acquired", {
+        const char act[] =
+            "now signal "
+            "signal.reached_get_group_member_stats_plugin_running_lock_"
+            "acquired "
+            "wait_for "
+            "signal.resume_get_group_member_stats_plugin_running_lock_acquired";
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      });
+
+  /*
+    Check if the group replication is running and a valid certifier exists,
+    while plugin_running_lock is acquired.
+  */
   Pipeline_member_stats *pipeline_stats = nullptr;
   if (!get_plugin_is_stopping() && applier_module != nullptr &&
       (pipeline_stats =
