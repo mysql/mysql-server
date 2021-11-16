@@ -365,7 +365,7 @@ static const std::string get_connection_test_error(const std::string &address,
             "this server.";
 
   return retval.str();
-};
+}
 
 enum_gcs_error Gcs_xcom_control::retry_do_join() {
   /* Used to initialize xcom */
