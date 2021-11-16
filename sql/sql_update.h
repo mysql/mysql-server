@@ -76,9 +76,9 @@ class Query_result_update final : public Query_result_interceptor {
   /// Number of rows actually updated, in all affected tables
   ha_rows updated_rows{0};
   /// List of pointers to fields to update, in order from statement
-  mem_root_deque<Item *> *fields;
+  const mem_root_deque<Item *> *fields;
   /// List of pointers to values to update with, in order from statement
-  mem_root_deque<Item *> *values;
+  const mem_root_deque<Item *> *values;
   /// The fields list decomposed into separate lists per table
   mem_root_deque<Item *> **fields_for_table;
   /// The values list decomposed into separate lists per table

@@ -92,6 +92,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // build_equal_items, substitute_gc
 #include "sql/sql_partition.h"  // partition_key_modified
@@ -2044,6 +2045,80 @@ static bool safe_update_on_fly(QEP_shared_owner *join_tab,
   return false;
 }
 
+/// Adds a field for storing row IDs from "table" to "fields".
+static bool AddRowIdAsTempTableField(THD *thd, TABLE *table,
+                                     mem_root_deque<Item *> *fields) {
+  /*
+    Signal each table (including tables referenced by WITH CHECK OPTION
+    clause) for which we will store row position in the temporary table
+    that we need a position to be read first.
+  */
+  table->prepare_for_position();
+
+  /*
+    A tmp table is moved to InnoDB if it doesn't fit in memory,
+    and InnoDB does not support fixed length string fields bigger
+    than 1024 bytes, so use a variable length string field.
+  */
+  Field_varstring *field = new (thd->mem_root) Field_varstring(
+      table->file->ref_length, false, table->alias, table->s, &my_charset_bin);
+  if (field == nullptr) return true;
+  field->init(table);
+  Item_field *ifield = new (thd->mem_root) Item_field(field);
+  if (ifield == nullptr) return true;
+  ifield->set_nullable(false);
+  return fields->push_back(ifield);
+}
+
+/// Stores the current row ID of "table" in the specified field of "tmp_table".
+///
+/// @param table The table to get a row ID from.
+/// @param tmp_table The temporary table in which to store the row ID.
+/// @param field_num The field of tmp_table in which to store the row ID.
+static void StoreRowId(TABLE *table, TABLE *tmp_table, int field_num) {
+  table->file->position(table->record[0]);
+  tmp_table->visible_field_ptr()[field_num]->store(
+      pointer_cast<const char *>(table->file->ref), table->file->ref_length,
+      &my_charset_bin);
+
+  /*
+    For outer joins a rowid field may have no NOT_NULL_FLAG,
+    so we have to reset NULL bit for this field.
+    (set_notnull() resets NULL bit only if available).
+  */
+  tmp_table->visible_field_ptr()[field_num]->set_notnull();
+}
+
+/// Position the scan of "table" using the row ID stored in the specified field
+/// of "tmp_table".
+///
+/// @param updated_table The table that is being updated.
+/// @param table The table to position on a given row.
+/// @param tmp_table The temporary table that holds the row ID.
+/// @param field_num The field of tmp_table that holds the row ID.
+/// @return True on error.
+static bool PositionScanOnRow(TABLE *updated_table, TABLE *table,
+                              TABLE *tmp_table, int field_num) {
+  /*
+    The row-id is after the "length bytes", and the storage
+    engine knows its length. Pass the "data_ptr()" instead of
+    the "field_ptr()" to ha_rnd_pos().
+  */
+  if (const int error = table->file->ha_rnd_pos(
+          table->record[0],
+          const_cast<uchar *>(
+              tmp_table->visible_field_ptr()[field_num]->data_ptr()))) {
+    myf error_flags = 0;
+    if (updated_table->file->is_fatal_error(error)) {
+      error_flags |= ME_FATALERROR;
+    }
+
+    updated_table->file->print_error(error, error_flags);
+    return true;
+  }
+  return false;
+}
+
 /**
   Set up data structures for multi-table UPDATE
 
@@ -2218,29 +2293,10 @@ bool Query_result_update::optimize() {
       OPTION condition.
     */
 
-    List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
-    TABLE *tbl = table;
-    do {
-      /*
-        Signal each table (including tables referenced by WITH CHECK OPTION
-        clause) for which we will store row position in the temporary table
-        that we need a position to be read first.
-      */
-      tbl->prepare_for_position();
-      /*
-        A tmp table is moved to InnoDB if it doesn't fit in memory,
-        and InnoDB does not support fixed length string fields bigger
-        than 1024 bytes, so use a variable length string field.
-      */
-      Field_varstring *field = new (thd->mem_root) Field_varstring(
-          tbl->file->ref_length, false, tbl->alias, tbl->s, &my_charset_bin);
-      if (!field) return true;
-      field->init(tbl);
-      Item_field *ifield = new (thd->mem_root) Item_field(field);
-      if (!ifield) return true;
-      ifield->set_nullable(false);
-      temp_fields.push_back(ifield);
-    } while ((tbl = tbl_it++));
+    if (AddRowIdAsTempTableField(thd, table, &temp_fields)) return true;
+    for (TABLE &tbl : unupdated_check_opt_tables) {
+      if (AddRowIdAsTempTableField(thd, &tbl, &temp_fields)) return true;
+    }
 
     temp_fields.insert(temp_fields.end(), fields_for_table[cnt]->begin(),
                        fields_for_table[cnt]->end());
@@ -2428,22 +2484,11 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
        For updatable VIEW store rowid of the updated table and
        rowids of tables used in the CHECK OPTION condition.
       */
-      uint field_num = 0;
-      List_iterator_fast<TABLE> tbl_it(unupdated_check_opt_tables);
-      TABLE *tbl = table;
-      do {
-        tbl->file->position(tbl->record[0]);
-        tmp_table->visible_field_ptr()[field_num]->store(
-            reinterpret_cast<const char *>(tbl->file->ref),
-            tbl->file->ref_length, &my_charset_bin);
-        /*
-         For outer joins a rowid field may have no NOT_NULL_FLAG,
-         so we have to reset NULL bit for this field.
-         (set_notnull() resets NULL bit only if available).
-        */
-        tmp_table->visible_field_ptr()[field_num]->set_notnull();
-        field_num++;
-      } while ((tbl = tbl_it++));
+      int field_num = 0;
+      StoreRowId(table, tmp_table, field_num++);
+      for (TABLE &tbl : unupdated_check_opt_tables) {
+        StoreRowId(&tbl, tmp_table, field_num++);
+      }
 
       /*
         If there are triggers in an original table the temporary table based on
@@ -2451,7 +2496,7 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       */
       if (tmp_table->triggers) {
         for (Field **modified_fields = tmp_table->visible_field_ptr() + 1 +
-                                       unupdated_check_opt_tables.elements;
+                                       unupdated_check_opt_tables.size();
              *modified_fields; ++modified_fields) {
           (*modified_fields)->set_tmp_nullable();
         }
@@ -2460,7 +2505,7 @@ bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
       /* Store regular updated fields in the row. */
       fill_record(thd, tmp_table,
                   tmp_table->visible_field_ptr() + 1 +
-                      unupdated_check_opt_tables.elements,
+                      unupdated_check_opt_tables.size(),
                   *values_for_table[offset], nullptr, nullptr, false);
 
       // check if a record exists with the same hash value
@@ -2530,7 +2575,6 @@ bool Query_result_update::do_updates(THD *thd) {
   int local_error = 0;
   ha_rows org_updated;
   TABLE *table, *tmp_table;
-  List_iterator_fast<TABLE> check_opt_it(unupdated_check_opt_tables);
   myf error_flags = MYF(0); /**< Flag for fatal errors */
 
   DBUG_TRACE;
@@ -2596,9 +2640,8 @@ bool Query_result_update::do_updates(THD *thd) {
       goto err;
     }
 
-    check_opt_it.rewind();
-    while (TABLE *tbl = check_opt_it++) {
-      if (tbl->file->ha_rnd_init(true))
+    for (TABLE &tbl : unupdated_check_opt_tables) {
+      if (tbl.file->ha_rnd_init(true))
         // No known handler error code present, print_error makes no sense
         goto err;
     }
@@ -2608,7 +2651,7 @@ bool Query_result_update::do_updates(THD *thd) {
     */
     auto field_it = fields_for_table[offset]->begin();
     Field **field = tmp_table->visible_field_ptr() + 1 +
-                    unupdated_check_opt_tables.elements;  // Skip row pointers
+                    unupdated_check_opt_tables.size();  // Skip row pointers
     Copy_field *copy_field_ptr = copy_field, *copy_field_end;
     for (; *field; field++) {
       Item_field *item = down_cast<Item_field *>(*field_it++);
@@ -2642,27 +2685,11 @@ bool Query_result_update::do_updates(THD *thd) {
       }
 
       /* call ha_rnd_pos() using rowids from temporary table */
-      check_opt_it.rewind();
-      TABLE *tbl = table;
-      uint field_num = 0;
-      do {
-        /*
-          The row-id is after the "length bytes", and the storage
-          engine knows its length. Pass the "data_ptr()" instead of
-          the "field_ptr()" to ha_rnd_pos().
-        */
-        if ((local_error = tbl->file->ha_rnd_pos(
-                 tbl->record[0],
-                 const_cast<uchar *>(
-                     tmp_table->visible_field_ptr()[field_num]->data_ptr())))) {
-          if (table->file->is_fatal_error(local_error))
-            error_flags |= ME_FATALERROR;
-
-          table->file->print_error(local_error, error_flags);
-          goto err;
-        }
-        field_num++;
-      } while ((tbl = check_opt_it++));
+      int field_num = 0;
+      if (PositionScanOnRow(table, table, tmp_table, field_num++)) goto err;
+      for (TABLE &tbl : unupdated_check_opt_tables) {
+        if (PositionScanOnRow(table, &tbl, tmp_table, field_num++)) goto err;
+      }
 
       table->set_updated_row();
       store_record(table, record[1]);
@@ -2775,17 +2802,17 @@ bool Query_result_update::do_updates(THD *thd) {
     }
     (void)table->file->ha_rnd_end();
     (void)tmp_table->file->ha_rnd_end();
-    check_opt_it.rewind();
-    while (TABLE *tbl = check_opt_it++) tbl->file->ha_rnd_end();
+    for (TABLE &tbl : unupdated_check_opt_tables) {
+      tbl.file->ha_rnd_end();
+    }
   }
   return false;
 
 err:
   if (table->file->inited) (void)table->file->ha_rnd_end();
   if (tmp_table->file->inited) (void)tmp_table->file->ha_rnd_end();
-  check_opt_it.rewind();
-  while (TABLE *tbl = check_opt_it++) {
-    if (tbl->file->inited) (void)tbl->file->ha_rnd_end();
+  for (TABLE &tbl : unupdated_check_opt_tables) {
+    if (tbl.file->inited) (void)tbl.file->ha_rnd_end();
   }
 
   if (updated_rows != org_updated) {
