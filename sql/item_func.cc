@@ -436,7 +436,7 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg) {
     assert(allowed_arg_cols);  // Can't be 0 any more
   }
 
-  set_nullable(is_nullable() | item->is_nullable());
+  set_nullable(is_nullable() || item->is_nullable());
   used_tables_cache |= item->used_tables();
   if (null_on_null) not_null_tables_cache |= item->not_null_tables();
   add_accum_properties(item);

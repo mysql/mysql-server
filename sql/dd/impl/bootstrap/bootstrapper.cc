@@ -857,7 +857,7 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       populate_tables(thd) ||
       update_properties(thd, nullptr, nullptr,
                         String_type(MYSQL_SCHEMA_NAME.str)) ||
-      verify_contents(thd) | update_versions(thd, is_dd_upgrade_57))
+      verify_contents(thd) || update_versions(thd, is_dd_upgrade_57))
     return true;
 
   DBUG_EXECUTE_IF(

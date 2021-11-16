@@ -1384,7 +1384,7 @@ bool Item_sum_num::fix_fields(THD *thd, Item **ref) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return true;
-    set_nullable(is_nullable() | args[i]->is_nullable());
+    set_nullable(is_nullable() || args[i]->is_nullable());
   }
 
   // Set this value before calling resolve_type()

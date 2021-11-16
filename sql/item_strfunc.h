@@ -707,7 +707,7 @@ class Item_func_make_set final : public Item_str_func {
     assert(fixed == 0);
     bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
                 item->check_cols(1) || Item_func::fix_fields(thd, ref));
-    set_nullable(is_nullable() | item->is_nullable());
+    set_nullable(is_nullable() || item->is_nullable());
     return res;
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,

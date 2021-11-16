@@ -5584,7 +5584,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     else
       not_null_tables_cache &= item->not_null_tables();
     add_accum_properties(item);
-    set_nullable(is_nullable() | item->is_nullable());
+    set_nullable(is_nullable() || item->is_nullable());
   }
 
   /*

@@ -274,7 +274,7 @@ void Item_subselect::accumulate_properties(Query_block *select) {
 void Item_subselect::accumulate_expression(Item *item) {
   if (item->used_tables() & ~OUTER_REF_TABLE_BIT)
     used_tables_cache |= INNER_TABLE_BIT;
-  set_nullable(is_nullable() | item->is_nullable());
+  set_nullable(is_nullable() || item->is_nullable());
 }
 
 /**
