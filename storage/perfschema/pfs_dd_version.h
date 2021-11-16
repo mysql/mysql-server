@@ -190,6 +190,7 @@
   performance_schema tables changed in MySQL 8.0.28
   - WL#14779 PERFORMANCE_SCHEMA, ADD CPU TIME TO STATEMENT METRICS
     added CPU_TIME, SUM_CPU_TIME columns.
+  - Fixed performance_schema.processlist host column to size 261.
 */
 
 static const uint PFS_DD_VERSION = 80028;

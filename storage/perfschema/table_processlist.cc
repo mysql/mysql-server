@@ -46,6 +46,9 @@
 
 THR_LOCK table_processlist::m_table_lock;
 
+static_assert(USERNAME_CHAR_LENGTH == 32, "Fix USER size");
+static_assert(HOST_AND_PORT_LENGTH == 261, "Fix HOST size");
+
 Plugin_table table_processlist::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -54,7 +57,7 @@ Plugin_table table_processlist::m_table_def(
     /* Definition */
     "  ID BIGINT unsigned,\n"
     "  USER VARCHAR(32),\n"
-    "  HOST VARCHAR(255) CHARACTER SET ASCII default null,\n"
+    "  HOST VARCHAR(261) CHARACTER SET ASCII default null,\n"
     "  DB VARCHAR(64),\n"
     "  COMMAND VARCHAR(16),\n"
     "  TIME BIGINT,\n"
