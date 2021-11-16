@@ -390,8 +390,6 @@ class CostingReceiver {
                                  OverflowBitset applied_predicates,
                                  OverflowBitset subsumed_predicates,
                                  double force_num_output_rows_after_filter,
-                                 bool pushed_any_join_conditions,
-                                 bool pushed_any_nonjoin_conditions,
                                  const char *description_for_trace,
                                  AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
@@ -1769,8 +1767,7 @@ bool CostingReceiver::ProposeRefAccess(
   }
 
   double num_output_rows = table->file->stats.records;
-  bool pushed_any_join_conditions = false;
-  bool pushed_any_nonjoin_conditions = false;
+  double join_condition_selectivity = 1.0;
 
   MutableOverflowBitset applied_predicates{m_thd->mem_root,
                                            m_graph.predicates.size()};
@@ -1783,13 +1780,6 @@ bool CostingReceiver::ProposeRefAccess(
       continue;
     }
 
-    if (IsSubset(m_graph.predicates[i].condition->used_tables(),
-                 table->pos_in_table_list->map())) {
-      pushed_any_nonjoin_conditions = true;
-    } else {
-      pushed_any_join_conditions = true;
-    }
-
     if (m_graph.predicates[i].was_join_condition) {
       // This predicate was promoted from a join condition to a WHERE predicate,
       // since it was part of a cycle. For purposes of sargable predicates,
@@ -1797,6 +1787,12 @@ bool CostingReceiver::ProposeRefAccess(
       // so that we don't double-count its selectivity.
       applied_predicates.SetBit(i);
       continue;
+    }
+
+    if (!IsSubset(
+            m_graph.predicates[i].condition->used_tables() & ~PSEUDO_TABLE_BITS,
+            table->pos_in_table_list->map())) {
+      join_condition_selectivity *= m_graph->predicates[i].selectivity;
     }
 
     num_output_rows *= m_graph.predicates[i].selectivity;
@@ -1819,6 +1815,15 @@ bool CostingReceiver::ProposeRefAccess(
             keypart.field->field_name);
       }
     }
+  }
+
+  if (force_num_output_rows_after_filter >= 0.0) {
+    // The range optimizer has given us an estimate for the number of
+    // rows after all filters have been applied, that we should be
+    // consistent with. However, that is only filters; not join conditions.
+    // The join conditions we apply are completely independent of the
+    // filters, so we make our usual independence assumption.
+    force_num_output_rows_after_filter *= join_condition_selectivity;
   }
 
   // We are guaranteed to get a single row back if all of these hold:
@@ -1879,17 +1884,15 @@ bool CostingReceiver::ProposeRefAccess(
 
   ProposeAccessPathForIndex(
       node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
-      force_num_output_rows_after_filter, pushed_any_join_conditions,
-      pushed_any_nonjoin_conditions, key->name, &path);
+      force_num_output_rows_after_filter, key->name, &path);
   return false;
 }
 
 void CostingReceiver::ProposeAccessPathForIndex(
     int node_idx, OverflowBitset applied_predicates,
     OverflowBitset subsumed_predicates,
-    double force_num_output_rows_after_filter, bool pushed_any_join_conditions,
-    bool pushed_any_nonjoin_conditions, const char *description_for_trace,
-    AccessPath *path) {
+    double force_num_output_rows_after_filter,
+    const char *description_for_trace, AccessPath *path) {
   MutableOverflowBitset applied_sargable_join_predicates_tmp =
       applied_predicates.Clone(m_thd->mem_root);
   applied_sargable_join_predicates_tmp.ClearBits(0,
@@ -1910,32 +1913,7 @@ void CostingReceiver::ProposeAccessPathForIndex(
                                 path, &new_fd_set);
 
     if (force_num_output_rows_after_filter >= 0.0) {
-      // The range optimizer has given us an estimate for the number of
-      // rows after all filters have been applied, that we should be
-      // consistent with. However, that is only filters; not join conditions.
-      // Ideally, we should have had a new estimate (using maximum entropy;
-      // see EstimateOutputRowsFromRangeTree()) that includes the
-      // join conditions we have pushed down to the index. But we don't
-      // have that at the moment, and there are edge cases that can be
-      // tricky. We deal with the two simple cases, and simply leave the
-      // complicated one alone, hoping that the cost discrepancy will
-      // favor the ref access case anyway.
-      if (!pushed_any_join_conditions && pushed_any_nonjoin_conditions) {
-        // Completely regular; the fact that we pushed some of them down
-        // into an index changed nothing.
-        path->num_output_rows = force_num_output_rows_after_filter;
-      } else if (pushed_any_join_conditions && !pushed_any_nonjoin_conditions) {
-        // The join conditions we apply are completely independent of the
-        // filters, so we make our usual independence assumption.
-        const double selectivity =
-            force_num_output_rows_after_filter /
-            m_graph.nodes[node_idx].table->file->stats.records;
-        path->num_output_rows =
-            path->num_output_rows_before_filter * selectivity;
-      } else {
-        // Either we pushed no filters at all, or we have a complicated
-        // situation that we're just leaving alone.
-      }
+      path->num_output_rows = force_num_output_rows_after_filter;
     }
 
     path->ordering_state =
@@ -2398,8 +2376,6 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
                             std::move(subsumed_predicates),
                             /*force_num_output_rows_after_filter=*/-1.0,
-                            /*pushed_any_join_conditions=*/false,
-                            /*pushed_any_nonjoin_conditions=*/false,
                             table->key_info[key_idx].name, path);
   return false;
 }
