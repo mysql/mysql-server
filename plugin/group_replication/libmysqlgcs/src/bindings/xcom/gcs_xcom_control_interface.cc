@@ -2120,7 +2120,7 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
   }
 
   // List of nodes to remove
-  Gcs_xcom_nodes nodes_to_remove;
+  Gcs_xcom_nodes nodes_to_remove, nodes_to_remember_expel;
 
   bool force_remove = false;
 
@@ -2160,6 +2160,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
       }
 
       nodes_to_remove.add_node(*susp_it);
+      if ((*susp_it).is_member()) {
+        nodes_to_remember_expel.add_node(*susp_it);
+      }
       m_suspicions.remove_node(*susp_it);
       /* purecov: end */
     } else {
@@ -2193,9 +2196,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
           "process_suspicions: Expelling suspects that timed out!");
       bool const removed =
           m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
-      if (removed) {
+      if (removed && !nodes_to_remember_expel.empty()) {
         m_expels_in_progress.remember_expels_issued(m_config_id,
-                                                    nodes_to_remove);
+                                                    nodes_to_remember_expel);
       }
     } else if (force_remove) {
       assert(!m_is_killer_node);
