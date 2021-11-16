@@ -19184,7 +19184,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   const CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   tabptr.i = copyFragReq->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  Uint32 i;
   const Uint32 fragId = copyFragReq->fragId;
   const Uint32 copyPtr = copyFragReq->userPtr;
   const Uint32 userRef = copyFragReq->userRef;
@@ -19199,7 +19198,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   NdbNodeBitmask nodemask;
   {
     ndbrequire(nodeCount <= MAX_REPLICAS);
-    for (i = 0; i<nodeCount; i++)
+    for (Uint32 i = 0; i < nodeCount; i++)
       nodemask.set(copyFragReq->nodeList[i]);
   }
   Uint32 maxPage = copyFragReq->nodeList[nodeCount];
@@ -19248,8 +19247,8 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     ord->tableId = tabptr.i;
     ord->fragId = fragId;
     ord->fragDistributionKey = key;
-    i = 1;
-    while ((i = nodemask.find(i+1)) != NdbNodeBitmask::NotFound)
+    Uint32 i = 0;
+    while ((i = nodemask.find(i + 1)) != NdbNodeBitmask::NotFound)
     {
       Uint32 instanceNo = getInstanceNo(i,
                                         fragptr.p->lqhInstanceKey);
