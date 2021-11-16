@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /* Do not include univ.i because univ.i includes this. */
 
 #include <functional>
-#include "os0thread.h"
 
 /** Set a callback function to be called before exiting.
 @param[in]	callback	user callback function */

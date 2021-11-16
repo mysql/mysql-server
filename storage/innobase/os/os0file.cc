@@ -3752,7 +3752,7 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
   }
 
   /* Sync IO can't be done on a file opened in AIO mode. */
-  // ut_a(GetLastError() != ERROR_IO_PENDING);
+  ut_a(ret || GetLastError() != ERROR_IO_PENDING);
 
   return (ret ? static_cast<ssize_t>(n_bytes) : -1);
 }
@@ -3773,7 +3773,7 @@ ssize_t SyncFileIO::execute(Slot *slot) {
   }
 
   /* Sync IO can't be done on a file opened in AIO mode. */
-  // ut_a(GetLastError() != ERROR_IO_PENDING);
+  ut_a(ret || GetLastError() != ERROR_IO_PENDING);
 
   return (ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
@@ -3792,12 +3792,34 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   punch.FileOffset.QuadPart = off;
   punch.BeyondFinalZero.QuadPart = off + len;
 
-  /* If lpOverlapped is NULL, lpBytesReturned cannot be NULL,
-  therefore we pass a dummy parameter. */
+  /* We need a fresh, not shared instance of Event for the OVERLAPPED structure.
+  Both are stopped being used at most at the end of this method, as we wait for
+  the result with GetOverlappedResult. Otherwise the kernel would be modifying
+  the structure after we leave this method and if the overlapped struct was
+  allocated on stack, it would corrupt the stack.
+  To not create a fresh Event each time this method is called, we will use a
+  static one, that is initialized once on first usage and is destroyed at latest
+  at program exit.
+  To make it not being used concurrently, we make it thread_local (which implies
+  static) - this way each invocation will have its own Event not used by anyone
+  else. The event will be destroyed at thread exit. */
+  thread_local Scoped_event local_event;
+
+  OVERLAPPED overlapped{};
+  overlapped.hEvent = local_event.get_handle();
+
+  ut_a(overlapped.hEvent != NULL);
+
   DWORD temp;
 
   BOOL result = DeviceIoControl(fh, FSCTL_SET_ZERO_DATA, &punch, sizeof(punch),
-                                NULL, 0, &temp, NULL);
+                                NULL, 0, &temp, &overlapped);
+
+  if (!result) {
+    if (GetLastError() == ERROR_IO_PENDING) {
+      result = GetOverlappedResult(fh, &overlapped, &temp, true);
+    }
+  }
 
   return (!result ? DB_IO_NO_PUNCH_HOLE : DB_SUCCESS);
 }

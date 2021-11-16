@@ -46,6 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <string.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iterator>
