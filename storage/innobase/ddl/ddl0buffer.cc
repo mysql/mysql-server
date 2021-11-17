@@ -142,6 +142,9 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
     memmove(ptr, ptr + n_written, n_move);
     ptr += n_move;
 
+    /* Remaining contents of buffer must be less than the needed alignment.*/
+    ut_ad(n_move < IO_BLOCK_SIZE);
+
     return DB_SUCCESS;
   };
 
@@ -187,6 +190,7 @@ dberr_t Key_sort_buffer::serialize(IO_buffer io_buffer, Function &&f) noexcept {
       if (err != DB_SUCCESS) {
         return err;
       }
+      ut_a(ptr + rec_size < bounds.second);
     }
 
     memcpy(ptr, prefix, need);
