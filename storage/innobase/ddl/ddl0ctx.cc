@@ -157,11 +157,19 @@ Context::Scan_buffer_size Context::scan_buffer_size(
     n_buffers *= m_indexes.size();
   }
 
+  /* The maximum size of the record is considered to be srv_page_size/2,
+  because one B-tree node should be able to hold atleast 2 records. But there
+  is also an i/o alignment requirement of IO_BLOCK_SIZE.  This means that the
+  min io buffer size should be the sum of these two.  Refer to
+  Key_sort_buffer::serialize() function and its write() lambda function to
+  understand the reasoning behind this.  */
+  const auto min_io_size = (srv_page_size / 2) + IO_BLOCK_SIZE;
+
   /* A single row *must* fit into an IO block. The IO buffer should be
   greater than the IO physical size buffer makes it easier to handle
   FS block aligned writes. */
   const auto io_block_size = IO_BLOCK_SIZE + ((IO_BLOCK_SIZE * 25) / 100);
-  const auto io_size = std::max(size_t(srv_page_size / 2), io_block_size);
+  const auto io_size = std::max(size_t(min_io_size), io_block_size);
 
   Scan_buffer_size size{m_max_buffer_size / n_buffers, io_size};
 
