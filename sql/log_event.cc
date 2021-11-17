@@ -7722,8 +7722,9 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                           m_width))) {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != nullptr)) {
-      memcpy(m_cols.bitmap, cols->bitmap, no_bytes_in_map(cols));
-      create_last_word_mask(&m_cols);
+      // 'cols' may have additional hidden columns at the end.
+      assert(cols->n_bits >= m_cols.n_bits);
+      bitmap_n_copy(&m_cols, cols);
     }
   } else {
     // Needed because bitmap_init() does not set it to null on failure
@@ -7791,6 +7792,7 @@ Rows_log_event::Rows_log_event(
                           m_width <= sizeof(m_bitbuf) * 8 ? m_bitbuf : nullptr,
                           m_width))) {
     if (!columns_before_image.empty()) {
+      assert(n_bits_len == (m_width + 7) / 8);
       memcpy(m_cols.bitmap, &columns_before_image[0], n_bits_len);
       create_last_word_mask(&m_cols);
       DBUG_DUMP("m_cols", (uchar *)m_cols.bitmap, no_bytes_in_map(&m_cols));
@@ -12371,8 +12373,9 @@ void Update_rows_log_event::init(MY_BITMAP const *cols) {
           m_width))) {
     /* Cols can be zero if this is a dummy binrows event */
     if (likely(cols != nullptr)) {
-      memcpy(m_cols_ai.bitmap, cols->bitmap, no_bytes_in_map(cols));
-      create_last_word_mask(&m_cols_ai);
+      // 'cols' may have additional hidden columns at the end.
+      assert(cols->n_bits >= m_cols_ai.n_bits);
+      bitmap_n_copy(&m_cols_ai, cols);
     }
   }
 }
