@@ -66,7 +66,7 @@ class Security_buffer : public SecBufferDesc {
   const Security_buffer &operator=(const Security_buffer &);
 
  public:
-  Security_buffer(const Blob &);
+  explicit Security_buffer(const Blob &);
   Security_buffer();
 
   ~Security_buffer() { mem_free(); }

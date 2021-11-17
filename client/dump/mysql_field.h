@@ -37,7 +37,7 @@ namespace Dump {
 
 class Mysql_field {
  public:
-  Mysql_field(MYSQL_FIELD *field);
+  explicit Mysql_field(MYSQL_FIELD *field);
 
   std::string get_name() const;
 

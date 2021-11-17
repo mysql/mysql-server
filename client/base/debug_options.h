@@ -47,7 +47,7 @@ class Debug_options : public Abstract_options_provider {
     Constructs new debug options provider.
     @param program Pointer to main program class.
    */
-  Debug_options(Abstract_program *program);
+  explicit Debug_options(Abstract_program *program);
   /**
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.

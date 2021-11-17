@@ -91,7 +91,7 @@ void deinit_connection_basic();
 
 class Mysql_connection {
  public:
-  Mysql_connection(bool connect);
+  explicit Mysql_connection(bool connect);
   ~Mysql_connection();
   bool execute(std::string command);
   bool ok() { return ok_; }

@@ -125,7 +125,8 @@ class Database_rewrite {
       unsigned char **m_buffer{nullptr};
 
      public:
-      Buffer_realloc_manager(unsigned char **buffer) : m_buffer{buffer} {}
+      explicit Buffer_realloc_manager(unsigned char **buffer)
+          : m_buffer{buffer} {}
       ~Buffer_realloc_manager() {
         if (m_buffer != nullptr) free(*m_buffer);
       }
@@ -209,7 +210,7 @@ class Database_rewrite {
     }
 
    public:
-    Transaction_payload_content_rewriter(Database_rewrite &rewriter)
+    explicit Transaction_payload_content_rewriter(Database_rewrite &rewriter)
         : m_event_rewriter(rewriter) {}
 
     /**
@@ -2575,7 +2576,7 @@ static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set) {
 class Destroy_log_event_guard {
  public:
   Log_event **ev_del;
-  Destroy_log_event_guard(Log_event **ev_arg) { ev_del = ev_arg; }
+  explicit Destroy_log_event_guard(Log_event **ev_arg) { ev_del = ev_arg; }
   ~Destroy_log_event_guard() {
     if (*ev_del != nullptr) delete *ev_del;
   }

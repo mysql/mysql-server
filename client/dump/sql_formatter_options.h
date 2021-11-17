@@ -45,7 +45,7 @@ enum class enum_gtid_purged_mode : unsigned long {
 class Sql_formatter_options
     : public Mysql::Tools::Base::Options::Abstract_options_provider {
  public:
-  Sql_formatter_options(
+  explicit Sql_formatter_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
   void create_options() override;

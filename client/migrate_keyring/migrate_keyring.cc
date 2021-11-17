@@ -56,7 +56,7 @@ Log log_error(std::cerr, "ERROR");
 
 class Migration_setup {
  public:
-  Migration_setup(char *progname) {
+  explicit Migration_setup(char *progname) {
     MY_INIT(progname);
     init_components_subsystem();
     init_connection_basic();

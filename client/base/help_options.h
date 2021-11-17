@@ -46,7 +46,7 @@ class Help_options : public Abstract_options_provider {
     @param program Pointer to main program class, used to collect list of all
       options available in program.
    */
-  Help_options(Base::Abstract_program *program);
+  explicit Help_options(Base::Abstract_program *program);
   /**
     Creates all options that will be provided.
     Implementation of Abstract_options_provider virtual method.

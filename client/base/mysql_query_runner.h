@@ -52,7 +52,7 @@ class Mysql_query_runner {
   /**
     Standard constructor based on MySQL connection.
    */
-  Mysql_query_runner(MYSQL *connection);
+  explicit Mysql_query_runner(MYSQL *connection);
   /**
     Copy constructor.
    */
@@ -200,7 +200,7 @@ class Mysql_query_runner {
 
   class Store_result_helper {
    public:
-    Store_result_helper(std::vector<const Row *> *result);
+    explicit Store_result_helper(std::vector<const Row *> *result);
     std::function<int64(const Row &)> *get_result_callback();
 
    private:

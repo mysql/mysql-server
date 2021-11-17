@@ -78,7 +78,7 @@ class Mysql_connection_options : public Composite_options_provider,
     function from multiple threads simultaneously is not thread safe.
     @param program Pointer to main program class.
    */
-  Mysql_connection_options(Abstract_program *program);
+  explicit Mysql_connection_options(Abstract_program *program);
 
   /**
     Creates all options that will be provided.

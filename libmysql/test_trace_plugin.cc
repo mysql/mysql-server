@@ -182,7 +182,7 @@ class Logger {
 
  public:
   Logger() : connection_id(0), end(buffer) {}
-  Logger(MYSQL *conn);
+  explicit Logger(MYSQL *conn);
   void log(const char *format, ...) MY_ATTRIBUTE((format(printf, 2, 3)));
   void dump(const char *key, const void *data, size_t len);
 };

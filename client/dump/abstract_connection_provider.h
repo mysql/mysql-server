@@ -37,7 +37,7 @@ namespace Dump {
 
 class Abstract_connection_provider : public I_connection_provider {
  protected:
-  Abstract_connection_provider(
+  explicit Abstract_connection_provider(
       Mysql::Tools::Base::I_connection_factory *connection_factory);
 
   virtual Mysql::Tools::Base::Mysql_query_runner *create_new_runner(
@@ -49,7 +49,7 @@ class Abstract_connection_provider : public I_connection_provider {
 
   class Message_handler_wrapper {
    public:
-    Message_handler_wrapper(
+    explicit Message_handler_wrapper(
         std::function<bool(const Mysql::Tools::Base::Message_data &)>
             *message_handler);
 

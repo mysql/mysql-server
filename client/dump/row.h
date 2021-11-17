@@ -37,7 +37,7 @@ namespace Dump {
  */
 class Row : public I_data_object {
  public:
-  Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);
+  explicit Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);
 
   ~Row() override;
 

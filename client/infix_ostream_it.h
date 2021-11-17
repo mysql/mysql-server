@@ -31,7 +31,7 @@ template <class T>
 class infix_ostream_iterator
     : public std::iterator<std::output_iterator_tag, T> {
  public:
-  infix_ostream_iterator(std::ostream &s) : m_os(&s) {}
+  explicit infix_ostream_iterator(std::ostream &s) : m_os(&s) {}
 
   infix_ostream_iterator(std::ostream &s, const char *d)
       : m_os(&s), m_delimiter(d) {}

@@ -40,7 +40,7 @@ namespace Dump {
 class Object_filter
     : public Mysql::Tools::Base::Options::Composite_options_provider {
  public:
-  Object_filter(Mysql::Tools::Base::Abstract_program *program);
+  explicit Object_filter(Mysql::Tools::Base::Abstract_program *program);
 
   void create_options() override;
 

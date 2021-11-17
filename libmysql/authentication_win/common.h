@@ -166,7 +166,7 @@ class Blob {
   Blob(const byte *ptr, const size_t len)
       : m_ptr(const_cast<byte *>(ptr)), m_len(len) {}
 
-  Blob(const char *str)
+  explicit Blob(const char *str)
       : m_ptr(const_cast<byte *>(reinterpret_cast<const byte *>(str))) {
     m_len = strlen(str);
   }
@@ -202,7 +202,7 @@ class Connection {
   int m_error;
 
  public:
-  Connection(MYSQL_PLUGIN_VIO *vio);
+  explicit Connection(MYSQL_PLUGIN_VIO *vio);
   int write(const Blob &);
   Blob read();
 
@@ -220,8 +220,8 @@ class Sid {
   SID_NAME_USE m_type;  ///< Type of identified entity.
 
  public:
-  Sid(const wchar_t *);
-  Sid(HANDLE sec_token);
+  explicit Sid(const wchar_t *);
+  explicit Sid(HANDLE sec_token);
   ~Sid();
 
   bool is_valid(void) const;

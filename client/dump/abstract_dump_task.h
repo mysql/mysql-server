@@ -42,7 +42,7 @@ namespace Dump {
 */
 class Abstract_dump_task : public Abstract_simple_dump_task {
  public:
-  Abstract_dump_task(Abstract_data_object *related_object);
+  explicit Abstract_dump_task(Abstract_data_object *related_object);
 
   ~Abstract_dump_task() override;
 

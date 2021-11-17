@@ -37,7 +37,7 @@ namespace Dump {
  */
 class Abstract_table_dump_task : public Abstract_dump_task {
  public:
-  Abstract_table_dump_task(Table *related_table);
+  explicit Abstract_table_dump_task(Table *related_table);
 
   /**
     Returns table the current task is created for.

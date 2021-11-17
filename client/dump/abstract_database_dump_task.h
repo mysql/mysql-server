@@ -37,7 +37,7 @@ namespace Dump {
  */
 class Abstract_database_dump_task : public Abstract_dump_task {
  public:
-  Abstract_database_dump_task(Database *related_database);
+  explicit Abstract_database_dump_task(Database *related_database);
 
   /**
     Returns database the current task is created for.

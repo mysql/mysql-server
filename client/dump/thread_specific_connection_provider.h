@@ -40,7 +40,7 @@ namespace Dump {
 class Thread_specific_connection_provider
     : public Abstract_connection_provider {
  public:
-  Thread_specific_connection_provider(
+  explicit Thread_specific_connection_provider(
       Mysql::Tools::Base::I_connection_factory *connection_factory);
   ~Thread_specific_connection_provider() override;
 

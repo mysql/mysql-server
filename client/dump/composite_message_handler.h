@@ -43,7 +43,7 @@ class Composite_message_handler {
               &message_handlers);
 
  private:
-  Composite_message_handler(
+  explicit Composite_message_handler(
       const std::vector<
           std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
           &message_handlers);

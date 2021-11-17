@@ -38,7 +38,7 @@ namespace Dump {
 class Mysql_object_reader_options
     : public Mysql::Tools::Base::Options::Abstract_options_provider {
  public:
-  Mysql_object_reader_options(
+  explicit Mysql_object_reader_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
   void create_options() override;

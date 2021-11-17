@@ -27,7 +27,7 @@
 
 class Kerberos_client_io {
  public:
-  Kerberos_client_io(MYSQL_PLUGIN_VIO *vio);
+  explicit Kerberos_client_io(MYSQL_PLUGIN_VIO *vio);
   ~Kerberos_client_io();
   bool write_gssapi_buffer(const unsigned char *buffer, int buffer_len);
   bool read_gssapi_buffer(unsigned char **gssapi_buffer, size_t *buffer_len);

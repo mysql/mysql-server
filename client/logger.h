@@ -35,7 +35,7 @@ std::ostream &operator<<(std::ostream &os, const Datetime &dt);
 
 class Gen_spaces {
  public:
-  Gen_spaces(int s) { m_spaces.assign(s, ' '); }
+  explicit Gen_spaces(int s) { m_spaces.assign(s, ' '); }
   std::ostream &operator<<(std::ostream &os) { return os; }
   friend std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 

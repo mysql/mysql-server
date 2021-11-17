@@ -33,7 +33,7 @@ namespace Dump {
 
 class Chain_data {
  public:
-  Chain_data(uint64 chain_id);
+  explicit Chain_data(uint64 chain_id);
 
   void abort();
 

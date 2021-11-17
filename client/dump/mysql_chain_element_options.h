@@ -35,7 +35,7 @@ namespace Dump {
 class Mysql_chain_element_options
     : public Mysql::Tools::Base::Options::Abstract_options_provider {
  public:
-  Mysql_chain_element_options(
+  explicit Mysql_chain_element_options(
       Mysql::Tools::Base::Abstract_connection_program *program);
 
   void create_options() override;

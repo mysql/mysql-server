@@ -36,7 +36,7 @@ namespace Dump {
  */
 class Table_deferred_indexes_dump_task : public Abstract_table_dump_task {
  public:
-  Table_deferred_indexes_dump_task(Table *related_table);
+  explicit Table_deferred_indexes_dump_task(Table *related_table);
 };
 
 }  // namespace Dump

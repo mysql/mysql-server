@@ -45,7 +45,7 @@ class Signing_Key {
 
  public:
   Signing_Key(const std::string &file_name);
-  Signing_Key(ssl::Key_Content);
+  explicit Signing_Key(ssl::Key_Content);
   Signing_Key();
   Signing_Key(const Signing_Key &) = delete;
   Signing_Key &operator=(const Signing_Key &) = delete;

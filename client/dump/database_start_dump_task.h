@@ -33,7 +33,7 @@ namespace Dump {
 
 class Database_start_dump_task : public Abstract_database_dump_task {
  public:
-  Database_start_dump_task(Database *related_database);
+  explicit Database_start_dump_task(Database *related_database);
 };
 
 }  // namespace Dump
