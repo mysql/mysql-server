@@ -134,8 +134,8 @@ TEST_F(AppTest, CheckConfigFilesSuccess) {
 TEST_F(AppTest, CmdLineConfig) {
   std::vector<std::string> argv = {"--config",
                                    config_dir.join("mysqlrouter.conf").str()};
-  // ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
-  MySQLRouter r(g_origin, argv);
+  // ASSERT_NO_THROW({ MySQLRouter r(g_origin.str(), argv); });
+  MySQLRouter r(g_origin.str(), argv);
   ASSERT_THAT(r.get_config_files().at(0), EndsWith("mysqlrouter.conf"));
   // ASSERT_THAT(r.get_default_config_files(), IsEmpty());
   ASSERT_THAT(r.get_extra_config_files(), IsEmpty());
@@ -147,9 +147,9 @@ TEST_F(AppTest, CmdLineConfigFailRead) {
       "--config",
       config_dir.join(not_existing).str(),
   };
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
@@ -163,9 +163,9 @@ TEST_F(AppTest, CmdLineMultipleConfig) {
       "--config", config_dir.join("mysqlrouter.conf").str(),
       "-c",       config_dir.join("config_a.conf").str(),
       "--config", config_dir.join("config_b.conf").str()};
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     ASSERT_THAT(exc.what(), HasSubstr("can only be used once"));
@@ -176,8 +176,8 @@ TEST_F(AppTest, CmdLineExtraConfig) {
   std::vector<std::string> argv = {"-c", config_dir.join("config_a.conf").str(),
                                    "--extra-config",
                                    config_dir.join("config_b.conf").str()};
-  ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
-  MySQLRouter r(g_origin, argv);
+  ASSERT_NO_THROW({ MySQLRouter r(g_origin.str(), argv); });
+  MySQLRouter r(g_origin.str(), argv);
   ASSERT_THAT(r.get_extra_config_files().at(0), EndsWith("config_b.conf"));
   // ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
   ASSERT_THAT(r.get_config_files(), SizeIs(1));
@@ -188,9 +188,9 @@ TEST_F(AppTest, CmdLineExtraConfigFailRead) {
   std::vector<std::string> argv = {"-c", config_dir.join("config_a.conf").str(),
                                    "--extra-config",
                                    config_dir.join(not_existing).str()};
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
@@ -206,8 +206,8 @@ TEST_F(AppTest, CmdLineMultipleExtraConfig) {
                                    config_dir.join("config_a.conf").str(),
                                    "--extra-config",
                                    config_dir.join("config_b.conf").str()};
-  ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
-  MySQLRouter r(g_origin, argv);
+  ASSERT_NO_THROW({ MySQLRouter r(g_origin.str(), argv); });
+  MySQLRouter r(g_origin.str(), argv);
   ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.conf"));
   ASSERT_THAT(r.get_extra_config_files().at(0).c_str(),
               EndsWith("config_a.conf"));
@@ -229,9 +229,9 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
       "--extra-config",
       config_dir.join(duplicate).str(),
   };
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
@@ -261,9 +261,9 @@ TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
       "--extra-config",
       config_dir.join("mysqlrouter.conf").str(),
   };
-  ASSERT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  ASSERT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
     EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files"));
@@ -339,7 +339,7 @@ TEST_F(AppTest, CmdLineVersion) {
   Vt100Filter filtered_out_streambuf(out_stream.rdbuf());
   std::ostream filtered_out_stream(&filtered_out_streambuf);
 
-  MySQLRouter r(g_origin, argv, filtered_out_stream);
+  MySQLRouter r(g_origin.str(), argv, filtered_out_stream);
   ASSERT_THAT(out_stream.str(), StartsWith(r.get_version_line()));
 }
 
@@ -351,7 +351,7 @@ TEST_F(AppTest, CmdLineVersionShort) {
   Vt100Filter filtered_out_streambuf(out_stream.rdbuf());
   std::ostream filtered_out_stream(&filtered_out_streambuf);
 
-  MySQLRouter r(g_origin, argv, filtered_out_stream);
+  MySQLRouter r(g_origin.str(), argv, filtered_out_stream);
   ASSERT_THAT(out_stream.str(), StartsWith("MySQL Router"));
 }
 
@@ -362,7 +362,7 @@ TEST_F(AppTest, CmdLineHelp) {
   Vt100Filter filtered_out_streambuf(out_stream.rdbuf());
   std::ostream filtered_out_stream(&filtered_out_streambuf);
 
-  MySQLRouter r(g_origin, argv, filtered_out_stream);
+  MySQLRouter r(g_origin.str(), argv, filtered_out_stream);
 
   // several substrings from help output that are unlikely to change soon
   EXPECT_THAT(out_stream.str(), HasSubstr("MySQL Router  V"));
@@ -378,7 +378,7 @@ TEST_F(AppTest, CmdLineHelpShort) {
   std::stringstream out_stream;
   Vt100Filter filtered_out_streambuf(out_stream.rdbuf());
   std::ostream filtered_out_stream(&filtered_out_streambuf);
-  MySQLRouter r(g_origin, argv, filtered_out_stream);
+  MySQLRouter r(g_origin.str(), argv, filtered_out_stream);
 
   // several substrings from help output that are unlikely to change soon
   EXPECT_THAT(out_stream.str(), HasSubstr("MySQL Router  V"));
@@ -396,12 +396,12 @@ TEST_F(AppTest, ConfigFileParseError) {
   };
   ASSERT_THROW(
       {
-        MySQLRouter r(g_origin, argv);
+        MySQLRouter r(g_origin.str(), argv);
         r.start();
       },
       std::runtime_error);
   try {
-    MySQLRouter r(g_origin, argv);
+    MySQLRouter r(g_origin.str(), argv);
     r.start();
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
@@ -415,9 +415,9 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   std::vector<std::string> argv = {"--config",
                                    config_dir.join("mysqlrouter.conf").str(),
                                    "--extra-config=" + extra_config};
-  ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
+  ASSERT_NO_THROW({ MySQLRouter r(g_origin.str(), argv); });
 
-  MySQLRouter r(g_origin, argv);
+  MySQLRouter r(g_origin.str(), argv);
   ASSERT_THAT(r.get_config_files().at(0).c_str(), EndsWith("mysqlrouter.conf"));
   ASSERT_THAT(r.get_extra_config_files().at(0).c_str(),
               EndsWith("mysqlrouter_extra.conf"));
@@ -433,7 +433,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
 TEST_F(AppTest, CanStartTrue) {
   std::vector<std::string> argv = {"--config",
                                    config_dir.join("mysqlrouter.conf").str()};
-  ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
+  ASSERT_NO_THROW({ MySQLRouter r(g_origin.str(), argv); });
 }
 
 TEST_F(AppTest, CanStartFalse) {
@@ -443,7 +443,7 @@ TEST_F(AppTest, CanStartFalse) {
   for (auto &argv : cases) {
     ASSERT_THROW(
         {
-          MySQLRouter r(g_origin, argv);
+          MySQLRouter r(g_origin.str(), argv);
           r.start();
         },
         std::runtime_error);
@@ -506,7 +506,7 @@ TEST_F(AppTest, SetCommandLineUserBeforeInitializingLogger) {
           testing::InvokeWithoutArgs([&] { init_test_logger(); }),
           (Return(0))));
 
-  MySQLRouter r(g_origin, argv, std::cout, std::cerr,
+  MySQLRouter r(g_origin.str(), argv, std::cout, std::cerr,
                 mock_sys_user_operations.get());
   ASSERT_NO_THROW(r.start());
 }
@@ -580,7 +580,7 @@ TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
           testing::InvokeWithoutArgs([&] { init_test_logger(); }),
           (Return(0))));
 
-  MySQLRouter r(g_origin, argv, std::cout, std::cerr,
+  MySQLRouter r(g_origin.str(), argv, std::cout, std::cerr,
                 mock_sys_user_operations.get());
   ASSERT_NO_THROW(r.start());
 }
@@ -603,7 +603,7 @@ TEST_F(AppTest, ShowingInfoTrue) {
     std::ostream filtered_out_stream(&filtered_out_streambuf);
 
     ASSERT_NO_THROW({
-      MySQLRouter r(g_origin, argv, filtered_out_stream);
+      MySQLRouter r(g_origin.str(), argv, filtered_out_stream);
       r.start();
     });
     ASSERT_THAT(out_stream.str(), HasSubstr("MySQL Router  V")) << argv[0];
@@ -618,7 +618,7 @@ TEST_F(AppTest, ShowingInfoFalse) {
 
   for (auto &argv : cases) {
     ASSERT_NO_THROW({
-      MySQLRouter r(g_origin, argv);
+      MySQLRouter r(g_origin.str(), argv);
       r.start();
     });
   }
@@ -958,7 +958,7 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
       .WillOnce(Return(0));
 
   try {
-    MySQLRouter r(g_origin, argv, std::cout, std::cerr,
+    MySQLRouter r(g_origin.str(), argv, std::cout, std::cerr,
                   mock_sys_user_operations.get());
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
@@ -973,7 +973,7 @@ TEST_F(AppTest, BootstrapSuperuserNoUserOption) {
  */
 TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutBootstrap) {
   std::vector<std::string> argv = {"--master-key-reader=reader.sh"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, std::cout, std::cerr,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                                 mock_sys_user_operations.get()),
                     std::runtime_error,
                     "Option --master-key-reader can only be used together with "
@@ -987,7 +987,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutBootstrap) {
  */
 TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutBootstrap) {
   std::vector<std::string> argv = {"--master-key-writer=writer.sh"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, std::cout, std::cerr,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                                 mock_sys_user_operations.get()),
                     std::runtime_error,
                     "Option --master-key-writer can only be used together with "
@@ -1003,7 +1003,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutValue) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:3060",
                                    "--master-key-reader"};
   ASSERT_THROW_LIKE(
-      MySQLRouter(g_origin, argv, std::cout, std::cerr,
+      MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                   mock_sys_user_operations.get()),
       std::runtime_error,
       "option '--master-key-reader' expects a value, got nothing");
@@ -1018,7 +1018,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutValue) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:3060",
                                    "--master-key-writer"};
   ASSERT_THROW_LIKE(
-      MySQLRouter(g_origin, argv, std::cout, std::cerr,
+      MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                   mock_sys_user_operations.get()),
       std::runtime_error,
       "option '--master-key-writer' expects a value, got nothing");
@@ -1032,7 +1032,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutValue) {
 TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutMasterKeyWriter) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:3060",
                                    "--master-key-reader=reader.sh"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, std::cout, std::cerr,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                                 mock_sys_user_operations.get()),
                     std::runtime_error,
                     "Option --master-key-reader can only be used together with "
@@ -1047,7 +1047,7 @@ TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutMasterKeyWriter) {
 TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutMasterKeyReader) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:3060",
                                    "--master-key-writer=writer.sh"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, std::cout, std::cerr,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv, std::cout, std::cerr,
                                 mock_sys_user_operations.get()),
                     std::runtime_error,
                     "Option --master-key-writer can only be used together with "
@@ -1100,7 +1100,7 @@ TEST_F(AppLoggerTest, TestLogger) {
   // run MySQLRouter
   reset_ssout();
   std::vector<std::string> argv = {"-c", config_path.c_str()};
-  MySQLRouter r(g_origin, argv);
+  MySQLRouter r(g_origin.str(), argv);
   ASSERT_NO_THROW(r.start()) << get_log_stream().str();
 
   // verify that all plugins have a module registered with the logger
@@ -1130,7 +1130,7 @@ TEST_F(AppLoggerTest, TestLogger) {
 
 TEST_F(AppTest, EmptyConfigPath) {
   std::vector<std::string> argv = {"--config", ""};
-  EXPECT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
+  EXPECT_THROW({ MySQLRouter r(g_origin.str(), argv); }, std::runtime_error);
 }
 
 /**
@@ -1139,7 +1139,7 @@ TEST_F(AppTest, EmptyConfigPath) {
  */
 TEST_F(AppTest, https_port_not_in_bootstrap) {
   std::vector<std::string> argv = {"--https-port", "8080"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "Option --https-port can only be used together with "
                     "-B/--bootstrap");
 }
@@ -1150,7 +1150,7 @@ TEST_F(AppTest, https_port_not_in_bootstrap) {
  */
 TEST_F(AppTest, disable_rest_not_in_bootstrap) {
   std::vector<std::string> argv = {"--disable-rest"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "Option --disable-rest can only be used together with "
                     "-B/--bootstrap");
 }
@@ -1162,7 +1162,7 @@ TEST_F(AppTest, disable_rest_not_in_bootstrap) {
 TEST_F(AppTest, disable_rest_with_value) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--disable-rest", "not_allowed"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "invalid argument 'not_allowed'.");
 }
 
@@ -1174,7 +1174,7 @@ TEST_F(AppTest, https_port_with_disable_rest) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "8080", "--disable-rest"};
   ASSERT_THROW_LIKE(
-      MySQLRouter(g_origin, argv), std::runtime_error,
+      MySQLRouter(g_origin.str(), argv), std::runtime_error,
       "Option --disable-rest is not allowed when using --https-port option");
 }
 
@@ -1187,7 +1187,7 @@ TEST_F(AppTest, https_port_with_disable_rest) {
 TEST_F(AppTest, https_port_out_of_range_low) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "0"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "processing --https-port option failed, not in allowed "
                     "range [1, 65535]");
 }
@@ -1201,7 +1201,7 @@ TEST_F(AppTest, https_port_out_of_range_low) {
 TEST_F(AppTest, https_port_out_of_range_high) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "65599"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "processing --https-port option failed, not in allowed "
                     "range [1, 65535]");
 }
@@ -1215,7 +1215,7 @@ TEST_F(AppTest, https_port_out_of_range_high) {
 TEST_F(AppTest, https_port_out_of_range_negative) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "-1"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "option '--https-port' expects a value, got nothing");
 }
 
@@ -1229,7 +1229,7 @@ TEST_F(AppTest, https_port_float) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "1.2"};
   ASSERT_THROW_LIKE(
-      MySQLRouter(g_origin, argv), std::runtime_error,
+      MySQLRouter(g_origin.str(), argv), std::runtime_error,
       "processing --https-port option failed, invalid value: 1.2");
 }
 
@@ -1241,7 +1241,7 @@ TEST_F(AppTest, https_port_nan) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port", "not-a-number"};
   ASSERT_THROW_LIKE(
-      MySQLRouter(g_origin, argv), std::runtime_error,
+      MySQLRouter(g_origin.str(), argv), std::runtime_error,
       "processing --https-port option failed, invalid value: not-a-number");
 }
 
@@ -1252,7 +1252,7 @@ TEST_F(AppTest, https_port_nan) {
 TEST_F(AppTest, https_port_without_value) {
   std::vector<std::string> argv = {"--bootstrap", "127.0.0.1:5000",
                                    "--https-port"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin.str(), argv), std::runtime_error,
                     "option '--https-port' expects a value, got nothing");
 }
 

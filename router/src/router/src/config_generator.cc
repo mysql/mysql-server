@@ -53,6 +53,7 @@
 #include "certificate_handler.h"
 #include "common.h"  // truncate_string
 #include "config_builder.h"
+#include "default_paths.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
@@ -490,7 +491,8 @@ static stdx::expected<std::ofstream, std::error_code> open_ofstream(
 }
 
 void ConfigGenerator::bootstrap_system_deployment(
-    const std::string &config_file_path, const std::string &state_file_path,
+    const std::string &program_name, const std::string &config_file_path,
+    const std::string &state_file_path,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
@@ -538,9 +540,9 @@ void ConfigGenerator::bootstrap_system_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      config_files[0], config_files[1], config_file_path, state_file_path,
-      router_name, options, multivalue_options, default_paths, false,
-      auto_clean);
+      program_name, config_files[0], config_files[1], config_file_path,
+      state_file_path, router_name, options, multivalue_options, default_paths,
+      false, auto_clean);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
     config_files[i].close();
@@ -603,7 +605,7 @@ bool ConfigGenerator::datadir_contains_allowed_files(
  * Create a self-contained deployment of the Router in a directory.
  */
 void ConfigGenerator::bootstrap_directory_deployment(
-    const std::string &directory,
+    const std::string &program_name, const std::string &directory,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths) {
@@ -748,7 +750,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      config_files[0], config_files[1], config_files_names[0],
+      program_name, config_files[0], config_files[1], config_files_names[0],
       config_files_names[1], router_name, options, multivalue_options,
       default_paths, true,
       auto_clean);  // throws std::runtime_error, ?
@@ -792,8 +794,8 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   // create start/stop scripts
-  create_start_script(path.str(), keyring_info_.get_master_key_file().empty(),
-                      options);
+  create_start_script(program_name, path.str(),
+                      keyring_info_.get_master_key_file().empty(), options);
   create_stop_script(path.str(), options);
 
 #ifndef _WIN32
@@ -1427,8 +1429,8 @@ std::map<std::string, std::string> get_config_cmdln_options(
 }  // namespace
 
 std::string ConfigGenerator::bootstrap_deployment(
-    std::ostream &config_file, std::ostream &state_file,
-    const mysql_harness::Path &config_file_path,
+    const std::string &program_name, std::ostream &config_file,
+    std::ostream &state_file, const mysql_harness::Path &config_file_path,
     const mysql_harness::Path &state_file_path, const std::string &router_name,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
@@ -1544,7 +1546,7 @@ std::string ConfigGenerator::bootstrap_deployment(
     ();
 
     return get_bootstrap_report_text(
-        config_file_path.str(), router_name, cluster_info.name,
+        program_name, config_file_path.str(), router_name, cluster_info.name,
         cluster_type_name,
         get_from_map(user_options, "report-host"s, "localhost"s),
         !directory_deployment, options);
@@ -1998,60 +2000,21 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id,
   keyring_initialized_ = true;
 }
 
-// TODO This is very ugly, it should not be a global. It's set in main(), and
-//      used in find_executable_path() below to provide path to Router binary
-//      when generating start.sh.
-std::string g_program_name;
-
 #ifdef _WIN32
 // This is only for Windows
 static std::string find_plugin_path() {
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    mysql_harness::Path mypath(szPath);
-    mysql_harness::Path mypath2(mypath.dirname().dirname());
-    mypath2.append("lib");
-    return std::string(mypath2.str());
+  std::array<char, MAX_PATH> szPath;
+  if (GetModuleFileName(NULL, szPath.data(), szPath.size()) != 0) {
+    // bin/mysqlrouter/../../lib/
+    auto p = mysql_harness::Path(szPath.data()).dirname().dirname();
+
+    p.append("lib");
+
+    return p.str();
   }
   throw std::logic_error("Could not find own installation directory");
 }
 #endif
-
-static std::string find_executable_path() {
-#ifdef _WIN32
-  // the bin folder is not usually in the path, just the lib folder
-  char szPath[MAX_PATH];
-  if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0) {
-    char *pc = szPath - 1;
-    while (*++pc)
-      if (*pc == '\\') *pc = '/';
-    return std::string(szPath);
-  }
-#else
-  harness_assert(!g_program_name.empty());
-
-  if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.c_str(), nullptr);
-    harness_assert(tmp);  // will fail if g_program_name provides bogus path
-    std::string path(tmp);
-    free(tmp);
-    return path;
-  } else {
-    std::string path(std::getenv("PATH"));
-    char *last = nullptr;
-    char *p = strtok_r(&path[0], ":", &last);
-    while (p) {
-      if (*p && p[strlen(p) - 1] == '/') p[strlen(p) - 1] = 0;
-      std::string tmp(std::string(p) + "/" + g_program_name);
-      if (access(tmp.c_str(), R_OK | X_OK) == 0) {
-        return tmp;
-      }
-      p = strtok_r(nullptr, ":", &last);
-    }
-  }
-#endif
-  throw std::logic_error("Could not find own installation directory");
-}
 
 namespace {
 
@@ -2447,10 +2410,10 @@ void ConfigGenerator::print_bootstrap_start_msg(
 }
 
 std::string ConfigGenerator::get_bootstrap_report_text(
-    const std::string &config_file_name, const std::string &router_name,
-    const std::string &metadata_cluster, const std::string &cluster_type_name,
-    const std::string &hostname, bool is_system_deployment,
-    const Options &options) {
+    const std::string &program_name, const std::string &config_file_name,
+    const std::string &router_name, const std::string &metadata_cluster,
+    const std::string &cluster_type_name, const std::string &hostname,
+    bool is_system_deployment, const Options &options) {
   constexpr const char kPromptPrefix[]{
 #ifdef _WIN32
       "> "
@@ -2493,7 +2456,7 @@ std::string ConfigGenerator::get_bootstrap_report_text(
     }
   }
 #endif
-  ss << "    " << kPromptPrefix << g_program_name << " -c " << config_file_name
+  ss << "    " << kPromptPrefix << program_name << " -c " << config_file_name
      << "\n\n"
      << cluster_type_name << " '" << metadata_cluster
      << "' can be reached by connecting to:\n"
@@ -3243,7 +3206,8 @@ void ConfigGenerator::set_script_permissions(
 }
 
 void ConfigGenerator::create_start_script(
-    const std::string &directory, bool interactive_master_key,
+    const std::string &program_name, const std::string &directory,
+    bool interactive_master_key,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
   UNREFERENCED_PARAMETER(interactive_master_key);
@@ -3262,7 +3226,8 @@ void ConfigGenerator::create_start_script(
   script << "[Environment]::SetEnvironmentVariable(\"ROUTER_PID\","
          << "\"" << directory << "\\"
          << "mysqlrouter.pid\", \"Process\")" << std::endl;
-  script << "Start-Process \"" << find_executable_path() << "\" \" -c "
+  script << "Start-Process \""
+         << mysqlrouter::find_full_executable_path(program_name) << "\" \" -c "
          << directory << "/mysqlrouter.conf\""
          << " -WindowStyle Hidden" << std::endl;
   script.close();
@@ -3292,9 +3257,10 @@ void ConfigGenerator::create_start_script(
 
   // Router launch command
   {
-    std::string main_cmd = "ROUTER_PID=$basedir/mysqlrouter.pid " +
-                           find_executable_path() +
-                           " -c $basedir/mysqlrouter.conf ";
+    std::string main_cmd =
+        "ROUTER_PID=$basedir/mysqlrouter.pid " +
+        mysqlrouter::find_full_executable_path(program_name) +
+        " -c $basedir/mysqlrouter.conf ";
 
     if (options.find("user") != options.end()) {
       // if --user was given, we use it to generate shell code that works for

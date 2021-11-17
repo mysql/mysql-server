@@ -122,35 +122,50 @@ void ClusterMetadataDynamicState::load() {
   JsonValue &section = *pimpl_->section_;
 
   metadata_servers_.clear();
-  if (pimpl_->section_->HasMember("cluster-metadata-servers")) {
-    const auto &md_servers = section["cluster-metadata-servers"];
-    assert(md_servers.IsArray());
 
-    for (size_t i = 0; i < md_servers.Size(); ++i) {
-      auto &server = md_servers[i];
-      assert(server.IsString());
-      metadata_servers_.push_back(server.GetString());
+  {
+    const auto it = section.FindMember("cluster-metadata-servers");
+
+    if (it != section.MemberEnd()) {
+      const auto &md_servers = it->value;
+      assert(md_servers.IsArray());
+
+      for (size_t i = 0; i < md_servers.Size(); ++i) {
+        auto &server = md_servers[i];
+        assert(server.IsString());
+        metadata_servers_.emplace_back(server.GetString());
+      }
     }
   }
 
   cluster_type_specific_id_.clear();
-  if (pimpl_->section_->HasMember("group-replication-id")) {
-    const auto &cluster_type_specific_id = section["group-replication-id"];
-    assert(cluster_type_specific_id.IsString());
-    cluster_type_specific_id_ = cluster_type_specific_id.GetString();
+  {
+    const auto it = section.FindMember("group-replication-id");
+
+    if (it != section.MemberEnd()) {
+      const auto &cluster_type_specific_id = it->value;
+      assert(cluster_type_specific_id.IsString());
+      cluster_type_specific_id_ = cluster_type_specific_id.GetString();
+    }
   }
 
-  if (pimpl_->section_->HasMember("clusterset-id")) {
-    const auto &clusterset_id = section["clusterset-id"];
-    assert(clusterset_id.IsString());
-    clusterset_id_ = clusterset_id.GetString();
+  {
+    const auto it = section.FindMember("clusterset-id");
+    if (it != section.MemberEnd()) {
+      const auto &clusterset_id = it->value;
+      assert(clusterset_id.IsString());
+      clusterset_id_ = clusterset_id.GetString();
+    }
   }
 
   view_id_ = 0;
-  if (pimpl_->section_->HasMember("view-id")) {
-    const auto &view_id = section["view-id"];
-    assert(view_id.IsUint64());
-    view_id_ = view_id.GetUint64();
+  {
+    const auto it = section.FindMember("view-id");
+    if (it != section.MemberEnd()) {
+      const auto &view_id = it->value;
+      assert(view_id.IsUint64());
+      view_id_ = view_id.GetUint64();
+    }
   }
 
   changed_ = false;

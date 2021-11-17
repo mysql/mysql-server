@@ -37,7 +37,9 @@
 #include <stdexcept>
 #include <streambuf>
 
+#include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <mysql.h>
 
@@ -49,6 +51,7 @@
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/utility/string.h"
 #include "mysql_session_replayer.h"
@@ -65,9 +68,7 @@
 #define ASSERT_NO_ERROR(x) \
   ASSERT_THAT((x), ::testing::Truly([](const auto &t) { return bool(t); }))
 
-std::string g_cwd;
-mysql_harness::Path g_origin;
-TempDirectory test_dir;
+std::string g_program_name;
 
 class TestConfigGenerator : public mysqlrouter::ConfigGenerator {
  public:
@@ -131,10 +132,12 @@ class TestConfigGenerator : public mysqlrouter::ConfigGenerator {
         config_file_path, cluster_name, forcing_overwrite);
   }
 
-  void create_start_script(const std::string &directory,
+  void create_start_script(const std::string &program_name,
+                           const std::string &directory,
                            bool interactive_master_key,
                            const std::map<std::string, std::string> &options) {
-    __base::create_start_script(directory, interactive_master_key, options);
+    __base::create_start_script(program_name, directory, interactive_master_key,
+                                options);
   }
 
   void create_stop_script(const std::string &directory,
@@ -221,9 +224,9 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
         [](mysqlrouter::MySQLSession *) {}  // don't try to delete it
     );
 
-    set_origin(g_origin);
+    set_origin(Path(g_program_name).dirname());
     ConsoleOutputTest::SetUp();
-    config_path.reset(new Path(g_cwd));
+    config_path = std::make_unique<Path>(Path(g_program_name).dirname());
     config_path->append("Bug24570426.conf");
 
     default_paths["logging_folder"] = "";
@@ -233,6 +236,10 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
   std::unique_ptr<Path> config_path;
   std::map<std::string, std::string> default_paths;
   std::unique_ptr<ReplayerWithMockSSL> mock_mysql;
+
+  std::string program_name_{g_program_name};
+
+  TempDirectory test_dir;
 };
 
 const std::string kServerUrl = "mysql://test:test@127.0.0.1:3060";
@@ -2489,8 +2496,8 @@ static void expect_bootstrap_queries(
 }
 
 static void bootstrap_name_test(
-    MySQLSessionReplayer *mock_mysql, const std::string &dir,
-    const std::string &name, bool expect_fail,
+    MySQLSessionReplayer *mock_mysql, const std::string &program_name,
+    const std::string &dir, const std::string &name, bool expect_fail,
     const std::map<std::string, std::string> &default_paths) {
   ::testing::InSequence s;
 
@@ -2508,7 +2515,8 @@ static void bootstrap_name_test(
   KeyringInfo keyring_info("delme", "delme.key");
   config_gen.set_keyring_info(keyring_info);
 
-  config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
+  config_gen.bootstrap_directory_deployment(program_name, dir, options, {},
+                                            default_paths);
 }
 
 }  // anonymous namespace
@@ -2518,24 +2526,24 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   const std::string dir = test_dir.name() + "/bug24807941";
 
   // Bug#24807941
-  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), dir, "myname", false,
-                                      default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), program_name_, dir,
+                                      "myname", false, default_paths));
   delete_dir_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), dir, "myname", false,
-                                      default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), program_name_, dir,
+                                      "myname", false, default_paths));
   delete_dir_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(
-      bootstrap_name_test(mock_mysql.get(), dir, "", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_name_test(mock_mysql.get(), program_name_, dir, "",
+                                      false, default_paths));
   delete_dir_recursive(dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(
-      bootstrap_name_test(mock_mysql.get(), dir, "system", true, default_paths),
-      std::runtime_error, "Router name 'system' is reserved");
+  ASSERT_THROW_LIKE(bootstrap_name_test(mock_mysql.get(), program_name_, dir,
+                                        "system", true, default_paths),
+                    std::runtime_error, "Router name 'system' is reserved");
   delete_dir_recursive(dir);
   mysql_harness::reset_keyring();
 
@@ -2545,7 +2553,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
   };
   for (std::string &name : bad_names) {
     ASSERT_THROW_LIKE(
-        bootstrap_name_test(mock_mysql.get(), dir, name, true, default_paths),
+        bootstrap_name_test(mock_mysql.get(), program_name_, dir, name, true,
+                            default_paths),
         std::runtime_error,
         "Router name '" + name + "' contains invalid characters.");
     delete_dir_recursive(dir);
@@ -2554,7 +2563,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_invalid_name) {
 
   ASSERT_THROW_LIKE(
       bootstrap_name_test(
-          mock_mysql.get(), dir,
+          mock_mysql.get(), program_name_, dir,
           "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery"
           "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery"
           "veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryvery"
@@ -2588,7 +2597,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.set_keyring_info(keyring_info);
 
     ASSERT_THROW_LIKE(config_gen.bootstrap_directory_deployment(
-                          dir, options, {}, default_paths),
+                          program_name_, dir, options, {}, default_paths),
                       mysqlrouter::MySQLSession::Error, "boo!");
 
     ASSERT_FALSE(mysql_harness::Path(dir).exists());
@@ -2607,8 +2616,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
 
-    ASSERT_NO_THROW(config_gen.bootstrap_directory_deployment(dir, options, {},
-                                                              default_paths));
+    ASSERT_NO_THROW(config_gen.bootstrap_directory_deployment(
+        program_name_, dir, options, {}, default_paths));
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -2630,7 +2639,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.set_keyring_info(keyring_info);
 
     ASSERT_THROW_LIKE(config_gen.bootstrap_directory_deployment(
-                          dir, options, {}, default_paths),
+                          program_name_, dir, options, {}, default_paths),
                       std::runtime_error, "boo!");
 
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
@@ -2652,8 +2661,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
 
-    ASSERT_THROW(config_gen.bootstrap_directory_deployment(dir, options2, {},
-                                                           default_paths),
+    ASSERT_THROW(config_gen.bootstrap_directory_deployment(
+                     program_name_, dir, options2, {}, default_paths),
                  std::runtime_error);
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
@@ -2682,8 +2691,8 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     KeyringInfo keyring_info("delme", "delme.key");
     config_gen.set_keyring_info(keyring_info);
 
-    ASSERT_NO_THROW(config_gen.bootstrap_directory_deployment(dir, options, {},
-                                                              default_paths));
+    ASSERT_NO_THROW(config_gen.bootstrap_directory_deployment(
+        program_name_, dir, options, {}, default_paths));
     ASSERT_TRUE(mysql_harness::Path(dir).exists());
     ASSERT_TRUE(mysql_harness::Path(dir).join("delme.key").exists());
   }
@@ -2716,9 +2725,10 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
 }
 
 static void bootstrap_overwrite_test(
-    MySQLSessionReplayer *mock_mysql, const std::string &dir,
-    const std::string &name, bool force, const char *cluster_name,
-    bool expect_fail, const std::map<std::string, std::string> &default_paths) {
+    MySQLSessionReplayer *mock_mysql, const std::string &program_name,
+    const std::string &dir, const std::string &name, bool force,
+    const char *cluster_name, bool expect_fail,
+    const std::map<std::string, std::string> &default_paths) {
   ::testing::InSequence s;
 
   ConfigGenerator config_gen;
@@ -2739,7 +2749,8 @@ static void bootstrap_overwrite_test(
   KeyringInfo keyring_info("delme", "delme.key");
   config_gen.set_keyring_info(keyring_info);
 
-  config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
+  config_gen.bootstrap_directory_deployment(program_name, dir, options, {},
+                                            default_paths);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
@@ -2765,11 +2776,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 
   SCOPED_TRACE("bootstrap_overwrite1");
   // same    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_NO_ERROR(delete_dir_recursive(dir));
@@ -2777,12 +2790,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   SCOPED_TRACE("bootstrap_overwrite2");
   dir = test_dir.name() + "/configtest2";
   // same    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_THROW_LIKE(
-      bootstrap_overwrite_test(mock_mysql.get(), dir, "myname", false,
-                               "kluster", true, default_paths),
+      bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir, "myname",
+                               false, "kluster", true, default_paths),
       std::runtime_error,
       "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -2792,11 +2806,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest3";
   SCOPED_TRACE("bootstrap_overwrite3");
   // same    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", true, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", true, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_NO_ERROR(delete_dir_recursive(dir));
@@ -2804,11 +2820,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest4";
   SCOPED_TRACE("bootstrap_overwrite4");
   // same    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", true, "kluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", true, "kluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_NO_ERROR(delete_dir_recursive(dir));
@@ -2816,11 +2834,12 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest5";
   SCOPED_TRACE("bootstrap_overwrite5");
   // diff    no          same           OK (refreshing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname",
-                                           false, "cluster", false,
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "xmyname", false, "cluster", false,
                                            default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
@@ -2829,12 +2848,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest6";
   SCOPED_TRACE("bootstrap_overwrite6");
   // diff    no          diff           FAIL
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_THROW_LIKE(
-      bootstrap_overwrite_test(mock_mysql.get(), dir, "xmyname", false,
-                               "kluster", true, default_paths),
+      bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir, "xmyname",
+                               false, "kluster", true, default_paths),
       std::runtime_error,
       "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
@@ -2844,11 +2864,13 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest7";
   SCOPED_TRACE("bootstrap_overwrite7");
   // diff    yes         same           OK
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", true, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "xmyname", true, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "xmyname", true, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
   ASSERT_NO_ERROR(delete_dir_recursive(dir));
@@ -2856,17 +2878,20 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
   dir = test_dir.name() + "/configtest8";
   SCOPED_TRACE("bootstrap_overwrite8");
   // diff    yes         diff           OK (replacing config)
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "myname", false, "cluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
-  ASSERT_NO_THROW(bootstrap_overwrite_test(
-      mock_mysql.get(), dir, "xmyname", true, "kluster", false, default_paths));
+  ASSERT_NO_THROW(bootstrap_overwrite_test(mock_mysql.get(), program_name_, dir,
+                                           "xmyname", true, "kluster", false,
+                                           default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
 }
 
 static void test_key_length(
-    MySQLSessionReplayer *mock_mysql, const std::string &key,
+    MySQLSessionReplayer *mock_mysql, const std::string &program_name,
+    const std::string &key,
     const std::map<std::string, std::string> &default_paths,
     const std::string &directory) {
   ::testing::InSequence s;
@@ -2886,8 +2911,8 @@ static void test_key_length(
   KeyringInfo keyring_info("delme", "");
   config_gen.set_keyring_info(keyring_info);
 
-  config_gen.bootstrap_directory_deployment(directory, options, {},
-                                            default_paths);
+  config_gen.bootstrap_directory_deployment(program_name, directory, options,
+                                            {}, default_paths);
 }
 
 TEST_F(ConfigGeneratorTest, key_too_long) {
@@ -2895,25 +2920,29 @@ TEST_F(ConfigGeneratorTest, key_too_long) {
   std::string bs_dir = test_dir.name() + "/key_too_long";
 
   // bug #24942008, keyring key too long
-  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), std::string(250, 'x'),
-                                  default_paths, bs_dir));
+  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), program_name_,
+                                  std::string(250, 'x'), default_paths,
+                                  bs_dir));
   delete_dir_recursive(bs_dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), std::string(255, 'x'),
-                                  default_paths, bs_dir));
+  ASSERT_NO_THROW(test_key_length(mock_mysql.get(), program_name_,
+                                  std::string(255, 'x'), default_paths,
+                                  bs_dir));
   delete_dir_recursive(bs_dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(mock_mysql.get(), std::string(256, 'x'),
-                                    default_paths, bs_dir),
-                    std::runtime_error, "too long");
+  ASSERT_THROW_LIKE(
+      test_key_length(mock_mysql.get(), program_name_, std::string(256, 'x'),
+                      default_paths, bs_dir),
+      std::runtime_error, "too long");
   delete_dir_recursive(bs_dir);
   mysql_harness::reset_keyring();
 
-  ASSERT_THROW_LIKE(test_key_length(mock_mysql.get(), std::string(5000, 'x'),
-                                    default_paths, bs_dir),
-                    std::runtime_error, "too long");
+  ASSERT_THROW_LIKE(
+      test_key_length(mock_mysql.get(), program_name_, std::string(5000, 'x'),
+                      default_paths, bs_dir),
+      std::runtime_error, "too long");
   mysql_harness::reset_keyring();
 }
 
@@ -2939,8 +2968,8 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     KeyringInfo keyring_info("delme", "key");
     config_gen.set_keyring_info(keyring_info);
 
-    config_gen.bootstrap_directory_deployment(test_dir.name(), options, {},
-                                              default_paths);
+    config_gen.bootstrap_directory_deployment(program_name_, test_dir.name(),
+                                              options, {}, default_paths);
 
     mysql_harness::reset_keyring();
   }
@@ -2959,8 +2988,8 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     config_gen.set_keyring_info(keyring_info);
 
     try {
-      config_gen.bootstrap_directory_deployment(test_dir.name(), options, {},
-                                                default_paths);
+      config_gen.bootstrap_directory_deployment(program_name_, test_dir.name(),
+                                                options, {}, default_paths);
       FAIL() << "Was expecting exception but got none\n";
     } catch (const std::runtime_error &e) {
       ASSERT_THAT(e.what(), ::testing::Not(::testing::HasSubstr(".tmp")));
@@ -2981,9 +3010,10 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
     KeyringInfo keyring_info(test_dir.name(), ".");
     config_gen.set_keyring_info(keyring_info);
 
-    ASSERT_THROW_LIKE(config_gen.bootstrap_directory_deployment(
-                          test_dir.name(), options, {}, default_paths),
-                      std::runtime_error, "Invalid master key file");
+    ASSERT_THROW_LIKE(
+        config_gen.bootstrap_directory_deployment(
+            program_name_, test_dir.name(), options, {}, default_paths),
+        std::runtime_error, "Invalid master key file");
   }
   mysql_harness::reset_keyring();
 }
@@ -3006,7 +3036,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   config_gen.set_keyring_info(keyring_info);
 
   ASSERT_NO_THROW(config_gen.bootstrap_directory_deployment(
-      test_dir.name(), options, {}, default_paths));
+      program_name_, test_dir.name(), options, {}, default_paths));
 
   std::string value;
   mysql_harness::Config config(mysql_harness::Config::allow_keys);
@@ -3053,7 +3083,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
   // --ssl-mode not given
   {  // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ(0u, router.bootstrap_options_.count("ssl_mode"));
   }
 
@@ -3068,7 +3098,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
       // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
       const std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", opt};
       try {
-        MySQLRouter router(Path(), argv);
+        MySQLRouter router(program_name_, argv);
         FAIL() << "Expected std::invalid_argument to be thrown";
       } catch (const std::runtime_error &e) {
         EXPECT_EQ("option '" + opt + "' expects a value, got nothing",
@@ -3083,7 +3113,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
       const std::vector<std::string> argv2{"-V", "--bootstrap", "0:3310", opt,
                                            ""};
       try {
-        MySQLRouter router(Path(), argv2);
+        MySQLRouter router(program_name_, argv2);
         FAIL() << "Expected std::invalid_argument to be thrown";
       } catch (const std::runtime_error &e) {
         if (opt == "--ssl-mode") {
@@ -3105,7 +3135,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     std::vector<std::string> argv{"-V", "--ssl-mode", "bad", "--bootstrap",
                                   "0:3310"};
     try {
-      MySQLRouter router(Path(), argv);
+      MySQLRouter router(program_name_, argv);
       FAIL() << "Expected std::invalid_argument to be thrown";
     } catch (const std::runtime_error &e) {
       EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
@@ -3120,7 +3150,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", "--ssl-mode",
                                   "bad"};
     try {
-      MySQLRouter router(Path(), argv);
+      MySQLRouter router(program_name_, argv);
       FAIL() << "Expected std::invalid_argument to be thrown";
     } catch (const std::runtime_error &e) {
       EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
@@ -3134,7 +3164,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
   {  // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", "--ssl-mode",
                                   "DISABLED"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("DISABLED", router.bootstrap_options_.at("ssl_mode"));
   }
 
@@ -3142,7 +3172,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
   {  // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", "--ssl-mode",
                                   "preferred"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("preferred", router.bootstrap_options_.at("ssl_mode"));
   }
 
@@ -3150,7 +3180,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
   {  // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", "--ssl-mode",
                                   "rEqUIrEd"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("rEqUIrEd", router.bootstrap_options_.at("ssl_mode"));
   }
 
@@ -3158,7 +3188,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
   {  // vv---- vital!  We rely on it to exit out of MySQLRouter::init()
     std::vector<std::string> argv{"-V", "--bootstrap", "0:3310", "--ssl-mode",
                                   "verify_ca"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("verify_ca", router.bootstrap_options_.at("ssl_mode"));
   }
 
@@ -3173,7 +3203,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
                                   "--ssl-capath=/some/cadir",
                                   "--ssl-crl=/some/crl.pem",
                                   "--ssl-crlpath=/some/crldir"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("verify_ca", router.bootstrap_options_.at("ssl_mode"));
     EXPECT_EQ("/some/ca.pem", router.bootstrap_options_.at("ssl_ca"));
     EXPECT_EQ("/some/cadir", router.bootstrap_options_.at("ssl_capath"));
@@ -3192,7 +3222,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
                                   "--ssl-capath=/some/cadir",
                                   "--ssl-crl=/some/crl.pem",
                                   "--ssl-crlpath=/some/crldir"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("verify_identity", router.bootstrap_options_.at("ssl_mode"));
     EXPECT_EQ("/some/ca.pem", router.bootstrap_options_.at("ssl_ca"));
     EXPECT_EQ("/some/cadir", router.bootstrap_options_.at("ssl_capath"));
@@ -3206,7 +3236,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
         "-V",       "--bootstrap",  "0:3310",         "--ssl-mode",
         "required", "--ssl-cipher", "FOO-BAR-SHA678", "--tls-version",
         "TLSv1"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
     EXPECT_EQ("FOO-BAR-SHA678", router.bootstrap_options_.at("ssl_cipher"));
     EXPECT_EQ("TLSv1", router.bootstrap_options_.at("tls_version"));
@@ -3221,7 +3251,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
                                   "required",
                                   "--ssl-cert=/some/cert.pem",
                                   "--ssl-key=/some/key.pem"};
-    MySQLRouter router(Path(), argv);
+    MySQLRouter router(program_name_, argv);
     EXPECT_EQ("required", router.bootstrap_options_.at("ssl_mode"));
     EXPECT_EQ("/some/cert.pem", router.bootstrap_options_.at("ssl_cert"));
     EXPECT_EQ("/some/key.pem", router.bootstrap_options_.at("ssl_key"));
@@ -3629,7 +3659,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_if_socket_and_localhost) {
 }
 
 static void bootstrap_password_test(
-    MySQLSessionReplayer *mysql, const std::string &dir,
+    MySQLSessionReplayer *mysql, const std::string &program_name,
+    const std::string &dir,
     const std::map<std::string, std::string> &default_paths,
     const std::vector<query_entry_t> &bootstrap_queries,
     std::string password_retries = "5",
@@ -3654,7 +3685,8 @@ static void bootstrap_password_test(
   KeyringInfo keyring_info("delme", "delme.key");
   config_gen.set_keyring_info(keyring_info);
 
-  config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
+  config_gen.bootstrap_directory_deployment(program_name, dir, options, {},
+                                            default_paths);
 }
 
 static constexpr unsigned kCreateUserQuery = 3;   // measured from front
@@ -3689,8 +3721,8 @@ TEST_F(ConfigGeneratorTest,
       "BY",
       ACTION_EXECUTE};
 
-  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                          bootstrap_queries, "5",
+  bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                          default_paths, bootstrap_queries, "5",
                           true /*force_password_validation*/);
 }
 
@@ -3729,8 +3761,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
       "BY",
       ACTION_EXECUTE};
 
-  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                          bootstrap_queries);
+  bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                          default_paths, bootstrap_queries);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
@@ -3761,8 +3793,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
       "mysql_native_password AS",
       ACTION_EXECUTE};
 
-  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                          bootstrap_queries);
+  bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                          default_paths, bootstrap_queries);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
@@ -3810,8 +3842,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
       "BY",
       ACTION_EXECUTE};
 
-  bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                          bootstrap_queries);
+  bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                          default_paths, bootstrap_queries);
 }
 
 TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
@@ -3845,8 +3877,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   try {
-    bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                            bootstrap_queries,
+    bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                            default_paths, bootstrap_queries,
                             std::to_string(kPasswordRetries));
     FAIL() << "Expecting exception";
   } catch (const std::runtime_error &exc) {
@@ -3874,7 +3906,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   {
     const std::vector<std::string> argv{"--password-retries", "2"};
     try {
-      MySQLRouter router(Path(), argv);
+      MySQLRouter router(program_name_, argv);
       FAIL() << "Expected exception";
     } catch (const std::exception &e) {
       EXPECT_STREQ(
@@ -3887,8 +3919,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value too small
   {
     try {
-      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                              bootstrap_queries, "0");
+      bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                              default_paths, bootstrap_queries, "0");
       FAIL() << "Expecting exception";
     } catch (const std::exception &exc) {
       EXPECT_STREQ(
@@ -3901,8 +3933,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value too big
   {
     try {
-      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                              bootstrap_queries, "999999");
+      bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                              default_paths, bootstrap_queries, "999999");
       FAIL() << "Expecting exception";
     } catch (const std::exception &exc) {
       EXPECT_STREQ(
@@ -3915,8 +3947,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value wrong type
   {
     try {
-      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                              bootstrap_queries, "foo");
+      bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                              default_paths, bootstrap_queries, "foo");
       FAIL() << "Expecting exception";
     } catch (const std::exception &exc) {
       EXPECT_STREQ(
@@ -3929,8 +3961,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   // value empty
   {
     try {
-      bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
-                              bootstrap_queries, "");
+      bootstrap_password_test(mock_mysql.get(), program_name_, kDirName,
+                              default_paths, bootstrap_queries, "");
       FAIL() << "Expecting exception";
     } catch (const std::exception &exc) {
       EXPECT_STREQ(
@@ -3940,12 +3972,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
     }
   }
 }
-
-// TODO This is very ugly, it should not be a global. It's defined in
-// config_generator.cc and
-//      used in find_executable_path() to provide path to Router binary when
-//      generating start.sh.
-extern std::string g_program_name;
 
 // start.sh/stop.sh is unix-specific
 #ifndef _WIN32
@@ -3965,7 +3991,8 @@ TEST_F(ConfigGeneratorTest, start_sh) {
   // no --user
   {
     // generate start.sh
-    TestConfigGenerator().create_start_script(deployment_dir, false, {});
+    TestConfigGenerator().create_start_script(program_name_, deployment_dir,
+                                              false, {});
 
     // test file contents
     ASSERT_TRUE(start_sh.exists());
@@ -3976,7 +4003,7 @@ TEST_F(ConfigGeneratorTest, start_sh) {
         (std::string("#!/bin/bash\n") + "basedir=" + deployment_dir.c_str() +
          "\n"
          "ROUTER_PID=$basedir/mysqlrouter.pid " +
-         g_program_name +
+         program_name_ +
          " -c $basedir/mysqlrouter.conf &\n"
          "disown %-\n")
             .c_str(),
@@ -3986,8 +4013,8 @@ TEST_F(ConfigGeneratorTest, start_sh) {
   // with --user
   {
     // generate start.sh
-    TestConfigGenerator().create_start_script(deployment_dir, false,
-                                              {{"user", "loser"}});
+    TestConfigGenerator().create_start_script(program_name_, deployment_dir,
+                                              false, {{"user", "loser"}});
 
     // test file contents
     ASSERT_TRUE(start_sh.exists());
@@ -3999,11 +4026,11 @@ TEST_F(ConfigGeneratorTest, start_sh) {
          "\n"
          "if [ `whoami` == 'loser' ]; then\n"
          "  ROUTER_PID=$basedir/mysqlrouter.pid " +
-         g_program_name +
+         program_name_ +
          " -c $basedir/mysqlrouter.conf &\n"
          "else\n"
          "  sudo ROUTER_PID=$basedir/mysqlrouter.pid " +
-         g_program_name +
+         program_name_ +
          " -c $basedir/mysqlrouter.conf --user=loser &\n"
          "fi\n"
          "disown %-\n")
@@ -4122,15 +4149,19 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
       "hostname.");
 }
 
-int main(int argc, char *argv[]) {
-  init_windows_sockets();
-  g_origin = mysql_harness::Path(argv[0]).dirname();
-  g_cwd = mysql_harness::Path(argv[0]).dirname().str();
+class GlobalTestEnv : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    auto init_res = net::impl::socket::init();
+    ASSERT_TRUE(init_res) << init_res.error();
+  }
+};
 
-  // it would be nice to provide something more descriptive like
-  // "/fake/path/to/mysqlrouter", but unfortunately, this path goes through
-  // realpath() and therefore has to actually exist.
-  g_program_name = "/";
+int main(int argc, char *argv[]) {
+  // must be full path for .start_sh to pass
+  g_program_name = mysql_harness::Path(argv[0]).real_path().str();
+
+  ::testing::AddGlobalTestEnvironment(new GlobalTestEnv);
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

@@ -41,28 +41,7 @@
 static std::mutex g_metadata_cache_m;
 static std::unique_ptr<MetadataCache> g_metadata_cache(nullptr);
 
-using namespace std::chrono_literals;
-
 namespace metadata_cache {
-
-const uint16_t kDefaultMetadataPort{32275};
-const std::chrono::milliseconds kDefaultMetadataTTL{500ms};
-const std::chrono::milliseconds kDefaultAuthCacheTTL{-1s};
-const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{2000ms};
-const std::string kDefaultMetadataAddress{"127.0.0.1:" +
-                                          std::to_string(kDefaultMetadataPort)};
-const std::string kDefaultMetadataUser{""};
-const std::string kDefaultMetadataPassword{""};
-const std::string kDefaultMetadataCluster{""};
-// blank cluster name means pick the 1st (and only) cluster
-const unsigned int kDefaultConnectTimeout{30};
-const unsigned int kDefaultReadTimeout{30};
-
-const std::string kNodeTagHidden{"_hidden"};
-const std::string kNodeTagDisconnectWhenHidden{
-    "_disconnect_existing_sessions_when_hidden"};
-const bool kNodeTagHiddenDefault{false};
-const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
 ClusterStateListenerInterface::~ClusterStateListenerInterface() = default;
 ClusterStateNotifierInterface::~ClusterStateNotifierInterface() = default;

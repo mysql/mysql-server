@@ -352,8 +352,6 @@ class ClusterMetadataAR : public ClusterMetadata {
   uint64_t query_cluster_count() override;
 };
 
-MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
-
 std::unique_ptr<ClusterMetadata> create_metadata(
     const MetadataSchemaVersion &schema_version, MySQLSession *mysql,
     const OptionsMap &options = {},

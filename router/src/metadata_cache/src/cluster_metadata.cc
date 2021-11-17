@@ -458,40 +458,44 @@ ClusterMetadata::find_rw_server(
  *
  * @return value of the bool tag
  */
-static bool get_bool_tag(const std::string &attributes, const std::string &name,
-                         bool default_value, std::string &out_warning) {
+static bool get_bool_tag(const std::string_view &attributes,
+                         const std::string_view &name, bool default_value,
+                         std::string &out_warning) {
   out_warning = "";
   if (attributes.empty()) return default_value;
 
   rapidjson::Document json_doc;
-  json_doc.Parse(attributes.c_str(), attributes.length());
+  json_doc.Parse(attributes.data(), attributes.size());
 
   if (!json_doc.IsObject()) {
     out_warning = "not a valid JSON object";
     return default_value;
   }
 
-  if (!json_doc.HasMember("tags")) {
+  const auto tags_it = json_doc.FindMember("tags");
+  if (tags_it == json_doc.MemberEnd()) {
     return default_value;
   }
 
-  if (!json_doc["tags"].IsObject()) {
+  if (!tags_it->value.IsObject()) {
     out_warning = "tags - not a valid JSON object";
     return default_value;
   }
 
-  const auto tags = json_doc["tags"].GetObject();
+  const auto tags = tags_it->value.GetObject();
 
-  if (!tags.HasMember(name.c_str())) {
+  const auto it = tags.FindMember(rapidjson::Value{name.data(), name.size()});
+
+  if (it == tags.MemberEnd()) {
     return default_value;
   }
 
-  if (!tags[name.c_str()].IsBool()) {
-    out_warning = "tags." + name + " not a boolean";
+  if (!it->value.IsBool()) {
+    out_warning = "tags." + std::string(name) + " not a boolean";
     return default_value;
   }
 
-  return tags[name.c_str()].GetBool();
+  return it->value.GetBool();
 }
 
 bool get_hidden(const std::string &attributes, std::string &out_warning) {

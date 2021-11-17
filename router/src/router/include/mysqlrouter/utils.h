@@ -35,6 +35,12 @@
 
 #include "mysql/harness/stdx/expected.h"
 
+#ifdef _WIN32
+extern "C" {
+extern bool g_windows_service;
+}
+#endif
+
 namespace mysqlrouter {
 
 #ifndef _WIN32

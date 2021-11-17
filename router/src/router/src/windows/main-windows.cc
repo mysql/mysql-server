@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#ifdef _WIN32
+
 #include "../router_app.h"
 
 #include <cstring>
@@ -31,7 +33,9 @@
 #include <windows.h>
 #include <winsock2.h>
 
+#include "../default_paths.h"
 #include "harness_assert.h"
+#include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
 #include "mysqlrouter/utils.h"  // write_windows_event_log
@@ -46,7 +50,6 @@ namespace {
 const char *kAccount = "NT AUTHORITY\\LocalService";
 
 NTService g_service;
-extern "C" bool g_windows_service = false;
 int (*g_real_main)(int, char **, bool);
 
 /** @brief log error message to console and Eventlog (default option)
@@ -265,12 +268,12 @@ std::string get_logging_folder(const std::string &conf_file) {
   // if not provided, we have to compute the the logging_folder based on exec
   // path and predefined standard locations
   if (logging_folder.empty()) {
-    const std::string router_exec_path =
-        MySQLRouter::find_full_path(std::string() /*ignored on Win*/);
+    const std::string router_exec_path = mysqlrouter::find_full_executable_path(
+        std::string() /*ignored on Win*/);
     const mysql_harness::Path router_parent_dir =
         mysql_harness::Path(router_exec_path).dirname();
     const auto default_paths =
-        MySQLRouter::get_default_paths(router_parent_dir);
+        mysqlrouter::get_default_paths(router_parent_dir);
 
     harness_assert(
         default_paths.count(kLoggingFolder));  // ensure .at() below won't throw
@@ -389,3 +392,4 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   do_windows_cleanup();
   return result;
 }
+#endif

@@ -31,12 +31,8 @@
 
 #include <gtest/gtest.h>
 
-#include "router_test_helpers.h"
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "tcp_address.h"
-
-#ifdef _WIN32
-#include <WinSock2.h>
-#endif
 
 using mysql_harness::TCPAddress;
 
@@ -67,8 +63,17 @@ TEST_F(Bug22084430, LogCorrectIPv4Address) {
   }
 }
 
+class GlobalTestEnv : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    auto init_res = net::impl::socket::init();
+    ASSERT_TRUE(init_res) << init_res.error();
+  }
+};
+
 int main(int argc, char *argv[]) {
-  init_windows_sockets();
+  ::testing::AddGlobalTestEnvironment(new GlobalTestEnv);
+
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

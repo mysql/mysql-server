@@ -24,6 +24,8 @@
 
 #include "mysqlrouter/windows/password_vault.h"
 
+#ifdef _WIN32
+
 #include <windows.h>
 
 #include <Dpapi.h>
@@ -178,3 +180,5 @@ void PasswordVault::store_passwords() {
   f.flush();
   LocalFree(buf_encrypted.pbData);
 }
+
+#endif

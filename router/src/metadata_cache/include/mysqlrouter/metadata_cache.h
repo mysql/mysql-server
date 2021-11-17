@@ -28,6 +28,7 @@
 #include "mysqlrouter/metadata_cache_export.h"
 
 #include <atomic>
+#include <chrono>
 #include <exception>
 #include <list>
 #include <map>
@@ -108,21 +109,26 @@ inline std::error_code make_error_code(metadata_errc e) noexcept {
   return std::error_code(static_cast<int>(e), metadata_cache_category());
 }
 
-extern const uint16_t kDefaultMetadataPort;
-extern const std::string kDefaultMetadataAddress;
-extern const std::string kDefaultMetadataUser;
-extern const std::string kDefaultMetadataPassword;
-extern const std::chrono::milliseconds kDefaultMetadataTTL;
-extern const std::chrono::milliseconds kDefaultAuthCacheTTL;
-extern const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval;
-extern const std::string kDefaultMetadataCluster;
-extern const unsigned int kDefaultConnectTimeout;
-extern const unsigned int kDefaultReadTimeout;
+constexpr const uint16_t kDefaultMetadataPort{32275};
+constexpr const std::string_view kDefaultMetadataAddress{"127.0.0.1:32275"};
+constexpr const std::string_view kDefaultMetadataUser{""};
+constexpr const std::string_view kDefaultMetadataPassword{""};
+constexpr const std::chrono::milliseconds kDefaultMetadataTTL{500};
+constexpr const std::chrono::milliseconds kDefaultAuthCacheTTL{
+    std::chrono::seconds{-1}};
+constexpr const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval{
+    2000};
+// blank cluster name means pick the 1st (and only) cluster
+constexpr const std::string_view kDefaultMetadataCluster{""};
+constexpr const unsigned int kDefaultConnectTimeout{30};
+constexpr const unsigned int kDefaultReadTimeout{30};
 
-extern const std::string kNodeTagHidden;
-extern const std::string kNodeTagDisconnectWhenHidden;
-extern const bool kNodeTagHiddenDefault;
-extern const bool kNodeTagDisconnectWhenHiddenDefault;
+constexpr const std::string_view kNodeTagHidden{"_hidden"};
+constexpr const std::string_view kNodeTagDisconnectWhenHidden{
+    "_disconnect_existing_sessions_when_hidden"};
+
+constexpr const bool kNodeTagHiddenDefault{false};
+constexpr const bool kNodeTagDisconnectWhenHiddenDefault{true};
 
 enum class ClusterStatus {
   AvailableWritable,

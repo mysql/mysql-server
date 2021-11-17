@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
 SET(TESTS
   test_certificate_generator.cc
   test_certificate_handler.cc
@@ -70,6 +71,17 @@ FOREACH(test_file
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
   )
 ENDFOREACH()
+
+ADD_HARNESS_TEST_FILE(test_default_paths.cc
+  MODULE "router"
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+  INCLUDE_DIRS
+    ../include/
+    ../src/
+  EXTRA_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/default_paths.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/utils.cc
+  )
 
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
