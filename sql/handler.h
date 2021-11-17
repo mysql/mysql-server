@@ -2583,6 +2583,51 @@ public:
   virtual Cost_estimate read_cost(uint index, double ranges, double rows);
   
   /**
+    Cost estimate for doing a number of non-sequentially accesses
+    against the storage engine. Such accesses can be either number
+    of rows to read, or number of disk pages to access.
+    Each handler implementation is free to interpret that as best
+    suited, depending on what is the dominating cost for that
+    storage engine.
+
+    This method is mainly provided as a temporary workaround for
+    bug#33317872, where we fix problems caused by calling
+    Cost_model::page_read_cost() directly from the optimizer.
+    That should be avoide, as it introduced assumption about all
+    storage engines being disk-page based, and having a 'page' cost.
+    Furthermore, this page cost was even compared against read_cost(),
+    which was computed with an entirely different algorithm, and thus
+    could not be compared.
+
+    The default implementation still call Cost_model::page_read_cost(),
+    thus behaving just as before. However, handler implementation may
+    override it to call handler::read_cost() instead(), which propably
+    will be more correct. (If a page_read_cost should be included
+    in the cost estimate, that should preferable be done inside
+    each read_cost() implementation)
+
+    Longer term we should considder to remove all page_read_cost()
+    usage from the optimizer itself, making this method obsolete.
+
+    @param index  the index number
+    @param reads  the number of accesses being made
+
+    @returns the estimated cost
+  */
+  virtual double page_read_cost(uint index, double reads);
+
+  /**
+    Provide an upper cost-limit of doing a specified number of
+    seek-and-read key lookups. This need to be comparable and
+    calculated with the same 'metric' as page_read_cost.
+
+    @param reads the number of rows read in the 'worst' case.
+
+    @returns the estimated cost
+  */
+  virtual double worst_seek_times(double reads);
+
+  /**
     Return an estimate on the amount of memory the storage engine will
     use for caching data in memory. If this is unknown or the storage
     engine does not cache data in memory -1 is returned.

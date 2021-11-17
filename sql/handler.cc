@@ -5947,6 +5947,25 @@ int ha_binlog_end(THD* thd)
   return 0;
 }
 
+double handler::page_read_cost(uint index,
+                               double reads) {
+  return table->cost_model()->page_read_cost(reads);
+
+  /////////////////
+  // Other, non-page-based storage engine, may prefer to
+  // override to;
+  //return read_cost(index, 1, reads).total_cost();
+
+  // Longer term: We should avoid mixed usage of read_cost()
+  // and page_read_cost() from the optimizer. Use only
+  // one of these to get cost estimates comparable between different
+  // access methods and call paths.
+}
+
+double handler::worst_seek_times(double reads) {
+  return table->cost_model()->page_read_cost(reads);
+}
+
 /**
   Calculate cost of 'index only' scan for given index and number of records
 

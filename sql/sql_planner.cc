@@ -427,7 +427,7 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
           }
           else
             cur_read_cost= prefix_rowcount *
-              min(table->cost_model()->page_read_cost(tmp_fanout),
+              min(table->file->page_read_cost(key, tmp_fanout),
                   tab->worst_seeks);
         }
       }
@@ -624,7 +624,7 @@ Key_use* Optimize_table_order::find_best_ref(JOIN_TAB *tab,
         }
         else
           cur_read_cost= prefix_rowcount *
-            min(table->cost_model()->page_read_cost(tmp_fanout),
+            min(table->file->page_read_cost(key, tmp_fanout),
                 tab->worst_seeks);
       }
       else
