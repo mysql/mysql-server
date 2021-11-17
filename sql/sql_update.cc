@@ -2312,6 +2312,7 @@ void Query_result_update::cleanup(THD *thd) {
   error_handled = false;
   found_rows = 0;
   updated_rows = 0;
+  unupdated_check_opt_tables.clear();
 }
 
 bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
