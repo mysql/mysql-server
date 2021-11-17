@@ -497,7 +497,8 @@ public:
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *,const uchar *, const uchar *);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
-	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
+	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag,
+	  enum ha_rkey_function gis_func_flag);
   /*
     Used to construct MAYBE_KEY and IMPOSSIBLE SEL_ARGs. left and
     right is NULL, so this ctor must not be used to create other
@@ -582,18 +583,21 @@ public:
       new_max=arg->max_value; flag_max=arg->max_flag;
     }
     return new (mem_root) SEL_ARG(field, part, new_min, new_max, flag_min, flag_max,
-		       MY_TEST(maybe_flag && arg->maybe_flag));
+		       MY_TEST(maybe_flag && arg->maybe_flag),
+		       flag_min & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_first(SEL_ARG *arg, MEM_ROOT *mem_root)
   {						// min <= X < arg->min
     return new (mem_root) SEL_ARG(field,part, min_value, arg->min_value,
 		       min_flag, arg->min_flag & NEAR_MIN ? 0 : NEAR_MAX,
-		       maybe_flag | arg->maybe_flag);
+		       maybe_flag | arg->maybe_flag,
+		       min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone_last(SEL_ARG *arg, MEM_ROOT *mem_root)
   {						// min <= X <= key_max
     return new (mem_root) SEL_ARG(field, part, min_value, arg->max_value,
-		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag);
+		       min_flag, arg->max_flag, maybe_flag | arg->maybe_flag,
+		       min_flag & GEOM_FLAG ? rkey_func_flag : HA_READ_INVALID);
   }
   SEL_ARG *clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, SEL_ARG **next);
 
@@ -2134,10 +2138,11 @@ SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
                  uchar *min_value_, uchar *max_value_,
-		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_)
+		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_,
+		 enum ha_rkey_function gis_func_flag)
   :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
   maybe_null(field_->real_maybe_null()),
-  rkey_func_flag(HA_READ_INVALID), elements(1),use_count(1),
+  rkey_func_flag(gis_func_flag), elements(1),use_count(1),
   field(field_), min_value(min_value_), max_value(max_value_),
   left(&null_element), right(&null_element),
   next(NULL), prev(NULL), next_key_part(0), color(BLACK), type(KEY_RANGE)
@@ -2163,7 +2168,9 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
   else
   {
     if (!(tmp= new (param->mem_root) SEL_ARG(field,part, min_value,max_value,
-                                             min_flag, max_flag, maybe_flag)))
+                                             min_flag, max_flag, maybe_flag,
+                                             min_flag & GEOM_FLAG ?
+                                             rkey_func_flag : HA_READ_INVALID)))
       return 0;					// OOM
     tmp->parent=new_parent;
     tmp->next_key_part=next_key_part;
