@@ -72,6 +72,16 @@ enum class Window_retrieve_cached_row_reason {
 };
 
 /**
+  The number of windows is limited to avoid the stack blowing up
+  when constructing iterators recursively. There used to be no limit, but
+  it would be unsafe since QEP_shared::m_idx of tmp tables assigned for windows
+  would exceed the old range of its type plan_idx (int8). It
+  has now been widened, so the max number of windows could be increased
+  if need be, modulo other problems. We could also make it a system variable.
+*/
+constexpr int kMaxWindows = 127;
+
+/**
   Represents the (explicit) window of a SQL 2003 section 7.11 \<window clause\>,
   or the implicit (inlined) window of a window function call, or a reference to
   a named window in a window function call (instead of the inlined definition)
