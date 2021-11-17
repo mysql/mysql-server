@@ -4070,10 +4070,10 @@ void init_mdl_requests(TABLE_LIST *table_list);
   @retval false Success.
 */
 
-bool unpack_value_generator(THD *thd, TABLE *base_table,
+bool unpack_value_generator(THD *thd, TABLE *table,
                             Value_generator **val_generator,
                             Value_generator_source source,
-                            const char *source_name, Field *base_field,
+                            const char *source_name, Field *field,
                             bool is_create_table, bool *error_reported);
 
 /**
