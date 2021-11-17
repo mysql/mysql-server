@@ -586,7 +586,7 @@ bool Sql_cmd_show_processlist::execute_inner(THD *thd) {
                           thd->security_context()->check_access(PROCESS_ACL)
                               ? NullS
                               : thd->security_context()->priv_user().str,
-                          m_verbose);
+                          m_verbose, true);
     return false;
   }
 }
@@ -2813,7 +2813,19 @@ class List_process_list : public Do_THD_Impl {
   }
 };
 
-void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
+/**
+  List running processes (actually connected sessions).
+
+  @param thd        thread handle.
+  @param user
+  @param verbose    if false, limit output to PROCESS_LIST_WIDTH characters.
+  @param has_cursor if true, called from a command object that handles
+                    terminatation of sending to client, otherwise terminate
+                    explicitly with my_eof() call.
+*/
+
+void mysqld_list_processes(THD *thd, const char *user, bool verbose,
+                           bool has_cursor) {
   Item *field;
   mem_root_deque<Item *> field_list(thd->mem_root);
   Thread_info_array thread_infos(thd->mem_root);
@@ -2871,7 +2883,16 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
                     thd_info->query_string.charset());
     if (protocol->end_row()) break; /* purecov: inspected */
   }
-  if (thd->lex->query_block != nullptr)
+  /*
+    "show" commands that are implemented as subclass of Sql_cmd_show_noplan
+    usually call my_eof() directly, as they don't have a cursor implementation.
+    However, SHOW PROCESSLIST has one implementation using PFS that uses
+    a regular join plan, and another that calls this function, so inherits
+    from Sql_cmd_show.
+    The following code is necessary to prevent my_eof() from being called twice
+    when this function is called as part of Sql_cmd execution.
+  */
+  if (has_cursor)
     thd->lex->unit->query_result()->send_eof(thd);
   else
     my_eof(thd);
