@@ -90,6 +90,8 @@ ibool sync_array_print_long_waits(
     std::thread::id *waiter, /*!< out: longest waiting thread */
     const void **sema);      /*!< out: longest-waited-for semaphore */
 
+void sync_array_detect_deadlock();
+
 /** Prints info of the wait array. */
 void sync_array_print(FILE *file); /*!< in: file where to print */
 

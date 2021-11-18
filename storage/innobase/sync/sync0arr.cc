@@ -69,17 +69,19 @@ static ulint sg_count;
 #define sync_array_exit(a) mutex_exit(&(a)->mutex)
 #define sync_array_enter(a) mutex_enter(&(a)->mutex)
 
-#ifdef UNIV_DEBUG
-/** This function is called only in the debug version. Detects a deadlock
- of one or more threads because of waits of semaphores.
- @return true if deadlock detected */
-static bool sync_array_detect_deadlock(
-    sync_array_t *arr,  /*!< in: wait array; NOTE! the caller must
-                        own the mutex to array */
-    sync_cell_t *start, /*!< in: cell where recursive search started */
-    sync_cell_t *cell,  /*!< in: cell to search */
-    ulint depth);       /*!< in: recursion depth */
+/** Detects a deadlock of one or more threads because of waits of semaphores.
+Reports a fatal error (and thus does not return) in case it finds one.
+The return value is only used in recursive calls (depth>0).
+@param[in]  arr     The wait array we limit our search for cycle to.
+                    The caller must own the arr->mutex.
+@param[in]  cell    The cell to check
+@param[in]  pass    Non-zero if the rwlock taken by thread was passed
+@param[in]  depth   The recursion depth
+@return true iff deadlock detected (there might be false negatives) */
+static bool sync_array_detect_deadlock(sync_array_t *arr, sync_cell_t *cell,
+                                       size_t depth);
 
+#ifdef UNIV_DEBUG
 /** Validates the integrity of the wait array. Checks
  that the number of reserved cells equals the count variable. */
 static void sync_array_validate(sync_array_t *arr) /*!< in: sync wait array */
@@ -284,11 +286,36 @@ void sync_array_free_cell(
 
   cell = nullptr;
 }
+void sync_array_detect_deadlock() {
+  for (ulint i = 0; i < sync_array_size; ++i) {
+    auto arr = sync_wait_array[i];
+    sync_array_enter(arr);
+    ut_d(rw_lock_debug_mutex_enter());
+    ut_a(arr->last_scan % 2 == 0);
+    ++arr->last_scan;
+    size_t count{0};
+    for (size_t i = 0; count < arr->n_reserved; ++i) {
+      auto cell = sync_array_get_nth_cell(arr, i);
+      if (cell->latch.mutex) {
+        ++count;
+        if (cell->last_scan == arr->last_scan + 1) {
+          continue;
+        }
+        ut_a(cell->last_scan != arr->last_scan);
+        sync_array_detect_deadlock(arr, cell, 0);
+      }
+    }
+    ++arr->last_scan;
+    ut_a(arr->last_scan % 2 == 0);
+    ut_d(rw_lock_debug_mutex_exit());
+    sync_array_exit(arr);
+  }
+}
 
 /** This function should be called when a thread starts to wait on
- a wait array cell. In the debug version this function checks
- if the wait for a semaphore will result in a deadlock, in which
- case prints info and asserts. */
+a wait array cell. In the debug version this function checks
+if the wait for a semaphore will result in a deadlock, in which
+case prints info and asserts. */
 void sync_array_wait_event(
     sync_array_t *arr,  /*!< in: wait array */
     sync_cell_t *&cell) /*!< in: index of the reserved cell */
@@ -300,28 +327,20 @@ void sync_array_wait_event(
   ut_ad(std::this_thread::get_id() == cell->thread_id);
 
   cell->waiting = true;
-
 #ifdef UNIV_DEBUG
-
   /* We use simple enter to the mutex below, because if
   we cannot acquire it at once, mutex_enter would call
   recursively sync_array routines, leading to trouble.
   rw_lock_debug_mutex freezes the debug lists. */
 
   rw_lock_debug_mutex_enter();
-
-  if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
-#ifdef UNIV_NO_ERR_MSGS
-    ib::fatal(UT_LOCATION_HERE)
-#else
-    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1157)
-#endif /* UNIV_NO_ERR_MSGS */
-        << "########################################"
-           " Deadlock Detected!";
-  }
-
+  ut_a(arr->last_scan % 2 == 0);
+  ++arr->last_scan;
+  sync_array_detect_deadlock(arr, cell, 0);
+  ++arr->last_scan;
+  ut_a(arr->last_scan % 2 == 0);
   rw_lock_debug_mutex_exit();
-#endif /* UNIV_DEBUG */
+#endif
   sync_array_exit(arr);
 
   os_event_wait_low(sync_cell_get_event(cell), cell->signal_count);
@@ -360,7 +379,8 @@ static void sync_array_mutex_print(FILE *file, const Mutex *mutex) {
 #endif /* UNIV_DEBUG */
   );
 }
-void sync_array_cell_print(FILE *file, sync_cell_t *cell) {
+
+void sync_array_cell_print(FILE *file, const sync_cell_t *cell) {
   rw_lock_t *rwlock;
   ulint type;
   ulint writer;
@@ -431,7 +451,6 @@ void sync_array_cell_print(FILE *file, sync_cell_t *cell) {
   }
 }
 
-#ifdef UNIV_DEBUG
 /** Looks for a cell with the given thread id.
  @return pointer to cell or NULL if not found */
 static sync_cell_t *sync_array_find_thread(
@@ -452,88 +471,48 @@ static sync_cell_t *sync_array_find_thread(
 }
 
 /** Recursion step for deadlock detection.
- @return true if deadlock detected */
-static ibool sync_array_deadlock_step(
-    sync_array_t *arr,      /*!< in: wait array; NOTE! the caller must
-                            own the mutex to array */
-    sync_cell_t *start,     /*!< in: cell where recursive search
-                            started */
-    std::thread::id thread, /*!< in: thread to look at */
-    ulint pass,             /*!< in: pass value */
-    ulint depth)            /*!< in: recursion depth */
-{
-  sync_cell_t *new_cell;
-
-  if (pass != 0) {
-    /* If pass != 0, then we do not know which threads are
-    responsible of releasing the lock, and no deadlock can
-    be detected. */
-
-    return (FALSE);
+@param[in]  arr     The wait array we limit our search for cycle to.
+                    The caller must own the arr->mutex.
+@param[in]  thread  The thread which blocking other threads, which we want to
+                    find in the arr, to know if and why it's blocked, too
+@param[in]  depth   The recursion depth
+@return true iff deadlock detected (there might be false negatives) */
+static bool sync_array_deadlock_step(sync_array_t *arr, std::thread::id thread,
+                                     size_t depth) {
+  const auto new_cell = sync_array_find_thread(arr, thread);
+  if (new_cell == nullptr) {
+    return false;
   }
-
-  new_cell = sync_array_find_thread(arr, thread);
-
-  if (new_cell == start) {
+  if (new_cell->last_scan == arr->last_scan) {
     /* Deadlock */
     fputs(
         "########################################\n"
         "DEADLOCK of threads detected!\n",
         stderr);
 
-    return (TRUE);
-
-  } else if (new_cell) {
-    return (sync_array_detect_deadlock(arr, start, new_cell, depth + 1));
+    return true;
   }
-  return (FALSE);
-}
-
-/**
-Report an error to stderr.
-@param lock		rw-lock instance
-@param debug		rw-lock debug information
-@param cell		thread context */
-static void sync_array_report_error(rw_lock_t *lock, rw_lock_debug_t *debug,
-                                    sync_cell_t *cell) {
-  fprintf(stderr, "rw-lock %p ", (void *)lock);
-  sync_array_cell_print(stderr, cell);
-  rw_lock_debug_print(stderr, debug);
+  if (new_cell->last_scan == arr->last_scan + 1) {
+    /* Already processed */
+    return false;
+  }
+  return sync_array_detect_deadlock(arr, new_cell, depth + 1);
 }
 
 /** A helper for sync_array_detect_deadlock() to handle the case when the cell
 contains a thread waiting for a mutex.
 @param[in] mutex    the mutex to check
 @param[in] arr      wait array; NOTE! the caller must own the mutex to array
-@param[in] start    cell where recursive search started
 @param[in] cell     the cell which contains the mutex
 @param[in] depth    recursion depth
 */
 template <typename Mutex>
 static bool sync_array_detect_mutex_deadlock(const Mutex *mutex,
                                              sync_array_t *arr,
-                                             sync_cell_t *start,
                                              sync_cell_t *cell, size_t depth) {
-  const auto &policy = mutex->policy();
-
   const std::thread::id thread = mutex->peek_owner();
   if (thread != std::thread::id{}) {
-    if (sync_array_deadlock_step(arr, start, thread, 0, depth)) {
-      const char *name = policy.get_enter_filename();
-
-      if (name == nullptr) {
-        /* The mutex might have been released. */
-        name = "NULL";
-      }
-
-#ifdef UNIV_NO_ERR_MSGS
-      ib::info()
-#else
-      ib::info(ER_IB_MSG_1158)
-#endif /* UNIV_NO_ERR_MSGS */
-          << "Mutex " << mutex << " owned by thread " << thread << " file "
-          << name << " line " << policy.get_enter_line();
-
+    if (sync_array_deadlock_step(arr, thread, depth)) {
       sync_array_cell_print(stderr, cell);
 
       return true;
@@ -543,29 +522,101 @@ static bool sync_array_detect_mutex_deadlock(const Mutex *mutex,
   /* No deadlock */
   return false;
 }
+template <typename F>
+bool sync_array_detect_rwlock_deadlock(sync_cell_t *cell, sync_array_t *arr,
+                                       const size_t depth, F &&conflicts) {
+  auto lock = cell->latch.lock;
+  const auto waiter = cell->thread_id;
+#ifdef UNIV_DEBUG
+  for (auto debug : lock->debug_list) {
+    /* If pass != 0, then we do not know which threads are responsible for
+    releasing the lock, and no deadlock can be detected. */
+    if (debug->pass) {
+      continue;
+    }
+    const auto holder = debug->thread_id;
+    if (std::forward<F>(conflicts)(debug->lock_type, waiter == holder)) {
+      if (sync_array_deadlock_step(arr, holder, depth)) {
+        sync_array_cell_print(stderr, cell);
+        rw_lock_debug_print(stderr, debug);
+        return true;
+      }
+    }
+  }
+#else
+  /* We don't have lock->debug_list, so can't identify all threads owning the
+  latch, but we still have some clues available.
+  We can identify the only thread which has (wait) x-lock by looking at
+  lock->writer_thread, unless the lock was passed to another thread which
+  requires the lock->recursive to be false.
+  We don't track all s-locks, but if there is exactly one s-lock, then we can
+  identify its owner with lock->reader_thread.
+  You might be worried about race-condition: could it happen that the holder we
+  identify here, will soon release the latch, and thus we will report a "fake"
+  deadlock? Not really, because the first thing sync_array_deadlock_step() will
+  do is to check if the holder is itself waiting for something in the arr we
+  keep latched - if it isn't waiting, we will ignore it, and if it is, then it's
+  not executing thus can't release the rw_lock we analyze here. */
+  const std::thread::id none{};
+  std::thread::id suspects[2]{};
+  size_t suspects_cnt = 0;
+  {
+    if (lock->recursive.load()) {
+      /* You might be worried about a race-condition: could it happen that the
+      recursive was set to true by some other thread, which now released the
+      lock, and then the writer_thread acquired it to pass it to somebody else,
+      and thus set recursive to false?
+      We double check that recursive is still true after loading writer_thread,
+      and we only report a deadlock if writer_thread is itself not executing.
+      So if a deadlock is reported it must be writer_thread who set recursive to
+      true and is still holding this latch.
+      Note that we always pass RW_LOCK_X as the granted request_type of the
+      blocking thread, even though it could still be waiting for RW_LOCK_WAIT_X.
+      This doesn't really matter as existing callbacks do not differentiate,
+      and more importantly they should rather care about "kind of access right"
+      than "state of latching" (debug_list's lock_type), or "awaited event"
+      (cell's request type). Alas we use the same enum for these concepts.*/
+      const auto thread = lock->writer_thread.load();
+      if (lock->recursive.load() && thread != none &&
+          std::forward<F>(conflicts)(RW_LOCK_X, thread == waiter)) {
+        suspects[suspects_cnt++] = thread;
+      }
+    }
+  }
+  {
+    if (rw_lock_get_reader_count(lock) == 1) {
+      /* You might be worried about a race-condition: could it happen that the
+      number of s-lockers has changed from 1 to say 3, and the XOR we recover in
+      the line below corresponds to some unrelated fourth thread?
+      For example 0x101 xor 0x110 xor 0x111 = 0x100.
+      This isn't a problem in practice, because conflicts(RW_LOCKS,..) is true
+      only if the waiter waits for RW_LOCK_X_WAIT, which means it already has
+      announced its presence via lock_word, so no more s-locks should be granted
+      to not starve it. Thus the number of readers can only decrease. We double
+      check it is still 1 after recovering the xor, so it can't be 0 nor torn.*/
+      const auto thread = lock->reader_thread.recover_if_single();
+      if (rw_lock_get_reader_count(lock) == 1 && thread != none &&
+          std::forward<F>(conflicts)(RW_LOCK_S, thread == waiter)) {
+        suspects[suspects_cnt++] = thread;
+      }
+    }
+  }
+  for (size_t i = 0; i < suspects_cnt; ++i) {
+    if (sync_array_deadlock_step(arr, suspects[i], depth)) {
+      sync_array_cell_print(stderr, cell);
+      return true;
+    }
+  }
+#endif /* UNIV_DEBUG */
+  return false;
+}
 
-/** This function is called only in the debug version. Detects a deadlock
- of one or more threads because of waits of semaphores.
- @return true if deadlock detected */
-static bool sync_array_detect_deadlock(
-    sync_array_t *arr,  /*!< in: wait array; NOTE! the caller must
-                        own the mutex to array */
-    sync_cell_t *start, /*!< in: cell where recursive search started */
-    sync_cell_t *cell,  /*!< in: cell to search */
-    ulint depth)        /*!< in: recursion depth */
-{
-  rw_lock_t *lock;
-  std::thread::id thread;
-  ibool ret;
-
+static bool sync_array_detect_deadlock_low(sync_array_t *arr, sync_cell_t *cell,
+                                           size_t depth) {
   ut_a(arr);
-  ut_a(start);
   ut_a(cell);
   ut_ad(cell->latch.mutex != nullptr);
-  ut_ad(start->thread_id == std::this_thread::get_id());
   ut_ad(depth < 100);
-
-  depth++;
 
   if (!cell->waiting) {
     /* No deadlock here */
@@ -574,115 +625,72 @@ static bool sync_array_detect_deadlock(
 
   switch (cell->request_type) {
     case SYNC_MUTEX: {
-      return sync_array_detect_mutex_deadlock(cell->latch.mutex, arr, start,
-                                              cell, depth);
+      return sync_array_detect_mutex_deadlock(cell->latch.mutex, arr, cell,
+                                              depth);
     }
 
     case SYNC_BUF_BLOCK: {
-      return sync_array_detect_mutex_deadlock(cell->latch.bpmutex, arr, start,
-                                              cell, depth);
+      return sync_array_detect_mutex_deadlock(cell->latch.bpmutex, arr, cell,
+                                              depth);
     }
     case RW_LOCK_X:
+      /* The x-lock request can block infinitely only if someone (cannot be the
+      cell thread) has (wait) x-lock or sx-lock, and he is blocked by start
+      thread */
+      return sync_array_detect_rwlock_deadlock(
+          cell, arr, depth, [](auto request_type, bool is_my) {
+            return !is_my && request_type != RW_LOCK_S;
+          });
     case RW_LOCK_X_WAIT:
-
-      lock = cell->latch.lock;
-
-      for (auto debug : lock->debug_list) {
-        thread = debug->thread_id;
-
-        switch (debug->lock_type) {
-          case RW_LOCK_X:
-          case RW_LOCK_SX:
-          case RW_LOCK_X_WAIT:
-            if (thread == cell->thread_id) {
-              break;
-            }
-            [[fallthrough]];
-          case RW_LOCK_S:
-
-            /* The (wait) x-lock request can block
-            infinitely only if someone (can be also cell
-            thread) is holding s-lock, or someone
-            (cannot be cell thread) (wait) x-lock or
-            sx-lock, and he is blocked by start thread */
-
-            ret = sync_array_deadlock_step(arr, start, thread, debug->pass,
-                                           depth);
-
-            if (ret) {
-              sync_array_report_error(lock, debug, cell);
-              rw_lock_debug_print(stderr, debug);
-              return (TRUE);
-            }
-        }
-      }
-
-      return (false);
-
+      /* The (wait) x-lock request can block infinitely only if someone (can be
+      also the cell thread) is holding an s-lock */
+      return sync_array_detect_rwlock_deadlock(
+          cell, arr, depth, [](auto request_type, bool is_my) {
+            return request_type == RW_LOCK_S;
+          });
     case RW_LOCK_SX:
-
-      lock = cell->latch.lock;
-
-      for (auto debug : lock->debug_list) {
-        thread = debug->thread_id;
-
-        switch (debug->lock_type) {
-          case RW_LOCK_X:
-          case RW_LOCK_SX:
-          case RW_LOCK_X_WAIT:
-
-            if (thread == cell->thread_id) {
-              break;
-            }
-
-            /* The sx-lock request can block infinitely
-            only if someone (can be also cell thread) is
-            holding (wait) x-lock or sx-lock, and he is
-            blocked by start thread */
-
-            ret = sync_array_deadlock_step(arr, start, thread, debug->pass,
-                                           depth);
-
-            if (ret) {
-              sync_array_report_error(lock, debug, cell);
-              return (TRUE);
-            }
-        }
-      }
-
-      return (false);
-
+      /* The sx-lock request can block infinitely only if someone (cannot be
+      the cell thread) is holding a (wait) x-lock or sx-lock, and he is blocked
+      by start thread */
+      return sync_array_detect_rwlock_deadlock(
+          cell, arr, depth, [](auto request_type, bool is_my) {
+            return !is_my && request_type != RW_LOCK_S;
+          });
     case RW_LOCK_S:
-
-      lock = cell->latch.lock;
-
-      for (auto debug : lock->debug_list) {
-        thread = debug->thread_id;
-
-        if (debug->lock_type == RW_LOCK_X ||
-            debug->lock_type == RW_LOCK_X_WAIT) {
-          /* The s-lock request can block infinitely
-          only if someone (can also be cell thread) is
-          holding (wait) x-lock, and he is blocked by
-          start thread */
-
-          ret =
-              sync_array_deadlock_step(arr, start, thread, debug->pass, depth);
-
-          if (ret) {
-            sync_array_report_error(lock, debug, cell);
-            return (TRUE);
-          }
-        }
-      }
-
-      return (false);
-
+      /* The s-lock request can block infinitely only if someone (can also be
+      the cell thread) is holding a (wait) x-lock, and he is blocked by start
+      thread */
+      return sync_array_detect_rwlock_deadlock(
+          cell, arr, depth, [](auto request_type, bool is_my) {
+            return request_type == RW_LOCK_X || request_type == RW_LOCK_X_WAIT;
+          });
     default:
       ut_error;
   }
 }
-#endif /* UNIV_DEBUG */
+static bool sync_array_detect_deadlock(sync_array_t *const arr,
+                                       sync_cell_t *const cell, size_t depth) {
+  // there's an ongoing scan
+  ut_a(arr->last_scan % 2 == 1);
+  // do not visit a cell which is already on stack
+  ut_a(cell->last_scan != arr->last_scan);
+  // do not waste time processing already processed cell
+  ut_a(cell->last_scan != arr->last_scan + 1);
+  // mark the fact the cell is on stack
+  cell->last_scan = arr->last_scan;
+  const bool deadlocked = sync_array_detect_deadlock_low(arr, cell, depth);
+  // mark the fact the cell as fully proccessed;
+  cell->last_scan++;
+  if (deadlocked && depth == 0) {
+#ifdef UNIV_NO_ERR_MSGS
+    ib::fatal(UT_LOCATION_HERE)
+#else
+    ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_1157)
+#endif /* UNIV_NO_ERR_MSGS */
+        << "######################################## Deadlock Detected!";
+  }
+  return deadlocked;
+}
 
 /** Determines if we can wake up the thread waiting for a semaphore. */
 static bool sync_arr_cell_can_wake_up(
