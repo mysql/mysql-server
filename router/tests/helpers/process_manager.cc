@@ -278,15 +278,21 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
   auto &result = launch_command(command, params, env_vars);
 
   switch (sync_point_) {
-    case SyncPoint::READY:
-      EXPECT_TRUE(wait_for_notified_ready(notify_socket, sync_point_timeout_))
-          << "socket: " << socket_node;
-      break;
-    case SyncPoint::RUNNING:
-      EXPECT_TRUE(wait_for_notified(notify_socket, "STATUS=running",
-                                    sync_point_timeout_))
-          << "socket: " << socket_node;
-      break;
+    case SyncPoint::READY: {
+      result.wait_for_sync_point_result(
+          wait_for_notified_ready(notify_socket, sync_point_timeout_));
+
+      EXPECT_TRUE(result.wait_for_sync_point_result())
+          << "waiting for READY on socket: " << socket_node;
+    } break;
+    case SyncPoint::RUNNING: {
+      result.wait_for_sync_point_result(wait_for_notified(
+          notify_socket, "STATUS=running", sync_point_timeout_));
+
+      EXPECT_TRUE(result.wait_for_sync_point_result())
+          << "waiting for RUNNING on socket: " << socket_node;
+
+    } break;
     case SyncPoint::NONE:
       // nothing to do.
       break;
