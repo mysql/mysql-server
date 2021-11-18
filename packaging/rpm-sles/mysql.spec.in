@@ -140,13 +140,12 @@ BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %{?sles12:BuildRequires: gcc10 gcc10-c++}
 %{?sles15:BuildRequires: gcc9 gcc9-c++}
-%{?sles16:BuildRequires: rpcgen pkgconfig(libtirpc)}
+%{?sles15:BuildRequires: rpcgen pkgconfig(libtirpc)}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
-BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*|libfido2.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
