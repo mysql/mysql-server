@@ -304,9 +304,6 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     if (job.join != nullptr) {
       assert(!job.join->needs_finalize);
     }
-    if (FinalizeMaterializedSubqueries(thd, join, path)) {
-      return nullptr;
-    }
 
     unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -741,6 +738,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           SetupJobsForChildren(mem_root, param.child, join,
                                eligible_for_batch_mode, &job, &todo);
           continue;
+        }
+        if (FinalizeMaterializedSubqueries(thd, join, path)) {
+          return nullptr;
         }
         iterator = NewIterator<FilterIterator>(
             thd, mem_root, move(job.children[0]), param.condition);
