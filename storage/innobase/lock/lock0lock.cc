@@ -3901,23 +3901,30 @@ static void lock_release_gap_lock(lock_t *lock) {
 released if rules permit it.
 @param[in]   lock       the lock that we consider releasing
 @param[in]   only_gap   true if we don't want to release records,
-                        just the gaps between them */
-static void lock_release_read_lock(lock_t *lock, bool only_gap) {
+                        just the gaps between them
+@return true iff the function did release (maybe a part of) a lock
+*/
+static bool lock_release_read_lock(lock_t *lock, bool only_gap) {
   /* Keep in sync with lock_edge_may_survive_prepare() */
   if (!lock->is_record_lock() || lock->is_insert_intention() ||
       lock->is_predicate()) {
     /* DO NOTHING */
+    return false;
   } else if (lock->is_gap()) {
     /* Release any GAP only lock. */
     lock_rec_dequeue_from_page(lock);
+    return true;
   } else if (lock->is_record_not_gap() && only_gap) {
     /* Don't release any non-GAP lock if not asked.*/
+    return false;
   } else if (lock->mode() == LOCK_S && !only_gap) {
     /* Release Shared Next Key Lock(SH + GAP) if asked for */
     lock_rec_dequeue_from_page(lock);
+    return true;
   } else {
     /* Release GAP lock from Next Key lock */
     lock_release_gap_lock(lock);
+    return true;
   }
 }
 
@@ -4038,10 +4045,10 @@ It is called during XA prepare to release locks early.
   8. and only then perform any action on the lock.
   */
   locksys::Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
-  const auto started_at = std::chrono::steady_clock::now();
   trx_mutex_enter(trx);
   ut_ad(trx->lock.wait_lock == nullptr);
 
+  bool made_progress{false};
   for (auto lock : trx->lock.trx_locks.removable()) {
     ut_ad(trx_mutex_own(trx));
     /* We didn't latch the lock_sys shard this `lock` is in, so we only read a
@@ -4049,13 +4056,16 @@ It is called during XA prepare to release locks early.
     page_no, and next pointer, which, as long as we hold trx->mutex, should be
     immutable.
     */
+    const auto release_read_lock = [lock, only_gap, &made_progress]() {
+      /* Note: The |= does not short-circut. We want the RHS called.*/
+      made_progress |= lock_release_read_lock(lock, only_gap);
+    };
     if (lock_get_type_low(lock) == LOCK_REC) {
       /* Following call temporarily releases trx->mutex */
-      if ((MAX_CS_DURATION < std::chrono::steady_clock::now() - started_at) ||
-          !try_relatch_trx_and_shard_and_do(
-              lock, [=]() { lock_release_read_lock(lock, only_gap); })) {
-        /* We've been holding the s-latch for too long, we need to re-latch or
-        someone has modified the list while we were re-acquiring the latches
+      if (!try_relatch_trx_and_shard_and_do(lock, release_read_lock) ||
+          (made_progress && shared_latch_guard.is_x_blocked_by_us())) {
+        /* Someone has modified the list while we were re-acquiring the latches,
+        or someone is waiting for x-latch and we've already made some progress,
         so we need to start over again. */
         trx_mutex_exit(trx);
         return false;
@@ -4124,8 +4134,12 @@ namespace locksys {
   ut_ad(!locksys::owns_exclusive_global_latch());
   ut_ad(!trx_mutex_own(trx));
   ut_ad(!trx->is_dd_trx);
+  /* The length of the list is an atomic and the number of locks can't change
+  from zero to non-zero or vice-versa, see explanation below. */
+  if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
+    return true;
+  }
   Global_shared_latch_guard shared_latch_guard{UT_LOCATION_HERE};
-  const auto started_at = std::chrono::steady_clock::now();
   /* In order to access trx->lock.trx_locks safely we need to hold trx->mutex.
   The transaction is already in TRX_STATE_COMMITTED_IN_MEMORY state and is no
   longer referenced, so we are not afraid of implicit-to-explicit conversions,
@@ -4155,10 +4169,6 @@ namespace locksys {
 
   ut_ad(trx->lock.wait_lock == nullptr);
   while ((lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) != nullptr) {
-    if (MAX_CS_DURATION < std::chrono::steady_clock::now() - started_at) {
-      trx_mutex_exit(trx);
-      return false;
-    }
     /* Following call temporarily releases trx->mutex */
     try_relatch_trx_and_shard_and_do(lock, [=]() {
       if (lock_get_type_low(lock) == LOCK_REC) {
@@ -4167,6 +4177,10 @@ namespace locksys {
         lock_table_dequeue(lock);
       }
     });
+    if (shared_latch_guard.is_x_blocked_by_us()) {
+      trx_mutex_exit(trx);
+      return false;
+    }
   }
 
   trx_mutex_exit(trx);

@@ -89,6 +89,9 @@ Global_shared_latch_guard::Global_shared_latch_guard(ut::Location location) {
 Global_shared_latch_guard::~Global_shared_latch_guard() {
   lock_sys->latches.global_latch.s_unlock();
 }
+bool Global_shared_latch_guard::is_x_blocked_by_us() {
+  return lock_sys->latches.global_latch.is_x_blocked_by_our_s();
+}
 
 /* Shard_naked_latches_guard */
 
