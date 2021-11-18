@@ -943,6 +943,37 @@ TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
 }
 
+TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
+  // Same setup as MultipleEqualitiesCauseCycle, but with an index on t1.x.
+  // The information we get from t1=t2 should also be used for t2=t3,
+  // due to the multiple equality.
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x",
+                      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  ulong rec_per_key_int[] = {2};
+  float rec_per_key[] = {2.0f};
+  t1->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
+  t1->file->stats.records = 100;
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ASSERT_EQ(3, graph.edges.size());
+  EXPECT_FLOAT_EQ(0.02, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.02, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.02, graph.edges[2].selectivity);
+}
+
 TEST_F(MakeHypergraphTest, Flattening) {
   // This query is impossible to push cleanly without flattening,
   // or adding broad hyperedges. We want to make sure we don't try to

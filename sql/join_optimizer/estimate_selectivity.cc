@@ -148,24 +148,32 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   if (condition->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(condition)->functype() == Item_func::EQ_FUNC) {
     Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
-    Item *left = eq->arguments()[0];
-    Item *right = eq->arguments()[1];
-    if (left->type() == Item::FIELD_ITEM && right->type() == Item::FIELD_ITEM) {
-      double selectivity = -1.0;
-      for (Field *field : {down_cast<Item_field *>(left)->field,
-                           down_cast<Item_field *>(right)->field}) {
-        selectivity =
-            std::max(selectivity,
-                     EstimateFieldSelectivity(field, &selectivity_cap, trace));
-      }
-      if (selectivity >= 0.0) {
-        selectivity = std::min(selectivity, selectivity_cap);
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf(" - used an index for %s, selectivity = %.3f\n",
-                           ItemToString(condition).c_str(), selectivity);
+    if (eq->source_multiple_equality != nullptr &&
+        eq->source_multiple_equality->get_const() == nullptr) {
+      // To get consistent selectivities, we want all equalities that come from
+      // the same multiple equality to use information from all of the tables.
+      condition = eq->source_multiple_equality;
+    } else {
+      Item *left = eq->arguments()[0];
+      Item *right = eq->arguments()[1];
+      if (left->type() == Item::FIELD_ITEM &&
+          right->type() == Item::FIELD_ITEM) {
+        double selectivity = -1.0;
+        for (Field *field : {down_cast<Item_field *>(left)->field,
+                             down_cast<Item_field *>(right)->field}) {
+          selectivity = std::max(
+              selectivity,
+              EstimateFieldSelectivity(field, &selectivity_cap, trace));
         }
-        return selectivity;
+        if (selectivity >= 0.0) {
+          selectivity = std::min(selectivity, selectivity_cap);
+          if (trace != nullptr) {
+            *trace +=
+                StringPrintf(" - used an index for %s, selectivity = %.3f\n",
+                             ItemToString(condition).c_str(), selectivity);
+          }
+          return selectivity;
+        }
       }
     }
   }
@@ -180,8 +188,8 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
   //   |ACB| = |A| * |C| * |B| * S_ac * S_bc
   //
   // (where S_ab means selectivity of joining A with B, etc.)
-  // which immediately gives S_ac = S_bc, and similar equations give
-  // S_ab = S_ac and so on.
+  // which immediately gives S_ab = S_bc, and similar equations give
+  // S_ac = S_bc and so on.
   //
   // So all the selectivities in the multi-equality must be the same!
   // However, if you go to a database with real-world data, you will see that

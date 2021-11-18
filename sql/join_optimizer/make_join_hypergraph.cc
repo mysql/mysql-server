@@ -2301,6 +2301,8 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
     const RelationalExpression *expr = graph.edges[edge_idx / 2].expr;
     string label = GenerateExpressionLabel(expr);
 
+    label += StringPrintf(" (%.3g)", graph.edges[edge_idx / 2].selectivity);
+
     // Add conflict rules to the label.
     for (const ConflictRule &rule : expr->conflict_rules) {
       label += " [conflict rule: {";
@@ -2799,7 +2801,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       // happen with multiple equalities in particular).
       bool dup = false;
       for (Item *other_cond : expr->equijoin_conditions) {
-        if (other_cond->eq(cond, /*binary=*/true)) {
+        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
           dup = true;
           break;
         }
@@ -2808,7 +2810,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
         continue;
       }
       for (Item *other_cond : expr->join_conditions) {
-        if (other_cond->eq(cond, /*binary=*/true)) {
+        if (other_cond->eq(cond, /*binary_cmp=*/true)) {
           dup = true;
           break;
         }
