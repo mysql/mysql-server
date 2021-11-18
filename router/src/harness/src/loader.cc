@@ -90,13 +90,24 @@ static const char kLogReopenServiceName[] = "log_reopen";
 static const char kSignalHandlerServiceName[] = "signal_handler";
 #endif
 
-static const std::array<const char *, 18> supported_global_options{
-    "origin",          "program",           "logging_folder",
-    "runtime_folder",  "data_folder",       "plugin_folder",
-    "config_folder",   "keyring_path",      "master_key_path",
-    "connect_timeout", "read_timeout",      "dynamic_state",
-    "client_ssl_cert", "client_ssl_key",    "client_ssl_mode",
-    "server_ssl_mode", "server_ssl_verify", "unknown_config_option"};
+#ifdef _WIN32
+static constexpr size_t supported_global_options_size = 19;
+#else
+static constexpr size_t supported_global_options_size = 18;
+#endif
+
+static const std::array<const char *, supported_global_options_size>
+    supported_global_options{
+        "origin",           "program",           "logging_folder",
+        "runtime_folder",   "data_folder",       "plugin_folder",
+        "config_folder",    "keyring_path",      "master_key_path",
+        "connect_timeout",  "read_timeout",      "dynamic_state",
+        "client_ssl_cert",  "client_ssl_key",    "client_ssl_mode",
+        "server_ssl_mode",  "server_ssl_verify", "unknown_config_option",
+#ifdef _WIN32
+        "event_source_name"
+#endif
+    };
 
 /**
  * @defgroup Loader Plugin loader
@@ -847,7 +858,7 @@ std::exception_ptr Loader::run() {
   if (!first_eptr) {
     try {
       check_config_options_supported();
-    } catch (std::exception &e) {
+    } catch (std::exception &) {
       first_eptr = std::current_exception();
     }
   }

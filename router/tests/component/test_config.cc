@@ -347,7 +347,12 @@ class UnknownConfigOptionValidConfigTest
 
 TEST_F(UnknownConfigOptionValidConfigTest, UnknownConfigOptionValidConfig) {
   auto conf_writer =
+#ifdef _WIN32
+      create_config({keepalive_section(), routing_section("test"),
+                     default_section({{"event_source_name", "MySQL Router"}})});
+#else
       create_config({keepalive_section(), routing_section("test")});
+#endif
 
   auto &router =
       router_spawner()
