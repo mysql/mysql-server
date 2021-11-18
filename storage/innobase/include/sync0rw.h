@@ -633,6 +633,15 @@ struct rw_lock_t
   /** Level in the global latching order. */
   latch_level_t level;
 #endif /* UNIV_DEBUG */
+
+  /** Checks if there is a thread requesting an x-latch waiting for threads to
+  release their s-latches.
+  @return true iff there is an x-latcher blocked by s-latchers. */
+  bool is_x_blocked_by_s() {
+    const auto snapshot = lock_word.load();
+    return snapshot < 0 && -X_LOCK_DECR < snapshot &&
+           snapshot != -X_LOCK_HALF_DECR;
+  }
 };
 
 #ifndef UNIV_LIBRARY
