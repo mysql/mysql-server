@@ -560,7 +560,5 @@ std::string RoutingPluginConfig::get_default(const std::string &option) const {
 }
 
 bool RoutingPluginConfig::is_required(const std::string &option) const {
-  const std::array<std::string_view, 2> required{"destinations"};
-
-  return std::find(required.begin(), required.end(), option) != required.end();
+  return (option == "destinations"sv);
 }
