@@ -2494,6 +2494,7 @@ insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 insert into t1 (a) select FLOOR(rand() * 100) from t1;
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Takes a long time due to bug#33583337.
 --replace_column 1 #
 SELECT a,
        (SELECT REPEAT(' ',250) FROM t1 i1
