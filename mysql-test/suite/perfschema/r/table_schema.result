@@ -1001,7 +1001,7 @@ def	performance_schema	prepared_statements_instances	SUM_CPU_TIME	37	NULL	NO	big
 def	performance_schema	prepared_statements_instances	COUNT_SECONDARY	38	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	performance_schema	processlist	ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	processlist	USER	2	NULL	YES	varchar	32	128	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	processlist	HOST	3	NULL	YES	varchar	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	processlist	HOST	3	NULL	YES	varchar	261	261	NULL	NULL	NULL	ascii	ascii_general_ci	varchar(261)			select,insert,update,references			NULL
 def	performance_schema	processlist	DB	4	NULL	YES	varchar	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	processlist	COMMAND	5	NULL	YES	varchar	16	64	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(16)			select,insert,update,references			NULL
 def	performance_schema	processlist	TIME	6	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL

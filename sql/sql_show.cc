@@ -2729,9 +2729,9 @@ class List_process_list : public Do_THD_Impl {
         (inspect_sctx_host.length || inspect_sctx->ip().length) &&
         m_client_thd->security_context()->host_or_ip().str[0]) {
       char *host =
-          static_cast<char *>(m_client_thd->alloc(HOST_AND_PORT_LENGTH));
+          static_cast<char *>(m_client_thd->alloc(HOST_AND_PORT_LENGTH + 1));
       if (host)
-        snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u",
+        snprintf(host, HOST_AND_PORT_LENGTH + 1, "%s:%u",
                  inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
       thd_info->host = host;
     } else
@@ -2965,9 +2965,9 @@ class Fill_process_list : public Do_THD_Impl {
     if (inspect_thd->peer_port &&
         (inspect_sctx_host.length || inspect_sctx->ip().length) &&
         m_client_thd->security_context()->host_or_ip().str[0]) {
-      char host[HOST_AND_PORT_LENGTH];
-      snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u", inspect_sctx_host_or_ip.str,
-               inspect_thd->peer_port);
+      char host[HOST_AND_PORT_LENGTH + 1];
+      snprintf(host, HOST_AND_PORT_LENGTH + 1, "%s:%u",
+               inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
       table->field[2]->store(host, strlen(host), system_charset_info);
     } else
       table->field[2]->store(inspect_sctx_host_or_ip.str,
@@ -4792,7 +4792,7 @@ ST_FIELD_INFO open_tables_fields_info[] = {
 ST_FIELD_INFO processlist_fields_info[] = {
     {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", 0},
     {"USER", USERNAME_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", 0},
-    {"HOST", HOST_AND_PORT_LENGTH - 1, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
+    {"HOST", HOST_AND_PORT_LENGTH, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
     {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db", 0},
     {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command", 0},
     {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time", 0},
