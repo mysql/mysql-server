@@ -40,6 +40,8 @@ constexpr const char *udf_get_changed_pages{
     "mysqlbackup_page_track_get_changed_pages"};
 constexpr const char *udf_get_changed_page_count{
     "mysqlbackup_page_track_get_changed_page_count"};
+constexpr const char *udf_page_track_purge_up_to{
+    "mysqlbackup_page_track_purge_up_to"};
 // Changed pages file path
 constexpr const char *backup_scratch_dir{"#meb"};
 // Changed pages file extension

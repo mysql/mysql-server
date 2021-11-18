@@ -9687,6 +9687,10 @@ ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
 
 ER_TOO_MANY_WINDOWS
   eng "Too many windows in SELECT: %d. Maximum allowed is %d. Use named windows to share windows between window functions."
+
+ER_MYSQLBACKUP_CLIENT_MSG
+  eng "%s"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
