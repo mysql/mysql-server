@@ -95,6 +95,12 @@ void Backup_page_tracker::initialize_udf_list() {
       reinterpret_cast<Udf_func_any>(page_track_get_changed_pages),
       reinterpret_cast<Udf_func_init>(page_track_get_changed_pages_init),
       reinterpret_cast<Udf_func_deinit>(page_track_get_changed_pages_deinit)));
+
+  m_udf_list.push_back(new udf_data_t(
+      Backup_comp_constants::udf_page_track_purge_up_to, INT_RESULT,
+      reinterpret_cast<Udf_func_any>(page_track_purge_up_to),
+      reinterpret_cast<Udf_func_init>(page_track_purge_up_to_init),
+      reinterpret_cast<Udf_func_deinit>(page_track_purge_up_to_deinit)));
 }
 
 /**
@@ -421,6 +427,67 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   Backup_page_tracker::m_receive_changed_page_data = false;
 
   return (status);
+}
+
+/**
+  Callback function for initialization of UDF
+  "mysqlbackup_page_track_purge_up_to".
+
+  @return Status of initialization
+  @retval false on success
+  @retval true on failure
+*/
+bool Backup_page_tracker::page_track_purge_up_to_init(UDF_INIT *,
+                                                      UDF_ARGS *args,
+                                                      char *message) {
+  if (args->arg_count != 1) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid number of arguments.");
+    return true;
+  }
+  if (args->arg_type[0] != INT_RESULT) {
+    snprintf(message, MYSQL_ERRMSG_SIZE, "Invalid argument type.");
+    return true;
+  }
+  return false;
+}
+
+/**
+  Callback method for deinitialization of UDF
+  "mysqlbackup_page_track_purge_up_to".
+*/
+void Backup_page_tracker::page_track_purge_up_to_deinit(UDF_INIT *) {}
+
+/**
+  UDF for "mysqlbackup_page_track_purge_up_to"
+  See include/mysql/udf_registration_types.h
+
+  The function takes the following parameter:
+  lsn           the lsn up to which the page-track data shall be purged.
+
+  The lsn is fixed down to the last start-lsn.
+
+  @return Status
+  @retval lsn up to which page-track data was purged on success
+  @retval -1 on failure
+*/
+long long Backup_page_tracker::page_track_purge_up_to(UDF_INIT *,
+                                                      UDF_ARGS *args,
+                                                      unsigned char *,
+                                                      unsigned char *) {
+  MYSQL_THD thd;
+  if (mysql_service_mysql_current_thread_reader->get(&thd)) {
+    mysql_error_service_printf(ER_MYSQLBACKUP_CLIENT_MSG, MYF(0),
+                               "Cannot get current thread handle");
+    return -1;
+  }
+
+  uint64_t lsn = *((long long *)args->args[0]);
+  int retval =
+      mysql_service_mysql_page_track->purge(thd, PAGE_TRACK_SE_INNODB, &lsn);
+  if (retval != 0) {
+    return -1;
+  }
+  return lsn;
 }
 
 /**
