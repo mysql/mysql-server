@@ -1870,6 +1870,7 @@ loop:
   the semaphore is already released. Wake up those threads: */
 
   sync_arr_wake_threads_if_sema_free();
+  sync_array_detect_deadlock();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
       waiter == old_waiter) {

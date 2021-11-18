@@ -556,12 +556,6 @@ struct rw_lock_t
   reset in x_unlock functions before incrementing the lock_word */
   std::atomic<bool> recursive;
 
-  /** This is TRUE if the writer field is RW_LOCK_X_WAIT; this field
-  is located far from the memory update hotspot fields which are at
-  the start of this struct, thus we can peek this field without
-  causing much memory bus traffic */
-  bool writer_is_wait_ex;
-
   /** number of granted SX locks. */
   volatile ulint sx_recursive;
 
