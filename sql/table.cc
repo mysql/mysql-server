@@ -2592,6 +2592,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   str_len++;
 
   bool disable_strict_mode = false;
+  Strict_error_handler strict_handler;
 
   // Properties that need to be restored before leaving the scope.
   auto cleanup = [&]() {
@@ -2635,7 +2636,6 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   // Set the stored_in_db attribute of the column it depends on (if any)
   if (field != nullptr) (*val_generator)->set_field_stored(field->stored_in_db);
 
-  Strict_error_handler strict_handler;
   // Use strict mode regardless of strict mode setting when validating
   if (!thd->is_strict_mode()) {
     thd->variables.sql_mode |= MODE_STRICT_ALL_TABLES;
