@@ -5960,7 +5960,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   THD *thd = table->in_use;
   Thd_ndb *thd_ndb = m_thd_ndb;
   NdbScanOperation *cursor = m_active_cursor;
-  const NdbOperation *op;
   uint32 part_id = ~uint32(0);
   int error = 0;
   bool allow_batch =
@@ -6040,12 +6039,13 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       the active record in cursor
     */
     DBUG_PRINT("info", ("Calling deleteTuple on cursor"));
-    if ((op = cursor->deleteCurrentTuple(
-             trans, m_ndb_record,
-             NULL,  // result_row
-             NULL,  // result_mask
-             poptions, sizeof(NdbOperation::OperationOptions))) == 0)
+    if (cursor->deleteCurrentTuple(
+            trans, m_ndb_record,
+            NULL,  // result_row
+            NULL,  // result_mask
+            poptions, sizeof(NdbOperation::OperationOptions)) == nullptr) {
       ERR_RETURN(trans->getNdbError());
+    }
     m_lock_tuple = false;
     thd_ndb->m_unsent_bytes += 12;
 
@@ -6094,12 +6094,13 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
     if (options.optionsPresent != 0) poptions = &options;
 
-    if (!(op = trans->deleteTuple(key_rec, (const char *)key_row, m_ndb_record,
-                                  NULL,  // row
-                                  NULL,  // mask
-                                  poptions,
-                                  sizeof(NdbOperation::OperationOptions))))
+    if (trans->deleteTuple(key_rec, (const char *)key_row, m_ndb_record,
+                           NULL,  // row
+                           NULL,  // mask
+                           poptions,
+                           sizeof(NdbOperation::OperationOptions)) == nullptr) {
       ERR_RETURN(trans->getNdbError());
+    }
 
     m_trans_table_stats->update_uncommitted_rows(-1);
     m_rows_deleted++;
