@@ -527,24 +527,6 @@ int GroupIndexSkipScanIterator::next_prefix() {
   conditions to discover the prefix of the next group that satisfies the range
   conditions.
 
-<<<<<<< HEAD:sql/range_optimizer/group_min_max.cc
-||||||| parent of b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488
-[renaming, noclose]):sql/range_optimizer/group_min_max.cc
-  @todo
-
-    This method is a modified copy of QUICK_RANGE_SELECT::Read(), so both
-    methods should be unified into a more general one to reduce code
-    duplication.
-
-=======
-  @todo
-
-    This method is a modified copy of IndexRangeScanIterator::Read(), so both
-    methods should be unified into a more general one to reduce code
-    duplication.
-
->>>>>>> b4f911b96da (Bug #33037007: PRELIMINARY FIXES FOR WL #14488 [renaming,
-noclose]):sql/range_optimizer/group_index_skip_scan.cc
   @retval 0                  on success
   @retval HA_ERR_END_OF_FILE if returned all keys
   @retval other              if some error occurred
