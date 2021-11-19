@@ -555,7 +555,7 @@ get_log_timestamp(const std::string &log_file, const std::string &log_regex,
     return stdx::make_unexpected();
   }
 
-  // extract the timestamp prefix and conver to the duration
+  // extract the timestamp prefix and convert to the duration
   std::string timestamp_str =
       log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
   std::tm tm{};
