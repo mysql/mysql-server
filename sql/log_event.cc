@@ -969,6 +969,7 @@ const char *Log_event::get_type_str(Log_event_type type) {
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
       return "Previous_gtids";
     case binary_log::HEARTBEAT_LOG_EVENT:
+    case binary_log::HEARTBEAT_LOG_EVENT_V2:
       return "Heartbeat";
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       return "Transaction_context";
@@ -14081,6 +14082,13 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
 Heartbeat_log_event::Heartbeat_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Heartbeat_event(buf, description_event),
+      Log_event(header(), footer()) {
+  DBUG_TRACE;
+}
+
+Heartbeat_log_event_v2::Heartbeat_log_event_v2(
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Heartbeat_event_v2(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_TRACE;
 }

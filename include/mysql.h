@@ -364,6 +364,12 @@ typedef struct MYSQL_RES {
 #define MYSQL_RPL_SKIP_HEARTBEAT (1 << 17)
 
 /**
+ Flag to indicate that the heartbeat_event being generated
+ is using the class Heartbeat_event_v2
+*/
+#define USE_HEARTBEAT_EVENT_V2 (1 << 1)
+
+/**
   Struct for information about a replication stream.
 
   @sa mysql_binlog_open()

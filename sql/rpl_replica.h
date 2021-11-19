@@ -553,6 +553,10 @@ typedef enum {
 QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
                                ulong event_len, bool flush_mi = true);
 
+int heartbeat_queue_event(bool is_valid, Master_info *&mi,
+                          std::string binlog_name, uint64_t position,
+                          unsigned long &inc_pos, bool &do_flush_mi);
+
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
 
