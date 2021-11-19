@@ -124,7 +124,6 @@ ProcessManager::Spawner::wait_for_notified(
   const auto end_time = start_time + timeout;
 
   sock.native_non_blocking(true);
-
   do {
     auto accept_res = accept_until<clock_type>(sock, end_time);
     if (!accept_res) {
@@ -271,6 +270,7 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
   const std::string socket_node = notify_socket_path_;
 
   EXPECT_NO_ERROR(notify_socket.open());
+  notify_socket.native_non_blocking(true);
   EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
 
   env_vars.emplace_back("NOTIFY_SOCKET", socket_node);

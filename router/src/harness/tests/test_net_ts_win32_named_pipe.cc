@@ -146,10 +146,8 @@ TEST(NetTS_named_pipe, stream_socket_bind_invalid_pipe_name) {
 
   protocol::acceptor acceptor(io_ctx);
   EXPECT_NO_ERROR(acceptor.open());
-  ASSERT_NO_ERROR(acceptor.bind(endp));
-  EXPECT_NO_ERROR(acceptor.listen(128));
 
-  EXPECT_EQ(acceptor.accept(),
+  EXPECT_EQ(acceptor.bind(endp),
             stdx::make_unexpected(
                 std::error_code{ERROR_INVALID_NAME, std::system_category()}));
   auto local_endp_res = acceptor.local_endpoint();
