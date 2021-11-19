@@ -79,8 +79,9 @@ static const char *get_referred_table_access_name(
 
 static bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType) {
   return accessType == AQP::AT_PRIMARY_KEY ||
+         accessType == AQP::AT_UNIQUE_KEY ||
          accessType == AQP::AT_MULTI_PRIMARY_KEY ||
-         accessType == AQP::AT_UNIQUE_KEY;
+         accessType == AQP::AT_MULTI_UNIQUE_KEY;
 }
 
 /* Is some sort of Multi-range-read accessType ? */
@@ -591,14 +592,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   const uint root_no = m_join_root->get_access_no();
   const AQP::enum_access_type access_type = m_join_root->get_access_type();
   assert(access_type != AQP::AT_VOID);
-
-  if (access_type == AQP::AT_MULTI_UNIQUE_KEY) {
-    EXPLAIN_NO_PUSH(
-        "Table '%s' is not pushable, "
-        "access type 'MULTI_UNIQUE_KEY' not implemented",
-        m_join_root->get_table()->alias);
-    return false;
-  }
 
   if (m_join_root->filesort_before_join()) {
     EXPLAIN_NO_PUSH(
@@ -2573,7 +2566,8 @@ int ndb_pushed_builder_ctx::build_query() {
         DBUG_PRINT("info", ("Operation is 'primary-key-lookup'"));
         query_op = m_builder->readTuple(handler->m_table, op_key, &options);
       } else {
-        assert(access_type == AQP::AT_UNIQUE_KEY);
+        assert(access_type == AQP::AT_UNIQUE_KEY ||
+               access_type == AQP::AT_MULTI_UNIQUE_KEY);
         DBUG_PRINT("info", ("Operation is 'unique-index-lookup'"));
         const NdbDictionary::Index *const index =
             handler->m_index[table->get_index_no()].unique_index;

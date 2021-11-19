@@ -2571,6 +2571,22 @@ ON table2.col_int = table4.col_int AND
 table2.col_int_key = table5.col_int_key AND
 table1.col_int_unique = table3.col_int_unique;
 pk	pk	pk	pk	pk
+explain format=tree SELECT table1.pk, table2.pk
+FROM t AS table1
+JOIN b AS table2 on table2.pk = table1.pk
+WHERE table1.col_int IN (8,7) AND
+table1.col_int_unique = 4;
+EXPLAIN
+-> Nested loop inner join
+    -> Index range scan on table1 using ix1 over (col_int = 7 AND col_int_unique = 4) OR (col_int = 8 AND col_int_unique = 4), activating pushed join of 2 tables, with pushed condition: ((table1.col_int_unique = 4) and (table1.col_int in (8,7)))
+    -> Single-row index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join
+
+SELECT table1.pk, table2.pk
+FROM t AS table1
+JOIN b AS table2 on table2.pk = table1.pk
+WHERE table1.col_int IN (8,7) AND
+table1.col_int_unique = 4;
+pk	pk
 explain format=tree SELECT
 table1.pk, table2.pk, table3.pk
 FROM  c AS table1
@@ -2859,7 +2875,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' is outside scope of pushable join
-Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push table 'table1s' as child of 'table2', column 'table2s.col_int_key' is outside scope of pushable join
 Note	1003	Can't push table 'table1s' as child of 'table1s', column 'table2s.col_int_key' is outside scope of pushable join
 SELECT
@@ -3579,7 +3595,7 @@ EXPLAIN
                                 -> Index range scan on table2s using PRIMARY over (2 <= col_int <= 10), with pushed condition: (table2s.col_int between 2 and 10)
 
 Warnings:
-Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 SELECT DISTINCT
 table1.pk
