@@ -1464,7 +1464,7 @@ class Heartbeat_event_v2 : public Binary_log_event {
    */
   Heartbeat_event_v2();
 
-  virtual ~Heartbeat_event_v2() = default;
+  virtual ~Heartbeat_event_v2() override = default;
 
   // Set the binlog filename
   void set_log_filename(const std::string name);
