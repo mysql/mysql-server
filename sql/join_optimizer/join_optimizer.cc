@@ -2976,16 +2976,27 @@ void CostingReceiver::ProposeHashJoin(
   // Normally, it's better to have more equijoin conditions than fewer,
   // but in this case, every row should fall into the same hash bucket anyway,
   // so they do not help.
-  double right_path_already_applied_selectivity =
-      FindAlreadyAppliedSelectivity(edge, left_path, right_path, left, right);
-  if (right_path_already_applied_selectivity < 0.0) {
-    return;
-  }
 
-  double num_output_rows = FindOutputRowsForJoin(
-      left_path->num_output_rows,
-      right_path->num_output_rows / right_path_already_applied_selectivity,
-      edge);
+  double num_output_rows;
+  {
+    double right_path_already_applied_selectivity =
+        FindAlreadyAppliedSelectivity(edge, left_path, right_path, left, right);
+    if (right_path_already_applied_selectivity < 0.0) {
+      return;
+    }
+    double outer_input_rows = left_path->num_output_rows;
+    double inner_input_rows =
+        right_path->num_output_rows / right_path_already_applied_selectivity;
+
+    // If left and right are flipped for semijoins, we need to flip
+    // them back for row calculation (or we'd clamp to the wrong value).
+    if (rewrite_semi_to_inner) {
+      swap(outer_input_rows, inner_input_rows);
+    }
+
+    num_output_rows =
+        FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
+  }
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   // NOTE: Keep this in sync with SimulateJoin().
@@ -3466,19 +3477,31 @@ void CostingReceiver::ProposeNestedLoopJoin(
   }
 
   // Ignores the row count from filter_path; see above.
-  //
+  {
+    double outer_input_rows = left_path->num_output_rows;
+    double inner_input_rows =
+        right_path->num_output_rows / right_path_already_applied_selectivity;
+    if (right_path_already_applied_selectivity < 0.0) {
+      return;
+    }
+
+    // If left and right are flipped for semijoins, we need to flip
+    // them back for row calculation (or we'd clamp to the wrong value).
+    if (rewrite_semi_to_inner) {
+      swap(outer_input_rows, inner_input_rows);
+    }
+
+    join_path.num_output_rows_before_filter = join_path.num_output_rows =
+        FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
+  }
+  join_path.init_cost = left_path->init_cost;
+
   // NOTE: The ceil() around the number of rows on the left side is a workaround
   // for an issue where we think the left side has a very low cardinality,
   // e.g. 1e-5 rows, and we believe that justifies having something hugely
   // expensive on the right side (e.g. a large table scan). Obviously, this is a
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
-  join_path.num_output_rows_before_filter = join_path.num_output_rows =
-      FindOutputRowsForJoin(
-          left_path->num_output_rows,
-          right_path->num_output_rows / right_path_already_applied_selectivity,
-          edge);
-  join_path.init_cost = left_path->init_cost;
   join_path.cost_before_filter = join_path.cost =
       left_path->cost + inner->init_cost +
       inner_rescan_cost * ceil(left_path->num_output_rows);
