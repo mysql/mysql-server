@@ -974,6 +974,45 @@ TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
   EXPECT_FLOAT_EQ(0.02, graph.edges[2].selectivity);
 }
 
+TEST_F(MakeHypergraphTest, HyperpredicatesDoNoLeadToExtraCycleEdges) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 "
+      "FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t1.y = t3.y "
+      "WHERE t1.z = 0 OR t2.z = 0 OR t3.z = 0",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t2.
+  ASSERT_EQ(2, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+
+  // {t1,t2}/t3. We don't really care how this hyperedge turns out,
+  // but we _do_ care that there's not a separate t1-t3 edge,
+  // since it is already part of this edge, and would then essentially
+  // be a duplicate.
+  EXPECT_EQ(0x03, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+}
+
 TEST_F(MakeHypergraphTest, Flattening) {
   // This query is impossible to push cleanly without flattening,
   // or adding broad hyperedges. We want to make sure we don't try to
