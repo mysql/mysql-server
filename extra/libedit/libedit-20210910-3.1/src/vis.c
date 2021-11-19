@@ -79,6 +79,18 @@ __FBSDID("$FreeBSD$");
 __weak_alias(strvisx,_strvisx)
 #endif
 
+/*
+ * Solaris has MIN in <utility.h> and <sys/sysmacros.h>
+ * (rather than <sys/param.h>)
+ * But those files define a lot of other stuff as well.
+ * So we define it here instead.
+ */
+#ifdef __sun
+#ifndef MIN
+#define MIN(a, b)       ((a) < (b) ? (a) : (b))
+#endif
+#endif
+
 #if !HAVE_VIS || !HAVE_SVIS
 #include <ctype.h>
 #include <limits.h>
