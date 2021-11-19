@@ -61,12 +61,6 @@
 #define my_offsetof(TYPE, MEMBER) \
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
-#if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
-#else
-# define ATTRIBUTE_FORMAT(style, m, n)
-#endif
-
 #ifdef HAVE_NDB_CONFIG_H
 #include "ndb_config.h"
 #endif
@@ -226,15 +220,6 @@ extern "C" {
   NDB_STATIC_ASSERT(__has_trivial_constructor(x))
 #else
 #define NDB_ASSERT_POD(x)
-#endif
-
-/**
- *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
- */
-#ifdef __GNUC__
-#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
-#else
-#define ATTRIBUTE_NOINLINE
 #endif
 
 /**

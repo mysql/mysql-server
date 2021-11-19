@@ -37,6 +37,7 @@
 #include <BlockNumbers.h>
 #include <RefConvert.hpp>
 #include <NdbMutex.h>
+#include "portlib/ndb_compiler.h"
 
 struct SignalHeader;
 

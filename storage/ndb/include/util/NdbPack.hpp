@@ -26,6 +26,7 @@
 #define NDB_PACK_HPP
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include "my_sys.h"
 #include <kernel/AttributeHeader.hpp>
 #include <NdbSqlUtil.hpp>

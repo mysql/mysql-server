@@ -37,6 +37,7 @@
  */
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>

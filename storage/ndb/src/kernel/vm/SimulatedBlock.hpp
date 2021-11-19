@@ -32,6 +32,7 @@
 #include <kernel_types.h>
 #include <util/version.h>
 #include <ndb_limits.h>
+#include "portlib/ndb_compiler.h"
 
 #include "VMSignal.hpp"
 #include <RefConvert.hpp>

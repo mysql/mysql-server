@@ -26,6 +26,7 @@
 #define InitConfigFileParser_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <Properties.hpp>
 #include <ConfigValues.hpp>

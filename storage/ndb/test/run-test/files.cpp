@@ -25,6 +25,7 @@
 #include "util/require.h"
 #include <time.h>
 
+#include "portlib/ndb_compiler.h"
 #include <portlib/NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include "atrt.hpp"

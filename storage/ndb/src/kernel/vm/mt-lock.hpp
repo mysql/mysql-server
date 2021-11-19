@@ -25,6 +25,7 @@
 #define MT_LOCK_HPP
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include "mt-asm.h"
 #include <NdbMutex.h>
 

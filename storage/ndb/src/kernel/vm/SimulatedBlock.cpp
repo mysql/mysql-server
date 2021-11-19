@@ -31,6 +31,7 @@
 
 #include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include "SimulatedBlock.hpp"
 #include <NdbOut.hpp>

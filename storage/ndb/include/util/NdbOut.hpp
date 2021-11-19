@@ -30,6 +30,7 @@
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 /**
  * Class used for outputting logging messages to screen.
