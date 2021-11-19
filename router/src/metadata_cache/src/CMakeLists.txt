@@ -40,8 +40,7 @@ TARGET_LINK_LIBRARIES(metadata_cache
   harness_stdx
   router_lib
   mysqlxclient_lite
-  mysqlxmessages_lite
-  ${PROTOBUF_LITE_LIBRARY}
+  router_mysqlxmessages
   )
 TARGET_INCLUDE_DIRECTORIES(metadata_cache
   PRIVATE

@@ -51,7 +51,7 @@ TARGET_LINK_LIBRARIES(routing
   harness_tls
   mysql_protocol
   router_lib
-  mysqlxmessages_lite
+  router_mysqlxmessages
   ${PROTOBUF_LITE_LIBRARY}
   metadata_cache
   )

@@ -143,8 +143,7 @@ add_harness_plugin(mock_server
   REQUIRES
     mysql_protocol
     duktape
-    ${PROTOBUF_LITE_LIBRARY}
-    mysqlxmessages_lite
+    router_mysqlxmessages
     harness_stdx
     harness-library
     router_lib
@@ -179,8 +178,6 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   LINK_LIBRARIES
   ${common_libraries}
   harness-library
-  mysqlxmessages_lite
-  ${PROTOBUF_LITE_LIBRARY}
   harness_stdx
   harness_net_ts
   SKIP_INSTALL
