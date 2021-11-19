@@ -6133,6 +6133,11 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         handle_data_unpack_record(table, event_data->ndb_value[0].get(),
                                   &unused_bitmap, table->record[0]);
 
+        // Assume that mysql.ndb_apply_status table has two fields (which should
+        // thus have been unpacked)
+        ndbcluster::ndbrequire(table->field[0] != nullptr &&
+                               table->field[1] != nullptr);
+
         const Uint32 orig_server_id =
             (Uint32) static_cast<Field_long *>(table->field[0])->val_int();
         const Uint64 orig_epoch =
