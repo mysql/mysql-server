@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,29 +22,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "util/require.h"
-#include <ndb_global.h>
+#ifndef NDB_UTIL_REQUIRE_H
+#define NDB_UTIL_REQUIRE_H
 
-void require_failed(int exitcode, const char* expr, const char* file, int line)
-{
-  // Print directly to stderr
-  fflush(nullptr);
-  fprintf(stderr, "%s:%d: require(%s) failed\n", file, line, expr);
-  fflush(stderr);
-#ifdef _WIN32
-  DebugBreak();
-#endif
-  if(exitcode)
-  {
-    exit(exitcode);
-  }
-  abort();
-}
+/*
+ * require is like a normal assert, only it's always on (eg. in release)
+ */
+[[noreturn]] void require_failed(int exitcode,
+                                 const char* expr,
+                                 const char* file,
+                                 int line);
+/*
+ *  this allows for an exit() call if exitcode is not zero
+*/
+#define require_exit_or_core(v, exitcode) \
+  do { if (likely(!(!(v)))) break; \
+       require_failed((exitcode), #v, __FILE__, __LINE__); \
+  } while (0)
 
-#ifdef TEST
-int main()
-{
-  require(1);
-  require(0);
-}
+/*
+ * this require is like a normal assert.  (only it's always on)
+*/
+#define require(v) require_exit_or_core((v), 0)
+
 #endif

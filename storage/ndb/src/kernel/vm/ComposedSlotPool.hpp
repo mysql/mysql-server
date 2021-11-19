@@ -25,6 +25,7 @@
 #ifndef COMPOSEDSLOTPOOL_HPP
 #define COMPOSEDSLOTPOOL_HPP
 
+#include "util/require.h"
 #include "blocks/record_types.hpp"
 #include "ndb_global.h"
 #include "ndb_limits.h"

@@ -29,6 +29,7 @@
 #define ACC_SAFE_QUEUE
 #endif
 
+#include "util/require.h"
 #include <pc.hpp>
 #include "Bitmask.hpp"
 #include <DynArr256.hpp>

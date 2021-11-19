@@ -55,6 +55,7 @@ Revision history:
 
  * *************************************************** */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
 #include <NdbApi.hpp>

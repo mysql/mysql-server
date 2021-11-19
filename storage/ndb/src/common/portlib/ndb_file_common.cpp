@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "ndb_global.h" // NDB_O_DIRECT_WRITE_ALIGNMENT
 #include "kernel/ndb_limits.h"
 #include "portlib/ndb_file.h"

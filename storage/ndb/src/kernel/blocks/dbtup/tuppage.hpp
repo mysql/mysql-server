@@ -25,6 +25,7 @@
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
 
+#include "util/require.h"
 #include <pc.hpp>
 #include <ndb_types.h>
 #include "../diskpage.hpp"

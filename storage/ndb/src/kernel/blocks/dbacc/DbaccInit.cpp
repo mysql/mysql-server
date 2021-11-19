@@ -25,6 +25,7 @@
 
 
 #define DBACC_C
+#include "util/require.h"
 #include "Dbacc.hpp"
 
 #define JAM_FILE_ID 346

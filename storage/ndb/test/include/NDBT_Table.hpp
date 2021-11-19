@@ -25,6 +25,7 @@
 #ifndef NDBT_TABLE_HPP
 #define NDBT_TABLE_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include <NdbApi.hpp>

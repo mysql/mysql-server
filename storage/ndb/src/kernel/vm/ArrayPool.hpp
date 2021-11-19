@@ -25,6 +25,7 @@
 #ifndef ARRAY_POOL_HPP
 #define ARRAY_POOL_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include "ndbd_malloc.hpp"
 

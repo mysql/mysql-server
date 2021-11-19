@@ -25,6 +25,7 @@
 #ifndef NDB_MGMD_HPP
 #define NDB_MGMD_HPP
 
+#include "util/require.h"
 #include <mgmapi.h>
 #include "mgmcommon/NdbMgm.hpp"
 #include "../../src/mgmapi/mgmapi_internal.h"

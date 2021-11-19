@@ -25,6 +25,7 @@
 #ifndef SHM_BUFFER_HPP
 #define SHM_BUFFER_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include "../../kernel/vm/mt-asm.h"
 

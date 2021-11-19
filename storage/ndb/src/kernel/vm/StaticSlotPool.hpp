@@ -25,6 +25,7 @@
 #ifndef STATICSLOTPOOL_HPP
 #define STATICSLOTPOOL_HPP
 
+#include "util/require.h"
 #include "debugger/EventLogger.hpp"
 #include "portlib/ndb_prefetch.h"
 #include "vm/IntrusiveList.hpp"

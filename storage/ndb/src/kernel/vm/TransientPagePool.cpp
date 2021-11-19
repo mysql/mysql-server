@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "ndb_limits.h"
 #include "ndbd_malloc_impl.hpp"
 #include "Pool.hpp"

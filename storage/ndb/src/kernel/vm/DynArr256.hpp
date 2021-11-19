@@ -25,6 +25,7 @@
 #ifndef DYNARR256_HPP
 #define DYNARR256_HPP
 
+#include "util/require.h"
 #include "Pool.hpp"
 #include <NdbMutex.h>
 

@@ -56,6 +56,7 @@ Arguments:
 
 * *************************************************** */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include "NdbApi.hpp"
 

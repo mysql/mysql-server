@@ -23,6 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
@@ -46,13 +47,11 @@ static S_Scan g_scans[] = {
   { "subgenrestometamap", "metaid", 0, 0, 0, 0 }
 };
 
-#undef require
-#define require(x)     require_exit_or_core_with_printer((x), 0, ndbout_printer)
 #define require2(o, x) \
     if(!(x))\
     {\
       ndbout << o->getNdbError() << endl;\
-      require_exit_or_core_with_printer(0, 0, ndbout_printer);\
+      require(false); \
     }
 
 Uint32 g_affiliateid = 2;

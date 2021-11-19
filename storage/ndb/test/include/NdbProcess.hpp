@@ -27,6 +27,7 @@
 #ifndef NDB_PROCESS_HPP
 #define NDB_PROCESS_HPP
 
+#include "util/require.h"
 #include <portlib/NdbSleep.h>
 
 class NdbProcess

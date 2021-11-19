@@ -25,6 +25,7 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include "util/require.h"
 #include <new>
 
 #include <NdbTick.h>

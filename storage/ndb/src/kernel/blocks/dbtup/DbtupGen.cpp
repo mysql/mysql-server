@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_GEN_CPP
+#include "util/require.h"
 #include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>

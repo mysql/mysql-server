@@ -24,6 +24,7 @@
 
 /* Implementation of the database utilities class. */
 
+#include "util/require.h"
 #include "DbUtil.hpp"
 
 #include <mysql.h>

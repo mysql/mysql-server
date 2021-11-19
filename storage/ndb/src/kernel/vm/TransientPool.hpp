@@ -25,6 +25,7 @@
 #ifndef TRANSPOOL_HPP
 #define TRANSPOOL_HPP
 
+#include "util/require.h"
 #include "TransientSlotPool.hpp"
 #include "debugger/EventLogger.hpp"
 #include "vm/ComposedSlotPool.hpp"

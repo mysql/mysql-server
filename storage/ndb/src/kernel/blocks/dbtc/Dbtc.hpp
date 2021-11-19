@@ -26,6 +26,7 @@
 #define DBTC_H
 
 #ifndef DBTC_STATE_EXTRACT
+#include "util/require.h"
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
