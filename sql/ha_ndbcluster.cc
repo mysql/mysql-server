@@ -8405,6 +8405,116 @@ double ha_ndbcluster::scan_time()
   DBUG_RETURN(res);
 }
 
+/**
+  read_time() need to differentiate between single row type lookups,
+  and accesses where an ordered index need to be scanned.
+  The later will need to scan all fragments, which might be
+  significantly more expensive - imagine a deployment with hundreds
+  of partitions.
+ */
+double ha_ndbcluster::read_time(uint index, uint ranges, ha_rows rows) {
+  DBUG_ENTER("ha_ndbcluster::read_time()");
+  assert(rows > 0);
+  assert(ranges > 0);
+  assert(rows >= ranges);
+
+  const NDB_INDEX_TYPE index_type =
+      (index < MAX_KEY) ? get_index_type(index)
+    : (index == MAX_KEY) ? PRIMARY_KEY_INDEX   // Hidden primary key
+    : UNDEFINED_INDEX;                         // -> worst index
+
+  // fanout_factor is intended to compensate for the amount
+  // of roundtrips between API <-> data node and between data nodes
+  // themself by the different index type. As an initial guess
+  // we assume a single full roundtrip for each 'range'.
+  double fanout_factor;
+
+  /**
+   * Note that for now we use the default handler cost estimate
+   * 'rows2double(ranges + rows)' as the baseline - Even if it
+   * might have some obvious flaws. For now it is more important
+   * to get the relative cost between PK/UQ and order index scan
+   * more correct. It is also a matter of not changing too many
+   * existing MTR tests. (and customer queries as well!)
+   *
+   * We also estimate the same cost for a request roundtrip as
+   * for returning a row. Thus the baseline cost 'ranges + rows'
+   */
+  if (index_type == PRIMARY_KEY_INDEX) {
+    assert(index == table->s->primary_key);
+    // Need a full roundtrip for each row
+    fanout_factor = 1.0 * rows2double(rows);
+  } else if (index_type == UNIQUE_INDEX) {
+    // Need to lookup first on UQ, then on PK, + lock/unlock
+    fanout_factor = 2.0 * rows2double(rows);
+
+  } else if (rows > ranges ||
+	     index_type == ORDERED_INDEX ||
+	     index_type == UNDEFINED_INDEX) {
+    // Assume || need a range scan
+
+    // TODO: - Handler call need a parameter specifying whether
+    //         key was fully specified or not (-> scan or lookup)
+    //       - The range scan could be pruned -> lower cost, or
+    //       - The scan need to be 'ordered' -> higher cost.
+    //       - Returning multiple rows pr range has a lower
+    //         pr. row cost?
+    const uint fragments_to_scan =
+        m_table->getFullyReplicated() ? 1 : m_table->getPartitionCount();
+
+    // The range scan does one API -> TC request, which scale out the
+    // requests to all fragments. Assume a somewhat (*0.5) lower cost
+    // for these requests, as they are not full roundtrips back to the API
+    fanout_factor = (double)ranges * (1.0 + ((double)fragments_to_scan * 0.5));
+
+  } else {
+    assert(rows == ranges);
+
+    // Assume a set of PK/UQ single row lookups.
+    // We assume the hash key is used for a direct lookup
+    if (index_type == PRIMARY_KEY_ORDERED_INDEX) {
+      assert(index == table->s->primary_key);
+      fanout_factor = (double)ranges * 1.0;
+    } else {
+      assert(index_type == UNIQUE_ORDERED_INDEX);
+      // Unique key access has a higher cost than PK. Need to first
+      // lookup in index, then use that to lookup the row + lock & unlock
+      fanout_factor = (double)ranges * 2.0;  // Assume twice as many roundtrips
+    }
+  }
+  DBUG_RETURN(fanout_factor + rows2double(rows));
+}
+
+/**
+ * Estimate the cost for reading the specified number of rows,
+ * using 'index'. Note that there is no such thing as a 'page'-read
+ * in ha_ndbcluster. Unfortunately, the optimizer does some
+ * assumptions about an underlying page based storage engine,
+ * which explains the name.
+ *
+ * In the NDB implementation we simply ignore the 'page', and
+ * calculate it as any other read_cost()
+ */
+double ha_ndbcluster::page_read_cost(uint index, double rows) {
+  DBUG_ENTER("ha_ndbcluster::page_read_cost()");
+  DBUG_RETURN(read_cost(index, 1, rows).total_cost());
+}
+
+/**
+ * Estimate the upper cost for reading rows in a seek-and-read fashion.
+ * Calculation is based on the worst index we can find for this table, such
+ * that any other better way of reading the rows will be preferred.
+ *
+ * Note that worst_seek will be compared against page_read_cost().
+ * Thus, it need to calculate the cost using comparable 'metrics'.
+ */
+double ha_ndbcluster::worst_seek_times(double reads) {
+  // Specifying the 'UNDEFINED_INDEX' is a special case in read_time(),
+  // where the cost for the most expensive/worst index will be calculated.
+  const uint undefined_index = MAX_KEY+1;
+  return page_read_cost(undefined_index, std::max(reads, 1.0));
+}
+
 /*
   Convert MySQL table locks into locks supported by Ndb Cluster.
   Note that MySQL Cluster does currently not support distributed
