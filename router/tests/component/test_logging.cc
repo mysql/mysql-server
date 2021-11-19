@@ -1956,7 +1956,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
       if (!metadata_caches.empty()) {
         metadata_caches.append(",");
       }
-      metadata_caches += "mysql://localhost:" + std::to_string(port);
+      metadata_caches += "mysql://127.0.0.1:" + std::to_string(port);
     }
 
     return mysql_harness::ConfigBuilder::build_section(
@@ -2119,7 +2119,7 @@ TEST_F(MetadataCacheLoggingTest,
   // Log error after server was shut down
   EXPECT_TRUE(get_log_timestamp(
       router.get_logfile_path(),
-      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 20 * ttl_));
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 40 * ttl_));
 }
 
 /**
@@ -2147,10 +2147,10 @@ TEST_F(MetadataCacheLoggingTest,
   // expect something like this to appear on STDERR:
   //
   // - ... metadata_cache WARNING ... Failed connecting with Metadata Server
-  //   localhost:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
+  //   127.0.0.1:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
   // - ... metadata_cache WARNING ... While updating metadata, could ...
   const auto connection_failed_msg =
-      "Failed connecting with Metadata Server localhost:" +
+      "Failed connecting with Metadata Server 127\\.0\\.0\\.1:" +
       std::to_string(cluster_nodes_ports[0]);
   const auto update_failed_msg =
       "While updating metadata, could not establish a connection to cluster "
