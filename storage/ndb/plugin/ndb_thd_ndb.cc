@@ -44,18 +44,18 @@ Thd_ndb *Thd_ndb::seize(THD *thd) {
   DBUG_TRACE;
 
   Thd_ndb *thd_ndb = new Thd_ndb(thd);
-  if (thd_ndb == NULL) return NULL;
+  if (thd_ndb == nullptr) {
+    return nullptr;
+  }
 
   if (thd_ndb->ndb->init(MAX_TRANSACTIONS) != 0) {
-    DBUG_PRINT("error", ("Ndb::init failed, error: %d  message: %s",
-                         thd_ndb->ndb->getNdbError().code,
-                         thd_ndb->ndb->getNdbError().message));
-
     delete thd_ndb;
-    thd_ndb = NULL;
-  } else {
-    thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+    return nullptr;
   }
+
+  // Save mapping between Ndb and THD
+  thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+
   return thd_ndb;
 }
 
@@ -72,20 +72,22 @@ bool Thd_ndb::recycle_ndb(void) {
   assert(trans == NULL);
 
   delete ndb;
-  if ((ndb = new Ndb(connection, "")) == NULL) {
-    DBUG_PRINT("error", ("failed to allocate Ndb object"));
+
+  ndb = new Ndb(connection, "");
+  if (ndb == nullptr) {
+    // Dead code, failed new will terminate
     return false;
   }
 
   if (ndb->init(MAX_TRANSACTIONS) != 0) {
+    // Failed to init Ndb object, relase the newly created Ndb
     delete ndb;
-    ndb = NULL;
-    DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
-                         ndb->getNdbError().code, ndb->getNdbError().message));
+    ndb = nullptr;
     return false;
-  } else {
-    ndb->setCustomData64(thd_get_thread_id(m_thd));
   }
+
+  // Save mapping between Ndb and THD
+  ndb->setCustomData64(thd_get_thread_id(m_thd));
 
   /* Reset last commit epoch for this 'session'. */
   m_last_commit_epoch_session = 0;
