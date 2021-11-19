@@ -1578,7 +1578,7 @@ EXPLAIN
             -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int is not null)  ()
             -> Index lookup on table1 using ix3 (col_int=table2.col_int), child of table2 in pushed join, with pushed condition: (table1.col_int_key is not null)  ()
         -> Single-row index lookup on table2s using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int is not null)  ()
-    -> Index lookup on table1s using ix3 (col_int=table2s.col_int), child of table2s in pushed join  ()
+    -> Index lookup on table1s using PRIMARY (col_int=table2s.col_int), child of table2s in pushed join  ()
 
 SELECT
 table2.pk, table1.pk

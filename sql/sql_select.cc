@@ -5058,7 +5058,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
         const Cost_estimate table_scan_time = table->file->table_scan_cost();
         const double index_scan_time =
             select_limit / rec_per_key *
-            min<double>(table->cost_model()->page_read_cost(rec_per_key),
+            min<double>(table->file->page_read_cost(nr, rec_per_key),
                         table_scan_time.total_cost());
 
         /*

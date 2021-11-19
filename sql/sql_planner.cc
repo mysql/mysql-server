@@ -150,7 +150,7 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
         table->file->read_cost(keyno, 1, num_rows);
     return table_read_cost.total_cost();
   } else
-    return min(table->cost_model()->page_read_cost(num_rows), worst_seeks);
+    return min(table->file->page_read_cost(keyno, num_rows), worst_seeks);
 }
 
 /**
