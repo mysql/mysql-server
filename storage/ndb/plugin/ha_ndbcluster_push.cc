@@ -707,11 +707,14 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * also has a cascading effect on any tables depending on those
        * being removed. (See validate_join_nest() and remove_pushable())
        */
-      if (table == m_join_root ||         // root, already known pushable
-          is_pushable_as_child(table)) {  // else, check child pushable
-        if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
-          // A pushable table scan, collect in bitmap for later checks
-          m_scan_operations.add(tab_no);
+      if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
+        // A pushable table scan, collect in bitmap for later fast checks
+        m_scan_operations.add(tab_no);
+      }
+
+      if (table != m_join_root) {  // root, already known pushable
+        // A child candidate to push under 'root'
+        if (is_pushable_as_child(table)) {
         }
       }
 
@@ -1050,7 +1053,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
       m_has_pending_cond.add(tab_no);
     }
   }
-  if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
+  if (m_scan_operations.contain(tab_no)) {
     // Check extra limitations on when index scan is pushable,
     if (!is_pushable_as_child_scan(table, all_parents)) {
       return false;
@@ -1245,8 +1248,9 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
     const AQP::Table_access *table, ndb_table_access_map nest,
     const char *nest_type) {
   DBUG_TRACE;
-  assert(!ndbcluster_is_lookup_operation(table->get_access_type()));
+
   const uint tab_no = table->get_access_no();
+  assert(m_scan_operations.contain(tab_no));
 
   // Logic below assume that 'this' table is not part of the 'nest'.
   nest.clear_bit(tab_no);
@@ -1299,10 +1303,10 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
 bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     const AQP::Table_access *table, const ndb_table_access_map all_parents) {
   DBUG_TRACE;
-  assert(!ndbcluster_is_lookup_operation(table->get_access_type()));
 
   const uint root_no = m_join_root->get_access_no();
   const uint tab_no = table->get_access_no();
+  assert(m_scan_operations.contain(tab_no));
 
   if (m_tables[tab_no].isOuterJoined(m_tables[root_no])) {
     /**
@@ -1597,9 +1601,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
   DBUG_TRACE;
   if (first_inner <= m_join_root->get_access_no()) return;
 
-  // This nest, or nests embedded within it, has scan operations?
+  ndb_table_access_map scans_in_join_scope(m_scan_operations);
+  scans_in_join_scope.intersect(m_join_scope);
+
+  // This nest, or nests embedded within it, has pushed scan operations?
   const bool nest_has_scans =
-      (m_scan_operations.first_table(first_inner) < m_plan.get_access_count());
+      (scans_in_join_scope.first_table(first_inner) <= last_inner);
   if (nest_has_scans) {
     ndb_table_access_map filter_cond;
 
@@ -1713,10 +1720,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
        * which may be repeated, creating false NULL extended rows from scans
        * in inner_nests.
        */
-      for (uint tab_no = m_scan_operations.first_table(first_inner);
+      for (uint tab_no = scans_in_join_scope.first_table(first_inner);
            tab_no <= last_inner;
-           tab_no = m_scan_operations.first_table(tab_no + 1)) {
-        assert(m_join_scope.contain(tab_no));
+           tab_no = scans_in_join_scope.first_table(tab_no + 1)) {
+        if (!m_join_scope.contain(tab_no)) {
+          continue;  // Possibly already removed by remove_pushable()
+        }
         const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
 
         /**
@@ -1790,9 +1799,8 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
     }
     m_tables[tab_no].m_ancestors.intersect(m_join_scope);
   }
-  // Remove 'pending_cond' and 'scan_operations' not pushed any longer
+  // Remove 'pending_cond' not pushed any longer
   m_has_pending_cond.intersect(m_join_scope);
-  m_scan_operations.intersect(m_join_scope);
 }  // ndb_pushed_builder_ctx::remove_pushable
 
 /*********************
@@ -1907,7 +1915,8 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
      * prior to the root of this pushed join candidate. Some restrictions
      * applies to when a field reference is allowed in a pushed join:
      */
-    if (ndbcluster_is_lookup_operation(m_join_root->get_access_type())) {
+    if (!m_scan_operations.contain(m_join_root->get_access_no())) {
+      assert(!m_scan_operations.contain(tab_no));
       /**
        * EQRefIterator may optimize away key reads if the key
        * for a requested row is the same as the previous.
@@ -1948,7 +1957,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
         access_no--;
       } while (m_plan.get_table_access(access_no)->get_table() != referred_tab);
 
-    }  // if (!ndbcluster_is_lookup_operation(root_type)
+    }  // if (!m_scan_operations...)
     return true;
   } else {
     EXPLAIN_NO_PUSH(
@@ -2261,13 +2270,14 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
                                       const NdbQueryOperand *op_key[],
                                       NdbQueryOptions *key_options) {
   DBUG_TRACE;
-  assert(m_join_scope.contain(table->get_access_no()));
+  const uint tab_no = table->get_access_no();
+  assert(m_join_scope.contain(tab_no));
 
   const KEY *const key = &table->get_table()->key_info[table->get_index_no()];
   op_key[0] = NULL;
 
   if (table == m_join_root) {
-    if (ndbcluster_is_lookup_operation(table->get_access_type())) {
+    if (!m_scan_operations.contain(tab_no)) {
       for (uint i = 0; i < key->user_defined_key_parts; i++) {
         op_key[i] = m_builder->paramValue();
         if (unlikely(op_key[i] == NULL)) {
@@ -2281,7 +2291,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
     assert(key_fields > 0 && key_fields <= key->user_defined_key_parts);
     uint map[ndb_pushed_join::MAX_LINKED_KEYS + 1];
 
-    if (ndbcluster_is_lookup_operation(table->get_access_type())) {
+    if (!m_scan_operations.contain(tab_no)) {
       const ha_ndbcluster *handler =
           down_cast<ha_ndbcluster *>(table->get_table()->file);
       const NDB_INDEX_DATA &index = handler->m_index[table->get_index_no()];
@@ -2559,7 +2569,7 @@ int ndb_pushed_builder_ctx::build_query() {
     }
 
     const NdbQueryOperationDef *query_op = NULL;
-    if (ndbcluster_is_lookup_operation(access_type)) {
+    if (!m_scan_operations.contain(tab_no)) {
       // Primary key access assumed
       if (access_type == AQP::AT_PRIMARY_KEY ||
           access_type == AQP::AT_MULTI_PRIMARY_KEY) {
@@ -2575,7 +2585,7 @@ int ndb_pushed_builder_ctx::build_query() {
         query_op =
             m_builder->readTuple(index, handler->m_table, op_key, &options);
       }
-    }  // ndbcluster_is_lookup_operation()
+    }  // !m_scan_operation
 
     /**
      * AT_MULTI_MIXED may have 'ranges' which are pure single key lookups also.
