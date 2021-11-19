@@ -83,6 +83,13 @@ static bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType) {
          accessType == AQP::AT_UNIQUE_KEY;
 }
 
+/* Is some sort of Multi-range-read accessType ? */
+static bool ndbcluster_is_mrr_operation(AQP::enum_access_type accessType) {
+  return accessType == AQP::AT_MULTI_PRIMARY_KEY ||
+         accessType == AQP::AT_MULTI_UNIQUE_KEY ||
+         accessType == AQP::AT_MULTI_MIXED;
+}
+
 uint ndb_table_access_map::first_table(uint start) const {
   for (uint table_no = start; table_no < length(); table_no++) {
     if (contain(table_no)) return table_no;
@@ -803,6 +810,16 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   }
 
   const AQP::enum_access_type access_type = table->get_access_type();
+
+  if (ndbcluster_is_mrr_operation(access_type)) {
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child, "
+        "access type 'Multi-range' not implemented",
+        table->get_table()->alias);
+    table->set_table_properties(table->get_table_properties() &
+                                ~PUSHABLE_AS_CHILD);
+    return false;
+  }
 
   if (!(ndbcluster_is_lookup_operation(access_type) ||
         access_type == AQP::AT_ORDERED_INDEX_SCAN)) {
