@@ -3717,6 +3717,12 @@ class Heartbeat_log_event : public binary_log::Heartbeat_event,
                       const Format_description_event *description_event);
 };
 
+class Heartbeat_log_event_v2 : public binary_log::Heartbeat_event_v2,
+                               public Log_event {
+ public:
+  Heartbeat_log_event_v2(const char *buf,
+                         const Format_description_event *description_event);
+};
 /**
    The function is called by slave applier in case there are
    active table filtering rules to force gathering events associated

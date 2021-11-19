@@ -7101,7 +7101,9 @@ int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
     if (rpl->flags & MYSQL_RPL_SKIP_HEARTBEAT) {
       Log_event_type event_type =
           (Log_event_type)net->read_pos[1 + EVENT_TYPE_OFFSET];
-      if (event_type == binary_log::HEARTBEAT_LOG_EVENT) continue;
+      if ((event_type == binary_log::HEARTBEAT_LOG_EVENT) ||
+          (event_type == binary_log::HEARTBEAT_LOG_EVENT_V2))
+        continue;
     }
 
     rpl->buffer = net->read_pos;

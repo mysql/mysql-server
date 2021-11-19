@@ -35,7 +35,8 @@ SET(TESTS
   transaction_compression
   transaction_payload_iterator
   gtids
-  gno_intervals)
+  gno_intervals
+  heartbeat_codec)
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
