@@ -175,14 +175,14 @@ int index_seek(const std::map<int, int> &index,
   if(iter == index.cend()) return -1;
 
   /* Check for exact match */
-  if(! (seek.inclusive && (iter->first == key)))
+  if(! (seek.inclusive() && (iter->first == key)))
   {
     /* Exact match failed. Check for bounded ranges */
-    if(seek.high || seek.low)
+    if(seek.high() || seek.low())
     {
-      if(seek.high && iter->first == key) iter++;
-      else if(seek.low)
-      {
+      if (seek.high() && iter->first == key) {
+        iter++;
+      } else if (seek.low()) {
         if(iter == index.cbegin()) return -1; // nothing lower than first rec
         iter--;
       }

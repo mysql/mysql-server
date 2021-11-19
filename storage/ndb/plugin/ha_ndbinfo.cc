@@ -796,10 +796,11 @@ int ha_ndbinfo::index_read(uchar *buf, const uchar *key,
   assert(key != nullptr);
   assert(key_len == sizeof(int));
 
-  NdbInfoScanOperation::Seek seek(NdbInfoScanOperation::Seek::Mode::value);
-  seek.inclusive = (flag < HA_READ_AFTER_KEY);
-  seek.low = (flag == HA_READ_KEY_OR_PREV || flag == HA_READ_BEFORE_KEY);
-  seek.high = (flag == HA_READ_KEY_OR_NEXT || flag == HA_READ_AFTER_KEY);
+  NdbInfoScanOperation::Seek seek(
+      NdbInfoScanOperation::Seek::Mode::value,
+      flag < HA_READ_AFTER_KEY,                                   // inclusive
+      flag == HA_READ_KEY_OR_PREV || flag == HA_READ_BEFORE_KEY,  // low
+      flag == HA_READ_KEY_OR_NEXT || flag == HA_READ_AFTER_KEY);  // high
 
   int index_value = *(const int *)key;
   bool found = m_impl.m_scan_op->seek(seek, index_value);
