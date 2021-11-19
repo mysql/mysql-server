@@ -1189,7 +1189,7 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal,
   (ie., normally, if we do many, they will hit cache instead of being
   separate seeks). Given to find_cost_for_ref().
  */
-double find_worst_seeks(const Cost_model_table *cost_model, double num_rows,
+double find_worst_seeks(const TABLE *table, double num_rows,
                         double table_scan_cost);
 
 /**

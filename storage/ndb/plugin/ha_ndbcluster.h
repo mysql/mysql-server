@@ -286,6 +286,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
   }
 
   double scan_time() override;
+
+  double read_time(uint index, uint ranges, ha_rows rows) override;
+  double page_read_cost(uint index, double rows) override;
+  double worst_seek_times(double reads) override;
+
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key) override;
   void start_bulk_insert(ha_rows rows) override;

@@ -1811,7 +1811,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	index	attr1	PRIMARY	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3))
+1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	range	attr1	attr1	4	NULL	#	#	Using pushed condition ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t4` where ((`test`.`t4`.`attr1` < 5) and (`test`.`t4`.`attr2` > 9223372036854775803) and (`test`.`t4`.`attr3` <> 3)) order by `test`.`t4`.`pk1`
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
@@ -3563,23 +3563,23 @@ EXPLAIN
 explain format=tree
 select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
--> Sort: t1.b  (cost=1.61 rows=3)
-    -> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=1.61 rows=3)
+-> Sort: t1.b  (cost=2.61 rows=3)
+    -> Index range scan on t1 using PRIMARY over (2 < a), with pushed condition: (t1.a > 2)  (cost=2.61 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=1.10 rows=3)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=3)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
--> Sort: t1.d  (cost=1.10 rows=3)
+-> Sort: t1.d  (cost=2.10 rows=3)
     -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
 
 explain format=tree
@@ -3623,8 +3623,8 @@ SELECT t1.col_varchar_256 AS field1
 FROM t1 WHERE t1.col_int_unique <> 8
 ORDER BY field1;
 EXPLAIN
--> Sort: t1.col_varchar_256  (cost=3.21 rows=6)
-    -> Index range scan on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=3.21 rows=6)
+-> Sort: t1.col_varchar_256  (cost=5.21 rows=6)
+    -> Index range scan on t1 using ix1 over (NULL < col_int_unique < 8) OR (8 < col_int_unique), with pushed condition: (t1.col_int_unique <> 8)  (cost=5.21 rows=6)
 
 DROP TABLE t1;
 #
