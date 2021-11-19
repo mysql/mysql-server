@@ -1420,7 +1420,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
           break;
         }
       }
-      if (index_it2 == t2->indexes().end()) {
+      if (index2 == nullptr) {
         // Index not found in the DD table. Continue to the next index
         // comparison
         ctx.compare("index_name", index1->name(), "");
@@ -1569,7 +1569,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
             break;
           }
         }
-        if (idx_elem_it2 == index2->elements().end()) {
+        if (idx_element2 == nullptr) {
           // Index element not found. Continue to the next index element
           // comparison
           ctx.compare(Compare_context::INDEX, index_name, "element.column",
@@ -1686,7 +1686,8 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
           break;
         }
       }
-      if (fk_it3 == t2->foreign_keys().end()) {
+      if (fk2 == nullptr) {
+        // FK not found. Continue to the next FK comparison
         ctx.compare("fk_name", fk1->name(), "");
         continue;
       }
