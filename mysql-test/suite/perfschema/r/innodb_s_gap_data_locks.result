@@ -12,26 +12,46 @@ use performance_schema;
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
 from data_locks
 where object_name in ('t1_s_gap', 't2_s_gap')
+and (lock_type = 'TABLE')
 order by object_name, lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_s_gap	RECORD	S,GAP	GRANTED	30
 test	t1_s_gap	TABLE	IS	GRANTED	NULL
-test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 test	t2_s_gap	TABLE	IX	GRANTED	NULL
+select object_schema, object_name, lock_type, lock_mode, lock_status,
+if(lock_data is null, '30-or-null',
+if (lock_data = '30', '30-or-null', lock_data))
+as lock_data
+from data_locks
+where object_name in ('t1_s_gap', 't2_s_gap')
+and (lock_type != 'TABLE')
+order by object_name, lock_type, lock_mode, lock_status, lock_data;
+object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
+test	t1_s_gap	RECORD	S,GAP	GRANTED	30-or-null
+test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 start transaction;
 insert into t1_s_gap values (25);
 use performance_schema;
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
 from data_locks
 where object_name in ('t1_s_gap', 't2_s_gap')
+and (lock_type = 'TABLE')
 order by object_name, lock_type, lock_mode, lock_status, lock_data;
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
-test	t1_s_gap	RECORD	S,GAP	GRANTED	30
-test	t1_s_gap	RECORD	X,GAP,INSERT_INTENTION	WAITING	30
 test	t1_s_gap	TABLE	IS	GRANTED	NULL
 test	t1_s_gap	TABLE	IX	GRANTED	NULL
-test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 test	t2_s_gap	TABLE	IX	GRANTED	NULL
+select object_schema, object_name, lock_type, lock_mode, lock_status,
+if(lock_data is null, '30-or-null',
+if (lock_data = '30', '30-or-null', lock_data))
+as lock_data
+from data_locks
+where object_name in ('t1_s_gap', 't2_s_gap')
+and (lock_type != 'TABLE')
+order by object_name, lock_type, lock_mode, lock_status, lock_data;
+object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
+test	t1_s_gap	RECORD	S,GAP	GRANTED	30-or-null
+test	t1_s_gap	RECORD	X,GAP,INSERT_INTENTION	WAITING	30-or-null
+test	t2_s_gap	RECORD	X	GRANTED	supremum pseudo-record
 commit;
 commit;
 drop table t2_s_gap;

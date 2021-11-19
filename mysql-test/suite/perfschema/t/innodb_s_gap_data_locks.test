@@ -22,9 +22,33 @@ insert into t2_s_gap values (1, 25);
 
 --connection con3
 use performance_schema;
+
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from data_locks
   where object_name in ('t1_s_gap', 't2_s_gap')
+  and (lock_type = 'TABLE')
+  order by object_name, lock_type, lock_mode, lock_status, lock_data;
+
+#
+# For RECORD data locks, innodb returns:
+# - The LOCK_DATA for the record if it is still present in the buffer pool
+#   This is the most frequent output for this test case.
+# - Or NULL if the record has been expelled from the buffer pool already.
+#   This can happen, and causes spurious test failures.
+#
+# This is by design of innodb, the code is not reading back a page
+# from disk just to give the LOCK_DATA information,
+# when the record is otherwise not needed.
+#
+# So, to avoid spurious failures, we print '30-or-null' for both cases.
+#
+select object_schema, object_name, lock_type, lock_mode, lock_status,
+  if(lock_data is null, '30-or-null',
+     if (lock_data = '30', '30-or-null', lock_data))
+  as lock_data
+  from data_locks
+  where object_name in ('t1_s_gap', 't2_s_gap')
+  and (lock_type != 'TABLE')
   order by object_name, lock_type, lock_mode, lock_status, lock_data;
 
 --connection con1
@@ -39,9 +63,20 @@ let $wait_condition= SELECT COUNT(*)>=1 FROM performance_schema.data_locks
 
 --connection con3
 use performance_schema;
+
 select object_schema, object_name, lock_type, lock_mode, lock_status, lock_data
   from data_locks
   where object_name in ('t1_s_gap', 't2_s_gap')
+  and (lock_type = 'TABLE')
+  order by object_name, lock_type, lock_mode, lock_status, lock_data;
+
+select object_schema, object_name, lock_type, lock_mode, lock_status,
+  if(lock_data is null, '30-or-null',
+     if (lock_data = '30', '30-or-null', lock_data))
+  as lock_data
+  from data_locks
+  where object_name in ('t1_s_gap', 't2_s_gap')
+  and (lock_type != 'TABLE')
   order by object_name, lock_type, lock_mode, lock_status, lock_data;
 
 --connection con2
