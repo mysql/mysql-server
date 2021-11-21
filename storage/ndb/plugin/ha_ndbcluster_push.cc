@@ -889,8 +889,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
    * This is used for checking whether table is pushable.
    */
   ndb_table_access_map all_parents;
-  ndb_table_access_map *key_parents =
-      new (*THR_MALLOC) ndb_table_access_map[no_of_key_fields];
+  ndb_table_access_map *key_parents = new (m_thd_ndb->get_thd()->mem_root)
+      ndb_table_access_map[no_of_key_fields];
   m_tables[tab_no].m_key_parents = key_parents;
 
   for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
