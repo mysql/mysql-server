@@ -28,9 +28,8 @@
 #include <assert.h>
 #include <sys/types.h>
 
-#include "sql/item_cmpfunc.h"  // Item_equal_iterator
-
 class Item;
+class Item_equal;
 class Item_field;
 class JOIN;
 class KEY_PART_INFO;
@@ -71,7 +70,6 @@ class Table_access;
   join.
 */
 class Join_plan {
-  friend class Equal_set_iterator;
   friend class Table_access;
 
  public:
@@ -101,31 +99,6 @@ class Join_plan {
   Join_plan &operator=(const Join_plan &);
 };
 // class Join_plan
-
-/**
-  This class is an iterator for iterating over sets of fields (columns) that
-  should have the same value. For example, if the query is
-  SELECT * FROM T1, T2, T3 WHERE T1.b = T2.a AND T2.a = T3.a
-  then there would be such a set of {T1.b, T2.a, T3.a}.
-*/
-class Equal_set_iterator {
- public:
-  explicit Equal_set_iterator(const Item_equal &item_equal)
-      : m_iterator(item_equal.get_fields().begin()),
-        m_end(item_equal.get_fields().end()) {}
-
-  const Item_field *next() {
-    if (m_iterator == m_end) {
-      return nullptr;
-    } else {
-      return &*m_iterator++;
-    }
-  }
-
- private:
-  List_STL_Iterator<const Item_field> m_iterator, m_end;
-};
-// class Equal_set_iterator
 
 /** The type of a table access operation. */
 enum enum_access_type {

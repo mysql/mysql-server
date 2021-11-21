@@ -1881,20 +1881,18 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   //    usable by substituting existing 'key_item_field'
   //
   Item_equal *item_equal = table->get_item_equal(key_item_field);
-  if (item_equal) {
-    AQP::Equal_set_iterator equal_iter(*item_equal);
-    const Item_field *substitute_field;
-    while ((substitute_field = equal_iter.next()) != NULL) {
-      if (substitute_field != key_item_field) {
-        const uint substitute_table_no = get_table_no(substitute_field);
+  if (item_equal != nullptr) {
+    for (const Item_field &substitute_field : item_equal->get_fields()) {
+      if (&substitute_field != key_item_field) {
+        const uint substitute_table_no = get_table_no(&substitute_field);
         if (m_join_scope.contain(substitute_table_no)) {
           DBUG_PRINT("info",
                      (" join_items[%d] %s.%s can be replaced with %s.%s",
                       (int)(key_item - table->get_key_field(0)),
                       get_referred_table_access_name(key_item_field),
                       get_referred_field_name(key_item_field),
-                      get_referred_table_access_name(substitute_field),
-                      get_referred_field_name(substitute_field)));
+                      get_referred_table_access_name(&substitute_field),
+                      get_referred_field_name(&substitute_field)));
 
           field_parents.add(substitute_table_no);
         }
@@ -2180,27 +2178,24 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
     if (key_item->type() == Item::FIELD_ITEM) {
       const Item_field *join_item = static_cast<const Item_field *>(key_item);
       uint referred_table_no = get_table_no(join_item);
-      Item_equal *item_equal;
+      Item_equal *item_equal = table->get_item_equal(join_item);
 
-      if (referred_table_no != parent_no &&
-          (item_equal = table->get_item_equal(join_item)) != NULL) {
-        AQP::Equal_set_iterator iter(*item_equal);
-        const Item_field *substitute_field;
-        while ((substitute_field = iter.next()) != NULL) {
+      if (referred_table_no != parent_no && item_equal != nullptr) {
+        for (const Item_field &substitute_field : item_equal->get_fields()) {
           ///////////////////////////////////////////////////////////
           // Prefer to replace join_item with ref. to selected parent.
           //
-          const uint substitute_table_no = get_table_no(substitute_field);
+          const uint substitute_table_no = get_table_no(&substitute_field);
           if (substitute_table_no == parent_no) {
             DBUG_PRINT("info",
                        (" Replacing key_refs[%d] %s.%s with %s.%s (parent)",
                         key_part_no, get_referred_table_access_name(join_item),
                         get_referred_field_name(join_item),
-                        get_referred_table_access_name(substitute_field),
-                        get_referred_field_name(substitute_field)));
+                        get_referred_table_access_name(&substitute_field),
+                        get_referred_field_name(&substitute_field)));
 
             referred_table_no = substitute_table_no;
-            key_refs[key_part_no] = join_item = substitute_field;
+            key_refs[key_part_no] = join_item = &substitute_field;
             break;
           } else if (ancestors.contain(substitute_table_no)) {
             assert(substitute_table_no <= parent_no);
@@ -2220,11 +2215,11 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
                   (" Replacing key_refs[%d] %s.%s with %s.%s (grandparent)",
                    key_part_no, get_referred_table_access_name(join_item),
                    get_referred_field_name(join_item),
-                   get_referred_table_access_name(substitute_field),
-                   get_referred_field_name(substitute_field)));
+                   get_referred_table_access_name(&substitute_field),
+                   get_referred_field_name(&substitute_field)));
 
               referred_table_no = substitute_table_no;
-              key_refs[key_part_no] = join_item = substitute_field;
+              key_refs[key_part_no] = join_item = &substitute_field;
             }
           }
         }  // while (substitute...
