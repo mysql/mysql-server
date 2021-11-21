@@ -183,6 +183,7 @@ SET(TESTS
   unhex
   val_int_compare
   varlen_sort
+  walk_access_paths
   )
 
 SET(ALL_SMALL_TESTS)

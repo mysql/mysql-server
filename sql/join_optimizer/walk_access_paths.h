@@ -42,15 +42,18 @@ enum class WalkAccessPathPolicy {
 };
 
 /**
-  Traverse every access path below `path` (limited to the current query block
-  if cross_query_blocks is false), calling func() for each one with pre-
-  or post-order traversal. If func() returns true, traversal is stopped early.
+  Traverse every access path below `path` (possibly limited to the current query
+  block with the `cross_query_blocks` parameter), calling func() for each one
+  with pre- or post-order traversal. If func() returns true, the traversal does
+  not descend into the children of the current path. For post-order traversal,
+  the children have already been traversed when func() is called, so it is too
+  late to skip them, and the return value of func() is effectively ignored.
 
   The `join` parameter signifies what query block `path` is part of, since that
   is not implicit from the path itself. The function will track this as it
   changes throughout the tree (in MATERIALIZE or STREAM access paths), and
   will give the correct value to the func() callback. It is only used by
-  WalkAccesspath() itself if the policy is ENTIRE_QUERY_BLOCK; if not, it is
+  WalkAccessPaths() itself if the policy is ENTIRE_QUERY_BLOCK; if not, it is
   only used for the func() callback, and you can set it to nullptr if you wish.
   func() must have signature func(AccessPath *, const JOIN *), or it could be
   JOIN * if a non-const JOIN is given in.
@@ -231,7 +234,8 @@ void WalkAccessPaths(AccessPath *path, JoinPtr join,
   }
   if (post_order_traversal) {
     if (func(path, join)) {
-      // Stop recursing in this branch.
+      // Stop recursing in this branch. In practice a no-op, since we are
+      // already done with this branch.
       return;
     }
   }
