@@ -276,8 +276,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @param env pointer to the PluginFuncEnv object
    */
-  virtual void start(const mysql_harness::PluginFuncEnv *env [[maybe_unused]]) {
-  }
+  virtual void start(const mysql_harness::PluginFuncEnv *env);
 
   AddrVector::iterator begin() { return destinations_.begin(); }
 
@@ -306,9 +305,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
    * @returns new destinations, if there are any.
    */
   virtual stdx::expected<Destinations, void> refresh_destinations(
-      const Destinations &dests [[maybe_unused]]) {
-    return stdx::make_unexpected();
-  }
+      const Destinations &dests);
 
   /**
    * Trigger listening socket acceptors state handler based on the destination

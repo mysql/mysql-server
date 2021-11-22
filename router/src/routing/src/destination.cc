@@ -150,3 +150,10 @@ std::vector<mysql_harness::TCPAddress> RouteDestination::get_destinations()
     const {
   return destinations_;
 }
+
+void RouteDestination::start(const mysql_harness::PluginFuncEnv *) {}
+
+stdx::expected<Destinations, void> RouteDestination::refresh_destinations(
+    const Destinations &) {
+  return stdx::make_unexpected();
+}

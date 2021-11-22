@@ -73,6 +73,7 @@ class HARNESS_EXPORT BasePluginConfig {
    *
    *     option wait_timeout in [routing:homepage]
    *
+   * @param section configuration section
    * @param option Name of the option
    *
    * @return Prefix as std::string
@@ -105,6 +106,8 @@ class HARNESS_EXPORT BasePluginConfig {
    * gets the option from a config-section (or its default value if it doesn't
    * exist) and converts it with a transformation function.
    *
+   * @param section configuration section
+   * @param option name of the option
    * @param transformer transformation function. The signature of the
    * transformation function should be equivalent to:
    *   @c (const std::string &value, const std::string &option_description)
@@ -128,6 +131,8 @@ class HARNESS_EXPORT BasePluginConfig {
    *
    * does not call get_default().
    *
+   * @param section configuration section
+   * @param option name of the option
    * @param transformer transformation function. The signature of the
    * transformation function should be equivalent to:
    *   @c (const std::string &value, const std::string &option_description)

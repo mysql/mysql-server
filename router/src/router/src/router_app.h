@@ -316,6 +316,7 @@ class ROUTER_LIB_EXPORT MySQLRouter {
    * use it.
    * @endinternal
    *
+   * @param program_name path to the executable.
    * @param arguments command line arguments as vector of strings
    */
   virtual void init(const std::string &program_name,
