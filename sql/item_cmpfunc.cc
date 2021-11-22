@@ -2548,6 +2548,18 @@ float Item_func_ge::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // See Item_func_gt::get_filtering_effect().
+  if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
+      args[1]->const_item()) {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+  if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
+      args[0]->const_item()) {
+    return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -2567,9 +2579,14 @@ float Item_func_lt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
-  // 0 < MATCH(...) is the same as just MATCH(...), so reuse its selectivity.
+  // See Item_func_gt::get_filtering_effect().
+  if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
+      args[1]->const_item()) {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
   if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
-      args[0]->const_item() && args[0]->val_real() == 0.0) {
+      args[0]->const_item()) {
     return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
                                          fields_to_ignore, rows_in_table);
   }
@@ -2592,6 +2609,18 @@ float Item_func_le::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
+  // See Item_func_gt::get_filtering_effect().
+  if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
+      args[1]->const_item()) {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+  if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
+      args[0]->const_item()) {
+    return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+
   const Item_field *fld =
       contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld) return COND_FILTER_ALLPASS;
@@ -2610,10 +2639,23 @@ float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table) {
-  // MATCH(...) > 0 is the same as just MATCH(...), so reuse its selectivity.
+  // For comparing MATCH(...), generally reuse the same selectivity as for
+  // MATCH(...), which is generally COND_FILTER_BETWEEN. This is wrong
+  // in a number of cases (the equivalence only holds for MATCH(...) > 0
+  // or 0 < MATCH(...)) but usually less wrong than the default down below,
+  // which is COND_FILTER_ALLPASS (1.0).
+  //
+  // Ideally, of course, we should have had a real estimation of MATCH(...)
+  // selectivity in the form of some sort of histogram, and then read out
+  // that histogram here. However, that is a larger job.
   if (is_function_of_type(args[0], Item_func::FT_FUNC) &&
-      args[1]->const_item() && args[1]->val_real() == 0.0) {
+      args[1]->const_item()) {
     return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+  if (is_function_of_type(args[1], Item_func::FT_FUNC) &&
+      args[0]->const_item()) {
+    return args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
                                          fields_to_ignore, rows_in_table);
   }
 

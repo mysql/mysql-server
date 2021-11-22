@@ -414,10 +414,12 @@ class CostingReceiver {
   inline pair<bool, bool> AlreadyAppliedAsSargable(
       Item *condition, const AccessPath *left_path,
       const AccessPath *right_path);
-  bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
+  bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx,
+                                    double force_num_output_rows_after_filter);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
-                                int ordering_idx);
+                                int ordering_idx,
+                                double force_num_output_rows_after_filter);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
@@ -732,7 +734,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
   }
 
   if (tl->is_fulltext_searched()) {
-    if (ProposeAllFullTextIndexScans(table, node_idx)) {
+    if (ProposeAllFullTextIndexScans(table, node_idx,
+                                     range_optimizer_row_estimate)) {
       return true;
     }
   }
@@ -1792,7 +1795,7 @@ bool CostingReceiver::ProposeRefAccess(
     if (!IsSubset(
             m_graph.predicates[i].condition->used_tables() & ~PSEUDO_TABLE_BITS,
             table->pos_in_table_list->map())) {
-      join_condition_selectivity *= m_graph->predicates[i].selectivity;
+      join_condition_selectivity *= m_graph.predicates[i].selectivity;
     }
 
     num_output_rows *= m_graph.predicates[i].selectivity;
@@ -2235,7 +2238,8 @@ bool IsLimitHintPushableToFullTextSearch(const Item_func_match *match,
 // example, uses an ordered scan regardless of whether we request it, so an
 // explicitly ordered scan is no more expensive than an implicitly ordered scan,
 // and it could potentially avoid a sort higher up in the query plan.)
-bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
+bool CostingReceiver::ProposeAllFullTextIndexScans(
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
   for (const FullTextIndexInfo &info : *m_fulltext_searches) {
     if (info.match->table_ref != table->pos_in_table_list) {
       continue;
@@ -2260,7 +2264,8 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
           GetSargableFullTextPredicate(m_graph.predicates[i]);
       assert(match != nullptr);
       if (match != info.match) continue;
-      if (ProposeFullTextIndexScan(table, node_idx, match, i, info.order)) {
+      if (ProposeFullTextIndexScan(table, node_idx, match, i, info.order,
+                                   force_num_output_rows_after_filter)) {
         return true;
       }
     }
@@ -2283,7 +2288,8 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
       }
       if (m_query_block->join->m_select_limit <= info.match->get_count()) {
         if (ProposeFullTextIndexScan(table, node_idx, info.match,
-                                     /*predicate_idx=*/-1, info.order)) {
+                                     /*predicate_idx=*/-1, info.order,
+                                     force_num_output_rows_after_filter)) {
           return true;
         }
       }
@@ -2293,10 +2299,9 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
   return false;
 }
 
-bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
-                                               Item_func_match *match,
-                                               int predicate_idx,
-                                               int ordering_idx) {
+bool CostingReceiver::ProposeFullTextIndexScan(
+    TABLE *table, int node_idx, Item_func_match *match, int predicate_idx,
+    int ordering_idx, double force_num_output_rows_after_filter) {
   const unsigned key_idx = match->key;
   TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
   if (init_ref(m_thd, /*keyparts=*/1, /*length=*/0, key_idx, ref)) {
@@ -2313,44 +2318,44 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                            m_graph.predicates.size()};
   MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
                                             m_graph.predicates.size()};
+  double num_output_rows;
   double num_output_rows_from_index;
-  double num_output_rows_from_filter;
   if (predicate == nullptr) {
     // We have no predicate. The index is used only for ordering. We only do
-    // this if we have a limit.
+    // this if we have a limit. Note that we keep the full row number count
+    // here, to get consistent results; we only apply the limit for cost
+    // calculations.
     assert(m_query_block->join->m_select_limit != HA_POS_ERROR);
-    num_output_rows_from_index = num_output_rows_from_filter =
-        m_query_block->join->m_select_limit;
+    num_output_rows = table->file->stats.records;
+    num_output_rows_from_index =
+        min(table->file->stats.records, m_query_block->join->m_select_limit);
   } else {
-    // The full-text predicate is both passed to the index and in a filter node
-    // on top of the index scan. Find out how much of the selectivity to apply
-    // on each node.
-    double index_selectivity;
-    if (IsSubsumableFullTextPredicate(
-            down_cast<Item_func *>(predicate->condition))) {
-      // The predicate can be fully subsumed by the index. Apply the full
-      // selectivity on the index scan and mark the predicate as subsumed.
-      index_selectivity = predicate->selectivity;
-      subsumed_predicates.SetBit(predicate_idx);
-    } else {
-      // The predicate uses <, <=, > or >=, and it cannot be subsumed. For
-      // example MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of
-      // the MATCH function is used to estimate the number of rows that come out
-      // of the index, and the selectivity of the greater-than function is used
-      // to estimate the number of rows returned by the filter.
-      index_selectivity = EstimateSelectivity(m_thd, match, m_trace);
-
-      // The selectivity of the predicate is applied manually to
-      // num_output_rows_from_index and num_output_rows_from_filter below, so
-      // mark the predicate as applied to avoid double-counting of the
-      // selectivity.
+    num_output_rows_from_index =
+        table->file->stats.records * predicate->selectivity;
+    if (TableBitmap(node_idx) == predicate->total_eligibility_set) {
       applied_predicates.SetBit(predicate_idx);
-    }
+      if (IsSubsumableFullTextPredicate(
+              down_cast<Item_func *>(predicate->condition))) {
+        // The predicate can be fully subsumed by the index. Apply the full
+        // selectivity on the index scan and mark the predicate as subsumed.
+        subsumed_predicates.SetBit(predicate_idx);
+      }
 
-    num_output_rows_from_index = table->file->stats.records * index_selectivity;
-    num_output_rows_from_filter =
-        std::min(num_output_rows_from_index,
-                 table->file->stats.records * predicate->selectivity);
+      num_output_rows = num_output_rows_from_index;
+    } else {
+      // We have a MATCH() predicate pushed down to a table that is on the inner
+      // side of an outer join. It needs to be re-checked later, so we don't set
+      // applied_predicates (and thus, we also cannot set subsumed_predicates).
+      // In reality, we've done all the filtering already, but if we said that,
+      // we'd get an inconsistent row count. This is one of the few cases where
+      // inconsistent row counts are actually possible to get, but given that
+      // the situation is so rare (and would have been even rarer if MATCH()
+      // conditions triggered outer-to-inner conversions through
+      // not_null_tables(), which it cannot as long as MATCH() on NULL returns
+      // 0.0 instead of NULL), we opt for the lesser evil and delay the
+      // selectivity application to the point of the WHERE().
+      num_output_rows = table->file->stats.records;
+    }
   }
 
   const double cost = EstimateCostForRefAccess(m_thd, table, key_idx,
@@ -2366,17 +2371,14 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       IsLimitHintPushableToFullTextSearch(match, m_graph,
                                           m_sargable_fulltext_predicates),
       /*count_examined_rows=*/true);
-  path->num_output_rows_before_filter = num_output_rows_from_index;
-  path->num_output_rows = num_output_rows_from_filter;
+  path->num_output_rows = path->num_output_rows_before_filter = num_output_rows;
   path->cost = path->cost_before_filter = cost;
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
 
-  // TODO(sgunders): See if we should reuse the range optimizer estimate here.
-  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
-                            std::move(subsumed_predicates),
-                            /*force_num_output_rows_after_filter=*/-1.0,
-                            table->key_info[key_idx].name, path);
+  ProposeAccessPathForIndex(
+      node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
+      force_num_output_rows_after_filter, table->key_info[key_idx].name, path);
   return false;
 }
 
