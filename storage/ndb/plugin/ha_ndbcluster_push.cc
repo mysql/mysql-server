@@ -386,7 +386,7 @@ const NdbError &ndb_pushed_builder_ctx::getNdbError() const {
 bool ndb_pushed_builder_ctx::maybe_pushable(AQP::Table_access *table,
                                             join_pushability check) {
   DBUG_TRACE;
-  TABLE *tab = table->get_table();
+  const TABLE *tab = table->get_table();
 
   if (tab == nullptr) {
     // There could be unused tables allocated in the 'plan', skip these
@@ -400,7 +400,7 @@ bool ndb_pushed_builder_ctx::maybe_pushable(AQP::Table_access *table,
     return false;
   }
 
-  if (table->get_table()->file->member_of_pushed_join()) {
+  if (tab->file->member_of_pushed_join()) {
     return false;  // Already pushed
   }
 
@@ -432,8 +432,7 @@ bool ndb_pushed_builder_ctx::maybe_pushable(AQP::Table_access *table,
       break;
 
     default:
-      const ha_ndbcluster *handler =
-          down_cast<ha_ndbcluster *>(table->get_table()->file);
+      const ha_ndbcluster *handler = down_cast<ha_ndbcluster *>(tab->file);
 
       if (handler->maybe_pushable_join(reason)) {
         allowed = true;
@@ -459,7 +458,7 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
   const table_map bitmap = key_item->used_tables();
 
   for (uint i = 0; i < count; i++) {
-    TABLE *table = m_plan.get_table_access(i)->get_table();
+    const TABLE *table = m_plan.get_table_access(i)->get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
       if (bitmap & map) {
@@ -492,7 +491,7 @@ ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
   table_map bitmap = (external_map & ~PSEUDO_TABLE_BITS);
 
   for (uint i = 0; bitmap != 0 && i < count; i++) {
-    TABLE *table = m_plan.get_table_access(i)->get_table();
+    const TABLE *table = m_plan.get_table_access(i)->get_table();
     if (table != nullptr && table->pos_in_table_list != nullptr) {
       const table_map map = table->pos_in_table_list->map();
       if (bitmap & map) {

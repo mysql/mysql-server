@@ -116,7 +116,7 @@ const KEY_PART_INFO *Table_access::get_key_part_info(uint field_no) const {
 /**
   Get the table that this operation accesses.
 */
-TABLE *Table_access::get_table() const { return get_qep_tab()->table(); }
+const TABLE *Table_access::get_table() const { return get_qep_tab()->table(); }
 
 /** Get the QEP_TAB object that corresponds to this operation.*/
 const QEP_TAB *Table_access::get_qep_tab() const {

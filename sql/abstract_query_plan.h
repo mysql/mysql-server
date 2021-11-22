@@ -159,7 +159,7 @@ class Table_access {
 
   int get_index_no() const;
 
-  TABLE *get_table() const;
+  const TABLE *get_table() const;
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 

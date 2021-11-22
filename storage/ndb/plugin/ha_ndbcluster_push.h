@@ -105,7 +105,7 @@ class ndb_pushed_join {
   const NdbQueryDef &get_query_def() const { return *m_query_def; }
 
   /** Get the table that is accessed by the i'th table access operation.*/
-  TABLE *get_table(uint i) const {
+  const TABLE *get_table(uint i) const {
     assert(i < m_operation_count);
     return m_tables[i];
   }
@@ -146,7 +146,7 @@ class ndb_pushed_join {
   uint m_operation_count;
 
   /** This is the tables that are accessed by the pushed join.*/
-  TABLE *m_tables[MAX_PUSHED_OPERATIONS];
+  const TABLE *m_tables[MAX_PUSHED_OPERATIONS];
 
   /**
    * This is the number of referred fields of table access operation that
