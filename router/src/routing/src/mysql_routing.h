@@ -361,6 +361,10 @@ class MySQLRouting : public MySQLRoutingBase {
   /** Information if the routing plugging is still running. */
   std::atomic<bool> routing_stopped_{false};
 
+  /** Tracking information about connections that are pending and are not yet
+   * established. */
+  WaitableMonitor<uint64_t> pending_connections_counter_{0};
+
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, get_routing_thread_name);
