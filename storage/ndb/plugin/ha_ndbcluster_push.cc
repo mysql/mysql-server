@@ -65,8 +65,7 @@ extern const char *antijoin_null_cond;
     }                                                                  \
   } while (0)
 
-static inline const char *get_referred_field_name(
-    const Item_field *field_item) {
+static const char *get_referred_field_name(const Item_field *field_item) {
   assert(field_item->type() == Item::FIELD_ITEM);
   return field_item->field->field_name;
 }
