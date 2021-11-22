@@ -94,6 +94,27 @@ OCI_config_file parse_oci_config_file(const std::string &oci_config) {
       continue;
     }
   }
+
+  if (!result.key_file.empty() && result.key_file[0] == '~') {
+    /*
+     Resolve "~" if present in key file path.
+     As per OCI SDK & CLI docs, "~" should be
+     resolved to $HOME on *nix/Mac OS and
+     %HOMEDRIVE%%HOMEPATH% on Windows
+   */
+    std::string updated_path{};
+#ifdef _WIN32
+    if (getenv("HOMEDRIVE") && getenv("HOMEPATH")) {
+      updated_path += getenv("HOMEDRIVE");
+      updated_path += getenv("HOMEPATH");
+    }
+#else
+    if (getenv("HOME")) {
+      updated_path += getenv("HOME");
+    }
+#endif
+    if (updated_path.length()) result.key_file.replace(0, 1, updated_path);
+  }
   return result;
 }
 
