@@ -2119,7 +2119,7 @@ TEST_F(MetadataCacheLoggingTest,
   // Log error after server was shut down
   EXPECT_TRUE(get_log_timestamp(
       router.get_logfile_path(),
-      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 40 * ttl_));
+      std::string{".*metadata_cache ERROR.*"} + fail_msg, 2, 80 * ttl_));
 }
 
 /**
