@@ -605,7 +605,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
    */
   DBUG_PRINT("info",
              ("Table %d is pushable as root", m_join_root->get_access_no()));
-  DBUG_EXECUTE("info", m_join_root->dbug_print(););
   m_fld_refs = 0;
   m_const_scope.set_prefix(root_no);
   m_join_scope.add(root_no);
@@ -2374,7 +2373,6 @@ int ndb_pushed_builder_ctx::build_query() {
 
   DBUG_PRINT("enter",
              ("Table %d as root is pushable", m_join_root->get_access_no()));
-  DBUG_EXECUTE("info", m_join_root->dbug_print(););
 
   const uint root_no = m_join_root->get_access_no();
   assert(m_join_scope.contain(root_no));

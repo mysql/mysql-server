@@ -163,8 +163,6 @@ class Table_access {
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
-  void dbug_print() const;
-
   bool uses_join_cache() const;
 
   bool filesort_before_join() const;

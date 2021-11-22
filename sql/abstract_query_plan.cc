@@ -137,41 +137,6 @@ Item_equal *Table_access::get_item_equal(const Item_field *field_item) const {
 }
 
 /**
-  Write an entry in the trace file about the contents of this object.
-*/
-void Table_access::dbug_print() const {
-  DBUG_PRINT("info", ("type:%d", get_qep_tab()->type()));
-  DBUG_PRINT("info", ("ref().key:%d", get_qep_tab()->ref().key));
-  DBUG_PRINT("info", ("ref().key_parts:%d", get_qep_tab()->ref().key_parts));
-  DBUG_PRINT("info", ("ref().key_length:%d", get_qep_tab()->ref().key_length));
-
-  DBUG_PRINT("info", ("order:%p", get_qep_tab()->join()->order.order));
-  DBUG_PRINT("info",
-             ("skip_sort_order:%d", get_qep_tab()->join()->skip_sort_order));
-  DBUG_PRINT("info", ("simple_order:%d", get_qep_tab()->join()->simple_order));
-
-  DBUG_PRINT("info", ("group:%d", get_qep_tab()->join()->grouped));
-  DBUG_PRINT("info",
-             ("group_list:%p", get_qep_tab()->join()->group_list.order));
-  DBUG_PRINT("info", ("simple_group:%d", get_qep_tab()->join()->simple_group));
-  DBUG_PRINT("info", ("group_optimized_away:%d",
-                      get_qep_tab()->join()->group_optimized_away));
-
-  DBUG_PRINT("info", ("need_tmp_before_win:%d",
-                      get_qep_tab()->join()->need_tmp_before_win));
-  DBUG_PRINT("info",
-             ("select_distinct:%d", get_qep_tab()->join()->select_distinct));
-
-  DBUG_PRINT("info", ("dynamic_range:%d", (int)get_qep_tab()->dynamic_range()));
-  DBUG_PRINT("info", ("index:%d", get_qep_tab()->index()));
-  DBUG_PRINT("info", ("range_scan:%p", get_qep_tab()->range_scan()));
-  if (get_qep_tab()->range_scan()) {
-    DBUG_PRINT("info",
-               ("range_scan->type():%d", get_qep_tab()->range_scan()->type));
-  }
-}
-
-/**
   Compute the access type and index (if apliccable) of this operation .
 */
 void Table_access::compute_type_and_index() const {
