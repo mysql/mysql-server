@@ -945,7 +945,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   ndb_table_access_map parents_of_condition;
   const Item *pending_cond = table->get_condition();
   if (pending_cond != nullptr &&
-      current_thd->optimizer_switch_flag(
+      m_thd_ndb->get_thd()->optimizer_switch_flag(
           OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     /**
      * Calculate full set of possible ancestors for this table in
