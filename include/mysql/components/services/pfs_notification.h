@@ -84,7 +84,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   For example:
   @code
-    PSI_notification_cb my_callbacks;
+    PSI_notification my_callbacks;
 
     my_callbacks.thread_create   = &thread_create_callback;
     my_callbacks.thread_destroy  = &thread_destroy_callback;
