@@ -84,10 +84,6 @@ sql/sql_optimizer.cc:*
 sql/sql_optimizer_internal.h:*
 sql/sql_prepare.cc:*
 sql/sql_table.cc:*
-#
-# BUG#32246059 - FIX DOXYGEN ERRORS IN THE XPLUGIN CODE
-# 07-DEC-2020 Erlend Dahl
-plugin/x/protocol/protobuf/mysqlx.proto:*
 
 #===========================================================================
 # 08-DEC-2020 Marc Alff
