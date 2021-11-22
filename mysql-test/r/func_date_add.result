@@ -152,6 +152,8 @@ prepare s from "SELECT ADDTIME(?, TIME'01:01:01')";
 execute s using @d;
 ADDTIME(?, TIME'01:01:01')
 01:21:22.000000
+Warnings:
+Warning	1292	Truncated incorrect time value: '2021-01-01'
 prepare s from "SELECT ADDTIME(?, TIME'01:01:01')";
 execute s using @ts;
 ADDTIME(?, TIME'01:01:01')
