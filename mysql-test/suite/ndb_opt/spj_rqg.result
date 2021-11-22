@@ -1190,7 +1190,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM c AS table1
@@ -1214,7 +1214,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM s AS table1
@@ -1857,7 +1857,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1893,8 +1893,8 @@ Warnings:
 Note	1276	Field or reference 'test.table1.col_int' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	1003	Cannot push table 'table1s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table1s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1960,7 +1960,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1992,7 +1992,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -2060,8 +2060,8 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table3.col_char_16' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	1003	Cannot push table 'table1s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table1s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM w AS table1
@@ -2232,7 +2232,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, access type 'Multi-range' not implemented
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM k AS table1
@@ -2263,8 +2263,8 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2' as child of table 'table3'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Cannot push table 'table4' as child of table 'table3'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table2' as child of 'table3'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table4' as child of 'table3'. Doing so would prevent using join buffer for table 'table1'.
 SELECT
 DISTINCT table2.col_varchar_256_unique AS field1, table1.col_varchar_256_unique AS field2
 FROM d AS table1
@@ -2604,7 +2604,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk, table3.pk
 FROM  c AS table1
@@ -2735,9 +2735,9 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table4' as child of table 'table1'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Cannot push table 'table4' as child of table 'table2'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Cannot push table 'table4' as child of 'table3', since it referes to column 'table2.col_int_key' which will be stored in a join buffer.
+Note	1003	Can't push table 'table4' as child of 'table1'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table4' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table4' as child of 'table3', since it referes to column 'table2.col_int_key' which will be stored in a join buffer.
 SELECT DISTINCT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM a AS table1
@@ -3012,7 +3012,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table5' as child of table 'table3'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table5' as child of 'table3'. Doing so would prevent using join buffer for table 'table1'.
 Note	1003	Can't push table 'table5' as child of 'table1', column 'table4.col_int' is outside scope of pushable join
 SELECT  DISTINCT
 table5.col_varchar_256 AS field1, table2.col_varchar_10_key AS field2, table5.col_int_key AS field3
@@ -3060,9 +3060,9 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push outer joined table 'table7' as child of 'table6', table condition can not be fully evaluated by pushed join
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table8' as child of table 'table6'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Cannot push table 'table8' as child of table 'table7'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Cannot push table 'table8' as child of 'table1', since it referes to column 'table3.pk' which will be stored in a join buffer.
+Note	1003	Can't push table 'table8' as child of 'table6'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table8' as child of 'table7'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table8' as child of 'table1', since it referes to column 'table3.pk' which will be stored in a join buffer.
 SELECT
 table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
 FROM k AS table1
@@ -3293,7 +3293,7 @@ Warnings:
 Note	1276	Field or reference 'test.table1.col_varchar_10' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.table1s.col_int_key' of SELECT #3 was resolved in SELECT #2
 Note	1003	Can't push table 'table1ss' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table2s' as child of table 'table1s'. Doing so would prevent using join buffer for table 'table1ss'.
+Note	1003	Can't push table 'table2s' as child of 'table1s'. Doing so would prevent using join buffer for table 'table1ss'.
 Note	1003	Can't push table 'table2s' as child of 'table1ss', no parent-child dependency exists between these tables
 SELECT STRAIGHT_JOIN
 table1.pk
@@ -3450,9 +3450,9 @@ EXPLAIN
         -> Multi-range index lookup on table3 using PRIMARY (col_int=table1.col_int, pk=table1.col_int_key)
 
 Warnings:
-Note	1003	Cannot push table 'table2' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Cannot push table 'table3' as child of table 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table2' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table3' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM h AS table1
@@ -3633,8 +3633,8 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table4' as child of table 'table2'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Cannot push table 'table3' as child of table 'table2'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table4' as child of 'table2'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Can't push table 'table3' as child of 'table2'. Doing so would prevent using join buffer for table 'table1'.
 Note	1003	Can't push outer joined table 'table3' as child of 'table1', condition on its dependant table 'table4' is not pushed down
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
@@ -3836,7 +3836,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Cannot push table 'table1' as child of table 'table3'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table1' as child of 'table3'. Doing so would prevent using join buffer for table 'table2'.
 SELECT table1.col_varchar_256_unique AS field1
 FROM o AS table1
 JOIN x AS table2 ON table1.col_int_key = table2.pk
@@ -3916,8 +3916,8 @@ EXPLAIN
     -> Single-row index lookup on table1 using ix1 (col_int=table2.col_int, col_int_unique=table2.col_int_unique), child of table3 in pushed join
 
 Warnings:
-Note	1003	Cannot push table 'table3' as child of table 'table2'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Cannot push table 'table1' as child of table 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table3' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table1' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM i AS table2

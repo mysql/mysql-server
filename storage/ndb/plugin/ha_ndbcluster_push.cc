@@ -850,7 +850,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   for (uint i = tab_no; i > root_no; i--) {
     if (m_plan.get_table_access(i)->uses_join_cache()) {
       EXPLAIN_NO_PUSH(
-          "Cannot push table '%s' as child of table '%s'. Doing so "
+          "Can't push table '%s' as child of '%s'. Doing so "
           "would prevent using join buffer for table '%s'.",
           table->get_table()->alias, m_join_root->get_table()->alias,
           m_plan.get_table_access(i)->get_table()->alias);
@@ -863,7 +863,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   if (unlikely(m_internal_op_count + internal_ops_needed >
                NDB_SPJ_MAX_TREE_NODES)) {
     EXPLAIN_NO_PUSH(
-        "Cannot push table '%s' as child of '%s'. Max number"
+        "Can't push table '%s' as child of '%s'. Max number"
         " of pushable tables exceeded.",
         table->get_table()->alias, m_join_root->get_table()->alias);
     return false;
@@ -1923,7 +1923,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
        * itself being the same.
        */
       EXPLAIN_NO_PUSH(
-          "Cannot push table '%s' as child of '%s', since "
+          "Can't push table '%s' as child of '%s', since "
           "it referes to column '%s.%s' prior to a "
           "potential 'const' root.",
           table->get_table()->alias, m_join_root->get_table()->alias,
@@ -1940,7 +1940,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
       do {
         if (m_plan.get_table_access(access_no)->uses_join_cache()) {
           EXPLAIN_NO_PUSH(
-              "Cannot push table '%s' as child of '%s', since "
+              "Can't push table '%s' as child of '%s', since "
               "it referes to column '%s.%s' which will be stored "
               "in a join buffer.",
               table->get_table()->alias, m_join_root->get_table()->alias,
