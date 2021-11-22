@@ -563,6 +563,13 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
       trans_commit_stmt(thd) || trans_commit(thd))
     goto err_with_rollback;
 
+  if (new_dbname != nullptr) {
+    /* RENAME: Drop the old event instrumentation. */
+    MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT), parse_data->dbname.str,
+                  parse_data->dbname.length, parse_data->name.str,
+                  parse_data->name.length);
+  }
+
   // Update element in event queue.
   if (event_queue && new_element != nullptr) {
     /*
