@@ -87,7 +87,7 @@ static PFS_thread *get_pfs_from_THD(THD *thd) {
 
 class All_THD_visitor_adapter : public Do_THD_Impl {
  public:
-  All_THD_visitor_adapter(PFS_connection_visitor *visitor)
+  explicit All_THD_visitor_adapter(PFS_connection_visitor *visitor)
       : m_visitor(visitor) {}
 
   void operator()(THD *thd) override { m_visitor->visit_THD(thd); }
@@ -655,7 +655,8 @@ void PFS_object_iterator::visit_all(PFS_object_visitor *visitor) {
 
 class Proc_all_table_shares : public PFS_buffer_processor<PFS_table_share> {
  public:
-  Proc_all_table_shares(PFS_object_visitor *visitor) : m_visitor(visitor) {}
+  explicit Proc_all_table_shares(PFS_object_visitor *visitor)
+      : m_visitor(visitor) {}
 
   void operator()(PFS_table_share *pfs) override {
     m_visitor->visit_table_share(pfs);
@@ -667,7 +668,8 @@ class Proc_all_table_shares : public PFS_buffer_processor<PFS_table_share> {
 
 class Proc_all_table_handles : public PFS_buffer_processor<PFS_table> {
  public:
-  Proc_all_table_handles(PFS_object_visitor *visitor) : m_visitor(visitor) {}
+  explicit Proc_all_table_handles(PFS_object_visitor *visitor)
+      : m_visitor(visitor) {}
 
   void operator()(PFS_table *pfs) override {
     PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);

@@ -62,7 +62,7 @@ struct PFS_notification_node {
         m_next(nullptr),
         m_cb_map(0) {}
 
-  PFS_notification_node(const PSI_notification &cb)
+  explicit PFS_notification_node(const PSI_notification &cb)
       : m_handle(0),
         m_use_ref_count(false),
         m_refs(0),

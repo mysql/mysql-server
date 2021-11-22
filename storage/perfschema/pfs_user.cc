@@ -320,7 +320,7 @@ static void purge_user(PFS_thread *thread, PFS_user *user) {
 
 class Proc_purge_user : public PFS_buffer_processor<PFS_user> {
  public:
-  Proc_purge_user(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_user(PFS_thread *thread) : m_thread(thread) {}
 
   void operator()(PFS_user *pfs) override {
     pfs->aggregate(true);

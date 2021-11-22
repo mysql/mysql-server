@@ -371,7 +371,7 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
 
 class Proc_purge_host : public PFS_buffer_processor<PFS_host> {
  public:
-  Proc_purge_host(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_host(PFS_thread *thread) : m_thread(thread) {}
 
   void operator()(PFS_host *pfs) override {
     pfs->aggregate(true);

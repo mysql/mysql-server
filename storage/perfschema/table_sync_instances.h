@@ -64,7 +64,8 @@ struct row_mutex_instances {
 
 class PFS_index_mutex_instances : public PFS_engine_index {
  public:
-  PFS_index_mutex_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_mutex_instances(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   ~PFS_index_mutex_instances() override = default;
 
@@ -171,7 +172,8 @@ struct row_rwlock_instances {
 
 class PFS_index_rwlock_instances : public PFS_engine_index {
  public:
-  PFS_index_rwlock_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_rwlock_instances(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   ~PFS_index_rwlock_instances() override = default;
 
@@ -274,7 +276,8 @@ struct row_cond_instances {
 
 class PFS_index_cond_instances : public PFS_engine_index {
  public:
-  PFS_index_cond_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_cond_instances(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   ~PFS_index_cond_instances() override = default;
 

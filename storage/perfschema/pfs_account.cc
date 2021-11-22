@@ -723,7 +723,7 @@ static void purge_account(PFS_thread *thread, PFS_account *account) {
 
 class Proc_purge_account : public PFS_buffer_processor<PFS_account> {
  public:
-  Proc_purge_account(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_purge_account(PFS_thread *thread) : m_thread(thread) {}
 
   void operator()(PFS_account *pfs) override {
     PFS_user *user = sanitize_user(pfs->m_user);
@@ -753,7 +753,8 @@ void purge_all_account(void) {
 class Proc_update_accounts_derived_flags
     : public PFS_buffer_processor<PFS_account> {
  public:
-  Proc_update_accounts_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_update_accounts_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_account *pfs) override {
     if (pfs->m_key.m_user_name.length() > 0 &&

@@ -40,7 +40,7 @@
 
 class PFS_index_threads : public PFS_engine_index {
  public:
-  PFS_index_threads(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_threads(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
   PFS_index_threads(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
@@ -63,7 +63,7 @@ class cursor_by_thread : public PFS_engine_table {
   int index_next() override;
 
  protected:
-  cursor_by_thread(const PFS_engine_table_share *share);
+  explicit cursor_by_thread(const PFS_engine_table_share *share);
 
  public:
   ~cursor_by_thread() override = default;

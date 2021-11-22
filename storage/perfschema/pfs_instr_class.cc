@@ -2070,7 +2070,8 @@ void reset_socket_class_io(void) {
 class Proc_table_share_derived_flags
     : public PFS_buffer_processor<PFS_table_share> {
  public:
-  Proc_table_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_table_share_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_table_share *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
@@ -2088,7 +2089,8 @@ void update_table_share_derived_flags(PFS_thread *thread) {
 class Proc_program_share_derived_flags
     : public PFS_buffer_processor<PFS_program> {
  public:
-  Proc_program_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
+  explicit Proc_program_share_derived_flags(PFS_thread *thread)
+      : m_thread(thread) {}
 
   void operator()(PFS_program *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);

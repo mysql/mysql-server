@@ -68,7 +68,8 @@ struct row_metadata_lock {
 
 class PFS_index_metadata_locks : public PFS_engine_index {
  public:
-  PFS_index_metadata_locks(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_metadata_locks(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   PFS_index_metadata_locks(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}

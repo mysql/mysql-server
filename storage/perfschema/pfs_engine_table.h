@@ -266,7 +266,7 @@ struct PFS_key_reader {
 
 class PFS_engine_key {
  public:
-  PFS_engine_key(const char *name) : m_name(name), m_is_null(true) {}
+  explicit PFS_engine_key(const char *name) : m_name(name), m_is_null(true) {}
 
   virtual ~PFS_engine_key() = default;
 
@@ -298,7 +298,7 @@ class PFS_engine_index_abstract {
 
 class PFS_engine_index : public PFS_engine_index_abstract {
  public:
-  PFS_engine_index(PFS_engine_key *key_1)
+  explicit PFS_engine_index(PFS_engine_key *key_1)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(nullptr),
         m_key_ptr_3(nullptr),

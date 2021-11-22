@@ -85,7 +85,7 @@ class PFS_index_session_connect : public PFS_engine_index {
 /** Abstract table PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS. */
 class table_session_connect : public cursor_by_thread_connect_attr {
  protected:
-  table_session_connect(const PFS_engine_table_share *share);
+  explicit table_session_connect(const PFS_engine_table_share *share);
 
  public:
   ~table_session_connect() override;

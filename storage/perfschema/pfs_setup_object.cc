@@ -269,7 +269,7 @@ int delete_setup_object(enum_object_type object_type,
 
 class Proc_reset_setup_object : public PFS_buffer_processor<PFS_setup_object> {
  public:
-  Proc_reset_setup_object(LF_PINS *pins) : m_pins(pins) {}
+  explicit Proc_reset_setup_object(LF_PINS *pins) : m_pins(pins) {}
 
   void operator()(PFS_setup_object *pfs) override {
     lf_hash_delete(&setup_object_hash, m_pins, &pfs->m_key, sizeof(pfs->m_key));

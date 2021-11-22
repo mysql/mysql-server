@@ -45,7 +45,7 @@
 
 class Find_thd_user_var : public Find_THD_Impl {
  public:
-  Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
+  explicit Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
   bool operator()(THD *thd) override {
     if (thd != m_unsafe_thd) {

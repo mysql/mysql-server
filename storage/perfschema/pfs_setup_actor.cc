@@ -240,7 +240,7 @@ int delete_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
 
 class Proc_reset_setup_actor : public PFS_buffer_processor<PFS_setup_actor> {
  public:
-  Proc_reset_setup_actor(LF_PINS *pins) : m_pins(pins) {}
+  explicit Proc_reset_setup_actor(LF_PINS *pins) : m_pins(pins) {}
 
   void operator()(PFS_setup_actor *pfs) override {
     lf_hash_delete(&setup_actor_hash, m_pins, &pfs->m_key, sizeof(pfs->m_key));

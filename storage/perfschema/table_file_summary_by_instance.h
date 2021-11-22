@@ -62,7 +62,7 @@ struct row_file_summary_by_instance {
 
 class PFS_index_file_summary_by_instance : public PFS_engine_index {
  public:
-  PFS_index_file_summary_by_instance(PFS_engine_key *key_1)
+  explicit PFS_index_file_summary_by_instance(PFS_engine_key *key_1)
       : PFS_engine_index(key_1) {}
 
   ~PFS_index_file_summary_by_instance() override = default;

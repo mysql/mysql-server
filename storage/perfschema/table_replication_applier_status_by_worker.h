@@ -137,7 +137,7 @@ struct pos_replication_applier_status_by_worker : public PFS_double_index {
 
 class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
  public:
-  PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
+  explicit PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key)
       : PFS_engine_index(key) {}
 
   PFS_index_rpl_applier_status_by_worker(PFS_engine_key *key_1,

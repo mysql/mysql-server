@@ -59,7 +59,8 @@ struct row_file_instances {
 
 class PFS_index_file_instances : public PFS_engine_index {
  public:
-  PFS_index_file_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
+  explicit PFS_index_file_instances(PFS_engine_key *key_1)
+      : PFS_engine_index(key_1) {}
 
   ~PFS_index_file_instances() override = default;
 
