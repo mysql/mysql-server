@@ -253,3 +253,21 @@ SELECT `date_sent` FROM `email_stats` WHERE `generated_sent_email` = '2020-';
 #clean up.
 DROP TABLE `email_stats`;
 DROP TABLE `emails`;
+
+CREATE TABLE `t1` (`t1_id` int unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY(`t1_id`)) ENGINE=InnoDB;
+INSERT INTO `t1` VALUES (10);
+CREATE TABLE `t2` (
+  `t2_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `c1` decimal(14,2) NOT NULL DEFAULT '0.00',
+  `t1_id` int unsigned DEFAULT NULL,
+  `testycol` bit(1) GENERATED ALWAYS AS (`c1` <> 0) VIRTUAL,
+  PRIMARY KEY (`t2_id`),
+  UNIQUE KEY `t1_id` (`t1_id`),
+  KEY `testycol` (`testycol`),
+  CONSTRAINT `t2_ibfk_3` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`t1_id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO `t2` (`t2_id`, `c1`, `t1_id`) VALUES (1,5.00,10);
+
+--source include/restart_mysqld.inc
+
+DELETE FROM `t1` WHERE `t1_id`=10;

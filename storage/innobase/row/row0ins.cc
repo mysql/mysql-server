@@ -1303,9 +1303,14 @@ row_ins_foreign_check_on_constraint(
 						 clust_index, tmp_heap);
 	}
 
-	if (cascade->is_delete && foreign->v_cols != NULL
-	    && foreign->v_cols->size() > 0
-	    && table->vc_templ == NULL) {
+	/* A cascade delete from the parent table triggers delete on the child
+	table. Before a clustered index record is deleted in the child table,
+	a copy of row is built to remove secondary index records. This copy of
+	the row requires virtual columns to be materialized. Hence, if child
+	table has any virtual columns, we have to initialize virtual column
+	template */
+	if (cascade->is_delete && dict_table_get_n_v_cols(table) > 0
+            && table->vc_templ == NULL) {
 		innobase_init_vc_templ(table);
 	}
 	if (node->is_delete
