@@ -993,6 +993,13 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
+#Add utf-8 flag for visual studio 2015 or higher version, to disable warnings about code page(936)
+IF (WIN32)
+  IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND (CMAKE_GENERATOR MATCHES "2019" OR CMAKE_GENERATOR MATCHES "2017" OR CMAKE_GENERATOR MATCHES "2015"))
+    STRING_APPEND(CMAKE_CXX_FLAGS  " /utf-8")
+  ENDIF()
+ENDIF()
+
 # Use lld for Clang if available and not explicitly disabled.
 # Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
 # LTO build fails with lld, so turn it off by default.
