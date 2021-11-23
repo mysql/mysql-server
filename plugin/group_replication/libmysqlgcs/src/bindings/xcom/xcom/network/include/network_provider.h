@@ -285,9 +285,11 @@ class Network_provider {
    * start() is synchronous. After start() succeeded, it is assumed that XCom
    * is ready to receive new connections.
    *
-   * @return int return error code in case of error. 0, if success.
+   * @return a pair of <bool,int>
+   *         bool indicates the success of the operation. false means success.
+   *         int returns an error code.
    */
-  virtual int start() = 0;
+  virtual std::pair<bool, int> start() = 0;
 
   /**
    * @brief Stops the network provider.
@@ -298,9 +300,11 @@ class Network_provider {
    * stop() is synchronous. After stop() succeeded, it is assumed that XCom
    * shall not receive any new connection.
    *
-   * @return int return error code in case of error. 0, if success.
+   * @return a pair of <bool,int>
+   *         bool indicates the success of the operation. false means success.
+   *         int returns an error code.
    */
-  virtual int stop() = 0;
+  virtual std::pair<bool, int> stop() = 0;
 
   /**
    * @brief Get the communcation stack implmeneted by this provider

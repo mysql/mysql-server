@@ -372,12 +372,12 @@ class Gcs_mysql_network_provider : public Network_provider {
   /**
    * @brief See @see Network_provider#start
    */
-  int start() override;
+  std::pair<bool, int> start() override;
 
   /**
    * @brief See @see Network_provider#stop
    */
-  int stop() override;
+  std::pair<bool, int> stop() override;
 
   /**
    * @brief Get the communication stack implemented by this class
