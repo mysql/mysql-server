@@ -148,17 +148,20 @@ static struct my_option
                   &g_opt.m_monitor, &g_opt.m_monitor, 0,
                   GET_UINT, REQUIRED_ARG, g_opt.m_monitor, 0, 0, 0, 0, 0 },
                 { "ai-prefetch-sz", NDB_OPT_NOSHORT,
-                  "For table with hidden PK, specify number of autoincrement values"
+                  "For table with an auto inc (including hidden) PK,"
+                  " specify number of autoincrement values"
                   " that are prefetched. See mysqld",
                   &g_opt.m_ai_prefetch_sz, &g_opt.m_ai_prefetch_sz, 0,
                   GET_UINT, REQUIRED_ARG, g_opt.m_ai_prefetch_sz, 0, 0, 0, 0, 0 },
                 { "ai-increment", NDB_OPT_NOSHORT,
-                  "For table with hidden PK, specify autoincrement increment."
+                  "For table with an auto inc (including hidden) PK,"
+                  " specify autoincrement increment."
                   " See mysqld",
                   &g_opt.m_ai_increment, &g_opt.m_ai_increment, 0,
                   GET_UINT, REQUIRED_ARG, g_opt.m_ai_increment, 0, 0, 0, 0, 0 },
                 { "ai-offset", NDB_OPT_NOSHORT,
-                  "For table with hidden PK, specify autoincrement offset."
+                  "For table with an auto inc (including hidden) PK,"
+                  " specify autoincrement offset."
                   " See mysqld",
                   &g_opt.m_ai_offset, &g_opt.m_ai_offset, 0,
                   GET_UINT, REQUIRED_ARG, g_opt.m_ai_offset, 0, 0, 0, 0, 0 },

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,6 +207,7 @@ public:
     const uchar* get_value(const Row* row) const;
     void get_value(const Row* row, uint32& value) const;
     void get_value(const Row* row, uint64& value) const;
+    bool ai_value_not_provided(const Row* row) const;
     void get_value(const Row* row, char* buf, uint bufsz) const;
     bool get_null(const Row* row) const;
     uint get_blob_parts(uint len) const;
@@ -255,6 +256,7 @@ public:
     const NdbRecord* m_keyrec;
     uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
+    uint m_autoIncAttrId;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
     // map fragid to nodeid
@@ -910,6 +912,7 @@ public:
 
   // convert milliseconds to hours,minutes,seconds string
   static void fmt_msec_to_hhmmss(char* str, uint64 msec);
+  int int_val_ok(NdbDictionary::Column::Type type, Uint64 val, Error& error);
 };
 
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil& util);
