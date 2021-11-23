@@ -4047,23 +4047,23 @@ void init_mdl_requests(TABLE_LIST *table_list);
    items and runs validation and calculates the base_columns_map which is used
    for tracking the columns the expression depends on.
 
-  @param thd[in]               Thread handler
-  @param table[in]             Table having the value generator to be unpacked
-  @param val_generator[in,out] Contains the expression in string format, and,
+  @param[in] thd               Thread handler
+  @param[in] table             Table having the value generator to be unpacked
+  @param[in,out] val_generator Contains the expression in string format, and,
                                if successful will be replaced by the parser
                                with a new one having the unpacked expression.
-  @param source[in]            Source of value generator(a generated column,
+  @param[in] source            Source of value generator(a generated column,
                                a regular column with generated default value or
                                a check constraint).
-  @param source_name[in]       Name of the source (generated column, a regular
+  @param[in] source_name       Name of the source (generated column, a regular
                                column with generated default value or a check
                                constraint).
-  @param field[in]             The column the value generator depends on. Can
+  @param[in] field             The column the value generator depends on. Can
                                be null for checked constraints which do not
                                depend on a single column.
-  @param is_create_table[in]   Indicates that table is opened as part
+  @param[in] is_create_table   Indicates that table is opened as part
                                of CREATE or ALTER and does not yet exist in SE
-  @param error_reported[out]   updated flag for the caller that no other error
+  @param[out] error_reported   updated flag for the caller that no other error
                                messages are to be generated.
 
   @retval true Failure.

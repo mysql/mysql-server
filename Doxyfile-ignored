@@ -238,7 +238,6 @@ sql/sql_tmp_table.cc:*
 sql/sql_union.h:*
 sql/sys_vars.cc:*
 sql/sys_vars.h:*
-sql/table.h:*
 sql/uniques.cc:*
 storage/federated/ha_federated.h:*
 storage/innobase/btr/btr0btr.cc:*

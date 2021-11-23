@@ -352,7 +352,6 @@ handlerton *get_viable_handlerton_for_create_like(THD *thd,
   and ER_UNKNOWN_STORAGE_ENGINE is emitted as warning.
 
   @param thd        Thread handler.
-  @param table_name Table name.
   @param ci         create info struct from parser.
   @param existing   Handlerton requested by query.
 
