@@ -354,11 +354,25 @@ uint Table_access::get_first_inner() const {
   return qep_tab->first_inner();
 }
 uint Table_access::get_last_inner() const {
+  const uint first_inner = get_first_inner();
+  if (m_tab_no > first_inner) {
+    const QEP_TAB *qep_tab = m_join_plan->get_qep_tab(first_inner);
+    if (qep_tab->last_inner() < 0) return m_join_plan->get_access_count() - 1;
+    return qep_tab->last_inner();
+  }
   const QEP_TAB *qep_tab = get_qep_tab();
   if (qep_tab->last_inner() < 0) return m_join_plan->get_access_count() - 1;
   return qep_tab->last_inner();
 }
 int Table_access::get_first_upper() const {
+  const uint first_inner = get_first_inner();
+  if (m_tab_no > first_inner) {
+    const QEP_TAB *qep_tab = m_join_plan->get_qep_tab(first_inner);
+    if (qep_tab->first_inner() > 0 &&  // Is an inner join_nest &&
+        qep_tab->first_upper() < 0)    // upper indicate 'no-nest'
+      return 0;                        // Return 'first table'
+    return qep_tab->first_upper();
+  }
   const QEP_TAB *qep_tab = get_qep_tab();
   if (qep_tab->first_inner() > 0 &&  // Is an inner join_nest &&
       qep_tab->first_upper() < 0)    // upper indicate 'no-nest'
