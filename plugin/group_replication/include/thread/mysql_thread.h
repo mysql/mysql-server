@@ -112,7 +112,7 @@ class Mysql_thread {
   /**
     Trigger a task to run synchronously.
 
-    @param[in] parameters  parameters of the task to run
+    @param[in] task  task to run
 
     @return the operation status
       @retval false  Successful

@@ -56,10 +56,6 @@ void unlock_slave_threads(Master_info *mi);
 
   IMPLEMENTATION
     Get a bit mask for which threads are running.
-
-  @return
-            If inverse == 0, running threads
-            If inverse == 1, stopped threads
 */
 void init_thread_mask(int *mask, Master_info *mi, bool inverse,
                       bool ignore_monitor_thread = false);

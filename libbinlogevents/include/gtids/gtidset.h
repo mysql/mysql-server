@@ -262,7 +262,7 @@ class Gtid_set {
    * or not. The caller should perform such check before calling this member
    * function.
    *
-   * @param other
+   * @param other Gtid_set to be copied
    */
   Gtid_set(const Gtid_set &other);
 

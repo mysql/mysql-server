@@ -333,20 +333,8 @@ class Network_provider {
   virtual bool configure_secure_connections(
       const Network_configuration_parameters &params) = 0;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   virtual bool cleanup_secure_connections_context() = 0;
 
-  /**
-   * @brief
-   *
-   * @return true
-   * @return false
-   */
   virtual bool finalize_secure_connections_context() = 0;
 
   /**
