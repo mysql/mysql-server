@@ -1796,8 +1796,6 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
     }
     m_tables[tab_no].m_ancestors.intersect(m_join_scope);
   }
-  // Remove 'pending_cond' not pushed any longer
-  m_has_pending_cond.intersect(m_join_scope);
 }  // ndb_pushed_builder_ctx::remove_pushable
 
 /*********************
