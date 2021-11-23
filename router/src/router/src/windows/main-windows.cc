@@ -79,7 +79,7 @@ void log_error(const std::string &msg,
                bool certain_that_not_running_as_service = false) noexcept {
   // We don't have to write to console when running as a service, but we do it
   // anyway because it doesn't hurt. Always better to err on the safe side.
-  std::cerr << "ERROR: " << msg << std::endl;
+  std::cerr << "Error: " << msg << std::endl;
 
   if (certain_that_not_running_as_service == false) {
     try {
@@ -131,8 +131,8 @@ ServiceStatus check_service_operations(int argc, char **argv,
     try {
       arg_handler.process(std::vector<std::string>({argv + 1, argv + argc}));
     } catch (const std::invalid_argument &exc) {
-      std::cerr << exc.what() << "\n";
-      throw std::runtime_error(exc.what());
+      log_error(exc.what());
+      return ServiceStatus::Error;
     }
 
     switch (conf_opts.operation) {
