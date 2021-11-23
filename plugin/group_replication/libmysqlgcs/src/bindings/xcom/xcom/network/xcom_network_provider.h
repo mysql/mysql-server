@@ -57,8 +57,8 @@ class Xcom_network_provider : public Network_provider {
   /**
    * Inherited methods from Gcs_network_provider
    */
-  int start() override;
-  int stop() override;
+  std::pair<bool, int> start() override;
+  std::pair<bool, int> stop() override;
   enum_transport_protocol get_communication_stack() const override {
     return XCOM_PROTOCOL;
   }

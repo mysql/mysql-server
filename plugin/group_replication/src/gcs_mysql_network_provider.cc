@@ -122,13 +122,13 @@ bool Gcs_mysql_network_provider_native_interface_impl::
 #endif
 }
 
-int Gcs_mysql_network_provider::start() {
+std::pair<bool, int> Gcs_mysql_network_provider::start() {
   set_gr_incoming_connection(handle_group_replication_incoming_connection);
 
-  return 0;
+  return std::make_pair(false, 0);
 }
 
-int Gcs_mysql_network_provider::stop() {
+std::pair<bool, int> Gcs_mysql_network_provider::stop() {
   set_gr_incoming_connection(nullptr);
 
   mysql_mutex_lock(&m_GR_LOCK_connection_map_mutex);
@@ -148,7 +148,7 @@ int Gcs_mysql_network_provider::stop() {
 
   this->reset_new_connection();
 
-  return 0;
+  return std::make_pair(false, 0);
 }
 
 bool Gcs_mysql_network_provider::configure(

@@ -97,30 +97,28 @@ bool Network_provider_manager::start_network_provider(
     enum_transport_protocol provider_key) {
   auto net_provider = this->get_provider(provider_key);
 
-  return net_provider ? net_provider->start() : true;
+  return net_provider ? net_provider->start().first : true;
 }
 
-MY_COMPILER_DIAGNOSTIC_PUSH()
-// TODO: fix Bug #33184321
-// unsafe mix of type 'bool' and type 'int'
-MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4805)
 bool Network_provider_manager::stop_all_network_providers() {
   bool retval = false;
   for (auto &&i : m_network_providers) {
-    retval &= i.second->stop();
+    // Logical Sum of all stop() operations. If any of the operations fail,
+    // it will report the whole operation as botched, but it will stop all
+    // providers
+    retval |= i.second->stop().first;
   }
 
   set_incoming_connections_protocol(get_running_protocol());
 
   return retval;
 }
-MY_COMPILER_DIAGNOSTIC_POP()
 
 bool Network_provider_manager::stop_network_provider(
     enum_transport_protocol provider_key) {
   auto net_provider = this->get_provider(provider_key);
 
-  return net_provider ? net_provider->stop() : true;
+  return net_provider ? net_provider->stop().first : true;
 }
 
 const std::shared_ptr<Network_provider>
@@ -146,7 +144,7 @@ bool Network_provider_manager::start_active_network_provider() {
             Communication_stack_to_string::to_string(
                 net_provider->get_communication_stack()))
 
-  return config_ok ? net_provider->start() : true;
+  return config_ok ? net_provider->start().first : true;
 }
 
 bool Network_provider_manager::stop_active_network_provider() {
@@ -156,7 +154,7 @@ bool Network_provider_manager::stop_active_network_provider() {
 
   set_incoming_connections_protocol(get_running_protocol());
 
-  return net_provider ? net_provider->stop() : true;
+  return net_provider ? net_provider->stop().first : true;
 }
 
 bool Network_provider_manager::configure_active_provider(
