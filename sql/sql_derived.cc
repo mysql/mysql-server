@@ -576,9 +576,12 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item,
   // correctly.
   thd->lex->set_sp_current_parsing_ctx(old_lex->get_sp_current_parsing_ctx());
   thd->lex->sphead = old_lex->sphead;
+  // Take care not to write a cloned stored procedure variable to query logs.
+  thd->lex->reparse_derived_table_condition = true;
 
   bool result = parse_sql(thd, &parser_state, nullptr);
 
+  thd->lex->reparse_derived_table_condition = false;
   // lex_end() would try to destroy sphead if set. So we reset it.
   thd->lex->set_sp_current_parsing_ctx(nullptr);
   thd->lex->sphead = nullptr;

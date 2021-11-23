@@ -3867,6 +3867,11 @@ struct LEX : public Query_tables_list {
     clause. Otherwise this is 0.
   */
   uint reparse_common_table_expr_at;
+  /**
+    If currently re-parsing a condition which is pushed down to a derived
+    table, this will be set to true.
+  */
+  bool reparse_derived_table_condition{false};
 
   enum SSL_type ssl_type; /* defined in violite.h */
   enum enum_duplicates duplicates;
