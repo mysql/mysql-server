@@ -969,9 +969,9 @@ TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(3, graph.edges.size());
-  EXPECT_FLOAT_EQ(0.02, graph.edges[0].selectivity);
-  EXPECT_FLOAT_EQ(0.02, graph.edges[1].selectivity);
-  EXPECT_FLOAT_EQ(0.02, graph.edges[2].selectivity);
+  EXPECT_FLOAT_EQ(0.02F, graph.edges[0].selectivity);
+  EXPECT_FLOAT_EQ(0.02F, graph.edges[1].selectivity);
+  EXPECT_FLOAT_EQ(0.02F, graph.edges[2].selectivity);
 }
 
 TEST_F(MakeHypergraphTest, HyperpredicatesDoNotLeadToExtraCycleEdges) {
