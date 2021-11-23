@@ -61,9 +61,8 @@ class Waiting_for_io {
     * IO code is waiting for a header
     * long-executing-sql
 
-    @return
-      @retval == true     OK
-      @retval == false     I/O error
+    @retval true     OK
+    @retval false    I/O error
    */
   virtual bool on_idle_or_before_read() = 0;
 };

@@ -165,7 +165,6 @@ plugin/group_replication/include/thread/mysql_thread.h:*
 plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h:*
 plugin/group_replication/src/applier.cc:*
 plugin/version_token/version_token.cc:*
-plugin/x/protocol/protobuf/mysqlx_session.proto:*
 sql-common/client.cc:*
 sql-common/compression.cc:*
 sql-common/net_serv.cc:*
