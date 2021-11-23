@@ -337,7 +337,6 @@ void pre_initialize_performance_schema();
   @param [out] system_bootstrap System instrumentation service bootstrap
   @param [out] tls_channel_bootstrap TLS channel instrumentation service
   bootstrap
-  @returns
   @retval 0 success
 */
 int initialize_performance_schema(

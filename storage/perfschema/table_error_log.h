@@ -207,8 +207,8 @@ class table_error_log : public cursor_by_error_log {
   static Plugin_table m_table_def;
 
   /** Current row. */
-  log_sink_pfs_event m_header;   //< event-header copied from ring-buffer
-  char m_message[LOG_BUFF_MAX];  //< message (DATA column) from ring-buffer
+  log_sink_pfs_event m_header;   ///< event-header copied from ring-buffer
+  char m_message[LOG_BUFF_MAX];  ///< message (DATA column) from ring-buffer
 };
 
 /** @} */
