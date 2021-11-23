@@ -306,7 +306,7 @@ class Commit_order_manager {
     `wait_for_commit is in deadlock with the MDL context encapsulated in
     the visitor parameter.
 
-    @param wait_for_commit
+    @param wait_for_commit The wait ticket being held by the worker thread.
     @param gvisitor The MDL graph visitor to check for deadlocks against.
 
     @return true if a deadlock has been found and false otherwise.

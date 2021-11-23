@@ -101,8 +101,6 @@ class Observe_transmission_guard {
     @param flag            The flag variable to guard
     @param event_type      The type of the event being processed
     @param event_ptr       The raw content of the event being processed
-    @param event_len       The size of the raw content of the event being
-                           processed
     @param checksum_alg    The checksum algorithm being used currently
     @param prev_event_type The type of the event processed just before the
                            current one

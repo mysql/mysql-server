@@ -143,7 +143,6 @@ class Rpl_info_table : public Rpl_info_handler {
     @param[in]  param_table      Table's name.
     @param[in]  nullable_bitmap  bitmap that holds the fields that are
                                  allowed to be `NULL`-
-    @param[out] counter          Number of entries found.
 
     @retval a pair of booleans
             First element is true if an error occurred, false otherwise.

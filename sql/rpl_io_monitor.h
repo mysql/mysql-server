@@ -387,7 +387,6 @@ class Source_IO_monitor {
     @param[in]  table_op     The Rpl_sys_table_access class object.
     @param[in]  table        The table object.
     @param[in]  field_name   The name of column/field of the table.
-    @param[in]  field_name   The name of column/field of the table.
     @param[in]  conn_detail  std::tuple containing <channel, host, port,
                              network_namespace, weight, group_name>
 

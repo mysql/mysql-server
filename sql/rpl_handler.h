@@ -130,7 +130,6 @@ class Delegate {
     Removes an observer from the observer list.
 
     @param observer The observer object to be added to the list
-    @param plugin The plugin the observer is being loaded from
 
     @return 0 upon success, 1 otherwise
    */
