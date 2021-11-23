@@ -42,8 +42,6 @@
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
-#define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
-
 class Ndb;             // Forward declaration
 class NdbOperation;    // Forward declaration
 class NdbTransaction;  // Forward declaration
@@ -742,12 +740,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int update_stats(THD *thd, bool do_read_stat);
 };
 
-// Global handler synchronization
-extern mysql_cond_t ndbcluster_cond;
-
-extern int ndb_setup_complete;
-
-static const int NDB_INVALID_SCHEMA_OBJECT = 241;
+static constexpr int NDB_INVALID_SCHEMA_OBJECT = 241;
 
 int ndb_to_mysql_error(const NdbError *ndberr);
 

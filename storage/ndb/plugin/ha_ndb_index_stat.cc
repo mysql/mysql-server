@@ -2137,8 +2137,8 @@ void Ndb_index_stat_thread::do_run() {
   /*
     Wait for cluster to start
   */
-  while (!ndbcluster_is_connected(1)) {
-    /* ndb not connected yet */
+  while (!ndb_connection_is_ready(g_ndb_cluster_connection, 1)) {
+    /* NDB not connected yet */
     if (is_stop_requested()) {
       /* Terminated with a stop_request */
       mysql_mutex_lock(&LOCK_client_waiting);

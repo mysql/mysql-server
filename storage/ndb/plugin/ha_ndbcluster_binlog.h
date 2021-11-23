@@ -59,6 +59,8 @@ int ndbcluster_binlog_end();
  */
 bool ndb_binlog_is_read_only(void);
 
+bool ndb_binlog_is_initialized(void);
+
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);
 

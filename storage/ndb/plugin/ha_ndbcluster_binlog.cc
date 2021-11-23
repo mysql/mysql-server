@@ -191,6 +191,8 @@ bool ndb_binlog_running = false;
 static bool ndb_binlog_tables_inited = false;  // injector_data_mutex, relaxed
 static bool ndb_binlog_is_ready = false;       // injector_data_mutex, relaxed
 
+bool ndb_binlog_is_initialized() { return ndb_binlog_is_ready; }
+
 bool ndb_binlog_is_read_only() {
   /*
     Could be called from any client thread. Need a mutex to
@@ -675,19 +677,6 @@ bool ndbcluster_binlog_init(handlerton *h) {
   }
 
   return true;
-}
-
-/*
-   ndb_notify_tables_writable
-
-   Called to notify any waiting threads that Ndb tables are
-   now writable
-*/
-static void ndb_notify_tables_writable() {
-  mysql_mutex_lock(&ndbcluster_mutex);
-  ndb_setup_complete = 1;
-  mysql_cond_broadcast(&ndbcluster_cond);
-  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 /**
@@ -7107,8 +7096,7 @@ restart_cluster_failure:
     goto err;
   }
 
-  // Create Thd_ndb after server started when handlerton->slot has been set
-  assert(ndbcluster_hton->slot != HA_SLOT_UNDEF);
+  // Create Thd_ndb after server started
   if (!(thd_ndb = Thd_ndb::seize(thd))) {
     log_error("Failed to seize Thd_ndb object");
     goto err;
@@ -7140,7 +7128,8 @@ restart_cluster_failure:
 
     assert(m_apply_status_share == nullptr);
 
-    while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb)) {
+    while (!ndb_connection_is_ready(thd_ndb->connection, 1) ||
+           !binlog_setup.setup(thd_ndb)) {
       // Failed to complete binlog_setup, remove all existing event
       // operations from potential partial setup
       remove_all_event_operations(s_ndb, i_ndb);
@@ -7181,8 +7170,6 @@ restart_cluster_failure:
     }  // while (!ndb_binlog_setup())
 
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
-
-    assert(ndbcluster_hton->slot != ~(uint)0);
   }
 
   // Setup reference to ndb_apply_status share
@@ -7272,16 +7259,7 @@ restart_cluster_failure:
   log_verbose(1, "ndb tables writable");
   ndb_tdc_close_cached_tables();
 
-  /*
-     Signal any waiting thread that ndb table setup is
-     now complete
-  */
-  ndb_notify_tables_writable();
-
-  {
-    static LEX_CSTRING db_lex_cstr = EMPTY_CSTR;
-    thd->reset_db(db_lex_cstr);
-  }
+  thd->reset_db(EMPTY_CSTR);
 
   log_verbose(1, "Startup and setup completed");
 
