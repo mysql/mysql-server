@@ -71,7 +71,7 @@ void ut_print_buf(FILE *file,      /*!< in: file where to print */
 }
 
 /** Prints the contents of a memory buffer in hex.
-@param[in,out] &o Output stream
+@param[in,out] o Output stream
 @param[in] buf Memory buffer
 @param[in] len Length of the buffer */
 void ut_print_buf_hex(std::ostream &o, const void *buf, ulint len) {
@@ -87,7 +87,7 @@ void ut_print_buf_hex(std::ostream &o, const void *buf, ulint len) {
 }
 
 /** Prints the contents of a memory buffer in hex and ascii.
-@param[in,out] &o Output stream
+@param[in,out] o Output stream
 @param[in] buf Memory buffer
 @param[in] len Length of the buffer */
 void ut_print_buf(std::ostream &o, const void *buf, ulint len) {

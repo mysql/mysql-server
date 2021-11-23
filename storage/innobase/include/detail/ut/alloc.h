@@ -264,7 +264,6 @@ struct Alloc_pfs : public allocator_traits<true> {
       requested alignment.
 
       @param[in] size Size of storage (in bytes) requested to be allocated.
-      @param[in] alignment Alignment requirement for storage to be allocated.
       @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @return Pointer to the allocated storage. nullptr if dynamic storage
       allocation failed.
@@ -303,7 +302,7 @@ struct Alloc_pfs : public allocator_traits<true> {
         * If new size of storage requested is 0, then behavior is as if
           Alloc_pfs::free() had been called.
 
-      @param[in] ptr  Pointer to the memory to be reallocated.
+      @param[in] data Pointer to the memory to be reallocated.
       @param[in] size New size of storage (in bytes) requested to be allocated.
       @return Pointer to the reallocated storage. nullptr if dynamic storage
       allocation or reallocation failed or if new size requested was 0.

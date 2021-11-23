@@ -1366,7 +1366,6 @@ inline void *malloc_large_page_withkey(
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] key PSI memory key to be used for PFS memory instrumentation.
     @param[in] size Size of storage (in bytes) requested to be allocated.
     @return Pointer to the page-aligned storage. nullptr if dynamic storage
     allocation failed.
@@ -2027,7 +2026,7 @@ class aligned_array_pointer {
       Underlying instances of type T are accessed through the conversion
       operator.
 
-      @param[in] size Number of T elements in an array.
+      @param[in] count Number of T elements in an array.
     */
   void alloc(Count count) {
     ut_ad(ptr == nullptr);
@@ -2063,7 +2062,7 @@ class aligned_array_pointer {
       operator.
 
       @param[in] key PSI memory key to be used for PFS memory instrumentation.
-      @param[in] size Number of T elements in an array.
+      @param[in] count Number of T elements in an array.
     */
   void alloc_withkey(PSI_memory_key_t key, Count count) {
     ut_ad(ptr == nullptr);
@@ -2360,7 +2359,6 @@ make_unique(PSI_memory_key_t key, Args &&... args) {
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::unique_ptr holding a pointer to an array of size instances of
    T.
  */
@@ -2381,7 +2379,6 @@ make_unique(size_t size) {
     This overload participates in overload resolution only if T
     is an array type with unknown compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::unique_ptr holding a pointer to an array of size instances of
    T.
  */
@@ -2486,7 +2483,6 @@ make_unique_aligned(PSI_memory_key_t key, size_t alignment, Args &&... args) {
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::unique_ptr holding a pointer to an array of size instances of
    T.
  */
@@ -2508,7 +2504,6 @@ make_unique_aligned(size_t alignment, size_t size) {
     This overload participates in overload resolution only if T
     is an array type with unknown compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::unique_ptr holding a pointer to an array of size instances of
    T.
  */
@@ -2594,7 +2589,6 @@ std::enable_if_t<!std::is_array<T>::value, std::shared_ptr<T>> make_shared(
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2615,7 +2609,6 @@ make_shared(size_t size) {
     This overload participates in overload resolution only if T
     is an array type with unknown compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2640,7 +2633,6 @@ make_shared(PSI_memory_key_t key, size_t size) {
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2662,7 +2654,6 @@ make_shared() {
     This overload participates in overload resolution only if T
     is an array type with known compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2734,7 +2725,6 @@ make_shared_aligned(PSI_memory_key_t key, size_t alignment, Args &&... args) {
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2757,7 +2747,6 @@ make_shared_aligned(size_t alignment, size_t size) {
     This overload participates in overload resolution only if T
     is an array type with unknown compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2783,7 +2772,6 @@ make_shared_aligned(PSI_memory_key_t key, size_t alignment, size_t size) {
     use it will be lost or in best case inaccurate. Please have a strong reason
     to do so.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */
@@ -2807,7 +2795,6 @@ make_shared_aligned(size_t alignment) {
     This overload participates in overload resolution only if T
     is an array type with known compile-time bound.
 
-    @param[in] args Arguments one wishes to pass over to T constructor(s) .
     @return std::shared_ptr holding a pointer to an array of size instances of
     T.
  */

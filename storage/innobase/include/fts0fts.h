@@ -468,7 +468,7 @@ void fts_update_next_doc_id(
 @param[in]      table  Row is of this table.
 @param[in,out]  row    Add doc id value to this row. This is the current row
 that is being inserted.
-@param[in]      heap
+@param[in]      heap   Memory heap on which the doc_id object will be created.
 @return DB_SUCCESS if all went well else error */
 dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap);
 
