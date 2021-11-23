@@ -4695,7 +4695,7 @@ int init_common_variables() {
   tzset();                             // Set tzname
 
   max_system_variables.pseudo_thread_id = (my_thread_id)~0;
-  server_start_time = flush_status_time = my_time(0);
+  server_start_time = flush_status_time = time(nullptr);
 
   binlog_filter = new Rpl_filter;
   if (!binlog_filter) {
@@ -7598,10 +7598,10 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(MYSQLD_ABORT_EXIT);
 
     if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
-      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
+      time_t purge_time = time(nullptr) - binlog_expire_logs_seconds -
                           expire_logs_days * 24 * 60 * 60;
       DBUG_EXECUTE_IF("expire_logs_always_at_start",
-                      { purge_time = my_time(0); });
+                      { purge_time = time(nullptr); });
       mysql_bin_log.purge_logs_before_date(purge_time, true);
     }
 

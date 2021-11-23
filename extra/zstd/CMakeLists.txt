@@ -55,6 +55,10 @@ IF(HAS_MISSING_PROFILE)
   TARGET_COMPILE_OPTIONS(zstd_objlib PRIVATE ${HAS_MISSING_PROFILE})
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags

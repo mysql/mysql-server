@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -351,7 +352,7 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   res = post_init_event_thread(thd);
 
   DBUG_TRACE;
-  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)my_time(0), thd));
+  DBUG_PRINT("info", ("Time is %ld, THD: %p", (long)time(nullptr), thd));
 
   if (res) {
     delete event;

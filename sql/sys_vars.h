@@ -2617,7 +2617,7 @@ class Sys_var_system_time_zone : Sys_var_charptr_func {
 
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
     DBUG_TRACE;
-    time_t current_time = my_time(0);
+    time_t current_time = time(nullptr);
     DBUG_EXECUTE_IF("set_cet_before_dst", {
       // 1616893190 => Sunday March 28, 2021 01:59:50 (am) (CET)
       current_time = 1616893190;

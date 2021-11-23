@@ -28,6 +28,8 @@
 #include "storage/perfschema/table_processlist.h"
 
 #include <assert.h>
+#include <ctime>
+
 #include "lex_string.h"
 #include "my_compiler.h"
 
@@ -364,7 +366,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 5: /* TIME */
           if (m_row.m_start_time) {
-            time_t now = my_time(0);
+            time_t now = time(nullptr);
             ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);

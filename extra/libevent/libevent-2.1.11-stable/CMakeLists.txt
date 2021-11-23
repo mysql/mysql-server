@@ -24,6 +24,10 @@ IF(HAS_MISSING_PROFILE)
   STRING_APPEND(CMAKE_C_FLAGS " ${HAS_MISSING_PROFILE}")
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
 
 # Don't do this here, it will load policies for an older version of cmake.
 # cmake_minimum_required(VERSION 3.1 FATAL_ERROR)

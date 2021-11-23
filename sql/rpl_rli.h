@@ -1689,7 +1689,7 @@ class Relay_log_info : public Rpl_info {
   time_t get_row_stmt_start_timestamp() { return row_stmt_start_timestamp; }
 
   time_t set_row_stmt_start_timestamp() {
-    if (row_stmt_start_timestamp == 0) row_stmt_start_timestamp = my_time(0);
+    if (row_stmt_start_timestamp == 0) row_stmt_start_timestamp = time(nullptr);
 
     return row_stmt_start_timestamp;
   }

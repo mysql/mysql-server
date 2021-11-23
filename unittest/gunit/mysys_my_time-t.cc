@@ -521,7 +521,7 @@ static void BM_my_time(size_t num_iterations) {
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    my_time(0);
+    time(nullptr);
   }
 
   StopBenchmarkTiming();

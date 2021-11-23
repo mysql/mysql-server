@@ -29,6 +29,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "lex_string.h"
 #include "map_helpers.h"
@@ -7120,11 +7121,11 @@ void MYSQL_BIN_LOG::purge() {
     time_t purge_time = 0;
 
     if (binlog_expire_logs_seconds) {
-      purge_time = my_time(0) - binlog_expire_logs_seconds;
+      purge_time = time(nullptr) - binlog_expire_logs_seconds;
     } else
-      purge_time = my_time(0) - expire_logs_days * 24 * 60 * 60;
+      purge_time = time(nullptr) - expire_logs_days * 24 * 60 * 60;
 
-    DBUG_EXECUTE_IF("expire_logs_always", { purge_time = my_time(0); });
+    DBUG_EXECUTE_IF("expire_logs_always", { purge_time = time(nullptr); });
     if (purge_time >= 0) {
       Is_instance_backup_locked_result is_instance_locked =
           is_instance_backup_locked(current_thd);

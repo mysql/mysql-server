@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "include/compression.h"
 #include "include/mutex_lock.h"
@@ -2228,9 +2229,9 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
         */
 
         if (rli->last_event_start_time == 0)
-          rli->last_event_start_time = my_time(0);
+          rli->last_event_start_time = time(nullptr);
         rli->sql_thread_kill_accepted =
-            difftime(my_time(0), rli->last_event_start_time) <=
+            difftime(time(nullptr), rli->last_event_start_time) <=
                     SLAVE_WAIT_GROUP_DONE
                 ? false
                 : true;
@@ -3534,7 +3535,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store((uint32)mi->rli->get_sql_delay());
   // SQL_Remaining_Delay
   if (slave_sql_running_state == stage_sql_thd_waiting_until_delay.m_name) {
-    time_t t = my_time(0), sql_delay_end = mi->rli->get_sql_delay_end();
+    time_t t = time(nullptr), sql_delay_end = mi->rli->get_sql_delay_end();
     protocol->store((uint32)(t < sql_delay_end ? sql_delay_end - t : 0));
   } else
     protocol->store_null();
@@ -4227,7 +4228,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
     }
     if (sql_delay_end != 0) {
       // The current time.
-      time_t now = my_time(0);
+      time_t now = time(nullptr);
       // The amount of time we will have to sleep before executing the event.
       time_t nap_time = 0;
 
@@ -4466,7 +4467,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
       *ptr_ev = nullptr;  // announcing the event is passed to w-worker
 
       if (rli->is_parallel_exec() && rli->mts_events_assigned % 1024 == 1) {
-        time_t my_now = my_time(0);
+        time_t my_now = time(nullptr);
 
         if ((my_now - rli->mts_last_online_stat) >= mts_online_stat_period) {
           LogErr(INFORMATION_LEVEL, ER_RPL_MTS_STATISTICS,
@@ -6502,7 +6503,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->curr_group_seen_begin = rli->curr_group_seen_gtid = false;
   rli->curr_group_isolated = false;
   rli->rli_checkpoint_seqno = 0;
-  rli->mts_last_online_stat = my_time(0);
+  rli->mts_last_online_stat = time(nullptr);
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
   clear_gtid_monitoring_info = true;
 

@@ -96,8 +96,6 @@ inline void sleep(unsigned long seconds) {
 /**
   Get high-resolution time. Forwards to std::chrono.
 
-  @deprecated New code should use std::chrono directly.
-
   @return current high-resolution time in multiples of 100 nanoseconds.
 */
 inline unsigned long long int my_getsystime() {
@@ -169,15 +167,13 @@ inline unsigned long long int diff_timespec(struct timespec *ts1,
 
   @retval current time.
 */
-inline time_t my_time(int) { return time(nullptr); }
+[[deprecated]] inline time_t my_time(int) { return time(nullptr); }
 
 /**
   Return time in microseconds. Uses std::chrono::high_resolution_clock
 
   @remark This function is to be used to measure performance in
           micro seconds.
-
-  @deprecated New code should use std::chrono directly.
 
   @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000
   (UTC)

@@ -537,7 +537,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     }
   }
 
-  time_t tm = my_time(0);
+  time_t tm = time(nullptr);
   get_date(view->timestamp.str,
            GETDATE_DATE_TIME | GETDATE_GMT | GETDATE_FIXEDLENGTH, tm);
   view->timestamp.length = PARSE_FILE_TIMESTAMPLENGTH;

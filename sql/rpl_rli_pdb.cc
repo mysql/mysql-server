@@ -1690,7 +1690,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev) {
   thd->set_time();
   thd->lex->set_current_query_block(nullptr);
   if (!ev->common_header->when.tv_sec)
-    ev->common_header->when.tv_sec = static_cast<long>(my_time(0));
+    ev->common_header->when.tv_sec = static_cast<long>(time(nullptr));
   ev->thd = thd;  // todo: assert because up to this point, ev->thd == 0
   ev->worker = this;
 

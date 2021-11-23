@@ -31,6 +31,6 @@
 int main() {
   std::cout << calc_days_in_year(2000) << std::endl;
   char buf[256];
-  get_date(buf, 0, my_time(0));
+  get_date(buf, 0, time(nullptr));
   std::cout << "Today is " << buf << std::endl;
 }

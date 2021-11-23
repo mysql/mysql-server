@@ -21,6 +21,11 @@ include(CheckIncludeFiles)
 include(CheckTypeSize)
 include(GNUInstallDirs)
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wdocumentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
 # set(CMAKE_COLOR_MAKEFILE off)
 # set(CMAKE_VERBOSE_MAKEFILE on)
 # set(CMAKE_POSITION_INDEPENDENT_CODE ON)

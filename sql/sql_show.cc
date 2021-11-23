@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
@@ -2861,7 +2862,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   // Return list sorted by thread_id.
   std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
 
-  time_t now = my_time(0);
+  time_t now = time(nullptr);
   for (size_t ix = 0; ix < thread_infos.size(); ++ix) {
     thread_info *thd_info = thread_infos.at(ix);
     protocol->start_row();
