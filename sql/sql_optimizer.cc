@@ -9854,7 +9854,7 @@ static bool duplicate_order(const ORDER *first_order,
   @param cond          WHERE condition.
   @param change        If true, remove sub-clauses that need not be evaluated.
                        If this is not set, then only simple_order is calculated.
-  @param simple_order[out]  Set to true if we are only using simple expressions.
+  @param[out] simple_order  Set to true if we are only using simple expressions.
   @param group_by      True if first_order represents a grouping operation.
 
   @returns new sort order, after const elimination (when change is true).

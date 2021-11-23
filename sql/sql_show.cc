@@ -2817,7 +2817,7 @@ class List_process_list : public Do_THD_Impl {
   List running processes (actually connected sessions).
 
   @param thd        thread handle.
-  @param user
+  @param user       Username of connected client.
   @param verbose    if false, limit output to PROCESS_LIST_WIDTH characters.
   @param has_cursor if true, called from a command object that handles
                     terminatation of sending to client, otherwise terminate

@@ -1601,8 +1601,6 @@ static void destroy_materialized(TABLE_LIST *list) {
 
 /**
   Cleanup after preparation of one round of execution.
-
-  @return false if previous execution was successful, and true otherwise
 */
 
 void Query_block::cleanup(THD *thd, bool full) {

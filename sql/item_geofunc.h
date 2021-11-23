@@ -171,14 +171,7 @@ class BG_geometry_collection {
   size_t num_isolated() const { return m_num_isolated; }
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
-  /**
-    Merge all components as appropriate so that the object contains only
-    components that don't overlap.
 
-    @tparam Coordsys Coordinate system type, specified using those defined in
-            boost::geometry::cs.
-    @param[out] pnull_value takes back null_value set during the operation.
-   */
  private:
   bool store_geometry(const Geometry *geo, bool break_multi_geom);
   Geometry *store(const Geometry *geo);

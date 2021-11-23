@@ -3888,7 +3888,8 @@ bool Item_param::set_longdata(const char *str, ulong length) {
   @returns false if success, true if error
 */
 
-bool Item_param::set_from_user_var(THD *, const user_var_entry *entry) {
+bool Item_param::set_from_user_var(THD *thd [[maybe_unused]],
+                                   const user_var_entry *entry) {
   DBUG_TRACE;
   if (entry && entry->ptr()) {
     // An existing user variable that is not NULL
