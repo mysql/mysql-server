@@ -893,7 +893,7 @@ void plugin_escape_string(std::string &string_to_escape);
 /**
   Rearranges the given vector elements randomly.
 
-  @param[in,out] the vector to shuffle
+  @param[in,out] v the vector to shuffle
 */
 template <typename T>
 void vector_random_shuffle(std::vector<T> *v) {
