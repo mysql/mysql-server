@@ -172,7 +172,7 @@ TEST_P(RouterConfigServiceTest, IsErrorReturnedWhenDefaultServiceDoesNotExist) {
     check_exit_code(router, EXIT_FAILURE);
 
     EXPECT_THAT(router.get_full_output(),
-                StartsWith("ERROR: Could not find service '" + service_name +
+                StartsWith("Error: Could not find service '" + service_name +
                            "'!\n"
                            "Use --install-service or --install-service-manual "
                            "option to install the service first.\n"));
