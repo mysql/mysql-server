@@ -66,8 +66,7 @@ exec $MYSQLXTEST
 
 # Use the same socket as mysqld uses
 # X Plugin should fail with allocation
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
-call mtr.add_suppression("Plugin mysqlx reported: .* X Plugin won't be accessible through UNIX socket");
+call mtr.add_suppression("Plugin mysqlx reported: 'X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket");
 
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MASTER_MYSOCK;

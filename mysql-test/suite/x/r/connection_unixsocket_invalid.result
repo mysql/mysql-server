@@ -22,8 +22,7 @@ Application terminated with expected error: No such file or directory, while con
 ok
 Application terminated with expected error: Not a directory, while connecting to  SOCKET (code 2002)
 ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
-call mtr.add_suppression("Plugin mysqlx reported: .* X Plugin won't be accessible through UNIX socket");
+call mtr.add_suppression("Plugin mysqlx reported: 'X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket");
 # restart: --loose-mysqlx-socket= SOCKET
 # restart: --loose-mysqlx-socket= SOCKET
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
