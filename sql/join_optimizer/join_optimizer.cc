@@ -3064,6 +3064,25 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
           multiple_equality_bitmap |= uint64_t{1}
                                       << pred.source_multiple_equality_idx;
         }
+      } else if (already_applied_as_sargable) {
+        // The two subgraphs are joined by at least two (additional) edges
+        // both belonging to the same multiple equality (of which this predicate
+        // is one). One of them, not a sargable predicate, happened to be
+        // earlier in the list, and was thus deemed to be the representative of
+        // that multiple equality. However, we now see another one that is
+        // already applied as sargable, and thus, its selectivity has already
+        // been included. Thus, we need to remove that selectivity again to
+        // avoid double-counting and row count inconsistencies.
+        //
+        // This is a bit of a hack, but it happens pretty rarely, and it's
+        // fairly straightforward. An alternative would be to have a separate
+        // scan over all the delayed predicates that were already applied as
+        // sargable (predicates like the one we are considering right now),
+        // in order to force them into being representative for their multiple
+        // equality.
+        if (pred.selectivity > 1e-6) {
+          join_path->num_output_rows /= pred.selectivity;
+        }
       }
       *new_fd_set |= pred.functional_dependencies;
     } else {
