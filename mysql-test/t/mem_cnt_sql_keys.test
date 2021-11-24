@@ -28,7 +28,7 @@ ANALYZE TABLE t1;
 
 --echo # Testing memory/sql/THD::main_mem_root.
 let $memory_key = memory/sql/THD::main_mem_root;
-let $test_query = SELECT * FROM t1;
+let $test_query = EXPLAIN SELECT f1 FROM t1 WHERE f1 BETWEEN 2 AND 4;
 --source include/mem_cnt_check_err.inc
 
 --echo # Testing memory/sql/Prepared_statement::infrastructure.
