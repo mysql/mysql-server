@@ -2869,7 +2869,7 @@ static int FindCopyBitmap(Item *item) {
     } else {
       bits |= 1 << CFT_HAS_NO_WF;
     }
-    if (item->type() == Item::FIELD_ITEM) {
+    if (item->real_item()->type() == Item::FIELD_ITEM) {
       bits |= 1 << CFT_FIELDS;
     }
   }
