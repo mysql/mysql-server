@@ -7124,6 +7124,32 @@ void Item_equal::print(const THD *thd, String *str,
   str->append(')');
 }
 
+bool Item_equal::eq(const Item *item, bool binary_cmp) const {
+  if (!is_function_of_type(item, Item_func::EQUAL_FUNC)) {
+    return false;
+  }
+  const Item_equal *item_eq = down_cast<const Item_equal *>(item);
+  if ((const_item != nullptr) != (item_eq->const_item != nullptr)) {
+    return false;
+  }
+  if (const_item != nullptr &&
+      !const_item->eq(item_eq->const_item, binary_cmp)) {
+    return false;
+  }
+
+  // NOTE: We assume there are no duplicates in either list.
+  if (fields.size() != item_eq->fields.size()) {
+    return false;
+  }
+  for (const Item_field &field : get_fields()) {
+    if (!item_eq->contains(field.field)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 longlong Item_func_trig_cond::val_int() {
   if (trig_var == nullptr) {
     // We don't use trigger conditions for IS_NOT_NULL_COMPL / FOUND_MATCH in

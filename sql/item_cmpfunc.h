@@ -2592,6 +2592,7 @@ class Item_equal final : public Item_bool_func {
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  bool eq(const Item *item, bool binary_cmp) const override;
   const CHARSET_INFO *compare_collation() const override {
     return fields.head()->collation.collation;
   }
