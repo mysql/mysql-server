@@ -2761,6 +2761,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     const NodeMap used_nodes = GetNodeMapFromTableMap(
         cond->used_tables(), graph->table_num_to_node_num);
     RelationalExpression *expr = nullptr;
+    JoinPredicate *pred = nullptr;
 
     const NodeMap left = IsolateLowestBit(used_nodes);  // Arbitrary.
     const NodeMap right = used_nodes & ~left;
@@ -2771,7 +2772,8 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       if ((edge.left | edge.right) == used_nodes &&
           graph->edges[edge_idx].expr->type ==
               RelationalExpression::INNER_JOIN) {
-        expr = graph->edges[edge_idx].expr;
+        pred = &graph->edges[edge_idx];
+        expr = pred->expr;
         break;
       }
     }
@@ -2818,6 +2820,7 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
       if (dup) {
         continue;
       }
+      pred->selectivity *= EstimateSelectivity(thd, cond, trace);
     }
     if (cond->type() == Item::FUNC_ITEM &&
         down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC) {
