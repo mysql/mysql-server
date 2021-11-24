@@ -3265,3 +3265,24 @@ INSERT INTO t1 VALUES(1);
 SELECT SQL_BUFFER_RESULT MAX(f1)+1, 1 AS f2  FROM t1 GROUP BY f2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33603911: Incorrect result with aggregation by temporary table
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b VARCHAR(1) );
+INSERT INTO t1 VALUES (3, 'Q'), (4, '5');
+
+CREATE TABLE t2 ( a INTEGER );
+INSERT INTO t2 VALUES (3), (4);
+
+SELECT
+  t2d.a,
+  SUM(t1.b) AS field2
+FROM
+  t1
+  JOIN ( SELECT * FROM t2 ) AS t2d ON t1.a = t2d.a
+GROUP BY t2d.a
+HAVING t2d.a <> 3 OR field2 < 5;
+
+DROP TABLE t1, t2;
