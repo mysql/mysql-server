@@ -4194,7 +4194,8 @@ static int dump_tablespaces(char *ts_where) {
                               " ENGINE,"
                               " EXTRA"
                               " FROM INFORMATION_SCHEMA.FILES"
-                              " WHERE FILE_TYPE = 'UNDO LOG'"
+                              " WHERE ENGINE = 'ndbcluster'"
+                              " AND FILE_TYPE = 'UNDO LOG'"
                               " AND FILE_NAME IS NOT NULL"
                               " AND LOGFILE_GROUP_NAME IS NOT NULL",
                               256);
@@ -4203,7 +4204,8 @@ static int dump_tablespaces(char *ts_where) {
                           " AND LOGFILE_GROUP_NAME IN ("
                           "SELECT DISTINCT LOGFILE_GROUP_NAME"
                           " FROM INFORMATION_SCHEMA.FILES"
-                          " WHERE FILE_TYPE = 'DATAFILE'");
+                          " WHERE ENGINE = 'ndbcluster'"
+                          " AND FILE_TYPE = 'DATAFILE'");
     dynstr_append_checked(&sqlbuf, ts_where);
     dynstr_append_checked(&sqlbuf, ")");
   }
