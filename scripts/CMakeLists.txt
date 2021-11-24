@@ -320,8 +320,17 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
         SET(${var} "${${var}} ${lib} ")
       ELSEIF(lib MATCHES "^/")
         # Full path, convert to just filename, strip "lib" prefix and extension
+        GET_FILENAME_COMPONENT(dir "${lib}" DIRECTORY)
         GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
         STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+        # Add -L/usr/local/opt/openssl/lib for ssl (and crypto).
+        IF(APPLE AND WITH_SSL STREQUAL "system" AND ${lib} STREQUAL "ssl")
+          SET(${var} "${${var}}-L${dir} " )
+        ENDIF()
+        # Add -L/usr/local/lib for zstd
+        IF(APPLE AND WITH_ZSTD STREQUAL "system" AND ${lib} STREQUAL "zstd")
+          SET(${var} "${${var}}-L${dir} " )
+        ENDIF()
         SET(${var} "${${var}}-l${lib} " )
       ELSE()
         SET(${var} "${${var}}-l${lib} " )

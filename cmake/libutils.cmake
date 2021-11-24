@@ -263,7 +263,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
 
   MY_TARGET_LINK_OPTIONS(${TARGET} "${export_link_flags}")
 
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  IF(APPLE_WITH_CUSTOM_SSL)
     SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${TARGET})
     # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
     # Create a symlink so that this works for Xcode also.
