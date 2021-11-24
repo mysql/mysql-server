@@ -558,13 +558,13 @@ ENDMACRO()
 # For APPLE builds we support
 #   -DWITH_SSL=</path/to/custom/openssl>
 # SSL libraries are installed in lib/
-# For Makefile buids, we need to support running in the build directory
+# For Makefile builds, we need to support running in the build directory
 #   plugins are in plugin_output_directory/
 # and after 'make install'
 #   plugins are in lib/plugin/ and lib/plugin/debug/
 # For Xcode builds, we support running in the build directories only.
 FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  IF(APPLE_WITH_CUSTOM_SSL)
     IF(BUILD_IS_SINGLE_CONFIG)
       GET_TARGET_PROPERTY(TARGET_TYPE_${target} ${target} TYPE)
       IF(TARGET_TYPE_${target} STREQUAL "MODULE_LIBRARY")

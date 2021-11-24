@@ -1542,18 +1542,32 @@ ENDIF(WITH_LTO)
 # is required by JSON_SCHEMA_VALID, so don't add it automatically until an
 # official version with full support for std::regex is released. The bundled
 # version has the necessary patches to make it work.
+#
+# "system" versions of these for macOS are available from Xcode or Homebrew.
+# Libraries from Xcode have file extension '.tbd'.
+# Libraries from Homebrew have file extension '.dylib'.
+# To get all the Homebrew libraries, do 'brew install' <name of lib>.
 SET(SYSTEM_LIBRARIES
-  CURL
-  EDITLINE
-  ICU
-  LIBEVENT
-  LZ4
-  PROTOBUF
-  SSL
-  ZLIB
-  ZSTD
-  FIDO
+  CURL      # Xcode
+  EDITLINE  # Xcode
+  ICU       # Homebrew  icu4c
+  LIBEVENT  # Homebrew  libevent
+  LZ4       # Homebrew  lz4
+  PROTOBUF  # Homebrew  protobuf
+  SSL       # Homebrew  openssl@1.1
+  ZLIB      # Xcode
+  ZSTD      # Homebrew  zstd
+  FIDO      # Homebrew  libfido2
   )
+
+IF(APPLE)
+  # Homebrew default location is
+  IF(APPLE_ARM)
+    SET(HOMEBREW_HOME "/opt/homebrew/opt")
+  ELSE()
+    SET(HOMEBREW_HOME "/usr/local/opt")
+  ENDIF()
+ENDIF()
 
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
 OPTION(WITH_SYSTEM_LIBS

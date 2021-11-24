@@ -40,7 +40,7 @@ ADD_SUBDIRECTORY(routing)
 
 # Directory layout after 'make install' is different.
 # Create symlinks to ssl libraries for both: build and install layouts
-IF (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+IF (APPLE_WITH_CUSTOM_SSL)
   FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/mysqlrouter")
 
   ADD_CUSTOM_TARGET(link_openssl_dlls_for_install_mysqlrouter ALL

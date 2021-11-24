@@ -126,7 +126,7 @@ FUNCTION(add_harness_plugin NAME)
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
   )
 
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  IF(APPLE_WITH_CUSTOM_SSL)
     ADD_CUSTOM_COMMAND(TARGET ${NAME} POST_BUILD
       COMMAND install_name_tool -change
               "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"

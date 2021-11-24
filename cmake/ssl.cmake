@@ -21,7 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # We support different versions of SSL:
-# - "system"  (typically) uses headers/libraries in /usr/lib and /usr/lib64
+# - "system"  (typically) uses headers/libraries in /usr/include and
+#       /usr/lib or /usr/lib64
 # - a custom installation of openssl can be used like this
 #     - cmake -DCMAKE_PREFIX_PATH=</path/to/custom/openssl> -DWITH_SSL="system"
 #   or
@@ -38,11 +39,22 @@
 #     https://slproweb.com/products/Win32OpenSSL.html
 #     find_package(OpenSSL) will locate it
 # or
-#     http://brewformulas.org/Openssl
-#     we give a hint /usr/local/opt/openssl to find_package(OpenSSL)
-# When the package has been located, we treat it as if cmake had been
-# invoked with  -DWITH_SSL=</path/to/custom/openssl>
-
+#     https://brew.sh
+#     https://formulae.brew.sh/formula/openssl@1.1
+#     we give a hint ${HOMEBREW_HOME}/openssl@1.1 to find_package(OpenSSL)
+#
+# On Windows, we treat this "system" library as if cmake had been
+# invoked with -DWITH_SSL=</path/to/custom/openssl>
+#
+# On macOS we treat it as a system library, which means that the generated
+# binaries end up having dependencies on Homebrew libraries.
+# Note that 'cmake -DWITH_SSL=<some path>'
+# is NOT handled in the same way as 'cmake -DWITH_SSL=system'
+# which means that for
+# 'cmake -DWITH_SSL=/usr/local/opt/openssl'
+#    or, on Apple silicon:
+# 'cmake -DWITH_SSL=/opt/homebrew/opt/openssl'
+# we will treat the libraries as external, and copy them into our build tree.
 
 SET(WITH_SSL_DOC "\nsystem (use the OS openssl library)")
 SET(WITH_SSL_DOC
@@ -112,23 +124,20 @@ MACRO (MYSQL_CHECK_SSL)
     SET(WITH_SSL "system" CACHE INTERNAL "Use system SSL libraries" FORCE)
   ENDIF()
 
+
   IF(WITH_SSL STREQUAL "system" OR WITH_SSL_PATH)
-    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
     IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
       # FindOpenSSL.cmake knows about
       # http://www.slproweb.com/products/Win32OpenSSL.html
       # and will look for "C:/Program Files/OpenSSL-Win64/" (and others)
-      # For APPLE we set the hint /usr/local/opt/openssl
+      # For APPLE we set the hint ${HOMEBREW_HOME}/openssl@1.1
       IF(LINK_STATIC_RUNTIME_LIBRARIES)
         SET(OPENSSL_MSVC_STATIC_RT ON)
       ENDIF()
       IF(APPLE AND NOT OPENSSL_ROOT_DIR)
-        IF(APPLE_ARM)
-          SET(OPENSSL_ROOT_DIR "/opt/homebrew/opt/openssl")
-        ELSE()
-          SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
-        ENDIF()
+        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
       ENDIF()
+      # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
       IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
         # We want to be able to support 32bit client-only builds
         # FindOpenSSL.cmake will look for 32bit before 64bit ...
@@ -160,11 +169,14 @@ MACRO (MYSQL_CHECK_SSL)
             MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
           ENDIF()
         ENDIF()
-      ENDIF()
+      ENDIF(WIN32 AND NOT OPENSSL_ROOT_DIR)
+
+      # Input hint is OPENSSL_ROOT_DIR.
+      # Will set OPENSSL_FOUND, OPENSSL_INCLUDE_DIR and others.
       FIND_PACKAGE(OpenSSL)
+
       IF(OPENSSL_FOUND)
         GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
-        MESSAGE(STATUS "system OpenSSL has root ${OPENSSL_ROOT_DIR}")
         SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
       ELSE()
         RESET_SSL_VARIABLES()
@@ -343,7 +355,6 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
       MESSAGE(STATUS "CRYPTO_EXT ${CRYPTO_EXT}")
       IF(CRYPTO_EXT STREQUAL ".so" AND OPENSSL_EXT STREQUAL ".so")
-        MESSAGE(STATUS "set HAVE_CRYPTO_SO HAVE_OPENSSL_SO")
         SET(HAVE_CRYPTO_SO 1)
         SET(HAVE_OPENSSL_SO 1)
       ENDIF()
@@ -373,12 +384,17 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
       MESSAGE(STATUS "CRYPTO_EXT ${CRYPTO_EXT}")
       IF(CRYPTO_EXT STREQUAL ".dylib" AND OPENSSL_EXT STREQUAL ".dylib")
-        MESSAGE(STATUS "set HAVE_CRYPTO_DYLIB HAVE_OPENSSL_DYLIB")
         SET(HAVE_CRYPTO_DYLIB 1)
         SET(HAVE_OPENSSL_DYLIB 1)
+        IF(WITH_SSL STREQUAL "system")
+          MESSAGE(STATUS "Using system OpenSSL from Homebrew")
+        ELSE()
+          SET(APPLE_WITH_CUSTOM_SSL 1)
+        ENDIF()
       ENDIF()
-    ENDIF()
-    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    ENDIF(APPLE)
+
+    IF(APPLE_WITH_CUSTOM_SSL)
       # CRYPTO_LIBRARY is .../lib/libcrypto.dylib
       # CRYPTO_VERSION is .../lib/libcrypto.1.0.0.dylib
       EXECUTE_PROCESS(
@@ -418,7 +434,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
 
       # Do copying and dependency patching in a sub-process, so that we can
       # skip it if already done.  The BYPRODUCTS argument appears to be
-      # necessary to allow Ninja (on MacOS) to resolve dependencies on the dll
+      # necessary to allow Ninja (on macOS) to resolve dependencies on the dll
       # files directly, even if there is an explicit dependency on this target.
       # The BYPRODUCTS option is ignored on non-Ninja generators except to mark
       # byproducts GENERATED.
@@ -521,7 +537,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
           )
       ENDIF()
-    ENDIF()
+    ENDIF(APPLE_WITH_CUSTOM_SSL)
 
     IF(WIN32)
       GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
