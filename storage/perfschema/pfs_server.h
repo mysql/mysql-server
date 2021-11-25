@@ -297,14 +297,6 @@ struct PFS_global_param {
 extern PFS_global_param pfs_param;
 
 /**
-  Global flag used to enable and disable SHOW PROCESSLIST in the
-  performance schema. This flag only takes effect if the performance schema
-  is configured to support SHOW PROCESSLIST.
-  @sa performance-schema-enable-processlist
-*/
-extern bool pfs_processlist_enabled;
-
-/**
   Null initialization.
   Disable all instrumentation, size all internal buffers to 0.
   This pre initialization step is needed to ensure that events can be collected

@@ -126,9 +126,10 @@
 #include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_lex.h"
-#include "sql/sql_locale.h"     // my_locale_by_number
-#include "sql/sql_parse.h"      // killall_non_super_threads
-#include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
+#include "sql/sql_locale.h"            // my_locale_by_number
+#include "sql/sql_parse.h"             // killall_non_super_threads
+#include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
+#include "sql/sql_tmp_table.h"         // internal_tmp_mem_storage_engine_names
 #include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
