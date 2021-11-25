@@ -1,0 +1,46 @@
+--echo #
+--echo # Bug #33135425	RACE CONDITION LEADING TO ASSERTION ON UNINITIALIZED STATS
+--echo #
+
+--source include/have_debug.inc
+set global table_open_cache = 16;
+
+create table t (i int, j int, primary key(i), key(j));
+create table u (i int, j int, primary key(i), key(j));
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+
+connection con1;
+
+select * from t;
+select * from u;
+select * from t;
+select * from u;
+select * from t;
+
+connection con2;
+SET DEBUG_SYNC = 'after_open_tables SIGNAL c0 WAIT_FOR c1';
+SET DEBUG_SYNC = 'innodb.after_init_check SIGNAL c2 WAIT_FOR c3';
+send show keys in t;
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR c0';
+# With the fix the debug sync  value would just timeout
+SET DEBUG_SYNC = 'innodb.before_stats_deinit SIGNAL c1 WAIT_FOR c2 TIMEOUT 5 ';
+send select * from u;
+
+connection con1;
+reap;
+SET DEBUG_SYNC = 'now SIGNAL c3';
+
+connection con2;
+reap;
+
+connection default;
+disconnect con1;
+disconnect con2;
+SET DEBUG_SYNC ='RESET';
+
+drop table t,u;
+set global table_open_cache = default;

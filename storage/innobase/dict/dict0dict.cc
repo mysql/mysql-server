@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 1/8/1996 Heikki Tuuri
  ***********************************************************************/
 
+#include "debug_sync.h"
 #include "my_config.h"
 
 #include <stdlib.h>
@@ -543,6 +544,7 @@ void dict_table_close(dict_table_t *table, ibool dict_locked, ibool try_drop) {
   stats re-reads (e.g. in other cases than FLUSH TABLE). */
   if (strchr(table->name.m_name, '/') != nullptr &&
       table->get_ref_count() == 0 && dict_stats_is_persistent_enabled(table)) {
+    DEBUG_SYNC(current_thd, "innodb.before_stats_deinit");
     dict_stats_deinit(table);
   }
 

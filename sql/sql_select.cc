@@ -373,6 +373,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
     lex->cleanup(thd, false);
     return true;
   }
+  DEBUG_SYNC(thd, "after_open_tables");
 #ifndef NDEBUG
   if (sql_command_code() == SQLCOM_SELECT) DEBUG_SYNC(thd, "after_table_open");
 #endif

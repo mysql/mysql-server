@@ -17486,6 +17486,7 @@ static bool innobase_get_index_column_cardinality(
         ut_a(ib_table->stat_initialized != 0);
       }
 
+      DEBUG_SYNC(thd, "innodb.after_init_check");
       if (index->type & (DICT_FTS | DICT_SPATIAL)) {
         /* For these indexes innodb_rec_per_key is
         fixed as 1.0 */
