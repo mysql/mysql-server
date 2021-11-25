@@ -493,6 +493,7 @@ void LEX::reset() {
   grant_as.cleanup();
   alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
   m_is_replication_deprecated_syntax_used = false;
+  m_was_replication_command_executed = false;
 
   plugin_var_bind_list.clear();
 }

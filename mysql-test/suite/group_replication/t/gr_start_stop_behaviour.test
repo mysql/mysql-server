@@ -11,48 +11,48 @@
 #
 # Test:
 # 0. The test requires two servers: M1 and M2.
-# 1. After starting the group replication, grep the error log to check that NOTE is generated
-# 2. With both the members ONLINE. Create a table on M1.
-# 3. Initiate a transaction on M1 and try stop GR in the middle of the transaction
+# 1. With both the members ONLINE. Create a table on M1.
+# 2. Initiate a transaction on M1 and try stop GR in the middle of the transaction
 #  - Check that STOP GR throws ER_LOCK_OR_ACTIVE_TRANSACTION
 #  - Check that the failure did not utilize any GTID values
 #  - Check that the failure did not committed any ongoing transaction
 #  - COMMIT on M1 (UUID_M1:1). Check data is available in table on M1.
 #  - Check data is available in table on M2.
-# 4. Stop GR while GTID_NEXT is specified on M1.
-#  - Check that STOP GR is succesful.
-#  - Check GTID_OWNED is non-empty.
+# 3. Stop GR while GTID_NEXT is specified on M1.
+#  - Check that STOP GR fails
+#  - Check GTID_OWNED is not affected
 #  - COMMIT and set GTID_NEXT to AUTOMATIC . Check GTID_OWNED is empty.
 #  - Check GTID_EXECUTED on M1.
-# 5. Initiate a transaction on M1 and try start GR in the middle of the transaction
+# 4. Initiate a transaction on M1 and try start GR in the middle of the transaction
 #  - Check that START GR throws ER_LOCK_OR_ACTIVE_TRANSACTION
 #  - Check that the failure did not utilize any GTID values
 #  - Check that the failure did not committed any ongoing transaction
 #  - COMMIT on M1 (UUID_M1:1). Check data is available in table on M1.
 #  - Clean server by doing RESET MASTER
-# 6. Initiate a transaction on M1 (session 1) and try to start GR from session 2
+# 5. Initiate a transaction on M1 (session 1) and try to start GR from session 2
 #  - From session 1, INSERT a tuple into table that does not have primary key
 #     i.e., GR incompatible DML
 #  - From session 2, START GROUP_REPLICATION
 #  - Try to commit session1's transaction, check that COMMIT fails in before_commit hook
 #     because there are no writeset for the transaction
 #
-# 7. Start GR on M1 while GTID_NEXT is specified.
-#  - Check GTID_OWNED is non-empty.
+# 6. Start GR on M1 while GTID_NEXT is specified.
+#  - Check START fails
+#  - Check GTID_OWNED is non-empty after the failure
 #  - COMMIT and set GTID_NEXT to AUTOMATIC on M1. Check GTID_OWNED is empty.
 #  - Check GTID_EXECUTED on M1.
-# 8. Acquire LOCK on table using LOCK TABLE and try to stop group replication
+# 7. Acquire LOCK on table using LOCK TABLE and try to stop group replication
 #  - On M2, Session 1, LOCK table t1.
 #  - On M1, Insert a tuple into t1
 #  - Let the Insert reach applier thread on M2 and wait till it is trying acquire lock on t1
 #  - Check that STOP GR on session 1 fails with error ER_LOCK_OR_ACTIVE_TRANSACTION
 #  - Unlock the tables to proceed with next test case
-# 9. Acquire LOCK on table using LOCK TABLE and try to start group replication
+# 8. Acquire LOCK on table using LOCK TABLE and try to start group replication
 #  - STOP GR to test the case
 #  - Lock table t1
 #  - Check that START GR fails with error ER_LOCK_OR_ACTIVE_TRANSACTION
 #  - Unlock the tables and START GR and proceed to the next step
-# 10. Clean up.
+# 9. Clean up.
 ################################################################################
 
 --source include/big_test.inc
@@ -127,22 +127,37 @@ COMMIT;
 --echo
 --echo ############################################################
 --echo # 3. Stop Group Replication while GTID_NEXT is specified
---echo #    and check that GTID is not used by STOP GROUP_REPLICATION
---echo #    to prove that STOP GROUP_REPLICATION does not create any
+--echo #    and check an error is thrown to prove that
+--echo #    STOP GROUP_REPLICATION does not create any
 --echo #    implicit commits.
 --echo ############################################################
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
---source include/stop_group_replication.inc
+
+--error ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
+STOP GROUP_REPLICATION;
+
+--let $session_gtid_owned = `SELECT @@SESSION.GTID_OWNED;`
+
+# Do the checks on another connection as asserts wont fail properly in the session context
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
 
 --let $assert_text= GTID_EXECUTED must contain 4 group transactions
 --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-4")
 --source include/assert.inc
 
 --let $assert_text= GTID_OWNED is still set since aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 transaction was not committed
---let $assert_cond= "[SELECT @@SESSION.GTID_OWNED]" <> ""
+--let $assert_cond= "$session_gtid_owned" <> ""
 --source include/assert.inc
+
+# Stop Group Replication on another connection
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 
 COMMIT;
 SET GTID_NEXT= AUTOMATIC;
@@ -237,6 +252,7 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo ############################################################
 --echo # 6. Start Group Replication while GTID_NEXT is specified.
+--echo #    It shall fail leaving GTID_NEXT untouched
 --echo ############################################################
 
 # Stop group replication to get ready to test the next scenario.
@@ -248,16 +264,28 @@ RESET MASTER;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
---source include/start_group_replication.inc
 
---let $assert_text= GTID_EXECUTED must contain 6 group transactions
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
+--error ER_CANT_EXECUTE_COMMAND_WITH_ASSIGNED_GTID_NEXT
+START GROUP_REPLICATION;
+
+--let $session_gtid_owned = `SELECT @@SESSION.GTID_OWNED;`
+
+# Do the checks on another connection as asserts wont fail properly in the session context
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $assert_text= GTID_EXECUTED is empty
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"")
 --source include/assert.inc
 
---let $assert_text= GTID_OWNED is still set since ongoing transaction was not committed
---let $assert_cond= "[SELECT @@SESSION.GTID_OWNED]" <> ""
+--let $assert_text= GTID_OWNED is still set since the ongoing transaction was not committed
+--let $assert_cond= "$session_gtid_owned" <> ""
 --source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 
 COMMIT;
 
@@ -267,8 +295,17 @@ SET GTID_NEXT= AUTOMATIC;
 --let $assert_cond= "[SELECT @@SESSION.GTID_OWNED]" = ""
 --source include/assert.inc
 
---let $assert_text= GTID_EXECUTED must contain 6 group transactions and 1 local transaction
---let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6,aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
+--let $assert_text= GTID_EXECUTED must contain only the local transaction
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1")
+--source include/assert.inc
+
+# Clean server since it has more transactions than the group.
+RESET MASTER;
+
+--source include/start_group_replication.inc
+
+--let $assert_text= GTID_EXECUTED must contain 6 group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED,"$group_replication_group_name:1-6")
 --source include/assert.inc
 
 --echo

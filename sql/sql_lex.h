@@ -4330,6 +4330,18 @@ struct LEX : public Query_tables_list {
     m_is_replication_deprecated_syntax_used = true;
   }
 
+ private:
+  bool m_was_replication_command_executed{false};
+
+ public:
+  bool was_replication_command_executed() const {
+    return m_was_replication_command_executed;
+  }
+
+  void set_was_replication_command_executed() {
+    m_was_replication_command_executed = true;
+  }
+
   bool set_channel_name(LEX_CSTRING name = {});
 };
 
