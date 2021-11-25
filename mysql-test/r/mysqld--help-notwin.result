@@ -125,6 +125,12 @@ The following options may be given as the first argument:
  to a fatal error, this option determines whether the
  server ignores the error and closes the binary log, or
  aborts.
+ --binlog-expire-logs-auto-purge 
+ Controls whether the server shall automatically purge
+ binary log files or not. If this variable is set to FALSE
+ then the server will not purge binary log files
+ automatically.
+ (Defaults to on; use --skip-binlog-expire-logs-auto-purge to disable.)
  --binlog-expire-logs-seconds=# 
  If non-zero, binary logs will be purged after
  binlog_expire_logs_seconds seconds; If both this option
@@ -1637,6 +1643,7 @@ binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-encryption FALSE
 binlog-error-action ABORT_SERVER
+binlog-expire-logs-auto-purge TRUE
 binlog-expire-logs-seconds 2592000
 binlog-format ROW
 binlog-group-commit-sync-delay 0

@@ -251,6 +251,7 @@ extern bool opt_using_transactions;
 extern ulong current_pid;
 extern ulong expire_logs_days;
 extern ulong binlog_expire_logs_seconds;
+extern bool opt_binlog_expire_logs_auto_purge;
 extern uint sync_binlog_period, sync_relaylog_period, sync_relayloginfo_period,
     sync_masterinfo_period, opt_mta_checkpoint_period, opt_mta_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;

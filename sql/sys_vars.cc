@@ -2154,6 +2154,14 @@ static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr));
 
+static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
+    "binlog_expire_logs_auto_purge",
+    "Controls whether the server shall automatically purge binary log "
+    "files or not. If this variable is set to FALSE then the server will "
+    "not purge binary log files automatically.",
+    GLOBAL_VAR(opt_binlog_expire_logs_auto_purge), CMD_LINE(OPT_ARG),
+    DEFAULT(true));
+
 static Sys_var_bool Sys_flush(
     "flush", "Flush MyISAM tables to disk between SQL commands",
     GLOBAL_VAR(myisam_flush), CMD_LINE(OPT_ARG), DEFAULT(false));
@@ -4177,7 +4185,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
          binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
 
-  if (check_purge) mysql_bin_log.purge();
+  if (check_purge) mysql_bin_log.auto_purge();
 
   return false;
 }
