@@ -50,7 +50,7 @@
 using namespace std::string_view_literals;
 IMPORT_LOG_FUNCTIONS()
 
-const std::array<const char *, 27> routing_supported_options{
+const std::array<const char *, 29> routing_supported_options{
     "protocol",
     "destinations",
     "bind_port",
@@ -60,6 +60,7 @@ const std::array<const char *, 27> routing_supported_options{
     "mode",
     "routing_strategy",
     "max_connect_errors",
+    "max_connections",
     "client_connect_timeout",
     "net_buffer_length",
     "thread_stack_size",
@@ -77,7 +78,8 @@ const std::array<const char *, 27> routing_supported_options{
     "server_ssl_capath",
     "server_ssl_crl",
     "server_ssl_crlpath",
-    "server_ssl_curves"};
+    "server_ssl_curves",
+    "unreachable_destination_refresh_interval"};
 
 using StringOption = mysql_harness::StringOption;
 

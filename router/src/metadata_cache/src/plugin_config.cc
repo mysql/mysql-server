@@ -50,10 +50,11 @@ using StringOption = mysql_harness::StringOption;
 template <typename T>
 using IntOption = mysql_harness::IntOption<T>;
 
-const std::array<const char *, 11> metadata_cache_supported_options{
+const std::array<const char *, 12> metadata_cache_supported_options{
     {"user", "ttl", "auth_cache_ttl", "auth_cache_refresh_interval",
      "metadata_cluster", "connect_timeout", "read_timeout", "router_id",
-     "thread_stack_size", "use_gr_notifications", "cluster_type"}};
+     "thread_stack_size", "use_gr_notifications", "cluster_type",
+     "bootstrap_server_addresses"}};
 
 std::string MetadataCachePluginConfig::get_default(
     const std::string &option) const {

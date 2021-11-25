@@ -244,7 +244,7 @@ static const BrokenConfigParams broken_config_params[]{
              "metadata_cache",
              {
                  {"user", "foobar"},
-                 {"bootstrap_server_address", ""},
+                 {"bootstrap_server_addresses", ""},
              }),
      },
      "list of metadata-servers is empty: 'bootstrap_server_addresses' is the "

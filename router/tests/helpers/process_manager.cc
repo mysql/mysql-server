@@ -554,11 +554,14 @@ std::string ProcessManager::create_config_file(
   }
 
   ofs_config << make_DEFAULT_section(default_section);
+  // overwrite the default bahavior (which is a warning) to make the Router
+  // fail if unknown option is used
+  ofs_config << "unknown_config_option=error" << std::endl;
   ofs_config << extra_defaults << std::endl;
   ofs_config << sections << std::endl;
   if (enable_debug_logging) {
-    ofs_config
-        << "[logger]\nlevel = DEBUG\ntimestamp_precision=millisecond\n\n";
+    ofs_config << mysql_harness::ConfigBuilder::build_section(
+        "logger", {{"level", "debug"}, {"timestamp_precision", "millisecond"}});
   }
   ofs_config.close();
 

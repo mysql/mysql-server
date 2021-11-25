@@ -37,7 +37,7 @@
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
-extern const std::array<const char *, 27> routing_supported_options;
+extern const std::array<const char *, 29> routing_supported_options;
 
 /**
  * route specific configuration.

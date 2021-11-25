@@ -322,7 +322,7 @@ class OverwriteIgnoreUnknownOptionTest
       public ::testing::WithParamInterface<std::string> {};
 
 /* @test Non-existing option of a valid section is just ignored the same way it
- * is in the configuration file */
+ * is in the configuration file when unknown_config_option=warning */
 TEST_P(OverwriteIgnoreUnknownOptionTest, OverwriteIgnoreUnknownOption) {
   const auto router_port1 = port_pool_.get_next_available();
   const auto router_port2 = port_pool_.get_next_available();
@@ -339,7 +339,9 @@ TEST_P(OverwriteIgnoreUnknownOptionTest, OverwriteIgnoreUnknownOption) {
 
   launch_mysql_server_mock(simple_trace_file, server_port, EXIT_SUCCESS);
 
-  launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
+  launch_router({"-c", conf_file, overwrite_param,
+                 "--DEFAULT.unknown_config_option", "warning"},
+                EXIT_SUCCESS, 5s);
 
   make_new_connection_ok(router_port1, server_port);
 }
