@@ -482,6 +482,7 @@ void LEX::reset() {
   reset_exec_started();
   max_execution_time = 0;
   reparse_common_table_expr_at = 0;
+  reparse_derived_table_condition = false;
   opt_hints_global = nullptr;
   binlog_need_explicit_defaults_ts = false;
   m_extended_show = false;
