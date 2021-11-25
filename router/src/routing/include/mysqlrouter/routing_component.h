@@ -94,6 +94,8 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   bool is_accepting_connections() const;
 
+  bool is_running() const;
+
  private:
   std::shared_ptr<MySQLRoutingBase> r_;
 };

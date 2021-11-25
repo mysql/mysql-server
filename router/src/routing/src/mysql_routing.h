@@ -258,7 +258,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /**
    * Stop accepting new connections on a listening socket.
    */
-  void stop_socket_acceptors(const mysql_harness::PluginFuncEnv *env) override;
+  void stop_socket_acceptors() override;
 
   /**
    * Check if we are accepting connections on a routing socket.
@@ -272,8 +272,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    *
    * @returns std::error_code on errors.
    */
-  stdx::expected<void, std::error_code> start_accepting_connections(
-      const mysql_harness::PluginFuncEnv *env) override;
+  stdx::expected<void, std::error_code> start_accepting_connections() override;
 
   /**
    * Register a callback that can to be used to add a destination candidate
@@ -384,6 +383,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  public:
   MySQLRoutingContext &get_context() override { return context_; }
 
+  bool is_running() const override { return is_running_; }
+
  private:
   /** Monitor for notifying socket acceptor */
   WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
@@ -434,7 +435,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   ConnectionContainer connection_container_;
 
   /** Information if the routing plugging is still running. */
-  std::atomic<bool> routing_stopped_{false};
+  std::atomic<bool> is_running_{true};
 
   /**
    * Callbacks for communicating with quarantined destination candidates

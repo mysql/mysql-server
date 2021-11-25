@@ -71,10 +71,11 @@ class ROUTING_EXPORT MySQLRoutingBase
   virtual bool is_accepting_connections() const = 0;
   virtual routing::RoutingStrategy get_routing_strategy() const = 0;
   virtual routing::AccessMode get_mode() const = 0;
-  virtual stdx::expected<void, std::error_code> start_accepting_connections(
-      const mysql_harness::PluginFuncEnv *env) = 0;
-  virtual void stop_socket_acceptors(
-      const mysql_harness::PluginFuncEnv *env) = 0;
+  virtual stdx::expected<void, std::error_code>
+  start_accepting_connections() = 0;
+  virtual void stop_socket_acceptors() = 0;
+
+  virtual bool is_running() const = 0;
 };
 
 #endif  // ROUTING_MYSQL_ROUTING_BASE_INCLUDED

@@ -119,6 +119,8 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
+bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
+
 void MySQLRoutingComponent::deinit() {
   routing_common_unreachable_destinations_.clear_quarantine();
   for (auto &route : routes_) {

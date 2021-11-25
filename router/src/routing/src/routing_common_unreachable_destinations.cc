@@ -192,7 +192,7 @@ void RoutingCommonUnreachableDestinations::quarantine_handler(
         pos->address_.str().c_str());
     auto &routing_instances = pos->referencing_routing_instances_;
     for (const auto routing_instance : routing_instances) {
-      routing_instance->start_accepting_connections(env_);
+      routing_instance->start_accepting_connections();
     }
     quarantined_destination_candidates_.erase(pos);
   } else {
@@ -213,7 +213,7 @@ void RoutingCommonUnreachableDestinations::
     if (std::all_of(
             std::cbegin(destinations), std::cend(destinations),
             [this](const auto &dest) { return is_quarantined(dest); })) {
-      routing_instance->stop_socket_acceptors(env_);
+      routing_instance->stop_socket_acceptors();
     }
   }
 }
