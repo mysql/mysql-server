@@ -1777,13 +1777,14 @@ bool CostingReceiver::ProposeRefAccess(
   MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
                                             m_graph.predicates.size()};
   for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
-    int keypart_idx = WasPushedDownToRef(m_graph.predicates[i].condition,
-                                         keyparts, matched_keyparts);
+    const Predicate &pred = m_graph.predicates[i];
+    int keypart_idx =
+        WasPushedDownToRef(pred.condition, keyparts, matched_keyparts);
     if (keypart_idx == -1) {
       continue;
     }
 
-    if (m_graph.predicates[i].was_join_condition) {
+    if (pred.was_join_condition) {
       // This predicate was promoted from a join condition to a WHERE predicate,
       // since it was part of a cycle. For purposes of sargable predicates,
       // we always see all relevant join conditions, so skip it this time
@@ -1792,29 +1793,36 @@ bool CostingReceiver::ProposeRefAccess(
       continue;
     }
 
-    if (!IsSubset(
-            m_graph.predicates[i].condition->used_tables() & ~PSEUDO_TABLE_BITS,
-            table->pos_in_table_list->map())) {
-      join_condition_selectivity *= m_graph.predicates[i].selectivity;
+    if (i < m_graph.num_where_predicates &&
+        pred.used_nodes != pred.total_eligibility_set) {
+      // This is a WHERE condition that is either nondeterministic,
+      // or after an outer join, so it is not sargable. (Having these
+      // show up here is very rare, but will get more common when we
+      // get to (x=... OR NULL) predicates.)
+      continue;
     }
 
-    num_output_rows *= m_graph.predicates[i].selectivity;
+    if (!IsSubset(pred.condition->used_tables() & ~PSEUDO_TABLE_BITS,
+                  table->pos_in_table_list->map())) {
+      join_condition_selectivity *= pred.selectivity;
+    }
+
+    num_output_rows *= pred.selectivity;
     applied_predicates.SetBit(i);
 
     const KeypartForRef &keypart = keyparts[keypart_idx];
     if (ref_lookup_subsumes_comparison(keypart.field, keypart.val)) {
       if (m_trace != nullptr) {
-        *m_trace +=
-            StringPrintf(" - %s is subsumed by ref access on %s.%s\n",
-                         ItemToString(m_graph.predicates[i].condition).c_str(),
-                         table->alias, keypart.field->field_name);
+        *m_trace += StringPrintf(" - %s is subsumed by ref access on %s.%s\n",
+                                 ItemToString(pred.condition).c_str(),
+                                 table->alias, keypart.field->field_name);
       }
       subsumed_predicates.SetBit(i);
     } else {
       if (m_trace != nullptr) {
         *m_trace += StringPrintf(
             " - %s is not fully subsumed by ref access on %s.%s, keeping\n",
-            ItemToString(m_graph.predicates[i].condition).c_str(), table->alias,
+            ItemToString(pred.condition).c_str(), table->alias,
             keypart.field->field_name);
       }
     }
