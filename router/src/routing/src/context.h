@@ -44,6 +44,7 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/base_protocol.h"
+#include "shared_quarantine_handler.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
 
@@ -127,6 +128,19 @@ class MySQLRoutingContext {
 
   const std::string &get_name() const { return name_; }
 
+  /**
+   * identifier part of the name.
+   *
+   * name has the form 'routing:{id}'
+   */
+  std::string get_id() const {
+    auto pos = name_.find(':');
+
+    if (pos == name_.npos) return {};
+
+    return name_.substr(pos + 1);
+  }
+
   unsigned int get_net_buffer_length() const { return net_buffer_length_; }
 
   std::chrono::milliseconds get_destination_connect_timeout() const {
@@ -167,6 +181,10 @@ class MySQLRoutingContext {
     return destination_tls_context_->get(dest_id);
   }
 
+  SharedQuarantineHandler &shared_quarantine() {
+    return shared_quarantine_handler_;
+  }
+
  private:
   /** protocol type. */
   BaseProtocol::Type protocol_;
@@ -202,6 +220,12 @@ class MySQLRoutingContext {
 
   SslMode server_ssl_mode_{SslMode::kPreferred};
   DestinationTlsContext *destination_tls_context_{};
+
+  /**
+   * Callbacks for communicating with quarantined destination candidates
+   * instance.
+   */
+  SharedQuarantineHandler shared_quarantine_handler_;
 
  public:
   /** @brief Connection error counters for IPv4 hosts */

@@ -419,7 +419,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       r->set_destinations_from_csv(config.destinations);
     }
     MySQLRoutingComponent::get_instance().init(
-        section->key, r, env, config.unreachable_destination_refresh_interval);
+        section->key, r, config.unreachable_destination_refresh_interval);
 
     Scope_guard guard{[section_key = section->key]() {
       MySQLRoutingComponent::get_instance().erase(section_key);

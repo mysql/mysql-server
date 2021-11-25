@@ -92,7 +92,11 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
+  void start_accepting_connections();
+
   bool is_accepting_connections() const;
+
+  void stop_socket_acceptors();
 
   bool is_running() const;
 
@@ -109,7 +113,6 @@ class ROUTING_EXPORT MySQLRoutingComponent {
   void init(const mysql_harness::Config &config);
 
   void init(const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
-            mysql_harness::PluginFuncEnv *env,
             std::chrono::seconds quarantine_refresh_interval);
 
   void erase(const std::string &name);

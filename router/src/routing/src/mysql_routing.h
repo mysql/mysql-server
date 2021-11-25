@@ -274,79 +274,6 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   stdx::expected<void, std::error_code> start_accepting_connections() override;
 
-  /**
-   * Register a callback that can to be used to add a destination candidate
-   * to the quarantine.
-   *
-   * @param[in] clb Callback called to quarantine a destination.
-   */
-  void register_shared_quarantine_update_callback(
-      SharedQuarantineUpdateCallback clb) override;
-
-  /**
-   * Register a callback that can be used to check if the given destination
-   * candidate is currently quarantined.
-   *
-   * @param[in] clb Callback called to check if the destination is quarantined.
-   */
-  void register_shared_quarantine_query_callback(
-      SharedQuarantineQueryCallback clb) override;
-
-  /**
-   * Register a callback that can be used to clear the unreachable destination
-   * candidates quarantine.
-   *
-   * @param[in] clb Callback called to remove all destinations from quarantine.
-   */
-  void register_shared_quarantine_clear_callback(
-      SharedQuarantineClearCallback clb) override;
-
-  /**
-   * Register a callback used for refreshing the quarantined destinations when
-   * there are possible changes in the destination candidates set.
-   *
-   * @param[in] clb Callback called on metadata refresh.
-   */
-  void register_shared_quarantine_md_nodes_refresh_callback(
-      SharedQuarantineRefreshCallback clb) override;
-
-  /**
-   * Unregister all of the destination candidates quarantine callbacks.
-   */
-  void unregister_shared_quarantine_callbacks() override;
-
-  /**
-   * Add destination candidate to quarantine.
-   *
-   * @param[in] dest Destination candidate that will be quarantined.
-   */
-  void add_destination_to_shared_quarantine(mysql_harness::TCPAddress dest);
-
-  /**
-   * Check if the given destination candidate is currently quarantined.
-   *
-   * @param[in] dest Destination candidate.
-   * @return true if the destination candidate is quarantined, false otherwise.
-   */
-  bool is_destination_quarantined(mysql_harness::TCPAddress dest);
-
-  /**
-   * Clear destination candidates quarantine.
-   */
-  void clear_shared_quarantine();
-
-  /**
-   * Refresh the quarantined destination candidates on metadata refresh.
-   *
-   * @param[in] nodes_changed_on_md_refresh Information if the destination
-   *            candidates have been updated.
-   * @param[in] available_nodes List of destination candidates that are
-   *            available after metadata refresh.
-   */
-  void refresh_md_nodes_in_shared_quarantine(
-      const bool nodes_changed_on_md_refresh,
-      const AllowedNodes &available_nodes);
-
  private:
   /**
    * Get listening socket detail information used for the logging purposes.
@@ -436,17 +363,6 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   /** Information if the routing plugging is still running. */
   std::atomic<bool> is_running_{true};
-
-  /**
-   * Callbacks for communicating with quarantined destination candidates
-   * instance.
-   */
-  struct SharedQuarantineHandler {
-    SharedQuarantineUpdateCallback update_callback_;
-    SharedQuarantineQueryCallback query_callback_;
-    SharedQuarantineClearCallback clear_callback_;
-    SharedQuarantineRefreshCallback refresh_callback_;
-  } shared_quarantine_handler_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);

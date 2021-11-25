@@ -662,7 +662,7 @@ class Connector : public ConnectorBase {
                   r_->get_context().get_name().c_str(),
                   client_sock_.native_handle(), destination->hostname().c_str(),
                   destination->port());
-        r_->add_destination_to_shared_quarantine(
+        r_->get_context().shared_quarantine().update(
             {destination->hostname(), destination->port()});
       }
 
@@ -676,9 +676,9 @@ class Connector : public ConnectorBase {
       std::advance(destinations_it_, 1);
       const auto &destination = *destinations_it_;
       if (destinations_it_ != std::end(destinations_)) {
-        is_quarantined =
-            r_->is_destination_quarantined({destinations_it_->get()->hostname(),
-                                            destinations_it_->get()->port()});
+        is_quarantined = r_->get_context().shared_quarantine().is_quarantined(
+            {destinations_it_->get()->hostname(),
+             destinations_it_->get()->port()});
         if (is_quarantined) {
           log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
                     r_->get_context().get_name().c_str(),
@@ -714,8 +714,9 @@ class Connector : public ConnectorBase {
 
     if (destinations_it_ != destinations_.end()) {
       const auto &destination = *destinations_it_;
-      const auto is_quarantined = r_->is_destination_quarantined(
-          {destination->hostname(), destination->port()});
+      const auto is_quarantined =
+          r_->get_context().shared_quarantine().is_quarantined(
+              {destination->hostname(), destination->port()});
       if (is_quarantined) {
         log_debug("[%s] fd=%d skip quarantined destination '%s:%d'",
                   r_->get_context().get_name().c_str(),
@@ -1139,17 +1140,18 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     mysql_harness::PluginFuncEnv *env) {
   destination_->start(env);
   destination_->register_start_router_socket_acceptor(
-      [&]() { return start_accepting_connections(); });
+      [this]() { return start_accepting_connections(); });
   destination_->register_stop_router_socket_acceptor(
-      [&]() { stop_socket_acceptors(); });
+      [this]() { stop_socket_acceptors(); });
   destination_->register_query_quarantined_destinations(
-      [&](const mysql_harness::TCPAddress &addr) {
-        return is_destination_quarantined(addr);
+      [this](const mysql_harness::TCPAddress &addr) -> bool {
+        return get_context().shared_quarantine().is_quarantined(addr);
       });
   destination_->register_md_refresh_callback(
-      [&](const bool nodes_changed_on_md_refresh, const AllowedNodes &nodes) {
-        refresh_md_nodes_in_shared_quarantine(nodes_changed_on_md_refresh,
-                                              nodes);
+      [this](const bool nodes_changed_on_md_refresh,
+             const AllowedNodes &nodes) {
+        get_context().shared_quarantine().refresh(
+            get_context().get_id(), nodes_changed_on_md_refresh, nodes);
       });
 
   // make sure to stop the acceptors in case of possible exceptions, otherwise
@@ -1224,7 +1226,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   // wait for the signal to shutdown.
   mysql_harness::wait_for_stop(env, 0);
   is_running_ = false;
-  clear_shared_quarantine();
+  get_context().shared_quarantine().clear();
 
   stop_acceptors_guard.commit();
   // routing is no longer running, lets close listening socket
@@ -1677,56 +1679,4 @@ bool MySQLRouting::is_accepting_connections() const {
     }
     return false;
   });
-}
-
-void MySQLRouting::register_shared_quarantine_update_callback(
-    SharedQuarantineUpdateCallback clb) {
-  shared_quarantine_handler_.update_callback_ = std::move(clb);
-}
-
-void MySQLRouting::register_shared_quarantine_query_callback(
-    SharedQuarantineQueryCallback clb) {
-  shared_quarantine_handler_.query_callback_ = std::move(clb);
-}
-
-void MySQLRouting::register_shared_quarantine_clear_callback(
-    SharedQuarantineClearCallback clb) {
-  shared_quarantine_handler_.clear_callback_ = std::move(clb);
-}
-
-void MySQLRouting::register_shared_quarantine_md_nodes_refresh_callback(
-    SharedQuarantineRefreshCallback clb) {
-  shared_quarantine_handler_.refresh_callback_ = std::move(clb);
-}
-
-void MySQLRouting::add_destination_to_shared_quarantine(
-    mysql_harness::TCPAddress dest) {
-  if (shared_quarantine_handler_.update_callback_)
-    shared_quarantine_handler_.update_callback_(std::move(dest));
-}
-
-bool MySQLRouting::is_destination_quarantined(mysql_harness::TCPAddress dest) {
-  return shared_quarantine_handler_.query_callback_
-             ? shared_quarantine_handler_.query_callback_(std::move(dest))
-             : false;
-}
-
-void MySQLRouting::clear_shared_quarantine() {
-  if (shared_quarantine_handler_.clear_callback_)
-    shared_quarantine_handler_.clear_callback_();
-}
-
-void MySQLRouting::refresh_md_nodes_in_shared_quarantine(
-    const bool nodes_changed_on_md_refresh,
-    const AllowedNodes &available_nodes) {
-  if (shared_quarantine_handler_.refresh_callback_)
-    shared_quarantine_handler_.refresh_callback_(
-        this, nodes_changed_on_md_refresh, available_nodes);
-}
-
-void MySQLRouting::unregister_shared_quarantine_callbacks() {
-  shared_quarantine_handler_.refresh_callback_ = nullptr;
-  shared_quarantine_handler_.clear_callback_ = nullptr;
-  shared_quarantine_handler_.query_callback_ = nullptr;
-  shared_quarantine_handler_.update_callback_ = nullptr;
 }

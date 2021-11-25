@@ -119,44 +119,50 @@ std::chrono::milliseconds MySQLRoutingAPI::get_client_connect_timeout() const {
   return r_->get_context().get_client_connect_timeout();
 }
 
+void MySQLRoutingAPI::start_accepting_connections() {
+  r_->start_accepting_connections();
+}
+
+void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
+
 bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
 
 void MySQLRoutingComponent::deinit() {
   routing_common_unreachable_destinations_.clear_quarantine();
   for (auto &route : routes_) {
     if (auto routing_plugin = route.second.lock()) {
-      routing_plugin->unregister_shared_quarantine_callbacks();
+      routing_plugin->get_context().shared_quarantine().reset();
     }
   }
 }
 
 void MySQLRoutingComponent::init(
     const std::string &name, std::shared_ptr<MySQLRoutingBase> srv,
-    mysql_harness::PluginFuncEnv *env,
     std::chrono::seconds quarantine_refresh_interval) {
-  srv->register_shared_quarantine_update_callback(
-      [&](mysql_harness::TCPAddress addr) {
-        routing_common_unreachable_destinations_
-            .add_destination_candidate_to_quarantine(std::move(addr));
-      });
-  srv->register_shared_quarantine_query_callback(
-      [&](mysql_harness::TCPAddress addr) {
-        return routing_common_unreachable_destinations_.is_quarantined(
-            std::move(addr));
-      });
-  srv->register_shared_quarantine_clear_callback(
+  auto &quarantine = srv->get_context().shared_quarantine();
+
+  quarantine.on_update([&](const mysql_harness::TCPAddress &addr) {
+    routing_common_unreachable_destinations_
+        .add_destination_candidate_to_quarantine(addr);
+  });
+
+  quarantine.on_is_quarantined([&](const mysql_harness::TCPAddress &addr) {
+    return routing_common_unreachable_destinations_.is_quarantined(addr);
+  });
+
+  quarantine.on_clear(
       [&]() { routing_common_unreachable_destinations_.clear_quarantine(); });
-  srv->register_shared_quarantine_md_nodes_refresh_callback(
-      [&](MySQLRoutingBase *routing_plugin,
-          const bool nodes_changed_on_md_refresh,
-          const AllowedNodes &available_destinations) {
-        routing_common_unreachable_destinations_.refresh_quarantine(
-            routing_plugin, nodes_changed_on_md_refresh,
-            available_destinations);
-      });
+
+  quarantine.on_refresh([&](const std::string &instance_name,
+                            const bool nodes_changed_on_md_refresh,
+                            const AllowedNodes &available_destinations) {
+    routing_common_unreachable_destinations_.refresh_quarantine(
+        instance_name, nodes_changed_on_md_refresh, available_destinations);
+  });
 
   routing_common_unreachable_destinations_.init(
-      srv.get(), env, std::move(quarantine_refresh_interval));
+      name, std::move(quarantine_refresh_interval));
+
   std::lock_guard<std::mutex> lock(routes_mu_);
 
   routes_.emplace(name, std::move(srv));

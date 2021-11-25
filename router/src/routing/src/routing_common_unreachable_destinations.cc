@@ -94,22 +94,22 @@ static stdx::expected<void, std::error_code> tcp_port_alive(
 }
 
 void RoutingCommonUnreachableDestinations::init(
-    MySQLRoutingBase *routing_instance, mysql_harness::PluginFuncEnv *env,
+    const std::string &instance_name,
     std::chrono::seconds quarantine_refresh_interval) {
   {
     std::lock_guard<std::mutex> l{unreachable_destinations_init_mutex_};
-    env_ = env;
     quarantine_interval_ = std::move(quarantine_refresh_interval);
   }
 
   {
     std::lock_guard<std::mutex> l{routing_instances_mutex_};
-    routing_instances_.push_back(routing_instance);
+    routing_instances_.push_back(instance_name);
   }
 }
 
 void RoutingCommonUnreachableDestinations::
-    add_destination_candidate_to_quarantine(mysql_harness::TCPAddress dest) {
+    add_destination_candidate_to_quarantine(
+        const mysql_harness::TCPAddress &dest) {
   auto referencing_instances = get_referencing_routing_instances(dest);
 
   {
@@ -149,10 +149,10 @@ bool RoutingCommonUnreachableDestinations::is_quarantined(
 }
 
 void RoutingCommonUnreachableDestinations::refresh_quarantine(
-    MySQLRoutingBase *routing_instance, const bool nodes_changed_on_md_refresh,
+    const std::string &instance_name, const bool nodes_changed_on_md_refresh,
     const AllowedNodes &new_destinations) {
   if (nodes_changed_on_md_refresh) {
-    drop_stray_destinations(routing_instance, new_destinations);
+    drop_stray_destinations(instance_name, new_destinations);
   }
 
   update_destinations_state(new_destinations);
@@ -167,9 +167,18 @@ void RoutingCommonUnreachableDestinations::clear_quarantine() {
   quarantined_destination_candidates_.clear();
 }
 
+bool RoutingCommonUnreachableDestinations::is_running() const {
+  auto &component = MySQLRoutingComponent::get_instance();
+
+  // get the first routing instance.
+  return component.api(component.route_names().front()).is_running();
+}
+
 void RoutingCommonUnreachableDestinations::quarantine_handler(
     const std::error_code &ec, const mysql_harness::TCPAddress &dest) {
-  if (!is_running(env_)) return;
+  // leave early at shutdown.
+  if (!is_running()) return;
+
   const auto port_alive = tcp_port_alive(io_ctx_, dest.address(), dest.port(),
                                          kQuarantinedConnectTimeout);
   std::lock_guard<std::mutex> l{quarantine_mutex_};
@@ -190,9 +199,13 @@ void RoutingCommonUnreachableDestinations::quarantine_handler(
     log_debug(
         "Destination candidate '%s' is available, remove it from quarantine",
         pos->address_.str().c_str());
+
+    auto &component = MySQLRoutingComponent::get_instance();
     auto &routing_instances = pos->referencing_routing_instances_;
-    for (const auto routing_instance : routing_instances) {
-      routing_instance->start_accepting_connections();
+    for (const auto &instance_name : routing_instances) {
+      auto routing_instance = component.api(instance_name);
+
+      routing_instance.start_accepting_connections();
     }
     quarantined_destination_candidates_.erase(pos);
   } else {
@@ -207,28 +220,34 @@ void RoutingCommonUnreachableDestinations::quarantine_handler(
 
 void RoutingCommonUnreachableDestinations::
     stop_socket_acceptors_on_all_nodes_quarantined() {
+  auto &component = MySQLRoutingComponent::get_instance();
+
   std::lock_guard<std::mutex> plugins_lock{routing_instances_mutex_};
-  for (const auto routing_instance : routing_instances_) {
-    const auto &destinations = routing_instance->get_destinations();
+  for (const auto &instance_name : routing_instances_) {
+    auto routing_instance = component.api(instance_name);
+    const auto destinations = routing_instance.get_destinations();
+
     if (std::all_of(
             std::cbegin(destinations), std::cend(destinations),
             [this](const auto &dest) { return is_quarantined(dest); })) {
-      routing_instance->stop_socket_acceptors();
+      routing_instance.stop_socket_acceptors();
     }
   }
 }
 
-std::vector<MySQLRoutingBase *>
+std::vector<std::string>
 RoutingCommonUnreachableDestinations::get_referencing_routing_instances(
     const mysql_harness::TCPAddress &destination) {
-  std::vector<MySQLRoutingBase *> referencing_instances;
+  auto &component = MySQLRoutingComponent::get_instance();
+
+  std::vector<std::string> referencing_instances;
   std::lock_guard<std::mutex> l{routing_instances_mutex_};
-  for (const auto routing_instance : routing_instances_) {
-    const auto &destinations = routing_instance->get_destinations();
+  for (const auto &instance_name : routing_instances_) {
+    const auto destinations = component.api(instance_name).get_destinations();
     if (std::cend(destinations) != std::find(std::cbegin(destinations),
                                              std::cend(destinations),
                                              destination)) {
-      referencing_instances.push_back(routing_instance);
+      referencing_instances.push_back(instance_name);
     }
   }
   return referencing_instances;
@@ -250,7 +269,7 @@ void RoutingCommonUnreachableDestinations::update_destinations_state(
 }
 
 void RoutingCommonUnreachableDestinations::drop_stray_destinations(
-    MySQLRoutingBase *routing_instance,
+    const std::string &instance_name,
     const AllowedNodes &routing_new_destinations) {
   std::lock_guard<std::mutex> l{quarantine_mutex_};
   auto quarantined_dest = std::begin(quarantined_destination_candidates_);
@@ -259,7 +278,7 @@ void RoutingCommonUnreachableDestinations::drop_stray_destinations(
         quarantined_dest->referencing_routing_instances_;
     const auto referencing_routing_pos =
         std::find(std::begin(referencing_instances),
-                  std::end(referencing_instances), routing_instance);
+                  std::end(referencing_instances), instance_name);
 
     // Quarantined destination has a reference to the given routing plugin
     if (referencing_routing_pos != std::end(referencing_instances)) {

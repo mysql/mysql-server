@@ -29,41 +29,18 @@
 #include "destination.h"
 #include "mysqlrouter/routing_component.h"  // MySQLRoutingAPI
 
-class MySQLRoutingBase;
-
-/**
- * Interface for communicating with common quarantined destinations instance.
- */
-struct ROUTING_EXPORT DestinationQuarantineHandlerInterface {
-  using SharedQuarantineUpdateCallback =
-      std::function<void(mysql_harness::TCPAddress)>;
-  using SharedQuarantineQueryCallback =
-      std::function<bool(mysql_harness::TCPAddress)>;
-  using SharedQuarantineClearCallback = std::function<void()>;
-  using SharedQuarantineRefreshCallback =
-      std::function<void(MySQLRoutingBase *, const bool, const AllowedNodes &)>;
-
-  virtual ~DestinationQuarantineHandlerInterface() = default;
-
-  virtual void register_shared_quarantine_update_callback(
-      SharedQuarantineUpdateCallback clb) = 0;
-  virtual void register_shared_quarantine_query_callback(
-      SharedQuarantineQueryCallback clb) = 0;
-  virtual void register_shared_quarantine_clear_callback(
-      SharedQuarantineClearCallback clb) = 0;
-  virtual void register_shared_quarantine_md_nodes_refresh_callback(
-      SharedQuarantineRefreshCallback clb) = 0;
-  virtual void unregister_shared_quarantine_callbacks() = 0;
-};
-
 /** @class MySQLRoutingBase
+ *
  *  @brief Facade to avoid a tight coupling between Routing component and
- * actuall routing endpoint implementation. Allows replacing the routing
+ * actual routing endpoint implementation.
+ *
+ * Allows replacing the routing
  * endpoint with an alternative implementation.
  */
-class ROUTING_EXPORT MySQLRoutingBase
-    : public DestinationQuarantineHandlerInterface {
+class ROUTING_EXPORT MySQLRoutingBase {
  public:
+  virtual ~MySQLRoutingBase() = default;
+
   virtual MySQLRoutingContext &get_context() = 0;
   virtual int get_max_connections() const noexcept = 0;
   virtual std::vector<mysql_harness::TCPAddress> get_destinations() const = 0;
