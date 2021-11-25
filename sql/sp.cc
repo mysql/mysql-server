@@ -25,6 +25,7 @@
 #include "sql/sp.h"
 
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -659,15 +660,31 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
   }
 
   // Validate body definition to avoid invalid UTF8 characters.
-  if (is_invalid_string(sp->m_body_utf8, system_charset_info)) return true;
+  std::string invalid_sub_str;
+  if (is_invalid_string(sp->m_body_utf8, system_charset_info,
+                        invalid_sub_str)) {
+    // Provide contextual information
+    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+             sp->m_db.str, sp->m_name.str,
+             replace_utf8_utf8mb3(system_charset_info->csname),
+             invalid_sub_str.c_str());
+    return true;
+  }
 
   // Validate routine comment.
   if (sp->m_chistics->comment.length) {
     // validate comment string to avoid invalid utf8 characters.
     if (is_invalid_string(LEX_CSTRING{sp->m_chistics->comment.str,
                                       sp->m_chistics->comment.length},
-                          system_charset_info))
+                          system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+               (std::string(sp->m_db.str) + "." + std::string(sp->m_name.str))
+                   .c_str(),
+               replace_utf8_utf8mb3(system_charset_info->csname),
+               invalid_sub_str.c_str());
       return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(
@@ -1027,7 +1044,19 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   // Validate routine comment.
   if (chistics->comment.str) {
     // validate comment string to invalid utf8 characters.
-    if (is_invalid_string(chistics->comment, system_charset_info)) return true;
+    std::string invalid_sub_str;
+    if (is_invalid_string(
+            LEX_CSTRING{chistics->comment.str, chistics->comment.length},
+            system_charset_info, invalid_sub_str)) {
+      // Provide contextual information
+      my_error(
+          ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "stored routine",
+          (std::string(name->m_db.str) + "." + std::string(name->m_name.str))
+              .c_str(),
+          replace_utf8_utf8mb3(system_charset_info->csname),
+          invalid_sub_str.c_str());
+      return true;
+    }
 
     // Check comment string length.
     if (check_string_char_length(

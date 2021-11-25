@@ -170,17 +170,3 @@ SELECT table_comment,char_length(table_comment) FROM information_schema.tables W
 SELECT column_comment,char_length(column_comment) FROM information_schema.columns WHERE table_name='t1';
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
 DROP TABLE t1;
-
---echo #
---echo #  BUG#2872424 - ASSERTION `RC == TYPE_OK` FAILED.
---echo #
-
-SET character_set_client = utf8;
-set names binary;
---character_set binary
---error ER_INVALID_CHARACTER_STRING
-CREATE TABLE t1(c1 INT COMMENT 't˜est');
-CREATE TABLE t1(c1 INT);
---error ER_INVALID_CHARACTER_STRING
-ALTER TABLE t1 ADD COLUMN c2 INT COMMENT 'testÙèøø';
-DROP TABLE t1;

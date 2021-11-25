@@ -54,13 +54,15 @@
 #include "sql/dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "sql/dd/impl/sdi.h"                      // sdi::store()
 #include "sql/dd/impl/system_registry.h"          // dd::System_tables
-#include "sql/dd/impl/utils.h"                    // execute_query
+#include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/impl/utils.h"               // execute_query
 #include "sql/dd/info_schema/metadata.h"     // dd::info_schema::install_IS...
 #include "sql/dd/performance_schema/init.h"  // create_pfs_schema
 #include "sql/dd/sdi_file.h"                 // dd::sdi_file::EXT
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/tablespace.h"
+#include "sql/dd/upgrade/server.h"
 #include "sql/dd/upgrade_57/event.h"
 #include "sql/dd/upgrade_57/global.h"
 #include "sql/dd/upgrade_57/routine.h"
@@ -83,9 +85,6 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"  // trans_rollback
-
-#include "sql/dd/impl/upgrade/server.h"
-#include "sql/dd/upgrade/server.h"
 
 namespace dd {
 
@@ -1202,8 +1201,13 @@ bool fill_dd_and_finalize(THD *thd) {
   */
   bootstrap_error_handler.set_log_error(false);
 
+  std::set<uint> allowed_errors = {ER_DEFINITION_CONTAINS_INVALID_STRING};
+  bootstrap_error_handler.set_allowlist_errors(allowed_errors);
+
   error |= migrate_events_to_dd(thd);
   error |= migrate_routines_to_dd(thd);
+
+  bootstrap_error_handler.clear_allowlist_errors();
 
   // We will not get error in this step unless its a fatal error.
   for (it = db_name.begin(); it != db_name.end(); it++) {

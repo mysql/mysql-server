@@ -475,7 +475,8 @@ bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
   List_iterator<Create_field> it_create(alter_info.create_list);
 
   for (int field_no = 0; (sql_field = it_create++); field_no++) {
-    if (prepare_create_field(thd, &create_info, &alter_info.create_list,
+    if (prepare_create_field(thd, schema_name.c_str(), table_name.c_str(),
+                             &create_info, &alter_info.create_list,
                              &select_field_pos, table.file, sql_field,
                              field_no))
       return false;

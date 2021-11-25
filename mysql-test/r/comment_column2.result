@@ -461,16 +461,3 @@ abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij
 SELECT comment,index_comment,char_length(index_comment) FROM information_schema.statistics WHERE table_name='t1';
 COMMENT	INDEX_COMMENT	char_length(index_comment)
 DROP TABLE t1;
-#
-#  BUG#2872424 - ASSERTION `RC == TYPE_OK` FAILED.
-#
-SET character_set_client = utf8;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-set names binary;
-CREATE TABLE t1(c1 INT COMMENT 't˜est');
-ERROR HY000: Invalid utf8 character string: 'F76573'
-CREATE TABLE t1(c1 INT);
-ALTER TABLE t1 ADD COLUMN c2 INT COMMENT 'testÙèøø';
-ERROR HY000: Invalid utf8 character string: 'F48FBF'
-DROP TABLE t1;

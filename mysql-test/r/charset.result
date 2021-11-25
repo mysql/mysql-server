@@ -104,10 +104,10 @@ ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x90\xAC'
 CREATE TABLE t1(🐬 INT);
 ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x90\xAC'
 CREATE TABLE t2(a INT COMMENT "🐬");
-ERROR HY000: Invalid utf8 character string: 'F09F90'
+ERROR HY000: Comment for field 'test.t2.a' contains an invalid utf8mb3 character string: '\xF0\x9F\x90'.
 CREATE TABLE t3(a INT);
 CREATE VIEW v1 AS SELECT 'x' AS'🐬';
-ERROR HY000: Invalid utf8 character string: 'F09F90'
+ERROR HY000: Definition of view 'test.v1' contains an invalid utf8mb3 character string: '\xF0\x9F\x90'.
 DROP TABLE t3;
 PREPARE stmt FROM "SELECT 'x' AS '🐬'";
 EXECUTE stmt;
