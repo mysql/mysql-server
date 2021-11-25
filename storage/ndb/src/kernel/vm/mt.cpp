@@ -7064,12 +7064,14 @@ mt_add_thr_map(Uint32 block, Uint32 instance)
     /**
      * Configuration optimised for 1 CPU core with 2 CPUs.
      * This has a receive thread + 1 thread for main, rep, ldm and tc
+     * And also for 3 CPUs where the number of ndbMtRecoverThreads is 2.
      */
     thr_no = 0;
     require(num_tc_threads == 0);
     require(globalData.ndbMtQueryThreads == 0);
     require(globalData.ndbMtRecoverThreads == 0 ||
-            globalData.ndbMtRecoverThreads == 1);
+            globalData.ndbMtRecoverThreads == 1 ||
+            globalData.ndbMtRecoverThreads == 2);
     require(globalData.ndbMtMainThreads == 1);
     require(globalData.ndbMtReceiveThreads == 1);
     num_lqh_threads = 1;

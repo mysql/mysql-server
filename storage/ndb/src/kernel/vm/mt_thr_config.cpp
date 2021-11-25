@@ -1033,13 +1033,12 @@ THRConfig::compute_automatic_thread_config(
   recv_threads = table[used_map_id].recv_threads;
 
   recover_threads = cpu_cnt - (ldm_threads + query_threads);
-  if (cpu_cnt == 1)
+
+  if (ldm_threads == 0)
   {
-    recover_threads = 0;
-  }
-  else if (cpu_cnt == 2)
-  {
-    recover_threads = 1;
+    // One worker instance of ldm blocks run in main or recv thread
+    require(recover_threads > 0);
+    recover_threads--;
   }
 
   Uint32 tot_threads = main_threads;
@@ -1218,7 +1217,7 @@ THRConfig::do_parse(unsigned realtime,
     {
       require(next_cpu_id != Uint32(RNIL));
       m_threads[T_SEND][i].m_bind_no = next_cpu_id;
-      m_threads[T_TC][i].m_bind_type = T_Thread::B_CPU_BIND;
+      m_threads[T_SEND][i].m_bind_type = T_Thread::B_CPU_BIND;
       m_threads[T_SEND][i].m_core_bind = true;
       next_cpu_id = Ndb_GetNextCPUInMap(next_cpu_id);
     }
@@ -1226,7 +1225,7 @@ THRConfig::do_parse(unsigned realtime,
     {
       require(next_cpu_id != Uint32(RNIL));
       m_threads[T_RECV][i].m_bind_no = next_cpu_id;
-      m_threads[T_SEND][i].m_bind_type = T_Thread::B_CPU_BIND;
+      m_threads[T_RECV][i].m_bind_type = T_Thread::B_CPU_BIND;
       m_threads[T_RECV][i].m_core_bind = true;
       next_cpu_id = Ndb_GetNextCPUInMap(next_cpu_id);
     }

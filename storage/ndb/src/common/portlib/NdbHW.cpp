@@ -281,7 +281,7 @@ create_cpu_list(struct ndb_hwinfo *hwinfo,
   Uint32 prev_cpu = RNIL;
   Uint32 next_cpu = RNIL;
   Uint32 all_groups = hwinfo->num_virt_l3_caches;
-  Uint32 current_groups = num_rr_groups;
+  Uint32 current_groups = num_rr_groups > 0 ? num_rr_groups : all_groups;
   bool found = false;
   Uint32 first_virt_l3_cache[MAX_NUM_CPUS];
   for (Uint32 i = 0; i < hwinfo->num_virt_l3_caches; i++)
@@ -519,7 +519,7 @@ create_l3_cache_list(struct ndb_hwinfo *hwinfo)
               found_online,
               l3_cache_id));
   }
-  return 0; 
+  return 0;
 }
 
 static bool
@@ -713,6 +713,8 @@ adjust_rr_group_sizes(struct ndb_hwinfo *hwinfo,
                       Uint32 ldm_group_size,
                       Uint32 num_ldm_instances)
 {
+  if(num_rr_groups == 0)
+    return;
   Uint32 group_size =
     (num_ldm_instances + (num_rr_groups - 1)) / num_rr_groups;
   Uint32 non_full_groups =
@@ -842,6 +844,8 @@ create_virt_l3_cache_list(struct ndb_hwinfo *hwinfo,
                           Uint32 num_ldm_instances)
 {
   create_init_virt_l3_cache_list(hwinfo);
+  if(num_ldm_instances == 0 && max_num_groups == 0)
+    return 0;
 
   /**
    * We start by attempting to create a number of L3 cache groups
@@ -965,17 +969,20 @@ Ndb_CreateCPUMap(Uint32 num_ldm_instances,
    * to make it easy to assign CPUs to the various threads.
    * We will return the number of Round Robin groups from this method.
    */
+
   Uint32 num_cpus_per_ldm_group = 1 + num_query_threads_per_ldm;
-  Uint32 optimal_num_ldm_groups = 
+  Uint32 optimal_num_ldm_groups =
     (num_ldm_instances + (MAX_RR_GROUP_SIZE - 1)) /
     MAX_RR_GROUP_SIZE;
-  Uint32 optimal_group_size = 
+  Uint32 optimal_group_size = (num_ldm_instances > 0) ?
     (num_ldm_instances + (optimal_num_ldm_groups - 1)) /
-    optimal_num_ldm_groups;
+    optimal_num_ldm_groups : 0;
   Uint32 max_num_groups = num_ldm_instances < MAX_RR_GROUP_SIZE ? 1 :
     num_ldm_instances / MIN_RR_GROUP_SIZE;
-  Uint32 min_group_size = (num_ldm_instances + (max_num_groups - 1)) /
-                          max_num_groups;
+  max_num_groups = (num_ldm_instances > 0) ? max_num_groups : 0;
+  Uint32 min_group_size = (max_num_groups > 0) ?
+      (num_ldm_instances + (max_num_groups - 1)) / max_num_groups : 0;
+
   hwinfo->num_cpus_per_group = num_cpus_per_ldm_group;
   DEBUG_HW(("Call create_virt_l3_cache_list: "
             " %u opt groups, size: %u ::"
@@ -1205,7 +1212,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
   glpi = (LPFN_GLPI) GetProcAddress(
                           GetModuleHandle(TEXT("kernel32")),
                           "GetLogicalProcessorInformationEx");
-  if (nullptr == glpi) 
+  if (nullptr == glpi)
   {
     return nullptr;
   }
@@ -1218,7 +1225,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
 
     if (!res)
     {
-      if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) 
+      if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
       {
         if (buf != nullptr)
         {
@@ -1228,7 +1235,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
         buf = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)
            malloc(buf_len);
 
-        if (buf == nullptr) 
+        if (buf == nullptr)
         {
           return nullptr;
         }
