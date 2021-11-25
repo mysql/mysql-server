@@ -214,6 +214,13 @@ bool get_group_member_stats(
       });
 
   /*
+    Protect the access to `applier_module` against concurrent auto-rejoin
+    attempts which may destroy `applier_module` while is it being used to
+    fetch the pipeline stats.
+  */
+  MUTEX_LOCK(lock, get_plugin_applier_module_initialize_terminate_lock());
+
+  /*
     Check if the group replication is running and a valid certifier exists,
     while plugin_running_lock is acquired.
   */
