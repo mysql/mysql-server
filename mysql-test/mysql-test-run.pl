@@ -1358,7 +1358,7 @@ sub run_worker ($) {
 
       my $valgrind_reports = 0;
       if ($opt_valgrind_mysqld or $opt_sanitize) {
-        $valgrind_reports = valgrind_exit_reports();
+        $valgrind_reports = valgrind_exit_reports() if not $shutdown_report;
         print $server "VALGREP\n" if $valgrind_reports;
       }
 
@@ -1410,7 +1410,7 @@ sub shutdown_exit_reports() {
 
       # Mysqld crash at shutdown
       $found_report = 1
-        if ($line =~ /.*Assertion.*/ or
+        if ($line =~ /.*Assertion.*/i or
             $line =~ /.*mysqld got signal.*/ or
             $line =~ /.*mysqld got exception.*/);
 
@@ -5488,14 +5488,30 @@ sub ndb_extract_ndbd_log_info($$) {
 sub get_log_from_proc ($$) {
   my ($proc, $name) = @_;
   my $srv_log = "";
-
+  my $found_error = 0;
   foreach my $mysqld (mysqlds()) {
     if ($mysqld->{proc} eq $proc) {
       my @srv_lines = extract_server_log($mysqld->value('#log-error'), $name);
       $srv_log =
         "\nServer log from this test:\n" .
-        "----------SERVER LOG START-----------\n" .
-        join("", @srv_lines) . "----------SERVER LOG END-------------\n";
+        "----------SERVER LOG START-----------\n" ;
+      if ($opt_valgrind) {
+	foreach my $line(@srv_lines) {
+	  $found_error = 1 if ($line =~ /.*Assertion.*/i
+            or $line =~ /.*mysqld got signal.*/
+	    or $line =~ /.*mysqld got exception.*/);
+          if ($found_error and $line =~ /.*HEAP SUMMARY.*/) {
+	    $srv_log = $srv_log . "Found server crash, skipping the memory usage report.\n";
+	    last;
+	  }
+	  $srv_log = $srv_log . $line;
+	}
+      }
+      else
+      {
+        $srv_log = $srv_log . join("",@srv_lines);
+      }
+      $srv_log = $srv_log . "----------SERVER LOG END-------------\n";
       last;
     }
   }
