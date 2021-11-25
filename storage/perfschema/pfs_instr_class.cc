@@ -67,14 +67,6 @@
 bool pfs_enabled = true;
 
 /**
-  Global flag used to enable and disable SHOW PROCESSLIST in the
-  performance schema. This flag only takes effect if the performance schema
-  is configured to support SHOW PROCESSLIST.
-  @sa performance-schema-enable-processlist
-*/
-bool pfs_processlist_enabled = false;
-
-/**
   Global performance schema reference count for plugin and component events.
   Incremented when a shared library is being unloaded, decremented when
   the performance schema is finished processing the event.

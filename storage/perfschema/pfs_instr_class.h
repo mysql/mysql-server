@@ -82,7 +82,6 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
-extern bool pfs_processlist_enabled;
 
 /** Global ref count for plugin and component events. */
 extern std::atomic<uint32> pfs_unload_plugin_ref_count;

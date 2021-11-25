@@ -71,6 +71,7 @@
 #include "sql/my_decimal.h"   // my_decimal
 #include "sql/rpl_handler.h"  // RUN_HOOK
 #include "sql/rpl_tblmap.h"
+#include "sql/sql_show_processlist.h"  // pfs_processlist_enabled
 #include "sql/system_variables.h"
 #include "sql/tc_log.h"
 #include "sql_const.h"
@@ -173,8 +174,6 @@ struct mysql_mutex_t;
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
-
-extern bool pfs_processlist_enabled;
 
 using std::max;
 using std::min;

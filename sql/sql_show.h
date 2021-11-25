@@ -162,8 +162,6 @@ class Sql_cmd_show : public Sql_cmd_select {
   bool execute(THD *thd) override;
 
  protected:
-  // Use for SHOW commands that operate on a single table.
-  bool check_privileges_for_table(THD *thd, bool is_temporary);
   enum_sql_command m_sql_command;
 };
 
@@ -475,7 +473,6 @@ class Sql_cmd_show_processlist : public Sql_cmd_show {
 
  private:
   bool use_pfs() { return m_use_pfs; }
-  bool execute_with_performance_schema(THD *thd);
 
   const bool m_verbose{false};
   bool m_use_pfs{false};

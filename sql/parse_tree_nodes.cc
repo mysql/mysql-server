@@ -93,8 +93,6 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-extern bool pfs_processlist_enabled;
-
 namespace {
 
 template <typename Context, typename Node>
@@ -2348,8 +2346,11 @@ Sql_cmd *PT_show_processlist::make_cmd(THD *thd) {
   LEX *lex = thd->lex;
   lex->sql_command = m_sql_command;
 
-  m_sql_cmd.set_use_pfs(pfs_processlist_enabled);
-  if (pfs_processlist_enabled) {
+  // Read once, to avoid race conditions.
+  bool use_pfs = pfs_processlist_enabled;
+
+  m_sql_cmd.set_use_pfs(use_pfs);
+  if (use_pfs) {
     if (build_processlist_query(m_pos, thd, m_sql_cmd.verbose()))
       return nullptr;
   }
