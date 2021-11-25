@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <map>
 #include <set>
 #include <string>
@@ -450,6 +451,9 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   Prepares the column definitions for table creation.
 
   @param thd                       Thread object.
+  @param error_schema_name         Schema name of the table used for error
+  reporting.
+  @param error_table_name          Table name used for error reporting.
   @param create_info               Create information.
   @param[in,out] create_list       List of columns to create.
   @param[in,out] select_field_pos  Position where the SELECT columns start
@@ -462,7 +466,9 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions);
   @retval true    error
 */
 
-bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+bool prepare_create_field(THD *thd, const char *error_schema_name,
+                          const char *error_table_name,
+                          HA_CREATE_INFO *create_info,
                           List<Create_field> *create_list,
                           int *select_field_pos, handler *file,
                           Create_field *sql_field, int field_no);

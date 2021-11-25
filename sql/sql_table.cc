@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <functional>
@@ -4459,7 +4460,9 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field) {
   return false;
 }
 
-bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+bool prepare_create_field(THD *thd, const char *error_schema_name,
+                          const char *error_table_name,
+                          HA_CREATE_INFO *create_info,
                           List<Create_field> *create_list,
                           int *select_field_pos, handler *file,
                           Create_field *sql_field, int field_no) {
@@ -4543,9 +4546,22 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
-  LEX_CSTRING comment_cstr = {sql_field->comment.str,
-                              sql_field->comment.length};
-  if (is_invalid_string(comment_cstr, system_charset_info)) return true;
+  // Validate field comment string
+  std::string invalid_sub_str;
+  if (is_invalid_string(
+          LEX_CSTRING{sql_field->comment.str, sql_field->comment.length},
+          system_charset_info, invalid_sub_str)) {
+    // Provide contextual information
+    std::string qualified_field_name = std::string(error_schema_name) + "." +
+                                       std::string(error_table_name) + "." +
+                                       std::string(sql_field->field_name);
+
+    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "field",
+             qualified_field_name.c_str(),
+             replace_utf8_utf8mb3(system_charset_info->csname),
+             invalid_sub_str.c_str());
+    return true;
+  }
 
   if (validate_comment_length(thd, sql_field->comment.str,
                               &sql_field->comment.length, COLUMN_COMMENT_MAXLEN,
@@ -7061,13 +7077,12 @@ static bool prepare_preexisting_foreign_key(
   return false;
 }
 
-static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
-                        List<Create_field> *create_list, const Key_spec *key,
-                        KEY **key_info_buffer, KEY *key_info,
-                        KEY_PART_INFO **key_part_info,
-                        Mem_root_array<const KEY *> &keys_to_check,
-                        uint key_number, const handler *file,
-                        int *auto_increment) {
+static bool prepare_key(
+    THD *thd, const char *error_schema_name, const char *error_table_name,
+    HA_CREATE_INFO *create_info, List<Create_field> *create_list,
+    const Key_spec *key, KEY **key_info_buffer, KEY *key_info,
+    KEY_PART_INFO **key_part_info, Mem_root_array<const KEY *> &keys_to_check,
+    uint key_number, const handler *file, int *auto_increment) {
   DBUG_TRACE;
   assert(create_list);
   assert(key_info->flags == 0);  // No flags should be set yet
@@ -7128,6 +7143,20 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
 
   key_info->comment.length = key->key_create_info.comment.length;
   key_info->comment.str = key->key_create_info.comment.str;
+
+  // Validate index comment string
+  std::string invalid_sub_str;
+  if (is_invalid_string({key_info->comment.str, key_info->comment.length},
+                        system_charset_info, invalid_sub_str)) {
+    my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "index",
+             (std::string(error_schema_name) + "." +
+              std::string(error_table_name) + "." + std::string(key->name.str))
+                 .c_str(),
+             replace_utf8_utf8mb3(system_charset_info->csname),
+             invalid_sub_str.c_str());
+    return true;
+  }
+
   if (validate_comment_length(thd, key_info->comment.str,
                               &key_info->comment.length, INDEX_COMMENT_MAXLEN,
                               ER_TOO_LONG_INDEX_COMMENT, key_info->name))
@@ -7831,6 +7860,19 @@ bool mysql_prepare_create_table(
     return true;
   }
 
+  // Validate table comment string
+  std::string invalid_sub_str;
+  if (is_invalid_string({create_info->comment.str, create_info->comment.length},
+                        system_charset_info, invalid_sub_str)) {
+    my_error(
+        ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "table",
+        (std::string(error_schema_name) + "." + std::string(error_table_name))
+            .c_str(),
+        replace_utf8_utf8mb3(system_charset_info->csname),
+        invalid_sub_str.c_str());
+    return true;
+  }
+
   if (validate_comment_length(
           thd, create_info->comment.str, &create_info->comment.length,
           TABLE_COMMENT_MAXLEN, ER_TOO_LONG_TABLE_COMMENT, error_table_name)) {
@@ -7886,7 +7928,8 @@ bool mysql_prepare_create_table(
   Create_field *sql_field;
   List_iterator<Create_field> it(alter_info->create_list);
   for (; (sql_field = it++); field_no++) {
-    if (prepare_create_field(thd, create_info, &alter_info->create_list,
+    if (prepare_create_field(thd, error_schema_name, error_table_name,
+                             create_info, &alter_info->create_list,
                              &select_field_pos, file, sql_field, field_no))
       return true;
   }
@@ -7917,7 +7960,8 @@ bool mysql_prepare_create_table(
       // Call prepare_create_field on the Create_field that was added by
       // add_functional_index_to_create_list().
       assert(is_field_for_functional_index(new_create_field));
-      if (prepare_create_field(thd, create_info, &alter_info->create_list,
+      if (prepare_create_field(thd, error_schema_name, error_table_name,
+                               create_info, &alter_info->create_list,
                                &select_field_pos, file, new_create_field,
                                ++field_no)) {
         return true;
@@ -8019,9 +8063,10 @@ bool mysql_prepare_create_table(
     }
 
     if (key->type != KEYTYPE_FOREIGN) {
-      if (prepare_key(thd, create_info, &alter_info->create_list, key,
-                      key_info_buffer, key_info, &key_part_info, keys_to_check,
-                      key_number, file, &auto_increment))
+      if (prepare_key(thd, error_schema_name, error_table_name, create_info,
+                      &alter_info->create_list, key, key_info_buffer, key_info,
+                      &key_part_info, keys_to_check, key_number, file,
+                      &auto_increment))
         return true;
       key_info++;
       key_number++;
@@ -8636,6 +8681,20 @@ static bool create_table_impl(
     while ((part_elem = part_it++)) {
       if (part_elem->part_comment) {
         size_t comment_len = strlen(part_elem->part_comment);
+
+        // Validate partition comment string
+        std::string invalid_sub_str;
+        if (is_invalid_string({part_elem->part_comment, comment_len},
+                              system_charset_info, invalid_sub_str)) {
+          my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0), "partition",
+                   (std::string(db) + "." + std::string(error_table_name) +
+                    "." + std::string(part_elem->partition_name))
+                       .c_str(),
+                   replace_utf8_utf8mb3(system_charset_info->csname),
+                   invalid_sub_str.c_str());
+          return true;
+        }
+
         if (validate_comment_length(thd, part_elem->part_comment, &comment_len,
                                     TABLE_PARTITION_COMMENT_MAXLEN,
                                     ER_TOO_LONG_TABLE_PARTITION_COMMENT,
@@ -8649,6 +8708,22 @@ static bool create_table_impl(
         while ((subpart_elem = sub_it++)) {
           if (subpart_elem->part_comment) {
             size_t comment_len = strlen(subpart_elem->part_comment);
+
+            // Validate subpartition comment string
+            std::string invalid_sub_str;
+            if (is_invalid_string({subpart_elem->part_comment, comment_len},
+                                  system_charset_info, invalid_sub_str)) {
+              my_error(ER_COMMENT_CONTAINS_INVALID_STRING, MYF(0),
+                       "subpartition",
+                       (std::string(db) + "." + std::string(error_table_name) +
+                        "." + std::string(part_elem->partition_name) + "." +
+                        std::string(subpart_elem->partition_name))
+                           .c_str(),
+                       replace_utf8_utf8mb3(system_charset_info->csname),
+                       invalid_sub_str.c_str());
+              return true;
+            }
+
             if (validate_comment_length(thd, subpart_elem->part_comment,
                                         &comment_len,
                                         TABLE_PARTITION_COMMENT_MAXLEN,

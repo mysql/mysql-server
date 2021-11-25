@@ -1010,9 +1010,15 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     This is a temporary workaround to be removed once we stop accepting
     invalid UTF8 in literals and fix bugs in view body printing.
   */
+  std::string invalid_sub_str;
   if (is_invalid_string(LEX_CSTRING{is_query.ptr(), is_query.length()},
-                        system_charset_info))
+                        system_charset_info, invalid_sub_str)) {
+    // Provide contextual information
+    my_error(ER_DEFINITION_CONTAINS_INVALID_STRING, MYF(0), "view", view->db,
+             view->alias, replace_utf8_utf8mb3(system_charset_info->csname),
+             invalid_sub_str.c_str());
     return true;
+  }
 
   if (lex_string_strmake(thd->mem_root, &view->view_body_utf8, is_query.ptr(),
                          is_query.length())) {

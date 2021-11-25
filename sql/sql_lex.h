@@ -4624,6 +4624,37 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
 }
 
 /**
+   Check if the given string is invalid using the system charset.
+
+   @param       string_val       Reference to the string.
+   @param       charset_info     Pointer to charset info.
+   @param[out]  invalid_sub_str  If string has an invalid encoding then invalid
+                                 string in printable ASCII format is stored.
+
+   @return true if the string has an invalid encoding using
+                the system charset else false.
+*/
+
+inline bool is_invalid_string(const LEX_CSTRING &string_val,
+                              const CHARSET_INFO *charset_info,
+                              std::string &invalid_sub_str) {
+  size_t valid_len;
+  bool len_error;
+
+  if (validate_string(charset_info, string_val.str, string_val.length,
+                      &valid_len, &len_error)) {
+    char printable_buff[32];
+    convert_to_printable(
+        printable_buff, sizeof(printable_buff), string_val.str + valid_len,
+        static_cast<uint>(std::min<size_t>(string_val.length - valid_len, 3)),
+        charset_info, 3);
+    invalid_sub_str = printable_buff;
+    return true;
+  }
+  return false;
+}
+
+/**
   In debug mode, verify that we're not adding an item twice to the fields list
   with inconsistent hidden flags. Must be called before adding the item to
   fields.

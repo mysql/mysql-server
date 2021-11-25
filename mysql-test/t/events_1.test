@@ -220,21 +220,4 @@ let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
-
-
---echo #
---echo # Bug#2469962 - INVALID UTF-8 IN COMMENT OF AN EVENT DDL CAUSES ASSERT.
---echo #
-SET @orig_character_set_client = @@character_set_client;
-SET character_set_client = utf8;
---character_set binary
---error ER_INVALID_CHARACTER_STRING
-CREATE EVENT t÷est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
---error ER_INVALID_CHARACTER_STRING
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'testÿ' DO SELECT 1;
-CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'test' DO SELECT 1;
---error ER_INVALID_CHARACTER_STRING
-ALTER EVENT event COMMENT 'testÿ';
-
-SET character_set_client = @orig_character_set_client;
 DROP DATABASE events_test;
