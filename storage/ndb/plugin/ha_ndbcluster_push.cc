@@ -34,6 +34,7 @@
 #include "my_dbug.h"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
+#include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "storage/ndb/include/ndb_version.h"
@@ -632,6 +633,13 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
     uint first_inner = m_join_root->get_first_inner();
     int first_sj_inner = m_join_root->get_first_sj_inner();
 
+    /**
+     * We use a join-nest stack to keep track of the upper tables
+     * we 'unwind' to when leaving an outer-joined nest.
+     */
+    Mem_root_array<int> nest_stack(m_thd_ndb->get_thd()->mem_root);
+    int upper = -1;
+
     for (uint tab_no = root_no; tab_no <= last_table; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
 
@@ -645,7 +653,9 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * starting at 'first_upper'. 'm_inner_nest' and 'm_upper_nests' are the
        * respective bitmap of tables in these nests.
        */
-      if (table->get_first_inner() == tab_no) {
+      if (tab_no > root_no && table->get_first_inner() == tab_no) {
+        // Push the upper nest to return to later
+        nest_stack.push_back(upper);
         // Enter new inner nest
         upper_nests = m_tables[first_inner].m_upper_nests;
         upper_nests.add(inner_nest);
@@ -658,6 +668,8 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       m_tables[tab_no].m_upper_nests = upper_nests;
       m_tables[tab_no].m_inner_nest = inner_nest;
       inner_nest.add(tab_no);
+      // In case next tab_no will start a new inner nest
+      upper = tab_no;
 
       /**
        * Build similar info for sj_nest. Note that sj_nests are not nested
@@ -736,22 +748,20 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
         }
 
         /**
-         * We leave the current 'first_inner' nest and unwind to 'first_upper'
-         * nest, which then become our new 'inner_nest'. The content of the
-         * inner_nest need to be recalculated.
+         * We leave the current join-nest and unwind to the last 'upper-table'
+         * visited before entering this nest.
+         * Continue the inner_ and upper_nests of this upper-table.
          */
-        inner_nest.clear_all();
-        uint i = first_inner;
-        while (i > (uint)first_upper && i > root_no) {
-          i--;
-          if (m_tables[i].m_first_inner == (uint)first_upper) {
-            // Found last table in first_upper nest.
-            inner_nest = m_tables[i].m_inner_nest;
-            inner_nest.add(i);
-            break;
-          }
+        if (!nest_stack.empty()) {
+          upper = nest_stack.back();
+          nest_stack.pop_back();
+          inner_nest = m_tables[upper].m_inner_nest;
+          inner_nest.add(upper);
+          upper_nests = m_tables[upper].m_upper_nests;
+        } else {  // We returned to an upper level above the root-level
+          inner_nest.clear_all();
+          upper_nests.clear_all();
         }
-        upper_nests = m_tables[first_upper].m_upper_nests;
 
         /**
          * Note that we may 'unwind' to a nest level above where we started as
@@ -766,6 +776,7 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       }  // while 'leaving a nest'
     }    // for tab_no [root_no..last_table]
     assert(upper_nests.is_clear_all());
+    assert(nest_stack.empty());
   }
   assert(m_join_scope.contain(root_no));
   return (m_join_scope.last_table() > root_no);  // Anything pushed?
