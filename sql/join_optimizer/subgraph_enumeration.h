@@ -71,6 +71,7 @@
   the algorithm itself without having to benchmark the receiver.
  */
 
+#include <assert.h>
 #include <string>
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/hypergraph.h"
@@ -168,8 +169,8 @@ class NeighborhoodCache {
   // two neighborhoods. Returns the actual set of bits we need
   // to compute the neighborhood for (whether it could save
   // anything or not).
-  inline NodeMap InitSearch(NodeMap just_grown_by, NodeMap *full_neighborhood,
-                            NodeMap *neighborhood) {
+  inline NodeMap InitSearch(NodeMap just_grown_by, NodeMap *neighborhood,
+                            NodeMap *full_neighborhood) {
     if (IsSubset(m_last_just_grown_by, just_grown_by)) {
       // We can use our cache from the last node and continue the search from
       // there.
@@ -184,8 +185,9 @@ class NeighborhoodCache {
 
   // Tell the cache we just computed a neighborhood. It can choose to
   // store it to accelerate future InitSearch() calls.
-  inline void Store(NodeMap just_grown_by, NodeMap full_neighborhood,
-                    NodeMap neighborhood) {
+  inline void Store(NodeMap just_grown_by, NodeMap neighborhood,
+                    NodeMap full_neighborhood) {
+    assert(IsSubset(neighborhood, full_neighborhood));
     if (Overlaps(just_grown_by, m_taboo_bit)) return;
 
     m_last_just_grown_by = just_grown_by;
@@ -291,6 +293,7 @@ inline NodeMap FindNeighborhood(const Hypergraph &g, NodeMap subgraph,
 
   NodeMap to_search =
       cache->InitSearch(just_grown_by, &neighborhood, &full_neighborhood);
+  assert(IsSubset(neighborhood, full_neighborhood));
 
   for (size_t node_idx : BitsSetIn(to_search)) {
     // Simple edges.
