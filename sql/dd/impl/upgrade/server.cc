@@ -129,7 +129,7 @@ void Bootstrap_error_handler::set_allowlist_errors(std::set<uint> &errors) {
 
 void Bootstrap_error_handler::clear_allowlist_errors() {
   m_allowlist_errors.clear();
-};
+}
 
 Bootstrap_error_handler::~Bootstrap_error_handler() {
   // Skip reverting to old error handler in case someone else
