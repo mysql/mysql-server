@@ -4416,7 +4416,7 @@ bool TABLE_LIST::save_properties() {
   nullable_saved = table->is_nullable();
   force_index_saved = table->force_index;
   force_index_order_saved = table->force_index_order;
-  force_index_group_saved = table->force_index_order;
+  force_index_group_saved = table->force_index_group;
   partition_info *const part = table->part_info;
   if (part != nullptr) {
     const uint part_count = part->read_partitions.n_bits;
@@ -4449,7 +4449,7 @@ void TABLE_LIST::restore_properties() {
   if (nullable_saved) table->set_nullable();
   table->force_index = force_index_saved;
   table->force_index_order = force_index_order_saved;
-  table->force_index_order = force_index_group_saved;
+  table->force_index_group = force_index_group_saved;
   partition_info *const part = table->part_info;
   if (part != nullptr) {
     bitmap_copy(&part->lock_partitions, &lock_partitions_saved);
