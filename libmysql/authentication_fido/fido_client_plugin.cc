@@ -37,7 +37,7 @@
 static bool is_fido_testing = false;
 #endif
 static unsigned char registration_challenge[128] = {0};
-static unsigned char registration_challenge_response[1024] = {0};
+static unsigned char *registration_challenge_response = nullptr;
 
 static bool do_registration();
 
@@ -191,7 +191,12 @@ static bool do_registration() {
 #ifndef NDEBUG
   if (is_fido_testing) {
     const char *dummy = "\nSIGNATURE \nAUHENDATA \nCERT      ";
-    memcpy(registration_challenge, dummy, strlen(dummy));
+    size_t sz = strlen(dummy);
+    memcpy(registration_challenge, dummy, sz);
+    /* dummy challenge response for testing */
+    registration_challenge_response = new unsigned char[sz + 1];
+    memcpy(registration_challenge_response, dummy, sz);
+    registration_challenge_response[sz] = 0;
     return false;
   } else
 #endif
