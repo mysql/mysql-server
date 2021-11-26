@@ -872,7 +872,9 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
   */
-  if (!has_aggregation() && !const_for_execution() && !has_wf()) {
+  if (!has_aggregation() && !has_wf() &&
+      !(const_for_execution() &&
+        evaluate_during_optimization(this, thd->lex->current_query_block()))) {
     Item *result = new Item_field(result_field);
     return result;
   }

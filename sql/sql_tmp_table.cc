@@ -76,6 +76,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_select.h"
@@ -1032,8 +1033,12 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         if (param->m_window == nullptr || !param->m_window->is_last())
           store_column = false;
       }
-      if (item->const_for_execution() && hidden_field_count <= 0)
+
+      if (item->const_for_execution() &&
+          evaluate_during_optimization(item, thd->lex->current_query_block()) &&
+          hidden_field_count <= 0) {
         continue;  // We don't have to store this
+      }
     }
 
     if (store_column && is_sum_func && group == nullptr &&
