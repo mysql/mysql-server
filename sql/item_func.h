@@ -280,6 +280,7 @@ class Item_func : public Item_result_field {
     DATEADD_FUNC,
     FROM_UNIXTIME_FUNC,
     CONVERT_TZ_FUNC,
+    LAST_DAY_FUNC,
     UNIX_TIMESTAMP_FUNC,
     TIME_TO_SEC_FUNC,
     TIMESTAMPDIFF_FUNC,
