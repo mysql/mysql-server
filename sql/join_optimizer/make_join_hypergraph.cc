@@ -2939,6 +2939,26 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
   const Hyperedge edge = FindHyperedgeAndJoinConflicts(thd, used_nodes, expr);
   graph->graph.AddEdge(edge.left, edge.right);
 
+  // Figure out whether we have two left joins that are associatively
+  // reorderable, which can trigger a bug in our row count estimation. See the
+  // definition of has_reordered_left_joins for more information.
+  if (!graph->has_reordered_left_joins &&
+      expr->type == RelationalExpression::LEFT_JOIN) {
+    ForEachJoinOperator(expr->left, [expr, graph](RelationalExpression *child) {
+      if (child->type == RelationalExpression::LEFT_JOIN &&
+          OperatorsAreAssociative(*child, *expr)) {
+        graph->has_reordered_left_joins = true;
+      }
+    });
+    ForEachJoinOperator(expr->right,
+                        [expr, graph](RelationalExpression *child) {
+                          if (child->type == RelationalExpression::LEFT_JOIN &&
+                              OperatorsAreAssociative(*expr, *child)) {
+                            graph->has_reordered_left_joins = true;
+                          }
+                        });
+  }
+
   if (trace != nullptr) {
     *trace += StringPrintf("Selectivity of join %s:\n",
                            GenerateExpressionLabel(expr).c_str());

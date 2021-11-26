@@ -106,6 +106,8 @@ inline double FindOutputRowsForJoin(double left_rows, double right_rows,
   if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
     // For outer joins, every outer row produces at least one row (if none
     // are matching, we get a NULL-complemented row).
+    // Note that this can cause inconsistent row counts; see bug #33550360
+    // and/or JoinHypergraph::has_reordered_left_joins.
     fanout = std::max(fanout, 1.0);
   } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
     // Semi- and antijoin estimation is pretty tricky, since we want isn't

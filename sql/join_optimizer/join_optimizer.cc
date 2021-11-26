@@ -300,6 +300,25 @@ class CostingReceiver {
   /// The graph we are running over.
   const JoinHypergraph *m_graph;
 
+  /// Whether we have applied clamping due to EQ_REF at any point.
+  /// There is a known issue (see bug #33550360) where this can cause
+  /// row count estimates to be inconsistent between different access paths.
+  /// Obviously, we should fix this bug by adjusting the selectivities,
+  /// but for multipart indexes, this is nontrivial. See the bug for
+  /// details on some ideas, but the gist of it is that we probably
+  /// will want a linear program to adjust multi-selectivities so that
+  /// they are consistent, and not above 1/N (for N-row tables) if there are
+  /// unique indexes on them.
+  ///
+  /// The only reason why we collect this information, like
+  /// JoinHypergraph::has_reordered_left_joins, is to be able to assert
+  /// on inconsistent row counts between APs, excluding this (known) issue.
+  ///
+  /// Note that while the issue is first and foremost on multipart indexes,
+  /// there are also cases where single-part indexes have this issue.
+  /// This would probably be much a much-lower-hanging fruit.
+  bool has_clamped_eq_ref = false;
+
   /// Keeps track of interesting orderings in this query block.
   /// See LogicalOrderings for more information.
   const LogicalOrderings *m_orderings;
@@ -596,30 +615,6 @@ void CostingReceiver::TraceAccessPaths(NodeMap nodes) {
     first = false;
   }
   *m_trace += ")\n";
-
-  // Verify that all row counts are consistent; we can only do this for
-  // unparameterized tables (even though most such inconsistencies probably
-  // originate further down the tree), since tables with different
-  // parameterizations can have different sargable predicates.
-  // (If we really wanted to, we could probably fix that as well, though.)
-  // These should never happen, up to numerical issues, but they currently do;
-  // see bug #33550360. When that bug is fully fixed, this segment should
-  // be replaced with an assert in ProposeAccessPath() that they are
-  // indeed consistent, but for now, they help track down the issues.
-  optional<double> rows;
-  for (const AccessPath *path : it->second.paths) {
-    if (path->parameter_tables == 0) {
-      if (!rows.has_value()) {
-        rows = path->num_output_rows;
-      } else if (path->num_output_rows < rows.value() * 0.99 ||
-                 path->num_output_rows > rows.value() * 1.01) {
-        *m_trace +=
-            " - WARNING: Row counts are not consistent between access paths. "
-            "This is a bug.\n";
-        break;
-      }
-    }
-  }
 }
 
 /**
@@ -1935,7 +1930,10 @@ bool CostingReceiver::ProposeRefAccess(
     // paths doing the same thing, which is bad (it causes index lookups to be
     // unfairly preferred, especially as we add more tables to the join -- and
     // it also causes access path pruning to work less efficiently). See
-    // comments in EstimateFieldSelectivity().
+    // comments in EstimateFieldSelectivity() and on has_clamped_eq_ref.
+    if (num_output_rows > 1.0) {
+      has_clamped_eq_ref = true;
+    }
     num_output_rows = std::min(num_output_rows, 1.0);
   }
 
@@ -4002,6 +4000,47 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     existing_paths->push_back(insert_position);
     CommitBitsetsToHeap(insert_position);
     return insert_position;
+  }
+
+  // Verify that all row counts are consistent (if someone cares, ie. we are
+  // either asserting they are, or tracing, so that a user can see it); we can
+  // only do this for unparameterized tables (even though most such
+  // inconsistencies probably originate further down the tree), since tables
+  // with different parameterizations can have different sargable predicates.
+  // (If we really wanted to, we could probably fix that as well, though.)
+  // These should never happen, up to numerical issues, but they currently do;
+  // see bug #33550360.
+  const bool has_known_row_count_inconsistency_bugs =
+      m_graph->has_reordered_left_joins || has_clamped_eq_ref;
+  bool verify_consistency = (m_trace != nullptr);
+#ifndef NDEBUG
+  if (!has_known_row_count_inconsistency_bugs) {
+    // Assert that we are consistent, even if we are not tracing.
+    verify_consistency = true;
+  }
+#endif
+  if (verify_consistency && path->parameter_tables == 0 &&
+      path->num_output_rows >= 1e-3) {
+    for (const AccessPath *other_path : *existing_paths) {
+      if (other_path->parameter_tables == 0 &&
+          (other_path->num_output_rows < path->num_output_rows * 0.99 ||
+           other_path->num_output_rows > path->num_output_rows * 1.01)) {
+        if (m_trace != nullptr) {
+          *m_trace += " - WARNING: " + PrintAccessPath(*path, *m_graph, "") +
+                      " has inconsistent row counts with " +
+                      PrintAccessPath(*other_path, *m_graph, "") + ".";
+          if (has_known_row_count_inconsistency_bugs) {
+            *m_trace += "\n   This is a bug, but probably a known one.\n";
+          } else {
+            *m_trace += " This is a bug.\n";
+          }
+        }
+        if (!has_known_row_count_inconsistency_bugs) {
+          assert(false);
+        }
+        break;
+      }
+    }
   }
 
   AccessPath *insert_position = nullptr;
