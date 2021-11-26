@@ -41,6 +41,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 [connection server_1]
 include/rpl_gr_wait_for_number_of_members.inc
+include/assert_grep.inc [A member is joining the group while a group configuration operation is occurring. The member will now leave the group]
 
 # 6. After action is executed we can add another member
 [connection server2]

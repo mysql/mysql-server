@@ -113,6 +113,13 @@ SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
 --let $group_replication_number_of_members= 1
 --source include/gr_wait_for_number_of_members.inc
 
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_primary_mode_group_operations_09
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
+--let $assert_count= 1
+--let $assert_text= A member is joining the group while a group configuration operation is occurring. The member will now leave the group
+--source include/assert_grep.inc
+
 --echo
 --echo # 6. After action is executed we can add another member
 
