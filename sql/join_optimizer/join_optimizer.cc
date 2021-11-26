@@ -300,24 +300,20 @@ class CostingReceiver {
   /// The graph we are running over.
   const JoinHypergraph *m_graph;
 
-  /// Whether we have applied clamping due to EQ_REF at any point.
-  /// There is a known issue (see bug #33550360) where this can cause
+  /// Whether we have applied clamping due to a multi-column EQ_REF at any
+  /// point. There is a known issue (see bug #33550360) where this can cause
   /// row count estimates to be inconsistent between different access paths.
-  /// Obviously, we should fix this bug by adjusting the selectivities,
-  /// but for multipart indexes, this is nontrivial. See the bug for
-  /// details on some ideas, but the gist of it is that we probably
-  /// will want a linear program to adjust multi-selectivities so that
-  /// they are consistent, and not above 1/N (for N-row tables) if there are
-  /// unique indexes on them.
+  /// Obviously, we should fix this bug by adjusting the selectivities
+  /// (and we do for single-column indexes), but for multipart indexes,
+  /// this is nontrivial. See the bug for details on some ideas, but the
+  /// gist of it is that we probably will want a linear program to adjust
+  /// multi-selectivities so that they are consistent, and not above 1/N
+  /// (for N-row tables) if there are unique indexes on them.
   ///
   /// The only reason why we collect this information, like
   /// JoinHypergraph::has_reordered_left_joins, is to be able to assert
   /// on inconsistent row counts between APs, excluding this (known) issue.
-  ///
-  /// Note that while the issue is first and foremost on multipart indexes,
-  /// there are also cases where single-part indexes have this issue.
-  /// This would probably be much a much-lower-hanging fruit.
-  bool has_clamped_eq_ref = false;
+  bool has_clamped_multipart_eq_ref = false;
 
   /// Keeps track of interesting orderings in this query block.
   /// See LogicalOrderings for more information.
@@ -1931,8 +1927,8 @@ bool CostingReceiver::ProposeRefAccess(
     // unfairly preferred, especially as we add more tables to the join -- and
     // it also causes access path pruning to work less efficiently). See
     // comments in EstimateFieldSelectivity() and on has_clamped_eq_ref.
-    if (num_output_rows > 1.0) {
-      has_clamped_eq_ref = true;
+    if (num_output_rows > 1.0 && matched_keyparts >= 2) {
+      has_clamped_multipart_eq_ref = true;
     }
     num_output_rows = std::min(num_output_rows, 1.0);
   }
@@ -4011,7 +4007,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
   // These should never happen, up to numerical issues, but they currently do;
   // see bug #33550360.
   const bool has_known_row_count_inconsistency_bugs =
-      m_graph->has_reordered_left_joins || has_clamped_eq_ref;
+      m_graph->has_reordered_left_joins || has_clamped_multipart_eq_ref;
   bool verify_consistency = (m_trace != nullptr);
 #ifndef NDEBUG
   if (!has_known_row_count_inconsistency_bugs) {

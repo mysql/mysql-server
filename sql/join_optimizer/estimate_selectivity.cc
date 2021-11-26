@@ -174,6 +174,21 @@ double EstimateSelectivity(THD *thd, Item *condition, string *trace) {
           }
           return selectivity;
         }
+      } else if (left->type() == Item::FIELD_ITEM) {
+        // field = <anything> (except field = field).
+        //
+        // We ignore the estimated selectivity (the item itself will do index
+        // dives if possible, that should be better than what we will get from
+        // our field = field estimation), but we want to get the cap if there's
+        // a unique index, as this will make us get consistent (if not always
+        // correct!) row estimates for all EQ_REF accesses over single-column
+        // indexes.
+        EstimateFieldSelectivity(down_cast<Item_field *>(left)->field,
+                                 &selectivity_cap, trace);
+      } else if (right->type() == Item::FIELD_ITEM) {
+        // Same, for <anything> = field.
+        EstimateFieldSelectivity(down_cast<Item_field *>(right)->field,
+                                 &selectivity_cap, trace);
       }
     }
   }
