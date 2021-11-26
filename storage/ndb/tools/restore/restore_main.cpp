@@ -2768,28 +2768,19 @@ int do_restore(RestoreThreadData *thrdata)
     return NdbToolsProgramExitCode::FAILED;  
   }
 
-  /**
-   * Wait until all threads have finished restoring data and they've arrived
-   * at the barrier. Then, allow all threads to continue. Thread 1 will do
-   * the following, while all other threads do nothing.
-   *    1. Delete the tuple with server_id = 0 if ndb_restore is invoked with
-   *    --with-apply-status.
-   *    2. Generates the appropriate epoch value for tuple with server_id = 0
-   *       if ndb_restore is invoked with --restore-epoch.
-   *    3. Restore indices when ndb_restore is invoked with --rebuild-indexes.
-   */
-
-  if (!thrdata->m_barrier->wait())
-  {
-    ga_error_thread = thrdata->m_part_id;
-    return NdbToolsProgramExitCode::FAILED;
-  }
-
   if(ga_with_apply_status)
   {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    restoreLogger.log_info("%s [with_apply_status] Deleting tuple with server_id=0 from ndb_apply_status", timestamp);
-
+    /**
+     * Wait for all the threads to finish restoring data before attempting to
+     * delete the tuple with server_id = 0 in ndb_apply_status table.
+     * Later, the appropriate data for that tuple is generated when ndb_restore
+     * is with invoked with restore-epoch option.
+     */
+    if (!thrdata->m_barrier->wait())
+    {
+      ga_error_thread = thrdata->m_part_id;
+      return NdbToolsProgramExitCode::FAILED;
+    }
     for (i= 0; i < g_consumers.size(); i++)
     {
       if (!g_consumers[i]->delete_epoch_tuple())
@@ -2829,7 +2820,6 @@ int do_restore(RestoreThreadData *thrdata)
   if (ga_error_thread > 0)
   {
     restoreLogger.log_error("Thread %u exits on error", thrdata->m_part_id);
-    // thread 1 failed to restore metadata, exiting
     return NdbToolsProgramExitCode::FAILED;  
   }
 
@@ -2845,6 +2835,18 @@ int do_restore(RestoreThreadData *thrdata)
 
   if (ga_rebuild_indexes)
   {
+    /**
+     * Index rebuild should not be allowed to start until all threads have
+     * finished restoring data and epoch values are sorted out.
+     * Wait until all threads have arrived at barrier, then allow all
+     * threads to continue. Thread 1 will then rebuild indices, while all
+     * other threads do nothing.
+     */
+    if (!thrdata->m_barrier->wait())
+    {
+      ga_error_thread = thrdata->m_part_id;
+      return NdbToolsProgramExitCode::FAILED;
+    }
     restoreLogger.log_debug("Rebuilding indexes");
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
     restoreLogger.log_info("%s [rebuild_indexes] Rebuilding indexes", timestamp);

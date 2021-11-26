@@ -1806,6 +1806,7 @@ BackupRestore::delete_epoch_tuple()
     restoreLogger.log_error("%s: %u: %s", NDB_APPLY_TABLE, dict->getNdbError().code, dict->getNdbError().message);
     return false;
   }
+  restoreLogger.log_info("[with_apply_status] Deleting tuple with server_id=0 from ndb_apply_status");
 
   int retries;
   for (retries = 0; retries < MAX_RETRIES; retries++)
