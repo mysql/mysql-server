@@ -677,19 +677,9 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
        * logic for leaving a sj_nest becomes much simpler.
        * (No un-nesting of nests)
        */
-      if (table->get_first_sj_inner() >= 0) {
-        if (table->get_first_sj_inner() == first_sj_inner) {
-          // still within same sj_nest starting at first_sj_inner.
-        } else if (table->get_first_sj_inner() == (int)tab_no) {
-          // Start new sj_nest
-          first_sj_inner = table->get_first_sj_inner();
-          sj_nest.clear_all();
-        }
+      if (table->get_first_sj_inner() >= 0) {  // Is in a sj_nest
+        first_sj_inner = table->get_first_sj_inner();
         sj_nest.add(tab_no);
-      } else {
-        // Not in a sj_nest any longer
-        first_sj_inner = -1;
-        sj_nest.clear_all();
       }
       m_tables[tab_no].m_sj_nest = sj_nest;
 

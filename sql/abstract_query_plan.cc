@@ -390,6 +390,27 @@ int Table_access::get_first_sj_inner() const {
 }
 int Table_access::get_last_sj_inner() const {
   const QEP_TAB *qep_tab = get_qep_tab();
+  const int first_sj_inner = qep_tab->first_sj_inner();
+
+  // WL#14370 review: Note that this change will never make it into
+  // the WL itself. It is just a workaround for some QEP_TAB based
+  // sj_nest short commings, moved out from the AQP.
+  //
+  if (first_sj_inner >= 0) {
+    // Note: last_sj_inner is not set for Duplicates Weedout strategy.
+    if (qep_tab->last_sj_inner() < 0) {
+      // Need to search for where this first_sj_inner ends:
+      for (uint last = m_tab_no; last < m_join_plan->m_access_count - 1;
+           last++) {
+        const QEP_TAB *later_qep_tab = m_join_plan->get_qep_tab(last + 1);
+        if (later_qep_tab->first_sj_inner() != first_sj_inner) {
+          // The later_qep is not in this sj_nest -> found the end
+          return last;
+        }
+      }
+      return m_join_plan->m_access_count - 1;
+    }
+  }
   return qep_tab->last_sj_inner();
 }
 
