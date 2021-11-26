@@ -3161,11 +3161,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       return true;
     }
 
-    // See if we can push remaining WHERE conditions to sargable predicates.
-    for (Item *item : where_conditions) {
-      PushDownToSargableCondition(item, root,
-                                  /*is_join_condition_for_expr=*/false);
-    }
+    // NOTE: Any remaining WHERE conditions, whether single-table or multi-table
+    // (join conditions), are left up here for a reason (i.e., they are
+    // nondeterministic and/or blocked by outer joins), so they should not be
+    // attempted pushed as sargable predicates.
   } else {
     // We're done pushing, so unflatten so that the rest of the algorithms
     // don't need to worry about it.

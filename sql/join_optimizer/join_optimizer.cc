@@ -1794,7 +1794,7 @@ bool CostingReceiver::ProposeRefAccess(
     }
 
     if (i < m_graph.num_where_predicates &&
-        pred.used_nodes != pred.total_eligibility_set) {
+        !IsSingleBitSet(pred.total_eligibility_set)) {
       // This is a WHERE condition that is either nondeterministic,
       // or after an outer join, so it is not sargable. (Having these
       // show up here is very rare, but will get more common when we
