@@ -233,6 +233,10 @@ void *get_plugin_pointer() { return lv.plugin_info_ptr; }
 
 Checkable_rwlock *get_plugin_running_lock() { return lv.plugin_running_lock; }
 
+mysql_mutex_t *get_plugin_applier_module_initialize_terminate_lock() {
+  return &lv.plugin_applier_module_initialize_terminate_mutex;
+}
+
 bool plugin_is_group_replication_running() {
   return lv.group_replication_running;
 }
@@ -1924,6 +1928,9 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
 
   mysql_mutex_init(key_GR_LOCK_plugin_modules_termination,
                    &lv.plugin_modules_termination_mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_GR_LOCK_plugin_applier_module_initialize_terminate,
+                   &lv.plugin_applier_module_initialize_terminate_mutex,
+                   MY_MUTEX_INIT_FAST);
 
   // Initialize performance_schema tables
   if (initialize_perfschema_module()) {
@@ -2145,6 +2152,7 @@ int plugin_group_replication_deinit(void *p) {
   transactions_latch = nullptr;
 
   mysql_mutex_destroy(&lv.force_members_running_mutex);
+  mysql_mutex_destroy(&lv.plugin_applier_module_initialize_terminate_mutex);
   mysql_mutex_destroy(&lv.plugin_modules_termination_mutex);
 
   delete shared_plugin_stop_lock;
@@ -2247,6 +2255,7 @@ void declare_plugin_cloning(bool is_running) {
 
 int configure_and_start_applier_module() {
   DBUG_TRACE;
+  MUTEX_LOCK(lock, &lv.plugin_applier_module_initialize_terminate_mutex);
 
   int error = 0;
 
@@ -2320,6 +2329,9 @@ void reset_auto_increment_handler_values(bool force_reset) {
 }
 
 int terminate_applier_module() {
+  DBUG_TRACE;
+  MUTEX_LOCK(lock, &lv.plugin_applier_module_initialize_terminate_mutex);
+
   int error = 0;
   if (applier_module != nullptr) {
     if (!applier_module->terminate_applier_thread())  // all goes fine

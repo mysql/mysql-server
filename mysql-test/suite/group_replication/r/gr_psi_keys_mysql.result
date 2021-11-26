@@ -38,6 +38,7 @@ wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_modules_termination	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_applier_module_initialize_terminate	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_action_phase	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_action_notification	YES	YES	singleton	0	NULL

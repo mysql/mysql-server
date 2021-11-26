@@ -41,6 +41,7 @@ struct plugin_local_variables {
   mysql_mutex_t force_members_running_mutex;
   mysql_mutex_t plugin_online_mutex;
   mysql_mutex_t plugin_modules_termination_mutex;
+  mysql_mutex_t plugin_applier_module_initialize_terminate_mutex;
   mysql_cond_t plugin_online_condition;
   Plugin_waitlock *online_wait_mutex;
   Checkable_rwlock *plugin_running_lock;
