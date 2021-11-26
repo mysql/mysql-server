@@ -78,7 +78,7 @@ class fido_make_cred {
 class fido_registration {
  public:
   bool make_credentials(const char *challenge);
-  bool make_challenge_response(unsigned char *buf);
+  bool make_challenge_response(unsigned char *&buf);
 
  private:
   fido_make_cred m_fido_make_cred;

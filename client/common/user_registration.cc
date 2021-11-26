@@ -23,6 +23,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <scope_guard.h>
 #include <sstream>
 #include <vector>
 
@@ -33,6 +34,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"  // my_malloc
 #include "mysqld_error.h"
+
+#define QUERY_LENGTH 2048
+#define MAX_QUERY_LENGTH 4096
 
 /**
   This helper method parses --fido-register-factor option values, and
@@ -95,7 +99,8 @@ static bool parse_register_option(char *what_factor,
 */
 bool user_device_registration(MYSQL *mysql, char *register_option,
                               char *errmsg) {
-  char query[1024] = {0};
+  char query[QUERY_LENGTH] = {0};
+  char *query_ptr = nullptr;
   MYSQL_RES *result;
   MYSQL_ROW row;
   ulong *lengths;
@@ -103,7 +108,6 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
   uchar *server_challenge_response = nullptr;
   MYSQL_STMT *finish_reg_stmt;
   MYSQL_BIND rs_bind;
-  uchar *pos = nullptr;
 
   if (!mysql) {
     sprintf(errmsg, "MySQL internal error. ");
@@ -154,12 +158,26 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
     memcpy(server_challenge, row[0], lengths[0]);
     mysql_free_result(result);
 
+    auto cleanup_guard = create_scope_guard([&] {
+      if (server_challenge_response) {
+        delete[] server_challenge_response;
+        server_challenge_response = nullptr;
+      }
+      if (query_ptr && query_ptr != query) {
+        my_free(query_ptr);
+        query_ptr = nullptr;
+      }
+      if (server_challenge) {
+        my_free(server_challenge);
+        server_challenge = nullptr;
+      }
+    });
+
     /* load fido client authentication plugin if required */
     struct st_mysql_client_plugin *p =
         mysql_client_find_plugin(mysql, "authentication_fido_client",
                                  MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
     if (!p) {
-      my_free(server_challenge);
       sprintf(
           errmsg,
           "Loading authentication_fido_client plugin failed with error: %s. ",
@@ -168,35 +186,51 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
     }
     /* set server challenge in plugin */
     if (mysql_plugin_options(p, "registration_challenge", server_challenge)) {
-      my_free(server_challenge);
       sprintf(errmsg,
               "Failed to set plugin options \"registration_challenge\".\n");
       return true;
     }
-    my_free(server_challenge);
-    server_challenge = nullptr;
-    /* get challenge response from plugin */
+    /* get challenge response from plugin, and release the memory */
     if (mysql_plugin_get_option(p, "registration_response",
                                 &server_challenge_response)) {
       sprintf(errmsg,
               "Failed to get plugin options \"registration_response\".\n");
       return true;
     }
-    pos = server_challenge_response;
 
     finish_reg_stmt = mysql_stmt_init(mysql);
     /* execute FINISH REGISTRATION sql */
-    sprintf(query,
+    int n = snprintf(query, sizeof(query),
+                     "ALTER USER USER() %d FACTOR FINISH REGISTRATION SET "
+                     "CHALLENGE_RESPONSE AS ",
+                     f);
+    size_t tot_query_len =
+        n + strlen(reinterpret_cast<char *>(server_challenge_response));
+    if (tot_query_len >= MAX_QUERY_LENGTH) {
+      sprintf(
+          errmsg,
+          "registration_response length exceeds max supported length of %d.\n",
+          MAX_QUERY_LENGTH);
+      return true;
+    }
+    if (tot_query_len >= QUERY_LENGTH) {
+      /* allocate required buffer to construct query */
+      query_ptr = static_cast<char *>(my_malloc(
+          PSI_NOT_INSTRUMENTED, tot_query_len + 1, MYF(MY_WME | MY_ZEROFILL)));
+    }
+    if (query_ptr == nullptr) query_ptr = query;
+    sprintf(query_ptr,
             "ALTER USER USER() %d FACTOR FINISH REGISTRATION SET "
             "CHALLENGE_RESPONSE AS '%s'",
             f, server_challenge_response);
-    if (mysql_stmt_prepare(finish_reg_stmt, query, (ulong)strlen(query))) {
+    if (mysql_stmt_prepare(finish_reg_stmt, query_ptr,
+                           (ulong)strlen(query_ptr))) {
       goto error;
     }
     /* Bind input buffers */
     memset(&rs_bind, 0, sizeof(rs_bind));
     rs_bind.buffer_type = MYSQL_TYPE_STRING;
-    rs_bind.buffer = (char *)(pos);
+    rs_bind.buffer = reinterpret_cast<char *>(server_challenge_response);
     rs_bind.buffer_length =
         (ulong)strlen(reinterpret_cast<char *>(server_challenge_response));
     rs_bind.is_null = nullptr;
@@ -212,6 +246,7 @@ bool user_device_registration(MYSQL *mysql, char *register_option,
     }
   }
   return false;
+
 error:
   sprintf(errmsg, "Finish registration failed with error: %s.\n",
           mysql_stmt_error(finish_reg_stmt));
