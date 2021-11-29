@@ -2,12 +2,12 @@
 .\"     Title: ndbinfo_select_all
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBINFO_SELECT_ALL" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBINFO_SELECT_ALL" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -62,7 +62,7 @@ tables using
 .RS 4
 .\}
 .nf
-shell> \fBndbinfo_select_all \fR\fB\fItable_name1\fR\fR\fB  [\fR\fB\fItable_name2\fR\fR\fB] [\&.\&.\&.]\fR
+$> \fBndbinfo_select_all \fR\fB\fItable_name1\fR\fR\fB  [\fR\fB\fItable_name2\fR\fR\fB] [\&.\&.\&.]\fR
 .fi
 .if n \{\
 .RE
@@ -74,7 +74,7 @@ For example:
 .RS 4
 .\}
 .nf
-shell> \fBndbinfo_select_all logbuffers logspaces\fR
+$> \fBndbinfo_select_all logbuffers logspaces\fR
 == logbuffers ==
 node_id log_type        log_id  log_part        total   used    high
 5       0       0       0       33554432        262144  0
@@ -99,7 +99,7 @@ node_id log_type        log_id  log_part        total   used    high
 8       0       0       1       268435456       0       0
 8       0       0       2       268435456       0       0
 8       0       0       3       268435456       0       0
-shell>
+$>
 .fi
 .if n \{\
 .RE
@@ -178,7 +178,7 @@ T{
 .PP
 \fB--connect-string=connection-string\fR,
 .PP
-\fB \fR\fB-c\fR\fB \fR
+\fB \fR\fB-c connection_string\fR\fB \fR
 T}:T{
 Same as --ndb-connectstring
 T}:T{

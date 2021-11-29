@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2318,7 +2318,7 @@ statements\&. Omitting extraneous lines, the output for the row events produced 
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2360,7 +2360,7 @@ option\&. This output level also shows table partition information where applica
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2419,7 +2419,7 @@ TRUE\&. The output contains an additional comment following each column change:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-vv \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F
@@ -2483,7 +2483,7 @@ provides a convenient way to see row events only as SQL statements:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
+$> \fBmysqlbinlog \-v \-\-base64\-output=DECODE\-ROWS \fR\fB\fIlog_file\fR\fR
 \&.\&.\&.
 # at 218
 #080828 15:03:08 server id 1  end_log_pos 258   Write_rows: table id 17 flags: STMT_END_F

@@ -2,12 +2,12 @@
 .\"     Title: ndbxfrm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2021
+.\"      Date: 11/26/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "09/04/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBXFRM" "1" "11/26/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -83,7 +83,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password=string\fR\fB \fR
+\fB \fR\fB--decrypt-password=password\fR\fB \fR
 T}:T{
 Use this password to decrypt file
 T}:T{
@@ -92,7 +92,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--decrypt-password-from-stdin[=value]\fR\fB \fR
+\fB \fR\fB--decrypt-password-from-stdin\fR\fB \fR
 T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
@@ -130,7 +130,7 @@ T{
 .PP
 \fB--encrypt-kdf-iter-count=#\fR,
 .PP
-\fB \fR\fB-k\fR\fB \fR
+\fB \fR\fB-k #\fR\fB \fR
 T}:T{
 Number of iterations used in key definition
 T}:T{
@@ -139,7 +139,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password=string\fR\fB \fR
+\fB \fR\fB--encrypt-password=password\fR\fB \fR
 T}:T{
 Use this password to encrypt file
 T}:T{
@@ -148,7 +148,7 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
-\fB \fR\fB--encrypt-password-from-stdin[=value]\fR\fB \fR
+\fB \fR\fB--encrypt-password-from-stdin\fR\fB \fR
 T}:T{
 Get encryption password in a secure fashion from STDIN
 T}:T{
@@ -438,7 +438,8 @@ Uses any of the printable ASCII characters except
 ",
 $,
 %,
-\e, and
+\e,
+`, and
 ^
 .RE
 .sp
@@ -463,10 +464,6 @@ Is no more than 256 characters in length
 .\}
 Is enclosed by single or double quotation marks
 .RE
-.sp
-It is possible but not recommended to use an empty password (\*(Aq\*(Aq
-or
-"")\&.
 .RE
 .sp
 .RS 4
@@ -552,7 +549,7 @@ Example:
 .RS 4
 .\}
 .nf
-shell> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
+$> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
 File=BACKUP\-10\-0\&.5\&.Data, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.ctl, compression=no, encryption=yes
 File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
