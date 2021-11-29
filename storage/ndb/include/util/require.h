@@ -25,6 +25,8 @@
 #ifndef NDB_UTIL_REQUIRE_H
 #define NDB_UTIL_REQUIRE_H
 
+#include "my_compiler.h" // likely
+
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */
