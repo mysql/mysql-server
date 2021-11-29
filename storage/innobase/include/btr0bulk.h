@@ -330,10 +330,10 @@ public:
 	@return error code  */
 	dberr_t finish(dberr_t	err);
 
-	/** Release all latches */
+	/** Release latch on the rightmost leaf page in the index tree */
 	void release();
 
-	/** Re-latch all latches */
+	/** Re-latch latch on the rightmost leaf page in the index tree */
 	void latch();
 
 private:
