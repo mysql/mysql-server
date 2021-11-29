@@ -993,12 +993,8 @@ Btree_load::~Btree_load() noexcept {
 }
 
 void Btree_load::release() noexcept {
-  ut_a(m_root_level + 1 == m_page_loaders.size());
-
-  for (size_t level = 0; level <= m_root_level; level++) {
-    auto page_loader = m_page_loaders[level];
-    page_loader->release();
-  }
+  auto page_loader = m_page_loaders[0];
+  page_loader->release();
 }
 
 void Btree_load::latch() noexcept {
@@ -1006,13 +1002,8 @@ void Btree_load::latch() noexcept {
     /* Nothing to latch. */
     return;
   }
-
-  ut_ad(m_root_level + 1 == m_page_loaders.size());
-
-  for (size_t level = 0; level <= m_root_level; level++) {
-    auto page_loader = m_page_loaders[level];
-    page_loader->latch();
-  }
+  auto page_loader = m_page_loaders[0];
+  page_loader->latch();
 }
 
 dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
@@ -1082,25 +1073,8 @@ dberr_t Btree_load::insert(Page_load *page_loader, dtuple_t *tuple,
     ut_a(m_index->is_clustered());
     ut_a(page_loader->get_level() == 0);
     ut_a(page_loader == m_page_loaders[0]);
-
-    /* Release all latched but leaf node. */
-    for (size_t level = 1; level <= m_root_level; ++level) {
-      auto page_loader = m_page_loaders[level];
-
-      page_loader->release();
-    }
   }
-
   auto err = page_loader->insert(tuple, big_rec, rec_size);
-
-  if (big_rec != nullptr) {
-    /* Restore latches */
-    for (size_t level = 1; level <= m_root_level; ++level) {
-      auto page_loader = m_page_loaders[level];
-      page_loader->latch();
-    }
-  }
-
   return err;
 }
 
@@ -1133,11 +1107,18 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
     m_root_level = level;
 
     is_left_most = true;
+
+    if (level > 0) {
+      page_loader->release();
+    }
   }
 
   ut_a(m_page_loaders.size() > level);
 
   auto page_loader = m_page_loaders[level];
+  if (level > 0) {
+    page_loader->latch();
+  }
 
   if (is_left_most && level > 0 && page_loader->get_rec_no() == 0) {
     /* The node pointer must be marked as the predefined minimum
@@ -1155,6 +1136,9 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
     externally on separate database pages */
     big_rec = dtuple_convert_big_rec(m_index, nullptr, tuple);
     if (big_rec == nullptr) {
+      if (level > 0) {
+        page_loader->release();
+      }
       return DB_TOO_BIG_RECORD;
     }
 
@@ -1176,6 +1160,9 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
             if (big_rec != nullptr) {
               dtuple_convert_back_big_rec(tuple, big_rec);
             }
+            if (level > 0) {
+              page_loader->release();
+            }
             return DB_TOO_BIG_RECORD;
           })
 
@@ -1186,7 +1173,9 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
   if (big_rec != nullptr) {
     dtuple_convert_back_big_rec(tuple, big_rec);
   }
-
+  if (level > 0) {
+    page_loader->release();
+  }
   return err;
 }
 
@@ -1198,7 +1187,9 @@ dberr_t Btree_load::finalize_page_loads(dberr_t err,
   /* Finish all page bulks */
   for (size_t level = 0; level <= m_root_level; level++) {
     auto page_loader = m_page_loaders[level];
-
+    if (level > 0) {
+      page_loader->latch();
+    }
     page_loader->finish();
 
     last_page_no = page_loader->get_page_no();
