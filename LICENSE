@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL 5.7.28 (and later).
 
-   Last updated: July 2021
+   Last updated: September 2021
 
 Licensing Information
 
@@ -430,6 +430,7 @@ The Universal FOSS Exception, Version 1.0
    Software with Other FOSS, and the constants, function signatures, data
    structures and other invocation methods used to run or interact with
    each of them (as to each, such software's "Interfaces"):
+
     i. The Software's Interfaces may, to the extent permitted by the
        license of the Other FOSS, be copied into, used and distributed in
        the Other FOSS in order to enable interoperability, without
@@ -439,6 +440,7 @@ The Universal FOSS Exception, Version 1.0
        including without limitation as used in the Other FOSS (which upon
        any such use also then contains a portion of the Software under the
        Software License).
+
    ii. The Other FOSS's Interfaces may, to the extent permitted by the
        license of the Other FOSS, be copied into, used and distributed in
        the Software in order to enable interoperability, without requiring
@@ -446,6 +448,7 @@ The Universal FOSS Exception, Version 1.0
        License or otherwise altering their original terms, if this does
        not require any portion of the Software other than such Interfaces
        to be licensed under the terms other than the Software License.
+
    iii. If only Interfaces and no other code is copied between the
        Software and the Other FOSS in either direction, the use and/or
        distribution of the Software with the Other FOSS shall not be
@@ -480,6 +483,7 @@ Licenses for Third-Party Components
 argparse
 
    argparse
+
 argparse is (c) 2006-2009 Steven J. Bethard <steven.bethard@gmail.com>.
 
 The argparse module was contributed to Python as of Python 2.7 and thus was
@@ -558,6 +562,7 @@ Boost Library
 
    Use of any of this software is governed by the terms of the license
    below:
+
 Boost Software License - Version 1.0 - August 17th, 2003
 
 Permission is hereby granted, free of charge, to any person or
@@ -591,6 +596,7 @@ IN THE SOFTWARE.
 Corosync
 
    Corosync
+
 Copyright (c) 2002-2004 MontaVista Software, Inc.
 Copyright (c) 2005-2010 RedHat, Inc.
 
@@ -627,6 +633,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Cyrus SASL
 
    Cyrus SASL
+
 * Copyright (c) 1994-2012 Carnegie Mellon University.  All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -671,6 +678,7 @@ Cyrus SASL
 dtoa.c
 
    dtoa.c
+
 The author of this software is David M. Gay.
 
 Copyright (c) 1991, 2000, 2001 by Lucent Technologies.
@@ -695,6 +703,7 @@ Editline Library (libedit)
    Editline Library (libedit)
 
    Some files are:
+
 Copyright (c) 1992, 1993
 The Regents of the University of California. All rights reserved.
 
@@ -732,6 +741,7 @@ IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 
    Some files are:
+
 Copyright (c) 2001 The NetBSD Foundation, Inc.
 All rights reserved.
 
@@ -768,6 +778,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
    Some files are:
+
 Copyright (c) 1997 The NetBSD Foundation, Inc.
 All rights reserved.
 
@@ -804,6 +815,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
    Some files are:
+
 Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
 
 Permission to use, copy, modify, and distribute this
@@ -964,6 +976,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Fred Fish's Dbug Library
 
    Fred Fish's Dbug Library
+
                                 N O T I C E
 
                    Copyright Abandoned, 1987, Fred Fish
@@ -1001,6 +1014,7 @@ The dbug_analyze.c file is subject to the following notice:
 getarg
 
    getarg Function (getarg.h, getarg.c files)
+
 Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
 (Royal Institute of Technology, Stockholm, Sweden).
 All rights reserved.
@@ -1042,6 +1056,7 @@ Google C++ Mocking Framework (Google Mock)
 
    This Oracle Product includes or references Gmock (including gtest),
    which is licensed to Oracle under the following terms:
+
 Copyright 2008, Google Inc.
 All rights reserved.
 
@@ -1075,6 +1090,7 @@ POSSIBILITY OF SUCH DAMAGE.
 Google Controlling Master Thread I/O Rate Patch
 
    Google Controlling master thread I/O rate patch
+
 Copyright (c) 2009, Google Inc.
 All rights reserved.
 
@@ -1231,6 +1247,7 @@ ICU4C Unicode Libraries
 
    This Oracle Product includes or references ICU4C, which is licensed to
    Oracle under the following terms:
+
 Copyright (c) 1995-2013 International Business Machines Corporation and
 others
 
@@ -1605,6 +1622,7 @@ its time zone support. The ownership of the TZ database is explained in BCP
 Janson
 
    Janson 2.6
+
 Include the following verbatim in the documentation:
 
 Licence Text:
@@ -1635,6 +1653,7 @@ THE SOFTWARE.
 jemalloc
 
    jemalloc
+
 Copyright (C) 2002-present Jason Evans <jasone@canonware.com>.
 All rights reserved.
 Copyright (C) 2007-2012 Mozilla Foundation.  All rights reserved.
@@ -1667,6 +1686,7 @@ SUCH DAMAGE.
 lib_sql.cc
 
    lib_sql.cc
+
 Copyright (c) 2000
 SWsoft company
 
@@ -1705,6 +1725,7 @@ libaio
 libeditline-color
 
    libeditline-color
+
 Copyright (c) 1992, 1993
  The Regents of the University of California.  All rights reserved.
 
@@ -1842,6 +1863,7 @@ THE SOFTWARE.
 libgcc & libstdc++ Libraries
 
    libgcc & libstdc++ libraries
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
@@ -2707,6 +2729,7 @@ purpose. It is provided "as is" without express or implied warranty.
 libssh v0.7.3
 
    libssh v0.7.3
+
 You are receiving a copy of libssh as part of MySQL Shell (a component of the
 MySQL server) in object code form. The terms of the Oracle license do NOT apply
 to libssh; libssh is licensed under the LGPLv2.1 license, separate from MySQL.
@@ -2738,6 +2761,7 @@ of this license document, but changing it is not allowed.
 Additional Libraries Used by libssh
 
    libssh has dependencies on the following libraries:
+
 libgcrypt v1.7.3
 ----------------
     The library is distributed under the terms of the GNU Lesser
@@ -3841,6 +3865,7 @@ is concerned.
 memcached
 
    memcached
+
 Copyright (c) 2003, Danga Interactive, Inc.
 All rights reserved.
 
@@ -3878,6 +3903,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 nt_servc (Windows NT Service class library)
 
    nt_servc (Windows NT Service class library)
+
 Windows NT Service class library
 Copyright Abandoned 1998 Irena Pancirov - Irnet Snc
 This file is public domain and comes with NO WARRANTY of any kind
@@ -3901,6 +3927,7 @@ code is licensed under the LGPLv2.1 license.
 OpenPAM
 
    OpenPAM
+
 Copyright (c) 2002-2003 Networks Associates Technology, Inc.
 Copyright (c) 2004-2007 Dag-Erling Smørgrav
 All rights reserved.
@@ -3951,6 +3978,7 @@ OpenSSL License
    the original SSLeay license, separate from the Oracle product. If you
    do not wish to install this library, you may remove it, but the Oracle
    program might not operate properly or at all without it.
+
   LICENSE ISSUES
   ==============
 
@@ -4081,6 +4109,7 @@ OpenSSL License
 Percona Multiple I/O Threads Patch
 
    Percona Multiple I/O threads patch
+
 Copyright (c) 2008, 2009 Percona Inc
 All rights reserved.
 
@@ -4117,6 +4146,7 @@ Pion
 
    This Oracle Product includes or references Pion which is licensed to
    Oracle under the following terms:
+
 Boost Software License - Version 1.0 - August 17th, 2003
 
 Permission is hereby granted, free of charge, to any person or organization
@@ -4258,6 +4288,7 @@ RegEX-Spencer Library
 
    The following software may be included in this product: Henry Spencer's
    Regular-Expression Library (RegEX-Spencer)
+
 Copyright 1992, 1993, 1994 Henry Spencer.  All rights reserved.
 This software is not subject to any license of the American Telephone
 and Telegraph Company or of the Regents of the University of California.
@@ -4285,6 +4316,7 @@ to the following restrictions:
 Richard A. O'Keefe String Library
 
    Richard A. O'Keefe String Library
+
 The Richard O'Keefe String Library is subject to the following notice:
 
 These files are in the public domain.  This includes getopt.c, which
@@ -4314,6 +4346,7 @@ the suitability of this software for any purpose. It is provided
 sajson
 
    sajson
+
 Copyright (c) 2012 Chad Austin
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -4341,6 +4374,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SHA-1 in C
 
    SHA-1 in C
+
 SHA-1 in C
 By Steve Reid <steve@edmweb.com>
 100% Public Domain
@@ -4387,6 +4421,7 @@ from BSD and use the BSD 3-clause license. tzdata:
 Unicode Data Files, V5.2.0
 
    Unicode Data Files, V5.2.0
+
 # unidata-5.2.0.txt
 # Date: 2009-09-22, 16:23:42 PDT [KW]
 #
@@ -4539,6 +4574,7 @@ parties.
 Unicode Data Files, V9.0
 
    Unicode Data Files, V9.0
+
 UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
 
 Unicode Data Files include all data files under the directories
@@ -4639,6 +4675,7 @@ their respective owners.
 xxHash
 
    xxHash
+
 Copyright (c) 2012-2014, Yann Collet
 All rights reserved.
 
@@ -4674,6 +4711,7 @@ zlib
    Oracle gratefully acknowledges the contributions of Jean-loup Gailly
    and Mark Adler in creating the zlib general purpose compression library
    which is used in this product.
+
 (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
@@ -5246,6 +5284,7 @@ Written Offer for Source Code
    request to the address listed below or by sending an email to Oracle
    using the following link:
    http://www.oracle.com/goto/opensourcecode/request.
+
   Oracle America, Inc.
   Attn: Senior Vice President
   Development and Engineering Legal
@@ -5253,20 +5292,30 @@ Written Offer for Source Code
   Redwood Shores, CA 94065
 
    Your request should include:
+
      * The name of the binary for which you are requesting the source code
+
      * The name and version number of the Oracle product containing the
        binary
+
      * The date you received the Oracle product
+
      * Your name
+
      * Your company name (if applicable)
+
      * Your return mailing address and email, and
+
      * A telephone number in the event we need to reach you.
+
 
    We may charge you a fee to cover the cost of physical media and
    processing.
 
    Your request must be sent
+
     a. within three (3) years of the date you received the Oracle product
        that included the binary that is the subject of your request, or
+
     b. in the case of code licensed under the GPL v3 for as long as Oracle
        offers spare parts or customer support for that product model.
