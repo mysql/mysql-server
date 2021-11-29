@@ -281,6 +281,7 @@ class ndb_pushed_builder_ctx {
           m_last_inner(0),
           m_first_upper(-1),
           m_sj_nest(),
+          m_first_sj_upper(-1),
           m_key_parents(nullptr),
           m_ancestors(),
           m_parent(MAX_TABLES),
@@ -449,8 +450,24 @@ class ndb_pushed_builder_ctx {
      * A similar, but simpler, nest topology exists for the semi-joins.
      * Tables in the semi-join nest are semi joined with any tables outside
      * the sj_nest.
+     *
+     * Note that tables can still be inner- and outer-joined inside the sj_nest.
+     * Unlike the inner_ and upper_nest maps representing these joins, the
+     * sj_nest for a particular table contains all tables in the sj_nest. (Not
+     * only the preceeding tables.)
      */
     ndb_table_access_map m_sj_nest;
+
+    /**
+     * The semi-join nests may be nested inside each other as well.
+     * In such cases 'm_first_sj_upper' will refer the start of the sj_nest
+     * we are inside.
+     *
+     * Note that for nested sj_nests, the 'upper' 'm_sj_nest' bitmap will also
+     * contain any semi-join'ed tables in sj_nest's inside it - Contrary to
+     * the inner_nest bitmaps which only contain the tables in each inner-nest.
+     */
+    int m_first_sj_upper;
 
     /**
      * For each KEY_PART referred in the join conditions, we find the set of

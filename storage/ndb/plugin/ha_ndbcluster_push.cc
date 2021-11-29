@@ -626,7 +626,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
     ndb_table_access_map upper_nests;
     ndb_table_access_map inner_nest;
-    ndb_table_access_map sj_nest;
 
     // Keep track of where join-nest and semi_join-nest starts
     // Note that they might start before 'root', if 'root' is not first.
@@ -672,16 +671,23 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       upper = tab_no;
 
       /**
-       * Build similar info for sj_nest. Note that sj_nests are not nested
-       * inside other sj_nests. Thus there are no 'upper_sj_nests', and the
-       * logic for leaving a sj_nest becomes much simpler.
-       * (No un-nesting of nests)
+       * Collect similar (simpler) info for semi_join nests.
+       *
+       * Note, that contrary to (outer-)join_nest, the sj_nest-bitmap will also
+       * include any sub-sj_nest embedded within it. Reason: For outer join, the
+       * existence of matches found in embedded sub-nest will *not* affect the
+       * upper outer-join_nest itself - It will only be NULL-extended if no
+       * matches are found. In a sj_nest however, matches in sub-sj_nests are
+       * needed in order for rows in the upper sj_nest to exists as well.
        */
       if (table->get_first_sj_inner() >= 0) {  // Is in a sj_nest
         first_sj_inner = table->get_first_sj_inner();
-        sj_nest.add(tab_no);
+        const int last_sj_inner = table->get_last_sj_inner();
+        const ndb_table_access_map sj_nest =
+            get_tables_in_range(first_sj_inner, last_sj_inner);
+        m_tables[tab_no].m_sj_nest = sj_nest;
+        m_tables[tab_no].m_first_sj_upper = table->get_first_sj_upper();
       }
-      m_tables[tab_no].m_sj_nest = sj_nest;
 
       /**
        * Push down join of table if supported:
@@ -710,26 +716,36 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       }
 
       /**
+       * Leave join-nests when at 'last_inner'
+       *
        * This table can be the last inner table of join-nest(s).
        * That will require additional pushability checks of entire nest
+       *
+       * Note that the same tab_no may unwind several inner/semi join-nests.
+       * ... all having the same 'last_inner' (this tab_no)
        */
-      if (table->get_last_sj_inner() == (int)tab_no) {
-        if (first_sj_inner > (int)root_no) {  // Leaving the semi_join nest
-          // Phase 2 of pushability check, see big comment above.
-          validate_join_nest(sj_nest, first_sj_inner, tab_no, "semi");
-        }
-        first_sj_inner = -1;
-        sj_nest.clear_all();
+      // First unwind the semi-join nests, if needed
+      int last_sj_inner = table->get_last_sj_inner();
+      while ((int)tab_no == last_sj_inner &&   // Leaving the semi_join nest
+             (int)root_no < first_sj_inner) {  // Is a SJ relative to root
+
+        // Phase 2 of pushability check, see big comment above.
+        validate_join_nest(m_tables[first_sj_inner].m_sj_nest, first_sj_inner,
+                           tab_no, "semi");
+
+        // Possibly more nested sj-nests to unwind, or break out
+        first_sj_inner = m_tables[first_sj_inner].m_first_sj_upper;
+        if (first_sj_inner < 0) break;
+
+        AQP::Table_access *upper_table =
+            m_plan.get_table_access(first_sj_inner);
+        last_sj_inner = upper_table->get_last_sj_inner();
       }
 
       // Prepare inner/outer join-nest structure for unwind;
       uint last_inner = m_tables[tab_no].m_last_inner;
       int first_upper = m_tables[tab_no].m_first_upper;
 
-      /**
-       * Note that the same tab_no may unwind several inner join-nests.
-       * ... all having the same 'last_inner' (this tab_no)
-       */
       while (tab_no == last_inner &&  // End of current join-nest, and
              first_upper >= 0) {      // has an embedding upper nest
         if (first_inner > root_no) {  // Root is outer-joined with nest
@@ -1247,9 +1263,6 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
   const uint tab_no = table->get_access_no();
   assert(m_scan_operations.contain(tab_no));
 
-  // Logic below assume that 'this' table is not part of the 'nest'.
-  nest.clear_bit(tab_no);
-
   /**
    * 1) Check if outer- or semi-joined table depends on 'unpushed condition'
    */
@@ -1399,13 +1412,15 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
    * INNER JOIN wrt. that other table. (Which is pushable)
    */
 
+  ndb_table_access_map sj_nest(m_tables[tab_no].m_sj_nest);
   if (table->is_sj_firstmatch() &&
       NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
     // 'table' is part of a semi-join
     // (We support semi-join only if firstMatch strategy is used)
     assert(m_tables[tab_no].m_sj_nest.contain(tab_no));
 
-    if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
+    sj_nest.intersect(m_tables[tab_no].embedding_nests());
+    if (!is_pushable_within_nest(table, sj_nest, "semi")) {
       return false;
     }
     if (table->get_first_sj_inner() == (int)tab_no) {

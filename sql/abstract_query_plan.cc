@@ -413,6 +413,9 @@ int Table_access::get_last_sj_inner() const {
   }
   return qep_tab->last_sj_inner();
 }
+int Table_access::get_first_sj_upper() const {
+  return -1;  // sj_nest cant be nested yet
+}
 
 bool Table_access::is_sj_firstmatch() const {
   const QEP_TAB *qep_tab = get_qep_tab();

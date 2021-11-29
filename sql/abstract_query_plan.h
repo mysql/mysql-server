@@ -176,6 +176,7 @@ class Table_access {
 
   int get_first_sj_inner() const;
   int get_last_sj_inner() const;
+  int get_first_sj_upper() const;
 
   // Is member of a firstMatch sj_nest?
   bool is_sj_firstmatch() const;
