@@ -1145,7 +1145,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
       break;
 
     bool no_ai_val_provided = false;
-    if (unlikely(auto_inc_field_id == n) && field != 0) {
+    if (unlikely(auto_inc_field_id == n) && field != nullptr) {
       if (field->m_null || field->is_empty())
         no_ai_val_provided = true;
     }
@@ -1894,7 +1894,7 @@ NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, uint
       const uint fieldnr = 1 + fieldno;
       m_util.set_error_data(
                             error, __LINE__, 0,
-                            "line %llu field %u: eval_auto_inc_field %s:"
+                            "line %" PRIu64 " field %u: eval_auto_inc_field %s:"
                             " failed : bad type",
                             linenr, fieldnr, attr.m_sqltype);
 
