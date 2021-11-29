@@ -372,6 +372,7 @@ public:
     void do_init();
     void do_eval();
     void eval_line(Row* row, Line* line);
+    void eval_auto_inc_field(Row* row, Line* line, Field* field, uint attr_id);
     void eval_field(Row* row, Line* line, Field* field);
     void eval_null(Row* row, Line* line, Field* field);
     Input& m_input;

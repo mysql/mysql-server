@@ -607,6 +607,76 @@ NdbImportUtil::Attr::get_value(const Row* row, uint32& value) const
   require(false);
 }
 
+bool
+NdbImportUtil::Attr::ai_value_not_provided(const Row* row) const
+{
+  const uchar* p = get_value(row);
+
+  switch (m_type) {
+    case NdbDictionary::Column::Tinyint: {
+      uint8 val;
+      memcpy(&val, p, 1);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Tinyunsigned: {
+      uint8 val;
+      memcpy(&val, p, 1);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Smallint: {
+      int16 val;// = sint2korr(p);
+      memcpy(&val, p, sizeof(val));
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Smallunsigned: {
+      uint16 val;// = uint2korr(p);
+      memcpy(&val, p, sizeof(val));
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Mediumint: {
+      int32 val = sint3korr(p);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Mediumunsigned: {
+      uint32 val = uint3korr(p);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Int : {
+      int32 val;
+      memcpy(&val, p, 4);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Unsigned: {
+      uint32 val;
+      memcpy(&val, p, 4);
+      if (val == 0) return true;
+      break;
+    }
+    case NdbDictionary::Column::Bigint: {
+      int64 val;
+      memcpy(&val, p, 8);
+      if (val == 0) return true;
+      break;
+    }
+  case NdbDictionary::Column::Bigunsigned: {
+      uint64 val;
+      memcpy(&val, p, 8);
+      if (val == 0) return true;
+      break;
+    }
+  default:
+    break;
+  }
+  return false;
+}
+
 void
 NdbImportUtil::Attr::get_value(const Row* row, uint64& value) const
 {
@@ -783,6 +853,7 @@ NdbImportUtil::Table::Table()
   m_keyrec = NULL;
   m_recsize = 0;
   m_has_hidden_pk = false;
+  m_autoIncAttrId = Inval_uint;
 }
 
 void
@@ -912,6 +983,15 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
     table.m_recsize = NdbDictionary::getRecordRowLength(rec);
     Attrs& attrs = table.m_attrs;
     const uint attrcnt = tab->getNoOfColumns();
+    const uint autoinc_cnt = tab->getNoOfAutoIncrementColumns();
+    if (autoinc_cnt > 1) {
+      set_error_usage(error, __LINE__,
+                      "Table %s: "
+                      "has %u auto inc columns. "
+                      "Allowed max number of auto inc columns is 1",
+                      tab->getName(), autoinc_cnt);
+      return -1;
+    }
     attrs.reserve(attrcnt);
     bool ok = true;
     Uint32 recAttrId;
@@ -935,6 +1015,26 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
       attr.m_scale = col->getScale();
       attr.m_length = col->getLength();
       attr.m_arraytype = col->getArrayType();
+
+      bool attr_auto_inc = col->getAutoIncrement();
+      if (attr_auto_inc) {
+        if (table.m_autoIncAttrId != Inval_uint &&
+            table.m_autoIncAttrId != i) {
+          set_error_usage(error, __LINE__,
+                          "Table %s : "
+                          "has already atrr %u as auto inc column. "
+                          "Attrib %u cannot be an auto inc col. "
+                          "Allowed max number of auto inc columns is 1",
+                          tab->getName(), table.m_autoIncAttrId, i);
+          return -1;
+        }
+        if (table.m_autoIncAttrId == Inval_uint) {
+          table.m_autoIncAttrId = i;
+        }
+        if (attr.m_nullable) {
+          attr.m_nullable = false;
+        }
+      }
       require(attr.m_arraytype <= 2);
       attr.m_size = col->getSizeInBytes();
       switch (attr.m_type) {
@@ -1031,9 +1131,10 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
         {
           if (i + 1 == attrcnt &&
               nkey == 1 &&
-              attr.m_type == NdbDictionary::Column::Bigunsigned)
+              attr.m_type == NdbDictionary::Column::Bigunsigned) {
             table.m_has_hidden_pk = true;
-          else
+            require(table.m_autoIncAttrId == i);
+          } else
           {
             set_error_usage(error, __LINE__,
                             "column %u: "
