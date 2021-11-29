@@ -95,10 +95,10 @@ class Btree_load : private ut::Non_copyable {
   @return error code  */
   [[nodiscard]] dberr_t finish(dberr_t err) noexcept;
 
-  /** Release all latches. */
+  /** Release latch on the rightmost leaf page in the index tree. */
   void release() noexcept;
 
-  /** Re-latch all latches. */
+  /** Re-latch latch on the rightmost leaf page in the index tree. */
   void latch() noexcept;
 
   /** Insert a tuple to a page in a level
