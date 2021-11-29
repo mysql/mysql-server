@@ -1092,8 +1092,17 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
   uint fieldcnt = line->m_field_list.cnt();
-  const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
-  const uint expect_attrcnt = attrcnt - has_hidden_pk;
+
+  // Hidden pk
+  const uint auto_inc_field_id = (uint)table.m_autoIncAttrId;
+  bool hidden_pk = table.m_has_hidden_pk;
+
+  uint expect_attrcnt = attrcnt;
+  if (hidden_pk) {
+    require(auto_inc_field_id == attrcnt - 1);
+    expect_attrcnt = attrcnt - 1;
+  }
+
   Error error;  // local error
   do
   {
@@ -1128,35 +1137,42 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
     m_input.reject_line(line, (Field*)0, error);
     line->m_reject = true;
   }
+
   Field* field = line->m_field_list.front();
-  for (uint n = 0; n < fieldcnt; n++)
+  for (uint n = 0; n < attrcnt; n++)
   {
     if (line->m_reject) // wrong field count or eval error
       break;
-    require(field != 0);
-    require(field->m_fieldno == n);
-    if (!field->m_null)
-      eval_field(row, line, field);
-    else
-      eval_null(row, line, field);
+
+    bool no_ai_val_provided = false;
+    if (unlikely(auto_inc_field_id == n) && field != 0) {
+      if (field->m_null || field->is_empty())
+        no_ai_val_provided = true;
+    }
+
+    if (unlikely(auto_inc_field_id == n) &&
+        (hidden_pk || no_ai_val_provided)) {
+      // No field data provided in the input file, so fill the field with 0
+      eval_auto_inc_field(row, line, field, n);
+
+      // Since hidden PK is the last attrib, leave the for-loop
+      if (hidden_pk) {
+        break;
+      }
+    } else {
+      // Eval user-provided-auto-inc or regular field data
+      require(field != 0);
+      if (!field->m_null) {
+        eval_field(row, line, field);
+      } else {
+        eval_null(row, line, field);
+      }
+    }
     field = field->next();
   }
   if (!line->m_reject)
   {
     require(field == 0);
-  }
-  if (has_hidden_pk)
-  {
-    /*
-     * CSV has no access to Ndb (in fact there may not be any Ndb
-     * object e.g. in CSV input -> CSV output).  Any autoincrement
-     * value for hidden pk is set later in RelayOpWorker.  Fill in
-     * some dummy value to not leave uninitialized data.
-     */
-    const Attr& attr = attrs[attrcnt - 1];
-    require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-    uint64 val = Inval_uint64;
-    attr.set_value(row, &val, 8);
   }
   if (!line->m_reject)
     m_input.m_rows.push_back(row);
@@ -1813,6 +1829,86 @@ ndb_import_csv_parse_timestamp2(const NdbImportCsv::Attr& attr,
 }
 
 void
+NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, uint attr_id)
+{
+  const Table& table = m_input.m_table;
+  const Attrs& attrs = table.m_attrs;
+  const Attr& attr = attrs[attr_id];
+
+  Error error; // Local error
+  /*
+   * CSV has no access to Ndb (in fact there may not be any Ndb object
+   * e.g. in CSV input -> CSV output).  Fill in with 0 to
+   * differentiate auto inc field data provided or not provided in the
+   * input file.
+   */
+
+  const Uint64 ui64val = 0;
+  switch (attr.m_type) {
+    case NdbDictionary::Column::Tinyint: {
+      attr.set_value(row, &ui64val, 1);
+      break;
+    }
+    case NdbDictionary::Column::Tinyunsigned: {
+      attr.set_value(row, &ui64val, 1);
+      break;
+    }
+    case NdbDictionary::Column::Smallint: {
+      attr.set_value(row, &ui64val, 2);
+      break;
+    }
+    case NdbDictionary::Column::Smallunsigned: {
+      attr.set_value(row, &ui64val, 2);
+      break;
+    }
+    case NdbDictionary::Column::Mediumint: {
+      attr.set_value(row, &ui64val, 3);
+      break;
+    }
+    case NdbDictionary::Column::Mediumunsigned: {
+      attr.set_value(row, &ui64val, 3);
+      break;
+    }
+    case NdbDictionary::Column::Int: {
+      attr.set_value(row, &ui64val, 4);
+      break;
+    }
+    case NdbDictionary::Column::Unsigned: {
+      attr.set_value(row, &ui64val, 4);
+      break;
+    }
+    case NdbDictionary::Column::Bigint: {
+      attr.set_value(row, &ui64val, 8);
+      break;
+    }
+    case NdbDictionary::Column::Bigunsigned: {
+      attr.set_value(row, &ui64val, 8);
+      break;
+    }
+    default: {
+      // Internal counts file lines and fields from 0
+      const uint64 lineno = m_input.m_startlineno + line->m_lineno;
+      const uint fieldno = field->m_fieldno;
+      // User wants the counts from 1
+      const uint64 linenr = 1 + lineno;
+      const uint fieldnr = 1 + fieldno;
+      m_util.set_error_data(
+                            error, __LINE__, 0,
+                            "line %llu field %u: eval_auto_inc_field %s:"
+                            " failed : bad type",
+                            linenr, fieldnr, attr.m_sqltype);
+
+      break;
+    }
+  }
+  if (m_util.has_error(error))
+  {
+    m_input.reject_line(line, field, error);
+    line->m_reject = true;
+  }
+}
+
+void
 NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
 {
   const Opt& opt = m_util.c_opt;
@@ -2120,9 +2216,10 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
   case NdbDictionary::Column::Unsigned:
     {
       int err = 0;
-      const char* endptr = nullptr;
-      uint32 val = cs->cset->strntoul(
-                   cs, datac, length, 10, &endptr, &err);
+      const char* endptr = 0;
+      uint32 val = (uint32) cs->cset->strntoull10rnd(cs, datac, length,
+                                                     true, &endptr, &err);
+      if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
       if (err != 0)
       {
         m_util.set_error_data(
@@ -2145,9 +2242,10 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
   case NdbDictionary::Column::Bigunsigned:
     {
       int err = 0;
-      const char* endptr = nullptr;
-      uint64 val = cs->cset->strntoull(
-                   cs, datac, length, 10, &endptr, &err);
+      const char* endptr = 0;
+      uint64 val = (uint64) cs->cset->strntoull10rnd(cs, datac, length,
+                                                     true, &endptr, &err);
+      if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
       if (err != 0)
       {
         m_util.set_error_data(
