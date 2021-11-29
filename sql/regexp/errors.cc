@@ -51,7 +51,7 @@ struct UErrorCodeHash {
   Map from ICU error codes to MySQL dittos. We strive to keep this list in the
   same order as the enum UErrorCode in common/unicode/utypes.h.
 
-  ICU version 67 introduced a new implementation for '\X'
+  ICU version 67 introduced a new implementation for '@\X'
   "Match a Grapheme Cluster". This means that our bundled version will
   return ER_REGEXP_MISSING_RESOURCE while for system ICU we return
   ER_WARN_REGEXP_USING_DEFAULT as a Note.

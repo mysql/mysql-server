@@ -3846,7 +3846,7 @@ class Item_ident : public Item {
     If column is from an expression, a string generated from that expression.
 
     Notice that a column can be aliased in two ways:
-    1. With an explicit column alias, or <as clause>, or
+    1. With an explicit column alias, or @<as clause@>, or
     2. With only a column name specified, which differs from the table's
        column name due to case insensitivity.
     In both cases field_name will differ from m_orig_field_name.

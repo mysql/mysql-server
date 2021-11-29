@@ -699,7 +699,7 @@ void append_auth_id(const THD *thd, ACL_USER *acl_user, String *str) {
 }
 
 /**
-  Append the user@host to the str
+  Append the user\@host to the str.
 
   @param [in]       thd      The THD to find the SQL mode
   @param [in]       user     Username to append to authID

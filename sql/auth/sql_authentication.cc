@@ -4325,7 +4325,7 @@ static int compare_native_password_with_hash(const char *hash,
   The server name is *mysql_native_password*
   </li>
   <li>
-  The client name is *mysql_native_password"
+  The client name is *mysql_native_password*
   </li>
   <li>
   Client side requires an 20-byte random challenge from server
@@ -4347,7 +4347,7 @@ static int compare_native_password_with_hash(const char *hash,
   @ref page_protocol_connection_phase_authentication_methods_old_password_authentication
 
   1. using a tested, crypto-graphic hashing function (SHA1)
-  2. knowning the content of the hash in the mysql.user table isn't enough
+  2. knowing the content of the hash in the mysql.user table isn't enough
      to authenticate against the MySQL Server.
 
   The network packet content for the password is calculated by:
