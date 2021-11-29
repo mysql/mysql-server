@@ -23,6 +23,7 @@
 */
 
 #define DBTUX_GEN_CPP
+#include "util/require.h"
 #include "Dbtux.hpp"
 
 #include <signaldata/NodeStateSignalData.hpp>

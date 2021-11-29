@@ -22,8 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <time.h>
 
+#include "portlib/ndb_compiler.h"
 #include <portlib/NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include "atrt.hpp"

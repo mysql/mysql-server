@@ -23,6 +23,7 @@
 */
 
 #define DBTC_C
+#include "util/require.h"
 #include "Dbtc.hpp"
 #include "ndb_global.h"
 #include <pc.hpp>

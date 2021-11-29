@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "DynArr256.hpp"
 #include "pc.hpp"
 #include <stdio.h>
@@ -102,8 +103,6 @@ Uint32 DA256Page::last_free() const
 }
 
 
-#undef require
-#define require(x) require_exit_or_core_with_printer((x), 0, ndbout_printer)
 //#define DA256_USE_PX
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE

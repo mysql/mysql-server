@@ -25,6 +25,7 @@
 #ifndef _CONFIGFACTORY_HPP
 #define _CONFIGFACTORY_HPP
 
+#include "util/require.h"
 #include <util/Properties.hpp>
 #include <kernel/NodeBitmask.hpp>
 #include <NdbEnv.h>

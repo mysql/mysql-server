@@ -61,12 +61,6 @@
 #define my_offsetof(TYPE, MEMBER) \
         ((size_t)((char *)&(((TYPE *)0x10)->MEMBER) - (char*)0x10))
 
-#if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
-#else
-# define ATTRIBUTE_FORMAT(style, m, n)
-#endif
-
 #ifdef HAVE_NDB_CONFIG_H
 #include "ndb_config.h"
 #endif
@@ -206,24 +200,6 @@ extern "C" {
 #endif
 
 /**
- *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
- */
-#ifdef __GNUC__
-#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
-#else
-#define ATTRIBUTE_NOINLINE
-#endif
-
-/**
- *  Attribute used for unused function arguments
- */
-#if defined(__GNUC__) || defined(__clang__)
-#define ATTRIBUTE_UNUSED __attribute__((unused))
-#else
-#define ATTRIBUTE_UNUSED
-#endif
-
-/**
  * sizeof cacheline (in bytes)
  *
  * TODO: Add configure check...
@@ -234,38 +210,6 @@ extern "C" {
  * Pad to NDB_CL size
  */
 #define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
-
-/*
- * require is like a normal assert, only it's always on (eg. in release)
- */
-typedef int(*RequirePrinter)(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-[[noreturn]] void require_failed(int exitcode,
-                                 RequirePrinter p,
-                                 const char* expr,
-                                 const char* file,
-                                 int line);
-int ndbout_printer(const char * fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-/*
- *  this allows for an exit() call if exitcode is not zero
- *  and takes a Printer to print the error
- */
-#define require_exit_or_core_with_printer(v, exitcode, printer) \
-  do { if (likely(!(!(v)))) break;                                    \
-       require_failed((exitcode), (printer), #v, __FILE__, __LINE__); \
-  } while (0)
-
-/*
- *  this allows for an exit() call if exitcode is not zero
-*/
-#define require_exit_or_core(v, exitcode) \
-       require_exit_or_core_with_printer((v), (exitcode), 0)
-
-/*
- * this require is like a normal assert.  (only it's always on)
-*/
-#define require(v) require_exit_or_core_with_printer((v), 0, 0)
 
 struct LinearSectionPtr
 {

@@ -22,22 +22,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include <ndb_global.h>
 
-void require_failed(int exitcode, RequirePrinter printer,
-                    const char* expr, const char* file, int line)
+void require_failed(int exitcode, const char* expr, const char* file, int line)
 {
-  if (!printer)
-  {
-    // Print directly to stderr
-    fprintf(stderr, "%s:%d: require(%s) failed\n", file, line, expr);
-    fflush(stderr);
-  }
-  else
-  {
-    // Print using the provided printer callback function
-    printer("%s:%d: require(%s) failed\n", file, line, expr);
-  }
+  // Print directly to stderr
+  fflush(nullptr);
+  fprintf(stderr, "%s:%d: require(%s) failed\n", file, line, expr);
+  fflush(stderr);
 #ifdef _WIN32
   DebugBreak();
 #endif

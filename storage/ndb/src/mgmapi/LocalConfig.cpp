@@ -28,6 +28,7 @@
 #include <NdbAutoPtr.hpp>
 #include <util/NdbOut.hpp>
 #include <NdbTCP.h>
+#include "util/cstrbuf.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -125,9 +126,13 @@ LocalConfig::init(const char *connectString,
 LocalConfig::~LocalConfig(){
 }
   
-void LocalConfig::setError(int lineNumber, const char * _msg) {
+void LocalConfig::setError(int lineNumber, const char * _msg)
+{
   error_line = lineNumber;
-  snprintf(error_msg, sizeof(error_msg), "%s", _msg);
+  if (cstrbuf_copy(error_msg, _msg) == 1)
+  {
+    // ignore truncated error message
+  }
 }
 
 bool

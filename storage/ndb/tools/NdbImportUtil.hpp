@@ -25,7 +25,9 @@
 #ifndef NDB_IMPORT_UTIL_HPP
 #define NDB_IMPORT_UTIL_HPP
 
+#include "util/require.h"
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <stdint.h>
 #include <ndb_limits.h>
 #include <mgmapi.h>

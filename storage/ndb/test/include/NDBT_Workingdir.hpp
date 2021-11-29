@@ -27,6 +27,7 @@
 #ifndef NDBT_WORKINGDIR_HPP
 #define NDBT_WORKINGDIR_HPP
 
+#include "util/require.h"
 #include <NdbDir.hpp>
 #include <BaseString.hpp>
 

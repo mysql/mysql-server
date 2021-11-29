@@ -25,6 +25,7 @@
 #ifndef SYSFILE_HPP
 #define SYSFILE_HPP
 
+#include "util/require.h"
 #include <ndb_types.h>
 #include <ndb_limits.h>
 #include <NodeBitmask.hpp>

@@ -23,6 +23,7 @@
 #ifndef NDB_UTIL_NDBXFRM_BUFFER_H
 #define NDB_UTIL_NDBXFRM_BUFFER_H
 
+#include "util/require.h"
 #include "portlib/NdbMem.h"
 #include "util/ndbxfrm_iterator.h"
 

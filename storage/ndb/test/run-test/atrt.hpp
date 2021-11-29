@@ -25,6 +25,7 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
+#include "util/require.h"
 #include <time.h>
 
 #include <NDBT_ReturnCodes.h>

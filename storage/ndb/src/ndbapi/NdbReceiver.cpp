@@ -26,6 +26,7 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include "portlib/ndb_compiler.h"
 
 
 /**

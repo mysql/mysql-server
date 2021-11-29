@@ -29,8 +29,6 @@ INCLUDE(ndb_downgrade_warnings)
 FOREACH(warning
     # Downgrade -Werror=format-overflow to warning
     "error=format-overflow"
-    # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
-    "error=stringop-truncation"
     # Downgrade -Werror=stringop-overflow to warning
     "error=stringop-overflow"
     # Downgrade -Werror=shadow-field

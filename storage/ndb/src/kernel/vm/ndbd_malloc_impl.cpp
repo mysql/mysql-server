@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include "ndbd_malloc_impl.hpp"
 
 #include <time.h>

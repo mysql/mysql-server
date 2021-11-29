@@ -26,6 +26,7 @@
 #define LOG_BUFFER_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 
 #include <NdbMutex.h>
 

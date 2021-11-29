@@ -25,6 +25,7 @@
 #ifndef DATA_BUFFER_HPP
 #define DATA_BUFFER_HPP
 
+#include "util/require.h"
 #include <ndb_limits.h>
 #include <ErrorReporter.hpp>
 #include <NdbOut.hpp>

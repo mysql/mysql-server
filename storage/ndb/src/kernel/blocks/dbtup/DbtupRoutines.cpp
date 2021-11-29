@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_ROUTINES_CPP
+#include "util/require.h"
 #include "Dbtup.hpp"
 
 #include <cstring>

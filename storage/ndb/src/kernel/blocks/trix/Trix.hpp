@@ -25,6 +25,7 @@
 #ifndef TRIX_H
 #define TRIX_H
 
+#include "portlib/ndb_compiler.h"
 #include <SimulatedBlock.hpp>
 #include <trigger_definitions.h>
 #include <DataBuffer.hpp>

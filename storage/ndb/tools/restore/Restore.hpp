@@ -28,6 +28,7 @@
 #define RESTORE_H
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include "my_byteorder.h"
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"

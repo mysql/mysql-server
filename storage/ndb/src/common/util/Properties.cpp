@@ -31,6 +31,7 @@
 #include <string>
 #include <algorithm>
 #include <utility>
+#include "util/cstrbuf.h"
 
 static
 char * f_strdup(const char * s){
@@ -42,7 +43,6 @@ char * f_strdup(const char * s){
  * Note has to be a multiple of 4 bytes
  */
 const char Properties::version[] = { 2, 0, 0, 1, 1, 1, 1, 4 };
-const char Properties::delimiter = ':';
 
 /**
  * PropertyImpl
@@ -415,33 +415,37 @@ Properties::remove(const char * name) {
 }
 
 void
-Properties::print(FILE * out, const char * prefix) const{
-  char buf[1024];
-  if(prefix == 0)
-    buf[0] = 0;
-  else
-    snprintf(buf, 1024, "%s", prefix);
+Properties::print(FILE * out, const char * prefix) const
+{
+  if (prefix == nullptr)
+  {
+    prefix = "";
+  }
   
   for (auto i : impl->content){
     switch(i.second.valueType){
     case PropertiesType_Uint32:
-      fprintf(out, "%s%s = (Uint32) %d\n", buf, i.second.name,
+      fprintf(out, "%s%s = (Uint32) %d\n", prefix, i.second.name,
 	      *(Uint32 *)i.second.value);
       break;
     case PropertiesType_Uint64:
-      fprintf(out, "%s%s = (Uint64) %lld\n", buf, i.second.name,
+      fprintf(out, "%s%s = (Uint64) %lld\n", prefix, i.second.name,
 	      *(Uint64 *)i.second.value);
       break;
     case PropertiesType_char:
-      fprintf(out, "%s%s = (char*) \"%s\"\n", buf, i.second.name,
+      fprintf(out, "%s%s = (char*) \"%s\"\n", prefix, i.second.name,
 	      (char *)i.second.value);
       break;
     case PropertiesType_Properties:
-      char buf2 [1024];
-      BaseString::snprintf(buf2, sizeof(buf2), "%s%s%c",buf, i.second.name,
-	      Properties::delimiter);
-      ((Properties *)i.second.value)->print(out, buf2);
+    {
+      cstrbuf<1024> new_prefix;
+      new_prefix.append(prefix);
+      new_prefix.append(i.second.name);
+      new_prefix.append(1, delimiter);
+      new_prefix.replace_end_if_truncated(truncated_prefix_mark);
+      ((Properties *)i.second.value)->print(out, new_prefix.c_str());
       break;
+    }
     case PropertiesType_Undefined:
       assert(0);
     }

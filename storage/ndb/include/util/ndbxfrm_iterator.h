@@ -23,6 +23,7 @@
 #ifndef UTIL_NDBXFRM_ITERATOR
 #define UTIL_NDBXFRM_ITERATOR
 
+#include "util/require.h"
 #include <assert.h> // assert()
 #include <stdlib.h> // abort()
 

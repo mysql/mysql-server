@@ -742,7 +742,7 @@ int ha_ndbinfo::index_init(uint index, bool) {
 int ha_ndbinfo::index_end() { return rnd_end(); }
 
 int ha_ndbinfo::index_read(uchar *buf, const uchar *key,
-                           uint key_len ATTRIBUTE_UNUSED,
+                           uint key_len [[maybe_unused]],
                            enum ha_rkey_function flag) {
   assert(key != nullptr);
   assert(key_len == sizeof(int));

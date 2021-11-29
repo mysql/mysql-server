@@ -26,6 +26,7 @@
 #define OUTPUT_STREAM_HPP
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <NdbTCP.h>
 
 /**

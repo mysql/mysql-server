@@ -18,6 +18,7 @@
 #ifndef MULTI_TRANSPORTER_HPP
 #define MULTI_TRANSPORTER_HPP
 
+#include "util/require.h"
 #include "Transporter.hpp"
 
 #include <NdbTCP.h>

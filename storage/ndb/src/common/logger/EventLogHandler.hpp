@@ -26,6 +26,7 @@
 #define EVENTLOGHANDLER_H
 
 #include "LogHandler.hpp"
+#include "portlib/ndb_compiler.h"
 
 #include <time.h>
 

@@ -76,9 +76,11 @@
 #include "storage/ndb/include/mgmcommon/NdbMgm.hpp"
 #include "../src/mgmapi/mgmapi_configuration.hpp"
 #include "../src/mgmsrv/ConfigInfo.hpp"
+#include "../src/mgmsrv/InitConfigFileParser.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
 #include <inttypes.h>
+#include "util/cstrbuf.h"
 
 #include "my_alloc.h"
 
@@ -380,7 +382,6 @@ print_diff(const ndb_mgm_configuration_iterator& iter)
   Uint64 val64;
   const char* config_value;
   const char* node_type = nullptr;
-  char str[300] = {0};
 
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
   {
@@ -418,58 +419,41 @@ print_diff(const ndb_mgm_configuration_iterator& iter)
         ||
         (g_section == CFG_SECTION_SYSTEM))
     {
+      cstrbuf<20 + 1> str_buf; // enough for 64-bit decimal number
+      const char* str = nullptr;
       if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val32) == 0)
       {
-        sprintf(str, "%u", val32);
+        require(str_buf.appendf("%u", val32) == 0);
+        str = str_buf.c_str();
       }
       else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &val64) == 0)
       {
-        sprintf(str, "%llu", val64);
+        require(str_buf.appendf("%ju", uintmax_t{val64}) == 0);
+        str = str_buf.c_str();
       }
       else if (iter.get(ConfigInfo::m_ParamInfo[p]._paramId, &config_value) == 0)
       {
-        strncpy(str, config_value,300);
+        str = config_value;
       }
       else
       {
         continue;
       }
+      require(str != nullptr);
 
       if ((MANDATORY != ConfigInfo::m_ParamInfo[p]._default)
           && (ConfigInfo::m_ParamInfo[p]._default)
           && strlen(ConfigInfo::m_ParamInfo[p]._default) > 0
-          && !strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section)
-          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default)          )
+          && strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section) == 0
+          && strcmp(str, ConfigInfo::m_ParamInfo[p]._default) != 0)
       {
-        char parse_str[300] = {0};
-        bool convert_bytes = false;
-        uint64 memory_convert = 0;
-        uint64 def_value = 0;
-        uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
-        strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
-        if (parse_str[len] == 'M' || parse_str[len] == 'm')
+        Uint64 value;
+        if (InitConfigFileParser::convertStringToUint64(str, value))
         {
-          memory_convert = 1048576;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'K' || parse_str[len] == 'k')
-        {
-          memory_convert = 1024;
-          convert_bytes = true;
-        }
-        if (parse_str[len] == 'G' || parse_str[len] == 'g')
-        {
-          memory_convert = 1099511627776ULL;
-          convert_bytes = true;
-        }
-
-        if (convert_bytes)
-        {
-          parse_str[len] = '\0';
-          def_value = atoi(parse_str);
-          memory_convert = memory_convert * def_value;
-          BaseString::snprintf(parse_str, 299, "%" PRIu64, memory_convert);
-          if (!strcmp(str, parse_str))
+          const char* def_str = ConfigInfo::m_ParamInfo[p]._default;
+          Uint64 def_value;
+          require(InitConfigFileParser::convertStringToUint64(def_str, def_value));
+          if (value == def_value)
           {
             continue;
           }

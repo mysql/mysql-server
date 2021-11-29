@@ -26,6 +26,7 @@
 #define __UTIL_BASESTRING_HPP_INCLUDED__
 
 #include <ndb_global.h>
+#include "portlib/ndb_compiler.h"
 #include <util/Vector.hpp>
 #include "Bitmask.hpp"
 

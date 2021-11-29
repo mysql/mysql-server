@@ -26,6 +26,7 @@
 #ifndef NDB_THREAD_HPP
 #define NDB_THREAD_HPP
 
+#include "util/require.h"
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 #include <NdbThread.h>

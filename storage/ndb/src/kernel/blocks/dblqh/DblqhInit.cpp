@@ -23,6 +23,7 @@
 */
 
 
+#include "util/require.h"
 #include <pc.hpp>
 #define DBLQH_C
 #include "Dblqh.hpp"

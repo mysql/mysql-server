@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/require.h"
 #include "mt_thr_config.hpp"
 #include <kernel/ndb_limits.h>
 #include "../../common/util/parse_mask.hpp"

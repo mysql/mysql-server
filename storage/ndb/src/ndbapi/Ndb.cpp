@@ -29,6 +29,7 @@
 Name:          Ndb.cpp
 ******************************************************************************/
 
+#include "util/require.h"
 #include <ndb_global.h>
 
 #include "API.hpp"

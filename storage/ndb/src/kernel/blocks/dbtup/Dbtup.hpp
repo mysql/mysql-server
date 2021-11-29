@@ -25,6 +25,7 @@
 #ifndef DBTUP_H
 #define DBTUP_H
 
+#include "util/require.h"
 #include <cstring>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
