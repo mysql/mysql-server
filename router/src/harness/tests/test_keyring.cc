@@ -22,22 +22,16 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-#include <aclapi.h>
-#else
-#include <sys/stat.h>
-#endif
-
 #include <stdexcept>
 #include <system_error>
 
 #include <gtest/gtest.h>
 
 #include "keyring/keyring_file.h"
-#include "test/helpers.h"
+#include "mysql/harness/filesystem.h"  // make_file_private, make_file_public
 
-constexpr char kAesKey[] = "AesKey";
-constexpr char kKeyringFileName[] = "keyring_config";
+constexpr const char kAesKey[] = "AesKey";
+constexpr const char kKeyringFileName[] = "keyring_config";
 
 /**
  * Generic keyring test.
@@ -45,41 +39,11 @@ constexpr char kKeyringFileName[] = "keyring_config";
  * Covers tests common for `KeyringMemory` and `KeyringFile`.
  */
 template <typename T>
-class KeyringTest : public ::testing::Test {
- public:
-  KeyringTest() = default;
-};
+class KeyringTest : public ::testing::Test {};
 
 using KeyringTestTypes =
     ::testing::Types<mysql_harness::KeyringMemory, mysql_harness::KeyringFile>;
 TYPED_TEST_SUITE(KeyringTest, KeyringTestTypes);
-
-/**
- * Deletes a file.
- *
- * @param[in] file_name Name of the file to be deleted.
- *
- * @throw std::exception Failed to delete the file.
- */
-static void delete_file(const std::string &file_name) {
-#ifdef _WIN32
-
-  if (DeleteFileA(file_name.c_str()) == 0) {
-    auto error = GetLastError();
-
-    if (error != ERROR_FILE_NOT_FOUND) {
-      throw std::runtime_error("DeleteFile() failed: " + std::to_string(error));
-    }
-  }
-
-#else
-
-  if (unlink(file_name.c_str()) != 0 && errno != ENOENT) {
-    throw std::runtime_error("unlink() failed: " + std::to_string(errno));
-  }
-
-#endif  // _WIN32
-}
 
 /**
  * KeyringFile test.
@@ -90,7 +54,16 @@ class KeyringFileTest : public ::testing::Test {
  public:
   KeyringFileTest() = default;
 
-  void SetUp() override { delete_file(kKeyringFileName); }
+  void SetUp() override {
+    // succeed or fail with: file-not-found
+    const auto res = mysql_harness::delete_file(kKeyringFileName);
+    if (!res) {
+      auto ec = res.error();
+
+      // should match ERROR_FILE_NOT_FOUND on windows too.
+      ASSERT_EQ(ec, make_error_condition(std::errc::no_such_file_or_directory));
+    }
+  }
 };
 
 /**
