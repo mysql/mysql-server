@@ -1756,7 +1756,7 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // be sent through PushDownCondition() below, and possibly end up
       // in table_filters.
       remaining_parts.push_back(item);
-    } else if (is_join_condition_for_expr &&
+    } else if (is_join_condition_for_expr && !IsMultipleEquals(item) &&
                !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
                          expr->tables_in_subtree)) {
       // Condition refers to tables outside this subtree, so it can not be
