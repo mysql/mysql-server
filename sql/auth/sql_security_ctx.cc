@@ -87,7 +87,6 @@ void Security_context::init() {
   m_master_access = 0;
   m_db_access = NO_ACCESS;
   m_acl_map = nullptr;
-  m_map_checkout_count = 0;
   m_password_expired = false;
   m_is_locked = false;
   m_is_skip_grants_user = false;
@@ -396,7 +395,6 @@ void Security_context::checkout_access_maps(void) {
   }
 
   if (m_active_roles.size() == 0) return;
-  ++m_map_checkout_count;
   Auth_id_ref uid;
   uid.first.str = this->m_priv_user;
   uid.first.length = this->m_priv_user_length;

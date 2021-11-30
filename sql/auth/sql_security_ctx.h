@@ -371,7 +371,6 @@ class Security_context {
   bool m_password_expired;
   List_of_auth_id_refs m_active_roles;
   Acl_map *m_acl_map;
-  int m_map_checkout_count;
   /**
     True if this account can't be logged into.
   */
