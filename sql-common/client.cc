@@ -764,7 +764,6 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   bool is_charset;
 
   STATE_INFO *info = nullptr;
-  enum enum_session_state_type type;
   LIST *element = nullptr;
   LEX_STRING *data = nullptr;
   bool is_error;
@@ -836,8 +835,8 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
         while (total_len > 0) {
           saved_pos = pos;
-          type = (enum enum_session_state_type)net_field_length_ll_safe(
-              mysql, &pos, length, &is_error);
+          my_ulonglong type =
+              net_field_length_ll_safe(mysql, &pos, length, &is_error);
           if (is_error) return;
           switch (type) {
             case SESSION_TRACK_SYSTEM_VARIABLES:
@@ -1022,7 +1021,12 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
               break;
             default:
-              assert(type <= SESSION_TRACK_END);
+              if (type > SESSION_TRACK_END) {
+                DBUG_PRINT(
+                    "warning",
+                    ("invalid/unknown session tracker type received: %llu",
+                     (unsigned long long)type));
+              }
               /*
                Unknown/unsupported type received, get the total length and
                move past it.
