@@ -169,7 +169,7 @@ class page_size_t {
   @return true if equal */
   inline bool equals_to(const page_size_t &a) const {
     return (a.physical() == m_physical && a.logical() == m_logical &&
-            a.is_compressed() == m_is_compressed);
+            a.is_compressed() == (bool)m_is_compressed);
   }
 
   inline void set_flag(uint32_t fsp_flags) {

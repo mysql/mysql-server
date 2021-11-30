@@ -437,8 +437,9 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   // post-boundary cond
   if (avail == entry) avail = size;
 
-  assert(avail == entry || len == (avail >= entry) ? (avail - entry)
-                                                   : (size + avail - entry));
+  assert(avail == entry ||
+         len == static_cast<ulong>((avail >= entry) ? (avail - entry)
+                                                    : (size + avail - entry)));
   assert(avail != entry);
 
   return ret;
@@ -471,8 +472,10 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  assert(entry == size ||
-         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(
+      entry == size ||
+      (len == static_cast<ulong>((avail >= entry) ? (avail - entry)
+                                                  : (size + avail - entry))));
   assert(avail != entry);
 
   return ret;
@@ -492,8 +495,10 @@ ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  assert(entry == size ||
-         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(
+      entry == size ||
+      (len == static_cast<ulong>((avail >= entry) ? (avail - entry)
+                                                  : (size + avail - entry))));
   assert(avail != entry);
 
   return avail;

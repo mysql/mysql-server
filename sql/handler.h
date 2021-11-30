@@ -7067,14 +7067,14 @@ class ha_tablespace_statistics {
  public:
   ha_tablespace_statistics()
       : m_id(0),
-        m_logfile_group_number(-1),
+        m_logfile_group_number(~0U),
         m_free_extents(0),
         m_total_extents(0),
         m_extent_size(0),
         m_initial_size(0),
         m_maximum_size(0),
         m_autoextend_size(0),
-        m_version(-1),
+        m_version(~0U),
         m_data_free(0) {}
 
   ulonglong m_id;

@@ -6483,7 +6483,7 @@ bool innobase_match_index_columns(const KEY *key_info,
       }
     }
 
-    if (innodb_idx_fld->is_ascending !=
+    if ((bool)innodb_idx_fld->is_ascending !=
         !(key_part->key_part_flag & HA_REVERSE_SORT)) {
       /* Column Type mismatches */
       return FALSE;
@@ -10495,7 +10495,7 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
                              enum_sampling_method sampling_method,
                              const bool tablesample) {
   ut_ad(table_share->is_missing_primary_key() ==
-        m_prebuilt->clust_index_was_generated);
+        (bool)m_prebuilt->clust_index_was_generated);
 
   ut_ad(sampling_percentage >= 0.0);
   ut_ad(sampling_percentage <= 100.0);
@@ -10611,7 +10611,7 @@ int ha_innobase::read_range_next() {
 int ha_innobase::rnd_init(bool scan) {
   DBUG_TRACE;
   assert(table_share->is_missing_primary_key() ==
-         m_prebuilt->clust_index_was_generated);
+         (bool)m_prebuilt->clust_index_was_generated);
 
   int err = change_active_index(table_share->primary_key);
 
@@ -11054,7 +11054,7 @@ void ha_innobase::position(const uchar *record) {
   DBUG_TRACE;
   assert(m_prebuilt->trx == thd_to_trx(ha_thd()));
   assert(table_share->is_missing_primary_key() ==
-         m_prebuilt->clust_index_was_generated);
+         (bool)m_prebuilt->clust_index_was_generated);
 
   if (m_prebuilt->clust_index_was_generated) {
     /* No primary key was defined for the table and we
@@ -17718,7 +17718,7 @@ static bool innobase_get_tablespace_statistics(
 
   /** Store maximum size */
   if (file->max_size >= PAGE_NO_MAX) {
-    stats->m_maximum_size = -1;
+    stats->m_maximum_size = ~0U;
   } else {
     stats->m_maximum_size = file->max_size * page_size.physical();
   }

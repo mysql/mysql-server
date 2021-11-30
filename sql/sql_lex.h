@@ -4487,7 +4487,7 @@ class Parser_state {
       : m_input(), m_lip(grammar_selector_token), m_yacc(), m_comment(false) {}
 
  public:
-  Parser_state() : m_input(), m_lip(-1), m_yacc(), m_comment(false) {}
+  Parser_state() : m_input(), m_lip(~0U), m_yacc(), m_comment(false) {}
 
   /**
      Object initializer. Must be called before usage.

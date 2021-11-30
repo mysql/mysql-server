@@ -61,7 +61,7 @@ asynchronously. */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
 
 /** Mark the transaction for forced rollback */
-static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
+static const ib_uint32_t TRX_FORCE_ROLLBACK = 1U << 31;
 
 /** For masking out the above four flags */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;

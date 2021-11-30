@@ -4087,8 +4087,8 @@ class Item_field : public Item_ident {
   // See field_conv_with_cache(), where this logic is encapsulated.
   Field *last_org_destination_field{nullptr};
   Field *last_destination_field{nullptr};
-  uint32_t last_org_destination_field_memcpyable = -1;
-  uint32_t last_destination_field_memcpyable = -1;
+  uint32_t last_org_destination_field_memcpyable = ~0U;
+  uint32_t last_destination_field_memcpyable = ~0U;
 
   /**
     If this field is derived from another field, e.g. it is reading a column

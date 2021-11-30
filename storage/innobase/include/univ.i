@@ -426,15 +426,15 @@ typedef long int lint;
 #endif
 
 /** The 'undefined' value for a ulint */
-constexpr ulint ULINT_UNDEFINED = -1;
+constexpr ulint ULINT_UNDEFINED = ~0U;
 
-constexpr ulong ULONG_UNDEFINED = -1;
+constexpr ulong ULONG_UNDEFINED = ~0U;
 
 /** The 'undefined' value for a  64-bit unsigned integer */
-constexpr uint64_t UINT64_UNDEFINED = -1;
+constexpr uint64_t UINT64_UNDEFINED = ~0U;
 
 /** The 'undefined' value for a  32-bit unsigned integer */
-constexpr uint32_t UINT32_UNDEFINED = -1;
+constexpr uint32_t UINT32_UNDEFINED = ~0U;
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK 0xFFFFFFFF

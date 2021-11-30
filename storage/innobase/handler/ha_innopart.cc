@@ -2027,7 +2027,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
                              enum_sampling_method sampling_method,
                              const bool tablesample) {
   assert(table_share->is_missing_primary_key() ==
-         m_prebuilt->clust_index_was_generated);
+         (bool)m_prebuilt->clust_index_was_generated);
 
   ut_ad(sampling_percentage >= 0.0);
   ut_ad(sampling_percentage <= 100.0);
@@ -2133,7 +2133,7 @@ int ha_innopart::sample_end(void *scan_ctx) {
 int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   DBUG_TRACE;
   assert(table_share->is_missing_primary_key() ==
-         m_prebuilt->clust_index_was_generated);
+         (bool)m_prebuilt->clust_index_was_generated);
 
   int err = change_active_index(part_id, table_share->primary_key);
 
@@ -2233,7 +2233,7 @@ was positioned the last time.
 void ha_innopart::position_in_last_part(uchar *ref_arg, const uchar *record) {
   DBUG_TRACE;
   assert(table_share->is_missing_primary_key() ==
-         m_prebuilt->clust_index_was_generated);
+         (bool)m_prebuilt->clust_index_was_generated);
 
   if (m_prebuilt->clust_index_was_generated) {
     /* No primary key was defined for the table and we

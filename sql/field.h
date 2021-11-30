@@ -3489,7 +3489,7 @@ class Field_varstring : public Field_longstr {
   my_decimal *val_decimal(my_decimal *) const final;
   int cmp_max(const uchar *, const uchar *, uint max_length) const final;
   int cmp(const uchar *a, const uchar *b) const final {
-    return cmp_max(a, b, ~0L);
+    return cmp_max(a, b, ~0U);
   }
   size_t make_sort_key(uchar *buff, size_t length) const final;
   size_t get_key_image(uchar *buff, size_t length, imagetype type) const final;
@@ -3668,7 +3668,7 @@ class Field_blob : public Field_longstr {
   my_decimal *val_decimal(my_decimal *) const override;
   int cmp_max(const uchar *, const uchar *, uint max_length) const final;
   int cmp(const uchar *a, const uchar *b) const final {
-    return cmp_max(a, b, ~0L);
+    return cmp_max(a, b, ~0U);
   }
   int cmp(const uchar *a, uint32 a_length, const uchar *b,
           uint32 b_length) const;  // No override.

@@ -468,7 +468,7 @@ class Geometry {
 
   virtual const Class_info *get_class_info() const { return nullptr; }
 
-  virtual uint32 get_data_size() const { return -1; }
+  virtual uint32 get_data_size() const { return ~0U; }
 
   /* read from trs the wkt string and write into wkb as wkb encoded data. */
   virtual bool init_from_wkt(Gis_read_stream *trs [[maybe_unused]],

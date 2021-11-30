@@ -260,8 +260,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/wd4100")
   # C4127	conditional expression is constant
   ADD_COMPILE_OPTIONS("/wd4127")
-  # C4245: conversion from 'X'' to 'Y', signed/unsigned mismatch
-  ADD_COMPILE_OPTIONS("/wd4245")
   # C4456: declaration of 'X' hides local declaration
   ADD_COMPILE_OPTIONS("/wd4456")
   # C4457: declaration of 'X' hides function parameter
@@ -270,8 +268,6 @@ IF(MSVC AND NOT WIN32_CLANG)
   ADD_COMPILE_OPTIONS("/wd4458")
   # C4459: declaration of 'X' hides global declaration
   ADD_COMPILE_OPTIONS("/wd4459")
-  # C4389: '==': signed/unsigned mismatch
-  ADD_COMPILE_OPTIONS("/wd4389")
 ENDIF()
 
 # There seems to be a bug in gcc for Oracle Linux 8 on ARM.
