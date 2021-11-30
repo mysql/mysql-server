@@ -2680,8 +2680,9 @@ inline NDB_INDEX_TYPE ha_ndbcluster::get_declared_index_type(uint idxno) const {
 
 /* Return the actual type of the index as currently available
  */
-inline NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
+NDB_INDEX_TYPE ha_ndbcluster::get_index_type(uint idx_no) const {
   assert(idx_no < MAX_KEY);
+  assert(m_table);
   return m_index[idx_no].type;
 }
 
