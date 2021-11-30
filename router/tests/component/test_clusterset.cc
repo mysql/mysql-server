@@ -1499,7 +1499,7 @@ struct InvalidatedClusterTestParams {
   bool expected_ro_connections_allowed;
 };
 
-class ClusterMarkedInvalidInTheMetadataTest
+class PrimaryTargetClusterMarkedInvalidInTheMetadataTest
     : public ClusterSetTest,
       public ::testing::WithParamInterface<InvalidatedClusterTestParams> {};
 
@@ -1510,13 +1510,13 @@ class ClusterMarkedInvalidInTheMetadataTest
  * [@FR11]
  * [@TS_R15_1-3]
  */
-TEST_P(ClusterMarkedInvalidInTheMetadataTest,
-       ClusterMarkedInvalidInTheMetadata) {
+TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
+       TargetClusterIsPrimary) {
   view_id = 1;
   const std::string policy = GetParam().invalidated_cluster_routing_policy;
   const bool ro_allowed = GetParam().expected_ro_connections_allowed;
 
-  SCOPED_TRACE("// We configure Router to follow the first REPLICA cluster");
+  SCOPED_TRACE("// We configure Router to follow the PRIMARY cluster");
 
   create_clusterset(view_id, /*target_cluster_id*/ kPrimaryClusterId,
                     /*primary_cluster_id*/ kPrimaryClusterId,
@@ -1578,13 +1578,101 @@ TEST_P(ClusterMarkedInvalidInTheMetadataTest,
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    ClusterMarkedInvalidInTheMetadata, ClusterMarkedInvalidInTheMetadataTest,
+    TargetClusterIsPrimary, PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
     ::testing::Values(
         // policy empty, default should be dropAll so RO connections are not
         // allowed
         InvalidatedClusterTestParams{"", false},
         // unsupported policy name, again expect the default behavior
         InvalidatedClusterTestParams{"unsupported", false},
+        // explicitly set dropAll, no RO connections allowed again
+        InvalidatedClusterTestParams{"drop_all", false},
+        // accept_ro policy in  the metadata, RO connections are allowed
+        InvalidatedClusterTestParams{"accept_ro", true}));
+
+class ReplicaTargetClusterMarkedInvalidInTheMetadataTest
+    : public ClusterSetTest,
+      public ::testing::WithParamInterface<InvalidatedClusterTestParams> {};
+
+/**
+ * @test Check that when target_cluster is Replica and it is marked as invalid
+ * in the metadata along with the current Primary, the invalidate policy is
+ * honored. Also check that the periodic updates are performed on the new
+ * Primary.
+ */
+TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
+       TargetClusterIsReplica) {
+  view_id = 1;
+  const std::string policy = GetParam().invalidated_cluster_routing_policy;
+  const bool ro_allowed = GetParam().expected_ro_connections_allowed;
+
+  SCOPED_TRACE("// We configure Router to follow the first REPLICA cluster");
+
+  create_clusterset(
+      view_id, /*target_cluster_id*/ kFirstReplicaClusterId,
+      /*primary_cluster_id*/ kPrimaryClusterId, "metadata_clusterset.js",
+      /*router_options*/
+      R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2"})");
+  /* auto &router = */ launch_router();
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].http_port, 2));
+
+  verify_new_connection_fails(router_port_rw);
+
+  auto ro_con1 = make_new_connection_ok(
+      router_port_ro,
+      clusterset_data_.clusters[kFirstReplicaClusterId].nodes[0].classic_port);
+
+  verify_only_primary_gets_updates(kPrimaryClusterId);
+
+  SCOPED_TRACE(
+      "// Simulate the invalidating scenario: clusters PRIMARY and REPLICA1 "
+      "become invalid, REPLICA2 is a new PRIMARY");
+  clusterset_data_.clusters[kPrimaryClusterId].invalid = true;
+  clusterset_data_.clusters[kFirstReplicaClusterId].invalid = true;
+  change_clusterset_primary(clusterset_data_, kSecondReplicaClusterId);
+  const auto &second_replica =
+      clusterset_data_.clusters[kSecondReplicaClusterId];
+  for (const auto &node : second_replica.nodes) {
+    const auto http_port = node.http_port;
+    set_mock_metadata(
+        view_id + 1, /*this_cluster_id*/ second_replica.id,
+        /*target_cluster_id*/ kFirstReplicaClusterId, http_port,
+        clusterset_data_,
+        /*router_options*/
+        R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2", "invalidated_cluster_policy" : ")" +
+            policy + "\" }");
+  }
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(
+      second_replica.nodes[0].http_port, 2));
+
+  SCOPED_TRACE(
+      "// Check that making a new RW connection is still not possible");
+  verify_new_connection_fails(router_port_rw);
+
+  SCOPED_TRACE(
+      "// Check that RO connections are possible or not depending on the "
+      "configured policy");
+  if (!ro_allowed) {
+    verify_existing_connection_dropped(ro_con1.get());
+    verify_new_connection_fails(router_port_ro);
+  } else {
+    verify_existing_connection_ok(ro_con1.get());
+    make_new_connection_ok(router_port_ro,
+                           clusterset_data_.clusters[kFirstReplicaClusterId]
+                               .nodes[1]
+                               .classic_port);
+  }
+
+  // make sure only new PRIMARY (former REPLICA2) gets the periodic updates now
+  verify_only_primary_gets_updates(kSecondReplicaClusterId);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TargetClusterIsReplica, ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
+    ::testing::Values(
         // explicitly set dropAll, no RO connections allowed again
         InvalidatedClusterTestParams{"drop_all", false},
         // accept_ro policy in  the metadata, RO connections are allowed

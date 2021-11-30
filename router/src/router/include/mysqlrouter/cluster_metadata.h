@@ -155,6 +155,10 @@ class TargetCluster {
   TargetType target_type() const { return target_type_; }
   bool is_primary() const { return is_primary_; }
   bool is_invalidated() const { return is_invalidated_; }
+  bool is_usable() const {
+    return (!is_invalidated()) || (invalidated_cluster_routing_policy() !=
+                                   InvalidatedClusterRoutingPolicy::DropAll);
+  }
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy() const {
     return invalidated_cluster_routing_policy_;
   }
@@ -179,7 +183,7 @@ class TargetCluster {
   InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy_{
       InvalidatedClusterRoutingPolicy::DropAll};
   // in case of ClusterSet is this Cluster a Primary
-  bool is_primary_{true};
+  bool is_primary_{false};
   // is the Cluster marked as invalid in the metadata
   bool is_invalidated_{false};
 
