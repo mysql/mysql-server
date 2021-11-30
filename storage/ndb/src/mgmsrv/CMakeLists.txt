@@ -84,3 +84,5 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
 NDB_ADD_TEST(MgmConfig-t testConfig.cpp
   LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
   )
+NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
+  LIBS ndbconf ndbgeneral ndbportlib)
