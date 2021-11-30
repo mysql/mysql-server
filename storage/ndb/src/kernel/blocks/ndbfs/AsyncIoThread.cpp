@@ -138,8 +138,8 @@ AsyncIoThread::run()
   // Create theMemoryChannel in the thread that will wait for it
   NdbMutex_Lock(theStartMutexPtr);
   theStartFlag = true;
-  NdbMutex_Unlock(theStartMutexPtr);
   NdbCondition_Signal(theStartConditionPtr);
+  NdbMutex_Unlock(theStartMutexPtr);
 
   EmulatedJamBuffer jamBuffer;
   jamBuffer.theEmulatedJamIndex = 0;
