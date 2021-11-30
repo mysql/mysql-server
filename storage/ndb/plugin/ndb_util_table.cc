@@ -41,6 +41,7 @@
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
+#include "storage/ndb/plugin/ndb_schema_trans_guard.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
@@ -248,36 +249,33 @@ bool Ndb_util_table::define_table_add_column(
   return true;
 }
 
-bool Ndb_util_table::define_indexes(unsigned int) const {
+bool Ndb_util_table::create_indexes(const NdbDictionary::Table &) const {
   // Base class implementation. Override in derived classes to define indexes.
   return true;
 }
 
-bool Ndb_util_table::create_index(const NdbDictionary::Index &idx) const {
+bool Ndb_util_table::create_index(const NdbDictionary::Table &new_table,
+                                  const NdbDictionary::Index &new_index) const {
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
-  const NdbDictionary::Table *table = get_table();
-  assert(table != nullptr);
-  if (dict->createIndex(idx, *table) != 0) {
+  if (dict->createIndex(new_index, new_table) != 0) {
     push_ndb_error_warning(dict->getNdbError());
-    push_warning("Failed to create index '%s'", idx.getName());
+    push_warning("Failed to create index '%s'", new_index.getName());
     return false;
   }
   return true;
 }
 
-bool Ndb_util_table::create_primary_ordered_index() const {
+bool Ndb_util_table::create_primary_ordered_index(
+    const NdbDictionary::Table &new_table) const {
   NdbDictionary::Index index("PRIMARY");
 
   index.setType(NdbDictionary::Index::OrderedIndex);
   index.setLogging(false);
 
-  const NdbDictionary::Table *table = get_table();
-  assert(table != nullptr);
-
-  for (int i = 0; i < table->getNoOfPrimaryKeys(); i++) {
-    index.addColumnName(table->getPrimaryKey(i));
+  for (int i = 0; i < new_table.getNoOfPrimaryKeys(); i++) {
+    index.addColumnName(new_table.getPrimaryKey(i));
   }
-  return create_index(index);
+  return create_index(new_table, index);
 }
 
 bool Ndb_util_table::create_table_in_NDB(
@@ -342,14 +340,27 @@ bool Ndb_util_table::create(bool is_upgrade) {
 #endif
   if (!define_table_ndb(new_table, mysql_version)) return false;
 
+  // Start schema transactions for creating table and related schema objects
+  Ndb_schema_trans_guard schema_trans(m_thd_ndb,
+                                      m_thd_ndb->ndb->getDictionary());
+  if (!schema_trans.begin_trans()) return false;
+
   if (!create_table_in_NDB(new_table)) return false;
 
-  // Load the new table definition into the Ndb_util_table object.
+  if (!create_indexes(new_table)) return false;
+
+  // End schema transaction
+  if (!schema_trans.commit_trans()) return false;
+
+  // Load the new table definition into the Ndb_util_table object
   if (!open(is_upgrade)) return false;
 
-  if (!define_indexes(mysql_version)) return false;
-
-  if (!post_install()) return false;
+  if (!post_install()) {
+    // Failed to perform post_install actions, attempt to drop the table in
+    // order to start all over again from scratch on next retry
+    (void)drop_table_in_NDB(*get_table());
+    return false;
+  }
 
   return true;
 }

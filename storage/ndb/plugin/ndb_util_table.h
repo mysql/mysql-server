@@ -98,9 +98,11 @@ class Ndb_util_table {
   bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
 
-  virtual bool define_indexes(unsigned int mysql_version) const;
-  bool create_index(const NdbDictionary::Index &) const;
-  bool create_primary_ordered_index() const;
+  virtual bool create_indexes(const NdbDictionary::Table &new_table) const;
+  bool create_index(const NdbDictionary::Table &new_table,
+                    const NdbDictionary::Index &new_index) const;
+  bool create_primary_ordered_index(
+      const NdbDictionary::Table &new_table) const;
 
   /**
     @brief Code to be executed before upgrading the table.
