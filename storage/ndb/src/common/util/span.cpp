@@ -23,10 +23,8 @@
 
 #include "util/require.h"
 #include <array>
-#include <cassert>
 #include <cstddef>
 #include <cstring>
-#include "ndb_global.h"
 #include "util/span.h"
 
 template <std::size_t Extent = ndb::dynamic_extent>
@@ -45,7 +43,7 @@ int main()
   f(ndb::span(arr));
 
   char* p = buf;
-  size_t len = 8;
+  std::size_t len = 8;
   f({p, len});  // Note extra braces {} around buffer argument.
 
   char* begin = &buf[0];
