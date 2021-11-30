@@ -58,7 +58,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/abstract_query_plan.h"  // Join_plan
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -1089,16 +1088,14 @@ void JOIN::create_access_paths_for_zero_rows() {
 bool JOIN::push_to_engines() {
   DBUG_TRACE;
 
-  if (!plan_is_const()) {
-    const AQP::Join_plan plan(this);
-
-    for (uint i = const_tables; i < plan.get_access_count(); i++) {
-      TABLE *const table = qep_tab[i].table();
-      if (likely(table != nullptr)) {
-        if (unlikely(table->file->engine_push(plan.get_table_access(i)))) {
-          return true;
-        }
+  for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
+    const handlerton *hton = tl->table->file->hton_supporting_engine_pushdown();
+    if (hton != nullptr) {  // Involved an engine supporting pushdown.
+      if (unlikely(hton->push_to_engine(thd, m_root_access_path, this))) {
+        return true;
       }
+      break;  // Assume that at most a single handlerton per query support
+              // pushdown
     }
   }
   return false;

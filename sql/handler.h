@@ -142,10 +142,6 @@ typedef bool(stat_print_fn)(THD *thd, const char *type, size_t type_len,
 
 class ha_statistics;
 class ha_tablespace_statistics;
-
-namespace AQP {
-class Table_access;
-}  // namespace AQP
 class Unique_on_insert;
 
 extern ulong savepoint_alloc_size;
@@ -1537,6 +1533,25 @@ typedef int (*table_exists_in_engine_t)(handlerton *hton, THD *thd,
                                         const char *db, const char *name);
 
 /**
+  Let storage engine inspect the query Accesspath and pick whatever
+  it like for being pushed down to the engine. (Join, conditions, ..)
+
+  The handler implementation should itself keep track of what it 'pushed',
+  such that later calls to the handlers access methods should
+  activate the pushed parts of the execution plan on the storage
+  engines.
+
+  @param  thd        Thread context
+  @param  query      The AccessPath for the entire query.
+  @param  join       The JOIN to be pushed
+
+  @returns
+    0     on success
+    error otherwise
+*/
+using push_to_engine_t = int (*)(THD *thd, AccessPath *query, JOIN *);
+
+/**
   Check if the given db.tablename is a system table for this SE.
 
   @param db                         Database name to check.
@@ -2486,6 +2501,7 @@ struct handlerton {
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
+  push_to_engine_t push_to_engine;
   is_supported_system_table_t is_supported_system_table;
 
   /*
@@ -5319,24 +5335,21 @@ class handler {
   }
 
   /**
-    Let storage engine inspect the optimized 'plan' and pick whatever
-    it like for being pushed down to the engine. (Join, conditions, ..)
+    Get the handlerton of the storage engine if the SE is capable of
+    pushing down some of the AccessPath functionality.
+    (Join, Filter conditions, ... possiby more)
 
-    The handler implementation should keep track of what it 'pushed',
-    such that later calls to the handlers access methods should
-    activate the pushed (part of) the execution plan on the storage
-    engines.
+    Call the handlerton::push_to_engine() method for performing the
+    actuall pushdown of (parts of) the AccessPath functionality
 
-    @param  table
-            Abstract Query Plan 'table' object for the table
-            being pushed to
+    @returns   handlerton* of the SE if it may be capable of
+               off loading part of the query by calling
+               handlerton::push_to_engine()
 
-    @returns
-      0     on success
-      error otherwise
+               Else, 'nullptr' is returned.
   */
-  virtual int engine_push(AQP::Table_access *table [[maybe_unused]]) {
-    return 0;
+  virtual const handlerton *hton_supporting_engine_pushdown() {
+    return nullptr;
   }
 
   /**

@@ -352,6 +352,8 @@ bool ndb_show_foreign_key_mock_tables(THD *thd) {
   return value;
 }
 
+int ndbcluster_push_to_engine(THD *, AccessPath *, JOIN *);
+
 static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD *, stat_print_fn *,
                                    enum ha_stat_type);
@@ -12669,6 +12671,7 @@ static int ndbcluster_init(void *handlerton_ptr) {
                 HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL;
   hton->discover = ndbcluster_discover;
   hton->table_exists_in_engine = ndbcluster_table_exists_in_engine;
+  hton->push_to_engine = ndbcluster_push_to_engine;
   hton->is_supported_system_table = is_supported_system_table;
 
   // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
@@ -14125,7 +14128,43 @@ int ha_ndbcluster::read_multi_range_fetch_next() {
  * conditions which can filter out result rows on the SE,
  * and/or entire joins between tables.
  *
+ * @param  thd         Thread context
+ * @param  root_path   The AccessPath for the entire query.
+ * @param  join        The JOIN struct built for the main query.
+ *
+ * @return Possible error code, '0' if no errors.
+ */
+int ndbcluster_push_to_engine(THD *thd [[maybe_unused]],
+                              AccessPath *root_path [[maybe_unused]],
+                              JOIN *join) {
+  DBUG_TRACE;
+  const AQP::Join_plan query_plan(join);
+
+  for (uint i = 0; i < query_plan.get_access_count(); i++) {
+    AQP::Table_access *table_access = query_plan.get_table_access(i);
+    const TABLE *table = table_access->get_table();
+
+    if (likely(table != nullptr)) {
+      handler *const ha = table->file;
+      ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
+      if (ndb_handler == nullptr) continue;
+
+      if (unlikely(ndb_handler->engine_push(query_plan.get_table_access(i)))) {
+        return true;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Try to find parts of queries which can be pushed down to
+ * storage engines for faster execution. This is typically
+ * conditions which can filter out result rows on the SE,
+ * and/or entire joins between tables.
+ *
  * @param table_aqp The specific table in the join plan to examine.
+ *
  * @return Possible error code, '0' if no errors.
  */
 int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
