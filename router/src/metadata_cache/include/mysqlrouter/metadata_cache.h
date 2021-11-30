@@ -49,7 +49,6 @@
 #include "tcp_address.h"
 
 namespace metadata_cache {
-
 constexpr const uint16_t kDefaultMetadataPort{32275};
 constexpr const std::string_view kDefaultMetadataAddress{"127.0.0.1:32275"};
 constexpr const std::string_view kDefaultMetadataUser{""};

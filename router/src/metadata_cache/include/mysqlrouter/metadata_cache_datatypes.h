@@ -42,7 +42,6 @@ enum class metadata_errc {
   no_rw_node_needed,
   no_metadata_server_reached,
   no_metadata_read_successful,
-  cluster_marked_as_invalid,
   metadata_refresh_terminated,
   cluster_not_found,
   invalid_cluster_type,
@@ -73,8 +72,6 @@ inline const std::error_category &metadata_cache_category() noexcept {
           return "no metadata server accessible";
         case metadata_errc::no_metadata_read_successful:
           return "did not successfully read metadata from any metadata server";
-        case metadata_errc::cluster_marked_as_invalid:
-          return "cluster marked as invalid in the metadata";
         case metadata_errc::metadata_refresh_terminated:
           return "metadata refresh terminated";
         case metadata_errc::cluster_not_found:
