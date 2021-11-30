@@ -35,11 +35,6 @@ extern bool tty_password[MAX_AUTH_FACTORS];
 /** parse passwords for --password or --password<N> option where N = 1,2,3 */
 void parse_command_line_password_option(const struct my_option *opt,
                                         char *argument);
-/**
-  If --password<N> option is not specified with an argument, get password from
-  prompt
-*/
-void set_tty_password(MYSQL *mysql);
 /** Set password in mysql->options */
 void set_password_options(MYSQL *mysql);
 /** Release memory for opt_password */
