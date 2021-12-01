@@ -50,7 +50,8 @@ set ndbinfo_show_hidden=1;
 SELECT table_name, table_rows, avg_row_length
   FROM information_schema.tables
   WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
-  AND table_name not like '%cpu%';
+  AND table_name not like '%cpu%'
+  ORDER BY table_name;
 TABLE_NAME	TABLE_ROWS	AVG_ROW_LENGTH
 ndb$acc_operations	15	64
 ndb$backup_id	1	20
@@ -106,7 +107,8 @@ CALL populate_sizes();
 SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
 count(*)
 29
-SELECT table_name from rowcounts WHERE est_rows = actual_rows;
+SELECT table_name from rowcounts WHERE est_rows = actual_rows
+  ORDER BY table_name;
 table_name
 ndb$backup_id
 ndb$blocks
@@ -148,7 +150,8 @@ DROP PROCEDURE populate_sizes;
 ## Show the indexes on virtual tables
 SELECT table_name, constraint_name, column_name, ordinal_position
   FROM information_schema.key_column_usage
-  WHERE table_schema = 'ndbinfo';
+  WHERE table_schema = 'ndbinfo'
+  ORDER BY table_name;
 TABLE_NAME	CONSTRAINT_NAME	COLUMN_NAME	ORDINAL_POSITION
 ndb$blocks	PRIMARY	block_number	1
 ndb$config_params	PRIMARY	param_number	1
