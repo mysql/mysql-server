@@ -426,12 +426,12 @@ typedef long int lint;
 #endif
 
 /** The 'undefined' value for a ulint */
-constexpr ulint ULINT_UNDEFINED = ~0U;
+constexpr ulint ULINT_UNDEFINED = ~ulint{0U};
 
-constexpr ulong ULONG_UNDEFINED = ~0U;
+constexpr ulong ULONG_UNDEFINED = ~0UL;
 
 /** The 'undefined' value for a  64-bit unsigned integer */
-constexpr uint64_t UINT64_UNDEFINED = ~0U;
+constexpr uint64_t UINT64_UNDEFINED = ~0ULL;
 
 /** The 'undefined' value for a  32-bit unsigned integer */
 constexpr uint32_t UINT32_UNDEFINED = ~0U;

@@ -4655,11 +4655,11 @@ os_file_size_t os_file_get_size(const char *filename) {
       file_size.m_alloc_size <<= 32;
       file_size.m_alloc_size |= low_size;
     } else {
-      file_size.m_total_size = ~0U;
+      file_size.m_total_size = ~0ULL;
       file_size.m_alloc_size = (os_offset_t)errno;
     }
   } else {
-    file_size.m_total_size = ~0U;
+    file_size.m_total_size = ~0ULL;
     file_size.m_alloc_size = (os_offset_t)ret;
   }
 

@@ -17718,7 +17718,7 @@ static bool innobase_get_tablespace_statistics(
 
   /** Store maximum size */
   if (file->max_size >= PAGE_NO_MAX) {
-    stats->m_maximum_size = ~0U;
+    stats->m_maximum_size = ~0ULL;
   } else {
     stats->m_maximum_size = file->max_size * page_size.physical();
   }
