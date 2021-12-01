@@ -27,3 +27,24 @@ SELECT * FROM t1 WHERE c1 = 1 AND c2 = 2 FOR UPDATE;
 id	c1	c2	c3
 6	1	2	888
 DROP TABLE t1;
+#
+# Bug#33499071: 'keyread'(only) broken for index-merge access method
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, INDEX i1(f1), INDEX i2(f2));
+INSERT INTO t1 VALUES (1,1),(2,2);
+INSERT INTO t1 SELECT f1+2, f2+2 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
+EXPLAIN
+-> Filter: ((t1.f1 < 3) or (t1.f2 > 1020))  (cost=2.15 rows=3)
+    -> Sort-deduplicate by row ID  (cost=2.15 rows=3)
+        -> Index range scan on t1 using i1 over (NULL < f1 < 3)  (cost=0.46 rows=2)
+        -> Index range scan on t1 using i2 over (1020 < f2)  (cost=0.36 rows=1)
+
+SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
+f1	f2
+1	1
+2	2
+DROP TABLE t1;

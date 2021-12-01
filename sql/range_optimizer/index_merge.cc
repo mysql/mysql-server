@@ -34,6 +34,7 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/handler.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/bit_utils.h"
@@ -143,29 +144,45 @@ bool IndexMergeIterator::Init() {
   assert(file->ref_length == unique->get_size());
   assert(sort_buffer_size == unique->get_max_in_memory_size());
 
-  for (unique_ptr_destroy_only<RowIterator> &child : m_children) {
-    if (child->Init()) return true;
+  {
+    const Key_map covering_keys_save = table()->covering_keys;
+    const bool no_keyread_save = table()->no_keyread;
+    auto reset_keys =
+        create_scope_guard([covering_keys_save, no_keyread_save, this] {
+          table()->covering_keys = covering_keys_save;
+          table()->no_keyread = no_keyread_save;
+        });
+    table()->no_keyread = false;
+    for (unique_ptr_destroy_only<RowIterator> &child : m_children) {
+      // Init() might reset table->key_read to false. Take care to let
+      // it know that index merge needs to read only index entries.
+      IndexRangeScanIterator *range_scan_it =
+          down_cast<IndexRangeScanIterator *>(child->real_iterator());
+      table()->covering_keys.set_bit(range_scan_it->index);
+      if (child->Init()) return true;
+      // Make sure that index only access is used.
+      assert(table()->key_read == true);
 
-    for (;;) {
-      int result = child->Read();
-      if (result == -1) {
-        break;  // EOF.
-      } else if (result != 0 || thd()->killed) {
-        return true;
-      }
+      for (;;) {
+        int result = child->Read();
+        if (result == -1) {
+          break;  // EOF.
+        } else if (result != 0 || thd()->killed) {
+          return true;
+        }
 
-      /* skip row if it will be retrieved by clustered PK scan */
-      if (pk_quick_select && down_cast<IndexRangeScanIterator *>(
-                                 pk_quick_select.get()->real_iterator())
-                                 ->row_in_ranges()) {
-        continue;
-      }
+        /* skip row if it will be retrieved by clustered PK scan */
+        if (pk_quick_select && down_cast<IndexRangeScanIterator *>(
+                                   pk_quick_select.get()->real_iterator())
+                                   ->row_in_ranges()) {
+          continue;
+        }
 
-      handler *child_file =
-          down_cast<IndexRangeScanIterator *>(child->real_iterator())->file;
-      child_file->position(table()->record[0]);
-      if (unique->unique_add(child_file->ref)) {
-        return true;
+        handler *child_file = range_scan_it->file;
+        child_file->position(table()->record[0]);
+        if (unique->unique_add(child_file->ref)) {
+          return true;
+        }
       }
     }
   }
