@@ -186,7 +186,7 @@ class Table_access {
   /**
     Getter and setters for an opaque object for each table.
     Used by the handler's to persist 'pushability-flags' to avoid
-    overhead by recalculating it for each ::engine_push()
+    overhead by recalculating it for each ::push_to_engines()
   */
   uint get_table_properties() const;
   void set_table_properties(uint);

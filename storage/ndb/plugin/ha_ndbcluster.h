@@ -58,12 +58,6 @@ class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
 
-// WL:14370 review note:
-// Temporary moved into here from handler.h. Will go away later.
-namespace AQP {
-class Table_access;
-}
-
 enum NDB_INDEX_TYPE {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
@@ -370,13 +364,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   const handlerton *hton_supporting_engine_pushdown() override { return ht; }
 
   friend int ndbcluster_push_to_engine(THD *thd, AccessPath *, JOIN *);
-
-  // WL#14370 review note:
-  // engine_push() will go away in later patches.
-  // Kept temporary for now in order to ease the break up in
-  // smaller patches.
-  // Note: It is not a part of the handler interface anymore!
-  int engine_push(AQP::Table_access *table);
 
  private:
   bool maybe_pushable_join(const char *&reason) const;

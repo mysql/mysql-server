@@ -14153,65 +14153,40 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path [[maybe_unused]],
     }
   }
 
-  // WL#14370 temporary step, to go away:
-  // Push down conditions not being part of pushed joins
-  for (uint i = 0; i < query_plan.get_access_count(); i++) {
-    AQP::Table_access *table_access = query_plan.get_table_access(i);
-    const TABLE *table = table_access->get_table();
+  /**
+   * For those tables not being join-pushed we may still be able to
+   * push any conditions on the table. (There are less restrictions on whether
+   * a condition could be pushed when not being part of a pushed join.)
+   */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    const uint count = query_plan.get_access_count();
+    for (uint i = 0; i < count; i++) {
+      AQP::Table_access *table_access = query_plan.get_table_access(i);
+      const Item *cond = table_access->get_condition();
+      if (cond == nullptr) continue;
 
-    if (likely(table != nullptr)) {
+      const TABLE *table = table_access->get_table();
       handler *const ha = table->file;
+      if (ha->member_of_pushed_join() != nullptr &&
+          ha->member_of_pushed_join() != table) {
+        // Condition already pushed as part of pushed join child -> skip
+        continue;
+      }
+
       ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
       if (ndb_handler == nullptr) continue;
 
-      if (unlikely(ndb_handler->engine_push(query_plan.get_table_access(i)))) {
-        return true;
-      }
-    }
-  }
-  return 0;
-}
-
-/**
- * WL#14370 review note: Now push only *condition* to the storage
- * engine - Will eventually be completely merged into
- * ndbcluster_push_to_engine() above.
- *
- * Try to find parts of queries which can be pushed down to
- * storage engines for faster execution. This is typically
- * conditions which can filter out result rows on the SE
- *
- * @param table_aqp The specific table in the join plan to examine.
- *
- * @return Possible error code, '0' if no errors.
- */
-int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp [[maybe_unused]]) {
-  DBUG_TRACE;
-  THD *const thd = table->in_use;
-
-  /*
-    If enabled by optimizer settings, (parts of) the table condition may
-    by pushed down to the SE-engine for evaluation.
-    Note that for child in a pushed join, any conditions were already pushed
-    above.
-  */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    if (m_pushed_join_operation <= PUSHED_ROOT)  // Not a pushed join child
-    {
-      const Item *cond = table_aqp->get_condition();
-      if (cond == nullptr) return 0;
-
-      const AQP::enum_access_type jt = table_aqp->get_access_type();
+      const AQP::enum_access_type jt = table_access->get_access_type();
       if ((jt == AQP::AT_PRIMARY_KEY || jt == AQP::AT_UNIQUE_KEY ||
            jt == AQP::AT_OTHER) &&  // CONST or SYSTEM
-          !member_of_pushed_join()) {
+          !ha->member_of_pushed_join()) {
         /*
           It is of limited value to push a condition to a single row
           access method if not member of a pushed join, so we skip cond_push()
           for these. The exception is if we are member of a pushed join, where
-          execution of entire join branches may be eliminated.
+          execution of entire join branches may be eliminated. (above)
         */
-        return 0;
+        continue;
       }
 
       /*
@@ -14220,22 +14195,40 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp [[maybe_unused]]) {
         against. Thus, other tables can not be referred in this case.
       */
       const bool other_tbls_ok = thd->lex->sql_command == SQLCOM_SELECT &&
-                                 !table_aqp->uses_join_cache();
+                                 !table_access->uses_join_cache();
 
       table_map const_expr_tables(0);
       if (other_tbls_ok)
         // Can refer all other (preceeding) tables, except 'self' as 'const
         const_expr_tables = ~table->pos_in_table_list->map();
 
-      /* Push condition to handler, possibly leaving a remainder */
-      m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));
+      /* Prepare push of condition to handler, possibly leaving a remainder */
+      ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));
     }
 
-    // Use whatever conditions got pushed, either as part of a pushed join
-    // or not
-    const Item *remainder;
-    if (m_cond.use_cond_push(pushed_cond, remainder) == 0)
-      table_aqp->set_condition(const_cast<Item *>(remainder));
+    // WL#14370 temporary step, to go away:
+    // When AccessPath based AQP are introduced in later patches, the
+    // extra loop over the query_plan tables below will be replaces by a method
+    // which modify the AccessPath to 'accept' the pushed joins and conditions.
+    for (uint i = 0; i < count; i++) {
+      AQP::Table_access *table_access = query_plan.get_table_access(i);
+      const TABLE *table = table_access->get_table();
+      if (table == nullptr) continue;
+
+      handler *const ha = table->file;
+      ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
+      if (ndb_handler == nullptr) continue;
+
+      // Use whatever conditions got pushed, either as part of a pushed join
+      // or not
+      const Item *remainder;
+      if (ndb_handler->m_cond.use_cond_push(ha->pushed_cond, remainder) == 0) {
+        if (ha->pushed_cond != nullptr) {  // Something was pushed
+          // There is a possible remainder which server need to handle
+          table_access->set_condition(const_cast<Item *>(remainder));
+        }
+      }
+    }
   }
   return 0;
 }
