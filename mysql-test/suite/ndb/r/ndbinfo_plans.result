@@ -219,7 +219,7 @@ EXPLAIN	-> Filter: (ndb$blocks.block_number < 250)  (cost=4.76 rows=10)
 explain format=tree select * from blocks where block_number > 250
   order by block_number desc;
 EXPLAIN	-> Filter: (ndb$blocks.block_number > 250)  (cost=4.76 rows=10)
-    -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number)  (cost=4.76 rows=10)
+    -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number) (reverse)  (cost=4.76 rows=10)
 
 
 select * from dict_obj_types where type_id = 6;
