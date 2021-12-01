@@ -131,6 +131,52 @@ static RowIterator *FindSingleIteratorOfType(AccessPath *path,
   }
 }
 
+TABLE *GetBasicTable(const AccessPath *path) {
+  switch (path->type) {
+    // Basic access paths (those with no children, at least nominally).
+    case AccessPath::TABLE_SCAN:
+      return path->table_scan().table;
+    case AccessPath::INDEX_SCAN:
+      return path->index_scan().table;
+    case AccessPath::REF:
+      return path->ref().table;
+    case AccessPath::REF_OR_NULL:
+      return path->ref_or_null().table;
+    case AccessPath::EQ_REF:
+      return path->eq_ref().table;
+    case AccessPath::PUSHED_JOIN_REF:
+      return path->pushed_join_ref().table;
+    case AccessPath::FULL_TEXT_SEARCH:
+      return path->full_text_search().table;
+    case AccessPath::CONST_TABLE:
+      return path->const_table().table;
+    case AccessPath::MRR:
+      return path->mrr().table;
+    case AccessPath::FOLLOW_TAIL:
+      return path->follow_tail().table;
+    case AccessPath::INDEX_RANGE_SCAN:
+      return path->index_range_scan().used_key_part[0].field->table;
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      return path->dynamic_index_range_scan().table;
+
+    case AccessPath::INDEX_MERGE:
+      return path->index_merge().table;
+
+    // Basic access paths that don't correspond to a specific table.
+    case AccessPath::TABLE_VALUE_CONSTRUCTOR:
+    case AccessPath::FAKE_SINGLE_ROW:
+    case AccessPath::ZERO_ROWS:
+    case AccessPath::ZERO_ROWS_AGGREGATED:
+    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+    case AccessPath::UNQUALIFIED_COUNT:
+
+    // Note, some other AccessPaths may use its own temporary (derived) table.
+    // We intentionally do not return such TABLEs.
+    default:
+      return nullptr;
+  }
+}
+
 table_map GetUsedTableMap(const AccessPath *path, bool include_pruned_tables) {
   table_map tmap = 0;
   WalkTablesUnderAccessPath(

@@ -1716,6 +1716,13 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               AccessPath *path);
 
 /**
+  Return the TABLE* referred from 'path' if it is a basic access path,
+  else a nullptr is returned. Temporary tables, such as those used by
+  sorting, aggregate and subquery materialization are not returned.
+*/
+TABLE *GetBasicTable(const AccessPath *path);
+
+/**
   Returns a map of all tables read when `path` or any of its children are
   exectued. Only iterators that are part of the same query block as `path`
   are considered.
