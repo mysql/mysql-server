@@ -4686,7 +4686,7 @@ echo ------------------------------------------------------------------;
 echo;
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
-# pass as buffer size is incresed from 32K -> 64K
+# pass as buffer size is increased from 32K -> 64K
 #
 let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;
@@ -5174,69 +5174,78 @@ set optimizer_switch=@save_optimizer_switch;
 # then later used to access a 'tableno-bitmask'.
 ###################################################
 
+--echo ####################################################################
+--echo # WL#14370: Change EXPLAIN to use 'format=tree'. Traditional explain
+--echo # didn't correctly represent the order of tables in MATERIALIZED
+--echo # sub queries. That resulted in some confusing 'EXPLAIN_NO_PUSH' diffs
+--echo # where the reported root/child order didn't make sense.
+--echo # As the tree-format explain will show, the changed output
+--echo # make more sense related to the query plan represented by the
+--echo # AccessPath tree.
+--echo # WL#14370: Materialized semijoin's is not the only SJ-strategi
+--echo # where we do no pushdown across main-query -> sub-query border.
+--echo # (The sub-query itself may be pushed though)
+--echo ###################################################################
+
 connection spj;
 set @save_optimizer_switch = @@optimizer_switch;
 set @@optimizer_switch='semijoin=on';
 set @@optimizer_switch='materialization=on';
 
-explain
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
-
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
 
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
-explain
+
+let $query =
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
-select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
-select count(*)
-from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
-join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
-
+let $query =
 select count(*)
 from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
-where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t4);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
 set optimizer_switch='block_nested_loop=off';
 
-explain
+let $query =
 select count(*)
 from t1 cross join t1 as t2
 where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
   from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
 
-select count(*)
-from t1 cross join t1 as t2
-where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
-  from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 set optimizer_switch=@save_optimizer_switch;
 
@@ -5369,7 +5378,14 @@ set optimizer_switch=@save_optimizer_switch;
 # subqueries can now be pushed down, and materialized.
 #
 ###################################################
-explain
+
+--echo ###########
+--echo # WL#14370: EXPLAIN need to use 'format=tree as table access order
+--echo # in MATERIALIZED execution is not currectly represented by
+--echo # the traditional explain.
+--echo ###########
+
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -5377,15 +5393,12 @@ where t1.c IN (
   select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
   join t1 as t4s on t4s.a = t3s.b);
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN (
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
-  join t1 as t4s on t4s.a = t3s.b);
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 
-explain
+let $query =
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.b
@@ -5398,18 +5411,9 @@ and t1.d IN (
   join t1 as t4s2 on t4s2.a = t3s2.b
  );
 
-select count(*)
-from t1
-join t1 as t2 on t2.a = t1.b
-where t1.c IN(
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
-  join t1 as t4s1 on t4s1.a = t3s1.b
- )
-and t1.d IN (
-  select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
-  join t1 as t4s2 on t4s2.a = t3s2.b
- );
-
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 #############################################
 # Subqueries-end
@@ -5590,6 +5594,81 @@ straight_join t1 as t2 on t2.a = t1.a
 select t1.d from t1 FORCE INDEX FOR ORDER BY (ix2)
 straight_join t1 as t2 on t2.a = t1.a
   order by t1.d;
+
+drop table t1;
+
+--echo ##################
+--echo #
+--echo # Specific WL-14370, 'AccessPath' tests
+--echo # (Unknown if/how this worked pre-wl-14370)
+--echo #
+--echo ##################
+
+--echo Testcase for AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL
+--echo Expect explain: 'Nested loop semijoin with duplicate removal on...'
+--echo   (Hardly ever used unless forced to...)
+
+
+--echo Testcase for AccessPath::WINDOWING
+# (Picked from main.subquery_scalar_to_derived_correlation.test)
+
+create table t2(a int) engine=ndbcluster;
+insert into t2 values(1), (2);
+create table t3(a int, b int) engine=ndbcluster;
+insert into t3 values(1, 3), (2, 3);
+
+let $query =
+  select a,
+       (select sum(a) over w from t2 window w as(order by t3.a) limit 1)
+  from t3;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+drop table t2,t3;
+
+#WL#14370: Query_expression with multiple Query_blocks:
+# (Testing Accesspath::APPEND of multiple STREAMs.)
+# The constructed AQP::Join_plan is limited to handling single
+# Query_blocks, which is implemented by just iterating over the
+# 'block' in the Query_expression. Thus we dont have to handle
+# Accesspath::APPEND and multiple 'blocks' in the 'plan'.
+#
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=ndbcluster
+partition by key() partitions 8;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+let $query =
+  select *
+  from t1
+    straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
+    straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
+  where t1.a=1 and t1.d=1;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query union all $query;
+--sorted_result
+eval $query union all $query;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query union $query;
+--sorted_result
+eval $query union $query;
 
 drop table t1;
 
