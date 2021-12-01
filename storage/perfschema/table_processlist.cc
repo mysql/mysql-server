@@ -293,6 +293,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
       m_row.m_processlist_state_length = 64;
     }
   } else {
+    m_row.m_processlist_state_ptr = "";
     m_row.m_processlist_state_length = 0;
   }
 
