@@ -4275,13 +4275,18 @@ create table t (k int primary key, uq int) engine = ndb
 connection spj;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
 
-explain
-select * from t as a left join t as b 
+--echo #############
+--echo # WL#14370: AccessPath will contain a 'zero rows'-AccessPath in place
+--echo #           of the known 'false' condition.
+let $query =
+select * from t as a left join t as b
   on a.k is null and a.uq=b.uq;
 
+eval explain $query;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
 --sorted_result
-select * from t as a left join t as b 
-  on a.k is null and a.uq=b.uq;
+eval $query;
 
 connection ddl;
 drop table t;
@@ -4485,23 +4490,39 @@ select count(*) from t1 as x1
       cross join t1 as x3) 
    on x1.d=x2.a;
 
+--echo #################
+--echo # Prior to WL#14370 we did 'pending condition' analysis inside the
+--echo # join pushdown handler. That code took a too conservative approach
+--echo # in identifying such pending conditions, somethimes resulting in pushdown
+--echo # to be rejected due to 'table condition can not be fully evaluated...'
+--echo # The AccessPath construction code does a much better job of identifying
+--echo # these pending condition, and placing them at the correct branch level.
+--echo # As this information is now available to us through the AccessPath
+--echo # integration, we eliminated our own (incomplete) code for doing such
+--echo # analysis and could avoid such false rejections at the same time.
+--echo #
+--echo # Note the diff in the traditional and tree format explain below:
+--echo # The traditional explain says table x4 is 'using where', which was
+--echo # incorrectly identified as a trigger condition on join(x2,x4).
+--echo # The tree format explain shows that it has been liftet out of that
+--echo # join scope as a 'filter' on the entire x1..x4 join - Thus there is
+--echo # noting preventing the left-join(x2,x4)
+--echo #################
 
-explain select count(*) from t1 as x0
-   left join (t1 as x1 
-      join (t1 as x2 
-         left join (t1 as x3 
-            join t1 as x4 on x3.d=x4.a) 
-         on x2.d=x3.a) 
-      on x2.c is null or x1.a=x4.d) 
+let $query =
+select count(*) from t1 as x0
+   left join (t1 as x1
+      join (t1 as x2
+         left join (t1 as x3
+            join t1 as x4 on x3.d=x4.a)
+         on x2.d=x3.a)
+      on x2.c is null or x1.a=x4.d)
    on x0.d=x1.a;
-select count(*) from t1 as x0 
-   left join (t1 as x1 
-      join (t1 as x2 
-         left join (t1 as x3 
-            join t1 as x4 on x3.d=x4.a) 
-         on x2.d=x3.a) 
-      on x2.c is null or x1.a=x4.d) 
-   on x0.d=x1.a;
+
+eval explain $query;
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+eval $query;
 
 connection ddl;
 drop table t1;

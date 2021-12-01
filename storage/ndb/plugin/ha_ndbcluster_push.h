@@ -250,7 +250,7 @@ class ndb_pushed_builder_ctx {
  private:
   const Thd_ndb *const m_thd_ndb;
 
-  const AQP::Join_plan &m_plan;
+  AQP::Join_plan &m_plan;
   AQP::Table_access *const m_join_root;
 
   // Scope of tables covered by this pushed join

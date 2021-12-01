@@ -364,6 +364,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   const handlerton *hton_supporting_engine_pushdown() override { return ht; }
 
   friend int ndbcluster_push_to_engine(THD *thd, AccessPath *, JOIN *);
+  friend void accept_pushed_conditions(const TABLE *table, AccessPath *filter);
 
  private:
   bool maybe_pushable_join(const char *&reason) const;

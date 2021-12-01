@@ -979,14 +979,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (make_tmp_tables_info()) return true;
 
   /*
-    At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
-    Query parts being offloaded to the engines(below) may still change the
-    'plan', affecting which type of Iterator we should create. Thus no
-    Iterators should be set up until after push_to_engine() has completed.
-  */
-  if (push_to_engines()) return true;
-
-  /*
     If we decided to not sort after all, update the cost of the JOIN.
     Windowing sorts are handled elsewhere
   */
@@ -1003,6 +995,23 @@ bool JOIN::optimize(bool finalize_access_paths) {
   // Creating iterators may evaluate a constant hash join condition, which may
   // fail:
   if (thd->is_error()) return true;
+
+  /*
+    At this stage, we have set up an AccessPath 'plan'. Traverse the
+    AccessPath structures and find components which may be offloaded to
+    the engines. This process is allowed to modify the AccessPath itself.
+    (Removing/modifying FILTERs where pushed to the engines, change JOIN*
+    algorithms being used, modify aggregate expressions, ...).
+    This will later affects which type of Iterator we should create. Thus no
+    Iterators should be set up until after push_to_engines() has completed.
+
+    Note that when the Hypergraph optimizer is used, there is an entirely
+    different code path to push_to_engine(). (We create the AcccesPath directly
+    instead of converting the QEP_TABs into an AccessPath structure).
+    In the HG case we push_to_engine() when FinalizePlanForQueryBlock()
+    has finalized the 'plan'.
+  */
+  if (push_to_engines()) return true;
 
   // Make plan visible for EXPLAIN
   set_plan_state(PLAN_READY);
@@ -1087,6 +1096,7 @@ void JOIN::create_access_paths_for_zero_rows() {
 */
 bool JOIN::push_to_engines() {
   DBUG_TRACE;
+  assert(m_root_access_path != nullptr);
 
   for (TABLE_LIST *tl = query_block->leaf_tables; tl; tl = tl->next_leaf) {
     const handlerton *hton = tl->table->file->hton_supporting_engine_pushdown();

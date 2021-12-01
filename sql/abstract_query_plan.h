@@ -27,19 +27,26 @@
 
 #include <assert.h>
 #include <sys/types.h>
+#include "my_table_map.h"
+
+#include "sql/join_type.h"
+#include "sql/mem_root_array.h"
 
 class Item;
 class Item_equal;
 class Item_field;
 class JOIN;
 class KEY_PART_INFO;
-class QEP_TAB;
+class THD;
+struct AccessPath;
 struct TABLE;
+struct TABLE_REF;
+
+class QEP_TAB;
 
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of
-  query plans without accessing mysqld internal classes (JOIN_TAB, QEP_TAB,
-  etc.) directly.
+  query plans without accessing the AccessPath directly.
 
   AQP maps join execution plans, as represented by mysqld internals, to a set
   of facade classes. Non-join operations such as sorting and aggregation is
@@ -56,49 +63,11 @@ struct TABLE;
   using the AQP rather than the mysqld internals directly, the coupling between
   the engine and mysqld is reduced.
 
-  The AQP also provides functions which allows the storage engine
-  to change the query execution plan for the part of the join which
-  it will handle. Thus be aware that although the QEP_TAB*'s are const
-  they may be modified.
+  Note that even the AQP was intended to be 'Abstract', it has some rather NDB
+  specific logic. As NDB is the only user of it, it should probably be made
+  a part of storage/ndb/plugin longer term.
 */
 namespace AQP {
-class Table_access;
-
-/**
-  This class represents a query plan for an n-way join, in the form a
-  sequence of n table access operations that will execute as a nested loop
-  join.
-*/
-class Join_plan {
-  friend class Table_access;
-
- public:
-  explicit Join_plan(const JOIN *join);
-
-  ~Join_plan();
-
-  Table_access *get_table_access(uint access_no) const;
-
-  uint get_access_count() const;
-
- private:
-  /**
-    Array of the QEP_TABs that are the internal representation of table
-    access operations.
-  */
-  const QEP_TAB *const m_qep_tabs;
-
-  /** Number of table access operations. */
-  uint m_access_count;
-  Table_access *m_table_accesses;
-
-  const QEP_TAB *get_qep_tab(uint qep_tab_no) const;
-
-  // No copying.
-  Join_plan(const Join_plan &);
-  Join_plan &operator=(const Join_plan &);
-};
-// class Join_plan
 
 /** The type of a table access operation. */
 enum enum_access_type {
@@ -132,6 +101,10 @@ enum enum_access_type {
   AT_OTHER
 };
 
+class Join_plan;
+class Join_nest;
+class Join_scope;  // 'is a' Join_nest as well.
+
 /**
   This class represents an access operation on a table, such as a table
   scan, or a scan or lookup via an index. A Table_access object is always
@@ -139,11 +112,9 @@ enum enum_access_type {
   object ends when the life time of the owning Join_plan object ends.
  */
 class Table_access {
-  friend class Join_plan;
-  friend inline bool equal(const Table_access *, const Table_access *);
-
  public:
-  const Join_plan *get_join_plan() const;
+  Table_access(Join_plan *plan, Join_nest *join_nest, AccessPath *table,
+               AccessPath *filter);
 
   enum_access_type get_access_type() const;
 
@@ -167,8 +138,11 @@ class Table_access {
 
   bool filesort_before_join() const;
 
+  table_map get_tables_in_this_query_scope() const;
+
+  const char *get_scope_description() const;
+
   Item *get_condition() const;
-  void set_condition(Item *cond);
 
   uint get_first_inner() const;
   uint get_last_inner() const;
@@ -186,62 +160,86 @@ class Table_access {
   /**
     Getter and setters for an opaque object for each table.
     Used by the handler's to persist 'pushability-flags' to avoid
-    overhead by recalculating it for each ::push_to_engines()
+    overhead by recalculating it for each ::engine_push()
   */
   uint get_table_properties() const;
   void set_table_properties(uint);
 
  private:
-  /** Backref. to the Join_plan which this Table_access is part of */
-  const Join_plan *m_join_plan;
+  Join_nest *const m_join_nest;
 
-  /** This operation corresponds to m_root_tab[m_tab_no].*/
-  uint m_tab_no;
+  const uint m_tab_no;
 
-  /** The type of this operation.*/
-  mutable enum_access_type m_access_type;
+  /** Describes an AccessPath refering a TABLE* type */
+  const AccessPath *const m_path;
+  const TABLE *const m_table{nullptr};  // The TABLE accessed by m_path
+
+  /** An optional AccessPath::FILTER in effect for this table */
+  AccessPath *const m_filter;
+
+  /** The access type used for this table. */
+  mutable enum_access_type m_access_type{AT_VOID};
 
   /**
-    The reason for getting m_access_type==AT_OTHER. Used for explain extended.
+    The reason for getting m_access_type==AT_OTHER. Used for EXPLAIN.
   */
-  mutable const char *m_other_access_reason;
+  mutable const char *m_other_access_reason{nullptr};
 
   /** The index to use for this operation (if applicable )*/
-  mutable int m_index_no;
+  mutable int m_index_no{-1};
 
   /** May store an opaque property / flag */
-  uint m_properties;
+  uint m_properties{0};
 
-  explicit Table_access();
+  const Join_scope *get_join_scope() const;
+  const TABLE_REF *get_table_ref() const;
 
   const QEP_TAB *get_qep_tab() const;
 
   void compute_type_and_index() const;
+};  // class Table_access
 
-  /** No copying*/
-  Table_access(const Table_access &);
-  Table_access &operator=(const Table_access &);
+/**
+  This class represents a query plan for an n-way join, in the form of a
+  sequence of n table access operations that will execute as a nested loop
+  join.
+*/
+class Join_plan {
+  friend class Table_access;
+
+ public:
+  explicit Join_plan(THD *thd, AccessPath *plan, const JOIN *join);
+
+  Table_access *get_table_access(uint access_no);
+  uint get_access_count() const;
+
+ private:
+  void construct(Join_nest *nest_ctx, AccessPath *plan);
+
+  THD *const m_thd;
+  const JOIN *const m_join;
+  Mem_root_array<Table_access> m_table_accesses;
+
+  // No copying.
+  Join_plan(const Join_plan &) = delete;
+  Join_plan &operator=(const Join_plan &) = delete;
 };
-// class Table_access
+// class Join_plan
+
+/**
+   @return The number of table access operations in the nested loop join.
+*/
+inline uint Join_plan::get_access_count() const {
+  return m_table_accesses.size();
+}
 
 /**
   Get the n'th table access operation.
   @param access_no The index of the table access operation to fetch.
   @return The access_no'th table access operation.
 */
-inline Table_access *Join_plan::get_table_access(uint access_no) const {
-  assert(access_no < m_access_count);
-  return m_table_accesses + access_no;
-}
-
-/**
-   @return The number of table access operations in the nested loop join.
-*/
-inline uint Join_plan::get_access_count() const { return m_access_count; }
-
-/** Get the Join_plan that this Table_access belongs to.*/
-inline const Join_plan *Table_access::get_join_plan() const {
-  return m_join_plan;
+inline Table_access *Join_plan::get_table_access(uint access_no) {
+  return (&m_table_accesses[access_no]);
 }
 
 /** Get the type of this operation.*/
@@ -267,7 +265,6 @@ inline const char *Table_access::get_other_access_reason() const {
 */
 inline int Table_access::get_index_no() const {
   if (m_access_type == AT_VOID) compute_type_and_index();
-
   return m_index_no;
 }
 

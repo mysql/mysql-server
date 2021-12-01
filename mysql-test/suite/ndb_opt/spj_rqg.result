@@ -33,16 +33,15 @@ LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_uniq
 ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1
+    -> Table scan on table1, activating pushed join of 2 tables
     -> Filter: (table3.col_int is null)
         -> Nested loop left join
-            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int)
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
             -> Filter: (table2.col_varchar_256_unique = table3.col_char_16_unique)
                 -> Single-row index lookup on table3 using col_char_16_unique (col_char_16_unique=table2.col_varchar_256_unique)
 
 Warnings:
 Note	1003	Can't push table 'table3' as child, column 'col_char_16_unique' does not have same datatype as ref'ed column 'table2.col_varchar_256_unique'
-Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has a FILTER conditions
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM n AS table1
@@ -81,6 +80,7 @@ pk	pk	pk
 13	23	NULL
 13	25	NULL
 13	7	NULL
+13	NULL	NULL
 14	17	NULL
 14	20	NULL
 14	21	NULL
@@ -92,6 +92,7 @@ pk	pk	pk
 15	23	NULL
 15	25	NULL
 15	7	NULL
+15	NULL	NULL
 16	17	NULL
 16	20	NULL
 16	21	NULL
@@ -103,6 +104,7 @@ pk	pk	pk
 17	23	NULL
 17	25	NULL
 17	7	NULL
+17	NULL	NULL
 18	17	NULL
 18	20	NULL
 18	21	NULL
@@ -114,6 +116,7 @@ pk	pk	pk
 19	23	NULL
 19	25	NULL
 19	7	NULL
+19	NULL	NULL
 2	11	NULL
 2	13	NULL
 2	2	NULL
@@ -134,6 +137,7 @@ pk	pk	pk
 21	23	NULL
 21	25	NULL
 21	7	NULL
+21	NULL	NULL
 22	NULL	NULL
 3	1	NULL
 3	12	NULL
@@ -1121,20 +1125,16 @@ LEFT JOIN o AS table4 ON table2.pk = table4.col_int
 ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1
+    -> Table scan on table1, activating pushed join of 3 tables
     -> Filter: (table4.col_int is null)
         -> Nested loop left join
             -> Nested loop left join
-                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique)
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
                 -> Table scan on table3, with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table3.col_int_unique = table1.col_int_unique))
-            -> Index lookup on table4 using ix3 (col_int=table2.pk)
+            -> Index lookup on table4 using ix3 (col_int=table2.pk), child of table2 in pushed join
 
 Warnings:
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
-Note	1003	Can't push outer joined table 'table4' as child of 'table1', table condition can not be fully evaluated by pushed join
-Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has a FILTER conditions
-Note	1003	Can't push outer joined table 'table4' as child of 'table2', table condition can not be fully evaluated by pushed join
-Note	1003	Can't push table 'table4' as child of 'table3', no parent-child dependency exists between these tables
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM s AS table1
@@ -1206,15 +1206,16 @@ LEFT OUTER JOIN c AS table2 ON table1.col_int = table2.pk
 LEFT OUTER JOIN w AS table3 ON table2.col_int = table3.col_int_key;
 EXPLAIN
 -> Nested loop left join
-    -> Nested loop left join
+    -> Left hash join (table2.pk = table1.col_int)
         -> Table scan on table1
-        -> Filter: (table2.pk = table1.col_int)
-            -> Table scan on table2, activating pushed join of 2 tables
-    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int), child of table2 in pushed join
+        -> Hash
+            -> Table scan on table2
+    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 SELECT straight_join
 table1.pk, table2.pk, table3.pk
 FROM s AS table1
@@ -1370,16 +1371,15 @@ WHERE table2.pk = 9 OR table2s.col_int = 1
 EXPLAIN
 -> Filter: <if>(found_match(table2s), true, true)
     -> Nested loop antijoin
-        -> Table scan on table2
+        -> Table scan on table2, activating pushed join of 2 tables
         -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))
             -> Nested loop left join
-                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)
+                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique), child of table2 in pushed join
                 -> Index range scan on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
-Note	1003	Can't push table 'table2s' as child, access type 'Multi-range' not implemented
-Note	1003	Can't push outer joined table 'table1s' as child of 'table2', join-nest containing the table has a FILTER conditions
+Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
 SELECT
 table2.col_int_key AS field2
 FROM z AS table2
@@ -1402,6 +1402,15 @@ field2
 0
 0
 0
+0
+0
+0
+0
+1
+1
+1
+1
+1
 1
 1
 1
@@ -1430,6 +1439,8 @@ field2
 2
 2
 2
+3
+3
 3
 3
 3
@@ -1849,15 +1860,17 @@ WHERE table2s.pk = table2.pk
 and table1.pk = 11;
 EXPLAIN
 -> Nested loop antijoin
-    -> Nested loop left join
+    -> Left hash join (no condition)
         -> Table scan on table1, with pushed condition: (table1.pk = 11)
-        -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.pk = 11)
-    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1882,12 +1895,13 @@ WHERE table2s.pk = table2.pk
 and table1.pk = 11;
 EXPLAIN
 -> Nested loop antijoin
-    -> Nested loop left join
+    -> Left hash join (no condition)
         -> Table scan on table1, with pushed condition: (table1.pk = 11)
-        -> Table scan on table2, activating pushed join of 3 tables, with pushed condition: (table2.pk = 11)
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
     -> Nested loop inner join
-        -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join
-        -> Index lookup on table1s using col_char_16_key (col_char_16_key=table2s.col_char_16_key), child of table2s in pushed join
+        -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
+        -> Index lookup on table1s using col_char_16_key (col_char_16_key=table2s.col_char_16_key)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.col_int' of SELECT #2 was resolved in SELECT #1
@@ -1895,6 +1909,9 @@ Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELEC
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 Note	1003	Can't push table 'table1s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 'table1s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Push of table 'table1s' as scan-child with lookup-root 'table2s' not implemented
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1952,15 +1969,17 @@ WHERE table2s.pk = table2.pk
 and table1.pk = 11;
 EXPLAIN
 -> Nested loop antijoin
-    -> Nested loop left join
+    -> Left hash join (no condition)
         -> Table scan on table1, with pushed condition: (table1.pk = 11)
-        -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.pk = 11)
-    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk)
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -1984,15 +2003,17 @@ WHERE table2s.col_int = table2.pk
 and table1.pk = 11;
 EXPLAIN
 -> Nested loop antijoin
-    -> Nested loop left join
+    -> Left hash join (no condition)
         -> Table scan on table1, with pushed condition: (table1.pk = 11)
-        -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.pk = 11)
-    -> Index lookup on table2s using ix3 (col_int=table2.pk), child of table2 in pushed join
+        -> Hash
+            -> Table scan on table2, with pushed condition: (table2.pk = 11)
+    -> Index lookup on table2s using ix3 (col_int=table2.pk)
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 SELECT
 table1.pk, table2.pk
 FROM v AS table1
@@ -2231,7 +2252,7 @@ EXPLAIN
     -> Single-row index lookup on table3 using ix1 (col_int=table2.col_int, col_int_unique=table1.col_int_unique), child of table2 in pushed join
 
 Warnings:
-Note	1003	Can't push table 'table2' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
 Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 SELECT
 table1.pk, table2.pk, table3.pk
@@ -2737,7 +2758,7 @@ Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child of 'table1'. Doing so would prevent using join buffer for table 'table3'.
 Note	1003	Can't push table 'table4' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Can't push table 'table4' as child of 'table3', since it referes to column 'table2.col_int_key' which will be stored in a join buffer.
+Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
 SELECT DISTINCT
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM a AS table1
@@ -2770,7 +2791,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table1.col_varchar_10_unique' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table1s' as child of 'table1', column 'table2s.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table1s' as child of 'table1', it is in a query-branch which can't be referred.
 SELECT table1.pk, table2.pk
 FROM p AS table1
 JOIN d AS table2 ON table1.col_int_unique = table2.pk
@@ -2873,11 +2894,11 @@ EXPLAIN
         -> Index lookup on table2s using PRIMARY (col_int=table1s.col_int), child of table1s in pushed join, with pushed condition: (table2s.col_int_unique = table1s.col_int_unique)
 
 Warnings:
+Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
+Note	1003	Can't push table 'table1' as child of 'table2s'. Doing so would prevent using join buffer for table 'table2'.
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table2s' as child of 'table2s'. Doing so would prevent using join buffer for table 'table2'.
 Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' is outside scope of pushable join
-Note	1003	Can't push table 'table2s' as child, access type 'Multi-range' not implemented
-Note	1003	Can't push table 'table1s' as child of 'table2', column 'table2s.col_int_key' is outside scope of pushable join
-Note	1003	Can't push table 'table1s' as child of 'table1s', column 'table2s.col_int_key' is outside scope of pushable join
 SELECT
 table1.col_varchar_10_unique AS field1, table1.col_char_16 AS field2
 FROM e AS table1
@@ -3294,7 +3315,7 @@ Note	1276	Field or reference 'test.table1.col_varchar_10' of SELECT #2 was resol
 Note	1276	Field or reference 'test.table1s.col_int_key' of SELECT #3 was resolved in SELECT #2
 Note	1003	Can't push table 'table1ss' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table1s'. Doing so would prevent using join buffer for table 'table1ss'.
-Note	1003	Can't push table 'table2s' as child of 'table1ss', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table2s' as child of 'table1ss', it is in a hash-bucket-branch which can't be referred.
 SELECT STRAIGHT_JOIN
 table1.pk
 FROM s AS table1
@@ -3383,10 +3404,8 @@ EXPLAIN
             -> Left hash join (no condition)
                 -> Table scan on table1
                 -> Hash
-                    -> Table scan on table2, with pushed condition: <cache>((table1.col_int is null))
+                    -> Zero rows (Impossible filter)
 
-Warnings:
-Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 SELECT DISTINCT
 4 AS field1
 FROM f AS table1
@@ -3451,8 +3470,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table3'.
-Note	1003	Can't push table 'table3' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
 FROM h AS table1
@@ -3559,7 +3577,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.table2.col_int' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table2s' as child of 'table1', semi join of scan-child not implemented
+Note	1003	Can't push table 'table2s' as child of 'table1', it is in a query-branch which can't be referred.
 SELECT
 table1.pk, table2.pk
 FROM x AS table1
@@ -3595,7 +3613,7 @@ EXPLAIN
                                 -> Index range scan on table2s using PRIMARY over (2 <= col_int <= 10), with pushed condition: (table2s.col_int between 2 and 10)
 
 Warnings:
-Note	1003	Can't push table 'table2s' as child, access type 'Multi-range' not implemented
+Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 SELECT DISTINCT
 table1.pk
@@ -3670,11 +3688,13 @@ EXPLAIN
     -> Temporary table with deduplication
         -> Nested loop inner join
             -> Nested loop left join
-                -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_key is not null)
+                -> Table scan on table1, activating pushed join of 2 tables, with pushed condition: (table1.col_int_key is not null)
                 -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
             -> Limit: 1 row(s)
-                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key)
 
+Warnings:
+Note	1003	Can't push table 'table2' as child of 'table1', semi join of scan-child not implemented
 SELECT DISTINCT
 table3.col_int_key AS field1, table1.col_int AS field2, table1.col_int AS field3
 FROM t AS table1
@@ -3745,12 +3765,14 @@ EXPLAIN
         -> Nested loop inner join
             -> Nested loop inner join
                 -> Nested loop left join
-                    -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int_unique is not null)
+                    -> Table scan on table2, activating pushed join of 3 tables, with pushed condition: (table2.col_int_unique is not null)
                     -> Single-row index lookup on table3 using col_varchar_256_unique (col_varchar_256_unique=table2.col_varchar_256_unique), child of table2 in pushed join
                 -> Index lookup on table4 using PRIMARY (col_int=table2.col_int_unique), child of table2 in pushed join
             -> Limit: 1 row(s)
-                -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_unique), child of table2 in pushed join
+                -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_unique)
 
+Warnings:
+Note	1003	Can't push table 'table1' as child of 'table2', semi join of scan-child not implemented
 SELECT
 DISTINCT table4.col_int_unique
 FROM u AS table1
@@ -3897,6 +3919,51 @@ pk	pk
 21	1
 22	1
 3	1
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM z AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT)*/
+table2s.col_int_key
+FROM q AS table2s
+);
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on table2
+    -> Remove duplicate table1 rows using temporary table (weedout)
+        -> Nested loop inner join
+            -> Index lookup on table2s using ix2 (col_int_key=table2.pk), activating pushed join of 2 tables
+            -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2s in pushed join
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child of 'table2', it is in a query-branch which can't be referred.
+Note	1003	Can't push table 'table1' as child of 'table2', it is in a query-branch which can't be referred.
+SELECT
+table1.pk, table2.pk
+FROM z AS table1
+JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE table1.col_int_key IN (
+SELECT /*+ SEMIJOIN(DUPSWEEDOUT)*/
+table2s.col_int_key
+FROM q AS table2s
+);
+pk	pk
+1	1
+14	1
+17	1
+19	1
+21	1
+26	1
+3	1
+4	1
+5	1
+54	1
+55	1
+59	1
+62	1
+64	1
+67	1
 set optimizer_switch='batched_key_access=on';
 explain format=tree SELECT straight_join
 table1.pk, table2.pk, table3.pk
@@ -3916,7 +3983,7 @@ EXPLAIN
     -> Single-row index lookup on table1 using ix1 (col_int=table2.col_int, col_int_unique=table2.col_int_unique), child of table3 in pushed join
 
 Warnings:
-Note	1003	Can't push table 'table3' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
+Note	1003	Can't push table 'table3' as child, access type 'Multi-range' not implemented
 Note	1003	Can't push table 'table1' as child of 'table2'. Doing so would prevent using join buffer for table 'table3'.
 SELECT straight_join
 table1.pk, table2.pk, table3.pk

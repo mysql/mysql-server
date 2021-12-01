@@ -3009,6 +3009,26 @@ eval explain format=tree $query;
 eval $query;
 
 
+# WEEDOUT:
+# Query use 'Remove duplicate ... using temporary table (weedout)'
+# Note that only some of the tables in a weedout are duplicate
+# duplicate eliminated from. Thus the branch is not a full semi-join.
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM z AS table1
+  JOIN b AS table2 ON table1.col_int_key = table2.pk
+WHERE table1.col_int_key IN (
+  SELECT /*+ SEMIJOIN(DUPSWEEDOUT)*/
+    table2s.col_int_key
+  FROM q AS table2s
+);
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
 ###########################################
 # BKA-join using MRR for inner part returned incorrect result.
 # Filed and fixed as seperate bug#33416308, keep original

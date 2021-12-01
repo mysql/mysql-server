@@ -42,10 +42,13 @@
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
-#include "sql/mysqld.h"      // global_system_variables table_alias_charset ...
+#include "sql/filesort.h"
+#include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
 #include "sql/partition_info.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
+#include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
 #ifndef NDEBUG
 #include "sql/sql_test.h"  // print_where
@@ -14123,6 +14126,289 @@ int ha_ndbcluster::read_multi_range_fetch_next() {
 }
 
 /**
+ * Use whatever conditions got pushed to the table, either as part of a
+ * pushed join or not. Update the FILTER AccessPath with the remaining
+ * conditions not pushed, possibly clearing the entire FILTER condition.
+ * In such cases the FILTER AccessPath may later be entirely eliminated.
+ */
+void accept_pushed_conditions(const TABLE *table, AccessPath *filter) {
+  if (table == nullptr) return;
+  ha_ndbcluster *const handler = dynamic_cast<ha_ndbcluster *>(table->file);
+  if (handler == nullptr) return;
+
+  // Is a NDB table
+  const Item *remainder;
+  assert(handler->pushed_cond == nullptr);
+  if (handler->m_cond.use_cond_push(handler->pushed_cond, remainder) == 0) {
+    if (handler->pushed_cond != nullptr) {  // Something was pushed
+      assert(filter->filter().condition != nullptr);
+      filter->filter().condition = const_cast<Item *>(remainder);
+
+      // To get correct explain output: (Does NOT affect what is executed)
+      // Need to set the QEP_TAB condition as well. Note that QEP_TABs
+      // are not 'executed' any longer -> affects only explain output.
+      // Can be removed when/if the 'traditional' explain is rewritten
+      // to not use the QEP_TAB's
+      QEP_TAB *qep_tab = table->reginfo.qep_tab;
+      if (qep_tab != nullptr) {
+        // The Hypergraph-optimizer do not construct QEP_TAB's
+        qep_tab->set_condition(const_cast<Item *>(remainder));
+        qep_tab->set_condition_optim();
+      }
+    }
+  }
+}
+
+/**
+ * 'path' is a basic access path, refering 'table'. If it was pushed
+ * as a child in a pushed join a 'PushedJoinRefAccessPath' has to be
+ * constructed, replacing the original 'path' for this table.
+ *
+ * Returns the complete table_map for all tables being members of the
+ * same pushed join as 'table'.
+ */
+static void accept_pushed_child_joins(THD *thd, AccessPath *path, TABLE *table,
+                                      TABLE_REF *ref, bool is_unique) {
+  const TABLE *const pushed_join_root = table->file->member_of_pushed_join();
+  if (pushed_join_root == nullptr) return;
+  if (pushed_join_root == table) return;
+
+  assert(path->type == AccessPath::EQ_REF || path->type == AccessPath::REF);
+  assert(is_unique == (path->type == AccessPath::EQ_REF));
+
+  // Is a 'child' in the pushed join. As it receive its result rows
+  // as the result of navigating its parents, it need a special
+  // AccessPath operation for retrieving the results.
+  AccessPath *pushedJoinRef =
+      NewPushedJoinRefAccessPath(thd, table, ref,
+                                 /*ordered=*/false, is_unique,
+                                 /*count_examined_rows=*/true);
+  // Keep the rows/cost statistics.
+  CopyBasicProperties(*path, pushedJoinRef);
+  *path = std::move(*pushedJoinRef);
+}
+
+#ifndef NDEBUG
+/**
+ * Check if any tables within the (sub-)path is a member of a pushed join
+ */
+static bool has_pushed_members(AccessPath *path, const JOIN *join) {
+  bool has_pushed_joins = false;
+  auto func = [&has_pushed_joins](AccessPath *subpath, const JOIN *) {
+    const TABLE *table = GetBasicTable(subpath);
+    if (table != nullptr && table->file->member_of_pushed_join()) {
+      has_pushed_joins = true;
+      return true;
+    }
+    return false;  // -> Allow walker to continue
+  };
+  WalkAccessPaths(path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK, func);
+  return has_pushed_joins;
+}
+#endif
+
+/**
+ * Check if any tables within the (sub-)path is a member of
+ * a pushed join not entirely inside this path.
+ * (Check the AQP 'Query_scope')
+ */
+static bool has_pushed_members_outside_of_branch(AccessPath *path,
+                                                 const JOIN *join) {
+  table_map branch_map(0);
+  table_map pushed_map(0);
+
+  auto func = [&branch_map, &pushed_map](AccessPath *subpath, const JOIN *) {
+    const TABLE *table = GetBasicTable(subpath);
+    if (table == nullptr) return false;
+    if (table->pos_in_table_list == nullptr) return false;
+
+    // Is refering a TABLE: Collect table_map of tables in path,
+    // and any pushed joins having table(s) within path.
+    const table_map map = table->pos_in_table_list->map();
+    branch_map |= map;
+    if ((pushed_map & map) == 0) {  // Not already seen
+      pushed_map |= table->file->tables_in_pushed_join();
+    }
+    return false;  // -> Allow walker to continue
+  };
+  WalkAccessPaths(path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK, func);
+  return ((pushed_map & ~branch_map) != 0);
+}
+
+/**
+ * Walk through the AccessPath three, possibly modify it as needed to adapt it
+ * to query elements which got pushed down to the NDB engine.
+ */
+static void fixup_pushed_access_paths(THD *thd, AccessPath *path,
+                                      const JOIN *join, AccessPath *filter) {
+  /**
+   * Define the lambda function which modify the Accesspath to take advantage
+   * of whatever we pushed to the NDB engine.
+   */
+  auto fixupFunc = [thd, filter](AccessPath *subpath, const JOIN *join) {
+    /**
+     * Note that for most of the cases handled below, we manually handle the
+     * child-walk, and 'return true' which will stop the 'upper' callee from
+     * walking further down.
+     */
+    switch (subpath->type) {
+      /**
+       * Note that REF / EQ_REF are the only TABLE refering AccessPath types
+       * which may be pushed as a 'child' in a pushed join. Such 'child' needs
+       * changes of their AccessPath done by accept_pushed_child_joins()
+       */
+      case AccessPath::REF: {
+        const auto &param = subpath->ref();
+        accept_pushed_conditions(param.table, filter);
+        accept_pushed_child_joins(thd, subpath, param.table, param.ref,
+                                  /*is_unique=*/false);
+        return true;
+      }
+      case AccessPath::EQ_REF: {
+        const auto &param = subpath->eq_ref();
+        accept_pushed_conditions(param.table, filter);
+        accept_pushed_child_joins(thd, subpath, param.table, param.ref,
+                                  /*is_unique=*/true);
+        return true;
+      }
+      /**
+       * Other AccessPath types refering a TABLE may have a pushed condition
+       * and/or being a root in a set of pushed joins.
+       */
+      default: {
+        const TABLE *table = GetBasicTable(subpath);
+        if (table != nullptr) {  // Is refering a TABLE
+          accept_pushed_conditions(table, filter);
+          // Can not push as a ChildJoin:
+          assert(table->file->member_of_pushed_join() == nullptr ||
+                 table->file->member_of_pushed_join() == table);
+          return true;
+        }
+        break;
+      }
+      /**
+       * FILTERs may be pushed down to the engine when accessing the TABLE.
+       * Possibly eliminating the entire FILTER operation.
+       */
+      case AccessPath::FILTER: {
+        auto &param = subpath->filter();
+        fixup_pushed_access_paths(thd, param.child, join, /*filter=*/subpath);
+
+        if (param.condition == nullptr) {
+          // Entire FILTER condition was pushed down.
+          // Remove the FILTER operation, keep the estimated rows/cost.
+          // (Used for explain only, query plan is already decided)
+          param.child->num_output_rows = subpath->num_output_rows;
+          param.child->cost = subpath->cost;
+          *subpath = std::move(*param.child);
+        }
+        return true;
+      }
+      /**
+       * HASH_JOINs may gracefully start writing to temporary 'chunks-files',
+       * or use 'spill_to_disk' strategy for INNER-joins if the join_buffer
+       * is too small. (We can never guarantee that we can avoid this too-small
+       * situation, so need to protect against any ill effects of it,
+       * or handle it).
+       * If written to such temporary files, we need to ensure that entire
+       * pushed join is part of what is being written - We can't go back later
+       * and re-establish the parent-child relations between parent rows in
+       * a temporary file, and child rows still not fetched.
+       *
+       * 1) If pushed, the inner 'HASH-build' branch need to contain all
+       *    tables pushed as part of it. Such that the complete pushed join
+       *    is evaluated and written to the chunk files. This is handled by the
+       *    AQP creating a seperate HASH-scope for this branch.
+       *    (Just assert it below.)
+       * 2) If the outer 'probe' branch of the hash join does not contain all
+       *    tables pushed as part of it, we disable 'spill_to_disk' as
+       *    described above. We might then need to read the outer part
+       *    multiple times.
+       */
+      case AccessPath::HASH_JOIN: {
+        auto &param = subpath->hash_join();
+        assert(!has_pushed_members_outside_of_branch(param.inner, join));
+
+        if (has_pushed_members_outside_of_branch(param.outer, join)) {
+          // The pushed join is not contained within 'probe'. Only pushed if
+          // INNER- or CROSS-joined, and require 'spill_to_disk' to be disabled.
+          // Note that this controls only the spill of the probe input.
+
+          // If this table is part of a pushed join query, rows from the
+          // dependant child table(s) has to be read while we are positioned
+          // on the rows from the pushed ancestors which the child depends on.
+          // Thus, we can not allow rows from a 'pushed join' to
+          // 'spill_to_disk'.
+          param.allow_spill_to_disk = false;
+        }
+        break;
+      }
+
+#ifndef NDEBUG
+      // Below, debug only: Assert Query_scope containment.
+      // For some operations this is stricter than what was set up by
+      // Join_plan::construct(), where only a Join_scope was constructed.
+      // (See further below)
+      case AccessPath::AGGREGATE: {
+        assert(!has_pushed_members_outside_of_branch(subpath->aggregate().child,
+                                                     join));
+        break;
+      }
+      case AccessPath::TEMPTABLE_AGGREGATE: {
+        assert(!has_pushed_members_outside_of_branch(
+            subpath->temptable_aggregate().subquery_path, join));
+        break;
+      }
+      case AccessPath::STREAM: {
+        assert(!has_pushed_members_outside_of_branch(subpath->stream().child,
+                                                     join));
+        break;
+      }
+      case AccessPath::MATERIALIZE: {
+        for (const MaterializePathParameters::QueryBlock &query_block :
+             subpath->materialize().param->query_blocks) {
+          AccessPath *subquery = query_block.subquery_path;
+          assert(!has_pushed_members_outside_of_branch(subquery, join));
+        }
+        break;
+      }
+      case AccessPath::WEEDOUT: {
+        assert(!has_pushed_members_outside_of_branch(subpath->weedout().child,
+                                                     join));
+        break;
+      }
+
+      /////////////////
+      // For asserts below we only constructed a Join_scope in
+      // Join_plan::construct(), thus we do allow 'upper' references
+      // '..OutsideOfBranch'. Never seen it being taken advantage of though,
+      // it seems to always behave as if a Query_scope was constructed.
+      // Would like to investigate, and add as testcase, if any of the
+      // (too strict) asserts are hit below.
+      case AccessPath::SORT: {
+        if (has_pushed_members(subpath->sort().child, join)) {
+          // No indirect sort: An indirect sort will first build a temporary
+          // sorted 'key-set', then use it to fetch the rows one-by-one. We do
+          // not want this to be a pushed operation, as that would have
+          // retrieved (and wasted) the rows already, effectively fetching them
+          // twice.
+          assert(subpath->sort().filesort->m_sort_param.using_addon_fields());
+        }
+        assert(
+            !has_pushed_members_outside_of_branch(subpath->sort().child, join));
+        break;
+      }
+#endif
+    }
+    // AccessPaths not needing attention:
+    return false;  // -> Allow walker to continue
+  };
+
+  WalkAccessPaths(path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+                  fixupFunc);
+}
+
+/**
  * Try to find parts of queries which can be pushed down to
  * storage engines for faster execution. This is typically
  * conditions which can filter out result rows on the SE,
@@ -14134,10 +14420,9 @@ int ha_ndbcluster::read_multi_range_fetch_next() {
  *
  * @return Possible error code, '0' if no errors.
  */
-int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path [[maybe_unused]],
-                              JOIN *join) {
+int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
   DBUG_TRACE;
-  AQP::Join_plan query_plan(join);
+  AQP::Join_plan query_plan(thd, root_path, join);
 
   /**
    * Investigate what could be pushed down as entire joins first.
@@ -14205,31 +14490,9 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path [[maybe_unused]],
       /* Prepare push of condition to handler, possibly leaving a remainder */
       ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));
     }
-
-    // WL#14370 temporary step, to go away:
-    // When AccessPath based AQP are introduced in later patches, the
-    // extra loop over the query_plan tables below will be replaces by a method
-    // which modify the AccessPath to 'accept' the pushed joins and conditions.
-    for (uint i = 0; i < count; i++) {
-      AQP::Table_access *table_access = query_plan.get_table_access(i);
-      const TABLE *table = table_access->get_table();
-      if (table == nullptr) continue;
-
-      handler *const ha = table->file;
-      ha_ndbcluster *const ndb_handler = dynamic_cast<ha_ndbcluster *>(ha);
-      if (ndb_handler == nullptr) continue;
-
-      // Use whatever conditions got pushed, either as part of a pushed join
-      // or not
-      const Item *remainder;
-      if (ndb_handler->m_cond.use_cond_push(ha->pushed_cond, remainder) == 0) {
-        if (ha->pushed_cond != nullptr) {  // Something was pushed
-          // There is a possible remainder which server need to handle
-          table_access->set_condition(const_cast<Item *>(remainder));
-        }
-      }
-    }
   }
+  // Modify the AccessPath structure to reflect pushed execution.
+  fixup_pushed_access_paths(thd, root_path, join, /*filter=*/nullptr);
   return 0;
 }
 
@@ -14467,7 +14730,8 @@ table_map ha_ndbcluster::tables_in_pushed_join() const {
   which we accepted to be pushed down.
 
   Note that this handler call has been partly deprecated by
-  ::engine_push() which does both join- and condition pushdown.
+  handlerton::push_to_engine(), which does both join- and
+  condition pushdown for the entire query AccessPath.
   The only remaining intended usage for ::cond_push() is simple
   update and delete queries, where the join part is not relevant.
 

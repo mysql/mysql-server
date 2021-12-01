@@ -866,10 +866,11 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   const AQP::enum_access_type access_type = table->get_access_type();
 
   if (ndbcluster_is_mrr_operation(access_type)) {
+    const char *type = table->get_other_access_reason();
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child, "
-        "access type 'Multi-range' not implemented",
-        table->get_table()->alias);
+        "access type '%s' not implemented",
+        table->get_table()->alias, type);
     table->set_table_properties(table->get_table_properties() &
                                 ~PUSHABLE_AS_CHILD);
     return false;
@@ -917,6 +918,17 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
           m_plan.get_table_access(i)->get_table()->alias);
       return false;
     }
+  }
+
+  const ndb_table_access_map query_scope =
+      get_table_map(table->get_tables_in_this_query_scope());
+  if (!query_scope.contain(root_no)) {
+    const char *scope_type = m_join_root->get_scope_description();
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child of '%s', "
+        "it is in a %s-branch which can't be referred.",
+        table->get_table()->alias, m_join_root->get_table()->alias, scope_type);
+    return false;
   }
 
   // Check that we do not exceed the max number of pushable operations.

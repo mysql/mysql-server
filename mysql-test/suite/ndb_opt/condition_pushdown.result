@@ -1801,7 +1801,7 @@ explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`t2`.`attr1` < 1); Using temporary; Using filesort
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using pushed condition (`test`.`t3`.`attr1` < 5); Using join buffer (hash join)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`t3`.`attr1` < 5); Using join buffer (hash join)
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`t2`.`pk1` AS `pk1`,`test`.`t2`.`attr1` AS `attr1`,`test`.`t2`.`attr2` AS `attr2`,`test`.`t2`.`attr3` AS `attr3`,`test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`attr1` AS `attr1`,`test`.`t3`.`attr2` AS `attr2`,`test`.`t3`.`attr3` AS `attr3`,`test`.`t3`.`attr4` AS `attr4` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`attr1` < 1) and (`test`.`t2`.`attr2` = `test`.`t3`.`attr2`) and (`test`.`t3`.`attr1` < 5)) order by `test`.`t2`.`pk1`
@@ -3561,7 +3561,7 @@ insert into t1 values
 explain format=tree
 select * from t1 where b > 2;
 EXPLAIN
--> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=16)
+-> Table scan on t1, with pushed condition: (t1.b > 2)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 where a > 2;
@@ -3577,7 +3577,7 @@ EXPLAIN
 explain format=tree
 select * from t1 where a = 2 and c > 0;
 EXPLAIN
--> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=3)
+-> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)  (cost=2.10 rows=1)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
@@ -3588,19 +3588,19 @@ EXPLAIN
 explain format=tree
 select * from t1 where b > 0 order by a;
 EXPLAIN
--> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
+-> Index scan on t1 using PRIMARY, with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 where b > 0 order by a desc;
 EXPLAIN
--> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=16)
+-> Index scan on t1 using PRIMARY (reverse), with pushed condition: (t1.b > 0)  (cost=4001.60 rows=5)
 
 explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 EXPLAIN
--> Nested loop inner join  (cost=4014.40 rows=16)
+-> Nested loop inner join  (cost=4011.20 rows=5)
     -> Table scan on t1, activating pushed join of 2 tables  (cost=4001.60 rows=16)
-    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=1)
+    -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)  (cost=0.50 rows=0.3)
 
 drop table t1;
 #
