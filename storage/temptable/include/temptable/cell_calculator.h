@@ -166,9 +166,13 @@ inline size_t Cell_calculator::hash(const Cell &cell) const {
   }
 
   auto data_length = cell.data_length();
-  if (data_length == 0) {
-    return 0;
-  }
+  /*
+   * If the collation of field to calculate hash is with PAD_SPACE attribute,
+   * empty string '' and space ' ' will be calculated as different hash values,
+   * because we handle empty string '' directly (return 0), and calculate hash
+   * with cs for space ' '. But actually, for collations with PAD_SPACE
+   * attribute empty string '' should be equal with space ' '. Do not return
+   * hash value 0 if data_length == 0. */
 
   auto data = cell.data();
 

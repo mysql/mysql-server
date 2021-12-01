@@ -461,6 +461,12 @@ c1	c2
 abcdefghij	ABCDEFGHIJ
 mnopqrstuv	MNOPQRSTUV
 DROP TABLE t1;
+CREATE TABLE t1 (c1 VARCHAR(10) COLLATE utf8mb4_bin) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (''), (' ');
+SELECT DISTINCT(c1) FROM t1;
+c1
+
+DROP TABLE t1;
 SET SESSION internal_tmp_mem_storage_engine = default;
 USE test;
 DROP DATABASE temptable_test;

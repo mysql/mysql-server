@@ -267,6 +267,11 @@ if ($is_debug) {
 -- enable_result_log
 -- enable_query_log
 
+CREATE TABLE t1 (c1 VARCHAR(10) COLLATE utf8mb4_bin) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (''), (' ');
+SELECT DISTINCT(c1) FROM t1;
+DROP TABLE t1;
+
 SET SESSION internal_tmp_mem_storage_engine = default;
 
 USE test;
