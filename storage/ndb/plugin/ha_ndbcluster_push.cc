@@ -1288,6 +1288,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
  *      containing t1: A non-matching condition on that table will eliminate
  *      the t1 row as well, thus there will be no extra NULL extended
  *      rows in the result set.
+ * 1d)  There should not be any conditions on entire Join-nests (or sub-paths)
+ *      between 'table' and the pushed join_root.
  *
  * 2)   There should be no unpushed tables in:
  * 2b)  In this inner_join nest.
@@ -1345,6 +1347,17 @@ bool ndb_pushed_builder_ctx::is_pushable_within_nest(
         "condition on its dependant table '%s' is not pushed down",
         nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
         m_plan.get_table_access(violating)->get_table()->alias);
+    return false;
+  }
+
+  // Unlike the 'pending conditions', which are (unpushed) conditions directly
+  // on the tables, there can be conditions on top of entire join nests as well
+  const bool has_filter_cond = table->has_condition_inbetween(m_join_root);
+  if (unlikely(has_filter_cond)) {  // 1d
+    EXPLAIN_NO_PUSH(
+        "Can't push %s joined table '%s' as child of '%s', "
+        "join-nest containing the table has FILTER conditions",
+        nest_type, table->get_table()->alias, m_join_root->get_table()->alias);
     return false;
   }
 

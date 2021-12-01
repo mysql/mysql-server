@@ -33,14 +33,15 @@ LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_uniq
 ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1, activating pushed join of 2 tables
+    -> Table scan on table1
     -> Filter: (table3.col_int is null)
         -> Nested loop left join
-            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int), child of table1 in pushed join
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int)
             -> Filter: (table2.col_varchar_256_unique = table3.col_char_16_unique)
                 -> Single-row index lookup on table3 using col_char_16_unique (col_char_16_unique=table2.col_varchar_256_unique)
 
 Warnings:
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table3' as child, column 'col_char_16_unique' does not have same datatype as ref'ed column 'table2.col_varchar_256_unique'
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk
@@ -80,7 +81,6 @@ pk	pk	pk
 13	23	NULL
 13	25	NULL
 13	7	NULL
-13	NULL	NULL
 14	17	NULL
 14	20	NULL
 14	21	NULL
@@ -92,7 +92,6 @@ pk	pk	pk
 15	23	NULL
 15	25	NULL
 15	7	NULL
-15	NULL	NULL
 16	17	NULL
 16	20	NULL
 16	21	NULL
@@ -104,7 +103,6 @@ pk	pk	pk
 17	23	NULL
 17	25	NULL
 17	7	NULL
-17	NULL	NULL
 18	17	NULL
 18	20	NULL
 18	21	NULL
@@ -116,7 +114,6 @@ pk	pk	pk
 19	23	NULL
 19	25	NULL
 19	7	NULL
-19	NULL	NULL
 2	11	NULL
 2	13	NULL
 2	2	NULL
@@ -137,7 +134,6 @@ pk	pk	pk
 21	23	NULL
 21	25	NULL
 21	7	NULL
-21	NULL	NULL
 22	NULL	NULL
 3	1	NULL
 3	12	NULL
@@ -1125,16 +1121,18 @@ LEFT JOIN o AS table4 ON table2.pk = table4.col_int
 ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Nested loop left join
-    -> Table scan on table1, activating pushed join of 3 tables
+    -> Table scan on table1
     -> Filter: (table4.col_int is null)
         -> Nested loop left join
             -> Nested loop left join
-                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), activating pushed join of 2 tables
                 -> Table scan on table3, with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table3.col_int_unique = table1.col_int_unique))
             -> Index lookup on table4 using ix3 (col_int=table2.pk), child of table2 in pushed join
 
 Warnings:
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.pk' is outside scope of pushable join
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM s AS table1
@@ -1371,14 +1369,15 @@ WHERE table2.pk = 9 OR table2s.col_int = 1
 EXPLAIN
 -> Filter: <if>(found_match(table2s), true, true)
     -> Nested loop antijoin
-        -> Table scan on table2, activating pushed join of 2 tables
+        -> Table scan on table2
         -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))
             -> Nested loop left join
-                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique), child of table2 in pushed join
+                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)
                 -> Index range scan on table2s using PRIMARY over (col_int = 6) OR (col_int = 7), with pushed condition: (table2s.col_int in (6,6,7))
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push anti joined table 'table1s' as child of 'table2', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table2s' as child, access type 'Range-scan' not implemented
 SELECT
 table2.col_int_key AS field2
@@ -1402,15 +1401,6 @@ field2
 0
 0
 0
-0
-0
-0
-0
-1
-1
-1
-1
-1
 1
 1
 1
@@ -1439,8 +1429,6 @@ field2
 2
 2
 2
-3
-3
 3
 3
 3

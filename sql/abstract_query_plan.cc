@@ -781,6 +781,20 @@ int Join_nest::get_first_sj_upper() const {
   return nest->m_upper_nest->get_first_sj_inner();
 }
 
+table_map Join_nest::get_filtered_tables(const Join_nest *ancestor) const {
+  const Join_nest *nest = this;
+  const uint parent_first_inner = ancestor->m_first_inner;
+  table_map filter_map(0);
+  while (nest->m_first_inner > parent_first_inner) {
+    if (nest->m_filter != nullptr) {
+      filter_map |=
+          GetUsedTableMap(nest->m_filter, /*include_pruned_tables=*/false);
+    }
+    nest = nest->m_upper_nest;
+  }
+  return filter_map;
+}
+
 ///////////////////////////////
 Table_access::Table_access(Join_plan *plan, Join_nest *join_nest,
                            AccessPath *path, AccessPath *filter)
@@ -1110,6 +1124,12 @@ int Table_access::get_last_sj_inner() const {
 }
 int Table_access::get_first_sj_upper() const {
   return m_join_nest->get_first_sj_upper();
+}
+
+bool Table_access::has_condition_inbetween(const Table_access *ancestor) const {
+  const table_map filtered_tables =
+      m_join_nest->get_filtered_tables(ancestor->m_join_nest);
+  return (filtered_tables & m_table->pos_in_table_list->map()) != 0;
 }
 
 Item *Table_access::get_condition() const {

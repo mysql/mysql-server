@@ -142,7 +142,12 @@ class Table_access {
 
   const char *get_scope_description() const;
 
+  // Get the condition for 'this' table.
   Item *get_condition() const;
+
+  // Do we have some conditions (aka FILTERs) in the AccessPath
+  // between 'this' table and the 'ancestor'
+  bool has_condition_inbetween(const Table_access *ancestor) const;
 
   uint get_first_inner() const;
   uint get_last_inner() const;
