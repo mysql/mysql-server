@@ -83,7 +83,7 @@ std::vector<mysql_service_placeholder_ref_t *>
 mysql_component::get_required_services() const {
   std::vector<mysql_service_placeholder_ref_t *> res;
   for (mysql_service_placeholder_ref_t *implementation_it =
-           m_component_data->requires;
+           m_component_data->requires_service;
        implementation_it->name != nullptr; ++implementation_it) {
     res.push_back(implementation_it);
   }

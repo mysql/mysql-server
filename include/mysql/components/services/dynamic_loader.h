@@ -263,7 +263,7 @@ struct mysql_component_t {
 #endif
   const char *name;
   struct mysql_service_ref_t *provides;
-  struct mysql_service_placeholder_ref_t *requires;
+  struct mysql_service_placeholder_ref_t *requires_service;
   struct mysql_metadata_ref_t *metadata;
   mysql_service_status_t (*init)();
   mysql_service_status_t (*deinit)();
