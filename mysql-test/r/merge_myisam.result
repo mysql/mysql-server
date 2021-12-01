@@ -2337,7 +2337,7 @@ DROP TABLE `test/1`.m1;
 DROP TABLE `test/1`.`t/1`;
 DROP DATABASE `test/1`;
 #
-# Bug#51494c rash with join, explain and 'sounds like' operator
+# Bug#51494 crash with join, explain and 'sounds like' operator
 #
 CREATE TABLE t1 (a INT) ENGINE=MYISAM;
 INSERT INTO t1 VALUES(1);

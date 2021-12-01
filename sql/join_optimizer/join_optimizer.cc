@@ -965,10 +965,13 @@ double EstimateOutputRowsFromRangeTree(
         continue;
       }
       int cover_size = PopulationCount(scan.applied_predicates);
-      // NOTE: The min() is because total_rows may be outdated,
-      // and we wouldn't want to have selectivities above 1.0.
-      double scan_selectivity =
-          min(scan.num_rows / static_cast<double>(total_rows), 1.0);
+      // NOTE: The check for num_rows >= total_rows is because total_rows may be
+      // outdated, and we wouldn't want to have selectivities above 1.0, or NaN
+      // or Inf if total_rows is zero.
+      const double scan_selectivity =
+          scan.num_rows >= total_rows
+              ? 1.0
+              : scan.num_rows / static_cast<double>(total_rows);
       if (cover_size > best_cover_size ||
           (cover_size == best_cover_size &&
            scan_selectivity > best_selectivity)) {

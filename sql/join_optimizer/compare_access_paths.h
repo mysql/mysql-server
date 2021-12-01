@@ -26,6 +26,8 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include <cmath>
+
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/interesting_orders.h"
 
@@ -43,7 +45,11 @@ enum class FuzzyComparisonResult : uint32_t {
 // about which one is slightly better.
 inline FuzzyComparisonResult FuzzyComparison(double x, double y,
                                              double fuzz_factor) {
-  assert(x >= 0 && y >= 0);
+  assert(std::isfinite(x));
+  assert(std::isfinite(y));
+  assert(x >= 0);
+  assert(y >= 0);
+
   if (fuzz_factor * x < y) {
     return FuzzyComparisonResult::FIRST_BETTER;
   } else if (fuzz_factor * y < x) {
