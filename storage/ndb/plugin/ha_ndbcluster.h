@@ -369,6 +369,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
    */
   const handlerton *hton_supporting_engine_pushdown() override { return ht; }
 
+  friend int ndbcluster_push_to_engine(THD *thd, AccessPath *, JOIN *);
+
   // WL#14370 review note:
   // engine_push() will go away in later patches.
   // Kept temporary for now in order to ease the break up in

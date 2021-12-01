@@ -14134,12 +14134,27 @@ int ha_ndbcluster::read_multi_range_fetch_next() {
  *
  * @return Possible error code, '0' if no errors.
  */
-int ndbcluster_push_to_engine(THD *thd [[maybe_unused]],
-                              AccessPath *root_path [[maybe_unused]],
+int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path [[maybe_unused]],
                               JOIN *join) {
   DBUG_TRACE;
-  const AQP::Join_plan query_plan(join);
+  AQP::Join_plan query_plan(join);
 
+  /**
+   * Investigate what could be pushed down as entire joins first.
+   * Note that we also handle condition pushdowns for the tables which
+   * are members of pushed join. There are mutual dependencies between
+   * such join- and condition pushdowns, so they need to be handled together
+   */
+  if (THDVAR(thd, join_pushdown)) {  // Enabled 'ndb_join_pushdown'
+    const int error =
+        ndb_pushed_builder_ctx::make_pushed_join(get_thd_ndb(thd), query_plan);
+    if (unlikely(error)) {
+      return error;
+    }
+  }
+
+  // WL#14370 temporary step, to go away:
+  // Push down conditions not being part of pushed joins
   for (uint i = 0; i < query_plan.get_access_count(); i++) {
     AQP::Table_access *table_access = query_plan.get_table_access(i);
     const TABLE *table = table_access->get_table();
@@ -14158,59 +14173,21 @@ int ndbcluster_push_to_engine(THD *thd [[maybe_unused]],
 }
 
 /**
+ * WL#14370 review note: Now push only *condition* to the storage
+ * engine - Will eventually be completely merged into
+ * ndbcluster_push_to_engine() above.
+ *
  * Try to find parts of queries which can be pushed down to
  * storage engines for faster execution. This is typically
- * conditions which can filter out result rows on the SE,
- * and/or entire joins between tables.
+ * conditions which can filter out result rows on the SE
  *
  * @param table_aqp The specific table in the join plan to examine.
  *
  * @return Possible error code, '0' if no errors.
  */
-int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
+int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp [[maybe_unused]]) {
   DBUG_TRACE;
   THD *const thd = table->in_use;
-  const AQP::Join_plan *const plan = table_aqp->get_join_plan();
-
-  const bool has_descendants =
-      table_aqp->get_access_no() < plan->get_access_count() - 1;
-
-  if (has_descendants &&                // Need descendants to join with
-      THDVAR(thd, join_pushdown) &&     // Enabled 'ndb_join_pushdown'
-      m_pushed_join_member == nullptr)  // Not pushed yet
-  {
-    const ndb_pushed_join *pushed_join = nullptr;
-
-    // Try to build a ndb_pushed_join starting from 'table_aqp'
-    ndb_pushed_builder_ctx pushed_builder(m_thd_ndb, table_aqp);
-    int error = pushed_builder.make_pushed_join(pushed_join);
-    if (unlikely(error)) {
-      if (error < 0)  // getNdbError() gives us the error code
-      {
-        ERR_SET(pushed_builder.getNdbError(), error);
-      }
-      print_error(error, MYF(0));
-      return error;
-    }
-
-    /*
-       Assign any produced pushed_join definitions to the involved
-       ha_ndbcluster instances, such that the prepared NdbQuery
-       might be instantiated at execution time.
-    */
-    if (pushed_join != nullptr) {
-      m_thd_ndb->m_pushed_queries_defined++;
-      DBUG_PRINT("info", ("Created pushed join with %d child operations",
-                          pushed_join->get_operation_count() - 1));
-
-      for (uint i = 0; i < pushed_join->get_operation_count(); i++) {
-        const TABLE *const tab = pushed_join->get_table(i);
-        ha_ndbcluster *child = dynamic_cast<ha_ndbcluster *>(tab->file);
-        child->m_pushed_join_member = pushed_join;
-        child->m_pushed_join_operation = i;
-      }
-    }
-  }
 
   /*
     If enabled by optimizer settings, (parts of) the table condition may

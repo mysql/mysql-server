@@ -175,7 +175,9 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Table_access *table);
+  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Join_plan &plan,
+                         AQP::Table_access *root);
+
   ~ndb_pushed_builder_ctx();
 
   /**
@@ -183,9 +185,8 @@ class ndb_pushed_builder_ctx {
    * Returns:
    *   = 0: A NdbQueryDef has successfully been prepared for execution.
    *   > 0: Returned value is the error code.
-   *   < 0: There is a pending NdbError to be retrieved with getNdbError()
    */
-  int make_pushed_join(const ndb_pushed_join *&pushed_join);
+  static int make_pushed_join(Thd_ndb *thd_ndb, AQP::Join_plan &plan);
 
   const NdbError &getNdbError() const;
 
@@ -199,6 +200,8 @@ class ndb_pushed_builder_ctx {
   };
 
   bool maybe_pushable(AQP::Table_access *table, join_pushability check);
+
+  int make_pushed_join(const ndb_pushed_join *&pushed_join);
 
   /**
    * Collect all tables which may be pushed together with 'root'.

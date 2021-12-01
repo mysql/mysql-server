@@ -360,9 +360,10 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 /////////////////////////////////////////
 
 ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
+                                               AQP::Join_plan &plan,
                                                AQP::Table_access *root)
     : m_thd_ndb(thd_ndb),
-      m_plan(*root->get_join_plan()),
+      m_plan(plan),
       m_join_root(root),
       m_join_scope(),
       m_const_scope(),
@@ -550,6 +551,52 @@ int ndb_pushed_builder_ctx::make_pushed_join(
   }
   return 0;
 }  // ndb_pushed_builder_ctx::make_pushed_join()
+
+int ndb_pushed_builder_ctx::make_pushed_join(Thd_ndb *thd_ndb,
+                                             AQP::Join_plan &plan) {
+  DBUG_TRACE;
+  const uint count = plan.get_access_count();
+  assert(count <= MAX_TABLES);
+  assert(count > 0);
+
+  for (uint i = 0; i < count - 1; i++) {
+    AQP::Table_access *join_root = plan.get_table_access(i);
+
+    if (join_root->get_table() == nullptr ||
+        join_root->get_table()->file->member_of_pushed_join()) {
+      // Not a real table, or already member of a pushed join -> skip
+      continue;
+    }
+
+    // Try to build a pushed_join starting from this 'join_root'
+    const ndb_pushed_join *pushed_join = nullptr;
+    ndb_pushed_builder_ctx pushed_builder(thd_ndb, plan, join_root);
+    int error = pushed_builder.make_pushed_join(pushed_join);
+    if (unlikely(error)) {
+      if (error < 0) {
+        error = ndb_to_mysql_error(&pushed_builder.getNdbError());
+      }
+      join_root->get_table()->file->print_error(error, MYF(0));
+      return error;
+    }
+
+    // Assign any produced pushed_join definitions to
+    // the ha_ndbcluster instance representing its root.
+    if (pushed_join != nullptr) {
+      for (uint i = 0; i < pushed_join->get_operation_count(); i++) {
+        const TABLE *const tab = pushed_join->get_table(i);
+        ha_ndbcluster *child = down_cast<ha_ndbcluster *>(tab->file);
+        child->m_pushed_join_member = pushed_join;
+        child->m_pushed_join_operation = i;
+      }
+      DBUG_PRINT("info", ("Assigned pushed join with %d child operations",
+                          pushed_join->get_operation_count() - 1));
+
+      thd_ndb->m_pushed_queries_defined++;
+    }
+  }
+  return 0;
+}  // make_pushed_join()
 
 /**
  * Find the number SPJ operations needed to execute a given access type.
