@@ -1184,7 +1184,7 @@ bool wait_flush_archiver(Page_Wait_Flush_Archiver_Cbk cbk_func) {
 }
 
 uint Arch_Block::get_file_index(uint64_t block_num, Arch_Blk_Type type) {
-  size_t file_index = ~0ULL;
+  size_t file_index = std::numeric_limits<size_t>::max();
 
   switch (type) {
     case ARCH_RESET_BLOCK:

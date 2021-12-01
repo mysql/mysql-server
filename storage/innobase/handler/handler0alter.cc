@@ -2922,7 +2922,7 @@ index for FTS index */
       index_def->m_ind_type = DICT_CLUSTERED;
       index_def->m_name = innobase_index_reserve_name;
       index_def->m_rebuild = true;
-      index_def->m_key_number = ~0ULL;
+      index_def->m_key_number = std::numeric_limits<size_t>::max();
       index_def->m_is_ngram = false;
       primary_key_number = ULINT_UNDEFINED;
       goto created_clustered;
