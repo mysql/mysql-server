@@ -3070,7 +3070,7 @@ Note	1003	Can't push outer joined table 'table7' as child of 'table6', table con
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table8' as child of 'table6'. Doing so would prevent using join buffer for table 'table1'.
 Note	1003	Can't push table 'table8' as child of 'table7'. Doing so would prevent using join buffer for table 'table1'.
-Note	1003	Can't push table 'table8' as child of 'table1', since it referes to column 'table3.pk' which will be stored in a join buffer.
+Note	1003	Can't push table 'table8' as child of 'table1', column 'table3.pk' is outside scope of pushable join
 SELECT
 table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
 FROM k AS table1

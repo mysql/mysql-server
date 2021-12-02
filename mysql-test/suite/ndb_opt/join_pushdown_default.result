@@ -157,7 +157,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	Can't push table 'x2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'x3' as child of 'x1'. Doing so would prevent using join buffer for table 'x2'.
-Note	1003	Can't push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
+Note	1003	Can't push table 'x3' as child of 'x2', column 'x1.c' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
 select straight_join count(*) 
 from t1 as x1 
@@ -178,7 +178,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	Can't push table 'x3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'x4' as child of 'x1'. Doing so would prevent using join buffer for table 'x3'.
-Note	1003	Can't push table 'x4' as child of 'x3', since it referes to column 'x1.d' which will be stored in a join buffer.
+Note	1003	Can't push table 'x4' as child of 'x3', column 'x1.d' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x1`.`d` AS `d`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x2`.`d` AS `d`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c`,`test`.`x3`.`d` AS `d`,`test`.`x4`.`a` AS `a`,`test`.`x4`.`b` AS `b`,`test`.`x4`.`c` AS `c`,`test`.`x4`.`d` AS `d` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` where ((`test`.`x2`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`a` = 1) and (`test`.`x2`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`a` = `test`.`x3`.`c`))
 select * 
 from t1 as x1 
@@ -613,7 +613,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	Can't push table 'y' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'z' as child of 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	Can't push table 'z' as child of 'y', since it referes to column 'x.a' which will be stored in a join buffer.
+Note	1003	Can't push table 'z' as child of 'y', column 'x.a' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d`,`test`.`z`.`a` AS `a`,`test`.`z`.`b` AS `b`,`test`.`z`.`c` AS `c`,`test`.`z`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` join `test`.`t1` `z` where ((`test`.`z`.`b` = `test`.`y`.`b`) and (`test`.`z`.`a` = `test`.`x`.`a`))
 select straight_join *
 from (t1 as x cross join t1 as y)
@@ -5802,7 +5802,7 @@ Warnings:
 Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not implemented
 Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
 Note	1003	Can't push table 'table4' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	1003	Can't push table 'table4' as child of 'table2', since it referes to column 'table1.a' which will be stored in a join buffer.
+Note	1003	Can't push table 'table4' as child of 'table2', column 'table1.a' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join distinct `test`.`table1`.`pk` AS `pk` from `test`.`t` `table1` join `test`.`t` `table2` join `test`.`t` `table3` join `test`.`t` `table4` where ((`test`.`table3`.`pk` = `test`.`table2`.`pk`) and (`test`.`table4`.`a` = `test`.`table2`.`pk`) and (`test`.`table4`.`pk` = `test`.`table1`.`a`) and (`test`.`table2`.`pk` <> 6))
 select distinct straight_join table1.pk FROM 
 t as table1  join

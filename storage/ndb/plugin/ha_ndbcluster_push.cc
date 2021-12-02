@@ -612,9 +612,16 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   DBUG_PRINT("info",
              ("Table %d is pushable as root", m_join_root->get_access_no()));
   m_fld_refs = 0;
-  m_const_scope.set_prefix(root_no);
   m_join_scope.add(root_no);
   m_internal_op_count = internal_operation_count(access_type);
+
+  /**
+   * Tables before 'root', which are in its 'scope', are 'const'
+   */
+  const ndb_table_access_map root_scope =
+      get_table_map(m_join_root->get_tables_in_all_query_scopes());
+  m_const_scope.set_prefix(root_no);
+  m_const_scope.intersect(root_scope);
 
   /**
    * Analyze tables below 'm_join_root' as potential members of a pushed
@@ -1001,21 +1008,16 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
      * handled as either constant or parameter values from a pushed condition.
      *
      * 1) const_expr_tables:
-     *    Values from all tables prior to the query root has been evalued
-     *    when the query is pushed. Thus their Field values are known and can
+     *    Values from all tables in the 'm_const_scope' has been evalued prior
+     *    to the query being pushed. Thus, their Field values are known and can
      *    be used to evaluated any expression they are part of into constants.
      *
-     *    Note that we do not allow const_expr_tables if:
-     *    - Pushed join root is a lookup, where its EQRefIterator::Read
-     *      may detect equal keys and optimize away the read of pushed join.
-     *      (Note a similar limitation for keys in ::is_field_item_pushable())
-     *      TODO?: Integrate with setting of TABLE_REF::disable_cache and lift
-     *      these limitations when 'cache' is disabled.
-     *    - The entire (root of the) pushed join is being stored into a
-     *      join-cached (-> hash or BKA join).
-     *
-     *    Leave both of these limitation for WL#14370(or later), when most of
-     *    this code need to be rewritten anyway.
+     *    Note that we do not allow const_expr_tables if pushed join root is a
+     *    lookup, where its EQRefIterator::Read may detect equal keys and
+     *    optimize away the read of pushed join. (Note a similar limitation for
+     *    keys in ::is_field_item_pushable()).
+     *    TODO?: Integrate with setting of TABLE_REF::disable_cache and lift
+     *    these limitations when 'cache' is disabled.
      *
      * 2) param_expr_tables:
      *    The pushed join, including any pushed conditions embedded within it,
@@ -1029,10 +1031,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
      *    parameters.
      */
     table_map const_expr_tables(0);
-    if (m_scan_operations.contain(root_no) && !m_join_root->uses_join_cache()) {
+    if (m_scan_operations.contain(root_no)) {
       for (uint i = 0; i < root_no; i++) {
-        const TABLE *table = m_plan.get_table_access(i)->get_table();
-        if (table != nullptr && table->pos_in_table_list != nullptr) {
+        if (m_const_scope.contain(i)) {
+          const TABLE *table = m_plan.get_table_access(i)->get_table();
           const_expr_tables |= table->pos_in_table_list->map();
         }
       }
@@ -1388,8 +1390,12 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
       // Calculate all unpushed tables prior to this table.
       ndb_table_access_map unpushed_tables;
       unpushed_tables.set_prefix(tab_no);
-      unpushed_tables.subtract(m_const_scope);
       unpushed_tables.subtract(m_join_scope);
+      if (root_no > 0) {
+        ndb_table_access_map root_prefix;
+        root_prefix.set_prefix(root_no);
+        unpushed_tables.subtract(root_prefix);
+      }
 
       /**
        * Note that the check below is a bit too strict, we check:
@@ -1852,28 +1858,6 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
           get_referred_table_access_name(key_item_field),
           get_referred_field_name(key_item_field));
       return false;
-    } else {
-      /**
-       * Scan queries cannot be pushed if the pushed query may refer column
-       * values (paramValues) from rows stored in a join cache.
-       */
-      const TABLE *const referred_tab = key_item_field->field->table;
-      uint access_no = tab_no;
-      do {
-        if (m_plan.get_table_access(access_no)->uses_join_cache()) {
-          EXPLAIN_NO_PUSH(
-              "Can't push table '%s' as child of '%s', since "
-              "it referes to column '%s.%s' which will be stored "
-              "in a join buffer.",
-              table->get_table()->alias, m_join_root->get_table()->alias,
-              get_referred_table_access_name(key_item_field),
-              get_referred_field_name(key_item_field));
-          return false;
-        }
-        assert(access_no > 0);
-        access_no--;
-      } while (m_plan.get_table_access(access_no)->get_table() != referred_tab);
-
     }  // if (!m_scan_operations...)
     return true;
   } else {
