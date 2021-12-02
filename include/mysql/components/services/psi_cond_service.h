@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_COND_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_cond_bits.h>
+#include <mysql/components/services/bits/psi_cond_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_cond_v1)
 /** @sa register_cond_v1_t. */

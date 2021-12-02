@@ -24,7 +24,7 @@
 #define COMPONENT_SERVICES_PSI_TLS_CHANNEL_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_tls_channel_bits.h>
+#include <mysql/components/services/bits/psi_tls_channel_bits.h>
 
 /**
   @ingroup group_components_services_inventory

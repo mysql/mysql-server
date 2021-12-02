@@ -20,8 +20,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H
-#define COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_STATEMENT_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_STATEMENT_BITS_H
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
@@ -30,7 +30,7 @@
 #include <mysql/components/services/bits/psi_bits.h>
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_statement_bits.h
   Performance schema instrumentation interface.
 
   @defgroup psi_abi_statement Statement Instrumentation (ABI)
@@ -538,4 +538,4 @@ typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 
 /** @} (end of group psi_abi_statement) */
 
-#endif /* COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_STATEMENT_BITS_H */

@@ -18,7 +18,18 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
+#include <mysql/components/services/bits/my_io_bits.h>
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
+#include <mysql/components/services/bits/my_thread_bits.h>
+typedef pthread_t my_thread_t;
+typedef pthread_attr_t my_thread_attr_t;
+struct my_thread_handle {
+  my_thread_t thread{0};
+};
 #include <mysql/components/services/bits/psi_bits.h>
 static constexpr unsigned PSI_INSTRUMENT_ME = 0;
 static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
@@ -27,17 +38,6 @@ struct PSI_placeholder {
 };
 struct PSI_instr {
   bool m_enabled;
-};
-#include <mysql/components/services/my_io_bits.h>
-typedef int File;
-typedef mode_t MY_MODE;
-typedef socklen_t socket_len_t;
-typedef int my_socket;
-#include <mysql/components/services/my_thread_bits.h>
-typedef pthread_t my_thread_t;
-typedef pthread_attr_t my_thread_attr_t;
-struct my_thread_handle {
-  my_thread_t thread{0};
 };
 typedef unsigned int PSI_thread_key;
 typedef unsigned int PSI_thread_seqnum;

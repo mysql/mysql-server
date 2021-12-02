@@ -30,7 +30,7 @@
 #include <string.h>
 
 #include "m_string.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "pfs_thread_provider.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

@@ -31,7 +31,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysqld_error.h"     // ER_*
 #include "sql/derror.h"       // ER_THD

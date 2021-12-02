@@ -20,11 +20,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_MDL_BITS_H
-#define COMPONENTS_SERVICES_PSI_MDL_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_MDL_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_MDL_BITS_H
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_mdl_bits.h
   Performance schema instrumentation interface.
 
   @defgroup psi_abi_mdl Metadata Lock Instrumentation (ABI)
@@ -106,4 +106,4 @@ typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
 
 /** @} (end of group psi_abi_mdl) */
 
-#endif /* COMPONENTS_SERVICES_PSI_MDL_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_MDL_BITS_H */

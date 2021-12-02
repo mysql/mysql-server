@@ -1,5 +1,5 @@
-#ifndef COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
-#define COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MYSQL_SOCKET_BITS_H
+#define COMPONENTS_SERVICES_BITS_MYSQL_SOCKET_BITS_H
 
 /* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
@@ -25,7 +25,7 @@
 */
 
 #include "my_io.h"
-#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"
 
 /**
   An instrumented socket.
@@ -60,4 +60,4 @@ static inline MYSQL_SOCKET mysql_socket_invalid() {
   return mysql_socket;
 }
 
-#endif  // COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
+#endif  // COMPONENTS_SERVICES_BITS_MYSQL_SOCKET_BITS_H

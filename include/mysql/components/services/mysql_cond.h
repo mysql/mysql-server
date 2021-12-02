@@ -24,8 +24,8 @@
 #define COMPONENTS_SERVICES_MYSQL_COND_H
 
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/bits/mysql_mutex_bits.h>
 #include <mysql/components/services/mysql_cond_service.h>
-#include <mysql/components/services/mysql_mutex_bits.h>
 
 #define REQUIRES_MYSQL_COND_SERVICE REQUIRES_SERVICE(mysql_cond_v1)
 #define REQUIRES_MYSQL_COND_SERVICE_PLACEHOLDER \

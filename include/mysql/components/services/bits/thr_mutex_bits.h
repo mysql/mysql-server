@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_THR_MUTEX_BITS_H
-#define COMPONENTS_SERVICES_THR_MUTEX_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_THR_MUTEX_BITS_H
+#define COMPONENTS_SERVICES_BITS_THR_MUTEX_BITS_H
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -31,7 +31,7 @@
 #endif
 
 /**
-  @file
+  @file mysql/components/services/bits/thr_mutex_bits.h
   ABI for thd_mutex
 
   There are three "layers":
@@ -65,4 +65,4 @@ struct my_mutex_t {
 };
 typedef struct my_mutex_t my_mutex_t;
 
-#endif /* COMPONENTS_SERVICES_THR_MUTEX_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_THR_MUTEX_BITS_H */

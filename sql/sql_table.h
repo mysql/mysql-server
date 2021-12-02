@@ -34,7 +34,7 @@
 
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/dd/string_type.h"
 #include "sql/mdl.h"
 

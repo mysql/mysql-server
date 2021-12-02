@@ -20,13 +20,13 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_MUTEX_BITS_H
-#define COMPONENTS_SERVICES_PSI_MUTEX_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_MUTEX_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_MUTEX_BITS_H
 
 #include <mysql/components/services/bits/psi_bits.h>
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_mutex_bits.h
   Instrumentation helpers for mutexes.
   This header file provides the necessary declarations
   to use the mutex API with the performance schema instrumentation.
@@ -195,4 +195,4 @@ typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 
 /** @} (end of group psi_abi_mutex) */
 
-#endif /* COMPONENTS_SERVICES_PSI_MUTEX_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_MUTEX_BITS_H */

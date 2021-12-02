@@ -38,7 +38,7 @@
 
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "sql/field.h"

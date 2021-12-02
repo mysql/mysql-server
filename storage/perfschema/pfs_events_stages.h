@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <atomic>
 
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "storage/perfschema/pfs_events.h"
 #include "storage/perfschema/pfs_global.h"
 

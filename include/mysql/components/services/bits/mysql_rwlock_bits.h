@@ -20,15 +20,15 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_MYSQL_RWLOCK_BITS_H
-#define COMPONENTS_SERVICES_MYSQL_RWLOCK_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MYSQL_RWLOCK_BITS_H
+#define COMPONENTS_SERVICES_BITS_MYSQL_RWLOCK_BITS_H
 
 /**
-  @file
+  @file mysql/components/services/bits/mysql_rwlock_bits.h
   Instrumentation helpers for rwlock.
 */
 
-#include "mysql/components/services/thr_rwlock_bits.h"
+#include "mysql/components/services/bits/thr_rwlock_bits.h"
 
 /**
   @defgroup psi_api_rwlock Rwlock Instrumentation (API)
@@ -81,4 +81,4 @@ struct mysql_prlock_t {
 
 /** @} (end of group psi_api_rwlock) */
 
-#endif /* COMPONENTS_SERVICES_MYSQL_RWLOCK_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_MYSQL_RWLOCK_BITS_H */

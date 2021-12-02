@@ -36,8 +36,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
-#include "mysql/components/services/my_io_bits.h"  // File
-#include "mysqld_error.h"                          // ER_*
+#include "mysql/components/services/bits/my_io_bits.h"  // File
+#include "mysqld_error.h"                               // ER_*
 #include "sql/sql_list.h"
 
 class Item;

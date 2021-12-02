@@ -30,8 +30,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"  // my_msync
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 
 class THD;

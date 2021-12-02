@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_THREAD_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_thread_bits.h>
+#include <mysql/components/services/bits/psi_thread_bits.h>
 
 /*
   Version 1.

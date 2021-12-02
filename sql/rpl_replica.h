@@ -34,7 +34,7 @@
 #include "my_psi_config.h"
 #include "my_thread.h"  // my_start_routine
 #include "mysql.h"      // MYSQL
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql_com.h"
 #include "sql/changestreams/apply/constants.h"
 #include "sql/current_thd.h"

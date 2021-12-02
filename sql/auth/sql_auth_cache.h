@@ -45,7 +45,7 @@
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"   // SCRAMBLE_LENGTH
 #include "mysql_time.h"  // MYSQL_TIME

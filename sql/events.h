@@ -39,10 +39,10 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h" /* interval_type */
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
+#include "mysql/components/services/bits/psi_thread_bits.h"
 #include "mysql/psi/psi_memory.h"  // PSI_memory_key
 
 class Event_db_repository;

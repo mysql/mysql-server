@@ -40,9 +40,9 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 
 class Event_db_repository;
 class Event_job_data;

@@ -35,8 +35,8 @@
 #include "my_base.h"
 
 #include "my_psi_config.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/handler.h"
 #include "sql/sql_base.h"

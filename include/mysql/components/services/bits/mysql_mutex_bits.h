@@ -20,43 +20,43 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_MYSQL_COND_BITS_H
-#define COMPONENTS_SERVICES_MYSQL_COND_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MYSQL_MUTEX_BITS_H
+#define COMPONENTS_SERVICES_BITS_MYSQL_MUTEX_BITS_H
 
 /**
-  @file
-  Instrumentation helpers for conditions.
+  @file mysql/components/services/bits/mysql_mutex_bits.h
+  ABI for instrumented mutexes.
 */
 
-#include "mysql/components/services/thr_cond_bits.h"
+#include <mysql/components/services/bits/thr_mutex_bits.h>
 
 /**
-  @defgroup psi_api_cond Cond Instrumentation (API)
+  @defgroup psi_api_mutex Mutex Instrumentation (API)
   @ingroup psi_api
   @{
 */
 
 /**
-  An instrumented cond structure.
-  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
-  @sa mysql_cond_init
-  @sa mysql_cond_wait
-  @sa mysql_cond_timedwait
-  @sa mysql_cond_signal
-  @sa mysql_cond_broadcast
-  @sa mysql_cond_destroy
+  An instrumented mutex structure.
+  @c mysql_mutex_t is a drop-in replacement for @c my_mutex_t.
+  @sa mysql_mutex_assert_owner
+  @sa mysql_mutex_assert_not_owner
+  @sa mysql_mutex_init
+  @sa mysql_mutex_lock
+  @sa mysql_mutex_unlock
+  @sa mysql_mutex_destroy
 */
-struct mysql_cond_t {
-  /** The real condition */
-  native_cond_t m_cond;
+struct mysql_mutex_t {
+  /** The real mutex. */
+  my_mutex_t m_mutex;
   /**
     The instrumentation hook.
     Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_cond_t interface.
+    for binary compatibility of the @c mysql_mutex_t interface.
   */
-  struct PSI_cond *m_psi;
+  struct PSI_mutex *m_psi{nullptr};
 };
 
-/** @} (end of group psi_api_cond) */
+/** @} (end of group psi_api_mutex) */
 
-#endif /* COMPONENTS_SERVICES_MYSQL_COND_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_MYSQL_MUTEX_BITS_H */

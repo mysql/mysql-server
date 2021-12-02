@@ -28,7 +28,7 @@
 #include <exception>
 
 #include "my_thread.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 
 namespace my_boost {
 

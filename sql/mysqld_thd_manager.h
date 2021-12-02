@@ -30,8 +30,8 @@
 
 #include "my_inttypes.h"
 #include "my_thread_local.h"  // my_thread_id
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "prealloced_array.h"
 
 class THD;

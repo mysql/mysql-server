@@ -26,7 +26,7 @@
   @file components/library_mysys/my_memory.h
 */
 
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 
 /**
   Below functions are used by the components. And these functions will

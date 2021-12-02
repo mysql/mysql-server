@@ -20,11 +20,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_MY_IO_BITS_H
-#define COMPONENTS_SERVICES_MY_IO_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MY_IO_BITS_H
+#define COMPONENTS_SERVICES_BITS_MY_IO_BITS_H
 
 /**
-  @file mysql/components/services/my_io_bits.h
+  @file mysql/components/services/bits/my_io_bits.h
   Types to make file and socket I/O compatible.
 */
 
@@ -59,4 +59,4 @@ typedef socklen_t socket_len_t;
 typedef int my_socket; /* File descriptor for sockets */
 #endif /* _WIN32 */
 
-#endif /* COMPONENTS_SERVICES_MY_IO_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_MY_IO_BITS_H */

@@ -39,7 +39,7 @@
 #include "my_psi_config.h"  // IWYU pragma: keep
 
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
 
 /** Entry point for the performance schema interface. */
 struct PSI_cond_bootstrap {

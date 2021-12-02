@@ -20,18 +20,18 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_SOCKET_BITS_H
-#define COMPONENTS_SERVICES_PSI_SOCKET_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_SOCKET_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_SOCKET_BITS_H
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/my_io_bits.h> /* socklen_t */
 #include <mysql/components/services/bits/psi_bits.h>
-#include <mysql/components/services/my_io_bits.h> /* socklen_t */
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_socket_bits.h
   Performance schema instrumentation interface.
 
   @defgroup psi_abi_socket Socket Instrumentation (ABI)
@@ -266,4 +266,4 @@ typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 
 /** @} (end of group psi_abi_socket) */
 
-#endif /* COMPONENTS_SERVICES_PSI_SOCKET_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_SOCKET_BITS_H */

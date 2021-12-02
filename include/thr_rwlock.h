@@ -51,7 +51,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysql/components/services/thr_rwlock_bits.h"
+#include "mysql/components/services/bits/thr_rwlock_bits.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"
 

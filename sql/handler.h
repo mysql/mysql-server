@@ -58,7 +58,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
-#include "mysql/components/services/psi_table_bits.h"
+#include "mysql/components/services/bits/psi_table_bits.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table

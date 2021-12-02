@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_idle_bits.h"
+#include "mysql/components/services/bits/psi_idle_bits.h"
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_idle_locker_state_v1 {

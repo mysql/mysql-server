@@ -29,7 +29,7 @@
   Common \#defines and includes for file and socket I/O.
 */
 
-#include <mysql/components/services/my_io_bits.h>
+#include <mysql/components/services/bits/my_io_bits.h>
 
 #ifdef _WIN32
 

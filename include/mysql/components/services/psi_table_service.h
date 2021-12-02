@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_TABLE_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_table_bits.h>
+#include <mysql/components/services/bits/psi_table_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_table_v1)
 /** @sa get_table_share_v1_t. */

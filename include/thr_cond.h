@@ -49,7 +49,7 @@
 
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysql/components/services/thr_cond_bits.h"
+#include "mysql/components/services/bits/thr_cond_bits.h"
 #include "thr_mutex.h"
 
 #ifdef _WIN32

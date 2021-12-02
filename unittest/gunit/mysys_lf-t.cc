@@ -39,7 +39,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 
 namespace mysys_lf_unittest {
 

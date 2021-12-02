@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_system_bits.h"
+#include "mysql/components/services/bits/psi_system_bits.h"
 typedef void (*unload_plugin_v1_t)(const char *plugin_name);
 struct PSI_system_bootstrap {
   void *(*get_interface)(int version);

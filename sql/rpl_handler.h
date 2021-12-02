@@ -32,8 +32,8 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"  // free_root
-#include "mysql/components/services/mysql_rwlock_bits.h"
-#include "mysql/components/services/psi_rwlock_bits.h"
+#include "mysql/components/services/bits/mysql_rwlock_bits.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "sql/locks/shared_spin_lock.h"  // Shared_spin_lock
 #include "sql/sql_list.h"                // List

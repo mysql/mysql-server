@@ -40,11 +40,11 @@
 #include "lex_string.h"
 #include "my_psi_config.h"
 #include "my_time.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_cond_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
-#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_cond_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "priority_queue.h"          // Priority_queue
 #include "sql/event_data_objects.h"  // Event_queue_element
 #include "sql/event_parse_data.h"    // Event_parse_data

@@ -31,8 +31,8 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql_string.h"
 

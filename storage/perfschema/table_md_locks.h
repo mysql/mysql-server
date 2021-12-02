@@ -31,7 +31,7 @@
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"

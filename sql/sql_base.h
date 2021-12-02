@@ -33,7 +33,7 @@
 #include "mem_root_deque.h"
 #include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"                 // MDL_savepoint

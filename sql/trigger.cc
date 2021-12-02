@@ -32,7 +32,7 @@
 #include "m_string.h"
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"          // EE_OUTOFMEMORY

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,23 +20,43 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_SYSTEM_BITS_H
-#define COMPONENTS_SERVICES_PSI_SYSTEM_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MYSQL_COND_BITS_H
+#define COMPONENTS_SERVICES_BITS_MYSQL_COND_BITS_H
 
 /**
-  @file
-  Performance schema instrumentation interface.
+  @file mysql/components/services/bits/mysql_cond_bits.h
+  Instrumentation helpers for conditions.
+*/
 
-  @defgroup psi_abi_system System Instrumentation (ABI)
-  @ingroup psi_abi
+#include "mysql/components/services/bits/thr_cond_bits.h"
+
+/**
+  @defgroup psi_api_cond Cond Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
 /**
-  System event - plugin unload event
+  An instrumented cond structure.
+  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
+  @sa mysql_cond_init
+  @sa mysql_cond_wait
+  @sa mysql_cond_timedwait
+  @sa mysql_cond_signal
+  @sa mysql_cond_broadcast
+  @sa mysql_cond_destroy
 */
-typedef void (*unload_plugin_v1_t)(const char *plugin_name);
+struct mysql_cond_t {
+  /** The real condition */
+  native_cond_t m_cond;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_cond_t interface.
+  */
+  struct PSI_cond *m_psi;
+};
 
-/** @} (end of group psi_abi_system) */
+/** @} (end of group psi_api_cond) */
 
-#endif /* COMPONENTS_SERVICES_PSI_SYSTEM_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_MYSQL_COND_BITS_H */

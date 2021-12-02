@@ -2,7 +2,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 enum PSI_error_operation {
   PSI_ERROR_OPERATION_RAISED = 0,
   PSI_ERROR_OPERATION_HANDLED

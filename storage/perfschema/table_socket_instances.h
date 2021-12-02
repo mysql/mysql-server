@@ -37,7 +37,7 @@
 
 #include "my_base.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 

@@ -24,7 +24,7 @@
 #define COMPONENTS_SERVICES_BITS_PSI_BITS_H
 
 /**
-  @file include/mysql/components/services/bits/psi_bits.h
+  @file mysql/components/services/bits/psi_bits.h
   Performance schema instrumentation interface.
 
   @defgroup instrumentation_interface Instrumentation Interface

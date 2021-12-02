@@ -24,8 +24,8 @@
 #define COMPONENTS_SERVICES_MYSQL_RWLOCK_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/mysql_rwlock_bits.h>
-#include <mysql/components/services/psi_rwlock_bits.h>
+#include <mysql/components/services/bits/mysql_rwlock_bits.h>
+#include <mysql/components/services/bits/psi_rwlock_bits.h>
 
 typedef void (*mysql_rwlock_register_t)(const char *category,
                                         PSI_rwlock_info *info, int count);

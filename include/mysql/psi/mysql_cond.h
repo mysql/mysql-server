@@ -31,7 +31,7 @@
 /* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
 
-#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_cond.h"
 #include "thr_cond.h"

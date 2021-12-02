@@ -33,7 +33,7 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql_com.h"
 #include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"

@@ -34,7 +34,7 @@
 #include <ostream>
 #include <string>
 
-#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/bits/psi_file_bits.h"
 #include "mysql/udf_registration_types.h"
 
 #ifdef HAVE_UNISTD_H

@@ -30,7 +30,7 @@
 #include "lex_string.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"  // enum_sql_command
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/sql_cmd.h"         // Sql_cmd
 #include "sql/sql_plugin_ref.h"  // plugin_ref
 

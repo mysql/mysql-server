@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define COMPONENTS_SERVICES_PSI_RWLOCK_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/psi_rwlock_bits.h>
+#include <mysql/components/services/bits/psi_rwlock_bits.h>
 
 #if 0
 /*

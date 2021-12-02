@@ -20,11 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_THR_RWLOCK_BITS_H
-#define COMPONENTS_SERVICES_THR_RWLOCK_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_THR_RWLOCK_BITS_H
+#define COMPONENTS_SERVICES_BITS_THR_RWLOCK_BITS_H
 
 /**
-  @file
+  @file mysql/components/services/bits/thr_rwlock_bits.h
   MySQL rwlock ABI.
 
   There are two "layers":
@@ -47,9 +47,9 @@
 #include <windows.h>
 #endif
 
-#include <mysql/components/services/my_thread_bits.h>
-#include <mysql/components/services/thr_cond_bits.h>
-#include <mysql/components/services/thr_mutex_bits.h>
+#include <mysql/components/services/bits/my_thread_bits.h>
+#include <mysql/components/services/bits/thr_cond_bits.h>
+#include <mysql/components/services/bits/thr_mutex_bits.h>
 
 #ifdef _WIN32
 struct native_rw_lock_t {
@@ -112,4 +112,4 @@ struct rw_pr_lock_t {
   my_thread_t writer_thread;
 };
 
-#endif /* COMPONENTS_SERVICES_THR_RWLOCK_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_THR_RWLOCK_BITS_H */

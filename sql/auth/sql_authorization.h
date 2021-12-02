@@ -28,7 +28,7 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "sql/auth/sql_auth_cache.h"
 
 class String;

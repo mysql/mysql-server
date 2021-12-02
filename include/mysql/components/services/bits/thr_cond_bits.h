@@ -20,11 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_THR_COND_BITS_H
-#define COMPONENTS_SERVICES_THR_COND_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_THR_COND_BITS_H
+#define COMPONENTS_SERVICES_BITS_THR_COND_BITS_H
 
 /**
-  @file
+  @file mysql/components/services/bits/thr_cond_bits.h
   MySQL condition variable implementation.
 
   native_cond_t
@@ -45,4 +45,4 @@ typedef CONDITION_VARIABLE native_cond_t;
 typedef pthread_cond_t native_cond_t;
 #endif
 
-#endif /* COMPONENTS_SERVICES_THR_COND_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_THR_COND_BITS_H */

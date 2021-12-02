@@ -51,7 +51,7 @@
 #include <stringapiset.h>
 #endif /* _WIN32 */
 #include "my_thread.h"
-#include "mysql/components/services/my_thread_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
 
 #ifdef _WIN32
 #include <errno.h>

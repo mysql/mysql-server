@@ -73,9 +73,9 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
-#include "mysql/components/services/log_builtins.h"  // LogErr
-#include "mysql/components/services/my_io_bits.h"    // File
-#include "mysql/mysql_lex_string.h"                  // MYSQL_LEX_CSTRING
+#include "mysql/components/services/bits/my_io_bits.h"  // File
+#include "mysql/components/services/log_builtins.h"     // LogErr
+#include "mysql/mysql_lex_string.h"                     // MYSQL_LEX_CSTRING
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"

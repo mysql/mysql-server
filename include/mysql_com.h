@@ -47,7 +47,7 @@
 */
 #ifndef my_socket_defined
 #include "my_io.h"
-#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"
 #endif
 
 #ifndef MYSQL_ABI_CHECK

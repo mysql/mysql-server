@@ -30,7 +30,7 @@
 #include "my_command.h"
 #include "my_psi_config.h"
 #include "my_thread_local.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/service_command.h"
 #include "mysql/service_srv_session.h"
 #include "sql/protocol_callback.h"

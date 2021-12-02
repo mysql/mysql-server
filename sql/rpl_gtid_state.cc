@@ -30,8 +30,8 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"  //LogErr
-#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"

@@ -47,7 +47,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_systime.h"
 #include "my_user.h"  // parse_user
-#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/components/services/bits/psi_error_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"

@@ -27,7 +27,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/opt_costconstants.h"  // Cost_model_constants
 

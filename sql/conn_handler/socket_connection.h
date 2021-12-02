@@ -34,7 +34,7 @@
 #include <vector>
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
 #ifdef HAVE_POLL_H
 #include <poll.h>

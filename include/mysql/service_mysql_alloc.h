@@ -32,7 +32,7 @@
 #endif
 
 /* PSI_memory_key */
-#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/bits/psi_memory_bits.h"
 
 /* myf */
 typedef int myf_t;

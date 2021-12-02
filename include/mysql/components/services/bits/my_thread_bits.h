@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,32 +20,39 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_ERROR_BITS_H
-#define COMPONENTS_SERVICES_PSI_ERROR_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_MY_THREAD_BITS_H
+#define COMPONENTS_SERVICES_BITS_MY_THREAD_BITS_H
 
 /**
-  @file
-  Performance schema instrumentation interface.
-
-  @defgroup psi_abi_error Error Instrumentation (ABI)
-  @ingroup psi_abi
-  @{
+  @file mysql/components/services/bits/my_thread_bits.h
+  Types to make different thread packages compatible.
 */
 
-enum PSI_error_operation {
-  PSI_ERROR_OPERATION_RAISED = 0,
-  PSI_ERROR_OPERATION_HANDLED
+#ifndef MYSQL_ABI_CHECK
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>  // IWYU pragma: export
+#include <sched.h>    // IWYU pragma: export
+#endif
+#endif /* MYSQL_ABI_CHECK */
+
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+typedef DWORD my_thread_t;
+typedef struct thread_attr {
+  DWORD dwStackSize;
+  int detachstate;
+} my_thread_attr_t;
+#else
+typedef pthread_t my_thread_t;
+typedef pthread_attr_t my_thread_attr_t;
+#endif
+
+struct my_thread_handle {
+  my_thread_t thread{0};
+#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
+  HANDLE handle{INVALID_HANDLE_VALUE};
+#endif
 };
-typedef enum PSI_error_operation PSI_error_operation;
 
-/**
-  Log the error seen in Performance Schema buffers.
-  @param error_num MySQL error number
-  @param error_operation operation on error (PSI_ERROR_OPERATION_*)
-*/
-typedef void (*log_error_v1_t)(unsigned int error_num,
-                               PSI_error_operation error_operation);
-
-/** @} (end of group psi_abi_error) */
-
-#endif /* COMPONENTS_SERVICES_PSI_ERROR_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_MY_THREAD_BITS_H */

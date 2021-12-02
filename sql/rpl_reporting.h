@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_systime.h"  //my_getsystime
-#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 
 /**

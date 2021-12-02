@@ -20,19 +20,19 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_THREAD_BITS_H
-#define COMPONENTS_SERVICES_PSI_THREAD_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_THREAD_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_THREAD_BITS_H
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/my_io_bits.h> /* sockaddr_storage */
+#include <mysql/components/services/bits/my_thread_bits.h> /* my_thread_handle */
 #include <mysql/components/services/bits/psi_bits.h>
-#include <mysql/components/services/my_io_bits.h>     /* sockaddr_storage */
-#include <mysql/components/services/my_thread_bits.h> /* my_thread_handle */
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_thread_bits.h
   Performance schema instrumentation interface.
 
   @defgroup psi_abi_thread Thread Instrumentation (ABI)
@@ -596,4 +596,4 @@ typedef struct PSI_thread_info_v5 PSI_thread_info;
 
 /** @} (end of group psi_abi_thread) */
 
-#endif /* COMPONENTS_SERVICES_PSI_THREAD_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_THREAD_BITS_H */

@@ -31,8 +31,8 @@
 #include "my_compiler.h"
 
 #include "my_psi_config.h"
-#include "mysql/components/services/psi_socket_bits.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_socket_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/psi/mysql_idle.h"  // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"

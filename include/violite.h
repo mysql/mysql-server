@@ -41,9 +41,9 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
-#include "mysql/components/services/my_io_bits.h"
-#include "mysql/components/services/my_thread_bits.h"
-#include "mysql/components/services/mysql_socket_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"
+#include "mysql/components/services/bits/my_thread_bits.h"
+#include "mysql/components/services/bits/mysql_socket_bits.h"
 
 #include "mysql/psi/mysql_socket.h"
 

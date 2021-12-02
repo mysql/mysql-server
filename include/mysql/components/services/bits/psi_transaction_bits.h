@@ -20,11 +20,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H
-#define COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_TRANSACTION_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_TRANSACTION_BITS_H
 
 /**
-  @file
+  @file mysql/components/services/bits/psi_transaction_bits.h
   Performance schema instrumentation interface.
 
   @defgroup psi_abi_transaction Transaction Instrumentation (ABI)
@@ -173,4 +173,4 @@ typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 
 /** @} (end of group psi_abi_transaction) */
 
-#endif /* COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_TRANSACTION_BITS_H */

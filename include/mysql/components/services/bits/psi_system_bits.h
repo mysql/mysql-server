@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,39 +20,23 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_MY_THREAD_BITS_H
-#define COMPONENTS_SERVICES_MY_THREAD_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_SYSTEM_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_SYSTEM_BITS_H
 
 /**
-  @file mysql/components/services/my_thread_bits.h
-  Types to make different thread packages compatible.
+  @file mysql/components/services/bits/psi_system_bits.h
+  Performance schema instrumentation interface.
+
+  @defgroup psi_abi_system System Instrumentation (ABI)
+  @ingroup psi_abi
+  @{
 */
 
-#ifndef MYSQL_ABI_CHECK
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <pthread.h>  // IWYU pragma: export
-#include <sched.h>    // IWYU pragma: export
-#endif
-#endif /* MYSQL_ABI_CHECK */
+/**
+  System event - plugin unload event
+*/
+typedef void (*unload_plugin_v1_t)(const char *plugin_name);
 
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
-typedef DWORD my_thread_t;
-typedef struct thread_attr {
-  DWORD dwStackSize;
-  int detachstate;
-} my_thread_attr_t;
-#else
-typedef pthread_t my_thread_t;
-typedef pthread_attr_t my_thread_attr_t;
-#endif
+/** @} (end of group psi_abi_system) */
 
-struct my_thread_handle {
-  my_thread_t thread{0};
-#if defined(_WIN32) && !defined(MYSQL_ABI_CHECK)
-  HANDLE handle{INVALID_HANDLE_VALUE};
-#endif
-};
-
-#endif /* COMPONENTS_SERVICES_MY_THREAD_BITS_H */
+#endif /* COMPONENTS_SERVICES_BITS_PSI_SYSTEM_BITS_H */

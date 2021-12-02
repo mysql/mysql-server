@@ -63,8 +63,8 @@
 #include "my_time.h"
 #include "mysql/com_data.h"
 #include "mysql/components/services/bits/plugin_audit_connection_types.h"  // MYSQL_AUDIT_CONNECTION_CHANGE_USER
-#include "mysql/components/services/log_builtins.h"        // LogErr
-#include "mysql/components/services/psi_statement_bits.h"  // PSI_statement_info
+#include "mysql/components/services/bits/psi_statement_bits.h"  // PSI_statement_info
+#include "mysql/components/services/log_builtins.h"             // LogErr
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"

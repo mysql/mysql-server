@@ -37,7 +37,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "sql/sql_class.h"  // Query_arena
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"

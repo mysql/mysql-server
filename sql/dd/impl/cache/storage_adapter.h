@@ -25,8 +25,8 @@
 
 #include <stddef.h>
 
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/dd/cache/object_registry.h"  // Object_registry
 #include "sql/dd/object_id.h"

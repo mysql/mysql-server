@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,43 +20,32 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef COMPONENTS_SERVICES_MYSQL_MUTEX_BITS_H
-#define COMPONENTS_SERVICES_MYSQL_MUTEX_BITS_H
+#ifndef COMPONENTS_SERVICES_BITS_PSI_ERROR_BITS_H
+#define COMPONENTS_SERVICES_BITS_PSI_ERROR_BITS_H
 
 /**
-  @file
-  ABI for instrumented mutexes.
-*/
+  @file mysql/components/services/bits/psi_error_bits.h
+  Performance schema instrumentation interface.
 
-#include <mysql/components/services/thr_mutex_bits.h>
-
-/**
-  @defgroup psi_api_mutex Mutex Instrumentation (API)
-  @ingroup psi_api
+  @defgroup psi_abi_error Error Instrumentation (ABI)
+  @ingroup psi_abi
   @{
 */
 
-/**
-  An instrumented mutex structure.
-  @c mysql_mutex_t is a drop-in replacement for @c my_mutex_t.
-  @sa mysql_mutex_assert_owner
-  @sa mysql_mutex_assert_not_owner
-  @sa mysql_mutex_init
-  @sa mysql_mutex_lock
-  @sa mysql_mutex_unlock
-  @sa mysql_mutex_destroy
-*/
-struct mysql_mutex_t {
-  /** The real mutex. */
-  my_mutex_t m_mutex;
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_mutex_t interface.
-  */
-  struct PSI_mutex *m_psi{nullptr};
+enum PSI_error_operation {
+  PSI_ERROR_OPERATION_RAISED = 0,
+  PSI_ERROR_OPERATION_HANDLED
 };
+typedef enum PSI_error_operation PSI_error_operation;
 
-/** @} (end of group psi_api_mutex) */
+/**
+  Log the error seen in Performance Schema buffers.
+  @param error_num MySQL error number
+  @param error_operation operation on error (PSI_ERROR_OPERATION_*)
+*/
+typedef void (*log_error_v1_t)(unsigned int error_num,
+                               PSI_error_operation error_operation);
 
-#endif /* COMPONENTS_SERVICES_MYSQL_MUTEX_BITS_H */
+/** @} (end of group psi_abi_error) */
+
+#endif /* COMPONENTS_SERVICES_BITS_PSI_ERROR_BITS_H */

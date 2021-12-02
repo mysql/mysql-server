@@ -28,9 +28,9 @@
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/mysql_cond_bits.h"
-#include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/bits/mysql_cond_bits.h"
+#include "mysql/components/services/bits/mysql_mutex_bits.h"
+#include "mysql/components/services/bits/psi_mutex_bits.h"
 #include "mysql_com.h"             // NAME_LEN
 #include "sql/rpl_info_handler.h"  // Rpl_info_handler
 #include "sql/rpl_reporting.h"     // Slave_reporting_capability

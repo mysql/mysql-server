@@ -60,8 +60,8 @@
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/my_io_bits.h"  // File
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/my_io_bits.h"  // File
+#include "mysql/components/services/bits/psi_statement_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"

@@ -18,7 +18,7 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "mysql/components/services/psi_mdl_bits.h"
+#include "mysql/components/services/bits/psi_mdl_bits.h"
 struct MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;

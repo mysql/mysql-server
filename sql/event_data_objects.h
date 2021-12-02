@@ -36,7 +36,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_time.h"  // interval_type
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/psi_statement_bits.h"
 
 class String;
 class THD;
