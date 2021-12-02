@@ -373,6 +373,17 @@ int ProcessLauncher::close() {
   return 0;
 }
 
+static void throw_system_error(const std::error_code ec) {
+  if (ec == std::error_code(ERROR_INVALID_FUNCTION, std::system_category()) ||
+      ec == std::error_code(ERROR_INVALID_HANDLE, std::system_category()) ||
+      ec == std::error_code(ERROR_BAD_PIPE, std::system_category())) {
+    throw std::system_error(
+        std::error_code(ERROR_NOT_READY, std::system_category()));
+  }
+
+  throw std::system_error(ec);
+}
+
 int ProcessLauncher::read(char *buf, size_t count,
                           std::chrono::milliseconds timeout) {
   DWORD dwBytesRead;
@@ -392,7 +403,7 @@ int ProcessLauncher::read(char *buf, size_t count,
           ec == std::error_code(ERROR_BROKEN_PIPE, std::system_category())) {
         return EOF;
       } else {
-        throw std::system_error(last_error_code());
+        throw_system_error(ec);
       }
     }
 
@@ -422,7 +433,7 @@ int ProcessLauncher::read(char *buf, size_t count,
         ec == std::error_code(ERROR_BROKEN_PIPE, std::system_category())) {
       return EOF;
     } else {
-      throw std::system_error(ec);
+      throw_system_error(ec);
     }
   }
 

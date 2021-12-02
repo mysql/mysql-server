@@ -65,14 +65,15 @@ ProcessWrapper::ProcessWrapper(
         if (output_reader_stop_) break;
         std::this_thread::sleep_for(5ms);
       } catch (const std::system_error &e) {
-        if (std::error_code(EAGAIN, std::system_category()) == e.code() ||
-            std::error_code(EPERM, std::system_category()) == e.code())
+        if (std::errc::resource_unavailable_try_again == e.code() ||
+            std::errc::permission_denied == e.code()) {
           continue;
+        }
 
         // if the underlying process went away we may get "Bad file descriptor"
         // exception here
-        if (std::error_code(EBADF, std::system_category()) == e.code() ||
-            std::error_code(ENXIO, std::system_category()) == e.code()) {
+        if (std::errc::bad_file_descriptor == e.code() ||
+            std::errc::invalid_argument == e.code()) {
           break;
         }
         throw;
@@ -84,6 +85,7 @@ ProcessWrapper::ProcessWrapper(
 int ProcessWrapper::kill() {
   try {
     exit_code_ = launcher_.kill();
+    stop_output_reader_thread();
     exit_code_set_ = true;
   } catch (std::exception &e) {
     fprintf(stderr, "failed killing process %s: %s\n",
