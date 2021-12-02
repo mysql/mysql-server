@@ -14475,17 +14475,12 @@ int ndbcluster_push_to_engine(THD *thd, AccessPath *root_path, JOIN *join) {
       }
 
       /*
-        If a join cache is referred by this table, there is not a single
-        specific row from the 'other tables' to compare rows from this table
-        against. Thus, other tables can not be referred in this case.
+        Any tables preceding this table, and in its 'query_scope', can
+        be referred as a const-table from the pushed conditions.
       */
-      const bool other_tbls_ok = thd->lex->sql_command == SQLCOM_SELECT &&
-                                 !table_access->uses_join_cache();
-
-      table_map const_expr_tables(0);
-      if (other_tbls_ok)
-        // Can refer all other (preceeding) tables, except 'self' as 'const
-        const_expr_tables = ~table->pos_in_table_list->map();
+      table_map query_scope = table_access->get_tables_in_all_query_scopes();
+      table_map const_expr_tables(query_scope &
+                                  ~table->pos_in_table_list->map());
 
       /* Prepare push of condition to handler, possibly leaving a remainder */
       ndb_handler->m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));

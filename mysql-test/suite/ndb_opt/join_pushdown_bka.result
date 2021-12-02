@@ -1809,7 +1809,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.c	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.c,test.x1.d	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.d,test.x3.b	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.d,test.x3.b	1	100.00	Using pushed condition (`test`.`x4`.`b` = `test`.`x1`.`d`); Using join buffer (Batched Key Access)
 1	SIMPLE	x5	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x3.d,test.x4.d	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Can't push table 'x2' as child of 'x1'. Doing so would prevent using join buffer for table 'x2'.

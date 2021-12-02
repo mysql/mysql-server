@@ -2736,8 +2736,7 @@ EXPLAIN
                     -> Left hash join (no condition)
                         -> Table scan on table2
                         -> Hash
-                            -> Filter: (table1.col_int_key is null)
-                                -> Table scan on table3
+                            -> Table scan on table3, with pushed condition: (table1.col_int_key is null)
             -> Filter: (table4.col_int = table3.col_int)
                 -> Single-row index lookup on table4 using ix2 (col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique)
 
@@ -3452,8 +3451,7 @@ EXPLAIN
     -> Table scan on table1
     -> Batched key access inner join
         -> Batch input rows
-            -> Filter: (table2.col_int_unique = table1.col_int)
-                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key)
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), with pushed condition: (table2.col_int_unique = table1.col_int)
         -> Multi-range index lookup on table3 using PRIMARY (col_int=table1.col_int, pk=table1.col_int_key)
 
 Warnings:

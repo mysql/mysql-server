@@ -139,6 +139,7 @@ class Table_access {
   bool filesort_before_join() const;
 
   table_map get_tables_in_this_query_scope() const;
+  table_map get_tables_in_all_query_scopes() const;
 
   const char *get_scope_description() const;
 

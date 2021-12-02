@@ -1082,6 +1082,12 @@ void Table_access::compute_type_and_index() const {
   }
 }
 
+// All tables in 'this' Join_scope, as well as any 'upper' scopes embedding it.
+table_map Table_access::get_tables_in_all_query_scopes() const {
+  const Join_scope *join_scope = get_join_scope();
+  return join_scope->get_all_tables_map();
+}
+
 // The upper Join_scopes, limited to those within current 'Query_scope'
 table_map Table_access::get_tables_in_this_query_scope() const {
   const Join_scope *join_scope = get_join_scope();
