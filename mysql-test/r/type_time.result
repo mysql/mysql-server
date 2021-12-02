@@ -2840,3 +2840,20 @@ prepare s from "INSERT INTO t1 VALUES (?)";
 execute s using @t;
 ERROR 22007: Incorrect time value: '10-11-12' for column 't' at row 1
 DROP TABLE t1;
+# Bug#33616957: Parser error for TIME values in binary protocol
+CREATE TABLE t(t TIME);
+CREATE TABLE dt(dt DATETIME);
+INSERT INTO t VALUES('2021-10-10 00:00:00.123456+01:00');
+Warnings:
+Note	1292	Incorrect time value: '2021-10-10 00:00:00.123456+01:00' for column 't' at row 1
+INSERT INTO dt VALUES('2021-10-10 00:00:00.123456+01:00');
+INSERT INTO t SELECT * FROM dt;
+prepare s from "INSERT INTO t VALUES(?)";
+set @dt='2021-10-10 00:00:00.123456+01:00';
+execute s using @dt;
+SELECT * FROM t;
+t
+02:00:00
+02:00:00
+02:00:00
+DROP TABLE t, dt;
