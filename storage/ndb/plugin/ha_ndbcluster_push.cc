@@ -46,14 +46,6 @@
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
-/**
- * antijoin_null_cond is inserted by the optimizer when it create the
- * special antijoin-NULL-condition. It serves as a token to uniquely
- * identify such a NULL-condition. Also see similar usage of it
- * when building the iterators in sql_executor.cc
- */
-extern const char *antijoin_null_cond;
-
 /*
   Explain why an operation could not be pushed
   @param[in] msgfmt printf style format string.
@@ -96,40 +88,6 @@ uint ndb_table_access_map::first_table(uint start) const {
     if (contain(table_no)) return table_no;
   }
   return length();
-}
-
-static const Item_func_trig_cond *GetTriggerCondOrNull(const Item *item) {
-  if (item->type() == Item::FUNC_ITEM &&
-      down_cast<const Item_func *>(item)->functype() ==
-          Item_bool_func2::TRIG_COND_FUNC) {
-    return down_cast<const Item_func_trig_cond *>(item);
-  } else {
-    return nullptr;
-  }
-}
-
-/**
- * Check if the specified 'item' is a antijoin-NULL-condition.
- * This condition is constructed such that all rows being 'matches'
- * are filtered away, and only the non-(anti)matches will pass.
- *
- * Logic inspired by similar code in sql_executor.cc.
- */
-static bool is_antijoin_null_cond(const Item *item) {
-  const Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
-  if (trig_cond != nullptr &&
-      trig_cond->get_trig_type() == Item_func_trig_cond::IS_NOT_NULL_COMPL) {
-    const Item *inner_cond = trig_cond->arguments()[0];
-    const Item_func_trig_cond *inner_trig_cond =
-        GetTriggerCondOrNull(inner_cond);
-    if (inner_trig_cond != nullptr) {
-      const Item *inner_inner_cond = inner_trig_cond->arguments()[0];
-      if (inner_inner_cond->item_name.ptr() == antijoin_null_cond) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 uint ndb_table_access_map::last_table(uint start) const {
@@ -1112,16 +1070,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
   }
   if (pending_cond != nullptr) {
-    /**
-     * An anti join will always have an 'antijoin_null_cond' attached.
-     * The general rule is that we do not allow any tables having unpushed
-     * conditions to be pushed as part of a SPJ operation. However, this
-     * special 'antijoin_null_cond' could be ignored, as the same NULL-only
-     * filtering is done by the antijoin execution at the server.
-     */
-    if (!(table->is_antijoin() && is_antijoin_null_cond(pending_cond))) {
-      m_has_pending_cond.add(tab_no);
-    }
+    m_has_pending_cond.add(tab_no);
   }
   if (m_scan_operations.contain(tab_no)) {
     // Check extra limitations on when index scan is pushable,
@@ -1656,11 +1605,8 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
  *  1) Some of the tables in the nest were not pushed.
  *  2) Some of the pushed tables in the nest has (remaining parts of)
  *     conditions not being pushed.
- *  3) This nest, or some nests embedded within it, has a 'FOUND_MATCH' trigger,
- *     condition covering tables in this nest. (Which effectively means the
- *     condition act as a filter condition on this nest, as in 2) )
  *
- * The above restriction are similar to the ones checked for outer joined
+ * The above restrictions are similar to the ones checked for outer joined
  * table scans in is_pushable_as_child(), where we preferably try to catch
  * these restrictions. However, at that point in time we are not able to
  * perform this check for tables later in the query plan.
@@ -1690,112 +1636,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
   const bool nest_has_scans =
       (scans_in_join_scope.first_table(first_inner) <= last_inner);
   if (nest_has_scans) {
-    ndb_table_access_map filter_cond;
-
-    /**
-     * Check conditions inside nest(s) for possible FOUND_MATCH-triggers.
-     * These are effectively evaluated 'higher up' in the nest structure
-     * when we have found a join-match, or created a null-extension
-     * for all 'used_tables()' in the trigger condition.
-     * So we collect the aggregated map of tables possibly affected by
-     * these MATCH-filters in 'filter_cond'
-     *
-     * Example: select straight_join *
-     *          from
-     *            t1 left join
-     *              (t1 as t2 join t1 as t3 on t3.a = t2.b)
-     *            on t2.a = t1.b
-     *          where (t2.c > t1.c or t1.c < 0);
-     *
-     * or: 't1 oj (t2,t3) where t2.c > t1.c or t1.c < 0'
-     *
-     * The where condition refers columns from the outer joined nest (t2,t3)
-     * which are possibly NULL extended. Thus, the where cond is encapsulated in
-     * a triggered-FOUND_MATCH(t2,t3), effectively forcing the cond. to be
-     * evaluated only when we have a non-NULL extended match for t2,t3.
-     * For some (legacy?) reason the optimizer will attach the trigger condition
-     * to table t2 in the query plan 't1,t2,t3', as all referred tables(t1,t2)
-     * are available at this point.
-     * However, this ignores the encapsulating FOUND_MATCH(t2,t3) trigger,
-     * which require the condition to also have a matching t3 row. The
-     * WalkItem below will identify such triggers and calculate the real table
-     * coverage of them.
-     *
-     * Note that 'explain format=tree' will represent such filters in a more
-     * sensible way: (We don't use the Iterators here (yet) though)
-     *
-     * -> Filter: ((t2.c > t1.c) or (t1.c < 0))
-     *   -> Nested loop left join
-     *     -> Table scan on t1
-     *     -> Nested loop inner join
-     *       -> Index lookup on t2 using PRIMARY (a=t1.b),
-     *       -> Index lookup on t3 using PRIMARY (a=t2.b)
-     *
-     * The Iterators place the filter on 'top of' the t1..t3 evaluation.
-     * The FOUND_MATCH(t2,t3) has also been eliminated, as we know there is
-     * a (t2,t3) match at this point of execution.
-     */
-    for (uint tab_no = first_inner; tab_no <= last_inner; tab_no++) {
-      AQP::Table_access *table = m_plan.get_table_access(tab_no);
-      const Item *cond = table->get_condition();
-      if (cond != nullptr) {
-        // Condition could possibly be a 'antijoin_null_cond', in which case
-        // the pending_cond flag has been cleared, it should then be ignored.
-        if (m_join_scope.contain(tab_no) && !m_has_pending_cond.contain(tab_no))
-          continue;
-
-        struct {
-          table_map nest_scope;   // Aggregated 'inner_tables' scope of triggers
-          table_map found_match;  // FOUND_MATCH-trigger scope
-        } trig_cond = {0, 0};
-
-        // Check 'cond' for match trigger / filters
-        WalkItem(const_cast<Item *>(cond), enum_walk::PREFIX,
-                 [&trig_cond](Item *item) {
-                   const Item_func_trig_cond *func_trig =
-                       GetTriggerCondOrNull(item);
-                   if (func_trig != nullptr) {
-                     /**
-                      * The FOUND_MATCH-trigger may be encapsulated inside
-                      * multiple IS_NOT_NULL_COMPL-triggers, which defines
-                      * the scope of the triggers. Aggregate these
-                      * 'inner_tables' scopes.
-                      */
-                     trig_cond.nest_scope |= func_trig->get_inner_tables();
-
-                     if (func_trig->get_trig_type() ==
-                         Item_func_trig_cond::FOUND_MATCH) {
-                       // The FOUND_MATCH-trigger is evaluated on top of
-                       // the collected trigger nest_scope.
-                       trig_cond.found_match |= trig_cond.nest_scope;
-                       return true;  // break out of this cond-branch
-                     }
-                   }
-                   return false;  // continue WalkItem
-                 });              // End WalkItem' and lambda func
-
-        if (trig_cond.found_match != 0) {
-          const ndb_table_access_map map = get_table_map(trig_cond.found_match);
-
-          /**
-           * Only FOUND_MATCH-triggers partly overlapping join_scope will
-           * restrict push. (Else it is completely evaluated either before
-           * or after the pushed_join, thus does not affect it.
-           */
-          if (map.is_overlapping(m_join_scope) && !map.contain(m_join_scope)) {
-            filter_cond.add(map);
-          }
-        }
-      }
-    }
-
-    // Check each of the 3 reject reasons from the topmost comment
+    // Check both of the reject reasons from the topmost comment
     const bool nest_has_unpushed = !m_join_scope.contain(inner_nest);
-    const bool nest_has_filter_cond = inner_nest.is_overlapping(filter_cond);
     const bool nest_has_pending_cond =
         inner_nest.is_overlapping(m_has_pending_cond);
 
-    if (nest_has_pending_cond || nest_has_unpushed || nest_has_filter_cond) {
+    if (nest_has_pending_cond || nest_has_unpushed) {
       /**
        * Check all pushed scan operations in this nest, and nests embedded
        * within it. Note that it is the rows from scans in the upper nest
@@ -1811,7 +1657,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
         const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
 
         /**
-         * Could have checked all 3 reject conditions at once, but would
+         * Could have checked both reject conditions at once, but would
          * like to provide separate EXPLAIN_NO_PUSH's for each of them.
          */
         if (nest_has_unpushed) {
@@ -1826,13 +1672,6 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
           EXPLAIN_NO_PUSH(
               "Can't push %s joined table '%s' as child of '%s', "
               "join-nest containing the table has pending unpushed_conditions",
-              nest_type, table->get_table()->alias,
-              m_join_root->get_table()->alias);
-          remove_pushable(table);
-        } else if (nest_has_filter_cond) {
-          EXPLAIN_NO_PUSH(
-              "Can't push %s joined table '%s' as child of '%s', "
-              "join-nest containing the table has a FILTER conditions",
               nest_type, table->get_table()->alias,
               m_join_root->get_table()->alias);
           remove_pushable(table);
