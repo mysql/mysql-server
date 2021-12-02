@@ -1954,15 +1954,7 @@ static AccessPath *CreateHashJoinAccessPath(
   // and that is if we either have grouping or sorting in the query. In
   // those cases, the iterator above us will most likely consume the
   // entire result set anyways.
-  bool allow_spill_to_disk = !has_limit || has_grouping || has_order_by;
-
-  // If this table is part of a pushed join query, rows from the dependant child
-  // table(s) has to be read while we are positioned on the rows from the pushed
-  // ancestors which the child depends on. Thus, we can not allow rows from a
-  // 'pushed join' to 'spill_to_disk'.
-  if (qep_tab->table()->file->member_of_pushed_join()) {
-    allow_spill_to_disk = false;
-  }
+  const bool allow_spill_to_disk = !has_limit || has_grouping || has_order_by;
 
   RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
   expr->left = expr->right =
@@ -2062,65 +2054,6 @@ static void ExtractJoinConditions(const QEP_TAB *current_table,
   }
 
   *predicates = move(real_predicates);
-}
-
-// See if a given subtree contains a pushed join that are self-contained within
-// the subtree. Consider the following execution tree:
-//
-//       +--join 1--+
-//       |          |
-//  +--join 2--+    t3
-//  |          |
-//  t1         t2
-//
-// If there is a pushed join between t2 and t3, this function will return
-// 'false' for both sides of 'join 1' as the pushed join is a part of multiple
-// subtrees.
-static bool SubtreeHasIncompletePushedJoin(JOIN *join, qep_tab_map subtree) {
-  const table_map subtree_table_map = ConvertQepTabMapToTableMap(join, subtree);
-  for (QEP_TAB *qep_tab : TablesContainedIn(join, subtree)) {
-    handler *handler = qep_tab->table()->file;
-    table_map tables_in_pushed_join = handler->tables_in_pushed_join();
-
-    // See if any of the tables in the pushed join does not belong to the given
-    // subtree.
-    if (tables_in_pushed_join & ~subtree_table_map) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// Given a pushed join between t1 and t2 where t1 is the root of the pushed
-// join, reading a row from t1 causes NDB to do a join against t2 so that next
-// read from t2 will give back the matching row(s). This means that one read
-// from t1 must be followed by read from t2 until EOF. In other words, joins
-// must be executed using nested loop for pushed joins to work correctly. With
-// hash join, this pattern is broken; both inputs may be written out to disk,
-// causing multiple reads from one subtree before doing any reads from the other
-// subtree. This means that if one side of the hash join contains a pushed join
-// with tables outside of said side, hash join cannot be used.
-//
-// Note that if we force _inner_ hash joins to not spill to disk, the right side
-// (the probe input) of the hash join will not be materialized, causing it to
-// resemble a block nested loop. So if the join is a inner join, hash join can
-// be used as long as we do not spill to disk _and_ the left side (the build
-// input) does not contain an incomplete pushed join. This is not true for
-// semi/anti/outer hash join, as the right side is the _build_ input for these
-// join types.
-static bool PushedJoinRejectsHashJoin(JOIN *join, qep_tab_map left_subtree,
-                                      qep_tab_map right_subtree,
-                                      JoinType join_type) {
-  if (join_type == JoinType::INNER) {
-    // Inner hash join works fine with pushed joins as long as we ensure that we
-    // do not spill to disk, _and_ the left subtree (the build input) does not
-    // have an incomplete pushed join.
-    return SubtreeHasIncompletePushedJoin(join, left_subtree);
-  }
-
-  return SubtreeHasIncompletePushedJoin(join, left_subtree) ||
-         SubtreeHasIncompletePushedJoin(join, right_subtree);
 }
 
 static bool UseHashJoin(QEP_TAB *qep_tab) {
@@ -2374,8 +2307,6 @@ static AccessPath *ConnectJoins(
       if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
         if (UseHashJoin(qep_tab) &&
-            !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
-                                       right_tables, JoinType::SEMI) &&
             !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
           // We must move any join conditions inside the subtructure up to this
           // level so that they can be attached to the hash join iterator.
@@ -2543,10 +2474,7 @@ static AccessPath *ConnectJoins(
       } else if (path == nullptr) {
         assert(substructure == Substructure::SEMIJOIN);
         path = subtree_path;
-      } else if (((UseHashJoin(qep_tab) &&
-                   !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
-                                              right_tables, join_type) &&
-                   !right_side_depends_on_outer) ||
+      } else if (((UseHashJoin(qep_tab) && !right_side_depends_on_outer) ||
                   UseBKA(qep_tab)) &&
                  !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
         // Join conditions that were inside the substructure are placed in the
@@ -2665,9 +2593,7 @@ static AccessPath *ConnectJoins(
     // hash join, so we don't bother checking any further that we actually can
     // replace the BNL with a hash join.
     const bool replace_with_hash_join =
-        UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join()) &&
-        !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables, right_tables,
-                                   JoinType::INNER);
+        UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
 
     vector<Item *> predicates_below_join;
     vector<Item *> join_conditions;
@@ -3607,23 +3533,12 @@ AccessPath *QEP_TAB::access_path() {
   TABLE_REF *used_ref = nullptr;
   AccessPath *path = nullptr;
 
-  const TABLE *pushed_root = table()->file->member_of_pushed_join();
-  const bool is_pushed_child = (pushed_root && pushed_root != table());
-  // A 'pushed_child' has to be a REF type
-  assert(!is_pushed_child || type() == JT_REF || type() == JT_EQ_REF);
-
   switch (type()) {
     case JT_REF:
-      if (is_pushed_child) {
-        assert(!m_reversed_access);
-        path = NewPushedJoinRefAccessPath(join()->thd, table(), &ref(),
-                                          use_order(), /*is_unique=*/false,
-                                          /*count_examined_rows=*/true);
-      } else {
-        path = NewRefAccessPath(join()->thd, table(), &ref(), use_order(),
-                                m_reversed_access,
-                                /*count_examined_rows=*/true);
-      }
+      // May later change to a PushedJoinRefAccessPath if 'pushed'
+      path = NewRefAccessPath(join()->thd, table(), &ref(), use_order(),
+                              m_reversed_access,
+                              /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 
@@ -3639,14 +3554,9 @@ AccessPath *QEP_TAB::access_path() {
       break;
 
     case JT_EQ_REF:
-      if (is_pushed_child) {
-        path = NewPushedJoinRefAccessPath(join()->thd, table(), &ref(),
-                                          use_order(), /*is_unique=*/true,
-                                          /*count_examined_rows=*/true);
-      } else {
-        path = NewEQRefAccessPath(join()->thd, table(), &ref(), use_order(),
-                                  /*count_examined_rows=*/true);
-      }
+      // May later change to a PushedJoinRefAccessPath if 'pushed'
+      path = NewEQRefAccessPath(join()->thd, table(), &ref(), use_order(),
+                                /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 
@@ -3717,7 +3627,6 @@ AccessPath *QEP_TAB::access_path() {
     for (unsigned key_part_idx = 0; key_part_idx < used_ref->key_parts;
          ++key_part_idx) {
       if (used_ref->cond_guards[key_part_idx] != nullptr) {
-        assert(!is_pushed_child);
         // At least one condition guard is relevant, so we need to use
         // the AlternativeIterator.
         AccessPath *table_scan_path = NewTableScanAccessPath(
