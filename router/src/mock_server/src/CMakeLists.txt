@@ -156,8 +156,6 @@ TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/extras/logging/
   ${DUKTAPE_SOURCE_DIR}/extras/module-node/
   ${DUKTAPE_SOURCE_DIR}/extras/module-duktape/
-  ${MYSQLX_GENERATE_DIR}
-  ${CMAKE_SOURCE_DIR}/plugin/x/client
   )
 
 TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
