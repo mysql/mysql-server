@@ -521,3 +521,22 @@ prepare s from "INSERT INTO t1 VALUES (?)";
 execute s using @t;
 
 DROP TABLE t1;
+
+--echo # Bug#33616957: Parser error for TIME values in binary protocol
+
+CREATE TABLE t(t TIME);
+CREATE TABLE dt(dt DATETIME);
+
+INSERT INTO t VALUES('2021-10-10 00:00:00.123456+01:00');
+INSERT INTO dt VALUES('2021-10-10 00:00:00.123456+01:00');
+INSERT INTO t SELECT * FROM dt;
+
+prepare s from "INSERT INTO t VALUES(?)";
+
+set @dt='2021-10-10 00:00:00.123456+01:00';
+
+execute s using @dt;
+
+SELECT * FROM t;
+
+DROP TABLE t, dt;
