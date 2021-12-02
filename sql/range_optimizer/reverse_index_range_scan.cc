@@ -34,7 +34,7 @@
 ReverseIndexRangeScanIterator::ReverseIndexRangeScanIterator(
     THD *thd, TABLE *table, ha_rows *examined_rows, double expected_rows,
     int index, MEM_ROOT *return_mem_root, uint mrr_flags,
-    Bounds_checked_array<QUICK_RANGE *> ranges, uint used_key_parts_arg)
+    Bounds_checked_array<QUICK_RANGE *> ranges, bool using_extended_key_parts)
     : TableRowIterator(thd, table),
       m_index(index),
       m_expected_rows(expected_rows),
@@ -43,7 +43,7 @@ ReverseIndexRangeScanIterator::ReverseIndexRangeScanIterator(
       m_mrr_flags(mrr_flags),
       ranges(ranges),
       last_range(nullptr),
-      used_key_parts(used_key_parts_arg) {
+      m_using_extended_key_parts(using_extended_key_parts) {
   /*
     Use default MRR implementation for reverse scans. No table engine
     currently can do an MRR scan with output in reverse index order.
@@ -137,13 +137,11 @@ int ReverseIndexRangeScanIterator::Read() {
 
   for (;;) {
     if (last_range != nullptr) {  // Keep on reading from the same key.
-      int result =
-          ((last_range->flag & EQ_RANGE &&
-            used_key_parts <= table()->key_info[m_index].user_defined_key_parts)
-               ? table()->file->ha_index_next_same(table()->record[0],
-                                                   last_range->min_key,
-                                                   last_range->min_length)
-               : table()->file->ha_index_prev(table()->record[0]));
+      int result = ((last_range->flag & EQ_RANGE && !m_using_extended_key_parts)
+                        ? table()->file->ha_index_next_same(
+                              table()->record[0], last_range->min_key,
+                              last_range->min_length)
+                        : table()->file->ha_index_prev(table()->record[0]));
       if (result == 0) {
         if (cmp_prev(last_range) == 0) {
           if (m_examined_rows != nullptr) {
@@ -166,8 +164,7 @@ int ReverseIndexRangeScanIterator::Read() {
 
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts =
-        (last_range->flag & EQ_RANGE) &&
-        (used_key_parts <= table()->key_info[m_index].user_defined_key_parts);
+        (last_range->flag & EQ_RANGE) && !m_using_extended_key_parts;
 
     /*
       If we have pushed an index condition (ICP) and this quick select
@@ -227,9 +224,7 @@ int ReverseIndexRangeScanIterator::Read() {
           HA_READ_KEY_EXACT);
     } else {
       assert(last_range->flag & NEAR_MAX ||
-             (last_range->flag & EQ_RANGE &&
-              used_key_parts >
-                  table()->key_info[m_index].user_defined_key_parts) ||
+             (last_range->flag & EQ_RANGE && m_using_extended_key_parts) ||
              range_reads_after_key(last_range));
       result = table()->file->ha_index_read_map(
           table()->record[0], last_range->max_key, last_range->max_keypart_map,

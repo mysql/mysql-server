@@ -885,6 +885,10 @@ struct AccessPath {
 
       // Whether we need a reverse scan. Only supported if geometry == false.
       bool reverse : 1;
+
+      // For a reverse scan, if we are using extended key parts. It is needed,
+      // to set correct flags when retrieving records.
+      bool using_extended_key_parts : 1;
     } index_range_scan;
     struct {
       TABLE *table;

@@ -409,7 +409,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
               thd, mem_root, table, examined_rows, path->num_output_rows,
               param.index, mem_root, param.mrr_flags,
               Bounds_checked_array{param.ranges, param.num_ranges},
-              param.num_used_key_parts);
+              param.using_extended_key_parts);
         } else {
           iterator = NewIterator<IndexRangeScanIterator>(
               thd, mem_root, table, examined_rows, path->num_output_rows,

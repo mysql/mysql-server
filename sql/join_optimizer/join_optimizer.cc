@@ -1320,6 +1320,9 @@ bool CostingReceiver::FindIndexRangeScans(
     path.index_range_scan().can_be_used_for_imerge = scan.is_imerge_scan;
     path.index_range_scan().reuse_handler = false;
     path.index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
+    // TODO: Set this flag for reverse scans that need to be ordered on the
+    // primary key (bug#33611112).
+    path.index_range_scan().using_extended_key_parts = false;
 
     bool contains_subqueries = false;  // Filled on the first iteration below.
 
