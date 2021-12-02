@@ -44,7 +44,7 @@ class ReverseIndexRangeScanIterator : public TableRowIterator {
                                 double expected_rows, int index,
                                 MEM_ROOT *return_mem_root, uint mrr_flags,
                                 Bounds_checked_array<QUICK_RANGE *> ranges,
-                                uint used_key_parts_arg);
+                                bool using_extended_key_parts);
   ~ReverseIndexRangeScanIterator() override;
   int Read() override;
   bool Init() override;
@@ -74,9 +74,9 @@ class ReverseIndexRangeScanIterator : public TableRowIterator {
   /* Info about index we're scanning */
   KEY_PART_INFO *key_part_info;
 
-  // Max. number of (first) key parts this quick select uses for retrieval.
-  // eg. for "(key1p1=c1 AND key1p2=c2) OR key1p1=c2" used_key_parts == 2.
-  const uint used_key_parts;
+  // Whether this reverse scan uses extended keyparts (in case of Innodb,
+  // secondary index is extended to include primary key).
+  bool m_using_extended_key_parts{false};
 
   bool range_reads_after_key(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
