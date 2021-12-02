@@ -1059,8 +1059,11 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
     return true;
-  if (cond == nullptr || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
-    return false;
+  if (cond == nullptr) return false;
+  // Constant conditions which were not evaluated earlier (in optimize_cond())
+  // should be evaluated now.
+  if (cond->const_for_execution()) return (cond->val_int() == 0);
+  if (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)) return false;
   return maxmin_in_range(max_fl, item_field, cond);
 }
 

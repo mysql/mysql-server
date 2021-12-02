@@ -494,7 +494,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
           // Verify, to be sure.
           if (where_cond != nullptr) {
             Item *table_independent_conds = make_cond_for_table(
-                thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
+                thd, where_cond, PSEUDO_TABLE_BITS, table_map(0),
+                /*exclude_expensive_cond=*/true);
             assert(table_independent_conds == nullptr);
           }
 #endif
