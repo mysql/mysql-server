@@ -29,6 +29,7 @@
 #include <string>
 
 #include "mysql/harness/filesystem.h"  // Path
+#include "mysqlrouter/router_export.h"
 
 namespace mysqlrouter {
 
@@ -44,8 +45,8 @@ namespace mysqlrouter {
  *
  * @throws std::invalid_argument (std::logic_error) if `origin` is empty
  */
-std::map<std::string, std::string> get_default_paths(
-    const mysql_harness::Path &origin);
+std::map<std::string, std::string> ROUTER_LIB_EXPORT
+get_default_paths(const mysql_harness::Path &origin);
 
 /**
  * Returns absolute path to mysqlrouter.exe currently running.
@@ -57,7 +58,8 @@ std::map<std::string, std::string> get_default_paths(
  *
  * @note argv0 is currently ignored on Windows platforms
  */
-std::string find_full_executable_path(const std::string &argv0);
+std::string ROUTER_LIB_EXPORT
+find_full_executable_path(const std::string &argv0);
 
 }  // namespace mysqlrouter
 

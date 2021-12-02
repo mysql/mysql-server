@@ -36,11 +36,11 @@
 
 #include <gtest/gtest.h>
 
-#include "default_paths.h"
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "keyring/keyring_memory.h"
 #include "mysql/harness/config_parser.h"
+#include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_app.h"

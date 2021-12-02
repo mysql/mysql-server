@@ -33,17 +33,16 @@
 #include <windows.h>
 #include <winsock2.h>
 
-#include "../default_paths.h"
 #include "harness_assert.h"
 #include "main-windows.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
+#include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/utils.h"  // write_windows_event_log
 #include "mysqlrouter/windows/service_operations.h"
 #include "nt_servc.h"
 
 // forward declarations
-std::string get_logging_folder(const std::string &conf_file);
 void allow_windows_service_to_write_logs(const std::string &conf_file);
 
 namespace {

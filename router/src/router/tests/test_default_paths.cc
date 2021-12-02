@@ -22,8 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "default_paths.h"
-
 #include <cstdlib>  // getenv
 #include <stdexcept>
 #include <string>
@@ -32,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include "mysql/harness/filesystem.h"
+#include "mysqlrouter/default_paths.h"
 
 std::string g_program_name;
 

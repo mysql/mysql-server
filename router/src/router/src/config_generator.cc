@@ -53,7 +53,6 @@
 #include "certificate_handler.h"
 #include "common.h"  // truncate_string
 #include "config_builder.h"
-#include "default_paths.h"
 #include "dim.h"
 #include "harness_assert.h"
 #include "hostname_validator.h"
@@ -65,6 +64,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
+#include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"

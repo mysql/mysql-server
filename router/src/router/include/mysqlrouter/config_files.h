@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/router_export.h"
 
 /*
  * @brief Converts configuration file name into legacy configuration file name.
@@ -51,7 +52,7 @@ template <>
 struct is_error_code_enum<ConfigFilePathValidatorErrc> : true_type {};
 }  // namespace std
 
-std::error_code make_error_code(ConfigFilePathValidatorErrc);
+std::error_code ROUTER_LIB_EXPORT make_error_code(ConfigFilePathValidatorErrc);
 
 /*
  * @class ConfigFilePathValidator
@@ -60,7 +61,7 @@ std::error_code make_error_code(ConfigFilePathValidatorErrc);
  * of different types. There are 3 types of configuration files: default
  * configuration files, configuration files, extra configuration files.
  */
-class ConfigFilePathValidator {
+class ROUTER_LIB_EXPORT ConfigFilePathValidator {
  public:
   /*
    * @brief Constructor with configuration files.

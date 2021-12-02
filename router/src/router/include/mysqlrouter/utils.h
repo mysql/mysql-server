@@ -39,7 +39,7 @@
 
 #ifdef _WIN32
 extern "C" {
-extern bool g_windows_service;
+extern bool ROUTER_LIB_EXPORT g_windows_service;
 }
 #endif
 
@@ -132,7 +132,7 @@ void ROUTER_LIB_EXPORT write_windows_event_log(const std::string &msg);
  *
  * @return bool (success flag)
  */
-bool substitute_envvar(std::string &line) noexcept;
+bool ROUTER_LIB_EXPORT substitute_envvar(std::string &line) noexcept;
 
 /*
  * @brief Substitutes placeholder of particular environment variable in file
@@ -144,8 +144,9 @@ bool substitute_envvar(std::string &line) noexcept;
  *
  * @return path to file
  */
-std::string substitute_variable(const std::string &s, const std::string &name,
-                                const std::string &value);
+std::string ROUTER_LIB_EXPORT substitute_variable(const std::string &s,
+                                                  const std::string &name,
+                                                  const std::string &value);
 
 bool my_check_access(const std::string &path);
 

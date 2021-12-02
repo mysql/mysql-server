@@ -35,13 +35,13 @@
 #include <gmock/gmock.h>
 
 #define UNIT_TESTS  // used in router_app.h
-#include "config_files.h"
 #include "dim.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/vt100_filter.h"
+#include "mysqlrouter/config_files.h"
 #include "mysqlrouter/utils.h"  // substitute_envvar
 #include "router_app.h"
 #include "router_config.h"  // MYSQL_ROUTER_VERSION
