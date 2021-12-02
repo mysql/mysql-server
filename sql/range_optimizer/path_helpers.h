@@ -82,7 +82,10 @@ inline bool make_reverse(uint used_key_parts, AccessPath *path) {
       return true;
     }
     path->index_range_scan().reverse = true;
-    path->index_range_scan().num_used_key_parts = used_key_parts;
+    TABLE *table = path->index_range_scan().used_key_part[0].field->table;
+    path->index_range_scan().using_extended_key_parts =
+        (used_key_parts > table->key_info[path->index_range_scan().index]
+                              .user_defined_key_parts);
     return false;
   } else {
     return true;
