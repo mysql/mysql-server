@@ -3688,10 +3688,6 @@ field1	field2	field3
 1	1	1
 2	2	2
 3	3	3
-NULL	0	0
-NULL	1	1
-NULL	2	2
-NULL	3	3
 explain format=tree SELECT
 table1.pk, table2.pk, table1.col_varchar_10_unique AS field3
 FROM l AS table1
