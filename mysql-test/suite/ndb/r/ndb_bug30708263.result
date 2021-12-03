@@ -23,7 +23,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table3' as child of 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Can't push table 'table3' as child of 'table1', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table3' as child of 'table2', it is in a hash-bucket-branch which can't be referred.
 SELECT STRAIGHT_JOIN
 table1.pk, table2.pk, table3.pk

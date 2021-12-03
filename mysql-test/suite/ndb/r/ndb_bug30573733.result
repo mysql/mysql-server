@@ -45,9 +45,9 @@ Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't5' as child of 't1'. Doing so would prevent using join buffer for table 't4'.
-Note	1003	Can't push table 't5' as child of 't2'. Doing so would prevent using join buffer for table 't4'.
-Note	1003	Can't push table 't5' as child of 't3'. Doing so would prevent using join buffer for table 't4'.
+Note	1003	Can't push table 't5' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't5' as child of 't2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't5' as child of 't3', it is in a hash-bucket-branch which can't be referred.
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t` `t1` join `test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4` join `test`.`t` `t5` where (`test`.`t5`.`pk` = `test`.`t4`.`col_int`)
 EXPLAIN FORMAT=TREE SELECT
 STRAIGHT_JOIN count(*)
@@ -74,9 +74,9 @@ Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 't5' as child of 't1'. Doing so would prevent using join buffer for table 't4'.
-Note	1003	Can't push table 't5' as child of 't2'. Doing so would prevent using join buffer for table 't4'.
-Note	1003	Can't push table 't5' as child of 't3'. Doing so would prevent using join buffer for table 't4'.
+Note	1003	Can't push table 't5' as child of 't1', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't5' as child of 't2', it is in a hash-bucket-branch which can't be referred.
+Note	1003	Can't push table 't5' as child of 't3', it is in a hash-bucket-branch which can't be referred.
 set join_buffer_size = 128;
 SELECT
 STRAIGHT_JOIN count(*)

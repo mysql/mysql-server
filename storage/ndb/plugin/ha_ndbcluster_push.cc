@@ -874,17 +874,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     return false;
   }
 
-  for (uint i = tab_no; i > root_no; i--) {
-    if (m_plan.get_table_access(i)->uses_join_cache()) {
-      EXPLAIN_NO_PUSH(
-          "Can't push table '%s' as child of '%s'. Doing so "
-          "would prevent using join buffer for table '%s'.",
-          table->get_table()->alias, m_join_root->get_table()->alias,
-          m_plan.get_table_access(i)->get_table()->alias);
-      return false;
-    }
-  }
-
   const ndb_table_access_map query_scope =
       get_table_map(table->get_tables_in_this_query_scope());
   if (!query_scope.contain(root_no)) {

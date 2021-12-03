@@ -1166,18 +1166,6 @@ const QEP_TAB *Table_access::get_qep_tab() const {
 }
 
 /**
-  Check if the results from this operation will joined with results
-  from the next operation using a join buffer (instead of plain nested loop).
-  @return True if using a join buffer.
-*/
-bool Table_access::uses_join_cache() const {
-  const QEP_TAB *const qep_tab = get_qep_tab();
-  if (qep_tab == nullptr) return false;
-  return get_qep_tab()->op_type == QEP_TAB::OT_BNL ||
-         get_qep_tab()->op_type == QEP_TAB::OT_BKA;
-}
-
-/**
  Check if this table will be presorted to an intermediate record storage
  before it is joined with its siblings.
 */

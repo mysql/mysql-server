@@ -134,8 +134,6 @@ class Table_access {
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
-  bool uses_join_cache() const;
-
   bool filesort_before_join() const;
 
   table_map get_tables_in_this_query_scope() const;
