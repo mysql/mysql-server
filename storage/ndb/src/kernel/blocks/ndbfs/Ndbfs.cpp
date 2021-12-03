@@ -1677,7 +1677,10 @@ Ndbfs::report(Request * request, Signal* signal)
     }
     case Request:: readPartial: {
       jam();
-      fsConf->bytes_read = Uint32(request->par.readWrite.pages[0].size);
+      size_t bytes_read = 0;
+      for (int i = 0; i < request->par.readWrite.numberOfPages; i++)
+        bytes_read += request->par.readWrite.pages[i].size;
+      fsConf->bytes_read = Uint32(bytes_read);
       sendSignal(ref, GSN_FSREADCONF, signal, 2, JBA);
       break;
     }

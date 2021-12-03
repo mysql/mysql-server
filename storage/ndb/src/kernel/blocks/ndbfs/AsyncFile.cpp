@@ -834,9 +834,7 @@ AsyncFile::readReq( Request * request)
       }
       require(current_data_offset == current_file_offset);
 
-      request->par.readWrite.pages[0].size += bytes_read;
-      if (i > 0)
-        request->par.readWrite.pages[i].size += bytes_read;
+      request->par.readWrite.pages[i].size += bytes_read;
 
       if (bytes_read != size)
       { // eof
