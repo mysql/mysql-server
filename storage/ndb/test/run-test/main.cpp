@@ -1143,8 +1143,12 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
     tmp.trim(" \t\n\r");
 
     if (tmp.length() == 0) {
-      break;  // End of test case definition
+      if (elements == 0) {
+        continue;   // Blank line before test case definition
+      }
+      break;        // End of test case definition
     }
+
 
     if (insert(tmp.c_str(), p) != 0) {
       // Element line had no : or =
