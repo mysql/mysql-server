@@ -1766,7 +1766,20 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     for (const Item_field &substitute_field : item_equal->get_fields()) {
       if (&substitute_field != key_item_field) {
         const uint substitute_table_no = get_table_no(&substitute_field);
-        if (m_join_scope.contain(substitute_table_no)) {
+        const ndb_table_access_map sj_nest(
+            m_tables[substitute_table_no].m_sj_nest);
+
+        // Substitute table need to:
+        // 1) Be part of this pushed join,
+        // 2) Should either not be part of a semi-join 'nest', or be part
+        //    of the same sj-nest as either this 'table' or the referred
+        //    table. This limitation is due to the batch fetch mechanism
+        //    in SPJ: The 'firstMatch' duplicate elimination may
+        //    break out from iterating all the scan-batch combinations,
+        //    such that result rows may be omitted.
+        if (m_join_scope.contain(substitute_table_no) &&  // 1)
+            (sj_nest.is_clear_all() ||                    // 2)
+             sj_nest.contain(referred_table_no) || sj_nest.contain(tab_no))) {
           DBUG_PRINT("info",
                      (" join_items[%d] %s.%s can be replaced with %s.%s",
                       (int)(key_item - table->get_key_field(0)),
@@ -1778,7 +1791,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
           field_parents.add(substitute_table_no);
         }
       }
-    }  // while(substitute_field != NULL)
+    }  // for all item_equal->fields
   }
   if (!field_parents.is_clear_all()) {
     return true;
@@ -2081,7 +2094,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
               key_refs[key_part_no] = join_item = &substitute_field;
             }
           }
-        }  // while (substitute...
+        }  // for all item_equal->fields
 
         assert(referred_table_no == parent_no ||
                ancestors.contain(referred_table_no) ||
@@ -2272,20 +2285,21 @@ int ndb_pushed_builder_ctx::build_query() {
 
       if (table->is_semi_joined(m_join_root)) {
         /**
-         * Is a Firstmatch'ed semijoin_nest. In order to let SPJ API
-         * do firstMatch elimination of duplicated rows, we need to ensure:
-         *  1) The entire semijoined-nest has been pushed down.
-         *  2) There are no unpushed conditions in the above sj-nest.
-         *
-         * ... else we might end up returning a firstMatched'ed row,
-         *  which later turns out to be a non-match due to eiter 1) or 2).
+         * We already concluded in is_pushable_as_child() that the semi-join
+         * was pushable, we can't undo that now! However, we do assert some of
+         * the restrictions for pushing scans as part of a semi_join:
          */
-        const int last_sj_inner = table->get_last_sj_inner();
-        const ndb_table_access_map semijoin(m_tables[last_sj_inner].m_sj_nest);
-        if (m_join_scope.contain(semijoin) &&
-            !m_has_pending_cond.is_overlapping(semijoin)) {
-          options.setMatchType(NdbQueryOptions::MatchFirst);
+        if (m_scan_operations.contain(tab_no)) {
+          // 'Having no unpushed conditions' is only a restriction for scans:
+          assert(!table->has_condition_inbetween(m_join_root));
+          assert(!table->has_condition_inbetween(
+              m_plan.get_table_access(parent_no)));
+          assert(
+              !m_has_pending_cond.is_overlapping(m_tables[tab_no].m_sj_nest));
+          // As well as: 'All tables in this sj_nest are pushed'
+          assert(m_join_scope.contain(m_tables[tab_no].m_sj_nest));
         }
+        options.setMatchType(NdbQueryOptions::MatchFirst);
       }
 
       if (table->is_antijoin()) {
