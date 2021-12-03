@@ -113,6 +113,9 @@ class Join_nest {
   int get_first_upper() const;
   int get_first_sj_upper() const;
 
+  // Check if 'this' nest is SEMI-joined with ancestor nest
+  bool is_semi_joined(const Join_nest *ancestor) const;
+
   // Get a bitmap of tables affected by filter conditions attached to
   // Join_nest(s) between 'this' nest and the specified ancestor nest
   table_map get_filtered_tables(const Join_nest *ancestor) const;
@@ -781,6 +784,19 @@ int Join_nest::get_first_sj_upper() const {
   return nest->m_upper_nest->get_first_sj_inner();
 }
 
+bool Join_nest::is_semi_joined(const Join_nest *ancestor) const {
+  // Sufficient that any ancestor-nest is a SEMI join
+  const Join_nest *nest = this;
+  const uint ancestor_first_inner = ancestor->m_first_inner;
+  do {
+    if (nest->get_JoinType() == JoinType::SEMI) {
+      return true;
+    }
+    nest = nest->m_upper_nest;
+  } while (nest->m_first_inner > ancestor_first_inner);
+  return false;
+}
+
 table_map Join_nest::get_filtered_tables(const Join_nest *ancestor) const {
   const Join_nest *nest = this;
   const uint parent_first_inner = ancestor->m_first_inner;
@@ -1132,6 +1148,10 @@ int Table_access::get_first_sj_upper() const {
   return m_join_nest->get_first_sj_upper();
 }
 
+bool Table_access::is_semi_joined(const Table_access *ancestor) const {
+  return m_join_nest->is_semi_joined(ancestor->m_join_nest);
+}
+
 bool Table_access::has_condition_inbetween(const Table_access *ancestor) const {
   const table_map filtered_tables =
       m_join_nest->get_filtered_tables(ancestor->m_join_nest);
@@ -1173,12 +1193,6 @@ bool Table_access::filesort_before_join() const {
   const QEP_TAB *const qep_tab = get_qep_tab();
   if (qep_tab == nullptr) return false;
   return (get_qep_tab()->filesort != nullptr);
-}
-
-bool Table_access::is_sj_firstmatch() const {
-  const QEP_TAB *const qep_tab = get_qep_tab();
-  if (qep_tab == nullptr) return false;
-  return (qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH);
 }
 
 bool Table_access::is_antijoin() const {

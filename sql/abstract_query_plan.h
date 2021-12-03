@@ -156,8 +156,8 @@ class Table_access {
   int get_last_sj_inner() const;
   int get_first_sj_upper() const;
 
-  // Is member of a firstMatch sj_nest?
-  bool is_sj_firstmatch() const;
+  // Is member of a SEMI-Join_nest, relative to ancestor?
+  bool is_semi_joined(const Table_access *ancestor) const;
 
   bool is_antijoin() const;
 

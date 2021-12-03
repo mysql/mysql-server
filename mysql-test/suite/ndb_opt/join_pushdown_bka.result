@@ -7207,11 +7207,10 @@ FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table2.b	2	100.00	LooseScan
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table2.b	2	100.00	Child of 'table2' in pushed join@1; LooseScan
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table2.a,test.table2.b	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	Can't push table 'table1s' as child of 'table2', semi join of scan-child not implemented
 Note	1003	Can't push table 'table1' as child, access type 'Batched-key' not implemented
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ count(0) AS `count(*)` from `test`.`t1` `table1` join `test`.`t1` `table2` semi join (`test`.`t1` `table1s`) where ((`test`.`table1`.`a` = `test`.`table2`.`a`) and (`test`.`table1s`.`c` = `test`.`table2`.`b`) and (`test`.`table1`.`b` = `test`.`table2`.`b`))
 SELECT count(*)
@@ -8070,9 +8069,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	24
-Ndb_pushed_queries_defined	18
+Ndb_pushed_queries_defined	20
 Ndb_pushed_queries_dropped	0
-Ndb_sorted_scan_count	16
+Ndb_sorted_scan_count	0
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 CREATE TABLE f (

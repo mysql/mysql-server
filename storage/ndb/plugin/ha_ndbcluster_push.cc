@@ -1429,52 +1429,19 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
    */
 
   ndb_table_access_map sj_nest(m_tables[tab_no].m_sj_nest);
-  if (table->is_sj_firstmatch() &&
-      NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
-    // 'table' is part of a semi-join
-    // (We support semi-join only if firstMatch strategy is used)
-    assert(m_tables[tab_no].m_sj_nest.contain(tab_no));
-
+  if (sj_nest.contain(tab_no)) {
+    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb))) {
+      // Semi-join need support by data nodes
+      EXPLAIN_NO_PUSH(
+          "Can't push table '%s' as child of '%s', "
+          "semi join of scan-child not supported by data nodes",
+          table->get_table()->alias, m_join_root->get_table()->alias);
+      return false;
+    }
     sj_nest.intersect(m_tables[tab_no].embedding_nests());
     if (!is_pushable_within_nest(table, sj_nest, "semi")) {
       return false;
     }
-    if (table->get_first_sj_inner() == (int)tab_no) {
-      /**
-       * In order to do correct firstmatch duplicate elimination in
-       * SPJ, we need to ensure that there are no scans in between this
-       * semi-join nest and the 'last_parent' candidate. See reasoning
-       * above wrt returning 'ancestor-scan rowset multiple times'.
-       */
-      const uint last_parent = all_parents.last_table(tab_no - 1);
-      for (uint ancestor = last_parent + 1; ancestor < tab_no; ancestor++) {
-        if (m_join_scope.contain(ancestor) &&
-            m_scan_operations.contain(ancestor)) {
-          EXPLAIN_NO_PUSH(
-              "Can't push table '%s' as child of '%s', "
-              "there is the scan '%s' in between the parent and sj-nest",
-              table->get_table()->alias, m_join_root->get_table()->alias,
-              m_plan.get_table_access(ancestor)->get_table()->alias);
-          return false;
-        }
-      }
-    }
-  } else if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
-    if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
-      // Semi-joined relative to some other tables in join_scope
-      EXPLAIN_NO_PUSH(
-          "Can't push table '%s' as child of '%s', "
-          "semi join of scan-child not implemented",
-          table->get_table()->alias, m_join_root->get_table()->alias);
-      return false;
-    }
-  } else if (!m_tables[root_no].m_sj_nest.is_clear_all()) {
-    // Root is part of a semi join, table is not
-    EXPLAIN_NO_PUSH(
-        "Can't push table '%s' as child of '%s', "
-        "not members of same semi join 'nest'",
-        table->get_table()->alias, m_join_root->get_table()->alias);
-    return false;
   }
   // end 'semi_join' handling
 
@@ -2303,7 +2270,7 @@ int ndb_pushed_builder_ctx::build_query() {
         options.setMatchType(NdbQueryOptions::MatchNonNull);
       }
 
-      if (table->is_sj_firstmatch()) {
+      if (table->is_semi_joined(m_join_root)) {
         /**
          * Is a Firstmatch'ed semijoin_nest. In order to let SPJ API
          * do firstMatch elimination of duplicated rows, we need to ensure:
