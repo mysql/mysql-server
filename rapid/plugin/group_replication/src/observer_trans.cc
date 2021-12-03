@@ -836,15 +836,23 @@ Transaction_Message::append_cache(IO_CACHE *src)
     length= my_b_bytes_in_cache(src);
   }
 
-  while (length > 0 && !src->error)
+  try
   {
-    data.insert(data.end(),
-                buffer,
-                buffer + length);
+    while (length > 0 && !src->error)
+    {
+      data.insert(data.end(),
+                  buffer,
+                  buffer + length);
 
-    src->read_pos= src->read_end;
-    length= my_b_fill(src);
-    buffer= src->read_pos;
+      src->read_pos= src->read_end;
+      length= my_b_fill(src);
+      buffer= src->read_pos;
+    }
+  }
+  catch (const std::bad_alloc &)
+  {
+    log_message(MY_ERROR_LEVEL, ER_DEFAULT(ER_OUT_OF_RESOURCES));
+    DBUG_RETURN(true);
   }
 
   DBUG_RETURN(src->error ? true : false);
