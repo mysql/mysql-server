@@ -41,10 +41,6 @@ ALTER TABLE t1 ALTER INDEX c visible;
 
 ##########################################
 ## Use ndb_drop_index to drop PRIMARY
-Dropping index t1/PRIMARY...OK
-
-NDBT_ProgramExit: 0 - OK
-
 ## First query after drop fails with stale metadata
 select * from t1 where a > 3;
 ERROR HY000: Table definition has changed, please retry transaction
@@ -81,10 +77,6 @@ a	b	c	d	e
 
 ##########################################
 ## Use ndb_drop_index to drop the unique index on b.
-Dropping index t1/b$unique...OK
-
-NDBT_ProgramExit: 0 - OK
-
 ## First attempt to use dropped index fails with stale metadata
 SELECT * FROM t1 WHERE b = 3;
 ERROR HY000: Table definition has changed, please retry transaction
@@ -99,10 +91,6 @@ Error	1034	Incorrect key file for table 't1'; try to repair it
 
 ##########################################
 ## Use ndb_drop_index to drop the index on c.
-Dropping index t1/c...OK
-
-NDBT_ProgramExit: 0 - OK
-
 ## Stale metadata
 select c, count(1) from t1 group by c order by c;
 ERROR HY000: Table definition has changed, please retry transaction
@@ -142,10 +130,6 @@ c	count(1)
 ##########################################
 ## Use ndb_drop_index to drop d$unique
 ## d will be downgraded from UNIQUE_ORDERED_INDEX to ORDERED_INDEX
-Dropping index t1/d$unique...OK
-
-NDBT_ProgramExit: 0 - OK
-
 ## Table scan succeeds.
 SELECT * FROM t1;
 a	b	c	d	e
@@ -180,10 +164,6 @@ UPDATE t1 set d = a;
 ##########################################
 ## Use ndb_drop_index to drop the ordered index on e.
 ## e will be downgraded from UNIQUE_ORDERED_INDEX to UNIQUE_INDEX
-Dropping index t1/e...OK
-
-NDBT_ProgramExit: 0 - OK
-
 ## Table scan succeeds.
 SELECT * FROM t1;
 a	b	c	d	e
@@ -226,27 +206,18 @@ insert into t2 values (1,1,null), (2,1,0), (3,1,1), (1,2,1), (1,3,null);
 select * from t2 where a > 2;
 a	b	c
 3	1	1
-Dropping index t2/PRIMARY...OK
-
-NDBT_ProgramExit: 0 - OK
-
 select * from t2 where a > 2;
 ERROR HY000: Table definition has changed, please retry transaction
 select * from t2 where a > 2;
 a	b	c
 3	1	1
-Dropping index t2/b...OK
-
-NDBT_ProgramExit: 0 - OK
-
 select * from t2 where b = 2;
 ERROR HY000: Table definition has changed, please retry transaction
 select * from t2 where b = 2;
 ERROR HY000: Incorrect key file for table 't2'; try to repair it
 
-call mtr.add_suppression(".*Got error 126 when reading table './test/t2'");
+call mtr.add_suppression(".*Got error 126 when reading table '.*t2'");
 
 ## All done
 DROP TABLE t1;
 DROP TABLE t2;
-

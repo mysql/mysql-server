@@ -27,7 +27,7 @@ ALTER TABLE t1 ALTER INDEX c visible;
 
 ##########################################
 ## Use ndb_drop_index to drop PRIMARY
---exec $NDB_DROP_INDEX -d test t1 PRIMARY
+--exec $NDB_DROP_INDEX -d test t1 PRIMARY >> $NDB_TOOLS_OUTPUT
 
 ## First query after drop fails with stale metadata
 --error ER_TABLE_DEF_CHANGED
@@ -53,7 +53,7 @@ SELECT * FROM t1;
 
 ##########################################
 ## Use ndb_drop_index to drop the unique index on b.
---exec $NDB_DROP_INDEX -d test t1 b\$unique
+--exec $NDB_DROP_INDEX -d test t1 b\$unique >> $NDB_TOOLS_OUTPUT
 
  ## First attempt to use dropped index fails with stale metadata
 --error ER_TABLE_DEF_CHANGED
@@ -66,7 +66,7 @@ show warnings;
 
 ##########################################
 ## Use ndb_drop_index to drop the index on c.
---exec $NDB_DROP_INDEX -d test t1 c
+--exec $NDB_DROP_INDEX -d test t1 c >> $NDB_TOOLS_OUTPUT
 
 ## Stale metadata
 --error ER_TABLE_DEF_CHANGED
@@ -94,7 +94,7 @@ select c, count(1) from t1 group by c order by c;
 ##########################################
 ## Use ndb_drop_index to drop d$unique
 ## d will be downgraded from UNIQUE_ORDERED_INDEX to ORDERED_INDEX
---exec $NDB_DROP_INDEX -d test t1 d\$unique
+--exec $NDB_DROP_INDEX -d test t1 d\$unique >> $NDB_TOOLS_OUTPUT
 
 ## Table scan succeeds.
 --sorted_result
@@ -120,7 +120,7 @@ UPDATE t1 set d = a;
 ##########################################
 ## Use ndb_drop_index to drop the ordered index on e.
 ## e will be downgraded from UNIQUE_ORDERED_INDEX to UNIQUE_INDEX
---exec $NDB_DROP_INDEX -d test t1 e
+--exec $NDB_DROP_INDEX -d test t1 e >> $NDB_TOOLS_OUTPUT
 
 ## Table scan succeeds.
 --sorted_result
@@ -152,11 +152,11 @@ create table t2 (
 insert into t2 values (1,1,null), (2,1,0), (3,1,1), (1,2,1), (1,3,null);
 
 select * from t2 where a > 2;
---exec $NDB_DROP_INDEX -d test t2 PRIMARY
+--exec $NDB_DROP_INDEX -d test t2 PRIMARY >> $NDB_TOOLS_OUTPUT
 --error ER_TABLE_DEF_CHANGED
 select * from t2 where a > 2;
 select * from t2 where a > 2;
---exec $NDB_DROP_INDEX -d test t2 b
+--exec $NDB_DROP_INDEX -d test t2 b >> $NDB_TOOLS_OUTPUT
 --error ER_TABLE_DEF_CHANGED
 select * from t2 where b = 2;
 --error ER_NOT_KEYFILE
@@ -164,9 +164,10 @@ select * from t2 where b = 2;
 
 # This test results in an error message in the server log:
 # [ERROR] [MY-010211] [Server] Got error 126 when reading table './test/t2'
-call mtr.add_suppression(".*Got error 126 when reading table './test/t2'");
+call mtr.add_suppression(".*Got error 126 when reading table '.*t2'");
 
 ## All done
 DROP TABLE t1;
 DROP TABLE t2;
+--remove_file $NDB_TOOLS_OUTPUT
 
