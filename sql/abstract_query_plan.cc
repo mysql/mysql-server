@@ -803,24 +803,34 @@ bool Join_nest::is_anti_joined(const Join_nest *ancestor) const {
   return false;
 }
 
+/**
+ * Is this Join_nest (and all its tables) SEMI-joined relative
+ * to the ancestor nest?
+ */
 bool Join_nest::is_semi_joined(const Join_nest *ancestor) const {
   // Sufficient that any ancestor-nest is a SEMI join
   const Join_nest *nest = this;
   const uint ancestor_first_inner = ancestor->m_first_inner;
-  do {
+  assert(this->m_first_inner >= ancestor_first_inner);
+
+  while (nest->m_first_inner > ancestor_first_inner) {
     if (nest->get_JoinType() == JoinType::SEMI) {
       return true;
     }
     nest = nest->m_upper_nest;
-  } while (nest->m_first_inner > ancestor_first_inner);
+  }
   return false;
 }
 
+/**
+ * Get a bitmap of all tables between this nest and ancestor nest
+ * affected by FILTER(s)
+ */
 table_map Join_nest::get_filtered_tables(const Join_nest *ancestor) const {
   const Join_nest *nest = this;
-  const uint parent_first_inner = ancestor->m_first_inner;
+  const uint ancestor_first_inner = ancestor->m_first_inner;
   table_map filter_map(0);
-  while (nest->m_first_inner > parent_first_inner) {
+  while (nest->m_first_inner > ancestor_first_inner) {
     if (nest->m_filter != nullptr) {
       filter_map |=
           GetUsedTableMap(nest->m_filter, /*include_pruned_tables=*/false);
