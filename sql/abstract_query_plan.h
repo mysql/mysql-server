@@ -42,8 +42,6 @@ struct AccessPath;
 struct TABLE;
 struct TABLE_REF;
 
-class QEP_TAB;
-
 /**
   Abstract query plan (AQP) is an interface for examining certain aspects of
   query plans without accessing the AccessPath directly.
@@ -134,8 +132,6 @@ class Table_access {
 
   Item_equal *get_item_equal(const Item_field *field_item) const;
 
-  bool filesort_before_join() const;
-
   table_map get_tables_in_this_query_scope() const;
   table_map get_tables_in_all_query_scopes() const;
 
@@ -198,8 +194,6 @@ class Table_access {
 
   const Join_scope *get_join_scope() const;
   const TABLE_REF *get_table_ref() const;
-
-  const QEP_TAB *get_qep_tab() const;
 
   void compute_type_and_index() const;
 };  // class Table_access

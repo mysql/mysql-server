@@ -745,10 +745,9 @@ const Join_nest *Join_nest::get_semi_nest() const {
 
 /**
  * Returns the first/last table in the join-nest this table is a member of.
- * As opposed to the nest info returned by the QEP_TAB interface, we
- * enumerate the uppermost nest to range from [0..#tables-1] (not [-1,-1]).
+ * We enumerate the uppermost nest to range from [0..#tables-1].
  *
- * Similarly, the first_upper reference to this range is '0', instead of -1.
+ * The first_upper reference to this range is '0'.
  * Note, that first_upper of the uppermost nest is still negative.
  */
 uint Join_nest::get_first_inner() const {
@@ -1147,10 +1146,9 @@ const char *Table_access::get_scope_description() const {
 
 /**
  * Returns the first/last table in the join-nest this table is a member of.
- * As opposed to the nest info returned by the QEP_TAB interface, we
- * enumerate the uppermost nest to range from [0..#tables-1] (not [-1,-1]).
+ * We enumerate the uppermost nest to range from [0..#tables-1].
  *
- * Similarly, the first_upper reference to this range is '0', instead of -1.
+ * The first_upper reference to this range is '0'.
  * Note, that first_upper of the uppermost nest is still negative.
  */
 uint Table_access::get_first_inner() const {
@@ -1195,40 +1193,6 @@ Item *Table_access::get_condition() const {
   if (m_filter == nullptr) return nullptr;
   return m_filter->filter().condition;
 }
-
-////////////////////////////////////////
-// WL#14370 intermediates:
-//
-// The point about this WL was to replace usage of QEP_TAB's
-// with the AccessPath structure. One big chunk of that WL-patch
-// was to entirely replace the AQP (this) with a new implementation.
-// To minimize the sice of this patch (it is still large) we kept
-// some of the QEP_TAB dependencies for now - They will be eliminated
-// over the next patches. These are collected below
-//
-// Even if we tried to keep the interface the same, there are some
-// changes we could not avoid. Partly due to the AccessPath and QEP_TAB
-// structures being so different, and partly due to the AccessPath
-// providing some new insight we want to take advantage of.
-//
-
-/** Get the QEP_TAB object that corresponds to this operation.*/
-const QEP_TAB *Table_access::get_qep_tab() const {
-  if (m_table == nullptr) return nullptr;
-  return m_table->reginfo.qep_tab;
-}
-
-/**
- Check if this table will be presorted to an intermediate record storage
- before it is joined with its siblings.
-*/
-bool Table_access::filesort_before_join() const {
-  const QEP_TAB *const qep_tab = get_qep_tab();
-  if (qep_tab == nullptr) return false;
-  return (get_qep_tab()->filesort != nullptr);
-}
-
-// WL#14370 temporaries-end
 
 }  // namespace AQP
 // namespace AQP

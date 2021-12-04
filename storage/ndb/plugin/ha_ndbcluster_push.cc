@@ -597,14 +597,6 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   const AQP::enum_access_type access_type = m_join_root->get_access_type();
   assert(access_type != AQP::AT_VOID);
 
-  if (m_join_root->filesort_before_join()) {
-    EXPLAIN_NO_PUSH(
-        "Table '%s' is not pushable, "
-        "need filesort before joining child tables",
-        m_join_root->get_table()->alias);
-    return false;
-  }
-
   /**
    * Past this point we know at least root to be pushable as parent
    * operation. Search remaining tables appendable if '::is_pushable_as_child()'
