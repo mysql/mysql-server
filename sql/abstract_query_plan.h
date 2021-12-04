@@ -159,7 +159,8 @@ class Table_access {
   // Is member of a SEMI-Join_nest, relative to ancestor?
   bool is_semi_joined(const Table_access *ancestor) const;
 
-  bool is_antijoin() const;
+  // Is member of an ANTI-Join_nest, relative to ancestor?
+  bool is_anti_joined(const Table_access *ancestor) const;
 
   /**
     Getter and setters for an opaque object for each table.

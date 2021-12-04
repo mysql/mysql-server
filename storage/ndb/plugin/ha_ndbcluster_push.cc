@@ -1356,7 +1356,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     ndb_table_access_map outer_join_nests(m_tables[tab_no].embedding_nests());
     outer_join_nests.subtract(full_inner_nest(root_no, tab_no));
 
-    const char *join_type = table->is_antijoin() ? "anti" : "outer";
+    const char *join_type =
+        table->is_anti_joined(m_join_root) ? "anti" : "outer";
     if (!is_pushable_within_nest(table, outer_join_nests, join_type)) {
       return false;
     }
@@ -2277,6 +2278,8 @@ int ndb_pushed_builder_ctx::build_query() {
     if (table != m_join_root) {
       assert(m_tables[tab_no].m_parent != MAX_TABLES);
       const uint parent_no = m_tables[tab_no].m_parent;
+      const AQP::Table_access *const parent =
+          m_plan.get_table_access(parent_no);
 
       if (m_tables[tab_no].isInnerJoined(m_tables[parent_no])) {
         // 'tab_no' is inner joined with its parent
@@ -2292,8 +2295,7 @@ int ndb_pushed_builder_ctx::build_query() {
         if (m_scan_operations.contain(tab_no)) {
           // 'Having no unpushed conditions' is only a restriction for scans:
           assert(!table->has_condition_inbetween(m_join_root));
-          assert(!table->has_condition_inbetween(
-              m_plan.get_table_access(parent_no)));
+          assert(!table->has_condition_inbetween(parent));
           assert(
               !m_has_pending_cond.is_overlapping(m_tables[tab_no].m_sj_nest));
           // As well as: 'All tables in this sj_nest are pushed'
@@ -2302,7 +2304,9 @@ int ndb_pushed_builder_ctx::build_query() {
         options.setMatchType(NdbQueryOptions::MatchFirst);
       }
 
-      if (table->is_antijoin()) {
+      if (table->is_anti_joined(parent)) {
+        // An antijoin is a variant of outer join, returning only a
+        // 'firstMatch' or the NULL-extended outer rows
         assert(m_tables[tab_no].isOuterJoined(m_tables[parent_no]));
         const ndb_table_access_map antijoin_scope(
             get_tables_in_range(tab_no, m_tables[tab_no].m_last_inner));
