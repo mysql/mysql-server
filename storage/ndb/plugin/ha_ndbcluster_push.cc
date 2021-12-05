@@ -1822,15 +1822,45 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
       return false;
     }  // if (!m_scan_operations...)
     return true;
-  } else {
+  }
+
+  /**
+   * We have rejected this 'key_item' as not pushable, provide an explain:
+   * There are 2 different cases:
+   * 1) The table referred by key_item was not in the query_scope we were
+   *    allowed to join with, and no substitutes existed.
+   * 2) The referred table was not pushed, (and reported as such).
+   *    Thus, we could not push the tables refering it either.
+   */
+  const ndb_table_access_map all_query_scopes =
+      get_table_map(table->get_tables_in_all_query_scopes());
+
+  if (!all_query_scopes.contain(referred_table_no)) {
+    // Referred table was not in allowed query_scope.
+    const char *scope_type;
+    if (referred_table_no < tab_no) {
+      AQP::Table_access *referred_table =
+          m_plan.get_table_access(referred_table_no);
+      scope_type = referred_table->get_scope_description();
+    } else {
+      scope_type = "subquery";
+    }
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
-        "column '%s.%s' is outside scope of pushable join",
+        "column '%s.%s' is in a %s-branch which can't be referred",
+        table->get_table()->alias, m_join_root->get_table()->alias,
+        get_referred_table_access_name(key_item_field),
+        get_referred_field_name(key_item_field), scope_type);
+  } else {
+    // We referred a table which was not pushed.
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child of '%s', "
+        "column '%s.%s' refers a table which was not pushed",
         table->get_table()->alias, m_join_root->get_table()->alias,
         get_referred_table_access_name(key_item_field),
         get_referred_field_name(key_item_field));
-    return false;
   }
+  return false;
 }  // ndb_pushed_builder_ctx::is_field_item_pushable()
 
 bool ndb_pushed_builder_ctx::is_const_item_pushable(

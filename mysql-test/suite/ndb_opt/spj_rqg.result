@@ -1132,7 +1132,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push outer joined table 'table2' as child of 'table1', join-nest containing the table has FILTER conditions
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.pk' refers a table which was not pushed
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk
 FROM s AS table1
@@ -2134,16 +2134,16 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table3' as child of 'table1', no parent-child dependency exists between these tables
-Note	1003	Can't push table 'table4' as child of 'table1', column 'table3.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table3.col_int_unique' refers a table which was not pushed
 Note	1003	Can't push table 'table7' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table6' as child of 'table1', column 'table7.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table6' as child of 'table1', column 'table7.pk' refers a table which was not pushed
 Note	1003	Can't push table 'table9' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table10' as child of 'table1', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table10' as child of 'table1', column 'table9.col_int_unique' refers a table which was not pushed
 Note	1003	Can't push outer joined table 'table5' as child of 'table1', table 'table6' in its dependant join-nest(s) is not part of the pushed join
-Note	1003	Can't push table 'table6' as child of 'table3', column 'table7.pk' is outside scope of pushable join
-Note	1003	Can't push table 'table10' as child of 'table3', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table6' as child of 'table3', column 'table7.pk' refers a table which was not pushed
+Note	1003	Can't push table 'table10' as child of 'table3', column 'table9.col_int_unique' refers a table which was not pushed
 Note	1003	Can't push table 'table5' as child of 'table3', no parent-child dependency exists between these tables
-Note	1003	Can't push table 'table10' as child of 'table7', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table10' as child of 'table7', column 'table9.col_int_unique' refers a table which was not pushed
 Note	1003	Can't push table 'table5' as child of 'table7', no parent-child dependency exists between these tables
 Note	1003	Can't push table 'table5' as child of 'table9', no parent-child dependency exists between these tables
 SELECT
@@ -2744,7 +2744,7 @@ EXPLAIN
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' is outside scope of pushable join
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table2.col_int_key' is in a hash-probe-branch which can't be referred
 Note	1003	Can't push table 'table4' as child of 'table2', it is in a hash-probe-branch which can't be referred.
 Note	1003	Can't push table 'table4' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
 SELECT DISTINCT
@@ -2886,7 +2886,7 @@ Note	1003	Can't push table 'table2' as child, access type 'Range-scan' not imple
 Note	1003	Can't push table 'table1' as child of 'table2s', it is in a materialized-branch which can't be referred.
 Note	1003	Can't push table 'table1s' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table2s' as child of 'table2s', it is in a materialized-branch which can't be referred.
-Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' is outside scope of pushable join
+Note	1003	Can't push table 'table2s' as child of 'table2', column 'table1s.col_int' refers a table which was not pushed
 SELECT
 table1.col_varchar_10_unique AS field1, table1.col_char_16 AS field2
 FROM e AS table1
@@ -3022,7 +3022,7 @@ Warnings:
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table4' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table5' as child of 'table3', it is in a hash-bucket-branch which can't be referred.
-Note	1003	Can't push table 'table5' as child of 'table1', column 'table4.col_int' is outside scope of pushable join
+Note	1003	Can't push table 'table5' as child of 'table1', column 'table4.col_int' refers a table which was not pushed
 SELECT  DISTINCT
 table5.col_varchar_256 AS field1, table2.col_varchar_10_key AS field2, table5.col_int_key AS field3
 FROM x AS table1
@@ -3071,7 +3071,7 @@ Note	1003	Can't push outer joined table 'table7' as child of 'table6', table con
 Note	1003	Can't push table 'table1' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 'table8' as child of 'table6', it is in a hash-bucket-branch which can't be referred.
 Note	1003	Can't push table 'table8' as child of 'table7', it is in a hash-bucket-branch which can't be referred.
-Note	1003	Can't push table 'table8' as child of 'table1', column 'table3.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table8' as child of 'table1', column 'table3.pk' is in a hash-bucket-branch which can't be referred
 SELECT
 table3.col_varchar_10 AS field1, 5 + (CHAR_LENGTH(table7.col_varchar_256_key)) AS field2
 FROM k AS table1
@@ -3340,7 +3340,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Push of table 'table2s' as scan-child with lookup-root 'table1s' not implemented
-Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' is outside scope of pushable join
+Note	1003	Can't push table 'table1' as child of 'table1s', column 'table2s.col_int_key' refers a table which was not pushed
 Note	1003	Push of table 'table2' as scan-child with lookup-root 'table1s' not implemented
 SELECT
 table2.col_int_key
@@ -3425,7 +3425,7 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.col_int_unique' refers a table which was not pushed
 SELECT table3.col_int_key AS field1
 FROM k AS table1
 LEFT JOIN w AS table2
@@ -3712,7 +3712,7 @@ Warnings:
 Note	1003	Can't push table 'table1s' as child of 'table1', it is in a sorted-branch which can't be referred.
 Note	1003	Can't push table 'table2s' as child of 'table1', it is in a sorted-branch which can't be referred.
 Note	1003	Can't push table 'table2' as child of 'table1', it is in a sorted-branch which can't be referred.
-Note	1003	Can't push table 'table2' as child of 'table1s', column 'table1.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table2' as child of 'table1s', column 'table1.pk' is in a sorted-branch which can't be referred
 SELECT
 table1.pk, table2.pk, table1.col_varchar_10_unique AS field3
 FROM l AS table1
