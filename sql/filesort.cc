@@ -379,16 +379,6 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
   DBUG_TRACE;
 
-#ifndef NDEBUG
-  // 'pushed_join' feature need to read the partial joined results directly
-  // from the NDB API. First storing it into a temporary table, means that
-  // any joined child results are effectively wasted, and we will have to
-  // re-read them as non-pushed later.
-  for (TABLE *table : filesort->tables) {
-    assert(!table->file->member_of_pushed_join());
-  }
-#endif
-
   if (!(s_length = filesort->sort_order_length()))
     return true; /* purecov: inspected */
 

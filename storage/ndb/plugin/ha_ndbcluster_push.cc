@@ -866,6 +866,16 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     return false;
   }
 
+  if (table->use_order() && table->get_first_sj_inner() != (int)tab_no) {
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child, can't provide rows in index order",
+        table->get_table()->alias);
+    table->set_table_properties(
+        table->get_table_properties() &
+        ~PUSHABLE_AS_CHILD);  // Permanently disable as child
+    return false;
+  }
+
   const ndb_table_access_map query_scope =
       get_table_map(table->get_tables_in_this_query_scope());
   if (!query_scope.contain(root_no)) {
@@ -1752,9 +1762,13 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
 
   //////////////////////////////////////////////////////////////////
   // 2) Use the equality set to possibly find more parent candidates
-  //    usable by substituting existing 'key_item_field'
+  //    usable by substituting existing 'key_item_field'.
+  //    The hypergraph optimizer do not provide a reliable Item_equal.
   //
-  Item_equal *item_equal = table->get_item_equal(key_item_field);
+  const Item_equal *item_equal =
+      (!m_thd_ndb->get_thd()->lex->using_hypergraph_optimizer)
+          ? table->get_item_equal(key_item_field)
+          : nullptr;
   if (item_equal != nullptr) {
     for (const Item_field &substitute_field : item_equal->get_fields()) {
       if (&substitute_field != key_item_field) {
@@ -2061,7 +2075,11 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
    * If there are any key_fields with 'current_parents' different from
    * our selected 'parent', we have to find substitutes for
    * those key_fields within the equality set.
+   * When using the Hypergraph optimizer we cant use the Item_equal's.
    **/
+  const bool use_item_equal =
+      !m_thd_ndb->get_thd()->lex->using_hypergraph_optimizer;
+
   for (uint key_part_no = 0; key_part_no < table->get_no_of_key_fields();
        key_part_no++) {
     const Item *const key_item = table->get_key_field(key_part_no);
@@ -2070,7 +2088,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
     assert(key_item->const_for_execution() ||
            key_item->type() == Item::FIELD_ITEM);
 
-    if (key_item->type() == Item::FIELD_ITEM) {
+    if (use_item_equal && key_item->type() == Item::FIELD_ITEM) {
       const Item_field *join_item = static_cast<const Item_field *>(key_item);
       uint referred_table_no = get_table_no(join_item);
       Item_equal *item_equal = table->get_item_equal(join_item);

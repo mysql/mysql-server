@@ -137,6 +137,9 @@ class Table_access {
 
   const char *get_scope_description() const;
 
+  // Need to return rows in index sort order?
+  bool use_order() const;
+
   // Get the condition for 'this' table.
   Item *get_condition() const;
 

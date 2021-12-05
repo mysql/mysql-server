@@ -881,6 +881,23 @@ const TABLE_REF *Table_access::get_table_ref() const {
   }
 }
 
+bool Table_access::use_order() const {
+  switch (m_path->type) {
+    // case AccessPath::EQ_REF:
+    //  return m_path->eq_ref().use_order;
+    case AccessPath::REF:
+      return m_path->ref().use_order;
+    case AccessPath::REF_OR_NULL:
+      return m_path->ref_or_null().use_order;
+    case AccessPath::INDEX_SCAN:
+      return m_path->index_scan().use_order;
+    case AccessPath::FULL_TEXT_SEARCH:
+      return m_path->full_text_search().use_order;
+    default:
+      return false;
+  }
+}
+
 /**
   Get the number of key values for this operation. It is an error
   to call this method on an operation that is not an index lookup

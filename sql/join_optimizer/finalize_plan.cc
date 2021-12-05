@@ -621,6 +621,8 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
   }
 
   query_block->join->needs_finalize = false;
+  if (query_block->join->push_to_engines()) return true;
+
   thd->lex->set_current_query_block(old_query_block);
   return error;
 }
