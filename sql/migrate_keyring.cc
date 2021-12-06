@@ -115,6 +115,8 @@ Migrate_keyring::Migrate_keyring() {
   m_destination_plugin_handle = nullptr;
   mysql = nullptr;
   m_destination_component = nullptr;
+  m_argc = 0;
+  m_argv = nullptr;
 }
 
 /**
