@@ -59,8 +59,8 @@ const int CLOSE_ERR = -1;
 const int CLOSE_OK = 0;
 const int CURRENT_PPID = 2;
 const int CURRENT_PID = 6;
-const char *const UNIX_SOCKET_FILE_CONTENT_OLD = "X6\n";  // "X%d" % CURRENT_PID
-const char *const UNIX_SOCKET_FILE_CONTENT = "6\n";       // "%d" % CURRENT_PID
+
+const char *const UNIX_SOCKET_FILE_CONTENT = "6\n";  // "%d" % CURRENT_PID
 const char *const UNIX_SOCKET_FILE = "/tmp/xplugin_test.sock";
 const char *const UNIX_SOCKET_LOCK_FILE = "/tmp/xplugin_test.sock.lock";
 
