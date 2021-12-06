@@ -26,7 +26,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file include/detail/ut/large_page_alloc-linux.h
  Linux-specific implementation bits and pieces for large (huge) page
- allocations. */
+ allocations. Also fallback for other platforms, e.g. FreeBSD. */
 
 #ifndef detail_ut_large_page_alloc_linux_h
 #define detail_ut_large_page_alloc_linux_h
@@ -51,8 +51,11 @@ namespace detail {
 inline void *large_page_aligned_alloc(size_t n_bytes) {
   // mmap will internally round n_bytes to the multiple of huge-page size if it
   // is not already
-  void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANON | MAP_HUGETLB, -1, 0);
+  int mmap_flags = MAP_PRIVATE | MAP_ANON;
+#ifndef __FreeBSD__
+  mmap_flags |= MAP_HUGETLB;
+#endif
+  void *ptr = mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
   if (unlikely(ptr == (void *)-1)) {
     ib::log_warn(ER_IB_MSG_856) << "large_page_aligned_alloc mmap(" << n_bytes
                                 << " bytes) failed;"
