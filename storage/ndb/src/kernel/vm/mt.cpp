@@ -6597,6 +6597,11 @@ execute_signals(thr_data *selfptr,
         r->m_read_end = read_end;
       }
     }
+#if defined(__aarch64__)
+    // this is to address the missing memory barrier issue on Apple M1 platform
+    // regarding the bug#33650674 the less intrusive place should be found
+    rmb();
+#endif
     /*
      * These pre-fetching were found using OProfile to reduce cache misses.
      * (Though on Intel Core 2, they do not give much speedup, as apparently
