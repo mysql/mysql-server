@@ -1324,3 +1324,13 @@ eval $query;
 
 SELECT i1, EXTRACT(HOUR FROM TIMEDIFF(NOW(), d1)) FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#33438883: Assertion `!thd->lex->is_view_context_analysis()
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+CREATE VIEW v1 AS SELECT (SELECT 'v' FROM DUAL) AS field1 FROM t1 GROUP BY field1
+HAVING TIME(field1) != 0 AND  TIMESTAMP(field1) != 0;
+DROP VIEW v1;
+DROP TABLE t1;

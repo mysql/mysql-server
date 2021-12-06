@@ -655,7 +655,8 @@ uint Item::decimal_precision() const {
 }
 
 uint Item::time_precision() {
-  if (const_item() && result_type() == STRING_RESULT && !is_temporal()) {
+  if (!current_thd->lex->is_view_context_analysis() && const_item() &&
+      result_type() == STRING_RESULT && !is_temporal()) {
     MYSQL_TIME ltime;
     String buf, *tmp;
     MYSQL_TIME_STATUS status;
@@ -669,7 +670,8 @@ uint Item::time_precision() {
 }
 
 uint Item::datetime_precision() {
-  if (const_item() && result_type() == STRING_RESULT && !is_temporal()) {
+  if (!current_thd->lex->is_view_context_analysis() && const_item() &&
+      result_type() == STRING_RESULT && !is_temporal()) {
     MYSQL_TIME ltime;
     String buf, *tmp;
     MYSQL_TIME_STATUS status;
