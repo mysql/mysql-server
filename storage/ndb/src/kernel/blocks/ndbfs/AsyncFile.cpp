@@ -241,7 +241,6 @@ AsyncFile::openReq(Request * request)
     if (request->error)
     {
       m_file.close();
-require(request->error==0);
       goto remove_if_created;
     }
   }
@@ -293,7 +292,6 @@ require(request->error==0);
     {
       request->error = get_last_os_error();
       m_file.close();
-require(!"m_file.extend");
       goto remove_if_created;
     }
 
@@ -360,9 +358,7 @@ require(!"m_file.extend");
       {
         request->error = get_last_os_error();
         m_file.close();
-require(size==0);
         goto remove_if_created;
-        return;
       }
       off += save_size;
     }
@@ -370,9 +366,7 @@ require(size==0);
     {
         request->error = get_last_os_error();
         m_file.close();
-require(!"m_file.sync() != -1");
         goto remove_if_created;
-        return;
     }
 #ifdef TRACE_INIT
     const NDB_TICKS stop = NdbTick_getCurrentTicks();

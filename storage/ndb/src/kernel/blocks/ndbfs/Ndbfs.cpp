@@ -632,7 +632,6 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       fsRef->userPointer  = userPointer;
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
       fsRef->osErrorCode  = ~0; // Indicate local error
-ndbabort();
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }
