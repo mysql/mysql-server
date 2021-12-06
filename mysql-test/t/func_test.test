@@ -412,3 +412,18 @@ DROP TABLE t1;
 DO NULLIF((GREATEST(FROM_UNIXTIME(1537024679) , _utf32 "*b!" )),
           (FROM_UNIXTIME(1537013301) )
 	 );
+
+--echo #
+--echo # Bug #33624777 sum(least(a, NULL)) result error
+--echo #
+
+CREATE TABLE t1 (a DOUBLE, b DOUBLE);
+CREATE TABLE t2 (a INTEGER, b INTEGER);
+
+INSERT INTO t1 values(1, NULL), (1, 1);
+INSERT INTO t2 values(1, NULL), (1, 1);
+
+SELECT SUM(LEAST(a, b)) FROM t1;
+SELECT SUM(LEAST(a, b)) FROM t2;
+
+DROP TABLE t1, t2;

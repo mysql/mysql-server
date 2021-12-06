@@ -3851,10 +3851,10 @@ double Item_func_min_max::real_op() {
   }
 
   // Find the least/greatest argument based on double value.
-  double result = 0;
+  double result = 0.0;
   for (uint i = 0; i < arg_count; i++) {
     const double tmp = args[i]->val_real();
-    if ((null_value = args[i]->null_value)) break;
+    if ((null_value = args[i]->null_value)) return 0.0;
     if (i == 0 || (tmp < result) == m_is_least_func) result = tmp;
   }
   return result;
