@@ -34,7 +34,6 @@ SET(XTEST_SRC
   formatters/console.cc
   formatters/message_formatter.cc
   json_to_any_handler.cc
-  mysqlx_charset.cc
   mysqlxtest.cc
   parsers/message_parser.cc
   processor/command_multiline_processor.cc
