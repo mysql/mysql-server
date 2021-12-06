@@ -539,7 +539,7 @@ void Config::apply_overwrites() {
       for (const auto &section_overwrite : section_overwrites.second) {
         set_default(section_overwrite.first, section_overwrite.second);
       }
-      break;
+      continue;
     }
 
     ConfigSection *section;
