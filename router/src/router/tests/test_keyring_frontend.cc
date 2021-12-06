@@ -1812,8 +1812,8 @@ const KeyringFrontendTestParam password_frontend_param[]{
         EXIT_FAILURE,
         "",
         "",
-        "^opening master-key-file failed: '.*' has insecure permissions. "
-        ".*: " +
+        "^opening master-key-file failed: '.*' has insecure permissions"
+        ": " +
             make_error_code(std::errc::permission_denied).message(),
         PreCond::Keyring::none() | PreCond::MasterKeyfile::insecure() |
             PostCond::Keyring::not_exists() | PostCond::MasterKeyfile::exists(),
