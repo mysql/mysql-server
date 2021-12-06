@@ -197,7 +197,8 @@ class OverwriteLogLevelTest
     : public RouterConfigOwerwriteTest,
       public ::testing::WithParamInterface<std::string> {};
 
-/* @test Verify that using --logger.level overwrite works as expected */
+/* @test Verify that using --logger.level on top of --DEFAULT.logging_folder
+ * overwrite works as expected */
 TEST_P(OverwriteLogLevelTest, OverwriteLogLevel) {
   const std::string debug_level_log_entry =
       ".* main DEBUG .* Ready, signaling notify socket";
@@ -210,9 +211,14 @@ TEST_P(OverwriteLogLevelTest, OverwriteLogLevel) {
                          /*extra_defaults*/ "",
                          /*enable_debug_logging*/ false);
 
-  const std::string overwrite_param = GetParam();
+  TempDirectory log_dir;
+  const std::string log_dir_overwrite =
+      "--DEFAULT.logging_folder=" + log_dir.name();
+  const std::string log_level_overwrite = GetParam();
   auto &router =
-      launch_router({"-c", conf_file, overwrite_param}, EXIT_SUCCESS, 5s);
+      launch_router({"-c", conf_file, log_dir_overwrite, log_level_overwrite},
+                    EXIT_SUCCESS, 5s);
+  router.set_logging_path(log_dir.name(), "mysqlrouter.log");
 
   // check that the Router logs the debug level despite the conf file does not
   // configure it
