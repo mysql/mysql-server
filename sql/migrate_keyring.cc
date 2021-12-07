@@ -498,6 +498,12 @@ bool Migrate_keyring::fetch_and_store_keys() {
     if (key) my_free((char *)key);
     if (key_type) my_free(key_type);
   }
+
+  /* If there are zero keys in the keyring, it means no keys were migrated */
+  if (!error && m_source_keys.size() == 0) {
+    LogErr(WARNING_LEVEL, ER_WARN_MIGRATION_EMPTY_SOURCE_KEYRING);
+  }
+
   if (error) {
     /* something went wrong remove keys from destination plugin. */
     while (m_source_keys.size()) {

@@ -11590,6 +11590,10 @@ ER_RPL_RELAY_LOG_RECOVERY_GTID_ONLY
 ER_KEYRING_OKV_STANDBY_SERVER_COUNT_EXCEEDED
   eng "Number of STANDBY_SERVER values exceeded maximum limit of 64."
 
+ER_WARN_MIGRATION_EMPTY_SOURCE_KEYRING
+  eng "Source keyring does not have any keys to migrate."
+
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
