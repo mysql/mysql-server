@@ -6713,7 +6713,7 @@ int DsMrr_impl::dsmrr_fill_buffer() {
     property of the wrong handler. MRR sets the handlers' keyread properties
     when initializing the MRR operation, independent of this call).
   */
-  assert(table->key_read == false);
+  bool table_keyread_save = table->key_read;
   table->key_read = true;
 
   rowids_buf_cur = rowids_buf;
@@ -6734,8 +6734,8 @@ int DsMrr_impl::dsmrr_fill_buffer() {
     }
   }
 
-  // Restore key_read since the next read operation will read complete rows
-  table->key_read = false;
+  // Restore key_read since the next read operation might read complete rows
+  table->key_read = table_keyread_save;
 
   if (res && res != HA_ERR_END_OF_FILE) return res;
   dsmrr_eof = (res == HA_ERR_END_OF_FILE);
