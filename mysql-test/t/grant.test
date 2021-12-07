@@ -2743,5 +2743,17 @@ DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
 
+--echo #
+--echo # Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+--echo #
+
+connection default;
+CREATE USER bug33578113;
+
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+
+DROP USER bug33578113;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
