@@ -73,6 +73,7 @@
 #include <vector>
 #include <map>
 #include <list>
+#include <regex>
 
 using std::string;
 
@@ -1599,10 +1600,16 @@ static int warp_rewrite_query_notify(
       where_str.reserve(1024 * 1024);
       select_lex.where_cond()->print(thd, &where_str, QT_ORDINARY);
       ll_where = std::string(where_str.ptr(), where_str.length());
+      
       if(commands != "") {
         commands += ";;";
       }
-      commands += "CALL leapdb.add_expr(@mvid,'WHERE','" + escape_for_call(ll_where) + "','WHERE_CLAUSE')";
+      ll_where = std::regex_replace(ll_where, std::regex(" '"), "'"); 
+
+      auto cmd = "CALL leapdb.add_expr(@mvid,'WHERE',\"" + escape_for_call(ll_where) + "\",'WHERE_CLAUSE')";
+      //std::cout << "unescaped where: " << ll_where << "\n escaped where: " << escape_for_call(ll_where) << "\n" << "command: " << cmd << "\n";
+      commands += cmd;
+      
     }
 
     /* Process the HAVING clause:
@@ -1666,7 +1673,7 @@ static int warp_rewrite_query_notify(
       commands = std::string(event_parse->query.str,event_parse->query.length);
     }
 
-    call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + commands + "\");";
+    call_sql += "','" + escape_for_call(mvname) + "', (select database()), \"" + escape_for_call(commands) + "\");";
     //commands = "call leapdb.create_from_rewriter('i', 'test',(select database()), \"call leapdb.add_table(@mvid, 'db','table','alias', NULL);;call leapdb.add_expr(@mvid,'COUNT','*','CNT_STAR');\")";
     //call_sql = "SELECT \"" + commands + "\";";
     
@@ -1677,6 +1684,7 @@ static int warp_rewrite_query_notify(
   call_sql_str.length = call_sql.size();
   call_sql_str.str = strdup(call_sql.c_str());
   //call_sql.assign(call_sql.c_str(), call_sql.size());
+  
   if(warp_parse_call(thd, call_sql_str)) {
     return 1;
   }
