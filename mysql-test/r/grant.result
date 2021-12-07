@@ -3352,3 +3352,10 @@ DROP DATABASE test01;
 DROP DATABASE test02;
 DROP USER 'user01'@'localhost';
 DROP USER 'user02'@'localhost';
+#
+# Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+#
+CREATE USER bug33578113;
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+DROP USER bug33578113;
