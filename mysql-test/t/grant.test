@@ -3208,5 +3208,17 @@ DROP DATABASE test02;
 DROP USER 'user01'@'localhost';
 DROP USER 'user02'@'localhost';
 
+--echo #
+--echo # Bug#33578113: DROP privilege on performance_schema.* can't be revoked
+--echo #
+connection default;
+
+CREATE USER bug33578113;
+
+GRANT DROP ON performance_schema.* TO bug33578113;
+REVOKE DROP ON performance_schema.* FROM bug33578113;
+
+DROP USER bug33578113;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
