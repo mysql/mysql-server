@@ -38,7 +38,7 @@ Migrate_keyring::Migrate_keyring()
   m_destination_plugin_handle= NULL;
   mysql= NULL;
   m_argc = 0;
-  m_argv = nullptr;
+  m_argv = NULL;
 }
 
 /**
