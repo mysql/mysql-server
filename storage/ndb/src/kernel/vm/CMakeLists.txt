@@ -109,6 +109,8 @@ FOREACH(testprog
     LHLevel
     Rope
     SegmentList
+    TransientPagePool
+    TransientSlotPool
     )
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
     LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
