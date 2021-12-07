@@ -865,7 +865,6 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
       gcs_module->notify_of_view_change_cancellation(error);
       return;
     }
-    gcs_module->notify_of_view_change_end();
 
     /**
      On the joining list there can be 3 types of members:
@@ -887,6 +886,14 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
              Group_member_info::MEMBER_OFFLINE);
     }
 #endif
+
+    /*
+      Only declare the view delivery complete after the above asserts,
+      this will allow check them while join and automatic rejoin are
+      still ongoing.
+    */
+    gcs_module->notify_of_view_change_end();
+
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
