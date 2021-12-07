@@ -35,8 +35,7 @@ WantedBy=multi-user.target
 User=mysql
 Group=mysql
 Type=notify
-PermissionsStartOnly=true
-ExecStartPre=/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre @%I
+ExecStartPre=+/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre @%I
 ExecStart=/usr/sbin/mysqld --defaults-group-suffix=@%I
 TimeoutSec=0
 LimitNOFILE = 10000
