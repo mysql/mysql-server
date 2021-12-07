@@ -2721,8 +2721,9 @@ int ha_warp::append_column_filter(const Item *cond,
       auto f0_info = get_pushdown_info(table->in_use, f0->table_ref->alias);
       auto f1_info = get_pushdown_info(table->in_use, f1->table_ref->alias);
       
-      assert(f0_info != NULL);
-      assert(f1_info != NULL);
+      if(f0_info == NULL || f1_info == NULL) {
+        return 0;
+      }
           
       bool this_is_dim_table = true;
       if(f1_info->datadir != share->data_dir_name) {
