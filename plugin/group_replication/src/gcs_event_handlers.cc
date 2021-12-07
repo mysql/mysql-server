@@ -1079,7 +1079,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     collect_members_executed_sets(view_change_packet);
     applier_module->add_view_change_packet(view_change_packet);
 
-    if (group_action_coordinator->is_group_action_running()) {
+    if (number_of_joining_members > 0 &&
+        group_action_coordinator->is_group_action_running()) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_JOINER_EXIT_WHEN_GROUP_ACTION_RUNNING);
     }
