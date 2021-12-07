@@ -33,7 +33,7 @@ const ndb_az31::byte ndb_az31::header[512] = {
 int ndb_az31::write_header(output_iterator* out)
 {
   if (out->size() < sizeof(header))
-    return 1; // Need more space
+    return need_more_input;
   memcpy(out->begin(), header, sizeof(header));
   out->advance(sizeof(header));
   return 0;
@@ -47,7 +47,7 @@ int ndb_az31::write_trailer(output_iterator* out, int pad_len) const
     return -1;
 
   if (out->size() < 12)
-    return 1; // Need more space
+    return have_more_output;
   byte* p = out->begin();
   //
   p[0] = m_data_crc32 & 0xff;
@@ -70,7 +70,7 @@ int ndb_az31::write_trailer(output_iterator* out, int pad_len) const
 int ndb_az31::detect_header(input_iterator* in)
 {
   if (in->size() < 3)
-    return in->last() ? -1 : 1;
+    return in->last() ? -1 : need_more_input;
   if (memcmp(in->cbegin(), header, 3) != 0)
     return -1;
   return 0;
@@ -79,7 +79,7 @@ int ndb_az31::detect_header(input_iterator* in)
 int ndb_az31::read_header(input_iterator* in)
 {
   if (in->size() < sizeof(header))
-    return in->last() ? -1 : 1;
+    return in->last() ? -1 : need_more_input;
   if (memcmp(in->cbegin(), header, sizeof(header)) != 0)
     return -1;
   in->advance(sizeof(header));

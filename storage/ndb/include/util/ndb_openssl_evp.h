@@ -53,6 +53,7 @@ public:
   static constexpr size_t KEY_LEN = 32;
   static constexpr size_t IV_LEN = 32;
   static constexpr size_t SALT_LEN = 32;
+  static constexpr size_t MAX_SALT_COUNT = 500;
   static constexpr size_t CBC_KEY_LEN = 32;
   static constexpr size_t CBC_IV_LEN = 16;
   static constexpr size_t CBC_BLOCK_LEN = 16;
@@ -111,7 +112,8 @@ private:
    * For XTS m_key_iv is used as double length key.
    * For CBC key is at beginning and iv at end.
    */
-  struct { byte m_key_iv[KEY_LEN + IV_LEN]; } m_key_iv[500];
+  static_assert(MAX_SALT_COUNT == 500);
+  struct { byte m_key_iv[KEY_LEN + IV_LEN]; } m_key_iv[MAX_SALT_COUNT];
 };
 static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512);
 

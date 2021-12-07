@@ -29,6 +29,12 @@
 
 #include "ndb_global.h" // require()
 
+enum ndbxfrm_progress : int
+{
+  need_more_input = 1,
+  have_more_output = 2
+};
+
 class ndbxfrm_input_iterator
 {
 public:

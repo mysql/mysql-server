@@ -64,12 +64,12 @@ int ndb_ndbxfrm1::header::detect_header(ndbxfrm_input_iterator* in, size_t* head
   size_t len = in->size();
 
   if (len < 8)
-    return 1;
+    return need_more_input;
   if (memcmp(buf, magic, 8) != 0)
     return -1;
 
   if (len < sizeof(fixed_header::magic))
-    return 1;
+    return need_more_input;
   const fixed_header::magic* mh =
     reinterpret_cast<const fixed_header::magic*>(buf);
 

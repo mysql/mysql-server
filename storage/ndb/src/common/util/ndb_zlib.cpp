@@ -210,8 +210,8 @@ int ndb_zlib::deflate(output_iterator* out, input_iterator* in)
   {
   case Z_OK:
   case Z_BUF_ERROR:
-    // TODO distigiush need more, have more. may need to call deflatePending()
-    return 1;
+    if (out->empty()) return have_more_output;
+    return need_more_input;
   case Z_STREAM_END:
     require(file.avail_in == 0);
     require(in->last());
@@ -252,7 +252,7 @@ int ndb_zlib::inflate(output_iterator* out, input_iterator* in)
   {
   case Z_OK:
   case Z_BUF_ERROR:  // no progress
-    return 1;
+    return need_more_input;
   case Z_STREAM_END:
     require(file.avail_in == 0);
     require(in->last());
@@ -361,7 +361,7 @@ int main()
   ndbxfrm_input_iterator in{ibuf, ibuf, true};
   ndbxfrm_output_iterator out{obuf, obuf + 32768, false};
   require(zlib.deflate_init() == 0);
-  for(int err = 1; err == 1;)
+  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
   {
     err = zlib.deflate(&out, &in);
     fprintf(stderr, "zlib.deflate() = %d %zu\n", err, in.cbegin() - ibuf);
@@ -374,7 +374,7 @@ int main()
   in = ndbxfrm_input_iterator{obuf, out.begin(), out.last()};
   out = ndbxfrm_output_iterator{ibuf, ibuf + 32768, false};
   require(zlib.inflate_init() == 0);
-  for(int err = 1; err == 1;)
+  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
   {
     err = zlib.inflate(&out, &in);
     fprintf(stderr, "zlib.inflate() = %d %zu\n", err, in.cbegin() - obuf);
@@ -388,11 +388,11 @@ int main()
   in = ndbxfrm_input_iterator{ibuf, ibuf, true};
   out = ndbxfrm_output_iterator{obuf, obuf + 1, false};
   require(zlib.deflate_init() == 0);
-  for(int err = 1; err == 1;)
+  for(int err = ndbxfrm_progress::need_more_input; err > 0;)
   {
     err = zlib.deflate(&out, &in);
     fprintf(stderr, "zlib.deflate() = %d %zu\n", err, in.cbegin() - ibuf);
-    if (err == 1 && out.empty())
+    if (err == ndbxfrm_progress::have_more_output && out.empty())
     {
       out = ndbxfrm_output_iterator{obuf, obuf + 1, false};
     }

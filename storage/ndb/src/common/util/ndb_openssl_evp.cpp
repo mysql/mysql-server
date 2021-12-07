@@ -337,7 +337,7 @@ int ndb_openssl_evp::key256_iv256_set::clear()
 
 int ndb_openssl_evp::key256_iv256_set::get_next_key_iv_slot(byte **key_iv)
 {
-  if (m_key_iv_count >= 500)
+  if (m_key_iv_count >= MAX_SALT_COUNT)
   {
     return -1;
   }
@@ -349,7 +349,7 @@ int ndb_openssl_evp::key256_iv256_set::get_next_key_iv_slot(byte **key_iv)
 
 int ndb_openssl_evp::key256_iv256_set::commit_next_key_iv_slot()
 {
-  if (m_key_iv_count >= 500)
+  if (m_key_iv_count >= MAX_SALT_COUNT)
   {
     return -1;
   }
@@ -643,7 +643,7 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
     {
       if (m_context->m_padding && out->size() < BLOCK_LEN)
       {
-        return progress ? 1 : 2; // Need more output buffer
+        return progress ? need_more_input : have_more_output;
       }
       int outl;
       r = EVP_EncryptFinal_ex(m_evp_context, out->begin(), &outl);
@@ -665,7 +665,7 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
       out->set_last();
       return 0;
     }
-    return progress ? 1 : 2;
+    return progress ? need_more_input : have_more_output;
   }
   else
   {
@@ -677,7 +677,7 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
     }
     if (out->size() < data_unit_size)
     {
-      return 2;
+      return have_more_output;
     }
 
     for (;;)
@@ -689,7 +689,7 @@ int ndb_openssl_evp::operation::encrypt(output_iterator* out,
       }
       else if (in->empty() || out->empty())
       {
-        return progress ? 1 : 2;
+        return progress ? need_more_input : have_more_output;
       }
 
       if (setup_encrypt_key_iv(m_input_position) == -1)
@@ -809,7 +809,7 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       int outl;
       if (m_context->m_padding && out->size() < BLOCK_LEN)
       {
-        return progress ? 1 : 2; // Need more output buffer
+        return progress ? need_more_input : have_more_output;
       }
       r = EVP_DecryptFinal_ex(m_evp_context, out->begin(), &outl);
       if (r != 1)
@@ -830,7 +830,7 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       out->set_last();
       return 0;
     }
-    return progress ? 1 : 2;
+    return progress ? need_more_input : have_more_output;
   }
   else
   {
@@ -842,7 +842,7 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
     }
     if (out->size() < data_unit_size)
     {
-      return 2;
+      return have_more_output;
     }
 
     for (;;)
@@ -854,7 +854,7 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       }
       else if (in->empty() || out->empty())
       {
-        return progress ? 1 : 2;
+        return progress ? need_more_input : have_more_output;
       }
 
       if (setup_decrypt_key_iv(m_output_position) == -1)
@@ -946,7 +946,7 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
     }
     else
     {
-      return 2; // Need more input, no progress
+      return need_more_input;
     }
   }
 
@@ -991,7 +991,7 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
   progress = true;
   m_at_padding_end = false;
  
-  return 1;
+  return need_more_input;
 }
 
 int ndb_openssl_evp::operation::decrypt_end()
