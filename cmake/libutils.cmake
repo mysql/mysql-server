@@ -190,6 +190,7 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
 
   CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
   IF(UNIX)
+    SET(export_link_flags)
     # Mark every export as explicitly needed, so that ld won't remove the
     # .a files containing them. This has a similar effect as
     # --Wl,--no-whole-archive, but is more focused.
