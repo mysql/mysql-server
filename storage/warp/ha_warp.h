@@ -191,7 +191,39 @@ SYS_VAR* system_variables[] = {
   NULL
 };
 
-std::mutex write_mutex;
+struct warp_filter_info {
+private:
+  // Another place where dimension rows are limited to 4B rows
+  std::set<uint32_t> dim_rownums;
+  bool frozen = false;
+public:
+  std::string fact_column = "";
+  std::string dim_alias = "";
+  std::string dim_column = "";
+
+  std::mutex mtx;
+
+  warp_filter_info(std::string fact_column, std::string dim_alias, std::string dim_column) {
+    this->fact_column = fact_column;
+    this->dim_alias = dim_alias;
+    this->dim_column = dim_column; 
+  }
+
+  /* in order to do batch operations, the mutex can be taken manually
+      and then the second parameter should be false
+  */
+  
+  void add_matching_rownum(uint64_t rownum) {
+    dim_rownums.insert(rownum);
+  }
+
+  std::set<uint32_t>* get_rownums() {
+    return &dim_rownums;
+  }
+  
+};  
+
+typedef std::unordered_map<warp_filter_info*, std::unordered_map<uint32_t, uint32_t>*> fact_table_filter;
 
 struct WARP_SHARE {
   std::string table_name;
@@ -244,7 +276,7 @@ class warp_pushdown_information {
   // opened, and to construct an in-memory hash
   // index if there is key on the dimension table
   std::unordered_map<Field*, warp_join_info> join_info;
-
+  fact_table_filter* fact_table_filters;
   // if an index exists for the join in the dimension
   // table, then an in memory has index will be built
   // on the table to improve join performance because
@@ -262,23 +294,15 @@ class warp_pushdown_information {
   // free up the fastbit resources once the table is finshed
   // being used
   
-  ~warp_pushdown_information() {
-    if(cursor != NULL) {
-      delete cursor;
-    }
-    if(filtered_table != NULL)
-    delete filtered_table;
-    filtered_table = NULL;
-    delete base_table;
-    base_table = NULL;
-  }
-
 };
+
 
 // maps the table aliases for this query to pushdown information info
 std::unordered_map<THD*, std::unordered_map<std::string, warp_pushdown_information*> * > pd_info;
 // held when accessing or modifying the pushdown info
 std::mutex pushdown_mtx;
+std::mutex fact_filter_mutex;
+std::mutex parallel_join_mutex;
 
 // initializes or returns the pushdown information for a table used in a query
 warp_pushdown_information* get_or_create_pushdown_info(THD* thd, const char* alias, const char* data_dir_name);
@@ -561,7 +585,7 @@ class ha_warp : public handler {
   std::string partition_filter_alias;
   std::string partition_filter_partition_name;
 
-  ibis::partList* partitions;
+  ibis::partList* partitions = NULL;
   ibis::partList::iterator part_it;
 
   void update_row_count();
@@ -593,10 +617,13 @@ class ha_warp : public handler {
   //bool has_unique_keys();
   //void make_unique_check_clause();
   //uint64_t lookup_in_hash_index(const uchar*, key_part_map, ha_rkey_function);
+  bool bitmap_merge_join_executed = false;
+
   int bitmap_merge_join();
   void cleanup_pushdown_info();
 
   bool close_in_extra = false;
+  std::mutex write_mutex;
 
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
   ibis::table*         base_table         = NULL; 
@@ -612,7 +639,41 @@ class ha_warp : public handler {
 
   /* WHERE clause constructed from engine condition pushdown */
   std::string          push_where_clause  = "";
+  int64_t pushdown_table_count = 0;
   
+  
+#ifdef WARP_USE_SIMD_INTERSECTION
+  std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
+  std::vector<uint32_t>* current_matching_ridset=NULL;
+  std::vector<uint32_t>::iterator current_matching_ridset_it;
+  std::set<uint64_t>::iterator current_matching_dim_ridset_it;
+  std::set<uint64_t>* current_matching_dim_ridset=NULL;
+#else
+  std::unordered_map<std::string, std::vector<uint32_t>*> matching_ridset;
+  std::vector<uint32_t>* current_matching_ridset=NULL;
+  std::vector<uint32_t>::iterator current_matching_ridset_it;
+
+  //FIXME?:
+  // This could totally break if a dimension table has more than ~4B rows!
+  // I doubt anybody is going to try to do that with WARP so I am leaving
+  // this as it is until somebody complains!  Will put a note in the 
+  // release notes :)
+  std::set<uint32_t>::iterator current_matching_dim_ridset_it;
+  std::set<uint32_t>* current_matching_dim_ridset=NULL;
+#endif
+  uint32_t rownum = 0;
+  uint32_t running_join_threads = 0;
+  uint32_t max_threads = 12;
+  uint64_t fetch_count = 0;
+  bool all_jobs_completed = false;
+  uint32_t running_dimension_merges = 0;
+  std::mutex dimension_merge_mutex;
+  bool all_dimension_merges_completed = false;
+
+  //static void warp_filter_table(ibis::mensa::table* filtered_table, std::string filter_column, std::vector<std::string>* batch, std::string push_where_clause, std::vector<uint64_t> matching_rowids, std::mutex* mtx, uint64_t* thread_count);
+ 
+  fact_table_filter fact_table_filters;
+
   // used for index lookups
   //std::string          idx_where_clause   = "";
   //ibis::qExpr*         idx_qexpr;

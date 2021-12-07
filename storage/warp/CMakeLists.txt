@@ -29,9 +29,21 @@ ExternalProject_Add(
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/
   #PATCH_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patch_fastbit.sh ${CMAKE_CURRENT_SOURCE_DIR}
   
-  BUILD_COMMAND make -j4 && make install
+  BUILD_COMMAND make -j12 
   BUILD_IN_SOURCE 1
 )
+
+#
+#ExternalProject_Add(
+#  libSIMDCompressionAndIntersection-external
+#  PREFIX=external
+#  GIT_REPOSITORY https://github.com/greenlion/SIMDCompressionAndIntersection
+#  CONFIGURE_COMMAND /usr/bin/bash -c echo "no configuration step needed"
+#  INSTALL_COMMAND /usr/bin/bash -c echo "no install step needed"
+#  BUILD_COMMAND make -j12 
+#  BUILD_IN_SOURCE 1
+#)
+#ADD_SUBDIRECTORY(lemire_sorted_simd)
 
 SET(WARP_PLUGIN_STATIC  "warp")
 SET(WARP_PLUGIN_SHARED  "warp_udf")
@@ -44,9 +56,15 @@ SET(COMPILE_FLAGS "-O3 -Wno-error-all")
 MYSQL_ADD_PLUGIN(warp ${WARP_SOURCES} STORAGE_ENGINE MANDATORY)
 add_library(fastbit SHARED IMPORTED)
 set_property(TARGET fastbit PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so)
-add_dependencies(warp fastbit fastbit-2.0.3)
-target_link_libraries(warp fastbit)
+#add_dependencies(warp fastbit fastbit-2.0.3)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
+
+#add_library(libSIMDCompressionAndIntersection STATIC IMPORTED)
+#set_property(TARGET libSIMDCompressionAndIntersection PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/libSIMDCompressionAndIntersection-external-prefix/src/libSIMDCompressionAndIntersection-external/libSIMDCompressionAndIntersection.a)
+#add_dependencies(libSIMDCompressionAndIntersection libSIMDCompressionAndIntersection-external)
+#add_dependencies(warp fastbit libSIMDCompressionAndIntersection)
+#target_link_libraries(warp fastbit libSIMDCompressionAndIntersection)
+target_link_libraries(warp fastbit)
 
 MYSQL_ADD_PLUGIN(warp_udf udf.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "warp_udf")
@@ -54,5 +72,6 @@ MYSQL_ADD_PLUGIN(warp_udf udf.cc
 add_subdirectory("warp_rewrite")
 
 install(FILES ${FASTBIT_LIBS} ${CMAKE_BINARY_DIR}/plugin_output_directory/warp_udf.so DESTINATION ${PLUGINDIR})
+install(FILES ${CMAKE_BINARY_DIR}/lemire_sorted_simd-prefix/src/lemire_sorted_simd/libSIMDCompressionAndIntersection.a DESTINATION ${PLUGINDIR})
 
 
