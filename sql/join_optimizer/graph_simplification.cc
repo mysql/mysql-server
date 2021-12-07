@@ -376,6 +376,14 @@ double GetCardinalitySingleJoin(NodeMap left, NodeMap right, double left_rows,
   since t2 and t4 are on opposite sides of the former join.
   See GraphSimplificationTest.IndirectHierarcicalJoins for a concrete test.
 
+  Also, in the case of cyclic hypergraphs, the constraints in this DAG may be
+  too strict, since it doesn't take into account that in cyclic hypergraphs we
+  don't end up using all the edges (since the cycles are caused by redundant
+  edges). So even if a constraint cannot be added because it would cause a cycle
+  in the DAG, it doesn't mean that the hypergraph is unjoinable, because one of
+  the edges involved in the cycle might be redundant and can be bypassed. See
+  GraphSimplificationTest.CycleNeighboringHyperedges for a concrete test.
+
   We really ought to fix this, but it's not obvious how to implement it;
   it seems very difficult to create a test that catches all cases
   _and_ does not have any false positives in the presence of cycles
@@ -860,7 +868,17 @@ GraphSimplifier::SimplificationResult GraphSimplifier::DoSimplificationStep() {
     // (because we just inferred that it's implicitly in our current graph)
     // and then try again to find a simplification.
     // (We don't modify the graph, but the next iteration will.)
-    m_cycles.AddEdge(full_step.after_edge_idx, full_step.before_edge_idx);
+    if (m_cycles.AddEdge(full_step.after_edge_idx, full_step.before_edge_idx)) {
+      // Adding the opposite constraint would cause a cycle. This means
+      // GraphIsJoinable() says join A cannot be before join B, whereas
+      // AddEdge() says join B cannot be before join A. One of them must be
+      // wrong. It is likely AddEdge() that gives the wrong answer due to a
+      // cycle in the hypergraph. Since we cannot add the opposite constraint in
+      // order to prevent that this simplification is applied, we instead remove
+      // it from the set of potential simplification before we try again.
+      m_pq.pop();
+      cache->index_in_pq = -1;
+    }
     return DoSimplificationStep();
   }
   RecalculateNeighbors(best_step.after_edge_idx, 0, m_graph->edges.size());

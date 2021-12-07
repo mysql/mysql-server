@@ -20,12 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <memory>
 #include <random>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -463,6 +461,124 @@ TEST(GraphSimplificationTest, Antijoin) {
 
   EXPECT_EQ(GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE,
             s.DoSimplificationStep());
+}
+
+TEST(GraphSimplificationTest, CycleNeighboringHyperedges) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  MEM_ROOT mem_root;
+  JoinHypergraph g(&mem_root, /*query_block=*/nullptr);
+
+  /*
+   * Based on a real test case:
+   *
+   *            t1___
+   *            |    \        t6
+   *            |     \      /
+   *           /|\     +-- t5
+   *          / | \   /      \
+   *         /  |  \ /        t7
+   *       t2--t3--t4
+   *         \____/
+   *
+   * The problem with simplifying this graph is that the initial set of
+   * constraints says that all three of t2-t3, t2-t4 and t3-t4 must become
+   * before t1-{t2,t3,t4}. So if we later try to add a constraint that makes the
+   * latter join come before one of those three joins, the online cycle finder
+   * will tell us it's impossible because we get a cycle in the before-after
+   * relationship. Which is true, but it doesn't take into account that the
+   * final plan will never use more than two of those joins in order to join t2,
+   * t3 and t4. So the graph can still be joinable using two of the edges even
+   * if the third edge is involved in a cycle in the before-after graph.
+   */
+
+  AddNodes(7, &mem_root, &g);
+  g.nodes[0].table->file->stats.records = 1500;
+  g.nodes[1].table->file->stats.records = 6000;
+  g.nodes[2].table->file->stats.records = 700;
+  g.nodes[3].table->file->stats.records = 200;
+  g.nodes[4].table->file->stats.records = 150;
+  g.nodes[5].table->file->stats.records = 1000;
+  g.nodes[6].table->file->stats.records = 1000;
+
+  THD *thd = initializer.thd();
+  AddEdge(thd, RelationalExpression::LEFT_JOIN, 0b1, 0b1110, 0.0007, &mem_root,
+          &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b10, 0b100, 0.005, &mem_root,
+          &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b10, 0b1000, 0.005, &mem_root,
+          &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b100, 0b1000, 0.005,
+          &mem_root, &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b1001, 0b010000, 0.01,
+          &mem_root, &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b10000, 0b100000, 0.02,
+          &mem_root, &g);
+  AddEdge(thd, RelationalExpression::INNER_JOIN, 0b10000, 0b1000000, 0.021,
+          &mem_root, &g);
+
+  // Simplify the above graph as much as possible. The exact steps are not all
+  // that important. What matters, is that we're able to get past the third call
+  // to DoSimplificationStep(), where we previously hit infinite recursion, and
+  // continue to simplify the graph also after we hit the problematic condition.
+  GraphSimplifier s(&g, &mem_root);
+
+  // First two simplifications are applied by adding the following constraints:
+  //
+  // t3-t4 before t2-t3
+  // t1-t5 before t2-t4
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+
+  // Here we hit the condition that we want to exercise with this test case. We
+  // want to add the constraint that {t1,t4}-t5 is before t1-{t2,t3,t4}, but we
+  // detect that the graph is not joinable if we do that. Usually, when we
+  // detect this, we would add the opposite constraint and return APPLIED_NOOP.
+  // However, the online cycle finder detects that adding the opposite
+  // constraint will cause a cycle in the before-after graph, and refuses to add
+  // it (this is because the online cycle finder doesn't take into account that
+  // a cyclic hypergraph contains redundant edges, so we won't end up following
+  // all the edges). Since we can't apply the opposite constraint, we instead
+  // remove the problematic constraint from the set of potential simplifications
+  // and retry with the second most promising simplification. This step
+  // completes successfully and adds the constraint t2-t3 is before t2-t4.
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+
+  // The next two simplifications we try are:
+  //
+  // {t1,t4}-t5 before t3-t4
+  // {t1,t4}-t5 before t2-t3
+  //
+  // Both of these make the resulting graph not joinable, so we reject both and
+  // instead add the opposite constraint. This time, the opposite constraints
+  // are added successfully (as seen by returning APPLIED_NOOP).
+  EXPECT_EQ(GraphSimplifier::APPLIED_NOOP, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_NOOP, s.DoSimplificationStep());
+
+  // Attempts to add the following constraints are successful:
+  //
+  // t5-t6 before t2-t4
+  // t5-t7 before t2-t4
+  // t5-t6 before {t1,t4}-t5
+  // t5-t7 before {t1,t4}-t5
+  // t5-t6 before t5-t7
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+  EXPECT_EQ(GraphSimplifier::APPLIED_SIMPLIFICATION, s.DoSimplificationStep());
+
+  // Nothing more to simplify.
+  EXPECT_EQ(GraphSimplifier::NO_SIMPLIFICATION_POSSIBLE,
+            s.DoSimplificationStep());
+
+  // Verify that the simplified graph is consistent.
+  TrivialReceiver receiver(g, &mem_root, /*subgraph_pair_limit=*/-1);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g.graph, &receiver));
+  EXPECT_EQ(7, receiver.seen_nodes);
+  EXPECT_EQ(6, receiver.seen_subgraph_pairs);
+  EXPECT_TRUE(receiver.HasSeen(0b1111111));
 }
 
 static void CreateStarJoin(THD *thd, int graph_size, std::mt19937 *engine,
