@@ -1025,27 +1025,41 @@ function get_response(stmt_key, options) {
       };
     case "router_clusterset_all_nodes":
       return {
-        stmt:
-            "select i.address from mysql_innodb_cluster_metadata.v2_instances i where i.cluster_id in " +
-            "(select cluster_id from mysql_innodb_cluster_metadata.v2_cs_members where clusterset_id = (" +
-            "select clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members where cluster_id = '" +
+        stmt: "SELECT i.address, csm.member_role FROM " +
+            "FROM mysql_innodb_cluster_metadata.v2_instances i " +
+            "LEFT JOIN mysql_innodb_cluster_metadata.v2_cs_members csm " +
+            "ON i.cluster_id = csm.cluster_id " +
+            "WHERE i.cluster_id IN ( " +
+            "   SELECT cluster_id " +
+            "   FROM mysql_innodb_cluster_metadata.v2_cs_members " +
+            "   WHERE clusterset_id = " +
+            "      (SELECT clusterset_id " +
+            "       FROM mysql_innodb_cluster_metadata.v2_cs_members " +
+            "       WHERE cluster_id = '" +
             options.clusterset_data
                 .clusters[options.clusterset_target_cluster_id]
                 .uuid +
-            "'))",
+            "') )",
         result: {
           columns: [
             {"type": "STRING", "name": "i.address"},
+            {"type": "STRING", "name": "csm.member_role"},
           ],
 
           rows: options.clusterset_data.clusters
                     .reduce(
                         function(nodes, cluster) {
+                          var cluster_nodes = cluster.nodes;
+                          for (var i = 0; i < cluster_nodes.length; i++) {
+                            cluster_nodes[i].cluster_role = cluster.role;
+                          }
                           return nodes.concat(cluster.nodes);
                         },
                         [])
                     .map(function(node) {
-                      return [node.host + ":" + node.classic_port]
+                      return [
+                        node.host + ":" + node.classic_port, node.cluster_role
+                      ]
                     })
         }
       };

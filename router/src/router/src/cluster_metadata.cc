@@ -830,26 +830,46 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
   result.name = get_string((*result_cluster_info)[2]);
   result.is_primary = get_string((*result_cluster_info)[3]) == "PRIMARY";
 
-  // get all the nodes of all the Clusters that belong to the ClusterSet
+  // get all the nodes of all the Clusters that belong to the ClusterSet;
+  // we want those that belong to the PRIMARY cluster to be first in the
+  // resultset
   sqlstring query2 =
-      "select i.address from mysql_innodb_cluster_metadata.v2_instances i "
-      "where i.cluster_id in (select cluster_id from "
-      "mysql_innodb_cluster_metadata.v2_cs_members where clusterset_id = "
-      "(select clusterset_id from mysql_innodb_cluster_metadata.v2_cs_members "
-      "where cluster_id = ?))";
+      "SELECT i.address, csm.member_role FROM "
+      "FROM mysql_innodb_cluster_metadata.v2_instances i "
+      "LEFT JOIN mysql_innodb_cluster_metadata.v2_cs_members csm "
+      "ON i.cluster_id = csm.cluster_id "
+      "WHERE i.cluster_id IN ( "
+      "   SELECT cluster_id "
+      "   FROM mysql_innodb_cluster_metadata.v2_cs_members "
+      "   WHERE clusterset_id = "
+      "      (SELECT clusterset_id "
+      "       FROM mysql_innodb_cluster_metadata.v2_cs_members "
+      "       WHERE cluster_id = ?) "
+      ")";
 
   query2 << result.cluster_id;
-
+  std::vector<std::string> replica_clusters_nodes;
   try {
-    mysql_->query(
-        query2, [&result](const std::vector<const char *> &row) -> bool {
-          result.metadata_servers.push_back("mysql://" + get_string(row[0]));
-          return true;
-        });
+    mysql_->query(query2,
+                  [&result, &replica_clusters_nodes](
+                      const std::vector<const char *> &row) -> bool {
+                    // we want PRIMARY cluster nodes first, so we put them
+                    // directly in the result list, the non-PRIMARY ones we
+                    // buffer and append to the result at the end
+                    auto &servers = (get_string(row[1]) == "PRIMARY")
+                                        ? result.metadata_servers
+                                        : replica_clusters_nodes;
+                    servers.push_back("mysql://" + get_string(row[0]));
+                    return true;
+                  });
   } catch (const MySQLSession::Error &e) {
     throw std::runtime_error(std::string("Error querying metadata: ") +
                              e.what());
   }
+
+  result.metadata_servers.insert(result.metadata_servers.end(),
+                                 replica_clusters_nodes.begin(),
+                                 replica_clusters_nodes.end());
 
   return result;
 }
