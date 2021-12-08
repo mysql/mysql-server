@@ -71,12 +71,23 @@ DROP TABLE t1, t2, t3, t4;
 
 SET SESSION innodb_strict_mode = ON;
 
-# Redundant table; 1927 bytes with 10 CHAR fields
+# Redundant table; 1978 bytes with 10 CHAR fields
+# Calculation :
+#    6 (extra bytes)
+#    2 * 13 = 26 (fields len) = 2 * n_fields (3 system fields + 10 user fields)
+#    6 + 6 + 7 = 19 (ROW_ID, TRX_ID, ROLL_PTR)
+#    200 * 9 = 1800 (each char(200) field)
+#    127 = (char(127))
+#    T0tal = 1978
+# NOTE : charset latin1 causes each char to have max 1 bytes. If we use default
+#        (utf8_mb4) then each char will need 4 bytes. So char(200) will need
+#        max 800 bytes.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(127)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 DROP TABLE t1;
+# Redundant table; 1979 bytes with 10 CHAR fields
 --replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
@@ -84,12 +95,23 @@ c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(128)
 ) charset latin1 ROW_FORMAT=redundant;
 
-# Compact table; 1955 bytes with 10 CHAR fields
+# Compact table; 1981 bytes with 10 CHAR fields
+# Calculation :
+#    5 (extra bytes)
+#    2 (null bitmap)
+#    6 + 6 + 7 = 19 (ROW_ID, TRX_ID, ROLL_PTR)
+#    200 * 9 = 1800 (each char(200) field)
+#    155 = (char(155))
+#    Total = 1981
+# NOTE : charset latin1 causes each char to have max 1 bytes. If we use default
+#        (utf8_mb4) then each char will need 4 bytes. So char(200) will need
+#        max 800 bytes.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(155)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 DROP TABLE t1;
+# Compact table; 1982 bytes with 10 CHAR fields
 --replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
@@ -339,6 +361,7 @@ DROP TABLE t1;
 # make sure the largest possible key entry can be added to the insert buffer.
 # Make enough records so that the root page is not a leaf page.
 SET SESSION innodb_strict_mode = OFF;
+--replace_regex /> [0-9]*/> max_row_size/
 CREATE TABLE t1(
    pk01 varchar(48), pk02 varchar(48), pk03 varchar(48), pk04 varchar(48),
    pk05 varchar(48), pk06 varchar(48), pk07 varchar(48), pk08 varchar(48),
