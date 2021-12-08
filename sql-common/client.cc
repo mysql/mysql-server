@@ -5748,7 +5748,7 @@ static mysql_state_machine_status authsm_init_multi_auth(
     set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
                              unknown_sqlstate,
                              ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
-                             ctx->auth_plugin->name, "plugin not available");
+                             ctx->auth_plugin_name, "plugin not available");
     return STATE_MACHINE_FAILED;
   }
   if (mysql->options.extension) {
