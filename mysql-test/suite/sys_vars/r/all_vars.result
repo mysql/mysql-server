@@ -165,5 +165,7 @@ terminology_use_previous
 tls_ciphersuites
 tls_ciphersuites
 use_secondary_engine
+xa_detach_on_prepare
+xa_detach_on_prepare
 drop table t1;
 drop table t2;

@@ -165,7 +165,8 @@ class Sql_cmd_xa_commit : public Sql_cmd {
 
  private:
   bool trans_xa_commit(THD *thd);
-  bool process_external_xa_commit(THD *thd, xid_t *xid, XID_STATE *xid_state);
+  bool process_external_xa_commit(THD *thd, xid_t *xid,
+                                  XID_STATE *thd_xid_state);
   bool process_internal_xa_commit(THD *thd, XID_STATE *xid_state);
 
   xid_t *m_xid;
@@ -394,7 +395,7 @@ class XID_STATE {
 
   /// Used by external XA only
   xa_states xa_state;
-  bool in_recovery;
+  bool m_is_detached = false;
   /// Error reported by the Resource Manager (RM) to the Transaction Manager.
   uint rm_error;
   /*
@@ -408,11 +409,7 @@ class XID_STATE {
   bool m_is_binlogged;
 
  public:
-  XID_STATE()
-      : xa_state(XA_NOTR),
-        in_recovery(false),
-        rm_error(0),
-        m_is_binlogged(false) {
+  XID_STATE() : xa_state(XA_NOTR), rm_error(0), m_is_binlogged(false) {
     m_xid.null();
   }
 
@@ -453,7 +450,7 @@ class XID_STATE {
   void reset() {
     xa_state = XA_NOTR;
     m_xid.null();
-    in_recovery = false;
+    m_is_detached = false;
     m_is_binlogged = false;
   }
 
@@ -461,19 +458,19 @@ class XID_STATE {
     assert(m_xid.is_null());
     xa_state = XA_ACTIVE;
     m_xid.set(xid);
-    in_recovery = false;
+    m_is_detached = false;
     rm_error = 0;
   }
 
-  void start_recovery_xa(const XID *xid, bool binlogged_arg = false) {
+  void start_detached_xa(const XID *xid, bool binlogged_arg = false) {
     xa_state = XA_PREPARED;
     m_xid.set(xid);
-    in_recovery = true;
+    m_is_detached = true;
     rm_error = 0;
     m_is_binlogged = binlogged_arg;
   }
 
-  bool is_in_recovery() const { return in_recovery; }
+  bool is_detached() const { return m_is_detached; }
 
   bool is_binlogged() const { return m_is_binlogged; }
 
@@ -722,4 +719,6 @@ void cleanup_trans_state(THD *thd);
 */
 
 bool xa_trans_force_rollback(THD *thd);
+
+bool disconnect_native_trx(THD *, plugin_ref, void *);
 #endif

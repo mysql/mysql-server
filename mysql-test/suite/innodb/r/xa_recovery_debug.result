@@ -1,6 +1,7 @@
 #
 # Bug#20872655 XA ROLLBACK IS NOT CRASH-SAFE
 #
+SET GLOBAL xa_detach_on_prepare = OFF;
 CREATE TABLE t(a INT PRIMARY KEY, b INT UNIQUE) ENGINE=INNODB;
 XA START 'zombie';
 insert into t(a) values (0);
@@ -21,3 +22,4 @@ SELECT COUNT(*) FROM t;
 COUNT(*)
 0
 DROP TABLE t;
+SET GLOBAL xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;

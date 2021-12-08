@@ -4,7 +4,10 @@
 --echo #
 --echo # Bug#20872655 XA ROLLBACK IS NOT CRASH-SAFE
 --echo #
-
+# Will never reach debug sync point trx_xa_rollback when
+# xa_detach_on_prepare=ON
+--let CURGLOB_xa_detach_on_prepare = `SELECT @@GLOBAL.xa_detach_on_prepare`
+SET GLOBAL xa_detach_on_prepare = OFF;
 CREATE TABLE t(a INT PRIMARY KEY, b INT UNIQUE) ENGINE=INNODB;
 connect (con1,localhost,root);
 XA START 'zombie';
@@ -27,3 +30,5 @@ disconnect con1;
 XA COMMIT 'zombie';
 SELECT COUNT(*) FROM t;
 DROP TABLE t;
+--replace_result $CURGLOB_xa_detach_on_prepare OLD_VALUE_xa_detach_on_prepare
+--eval SET GLOBAL xa_detach_on_prepare = $CURGLOB_xa_detach_on_prepare

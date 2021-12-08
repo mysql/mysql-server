@@ -7343,6 +7343,16 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl) {
 
   TABLE *table = find_temporary_table(thd, tl);
 
+  // Access to temporary tables is disallowed in XA transactions in
+  // xa_detach_on_prepare=ON mode.
+  if ((tl->open_type == OT_TEMPORARY_ONLY ||
+       (table && table->s->tmp_table != NO_TMP_TABLE)) &&
+      is_xa_tran_detached_on_prepare(thd) &&
+      thd->get_transaction()->xid_state()->check_in_xa(false)) {
+    my_error(ER_XA_TEMP_TABLE, MYF(0));
+    return true;
+  }
+
   if (!table) {
     if (tl->open_type == OT_TEMPORARY_ONLY &&
         tl->open_strategy == TABLE_LIST::OPEN_NORMAL) {

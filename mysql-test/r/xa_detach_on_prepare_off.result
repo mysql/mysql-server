@@ -1,3 +1,5 @@
+SET GLOBAL xa_detach_on_prepare = false;
+SET SESSION xa_detach_on_prepare = false;
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 xa start 'test1';
@@ -529,3 +531,5 @@ formatID	gtrid_length	bqual_length	data
 12345	6	6	0x1A2B3C4D5E6FF6E5D4C3B2A1
 XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
 DROP TABLE t1;
+SET GLOBAL xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;
+SET SESSION xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;

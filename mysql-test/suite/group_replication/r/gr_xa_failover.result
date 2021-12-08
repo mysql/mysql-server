@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
+
+############################################################
+# 1. Bootstrap a group with server1 as the primary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 2. Join server2 to the group.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Do the XA PREPARE on the initial primary (server1)
+[connection server1]
+FLUSH LOGS;
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+include/rpl_sync.inc
+
+############################################################
+# 4. server1 will leave the group, server2 will be elected
+#    primary.
+#    The client session that did the XA PREPARE will remain
+#    active.
+[connection server1]
+include/stop_group_replication.inc
+
+############################################################
+# 5. server2 is the new primary, the XA transaction will be
+#    resumed on it.
+#    This mimics a load balancer behavior.
+[connection server2]
+XA COMMIT '1';
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 6. server1 rejoins the group, now as a secondary, it will
+#    receive the XA COMMIT through distributed recovery.
+[connection server1]
+include/start_group_replication.inc
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 7. Clean up.
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

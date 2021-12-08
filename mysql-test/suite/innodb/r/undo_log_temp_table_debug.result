@@ -2,6 +2,9 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 call mtr.add_suppression("Found .* prepared XA transactions");
 set global innodb_file_per_table = off;
+# The use of temporary tables inside XA transactions is only permitted
+# when xa_detach_on_prepare is OFF.
+SET SESSION xa_detach_on_prepare = OFF;
 create temporary table t1 (i int) engine=innodb;
 create table t2 (i int) engine=innodb;
 insert into t2 values (301);
@@ -25,6 +28,7 @@ select * from t2;
 i
 301
 drop table t2;
+SET SESSION xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;
 use test;
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;

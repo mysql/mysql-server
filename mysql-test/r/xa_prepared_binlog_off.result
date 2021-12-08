@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
 call mtr.add_suppression("You need to use --log-bin to make --log-replica-updates work.");
 include/gtid_utils.inc
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';

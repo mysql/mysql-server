@@ -1,152 +1,148 @@
 #
-# WL#1756
-#
+# This test is a "port" of the basic xa functionality test xa.test modified and
+# adapted to run with xa_detach_on_prepare=on. It also includes a few testcases
+# specific to this mode, e.g. making sure it is possible to start new
+# transactions (normal or XA) after XA PREPARE, and that it is possible to pick
+# up an XA transaction from a connection which is still active.
+
+# Test requires --xa_detach_on_prepare
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
-create table t1 (a int) engine=innodb;
-xa start 'test1';
-insert t1 values (10);
-xa end 'test1';
-xa prepare 'test1';
-xa rollback 'test1';
-select * from t1;
+--echo # Make it easier to trace connections changes
+--enable_connect_log
 
-xa start 'test2';
+--echo # Simple rollback after prepare
+CREATE TABLE t1 (a INT);
+XA START 'test1';
+INSERT INTO t1 VALUES (10);
+XA END 'test1';
+XA PREPARE 'test1';
+XA ROLLBACK 'test1';
+SELECT * FROM t1;
+
+--echo # Verify that new XA trx cannot be started before XA PREPARE
+XA START 'test2';
 --error ER_XAER_RMFAIL
-xa start 'test-bad';
-insert t1 values (20);
+XA START 'test-bad';
+INSERT INTO t1 VALUES (20);
 --error ER_XAER_RMFAIL
-xa prepare 'test2';
-xa end 'test2';
-xa prepare 'test2';
-xa commit 'test2';
-select * from t1;
+XA PREPARE 'test2';
+XA END 'test2';
+XA PREPARE 'test2';
+XA COMMIT 'test2';
+SELECT * FROM t1;
 
-xa start 'testa','testb';
-insert t1 values (30);
-
---error ER_XAER_RMFAIL
-commit;
-
-xa end 'testa','testb';
+--echo # Verify that COMMIT, BEGIN and CREATE TABLE is disallowed inside XA trx.
+XA START 'testa','testb';
+INSERT INTO t1 VALUES (30);
 
 --error ER_XAER_RMFAIL
-begin;
---error ER_XAER_RMFAIL
-create table t2 (a int);
+COMMIT;
 
-connect (con1,localhost,root,,);
-connection con1;
+XA END 'testa','testb';
+
+--error ER_XAER_RMFAIL
+BEGIN;
+--error ER_XAER_RMFAIL
+CREATE TABLE t2 (a INT);
+
+--echo # Test parallel XA trx on a different connection
+--connect (con1,localhost,root,,)
 
 --error ER_XAER_DUPID
-xa start 'testa','testb';
+XA START 'testa','testb';
 --error ER_XAER_DUPID
-xa start 'testa','testb', 123;
+XA START 'testa','testb', 123;
 
 #        gtrid [ , bqual [ , formatID ] ]
-xa start 0x7465737462, 0x2030405060, 0xb;
-insert t1 values (40);
-xa end 'testb',' 0@P`',11;
-xa prepare 'testb',0x2030405060,11;
+XA START 0x7465737462, 0x2030405060, 0xb;
+INSERT INTO t1 VALUES (40);
+XA END 'testb',' 0@P`',11;
+XA PREPARE 'testb',0x2030405060,11;
 
---error ER_XAER_RMFAIL
-start transaction;
-
---sorted_result
-xa recover;
-
-# uncomment the line below when binlog will be able to prepare
-#disconnect con1;
-connection default;
-
-xa prepare 'testa','testb';
+--echo # Show that it is possible to start new transaction after XA PREPARE
+START TRANSACTION;
+INSERT INTO t1 VALUES (42);
+COMMIT WORK;
 
 --sorted_result
-xa recover;
+XA RECOVER;
 
-# When this connection has already started an own XA transaction
-# it cannot execute XA COMMIT for another XA.
---error ER_XAER_RMFAIL
-xa commit 'testb',0x2030405060,11;
-# nor XA ROLLBACK on "foreign" XA.
---error ER_XAER_RMFAIL
-xa rollback 'testb',0x2030405060,11;
-xa rollback 'testa','testb';
+--connection default
 
-# "Foreign" XA is not in an allowed state to be committed
+XA PREPARE 'testa','testb';
+
+--sorted_result
+XA RECOVER;
+
+--echo # Can commit prepared XA trx from other connection
+XA COMMIT 'testb',0x2030405060,11;
+
+XA ROLLBACK 'testa','testb';
+
+--echo # XA trx from other connection not found (already committed)
 --error ER_XAER_NOTA
-xa commit 'testb',0x2030405060,11;
-# nor be rolled back
---error ER_XAER_NOTA
-xa rollback 'testb',0x2030405060,11;
+XA COMMIT 'testb',0x2030405060,11;
 
---error ER_PARSE_ERROR
-xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
+SELECT * FROM t1;
 
-select * from t1;
+DROP TABLE t1;
 
 --connection con1
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
-xa recover;
-xa rollback 'testb',0x2030405060,11;
-drop table t1;
 
 #
 # Bug#28323: Server crashed in xid cache operations
 #
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
+CREATE TABLE t1(a INT, b INT, c VARCHAR(20), PRIMARY KEY(a));
+INSERT INTO t1 VALUES (1, 1, 'a');
+INSERT INTO t1 VALUES (2, 2, 'b');
 
-create table t1(a int, b int, c varchar(20), primary key(a)) engine = innodb;
-insert into t1 values(1, 1, 'a');
-insert into t1 values(2, 2, 'b');
-
-connect (con1,localhost,root,,);
-connect (con2,localhost,root,,);
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
 
 --connection con1
-xa start 'a','b';
-update t1 set c = 'aa' where a = 1;
+XA START 'a','b';
+UPDATE t1 SET c = 'aa' WHERE a = 1;
 --connection con2
-xa start 'a','c';
-update t1 set c = 'bb' where a = 2;
+XA START 'a','c';
+UPDATE t1 SET c = 'bb' WHERE a = 2;
 --connection con1
---send update t1 set c = 'bb' where a = 2
+--send UPDATE t1 SET c = 'bb' WHERE a = 2
 --connection con2
 --sleep 1
 --error ER_LOCK_DEADLOCK
-update t1 set c = 'aa' where a = 1;
+UPDATE t1 SET c = 'aa' WHERE a = 1;
 --error ER_XA_RBDEADLOCK
-select count(*) from t1;
+SELECT COUNT(*) FROM t1;
 --error ER_XA_RBDEADLOCK
-xa end 'a','c';
-xa rollback 'a','c';
+XA END 'a','c';
+XA ROLLBACK 'a','c';
 --disconnect con2
 
-connect (con3,localhost,root,,);
+--connect (con3,localhost,root,,)
 --connection con3
-xa start 'a','c';
+XA START 'a','c';
 --connection con1
 --reap
 --disconnect con1
 --disconnect con3
 --connection default
-drop table t1;
+DROP TABLE t1;
 
 --echo #
 --echo # BUG#51342 - more xid crashing
 --echo #
-CREATE TABLE t1(a INT) ENGINE=InnoDB;
+CREATE TABLE t1(a INT);
 XA START 'x';
 SET SESSION autocommit=0;
 INSERT INTO t1 VALUES(1);
@@ -159,53 +155,51 @@ XA COMMIT 'x' ONE PHASE;
 DROP TABLE t1;
 SET SESSION autocommit=1;
 
---echo End of 5.0 tests
-
 #
 # Bug#44672: Assertion failed: thd->transaction.xid_state.xid.is_null()
 #
 
-xa start 'a';
-xa end 'a';
-xa rollback 'a';
-xa start 'a';
-xa end 'a';
-xa rollback 'a';
+XA START 'a';
+XA END 'a';
+XA ROLLBACK 'a';
+XA START 'a';
+XA END 'a';
+XA ROLLBACK 'a';
 
 #
 # Bug#45548: XA transaction without access to InnoDB tables crashes the server
 #
 
-xa start 'a';
-xa end 'a';
-xa prepare 'a';
-xa commit 'a';
+XA START 'a';
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
 
-xa start 'a';
-xa end 'a';
-xa prepare 'a';
-xa commit 'a';
+XA START 'a';
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
 
 #
 # BUG#43171 - Assertion failed: thd->transaction.xid_state.xid.is_null()
 #
-CREATE TABLE t1(a INT, KEY(a)) ENGINE=InnoDB;
+CREATE TABLE t1(a INT, KEY(a));
 INSERT INTO t1 VALUES(1),(2);
-connect(con1,localhost,root,,);
+--connect(con1,localhost,root,,)
 
 # Part 1: Prepare to test XA START after regular transaction deadlock
 BEGIN;
 UPDATE t1 SET a=3 WHERE a=1;
 
-connection default;
+--connection default
 BEGIN;
 UPDATE t1 SET a=4 WHERE a=2;
 
-connection con1;
+--connection con1
 let $conn_id= `SELECT CONNECTION_ID()`;
 SEND UPDATE t1 SET a=5 WHERE a=2;
 
-connection default;
+--connection default
 let $wait_timeout= 2;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID=$conn_id AND STATE='Searching rows for update';
@@ -216,20 +210,20 @@ UPDATE t1 SET a=5 WHERE a=1;
 ROLLBACK;
 
 # Part 2: Prepare to test XA START after XA transaction deadlock
-connection con1;
+--connection con1
 REAP;
 ROLLBACK;
 BEGIN;
 UPDATE t1 SET a=3 WHERE a=1;
 
-connection default;
+--connection default
 XA START 'xid1';
 UPDATE t1 SET a=4 WHERE a=2;
 
-connection con1;
+--connection con1
 SEND UPDATE t1 SET a=5 WHERE a=2;
 
-connection default;
+--connection default
 let $wait_timeout= 2;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID=$conn_id AND STATE='Searching rows for update';
@@ -245,11 +239,11 @@ XA START 'xid1';
 XA END 'xid1';
 XA ROLLBACK 'xid1';
 
-connection con1;
+--connection con1
 REAP;
-disconnect con1;
+--disconnect con1
 
-connection default;
+--connection default
 DROP TABLE t1;
 
 
@@ -273,27 +267,20 @@ XA ROLLBACK 'x';
 --echo # Bug#59986 Assert in Diagnostics_area::set_ok_status() for XA COMMIT
 --echo #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) engine=InnoDB;
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a));
 INSERT INTO t1 VALUES (1, 1), (2, 2);
 
---echo # Connection con1
-connect (con1, localhost, root);
+--connect (con1, localhost, root)
 XA START 'a';
 UPDATE t1 SET b= 3 WHERE a=1;
 
---echo # Connection default
-connection default;
+--connection default
 XA START 'b';
 UPDATE t1 SET b=4 WHERE a=2;
 --echo # Sending:
 --send UPDATE t1 SET b=5 WHERE a=1
 
---echo # Connection con1
-connection con1;
+--connection con1
 --sleep 1
 --error ER_LOCK_DEADLOCK
 UPDATE t1 SET b=6 WHERE a=2;
@@ -301,14 +288,13 @@ UPDATE t1 SET b=6 WHERE a=2;
 --error ER_XA_RBDEADLOCK
 XA COMMIT 'a';
 
---echo # Connection default
-connection default;
+--connection default
 --echo # Reaping: UPDATE t1 SET b=5 WHERE a=1
 --reap
 XA END 'b';
 XA ROLLBACK 'b';
 DROP TABLE t1;
-disconnect con1;
+--disconnect con1
 
 
 --echo #
@@ -316,7 +302,7 @@ disconnect con1;
 --echo #              statement fuzzer
 --echo #
 
-CREATE TABLE t1 (a INT) engine=InnoDB;
+CREATE TABLE t1 (a INT);
 XA START 'a';
 INSERT INTO t1 VALUES (1);
 
@@ -333,19 +319,17 @@ SAVEPOINT savep;
 SET @a=(SELECT * FROM t1);
 
 XA PREPARE 'a';
---error ER_XAER_RMFAIL
-SELECT * FROM t1;          # used to cause InnoDB assert
---error ER_XAER_RMFAIL
-INSERT INTO t1 VALUES (2); # used to cause InnoDB assert
---error ER_XAER_RMFAIL
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (2);
 SAVEPOINT savep;
---error ER_XAER_RMFAIL
-SET @a=(SELECT * FROM t1); # used to cause InnoDB assert
---error ER_XAER_RMFAIL
-UPDATE t1 SET a=1 WHERE a=2;
+#SET @a=(SELECT * FROM t1);
+#UPDATE t1 SET a=1 WHERE a=2;
 
 XA COMMIT 'a';
 SELECT * FROM t1;
+--error ER_SUBQUERY_NO_1_ROW
+SET @a=(SELECT * FROM t1);
+UPDATE t1 SET a=1 WHERE a=2;
 DROP TABLE t1;
 
 
@@ -362,11 +346,7 @@ DROP TABLE t1;
 # 3. connection default tries to obtain LOCK_X on the record which causes
 #    a cycle, which is resolved by choosing con2 as a victim.
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
 
 START TRANSACTION;
@@ -374,7 +354,6 @@ START TRANSACTION;
 # Step 1.
 SELECT a FROM t1 WHERE a=1 FOR SHARE;
 
---echo # Connection con2
 --connect (con2,localhost,root)
 XA START 'xid1';
 --echo # Sending:
@@ -382,7 +361,6 @@ XA START 'xid1';
 # Step 2.
 --send SELECT a FROM t1 WHERE a=1 FOR UPDATE
 
---echo # Connection default
 --connection default
 --echo # Waiting for until a transaction with 'SELECT...FOR UPDATE'
 --echo # will be locked inside innodb subsystem.
@@ -397,7 +375,6 @@ let $wait_condition=
 # Step 3.
 SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 
---echo # Connection con2
 --connection con2
 --echo # Reaping: SELECT a FROM t1 WHERE a=1 FOR UPDATE
 --error ER_LOCK_DEADLOCK
@@ -405,13 +382,11 @@ SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 --error ER_XA_RBDEADLOCK
 XA COMMIT 'xid1';
 
---echo # Connection default
-connection default;
+--connection default
 
 COMMIT;
 
---echo # Connection con2
-connection con2;
+--connection con2
 # This caused the assert to be triggered
 XA START 'xid1';
 
@@ -419,10 +394,9 @@ XA END 'xid1';
 XA PREPARE 'xid1';
 XA ROLLBACK 'xid1';
 
---echo # Connection default
-connection default;
+--connection default
 DROP TABLE t1;
-disconnect con2;
+--disconnect con2
 
 
 # Wait till all disconnects are completed
@@ -440,21 +414,21 @@ disconnect con2;
 
 --echo # Check that XIDs which are not normally printable are displayed
 --echo # in readable format when CONVERT XID clause is used.
-xa start 0xABCDEF1234567890, 0x01, 0x02 ;
-xa end 0xABCDEF1234567890, 0x01, 0x02 ;
-xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+XA START 0xABCDEF1234567890, 0x01, 0x02 ;
+XA END 0xABCDEF1234567890, 0x01, 0x02 ;
+XA PREPARE 0xABCDEF1234567890, 0x01, 0x02 ;
 --sorted_result
-xa recover convert xid;
-xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
+XA RECOVER convert xid;
+XA ROLLBACK 0xABCDEF1234567890, 0x01, 0x02 ;
 
 --echo # Check that XID which has only printable characters are displayed
 --echo # correctly without using of CONVERT XID clause
-xa start 0x4142434445, 0x46, 0x02 ;
-xa end 0x4142434445, 0x46, 0x02 ;
-xa prepare 0x4142434445, 0x46, 0x02 ;
+XA START 0x4142434445, 0x46, 0x02 ;
+XA END 0x4142434445, 0x46, 0x02 ;
+XA PREPARE 0x4142434445, 0x46, 0x02 ;
 --sorted_result
-xa recover;
-xa rollback 0x4142434445, 0x46, 0x02 ;
+XA RECOVER;
+XA ROLLBACK 0x4142434445, 0x46, 0x02 ;
 
 --disable_query_log
 call mtr.add_suppression("Found 1 prepared XA transactions");
@@ -466,16 +440,16 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 --echo # transaction branch (see ref. 3.6 on page 18 of XA spec)
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 CREATE TABLE t1 (a INT) ENGINE=INNODB;
 XA START 'xid1';
 INSERT INTO t1 VALUES (1);
 XA END 'xid1';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -486,7 +460,7 @@ DROP TABLE t1;
 --echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 SET SESSION autocommit=0;
 START TRANSACTION;
@@ -494,9 +468,9 @@ START TRANSACTION;
 XA START 'xid1';
 COMMIT;
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 3: Check that the Resource Manager returns error
@@ -512,16 +486,16 @@ XA START 'xid1' RESUME;
 --echo # that has been ended before.
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 XA END 'xid1';
 XA START 'xid1' RESUME;
 XA END 'xid1';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 5: Check that the Resource Manager returns error
@@ -529,76 +503,76 @@ connection default;
 --echo # starts another one with RESUME clause right after that.
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 XA END 'xid1';
 --error ER_XAER_NOTA
 XA START 'xid2' RESUME;
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END.
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 --error ER_XAER_INVAL
 XA END 'xid1' SUSPEND;
 XA END 'xid1';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction
 --echo # while another XA transaction is active leads to an error
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 --error ER_XAER_NOTA
 XA END 'xid2';
 XA END 'xid1';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 8: Check that XA ROLLBACK can't be called for active XA transaction
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 --error ER_XAER_RMFAIL
 XA ROLLBACK 'xid1';
 XA END 'xid1';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 9: Check that XA PREPARE returns error for unknown xid
 --echo #
 
-connect (con1,localhost,root,,);
+--connect (con1,localhost,root,,)
 
 XA START 'xid1';
 XA END 'xid1';
 --error ER_XAER_NOTA
 XA PREPARE 'xid2';
 
-disconnect con1;
+--disconnect con1
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 --echo #
 --echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid
@@ -608,9 +582,40 @@ connection default;
 XA START 'xid1';
 XA END 'xid1';
 XA PREPARE 'xid1';
---error ER_XAER_RMFAIL
+--error ER_XAER_NOTA
 XA ROLLBACK 'xid2';
 XA ROLLBACK 'xid1';
+
+--echo #
+--echo # Behavior of XA transaction when autocommit = OFF
+--echo #
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1);
+SET SESSION autocommit = OFF;
+XA START 'xid3';
+INSERT INTO t1 VALUES (2);
+XA END 'xid3';
+XA PREPARE 'xid3';
+--echo # XA COMMIT/ROLLBACK is ok as we are not in active multi-statement
+--echo # transaction immediately after XA PRPEARE
+XA ROLLBACK 'xid3';
+
+XA START 'xid4';
+INSERT INTO t1 VALUES (3);
+XA END 'xid4';
+XA PREPARE 'xid4';
+--echo # This starts another multi-statement transaction
+INSERT INTO t1 VALUES (4);
+--echo # Which causes XA COMMIT/ROLLBACK to fail
+--error ER_XAER_RMFAIL
+XA COMMIT 'xid4';
+ROLLBACK WORK;
+--echo # After ending multi-statement transaction, we can again commit
+--echo # XA transaction
+XA COMMIT 'xid4';
+SELECT * FROM t1 ORDER BY i;
+SET SESSION autocommit = DEFAULT;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
@@ -628,52 +633,53 @@ XA START '1', 0x01, 18446744073709551615;
 
 --echo # Check XA state when lock_wait_timeout happens
 --echo # More tests added to flush_read_lock.test
-connect (con_tmp,localhost,root,,);
-set session lock_wait_timeout=1;
-create table asd (a int);
-xa start 'test1';
-insert into asd values(1);
-xa end 'test1';
-connection default;
-flush table with read lock;
-connection con_tmp;
+--connect (con_tmp,localhost,root,,)
+SET SESSION lock_wait_timeout=1;
+CREATE TABLE asd (a INT);
+XA START 'test1';
+INSERT INTO asd VALUES (1);
+XA END 'test1';
+
+--connection default
+FLUSH TABLE WITH READ LOCK;
+--connection con_tmp
 --echo # PREPARE error will do auto rollback.
 --ERROR ER_LOCK_WAIT_TIMEOUT
-xa prepare 'test1';
-show errors;
-connection default;
-unlock tables;
+XA PREPARE 'test1';
+SHOW ERRORS;
+--connection default
+UNLOCK TABLES;
 
-connection con_tmp;
-xa start 'test1';
-insert into asd values(1);
-xa end 'test1';
-xa prepare 'test1';
-connection default;
-flush tables with read lock;
-connection con_tmp;
+--connection con_tmp
+XA START 'test1';
+INSERT INTO asd VALUES (1);
+XA END 'test1';
+XA PREPARE 'test1';
+--connection default
+FLUSH TABLES WITH READ LOCK;
+--connection con_tmp
 --echo # LOCK error during ROLLBACK will not alter transaction state.
---ERROR ER_LOCK_WAIT_TIMEOUT
-xa rollback 'test1';
-show errors;
+--error ER_LOCK_WAIT_TIMEOUT
+XA ROLLBACK 'test1';
+SHOW ERRORS;
 --sorted_result
-xa recover;
+XA RECOVER;
 --echo # LOCK error during COMMIT will not alter transaction state.
---ERROR ER_LOCK_WAIT_TIMEOUT
-xa commit 'test1';
-show errors;
+--error ER_LOCK_WAIT_TIMEOUT
+XA COMMIT 'test1';
+SHOW ERRORS;
 --sorted_result
-xa recover;
-connection default;
-unlock tables;
-connection con_tmp;
-xa rollback 'test1';
+XA RECOVER;
+--connection default
+UNLOCK TABLES;
+--connection con_tmp
+XA ROLLBACK 'test1';
 --sorted_result
-xa recover;
-drop table asd;
-disconnect con_tmp;
+XA RECOVER;
+DROP TABLE asd;
+--disconnect con_tmp
 --source include/wait_until_disconnected.inc
-connection default;
+--connection default
 
 # Finish off  disconnected survived transaction
 --echo There should be practically no error, but in theory
@@ -818,6 +824,8 @@ XA RECOVER;
 # 'XA ROLLBACK 'xid1'' failed: 1399: XAER_RMFAIL: The command cannot be
 # executed when global transaction is in the  NON-EXISTING state
 XA ROLLBACK 'xid1';
+SET autocommit = DEFAULT;
+
 
 --echo #
 --echo # BUG 31030205 - XA PREPARED TXN WILL STAY AS "RECOVERED TRX" IF ROLLBACK
@@ -841,3 +849,329 @@ XA ROLLBACK X'1A2B3C4D5E6F',X'F6E5D4C3B2A1',12345;
 DROP TABLE t1;
 --disconnect con2
 --source include/wait_until_disconnected.inc
+--connection default
+
+--echo # Verify that temporary tables are rejected
+CREATE TEMPORARY TABLE temp1(i INT);
+XA START 'xa1';
+--error ER_XA_TEMP_TABLE
+INSERT INTO temp1 VALUES (1),(2),(3);
+XA END 'xa1';
+XA ROLLBACK 'xa1';
+
+XA START 'xa2';
+--error ER_XA_TEMP_TABLE
+CREATE TEMPORARY TABLE temp2(i INT);
+XA END 'xa2';
+XA ROLLBACK 'xa2';
+
+XA START 'xa3';
+--error ER_XA_TEMP_TABLE
+SELECT * FROM temp1;
+XA END 'xa3';
+XA ROLLBACK 'xa3';
+
+--echo # Verify that DROP TEMPORARY TABLE is rejected in XA transaction
+INSERT INTO temp1 VALUES (1),(2),(3);
+XA START 'xa3_';
+--error ER_XA_TEMP_TABLE
+DROP TEMPORARY TABLE temp1;
+XA END 'xa3_';
+XA ROLLBACK 'xa3_';
+
+DROP TEMPORARY TABLE temp1;
+
+
+XA START 'xa4';
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET SESSION xa_detach_on_prepare=OFF;
+XA END 'xa4';
+XA ROLLBACK 'xa4';
+
+
+CREATE TABLE t1(c1 VARCHAR(128));
+
+--echo # Testing XA COMMIT/ROLLBACK on the same connection
+
+--echo # Rolling back basic XA transaction
+connect(xc1,localhost,root,,);
+XA START 'xa1';
+INSERT INTO t1 VALUES ('Inserted by xa1');
+XA END 'xa1';
+XA PREPARE 'xa1';
+XA ROLLBACK 'xa1';
+SELECT * FROM t1;
+
+--disconnect xc1
+--source include/wait_until_disconnected.inc
+--connection default
+
+--echo # Committing basic XA transaction
+--connect(xc2,localhost,root,,)
+XA START 'xa2';
+INSERT INTO t1 VALUES ('Inserted by xa2');
+XA END 'xa2';
+XA PREPARE 'xa2';
+XA COMMIT 'xa2';
+
+--disconnect xc2
+--source include/wait_until_disconnected.inc
+--connection default
+
+--echo # SELECT after prepare
+--connect(xc5,localhost,root,,)
+XA START 'xa5';
+INSERT INTO t1 VALUES ('Inserted by xa5');
+XA END 'xa5';
+XA PREPARE 'xa5';
+SELECT * FROM t1;
+XA COMMIT 'xa5';
+
+--disconnect xc5
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+
+--echo # DML after prepare
+--connect(xc6,localhost,root,,)
+XA START 'xa6';
+INSERT INTO t1 VALUES ('Inserted by xa6');
+XA END 'xa6';
+XA PREPARE 'xa6';
+INSERT INTO t1 VALUES ('Inserted after prepare');
+SELECT * FROM t1;
+XA COMMIT 'xa6';
+
+--disconnect xc6
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+
+--echo # DDL after prepare
+--connect(xc7,localhost,root,,)
+XA START 'xa7';
+INSERT INTO t1 VALUES ('Inserted by xa7');
+XA END 'xa7';
+XA PREPARE 'xa7';
+CREATE TABLE t2(i INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+ALTER TABLE t2 ADD COLUMN j INT;
+INSERT INTO t2 VALUES (4,4),(5,5);
+XA COMMIT 'xa7';
+
+--disconnect xc7
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+--echo # BEGIN WORK after prepare
+--connect(xc8,localhost,root,,)
+XA START 'xa8';
+INSERT INTO t1 VALUES ('Inserted by xa8');
+XA END 'xa8';
+XA PREPARE 'xa8';
+SET SESSION autocommit = OFF;
+BEGIN WORK;
+INSERT INTO t1 VALUES ('Inserted by normal transaction');
+ROLLBACK WORK;
+XA COMMIT 'xa8';
+
+--disconnect xc8
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+
+--echo # SAVEPOINT after prepare
+--connect(xc10,localhost,root,,)
+SET SESSION autocommit=OFF;
+
+XA START 'xa10';
+INSERT INTO t1 VALUES ('Inserted by xa10');
+XA END 'xa10';
+XA PREPARE 'xa10';
+SAVEPOINT s1;
+INSERT INTO t1 VALUES ('Inserted in savepoint s1');
+ROLLBACK TO s1;
+INSERT INTO t1 VALUES ('Inserted by normal transaction');
+COMMIT WORK;
+XA COMMIT 'xa10';
+
+--disconnect xc10
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+
+--echo # HANDLER read after prepare
+--connect(xc11,localhost,root,,)
+XA START 'xa11';
+INSERT INTO t1 VALUES ('Inserted by xa11');
+XA END 'xa11';
+XA PREPARE 'xa11';
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST;
+HANDLER t1 close;
+XA COMMIT 'xa11';
+
+--disconnect xc11
+--source include/wait_until_disconnected.inc
+--connection default
+SELECT * FROM t1;
+
+--echo ### Test XA COMMIT/ROLLBACK from other connection
+
+--echo # Rolling back basic XA transaction from other connection
+--connect(xc3,localhost,root,,)
+XA START 'xa3';
+INSERT INTO t1 VALUES ('Inserted by xa3');
+XA END 'xa3';
+XA PREPARE 'xa3';
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+
+--connect(xc3r,localhost,root,,)
+XA ROLLBACK 'xa3';
+--connection default
+SELECT * FROM t1;
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+
+--connection xc3r
+--disconnect xc3r
+--source include/wait_until_disconnected.inc
+--connection xc3
+--disconnect xc3
+--source include/wait_until_disconnected.inc
+--connection default
+
+--echo # Committing basic XA transaction from other connection
+connect(xc4,localhost,root,,);
+XA START 'xa4';
+INSERT INTO t1 VALUES ('Inserted by xa4');
+XA END 'xa4';
+XA PREPARE 'xa4';
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+
+--connect(xc4c,localhost,root,,)
+XA COMMIT 'xa4';
+--connection default
+SELECT * FROM t1;
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+
+--connection xc4c
+--disconnect xc4c
+--source include/wait_until_disconnected.inc
+
+--connection xc4
+--disconnect xc4
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP TABLE t1;
+
+--echo # Select-only transaction
+CREATE TABLE t1(d VARCHAR(128));
+INSERT INTO t1 VALUES ('Row 1'), ('Row 2');
+
+--echo # connect(con3)
+--connect(con3,localhost,root,,)
+XA START 'xa3';
+SELECT * FROM t1;
+XA END 'xa3';
+XA PREPARE 'xa3';
+XA START 'xa3x';
+SELECT d FROM t1;
+XA END 'xa3x';
+XA PREPARE 'xa3x';
+
+--echo # disconnect(con3)
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--echo # connection default
+--connection default
+
+XA ROLLBACK 'xa3';
+XA COMMIT 'xa3x';
+DROP TABLE t1;
+
+--echo # Check that the necessary privileges are required for modifying the sysvar
+CREATE USER xau;
+--connect(con4,localhost,xau,,)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET xa_detach_on_prepare = OFF;
+--disconnect con4
+--source include/wait_until_disconnected.inc
+
+--connection default
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO xau;
+
+--connect(con5,localhost,xau,,)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET xa_detach_on_prepare = OFF;
+--disconnect con5
+--source include/wait_until_disconnected.inc
+
+--connection default
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO xau;
+--connect(con6,localhost,xau,,)
+SET xa_detach_on_prepare = OFF;
+--disconnect con6
+--source include/wait_until_disconnected.inc
+
+--connection default
+DROP USER xau;
+
+
+--echo # Check that the set of XA transactions after restart
+
+--echo # Normal modifying transaction
+CREATE TABLE t7(i INT);
+connect(con7,localhost,root,,);
+XA START 'xa7';
+INSERT INTO t7 VALUES (1),(2),(3);
+XA END 'xa7';
+XA PREPARE 'xa7';
+
+--disconnect con7
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+XA RECOVER;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+XA RECOVER;
+XA ROLLBACK 'xa7';
+SELECT * FROM t7;
+DROP TABLE t7;
+
+--echo # Pure select transaction (optimized away in Innodb)
+--echo # This optimization is non-std and may change in the future.
+CREATE TABLE t8(i INT);
+INSERT INTO t8 VALUES (1),(2),(3);
+connect(con8,localhost,root,,);
+XA START 'xa8';
+SELECT * FROM t8;
+XA END 'xa8';
+XA PREPARE 'xa8';
+
+--disconnect con8
+--source include/wait_until_disconnected.inc
+
+--connection default
+
+XA RECOVER;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+XA RECOVER;
+--error ER_XAER_NOTA
+XA ROLLBACK 'xa8';
+DROP TABLE t8;
+
+--disable_connect_log

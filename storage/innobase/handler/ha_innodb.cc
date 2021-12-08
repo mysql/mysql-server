@@ -422,6 +422,9 @@ static rec_format_t get_row_format(ulong row_format) {
   }
 }
 
+/** Note that a transaction has been deregistered.
+@param[in]  trx  transaction */
+static void trx_deregister_from_2pc(trx_t *trx);
 static ulong innodb_default_row_format = DEFAULT_ROW_FORMAT_DYNAMIC;
 
 #ifdef UNIV_DEBUG
@@ -2724,11 +2727,26 @@ static void innodb_replace_trx_in_thd(THD *thd, void *new_trx_arg,
     ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
     if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_NOT_STARTED) {
       ut_ad(thd == trx->mysql_thd);
+      ut_ad(!trx_is_registered_for_2pc(trx));
       trx_free_for_mysql(trx);
     } else {
       ut_ad(thd == trx->mysql_thd);
       ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-      trx_disconnect_prepared(trx);
+      /* The choice not to disconnect transaction when
+      trx_is_redo_rseg_updated(trx) is false is copied from
+      the existing detach logic for prepared XA
+      transactions in innobase_close_connection().
+      If transaction did not modify anything, rolling it back doesn't modify
+      the db, but lets us deregister and free the trx object to conserve
+      resources, while still allowing XA COMMIT it in the future, as it
+      succeeds on missing xids. */
+      if (trx_is_redo_rseg_updated(trx)) {
+        trx_disconnect_prepared(trx);
+      } else {
+        trx_rollback_for_mysql(trx);
+        trx_deregister_from_2pc(trx);
+        trx_free_for_mysql(trx);
+      }
     }
   }
   trx = static_cast<trx_t *>(new_trx_arg);
@@ -2740,9 +2758,7 @@ static inline void trx_register_for_2pc(trx_t *trx) /* in: transaction */
   trx->is_registered = true;
 }
 
-/** Note that a transaction has been deregistered. */
-static inline void trx_deregister_from_2pc(trx_t *trx) /* in: transaction */
-{
+static inline void trx_deregister_from_2pc(trx_t *trx) {
   trx->is_registered = false;
 }
 

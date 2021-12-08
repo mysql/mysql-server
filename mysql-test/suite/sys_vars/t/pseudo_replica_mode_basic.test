@@ -22,6 +22,11 @@
 #                                                                             #
 ###############################################################################
 
+# Test semantics require --xa_detach_on_prepare
+--let $option_name = xa_detach_on_prepare
+--let $option_value = 1
+--source include/only_with_option.inc
+
 --source include/load_sysvars.inc
 
 ######################################################################## 
@@ -192,9 +197,7 @@ SET @@session.pseudo_replica_mode = TRUE;
 --error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 SET @@session.pseudo_replica_mode = FALSE;
 XA PREPARE 'xa1';
---error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 SET @@session.pseudo_replica_mode = TRUE;
---error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 SET @@session.pseudo_replica_mode = FALSE;
 XA COMMIT 'xa1';
 SET @@session.pseudo_replica_mode = TRUE;

@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 1]
 SET @session_start_value = @@session.pseudo_replica_mode;
 SELECT @session_start_value;
 @session_start_value
@@ -138,9 +139,9 @@ SET @@session.pseudo_replica_mode = FALSE;
 ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 XA PREPARE 'xa1';
 SET @@session.pseudo_replica_mode = TRUE;
-ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
 SET @@session.pseudo_replica_mode = FALSE;
-ERROR HY000: The system variable pseudo_replica_mode cannot be set when there is an ongoing transaction.
+Warnings:
+Warning	1231	Slave applier execution mode not active, statement ineffective.
 XA COMMIT 'xa1';
 SET @@session.pseudo_replica_mode = TRUE;
 SET @@session.pseudo_replica_mode = FALSE;

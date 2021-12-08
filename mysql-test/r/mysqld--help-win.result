@@ -1606,6 +1606,18 @@ The following options may be given as the first argument:
  inversion optimization for moving window frames also for
  floating values.
  (Defaults to on; use --skip-windowing-use-high-precision to disable.)
+ --xa-detach-on-prepare 
+ When set, XA transactions will be detached (AKA
+ dissociated or disconnected) from connection as part of
+ XA PREPARE. This means that the XA transaction can be
+ committed/rolled back by any connection, even if the
+ starting connection has not terminated, and the starting
+ connection can start new transactions. As a side effect,
+ temporary tables cannot be used inside XA transactions.
+ When disabled, XA transactions are associated with the
+ same connection until the session disconnects. ON is the
+ only safe choice for replication.
+ (Defaults to on; use --skip-xa-detach-on-prepare to disable.)
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -2029,6 +2041,7 @@ validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
 windowing-use-high-precision TRUE
+xa-detach-on-prepare TRUE
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

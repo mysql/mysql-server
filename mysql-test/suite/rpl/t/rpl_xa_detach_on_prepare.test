@@ -1,0 +1,121 @@
+# ==== Purpose ====
+#
+# Validate that when option `xa_detach_on_prepare` is enabled an XA transaction
+# prepared on a source by a client thread becomes detached from that thread and
+# can be committed on another source.
+#
+# ==== Requirements ====
+#
+# R1. It must be possible to commit an XA transaction on a tology node that
+#     is not the node where the transaction was originally prepared at.
+#
+# ==== Implementation ====
+#
+# 0. The test requires 2 servers in an asynchronous circular
+#    replication topology 1->2->1
+#      server1: source of server2
+#      server2: source of server1
+# 1. On server1 enable option `xa_detach_on_prepare` for current session.
+# 2. On server1 create a table.
+# 3. On server1 create and prepare an XA transaction which inserts a value on
+#    the table.
+# 4. On server2 commit the XA transaction.
+# 5. Verify that insert was replicated to server1.
+# 6. Cleanup
+#
+# ==== References ====
+#
+# BUG#31599926: XA COMMIT FAILED WHEN STOP GROUP_REPLICATION WILL LEAD NODE
+#               ERROR
+#
+
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 0. Create asynchronous replication topology between server 1 and 2
+--echo #.
+--let $rpl_server_count= 2
+--let $rpl_topology= 1->2->1
+--source include/rpl_init.inc
+
+--echo #
+--echo # 1. On server1 enable option `xa_detach_on_prepare` for current session.
+--echo #.
+
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@session.xa_detach_on_prepare=1;
+
+--let $assert_text= The value of xa_detach_on_prepare should be 1
+--let $assert_cond= [SELECT @@session.xa_detach_on_prepare] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 2. On server1 create a table.
+--echo #
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 3. On server1 create and prepare an XA transaction which inserts a value on
+--echo #    the table.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+FLUSH LOGS;
+XA START 'trx1';
+INSERT INTO t1 VALUES (1);
+XA END 'trx1';
+XA PREPARE 'trx1';
+--source include/rpl_sync.inc
+
+
+--echo #
+--echo # 4. On server2 commit the XA transaction.
+--echo #
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+XA COMMIT 'trx1';
+XA RECOVER;
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t1
+--source include/wait_condition.inc
+
+--source include/rpl_sync.inc
+
+
+--echo #
+--echo # 5. Verify that insert was replicated to server1.
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*) = 1 FROM t1
+--source include/wait_condition.inc
+
+
+--echo #
+--echo # 6. Clean up
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@session.xa_detach_on_prepare=0;
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+--let $rpl_skip_sync= 1
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -166,6 +166,10 @@ drop table t2;
 drop table t1;
 drop procedure populate_t1_t2;
 drop procedure populate_t1_t2_small;
+# The use of temporary tables in XA transactions is only permitted when
+# xa_detach_on_prepare is OFF.
+SET @saved_xa_detach_on_prepare = @@SESSION.xa_detach_on_prepare;
+SET SESSION xa_detach_on_prepare = OFF;
 create temporary table t1 (i int) engine=innodb;
 create table t2 (i int) engine=innodb;
 insert into t1 values (1);
@@ -253,4 +257,5 @@ i
 3
 drop table t1;
 drop table t2;
+SET SESSION xa_detach_on_prepare = @saved_xa_detach_on_prepare;
 set global innodb_file_per_table=default;

@@ -1,3 +1,4 @@
+SET GLOBAL xa_detach_on_prepare = OFF;
 call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/rpl_init.inc [topology=none]
@@ -806,3 +807,4 @@ SET GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]
 include/rpl_end.inc
+SET GLOBAL xa_detach_on_prepare = OLD_VALUE_xa_detach_on_prepare;

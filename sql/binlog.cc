@@ -2471,7 +2471,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     XID_STATE *xs = thd->get_transaction()->xid_state();
 
     assert(all || !xs->is_binlogged() ||
-           (!xs->is_in_recovery() && thd->is_error()));
+           (!xs->is_detached() && thd->is_error()));
     /*
       Whenever cache_mngr is not initialized, the xa prepared
       transaction's binary logging status must not be set, unless the

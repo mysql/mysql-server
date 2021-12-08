@@ -7472,3 +7472,18 @@ static Sys_var_enum Sys_terminology_use_previous(
     terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
+
+static Sys_var_bool Sys_xa_detatch_on_prepare(
+    "xa_detach_on_prepare",
+    "When set, XA transactions will be detached (AKA dissociated or "
+    "disconnected) from connection as part of XA PREPARE. This means that "
+    "the XA transaction can be committed/rolled back by any connection, "
+    "even if the starting connection has not terminated, and the starting "
+    "connection can start new transactions. As a side effect, temporary "
+    "tables cannot be used inside XA transactions. "
+    "When disabled, XA transactions are associated with the same connection "
+    "until the session disconnects. ON is the only safe choice for "
+    "replication.",
+    HINT_UPDATEABLE SESSION_VAR(xa_detach_on_prepare), CMD_LINE(OPT_ARG),
+    DEFAULT(true), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_session_admin_outside_trx_outside_sf));

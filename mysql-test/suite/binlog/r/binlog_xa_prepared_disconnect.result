@@ -1,3 +1,4 @@
+include/only_with_option.inc [GLOBAL.xa_detach_on_prepare = 0]
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 include/gtid_utils.inc
 RESET MASTER;
