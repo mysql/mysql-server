@@ -8596,6 +8596,13 @@ void handler::ha_set_primary_handler(handler *primary_handler) {
   m_primary_handler = primary_handler;
 }
 
+const handlerton *SecondaryEngineHandlerton(const THD *thd) {
+  if (thd->lex->m_sql_cmd == nullptr) {
+    return nullptr;
+  }
+  return thd->lex->m_sql_cmd->secondary_engine();
+}
+
 /**
   Checks if the database name is reserved word used by SE by invoking
   the handlerton method.

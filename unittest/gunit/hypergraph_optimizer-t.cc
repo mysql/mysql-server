@@ -24,7 +24,9 @@
 #include <gtest/gtest.h>
 #include <math.h>
 #include <string.h>
+
 #include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <regex>
 #include <string>
@@ -45,6 +47,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
+#include "sql/item_sum.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/common_subexpression_elimination.h"
@@ -366,8 +369,9 @@ handlerton *HypergraphTestBase<T>::EnableSecondaryEngine(
   }
   hton->secondary_engine_modify_access_path_cost = nullptr;
 
-  for (const auto &name_and_table : m_fake_tables) {
-    name_and_table.second->file->ht = hton;
+  for (const auto &[name, table] : m_fake_tables) {
+    table->file->ht = hton;
+    static_cast<Fake_TABLE_SHARE *>(table->s)->set_secondary_engine(true);
   }
 
   m_thd->lex->m_sql_cmd->use_secondary_storage_engine(hton);
@@ -5096,6 +5100,47 @@ INSTANTIATE_TEST_SUITE_P(
          {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
          {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
           AccessPath::SORT, false}})));
+
+TEST_F(HypergraphSecondaryEngineTest, NoRewriteOnFinalization) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT SUM(t1.x) FROM t1 GROUP BY t1.y ORDER BY AVG(t1.x)",
+      /*nullable=*/true);
+
+  handlerton *handlerton =
+      EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+  handlerton->secondary_engine_flags |=
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::USE_EXTERNAL_EXECUTOR);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  EXPECT_EQ(AccessPath::SORT, root->type);
+
+  // Verify that finalization was performed.
+  EXPECT_FALSE(query_block->join->needs_finalize);
+
+  // The item in the select list should be a SUM. It would have been an
+  // Item_field pointing into a temporary table if the USE_EXTERNAL_EXECUTOR
+  // flag was not set.
+  auto visible_fields = VisibleFields(*query_block->join->fields);
+  ASSERT_EQ(1, std::distance(visible_fields.begin(), visible_fields.end()));
+  Item *select_list_item = *visible_fields.begin();
+  ASSERT_EQ(Item::SUM_FUNC_ITEM, select_list_item->type());
+  EXPECT_EQ(Item_sum::SUM_FUNC,
+            down_cast<Item_sum *>(select_list_item)->sum_func());
+
+  // The order item should be an AVG. It would have been an Item_field pointing
+  // into a temporary table if the USE_EXTERNAL_EXECUTOR flag was not set.
+  Item *order_item = *query_block->join->order.order->item;
+  ASSERT_EQ(Item::SUM_FUNC_ITEM, order_item->type());
+  EXPECT_EQ(Item_sum::AVG_FUNC, down_cast<Item_sum *>(order_item)->sum_func());
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
 
 /*
   A hypergraph receiver that doesn't actually cost any plans;

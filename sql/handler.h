@@ -2396,7 +2396,15 @@ enum class SecondaryEngineFlag : SecondaryEngineFlags {
   // If this flag is set, aggregation (GROUP BY and DISTINCT) do not require
   // ordered inputs and create unordered outputs. This is typically the case
   // if they are implemented using hash-based techniques.
-  AGGREGATION_IS_UNORDERED = 2
+  AGGREGATION_IS_UNORDERED = 2,
+
+  /// This flag can be set to signal that a secondary storage engine will not
+  /// use MySQL's executor (see JOIN::override_executor_func). In this case, it
+  /// doesn't need MySQL's execution data structures, like internal temporary
+  /// tables, filesort objects or iterators. If the flag is set,
+  /// FinalizePlanForQueryBlock() will not make any changes to the plan, and
+  /// CreateIteratorFromAccessPath() will not be called.
+  USE_EXTERNAL_EXECUTOR = 3,
 };
 
 /// Creates an empty bitmap of access path types. This is the base
@@ -2410,6 +2418,10 @@ constexpr SecondaryEngineFlags MakeSecondaryEngineFlags(
   return (uint64_t{1} << static_cast<int>(flag1)) |
          MakeSecondaryEngineFlags(rest...);
 }
+
+/// Returns the handlerton of the secondary engine that is used in the session,
+/// or nullptr if a secondary engine is not used.
+const handlerton *SecondaryEngineHandlerton(const THD *thd);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.

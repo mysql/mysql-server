@@ -2460,16 +2460,6 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
 }
 
 /**
-  Returns the handlerton of the secondary engine that will execute the current
-  statement, or nullptr if a secondary engine is not used.
-*/
-static const handlerton *secondary_engine_handlerton(const THD *thd) {
-  const Sql_cmd *sql_cmd = thd->lex->m_sql_cmd;
-  if (sql_cmd == nullptr) return nullptr;
-  return sql_cmd->secondary_engine();
-}
-
-/**
   Cost calculation of another (partial-)QEP has been completed.
 
   If this is our 'best' plan explored so far, we record this
@@ -2540,7 +2530,7 @@ bool Optimize_table_order::consider_plan(uint idx,
     join order is considered.
   */
   if (idx + 1 == join->tables) {  // this is a complete join order
-    const handlerton *secondary_engine = secondary_engine_handlerton(thd);
+    const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
     if (secondary_engine != nullptr &&
         secondary_engine->compare_secondary_engine_cost != nullptr) {
       double secondary_engine_cost;

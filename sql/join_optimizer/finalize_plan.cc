@@ -532,11 +532,19 @@ static Item *AddCachesAroundConstantConditions(Item *item) {
 bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block) {
   assert(query_block->join->needs_finalize);
 
-  Query_block *old_query_block = thd->lex->current_query_block();
-  thd->lex->set_current_query_block(query_block);
-
   AccessPath *const root_path = query_block->join->root_access_path();
   assert(root_path != nullptr);
+
+  // If the query is offloaded to an external executor, we don't need to create
+  // the internal temporary tables or filesort objects, or rewrite the Item tree
+  // to point into them.
+  if (!IteratorsAreNeeded(thd, root_path)) {
+    query_block->join->needs_finalize = false;
+    return false;
+  }
+
+  Query_block *old_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(query_block);
 
   // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
   // we need to make sure that what we sort on is included in the

@@ -821,7 +821,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
     }
   }
 
-  if (create_iterators) {
+  if (create_iterators && IteratorsAreNeeded(thd, m_root_access_path)) {
     JOIN *join;
     if (!is_union()) {
       join = first_query_block()->join;

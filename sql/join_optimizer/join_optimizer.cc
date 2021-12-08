@@ -531,12 +531,9 @@ class CostingReceiver {
 /// engine, will use a default set of permissive flags suitable for
 /// non-secondary engine use.
 SecondaryEngineFlags EngineFlags(const THD *thd) {
-  if (thd->lex->m_sql_cmd != nullptr) {
-    const handlerton *secondary_engine =
-        thd->lex->m_sql_cmd->secondary_engine();
-    if (secondary_engine != nullptr) {
-      return secondary_engine->secondary_engine_flags;
-    }
+  if (const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+      secondary_engine != nullptr) {
+    return secondary_engine->secondary_engine_flags;
   }
 
   return MakeSecondaryEngineFlags(
@@ -547,10 +544,7 @@ SecondaryEngineFlags EngineFlags(const THD *thd) {
 /// Gets the secondary storage engine cost modification function, if any.
 secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
     const THD *thd) {
-  if (thd->lex->m_sql_cmd == nullptr) {
-    return nullptr;
-  }
-  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
+  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
   if (secondary_engine == nullptr) {
     return nullptr;
   } else {
@@ -6350,9 +6344,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                         });
 
   // Materialize the result if a top-level query block has the SQL_BUFFER_RESULT
-  // option, and the chosen root path isn't already a materialization path.
+  // option, and the chosen root path isn't already a materialization path. Skip
+  // the materialization path when using an external executor, since it will
+  // have to decide for itself whether and how to do the materialization.
   if (query_block->active_options() & OPTION_BUFFER_RESULT &&
-      is_topmost_query_block && !IsMaterializationPath(root_path)) {
+      is_topmost_query_block && !IsMaterializationPath(root_path) &&
+      IteratorsAreNeeded(thd, root_path)) {
     if (trace != nullptr) {
       *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }

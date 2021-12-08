@@ -75,6 +75,7 @@
 #include "sql/iterators/timing_iterator.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -11139,4 +11140,39 @@ bool evaluate_during_optimization(const Item *item, const Query_block *select) {
 
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
+}
+
+/// Does this path scan any base tables in a secondary engine?
+static bool ReferencesSecondaryEngineBaseTables(AccessPath *path) {
+  bool found = false;
+  WalkAccessPaths(path, /*join=*/nullptr, WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&found](const AccessPath *subpath, const JOIN *) {
+                    TABLE *table = GetBasicTable(subpath);
+                    if (table != nullptr && table->s->is_secondary_engine()) {
+                      found = true;
+                    }
+                    return found;
+                  });
+  return found;
+}
+
+bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path) {
+  const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
+
+  // Queries running in the primary engine always need iterators.
+  if (secondary_engine == nullptr) {
+    return true;
+  }
+
+  // If the entire query is optimized away, we create iterators regardless of
+  // whether an external executor is used, since the secondary engine may decide
+  // not to offload the query to the external executor in this case.
+  if (!ReferencesSecondaryEngineBaseTables(root_path)) {
+    return true;
+  }
+
+  // Otherwise, create iterators if the secondary engine does not use an
+  // external executor.
+  return !IsBitSet(static_cast<int>(SecondaryEngineFlag::USE_EXTERNAL_EXECUTOR),
+                   secondary_engine->secondary_engine_flags);
 }

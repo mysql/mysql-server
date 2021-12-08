@@ -1258,6 +1258,7 @@ struct TABLE_SHARE {
   */
   unsigned long m_version{0};
 
+ protected:  // To allow access from unit tests.
   /// Does this TABLE_SHARE represent a table in a secondary storage engine?
   bool m_secondary_engine{false};
 };

@@ -1201,4 +1201,14 @@ double find_worst_seeks(const TABLE *table, double num_rows,
  */
 bool ref_lookup_subsumes_comparison(Field *field, Item *right_item);
 
+/**
+  Checks if we need to create iterators for this query. We usually have to. The
+  exception is if a secondary engine is used, and that engine will offload the
+  query execution to an external executor using #JOIN::override_executor_func.
+  In this case, the external executor will use its own execution structures and
+  we don't need to bother with creating the iterators needed by the MySQL
+  executor.
+ */
+bool IteratorsAreNeeded(const THD *thd, AccessPath *root_path);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

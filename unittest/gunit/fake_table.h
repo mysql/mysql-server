@@ -95,6 +95,7 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     bitmap_set_above(&all_set, 0, true);
   }
   ~Fake_TABLE_SHARE() = default;
+  void set_secondary_engine(bool enable) { m_secondary_engine = enable; }
 };
 
 /*

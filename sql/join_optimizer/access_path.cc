@@ -333,6 +333,8 @@ void SetupJobsForChildren(MEM_ROOT *mem_root, AccessPath *outer,
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, MEM_ROOT *mem_root, AccessPath *top_path, JOIN *top_join,
     bool top_eligible_for_batch_mode) {
+  assert(IteratorsAreNeeded(thd, top_path));
+
   unique_ptr_destroy_only<RowIterator> ret;
   Mem_root_array<IteratorToBeCreated> todo(mem_root);
   todo.push_back({top_path, top_join, top_eligible_for_batch_mode, &ret, {}});
