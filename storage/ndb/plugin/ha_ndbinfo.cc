@@ -385,10 +385,9 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   for (uint i = 0; i < table->s->fields; i++) {
     const Field *field = table->field[i];
 
-    // Check that field is NULLable. The only allowed NOT NULL field is the
-    // first column (the primary key column) of an indexed virtual table.
+    // Check that field is NULLable, unless the table is virtual.
     if ((const_cast<Field *>(field)->is_nullable() == false) &&
-        !(i == 0 && m_impl.m_table->getVirtualTable())) {
+        !m_impl.m_table->getVirtualTable()) {
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);
       delete m_impl.m_table;
@@ -407,7 +406,10 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     bool compatible = false;
     switch (col->m_type) {
       case NdbInfo::Column::Number:
-        if (field->type() == MYSQL_TYPE_LONG) compatible = true;
+        if (field->type() == MYSQL_TYPE_LONG ||
+            field->real_type() == MYSQL_TYPE_ENUM ||
+            field->real_type() == MYSQL_TYPE_SET)
+          compatible = true;
         stats.mean_rec_length += 4;
         break;
       case NdbInfo::Column::Number64:
@@ -426,6 +428,8 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       // The column type is not compatible
       warn_incompatible(ndb_tab, true, "column '%s' is not compatible",
                         field->field_name);
+      ndb_log_info("Incompatible ndbinfo column: %s, type: %d,%d",
+                   field->field_name, field->type(), field->real_type());
       delete m_impl.m_table;
       m_impl.m_table = 0;
       return ERR_INCOMPAT_TABLE_DEF;
@@ -703,6 +707,29 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
           break;
         }
 
+        case (MYSQL_TYPE_STRING): {
+          assert(field->real_type() == MYSQL_TYPE_SET ||
+                 field->real_type() == MYSQL_TYPE_ENUM);
+          Uint16 value = record->u_32_value();
+
+          switch (field->pack_length()) {
+            case 1:
+              assert(value < 256);
+              *(field->field_ptr()) = static_cast<char>(value);
+              break;
+            case 2:
+              assert(record->u_32_value() < 65536);
+              memcpy(field->field_ptr(), &value, sizeof(Uint16));
+              break;
+            case 3:
+              int3store(field->field_ptr(), record->u_32_value());
+              break;
+            default:
+              assert(false);
+          }
+          break;
+        }
+
         default:
           ndb_log_error("Found unexpected field type %u", field->type());
           break;
@@ -878,9 +905,7 @@ static int ndbinfo_init(void *plugin) {
                        opt_ndbinfo_table_prefix, "", 0);
   DBUG_PRINT("info", ("prefix: '%s'", prefix));
   assert(g_ndb_cluster_connection);
-  g_ndbinfo =
-      new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix,
-                                 opt_ndbinfo_dbname, opt_ndbinfo_table_prefix);
+  g_ndbinfo = new (std::nothrow) NdbInfo(g_ndb_cluster_connection, prefix);
   if (!g_ndbinfo) {
     ndb_log_error("Failed to create NdbInfo");
     return 1;

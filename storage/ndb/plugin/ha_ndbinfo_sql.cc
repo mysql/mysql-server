@@ -45,7 +45,7 @@ static constexpr const char *opt_table_prefix{"ndb$"};
  * at metadata creation time.
  *
  */
-struct view {
+static struct view {
   const char *schema_name;
   const char *view_name;
   const char *sql;
@@ -83,15 +83,6 @@ struct view {
      "FROM `ndbinfo`.`ndb$membership` "
      "GROUP BY arbitrator, arb_ticket, arb_connected"},
     {"ndbinfo", "backup_id", "SELECT id FROM `ndbinfo`.`ndb$backup_id`"},
-    // The blocks, dict_obj_types and config_params used
-    // to be stored in a different engine but have now
-    // been folded into hardcoded ndbinfo tables whose
-    // name include the special prefix.
-    // These views are defined to provide backward compatibility
-    // for code using the old names.
-    {"ndbinfo", "blocks",
-     "SELECT block_number, block_name "
-     "FROM `ndbinfo`.`ndb$blocks`"},
     {"ndbinfo", "cluster_locks",
      "SELECT "
      "`ndbinfo`.`ndb$acc_operations`.`node_id` AS `node_id`,"
@@ -231,7 +222,7 @@ struct view {
      " END AS counter_name, "
      "val "
      "FROM `ndbinfo`.`ndb$counters` c "
-     "LEFT JOIN `ndbinfo`.`ndb$blocks` b "
+     "LEFT JOIN `ndbinfo`.`blocks` b "
      "ON c.block_number = b.block_number"},
     {"ndbinfo", "cpudata",
      "SELECT * "
@@ -325,9 +316,6 @@ struct view {
     {"ndbinfo", "hwinfo",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$hwinfo`"},
-    {"ndbinfo", "index_stats",
-     "SELECT * "
-     "FROM `ndbinfo`.`ndb$index_stats`"},
     {"ndbinfo", "locks_per_fragment",
      "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
      "types.type_name AS type, table_id, node_id, block_instance, "
@@ -631,7 +619,7 @@ struct view {
     {"ndbinfo", "threadblocks",
      "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
      "FROM `ndbinfo`.`ndb$threadblocks` t "
-     "LEFT JOIN `ndbinfo`.`ndb$blocks` b "
+     "LEFT JOIN `ndbinfo`.`blocks` b "
      "ON t.block_number = b.block_number"},
     {"ndbinfo", "threads",
      "SELECT * "
@@ -652,72 +640,74 @@ struct view {
      "FROM `ndbinfo`.`ndb$transporters`"},
 };
 
-size_t num_views = sizeof(views) / sizeof(views[0]);
+static constexpr size_t num_views = sizeof(views) / sizeof(views[0]);
 
 // These tables are hardcoded(aka. virtual) in ha_ndbinfo
-struct lookup {
+static struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {{"ndbinfo", "ndb$backup_id",
-                "id BIGINT UNSIGNED, "
-                "fragment INT UNSIGNED, "
-                "row_id BIGINT UNSIGNED"},
-               {
-                   "ndbinfo",
-                   "ndb$blocks",
-                   "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "block_name VARCHAR(512)",
-               },
-               {"ndbinfo", "ndb$config_params",
-                "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
-                "param_name VARCHAR(512), "
-                "param_description VARCHAR(512), "
-                "param_type VARCHAR(512), "
-                "param_default VARCHAR(512), "
-                "param_min VARCHAR(512), "
-                "param_max VARCHAR(512), "
-                "param_mandatory INT UNSIGNED, "
-                "param_status VARCHAR(512)"},
-               {
-                   "ndbinfo",
-                   "ndb$dblqh_tcconnect_state",
-                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dbtc_apiconnect_state",
-                   "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "state_name VARCHAR(256), "
-                   "state_friendly_name VARCHAR(256), "
-                   "state_description VARCHAR(256)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$dict_obj_types",
-                   "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
-                   "type_name VARCHAR(512)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$error_messages",
-                   "error_code INT UNSIGNED, "
-                   "error_description VARCHAR(512), "
-                   "error_status VARCHAR(512), "
-                   "error_classification VARCHAR(512)",
-               },
-               {
-                   "ndbinfo",
-                   "ndb$index_stats",
-                   "index_id INT UNSIGNED, "
-                   "index_version INT UNSIGNED, "
-                   "sample_version INT UNSIGNED",
-               }};
+} lookups[] = {
+    {
+        "ndbinfo",
+        "blocks",
+        "block_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "block_name VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "index_stats",
+        "index_id INT UNSIGNED, "
+        "index_version INT UNSIGNED, "
+        "sample_version INT UNSIGNED",
+    },
+    {"ndbinfo", "ndb$backup_id",
+     "id BIGINT UNSIGNED, "
+     "fragment INT UNSIGNED, "
+     "row_id BIGINT UNSIGNED"},
+    {"ndbinfo", "ndb$config_params",
+     "param_number INT UNSIGNED NOT NULL PRIMARY KEY, "
+     "param_name VARCHAR(512), "
+     "param_description VARCHAR(512), "
+     "param_type VARCHAR(512), "
+     "param_default VARCHAR(512), "
+     "param_min VARCHAR(512), "
+     "param_max VARCHAR(512), "
+     "param_mandatory INT UNSIGNED, "
+     "param_status VARCHAR(512)"},
+    {
+        "ndbinfo",
+        "ndb$dblqh_tcconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dbtc_apiconnect_state",
+        "state_int_value INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "state_name VARCHAR(256), "
+        "state_friendly_name VARCHAR(256), "
+        "state_description VARCHAR(256)",
+    },
+    {
+        "ndbinfo",
+        "ndb$dict_obj_types",
+        "type_id INT UNSIGNED NOT NULL PRIMARY KEY, "
+        "type_name VARCHAR(512)",
+    },
+    {
+        "ndbinfo",
+        "ndb$error_messages",
+        "error_code INT UNSIGNED, "
+        "error_description VARCHAR(512), "
+        "error_status VARCHAR(512), "
+        "error_classification VARCHAR(512)",
+    },
+};
 
-size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
+static constexpr size_t num_lookups = sizeof(lookups) / sizeof(lookups[0]);
 
 static int compare_names(const void *px, const void *py) {
   const Ndbinfo::Table *const *x =
@@ -727,9 +717,49 @@ static int compare_names(const void *px, const void *py) {
   return strcmp((*x)->m.name, (*y)->m.name);
 }
 
-bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
+static Plugin_table *ndbinfo_define_table(const Ndbinfo::Table &table) {
   THD *thd = current_thd;  // For string allocation
+  BaseString table_name, table_sql, table_options;
+  const char *separator = "";
 
+  table_name.assfmt("%s%s", opt_table_prefix, table.m.name);
+
+  for (int j = 0; j < table.m.ncols; j++) {
+    const Ndbinfo::Column &col = table.col[j];
+
+    table_sql.appfmt("%s", separator);
+    separator = ",";
+
+    table_sql.appfmt("`%s` ", col.name);
+
+    switch (col.coltype) {
+      case Ndbinfo::Number:
+        table_sql.appfmt("INT UNSIGNED");
+        break;
+      case Ndbinfo::Number64:
+        table_sql.appfmt("BIGINT UNSIGNED");
+        break;
+      case Ndbinfo::String:
+        table_sql.appfmt("VARCHAR(512)");
+        break;
+      default:
+        abort();
+    }
+
+    if (col.comment[0] != '\0')
+      table_sql.appfmt(" COMMENT \"%s\"", col.comment);
+  }
+
+  table_options.appfmt(" COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
+                       table.m.comment);
+
+  return new Plugin_table("ndbinfo", thd_strdup(thd, table_name.c_str()),
+                          thd_strdup(thd, table_sql.c_str()),
+                          thd_strdup(thd, table_options.c_str()), nullptr);
+}
+
+bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
+  /* Sort Ndbinfo tables; define Ndbinfo tables as tables in DD */
   const Ndbinfo::Table **tables =
       new const Ndbinfo::Table *[Ndbinfo::getNumTables()];
 
@@ -738,72 +768,31 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   }
   qsort(tables, Ndbinfo::getNumTables(), sizeof(tables[0]), compare_names);
 
-  for (int i = 0; i < Ndbinfo::getNumTables(); i++) {
-    const char *separator = "";
-    const Ndbinfo::Table &table = *tables[i];
-    BaseString table_name, table_sql, table_options;
+  for (int i = 0; i < Ndbinfo::getNumTables(); i++)
+    plugin_tables->push_back(ndbinfo_define_table(*tables[i]));
 
-    table_name.assfmt("%s%s", opt_table_prefix, table.m.name);
-
-    for (int j = 0; j < table.m.ncols; j++) {
-      const Ndbinfo::Column &col = table.col[j];
-
-      table_sql.appfmt("%s", separator);
-      separator = ",";
-
-      table_sql.appfmt("`%s` ", col.name);
-
-      switch (col.coltype) {
-        case Ndbinfo::Number:
-          table_sql.appfmt("INT UNSIGNED");
-          break;
-        case Ndbinfo::Number64:
-          table_sql.appfmt("BIGINT UNSIGNED");
-          break;
-        case Ndbinfo::String:
-          table_sql.appfmt("VARCHAR(512)");
-          break;
-        default:
-          abort();
-      }
-
-      if (col.comment[0] != '\0')
-        table_sql.appfmt(" COMMENT \"%s\"", col.comment);
-    }
-
-    table_options.appfmt(" COMMENT=\"%s\" ENGINE=NDBINFO CHARACTER SET latin1",
-                         table.m.comment);
-
-    plugin_tables->push_back(
-        new Plugin_table("ndbinfo", thd_strdup(thd, table_name.c_str()),
-                         thd_strdup(thd, table_sql.c_str()),
-                         thd_strdup(thd, table_options.c_str()), nullptr));
-  }
   delete[] tables;
 
-  lookup l;
-  view v;
+  /* Require virtual tables (lookups) defined above to be sorted by name */
+  for (size_t i = 0; i < num_lookups; i++)
+    assert(i == 0 || strcmp(lookups[i - 1].lookup_table_name,
+                            lookups[i].lookup_table_name) < 0);
 
-  for (size_t i = 0; i < num_lookups; i++) {  // create hard-coded tables
-    assert(i == 0 || /* assert that list is alphabetized */
-           strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
-    l = lookups[i];
-
-    /* Create lookup table */
+  /* Create lookup tables in DD */
+  for (const lookup &l : lookups)
     plugin_tables->push_back(
         new Plugin_table(l.schema_name, l.lookup_table_name, l.columns,
                          "ENGINE=NDBINFO CHARACTER SET latin1", nullptr));
-  }
 
-  for (size_t i = 0; i < num_views; i++) {  // create views
-    assert(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
-    v = views[i];
+  /* Require views defined above to be sorted by name */
+  for (size_t i = 0; i < num_views; i++)
+    assert(i == 0 || strcmp(views[i - 1].view_name, views[i].view_name) < 0);
 
-    /* Create the view */
+  /* Create views in DD */
+  for (const view &v : views)
     plugin_tables->push_back(
         new Plugin_view(v.schema_name, v.view_name, v.sql,
                         "DEFINER=`root`@`localhost` SQL SECURITY INVOKER"));
-  }
 
   return false;
 }

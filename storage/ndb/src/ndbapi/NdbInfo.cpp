@@ -29,18 +29,15 @@
 #include "NdbInfoScanNodes.hpp"
 #include "NdbInfoScanVirtual.hpp"
 
-NdbInfo::NdbInfo(class Ndb_cluster_connection* connection,
-                 const char* prefix, const char* dbname,
-                 const char* table_prefix) :
+NdbInfo::NdbInfo(class Ndb_cluster_connection* connection, const char* prefix) :
   m_connect_count(connection->get_connect_count()),
   m_min_db_version(0),
   m_connection(connection),
   m_tables_table(NULL), m_columns_table(NULL),
-  m_prefix(prefix),
-  m_dbname(dbname),
-  m_table_prefix(table_prefix),
+  m_full_prefix(prefix),
   m_id_counter(0)
 {
+  m_short_prefix.assign(m_full_prefix, m_full_prefix.lastIndexOf('/') + 1);
 }
 
 bool NdbInfo::init(void)
@@ -60,11 +57,13 @@ NdbInfo::~NdbInfo(void)
   native_mutex_destroy(&m_mutex);
 }
 
-BaseString NdbInfo::mysql_table_name(const char* table_name) const
+BaseString NdbInfo::mysql_table_name(const Table & table) const
 {
   DBUG_ENTER("mysql_table_name");
   BaseString mysql_name;
-  mysql_name.assfmt("%s%s", m_prefix.c_str(), table_name);
+  mysql_name.assfmt("%s%s",
+      table.m_use_full_prefix ? m_full_prefix.c_str() : m_short_prefix.c_str(),
+      table.m_name.c_str());
   DBUG_PRINT("exit", ("mysql_name: %s", mysql_name.c_str()));
   DBUG_RETURN(mysql_name);
 }
@@ -72,14 +71,14 @@ BaseString NdbInfo::mysql_table_name(const char* table_name) const
 bool NdbInfo::load_hardcoded_tables(void)
 {
   {
-    Table tabs("tables", 0, 0, true);
+    Table tabs("tables", (Uint32) 0, 0, true);
     if (!tabs.addColumn(Column("table_id", 0, Column::Number)) ||
         !tabs.addColumn(Column("table_name", 1, Column::String)) ||
         !tabs.addColumn(Column("comment", 2, Column::String)) ||
         !tabs.addColumn(Column("rows_estimate", 3, Column::Number)))
       return false;
 
-    BaseString hash_key = mysql_table_name(tabs.getName());
+    BaseString hash_key = mysql_table_name(tabs);
     if (!m_tables.insert(hash_key.c_str(), tabs))
       return false;
     if (!m_tables.search(hash_key.c_str(), &m_tables_table))
@@ -95,7 +94,7 @@ bool NdbInfo::load_hardcoded_tables(void)
         !cols.addColumn(Column("comment", 4, Column::String)))
       return false;
 
-    BaseString hash_key = mysql_table_name(cols.getName());
+    BaseString hash_key = mysql_table_name(cols);
     if (!m_tables.insert(hash_key.c_str(), cols))
       return false;
     if (!m_tables.search(hash_key.c_str(), &m_columns_table))
@@ -171,10 +170,9 @@ bool NdbInfo::load_ndbinfo_tables(void)
         break;
 
       default:
-        BaseString hash_key = mysql_table_name(tableName);
-        if (!m_tables.insert(
-                hash_key.c_str(),
-                Table(tableName, tableId, est_rows, false, nullptr))) {
+        Table table(tableName, tableId, est_rows);
+        BaseString hash_key = mysql_table_name(table);
+        if (!m_tables.insert(hash_key.c_str(), table)) {
           DBUG_PRINT("error", ("Failed to insert Table('%s', %u)",
                      tableName, tableId));
           releaseScanOperation(scanOp);
@@ -516,13 +514,29 @@ NdbInfo::Column::Column(const NdbInfo::Column & col) :
 // Table
 
 NdbInfo::Table::Table(const char *name, Uint32 id, Uint32 est_rows,
-                      bool exact_row_count, const VirtualTable* virt) :
+                      bool exact_row_count) :
   m_name(name),
   m_table_id(id),
   m_rows_estimate(est_rows),
   m_exact_row_count(exact_row_count),
+  m_use_full_prefix(true),
+  m_virt(nullptr)
+{
+}
+
+NdbInfo::Table::Table(const char * table_name, const VirtualTable* virt,
+                      Uint32 est_rows, bool exact_row_count,
+                      TableName prefixed) :
+  m_name(table_name),
+  m_table_id(InvalidTableId),
+  m_rows_estimate(est_rows),
+  m_exact_row_count(exact_row_count),
+  m_use_full_prefix((prefixed == TableName::WithPrefix)),
   m_virt(virt)
 {
+  assert(virt);                // constructor for virtual tables only
+  assert(m_rows_estimate);
+  assert(m_exact_row_count || (m_rows_estimate > 2));
 }
 
 NdbInfo::Table::Table(const NdbInfo::Table& tab) :
@@ -616,8 +630,7 @@ bool NdbInfo::load_virtual_tables(void)
   {
     Table* tab = m_virtual_tables[i];
     assert(tab->m_virt);
-
-    const BaseString hash_key = mysql_table_name(tab->getName());
+    const BaseString hash_key = mysql_table_name(*tab);
     tab->m_table_id = m_tables.entries(); // Set increasing table id
     if (!m_tables.insert(hash_key.c_str(), *tab))
       return false;

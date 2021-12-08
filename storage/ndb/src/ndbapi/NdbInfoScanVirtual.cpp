@@ -105,6 +105,11 @@ public:
   };
 
   /*
+    Initialize the table
+  */
+  virtual bool init() { return true; }
+
+  /*
     Return the NdbInfo::Table corresponding to this virtual table
   */
   virtual NdbInfo::Table* get_instance() const = 0;
@@ -510,11 +515,9 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table("blocks",
-                                             NdbInfo::Table::InvalidTableId,
-                                             NO_OF_BLOCK_NAMES,
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table("blocks", this,
+                                             NO_OF_BLOCK_NAMES, true,
+                                             NdbInfo::TableName::NoPrefix);
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("block_number", 0,
@@ -588,11 +591,8 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
-                                             NdbInfo::Table::InvalidTableId,
-                                             OBJ_TYPES_TABLE_SIZE,
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types", this,
+                                             OBJ_TYPES_TABLE_SIZE);
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("type_id", 0,
@@ -631,7 +631,7 @@ class ErrorCodesTable : public VirtualTable
 
   Vector<ErrorMessage> m_error_messages;
 public:
-  bool init()
+  bool init() override
   {
     // Build an index into the three error message arrays
     // to allow further lookup of the error messages by "row_number"
@@ -723,11 +723,8 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
-                                             NdbInfo::Table::InvalidTableId,
-                                             m_error_messages.size(),
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table("error_messages", this,
+                                             m_error_messages.size());
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("error_code", 0,
@@ -752,7 +749,7 @@ class ConfigParamsTable : public VirtualTable
   // Index by "row_number" into ConfigInfo
   Vector<const ConfigInfo::ParamInfo*> m_config_params;
 public:
-  bool init()
+  bool init() override
   {
     // Build an index to allow further lookup
     // of the values by "row_number"
@@ -904,11 +901,8 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table("config_params",
-                                             NdbInfo::Table::InvalidTableId,
-                                             m_config_params.size(),
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table("config_params", this,
+                                             m_config_params.size());
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("param_number", 0,
@@ -982,11 +976,8 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
-                                             NdbInfo::Table::InvalidTableId,
-                                             m_array_count,
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table(m_table_name, this, m_array_count);
+
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("state_int_value", 0,
@@ -1085,11 +1076,8 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
-    NdbInfo::Table* tab = new NdbInfo::Table("backup_id",
-                                             NdbInfo::Table::InvalidTableId,
-                                             1,
-                                             true,
-                                             this);
+    NdbInfo::Table* tab = new NdbInfo::Table("backup_id", this, 1);
+
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("id", 0,
@@ -1177,11 +1165,10 @@ public:
   }
 
   NdbInfo::Table* get_instance() const override {
-    NdbInfo::Table *tab = new NdbInfo::Table("index_stats",
-                                             NdbInfo::Table::InvalidTableId,
+    NdbInfo::Table *tab = new NdbInfo::Table("index_stats", this,
                                              64, // Hard-coded estimate
                                              false,
-                                             this);
+                                             NdbInfo::TableName::NoPrefix);
     if (!tab)
       return NULL;
     if (!tab->addColumn(NdbInfo::Column("index_id", 0,
@@ -1212,88 +1199,26 @@ public:
 bool
 NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
 {
-  {
-    BlocksTable* blocksTable = new BlocksTable;
-    if (!blocksTable)
-      return false;
+  // polymorphic lambda:
+  auto add_table = [&list](auto t) {
+    if (!t) return false;
+    if (!t->init()) return false;
+    if (list.push_back(t->get_instance()) != 0) return false;
+    return true;
+  };
 
-    if (list.push_back(blocksTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    DictObjTypesTable* dictObjTypesTable = new DictObjTypesTable;
-    if (!dictObjTypesTable)
-      return false;
-
-    if (list.push_back(dictObjTypesTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    ErrorCodesTable* errorCodesTable = new ErrorCodesTable;
-    if (!errorCodesTable)
-      return false;
-
-    if (!errorCodesTable->init())
-      return false;
-
-    if (list.push_back(errorCodesTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    ConfigParamsTable* configParamsTable = new ConfigParamsTable;
-    if (!configParamsTable)
-      return false;
-    if (!configParamsTable->init())
-      return false;
-
-    if (list.push_back(configParamsTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    NdbkernelStateDescTable* dbtcApiConnectStateTable =
-        new NdbkernelStateDescTable("dbtc_apiconnect_state",
-                                    g_dbtc_apiconnect_state_desc);
-    if (!dbtcApiConnectStateTable)
-      return false;
-
-    if (list.push_back(dbtcApiConnectStateTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    NdbkernelStateDescTable* dblqhTcConnectStateTable =
-        new NdbkernelStateDescTable("dblqh_tcconnect_state",
-                                    g_dblqh_tcconnect_state_desc);
-    if (!dblqhTcConnectStateTable)
-      return false;
-
-    if (list.push_back(dblqhTcConnectStateTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    BackupIdTable* backupIdTable = new BackupIdTable;
-    if (!backupIdTable)
-      return false;
-
-    if (list.push_back(backupIdTable->get_instance()) != 0)
-      return false;
-  }
-
-  {
-    IndexStatsTable *indexStatTable = new IndexStatsTable;
-    if (!indexStatTable)
-      return false;
-
-    if (list.push_back(indexStatTable->get_instance()) != 0)
-      return false;
-  }
-
-  return true;
+  return (
+    add_table(new BlocksTable) &&
+    add_table(new DictObjTypesTable) &&
+    add_table(new ErrorCodesTable) &&
+    add_table(new ConfigParamsTable) &&
+    add_table(new NdbkernelStateDescTable("dbtc_apiconnect_state",
+                                          g_dbtc_apiconnect_state_desc)) &&
+    add_table(new NdbkernelStateDescTable("dblqh_tcconnect_state",
+                                          g_dblqh_tcconnect_state_desc)) &&
+    add_table(new BackupIdTable) &&
+    add_table(new IndexStatsTable)
+  );
 }
 
 /*

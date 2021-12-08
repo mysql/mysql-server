@@ -1512,7 +1512,7 @@ drop table t2;
 
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 count(*) > 10
 1
 select param_number, param_name, param_description, param_default,

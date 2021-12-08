@@ -863,7 +863,7 @@ drop table t2;
 #   for those tabes which was changed to prefix ndb$
 
 ## Check that the new tables return data and exists.
-select count(*) > 10 from ndb$blocks;
+select count(*) > 10 from blocks;
 select param_number, param_name, param_description, param_default,
        param_min, param_max from ndb$config_params
   where param_name = "DataMemory";

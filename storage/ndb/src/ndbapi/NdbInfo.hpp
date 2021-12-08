@@ -47,6 +47,12 @@ public:
     ERR_VirtScanStart = 4244
   };
 
+  enum class TableName
+  {
+    WithPrefix,
+    NoPrefix
+  };
+
   struct Column
   {
   public:
@@ -69,9 +75,13 @@ public:
   class Table
   {
   public:
+    // Constructor for ndbinfo tables with pre-defined table id
     Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
-          bool exact_row_count = false,
-          const class VirtualTable* virt = nullptr);
+          bool exact_row_count = false);
+    // Constructor for virtual tables
+    Table(const char * table_name, const class VirtualTable* virt,
+          Uint32 rows_estimate, bool exact_row_count = true,
+          TableName prefixed = TableName::WithPrefix);
     Table(const Table& tab);
     const Table & operator=(const Table& tab) = delete;
     ~Table();
@@ -95,13 +105,12 @@ public:
     Uint32 m_table_id;
     Uint32 m_rows_estimate;
     bool m_exact_row_count;
+    bool m_use_full_prefix;
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };
 
-  NdbInfo(class Ndb_cluster_connection* connection,
-          const char* prefix, const char* dbname = "",
-          const char* table_prefix = "");
+  NdbInfo(class Ndb_cluster_connection* connection, const char* prefix);
   bool init(void);
   ~NdbInfo();
 
@@ -123,9 +132,8 @@ private:
   HashMap<BaseString, Table, BaseString_get_key> m_tables;
   Table* m_tables_table;
   Table* m_columns_table;
-  BaseString m_prefix;
-  BaseString m_dbname;
-  BaseString m_table_prefix;
+  BaseString m_full_prefix;    // "./ndbinfo/ndb@0024"
+  BaseString m_short_prefix;   // "./ndbinfo/"
   Uint32 m_id_counter;
 
   bool addColumn(Uint32 tableId, const Column aCol);
@@ -137,7 +145,7 @@ private:
   bool check_tables();
   void flush_tables();
 
-  BaseString mysql_table_name(const char* table_name) const;
+  BaseString mysql_table_name(const NdbInfo::Table &) const;
 
   Vector<Table*> m_virtual_tables;
 

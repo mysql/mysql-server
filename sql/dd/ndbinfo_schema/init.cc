@@ -142,9 +142,8 @@ static bool initialize_ndbinfo(THD *thd) {
                       &ndbinfo_tables, nullptr))
     return true;
 
-  // Create and use the ndbinfo schema
+  // Create the ndbinfo schema
   if (create_schema(thd, "ndbinfo")) return true;
-  if (dd::execute_query(thd, dd::String_type("USE ndbinfo"))) return true;
 
   // Create each table or view defined in the list
   bool failed = false;
