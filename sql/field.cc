@@ -5655,7 +5655,23 @@ my_time_flags_t Field_newdate::date_flags(const THD *thd) const {
 
 type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
                                                      int *warnings) {
-  my_date_to_binary(ltime, ptr);
+  /*
+    If time zone displacement information is present in "ltime"
+    - adjust the value to UTC based on the time zone
+    - convert to the local time zone
+  */
+  MYSQL_TIME temp_time;
+  const MYSQL_TIME *time;
+  if (ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+    temp_time = *ltime;
+    time = &temp_time;
+    if (convert_time_zone_displacement(current_thd->time_zone(), &temp_time))
+      return TYPE_ERR_BAD_VALUE;
+  } else {
+    time = ltime;
+  }
+
+  my_date_to_binary(time, ptr);
   if (non_zero_time(*ltime)) {
     *warnings |= MYSQL_TIME_NOTE_TRUNCATED;
     return TYPE_NOTE_TIME_TRUNCATED;
