@@ -16412,6 +16412,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
                         senderData,
                         senderBlockRef,
                         ZNO_TC_CONNECT_ERROR);
+      return;
     }
     jamEntry();
   }//if
