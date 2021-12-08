@@ -865,7 +865,7 @@ struct MEM_ROOT;
    <li>
    Server sends a challenge comprising of 32 bytes random salt, user id, relying party ID
    Format of challenge is:
-   <length encoded 32 bytes random salt><length encoded user id (user name + host name)><length encoded relying party ID>
+   |length encoded 32 bytes random salt|length encoded user id (user name + host name)|length encoded relying party ID|
    </li>
    <li>
    Client receives challenge and passes to authentication_fido_client plugin
@@ -885,7 +885,7 @@ struct MEM_ROOT;
    Client extracts credential ID(aka challenge response) from authentication_fido_client
    plugin with option "registration_response" using mysql_plugin_get_option()
    Format of challenge response is:
-   <length encoded authenticator data><length encoded credential ID>
+   |length encoded authenticator data|length encoded credential ID|
    </li>
   </ol>
 
