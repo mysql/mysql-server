@@ -23,7 +23,7 @@
 #ifndef _welcome_copyright_notice_h_
 #define _welcome_copyright_notice_h_
 
-#define COPYRIGHT_NOTICE_CURRENT_YEAR "2021"
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2022"
 
 /*
   This define specifies copyright notice which is displayed by every MySQL
