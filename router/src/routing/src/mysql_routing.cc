@@ -350,7 +350,8 @@ class Connector : public ConnectorBase {
   Connector(MySQLRouting *r, client_socket_type client_sock,
             client_endpoint_type client_endpoint,
             SocketContainer<client_protocol_type> &client_sock_container,
-            SocketContainer<server_protocol_type> &server_sock_container)
+            SocketContainer<server_protocol_type> &server_sock_container,
+            WaitableMonitor<uint64_t> &pending_connections_counter)
       : r_{r},
         client_sock_{client_sock_container.push_back(std::move(client_sock))},
         client_endpoint_{std::move(client_endpoint)},
@@ -360,7 +361,10 @@ class Connector : public ConnectorBase {
         server_sock_{server_sock_container.emplace_back(io_ctx_)},
         server_connect_timer_{io_ctx_},
         server_sock_container_{server_sock_container},
-        destinations_{r_->destinations()->destinations()} {}
+        pending_connections_counter_{pending_connections_counter},
+        destinations_{r_->destinations()->destinations()} {
+    pending_connections_counter_([](auto &cnt) { cnt++; });
+  }
 
   Connector(const Connector &) = delete;
   Connector &operator=(const Connector &) = delete;
@@ -374,6 +378,10 @@ class Connector : public ConnectorBase {
     if (client_sock_still_owned_) {
       client_sock_container_.release(client_sock_);
       server_sock_container_.release(server_sock_);
+      pending_connections_counter_.serialize_with_cv([](auto &cnt, auto &cv) {
+        cnt--;
+        if (cnt == 0) cv.notify_all();
+      });
     }
   }
 
@@ -643,6 +651,10 @@ class Connector : public ConnectorBase {
           client_sock_container_.release_unlocked(client_sock_),
           client_endpoint_,  //
           server_sock_container_.release(server_sock_), server_endpoint_);
+      pending_connections_counter_.serialize_with_cv([](auto &cnt, auto &cv) {
+        cnt--;
+        if (cnt == 0) cv.notify_all();
+      });
     });
 
     return State::DONE;
@@ -804,6 +816,7 @@ class Connector : public ConnectorBase {
   server_protocol_type::endpoint server_endpoint_;
   net::steady_timer server_connect_timer_;
   SocketContainer<server_protocol_type> &server_sock_container_;
+  WaitableMonitor<uint64_t> &pending_connections_counter_;
 
   Destinations destinations_;
   Destinations::iterator destinations_it_;
@@ -828,7 +841,8 @@ class Acceptor {
            const acceptor_endpoint_type &acceptor_endpoint,
            SocketContainer<client_protocol_type> &client_sock_container,
            SocketContainer<server_protocol_type> &server_sock_container,
-           WaitableMonitor<Nothing> &waitable)
+           WaitableMonitor<Nothing> &waitable,
+           WaitableMonitor<uint64_t> &pending_connections_counter)
       : r_(r),
         io_threads_{io_threads},
         acceptor_socket_(acceptor_socket),
@@ -837,6 +851,7 @@ class Acceptor {
         server_sock_container_{server_sock_container},
         cur_io_thread_{io_threads_.begin()},
         waitable_{waitable},
+        pending_connections_counter_{pending_connections_counter},
         debug_is_logged_{
             log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)} {}
 
@@ -1054,7 +1069,7 @@ class Acceptor {
             } else {
               Connector<client_protocol_type>(
                   r_, std::move(sock), client_endpoint, client_sock_container_,
-                  server_sock_container_)
+                  server_sock_container_, pending_connections_counter_)
                   .async_run();
             }
           }
@@ -1097,6 +1112,8 @@ class Acceptor {
 
   std::list<IoThread>::iterator cur_io_thread_;
   WaitableMonitor<Nothing> &waitable_;
+
+  WaitableMonitor<uint64_t> &pending_connections_counter_;
 
   bool debug_is_logged_{};
 
@@ -1249,6 +1266,9 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     std::this_thread::sleep_for(100ms);
   }
 
+  // Wait for all connections that are being established
+  pending_connections_counter_.wait([](const auto &cnt) { return cnt == 0; });
+
   // disconnect all connections
   disconnect_all();
 
@@ -1294,10 +1314,10 @@ MySQLRouting::start_accepting_connections() {
       tcp_socket().native_non_blocking(true);
       tcp_socket().async_wait(
           net::socket_base::wait_read,
-          Acceptor<net::ip::tcp>(this, io_threads, tcp_socket(),
-                                 service_tcp_endpoint_,
-                                 tcp_connector_container_,
-                                 server_sock_container_, acceptor_waitable_));
+          Acceptor<net::ip::tcp>(
+              this, io_threads, tcp_socket(), service_tcp_endpoint_,
+              tcp_connector_container_, server_sock_container_,
+              acceptor_waitable_, pending_connections_counter_));
     }
 #if !defined(_WIN32)
     if (service_named_socket_.is_open()) {
@@ -1307,7 +1327,7 @@ MySQLRouting::start_accepting_connections() {
           Acceptor<local::stream_protocol>(
               this, io_threads, service_named_socket_, service_named_endpoint_,
               unix_socket_connector_container_, server_sock_container_,
-              acceptor_waitable_));
+              acceptor_waitable_, pending_connections_counter_));
     }
 #endif
   }
