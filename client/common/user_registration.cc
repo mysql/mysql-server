@@ -71,23 +71,9 @@ static bool parse_register_option(char *what_factor,
 
 /**
   This helper method is used to perform device registration against a user
-  account. Below are the messages exchanged between client, server and
-  authenticator (fido device) during registration process.
+  account.
 
-  == Initiate registration ==
-
-  client -> server : connect
-  server -> client : keep connection in registration mode
-  client -> server : ALTER USER account name nth FACTOR INITIATE REGISTRATION
-  server -> client : random challenge, user id, relying party ID
-
-  == Finish registration ==
-
-  client -> server : ALTER USER account name nth FACTOR FINISH REGISTRATION
-  client -> authenticator : random challenge, user id, relying party ID
-  authenticator -> client : public key, credential ID (X.509 certificate,
-  signature) client -> server : public key, credential ID server -> client : Ok
-  packet upon successful verification of signature
+  Please refer @ref sect_fido_info for more information.
 
   @param mysql              mysql connection handle
   @param register_option    Comma separated list of values, which specifies

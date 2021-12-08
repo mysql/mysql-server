@@ -815,7 +815,7 @@ struct MEM_ROOT;
   Account - user account (user-host combination)
   </li>
   <li>
-  authentication_string - Transformation of key handle stored in mysql.user table
+  authentication_string - Transformation of Credential ID stored in mysql.user table
   </li>
   <li>
   relying party ID - Unique name assigned to server by authentication_fido plugin
@@ -824,7 +824,7 @@ struct MEM_ROOT;
   FIDO authenticator - A hardware token device
   </li>
   <li>
-  Nonce - 32 byte long random data
+  Salt - 32 byte long random data
   </li>
   <li>
   Registration mode - Refers to state of connection where only ALTER USER is allowed
@@ -856,28 +856,25 @@ struct MEM_ROOT;
   </ul>
 
   Initiate registration:
-  User account created with authentication_fido method should first connect to
-  server and initiate the registration step.
+  --fido-register-factor mysql client option initiates registration step.
 
   <ol>
    <li>
-    Client executes ALTER USER .. INITIATE REGISTRATION;
+    Client executes ALTER USER user() nth FACTOR INITIATE REGISTRATION;
    </li>
    <li>
-   Server sends a random challenge, user id, relying party ID to client.
+   Server sends a challenge comprising of 32 bytes random salt, user id, relying party ID
+   Format of challenge is:
+   <length encoded 32 bytes random salt><length encoded user id (user name + host name)><length encoded relying party ID>
    </li>
    <li>
-   Client receives it and saves in MySQL struct.
-   </li>
-  </ol>
-
-  Finish registration:
-  <ol>
-   <li>
-    Client executes ALTER USER .. FINISH REGISTRATION;
+   Client receives challenge and passes to authentication_fido_client plugin
+   with option "registration_challenge" using mysql_plugin_options()
    </li>
    <li>
-    Client sends random challenge, user id, relying party ID to FIDO authenticator.
+    FIDO authenticator prompts physical human user to perform gesture action.
+    This message can be accessed via callback. Register a callback with option
+    "fido_messages_callback" using mysql_plugin_options()
    </li>
    <li>
     Once physical human user gesture action (touching the token) is performed,
@@ -885,12 +882,22 @@ struct MEM_ROOT;
     X.509 certificate, signature) and authenticator data.
    </li>
    <li>
-    Client sends public key and credential ID to server.
+   Client extracts credential ID(aka challenge response) from authentication_fido_client
+   plugin with option "registration_response" using mysql_plugin_get_option()
+   Format of challenge response is:
+   <length encoded authenticator data><length encoded credential ID>
+   </li>
+  </ol>
+
+  Finish registration:
+  <ol>
+   <li>
+    Client executes ALTER USER user() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE AS '?';
+    parameter is binded to challenge response received during initiate registration step.
    </li>
    <li>
-    Server side fido authentication plugin verifies the signature and responds
-    with an @ref page_protocol_basic_ok_packet or rejects with
-    @ref page_protocol_basic_err_packet
+    authentication_fido plugin verifies the challenge response and responds with an
+    @ref page_protocol_basic_ok_packet or rejects with @ref page_protocol_basic_err_packet
    </li>
   </ol>
        @startuml
@@ -905,15 +912,14 @@ struct MEM_ROOT;
          client -> server : connect
          server -> client : OK packet. Connection is in registration mode where only ALTER USER command is allowed
          client -> server : ALTER USER USER() nth FACTOR INITIATE REGISTRATION
-         server -> client : random challenge, user id, relying party ID
+         server -> client : random challenge (32 byte random salt, user id, relying party ID)
+         client -> authenticator : random challenge
+         authenticator -> client : credential ID (X.509 certificate, signature), authenticator data
 
          == Finish registration ==
 
-         client -> server : ALTER USER USER() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE = '?'
-         client -> authenticator : random challenge, user id, relying party ID
-         authenticator -> client : public key, credential ID (X.509 certificate, signature), authenticator data
-         client -> server : public key, credential ID, authenticator data
-         server -> client : Ok packet upon successfull verification of signature
+         client -> server : ALTER USER USER() nth FACTOR FINISH REGISTRATION SET CHALLENGE_RESPONSE = 'credential ID, authenticator data'
+         server -> client : Ok packet upon successfull verification of credential ID
        @enduml
 
   Authentication process:
@@ -921,7 +927,7 @@ struct MEM_ROOT;
   server initiates fido authentication process. This includes following steps:
    <ol>
     <li>
-     Server sends a random challenge, relying party ID, credential ID to client.
+     Server sends a 32 byte random salt, relying party ID, credential ID to client.
     </li>
     <li>
      Client receives it and sends to FIDO authenticator.
@@ -954,8 +960,8 @@ struct MEM_ROOT;
          client -> server : connect
          server -> client : OK packet
          server -> client : send client side fido authentication plugin name in OK packet
-         server -> client : sends random challenge, relying party ID, credential ID
-         client -> authenticator : sends random challenge, relying party ID, credential ID
+         server -> client : sends 32 byte random salt, relying party ID, credential ID
+         client -> authenticator : sends 32 byte random salt, relying party ID, credential ID
          authenticator -> client : signed challenge
          client -> server : signed challenge
          server -> client : verify signed challenge and send OK or ERR packet
