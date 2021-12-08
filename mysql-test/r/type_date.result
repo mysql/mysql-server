@@ -675,3 +675,25 @@ execute stmt using @dt_flt;
 DATE'2020-01-01' = ?
 0
 deallocate prepare stmt;
+# Bug#33649009: Inconsistency between protocols when writing offset
+#               char values to DATE column
+CREATE TABLE dt(dt DATETIME);
+INSERT INTO dt VALUES('2021-10-10 23:00:00.123456+01:00');
+CREATE TABLE d(d DATE);
+INSERT INTO d VALUES('2021-10-10 23:00:00.123456+01:00');
+Warnings:
+Note	1292	Incorrect date value: '2021-10-10 23:00:00.123456+01:00' for column 'd' at row 1
+INSERT INTO d SELECT * FROM dt;
+Warnings:
+Note	1292	Incorrect date value: '2021-10-11 01:00:00' for column 'd' at row 1
+prepare s from "INSERT INTO d VALUES(?)";
+set @t='2021-10-10 23:00:00.123456+01:00';
+execute s using @t;
+Warnings:
+Note	1292	Incorrect date value: '2021-10-11 01:00:00' for column 'd' at row 1
+SELECT * FROM d;
+d
+2021-10-11
+2021-10-11
+2021-10-11
+DROP TABLE d, dt;

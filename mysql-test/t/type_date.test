@@ -556,3 +556,22 @@ execute stmt using @t_flt;
 prepare stmt from "SELECT DATE'2020-01-01' = ?";
 execute stmt using @dt_flt;
 deallocate prepare stmt;
+--echo # Bug#33649009: Inconsistency between protocols when writing offset
+--echo #               char values to DATE column
+
+CREATE TABLE dt(dt DATETIME);
+INSERT INTO dt VALUES('2021-10-10 23:00:00.123456+01:00');
+
+CREATE TABLE d(d DATE);
+
+INSERT INTO d VALUES('2021-10-10 23:00:00.123456+01:00');
+INSERT INTO d SELECT * FROM dt;
+
+prepare s from "INSERT INTO d VALUES(?)";
+set @t='2021-10-10 23:00:00.123456+01:00';
+execute s using @t;
+
+SELECT * FROM d;
+
+DROP TABLE d, dt;
+
