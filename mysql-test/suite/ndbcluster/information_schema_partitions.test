@@ -149,3 +149,32 @@ WHERE table_schema = 'test' AND table_name = 't1_fully_replicated'
 ORDER BY PARTITION_ORDINAL_POSITION;
 
 DROP TABLE t1_fully_replicated;
+
+--echo #
+--echo # Bug#33643512 Missing check for Thd_ndb in information_schema.partitions
+--echo # - Run I_S.partition query on new connection
+--echo #
+CREATE TABLE t1 (a int primary key) engine = NDB;
+
+# Run query to cache open ha_ndbcluster instance
+--disable_query_log ONCE
+--disable_result_log ONCE
+select * from information_schema.partitions
+  where (table_schema, table_name) in (select table_schema, table_name from
+    information_schema.tables where engine="ndbcluster");
+
+# Run query in new connection
+--connect(con1, localhost, root)
+--connection con1
+--disable_query_log ONCE
+--disable_result_log ONCE
+select * from information_schema.partitions
+  where (table_schema, table_name) in (select table_schema, table_name from
+    information_schema.tables where engine="ndbcluster");
+
+# Disconnect
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+
+DROP TABLE t1;

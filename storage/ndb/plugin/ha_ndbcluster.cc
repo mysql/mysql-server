@@ -6903,9 +6903,11 @@ void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("part_id: %d", part_id));
 
-  THD *thd = table->in_use;
-  if (!thd) thd = current_thd;
-
+  THD *thd = current_thd;
+  if (check_ndb_connection(thd)) {
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return;
+  }
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
 
   // Checksum not supported, set it to 0
