@@ -2,11 +2,19 @@
 --source include/have_innodb_max_16k.inc
 --source include/have_debug.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
+--enable_query_log
+
 --echo #
 --echo # Bug #21950756 INNODB: FAILING ASSERTION: !(&DICT_SYS->MUTEX)
 --echo # ->IS_OWNED() IN DICT0STATS.CC 3049
 --echo #
 
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
+
+--disable_warnings
 CREATE TABLE t1(
 c0 INT(1),
 c1 INT(1),
@@ -128,6 +136,7 @@ KEY idx22 (c51,c7(120)),
 KEY idx23 (c7(163),c31,c71,c14))
 ENGINE=InnoDB DEFAULT CHARSET=latin1
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+--enable_warnings
 
 SET @@session.max_heap_table_size=16384;
 SELECT @@session.max_heap_table_size;
@@ -136,3 +145,5 @@ SELECT database_name,table_name,index_name,compress_ops,compress_ops_ok,
 uncompress_ops FROM information_schema.innodb_cmp_per_index;
 
 DROP TABLE t1;
+
+SET SESSION innodb_strict_mode=@saved_innodb_strict_mode;

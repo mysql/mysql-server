@@ -2107,16 +2107,16 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   return (rec_max_size);
 }
 
-/** If a record of this index might not fit on a single B-tree page,
- return TRUE.
- @return true if the index record could become too big */
-static bool dict_index_too_big_for_tree(
-    const dict_table_t *table,     /*!< in: table */
-    const dict_index_t *new_index, /*!< in: index */
-    bool strict)                   /*!< in: TRUE=report error if
-                                   records could be too big to
-                                   fit in an B-tree page */
-{
+/** A B-tree page should accommodate at least two records. This function finds
+out if this is violated for records of maximum possible length of this index.
+@param[in]	table		table
+@param[in]	new_index	index
+@param[in]	strict		TRUE=report error if records could be too big to
+                                fit in an B-tree page
+@return true if the index record could become too big */
+static bool dict_index_too_big_for_tree(const dict_table_t *table,
+                                        const dict_index_t *new_index,
+                                        bool strict) {
   ulint comp;
   ulint i;
   /* maximum possible storage size of a record */
@@ -2223,14 +2223,24 @@ static bool dict_index_too_big_for_tree(
       }
     } else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
                new_index->is_clustered()) {
-      /* In the worst case, we have a locally stored
-      column of BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes.
-      The length can be stored in one byte.  If the
-      column were stored externally, the lengths in
-      the clustered index page would be
-      BTR_EXTERN_FIELD_REF_SIZE and 2. */
-      field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
-      field_ext_max_size = 1;
+      if (dict_table_has_atomic_blobs(table)) {
+        /* In the worst case, we have a locally stored column of
+        BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes. The length can be stored in one
+        byte. If the column were stored externally, the lengths in the clustered
+        index page would be BTR_EXTERN_FIELD_REF_SIZE and 2. */
+        field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
+        field_ext_max_size = 1;
+      } else {
+        /* In this case, externally stored fields would have 768 byte prefix
+        stored in-line followed by fields reference. */
+        size_t local_stored_length =
+            BTR_EXTERN_FIELD_REF_SIZE + DICT_ANTELOPE_MAX_INDEX_COL_LEN;
+        if (field_max_size > local_stored_length) {
+          field_max_size = local_stored_length;
+          /* Prefix length will be stored in 2 bytes. */
+          field_ext_max_size = 2;
+        }
+      }
     }
 
     if (comp) {

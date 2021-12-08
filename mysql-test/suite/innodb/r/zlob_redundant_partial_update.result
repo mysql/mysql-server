@@ -1,3 +1,5 @@
+SET @saved_innodb_strict_mode=@@SESSION.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
 create table ibstd_39_j (a int not null, d varchar(15) not null, b varchar(198) not null, c char(156), pkey int not null auto_increment, j json, vjh varchar(100) as (json_unquote(j->"$.hash")) virtual, vjha varchar(100) as (json_unquote(j->"$.hash1[0]")) virtual, vjhh varchar(100) as (json_unquote(j->"$.hash2.hash3")) virtual , primary key (pkey  desc), index(vjhh  desc), index(d  desc), index(a  desc) , fulltext ftsic(c) , fulltext ftsic2(c,b,d) , fulltext ftsic3(c,b) ) engine=InnoDB row_format=redundant  ;
 show create table ibstd_39_j;
 Table	Create Table

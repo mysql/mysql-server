@@ -68,7 +68,7 @@ SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(127)
-) ROW_FORMAT=redundant;
+) charset latin1 ROW_FORMAT=redundant;
 DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -78,7 +78,7 @@ ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT 
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(155)
-) ROW_FORMAT=compact;
+) charset latin1 ROW_FORMAT=compact;
 DROP TABLE t1;
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
