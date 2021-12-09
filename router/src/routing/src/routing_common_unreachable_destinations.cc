@@ -158,8 +158,9 @@ void RoutingCommonUnreachableDestinations::refresh_quarantine(
   update_destinations_state(new_destinations);
 }
 
-void RoutingCommonUnreachableDestinations::clear_quarantine() {
+void RoutingCommonUnreachableDestinations::stop_quarantine() {
   log_debug("Clear shared unreachable destinations quarantine list");
+  stopped_ = true;
   std::lock_guard<std::mutex> l{quarantine_mutex_};
   std::for_each(std::begin(quarantined_destination_candidates_),
                 std::end(quarantined_destination_candidates_),
@@ -167,17 +168,13 @@ void RoutingCommonUnreachableDestinations::clear_quarantine() {
   quarantined_destination_candidates_.clear();
 }
 
-bool RoutingCommonUnreachableDestinations::is_running() const {
-  auto &component = MySQLRoutingComponent::get_instance();
-
-  // get the first routing instance.
-  return component.api(component.route_names().front()).is_running();
-}
-
 void RoutingCommonUnreachableDestinations::quarantine_handler(
     const std::error_code &ec, const mysql_harness::TCPAddress &dest) {
-  // leave early at shutdown.
-  if (!is_running()) return;
+  // Either there is an quarantine update or we are shutting down.
+  if (ec && ec == std::errc::operation_canceled) {
+    // leave early at shutdown.
+    if (stopped_) return;
+  }
 
   const auto port_alive = tcp_port_alive(io_ctx_, dest.address(), dest.port(),
                                          kQuarantinedConnectTimeout);
@@ -255,6 +252,7 @@ RoutingCommonUnreachableDestinations::get_referencing_routing_instances(
 
 void RoutingCommonUnreachableDestinations::update_destinations_state(
     const AllowedNodes &destination_list) {
+  std::lock_guard<std::mutex> l{quarantine_mutex_};
   for (const auto &destination : destination_list) {
     const auto quarantined_pos =
         std::find_if(std::begin(quarantined_destination_candidates_),

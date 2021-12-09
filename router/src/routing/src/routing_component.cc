@@ -128,7 +128,7 @@ void MySQLRoutingAPI::stop_socket_acceptors() { r_->stop_socket_acceptors(); }
 bool MySQLRoutingAPI::is_running() const { return r_->is_running(); }
 
 void MySQLRoutingComponent::deinit() {
-  routing_common_unreachable_destinations_.clear_quarantine();
+  routing_common_unreachable_destinations_.stop_quarantine();
   for (auto &route : routes_) {
     if (auto routing_plugin = route.second.lock()) {
       routing_plugin->get_context().shared_quarantine().reset();
@@ -150,8 +150,8 @@ void MySQLRoutingComponent::init(
     return routing_common_unreachable_destinations_.is_quarantined(addr);
   });
 
-  quarantine.on_clear(
-      [&]() { routing_common_unreachable_destinations_.clear_quarantine(); });
+  quarantine.on_stop(
+      [&]() { routing_common_unreachable_destinations_.stop_quarantine(); });
 
   quarantine.on_refresh([&](const std::string &instance_name,
                             const bool nodes_changed_on_md_refresh,

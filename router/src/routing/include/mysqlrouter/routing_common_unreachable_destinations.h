@@ -113,9 +113,7 @@ class RoutingCommonUnreachableDestinations {
   /**
    * Stop all async operations and clear the quarantine list.
    */
-  void clear_quarantine();
-
-  bool is_running() const;
+  void stop_quarantine();
 
  private:
   /**
@@ -210,6 +208,7 @@ class RoutingCommonUnreachableDestinations {
   std::mutex unreachable_destinations_init_mutex_;
   std::mutex routing_instances_mutex_;
   std::vector<std::string> routing_instances_;
+  std::atomic<bool> stopped_{false};
 };
 
 #endif  // MYSQLROUTER_ROUTING_COMMON_UNREACHABLE_DESTINATIONS_INCLUDED

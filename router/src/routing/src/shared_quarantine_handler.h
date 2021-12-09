@@ -37,7 +37,7 @@ class SharedQuarantineHandler {
   using update_callback_type = std::function<void(mysql_harness::TCPAddress)>;
   using is_quarantined_callback_type =
       std::function<bool(mysql_harness::TCPAddress)>;
-  using clear_callback_type = std::function<void()>;
+  using stop_callback_type = std::function<void()>;
 
   using refresh_callback_type = std::function<void(
       const std::string &, const bool, const AllowedNodes &)>;
@@ -69,15 +69,15 @@ class SharedQuarantineHandler {
   }
 
   /**
-   * Register a callback that can be used to clear the unreachable destination
+   * Register a callback that can be used to stop the unreachable destination
    * candidates quarantine.
    *
    * @param[in] clb Callback called to remove all destinations from quarantine.
    */
-  void on_clear(clear_callback_type clb) { on_clear_ = std::move(clb); }
+  void on_stop(stop_callback_type clb) { on_stop_ = std::move(clb); }
 
-  void clear() {
-    if (on_clear_) on_clear_();
+  void stop() {
+    if (on_stop_) on_stop_();
   }
 
   /**
@@ -100,14 +100,14 @@ class SharedQuarantineHandler {
     on_update_ = nullptr;
     on_is_quarantined_ = nullptr;
     on_refresh_ = nullptr;
-    on_clear_ = nullptr;
+    on_stop_ = nullptr;
   }
 
  private:
   update_callback_type on_update_;
 
   is_quarantined_callback_type on_is_quarantined_;
-  clear_callback_type on_clear_;
+  stop_callback_type on_stop_;
   refresh_callback_type on_refresh_;
 };
 

@@ -1243,7 +1243,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   // wait for the signal to shutdown.
   mysql_harness::wait_for_stop(env, 0);
   is_running_ = false;
-  get_context().shared_quarantine().clear();
+  get_context().shared_quarantine().stop();
 
   stop_acceptors_guard.commit();
   // routing is no longer running, lets close listening socket
