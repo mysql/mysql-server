@@ -1132,6 +1132,7 @@ AccessPath *FindCheapestIndexRangeScan(THD *thd, SEL_TREE *tree,
   path->index_range_scan().can_be_used_for_imerge = true;
   path->index_range_scan().reuse_handler = false;
   path->index_range_scan().geometry = Overlaps(key->flags, HA_SPATIAL);
+  path->index_range_scan().reverse = false;
 
   *inexact |= (num_exact_key_parts != used_key_parts);
   return path;
