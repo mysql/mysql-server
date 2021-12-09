@@ -38,7 +38,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -46,7 +46,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -70,7 +70,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --rejects=1
+      --fields-terminated-by="|" --rejects=1
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -78,7 +78,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -102,7 +102,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -110,7 +110,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -134,7 +134,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --rejects=1
+      --fields-terminated-by="|" --rejects=1
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -142,7 +142,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -166,7 +166,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -174,7 +174,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -198,7 +198,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --rejects=1
+      --fields-terminated-by="|" --rejects=1
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -206,7 +206,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -230,7 +230,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -238,7 +238,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -262,7 +262,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --rejects=1
+      --fields-terminated-by="|" --rejects=1
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -270,7 +270,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -294,7 +294,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -302,7 +302,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -326,7 +326,7 @@ create table t10ver like t10;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --rejects=1
+      --fields-terminated-by="|" --rejects=1
       test
       $MYSQLTEST_VARDIR/tmp/t10.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -334,7 +334,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t10.csv' into table t10ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t10ver";
@@ -375,7 +375,7 @@ create table t3 (
 create table t3ver like t3;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state
-     --log-level=1 --csvopt=n
+     --log-level=1
      test $MYSQLTEST_VARDIR/tmp/t3.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
@@ -414,7 +414,7 @@ create table t12ver like t12;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|'
+      --fields-terminated-by="|"
       test
       $MYSQLTEST_VARDIR/tmp/t12.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
@@ -422,7 +422,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t12.csv' into table t12ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default;
+lines terminated by $lt_unix;
 --enable_query_log
 
 select AUTO_INCREMENT from information_schema.tables where table_schema="test" and table_name="t12ver";
@@ -457,14 +457,14 @@ create table t13ver like t13;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
       --keep-state --log-level=1 --csvopt=n
-      --fields-terminated-by='|' --ignore-lines=1
+      --fields-terminated-by="|" --ignore-lines=1
       test
       $MYSQLTEST_VARDIR/tmp/t13.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t13.csv' into table t13ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default
+lines terminated by $lt_unix
 IGNORE 1 LINES;
 --enable_query_log
 
@@ -498,15 +498,15 @@ create table t14 (
 create table t14ver like t14;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
-      --keep-state --log-level=1
-      --fields-terminated-by='|' --ignore-lines=1
+      --keep-state --log-level=1 --csvopt=n
+      --fields-terminated-by="|" --ignore-lines=1
       test
       $MYSQLTEST_VARDIR/tmp/t14.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
 eval load data local infile '$MYSQLTEST_VARDIR/tmp/t14.csv' into table t14ver
 FIELDS TERMINATED BY '|'
-lines terminated by $lt_default
+lines terminated by $lt_unix
 IGNORE 1 LINES;
 --enable_query_log
 
