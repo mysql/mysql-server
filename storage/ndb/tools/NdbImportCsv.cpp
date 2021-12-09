@@ -642,6 +642,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = T_DATA;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   {
     const uchar* p = spec.m_fields_terminated_by;
@@ -652,6 +653,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = len == 1 ? T_FIELDSEP : T_FIELDSEP2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   {
     const uchar* p = spec.m_fields_optionally_enclosed_by;
@@ -662,6 +664,7 @@ NdbImportCsv::Parse::do_init()
       m_trans[State_plain][u] = T_QUOTE;
       m_trans[State_quote][u] = T_QUOTEQUOTE;
       m_trans[State_escape][u] = T_BYTE;
+      m_trans[State_cr][u] = T_LINEEND;
     }
   }
   {
@@ -674,6 +677,7 @@ NdbImportCsv::Parse::do_init()
       m_trans[State_plain][u] = T_ESCAPE;
       m_trans[State_quote][u] = T_ESCAPE;
       m_trans[State_escape][u] = T_BYTE;
+      m_trans[State_cr][u] = T_LINEEND;
     }
   }
   {
@@ -685,6 +689,7 @@ NdbImportCsv::Parse::do_init()
     m_trans[State_plain][u] = len == 1 ? T_LINEEND : T_LINEEND2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
+    m_trans[State_cr][u] = T_LINEEND;
   }
   // escape (\N is special)
   {
@@ -847,6 +852,8 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     break;
   case T_LINEEND:
+    if (spec.m_lines_terminated_by_len > 1)
+      pop_state();
     len = 1;
     end += len;
     break;
@@ -860,8 +867,16 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
       break;
     }
     len = 1;
-    end += len;
-    token = T_DATA;
+    end += 1;
+    if ((buf.m_len - buf.m_pos) == 1)
+    {
+      token = T_LINEEND;
+      push_state(State_cr);
+    }
+    else
+    {
+      token = T_DATA;
+    }
     break;
   case T_DATA:
     do
@@ -995,6 +1010,9 @@ NdbImportCsv::g_str_state(Parse::State state)
     break;
   case Parse::State_escape:
     str = "escape";
+    break;
+  case Parse::State_cr:
+    str = "carriage_return";
     break;
   }
   require(str != 0);
