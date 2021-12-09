@@ -335,9 +335,10 @@ public:
     enum State {
       State_plain = 0,
       State_quote = 1,
-      State_escape = 2
+      State_escape = 2,
+      State_cr = 3
     };
-    static const int g_statecnt = State_escape + 1;
+    static const int g_statecnt = State_cr + 1;
     Parse(Input& input);
     void do_init();
     void push_state(State state);
