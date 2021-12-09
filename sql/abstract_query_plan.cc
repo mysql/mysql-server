@@ -286,7 +286,7 @@ void Table_access::compute_type_and_index() const {
            **/
 
           const KEY *key_info = qep_tab->table()->s->key_info;
-          DBUG_EXECUTE("info", dbug_dump(0, true, path););
+          DBUG_EXECUTE("info", dbug_dump(path, true, 0););
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed
           // joins
