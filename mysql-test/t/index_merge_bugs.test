@@ -38,6 +38,7 @@ INSERT INTO t1 SELECT f1+2, f2+2 FROM t1;
 ANALYZE TABLE t1;
 
 # Should not assert
+--skip_if_hypergraph
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
 SELECT * FROM t1 WHERE f1 < 3 or f2 > 1020;
 
