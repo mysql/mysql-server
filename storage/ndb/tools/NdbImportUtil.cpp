@@ -2558,7 +2558,7 @@ NdbImportUtil::Buf::alloc(uint pagesize, uint pagecnt)
   require(pagesize != 0 && (pagesize & (pagesize - 1)) == 0);
   require(pagecnt != 0);
   uint size = pagesize * pagecnt;
-  uint allocsize = size + (pagesize - 1) + 1;
+  uint allocsize = size + (pagesize - 1) + 2;
   uchar* allocptr = new uchar [allocsize];
   uchar* data = allocptr;
   uint misalign = (UintPtr)data & (pagesize - 1);
@@ -2769,7 +2769,14 @@ NdbImportUtil::File::do_read(Buf& buf)
   uint endpos = buf.m_start + buf.m_len;
   require(endpos <= buf.m_size);
   require(endpos < buf.m_allocsize);
-  buf.m_data[endpos] = 0;
+  if (buf.m_data[endpos-1] == '\r')
+  {
+    if(do_read(&buf.m_data[endpos], 1, len) == -1)
+      return -1;
+    buf.m_len += 1;
+  }
+  else
+    buf.m_data[endpos] = 0;
   return 0;
 }
 
