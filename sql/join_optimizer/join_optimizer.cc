@@ -643,7 +643,8 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
             /*subsumed_predicates=*/
             MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
             /*materialize_subqueries=*/false, zero_path, &new_fd_set);
-        zero_path->filter_predicates = OverflowBitset();
+        zero_path->filter_predicates =
+            MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()};
         zero_path->ordering_state =
             m_orderings->ApplyFDs(zero_path->ordering_state, new_fd_set);
         ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set,

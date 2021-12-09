@@ -75,7 +75,9 @@
 #include "unittest/gunit/test_utils.h"
 
 using hypergraph::NodeMap;
+using std::string;
 using std::string_view;
+using std::to_string;
 using std::unordered_map;
 using std::vector;
 using testing::_;
@@ -3719,6 +3721,43 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
   EXPECT_STREQ("t1", root->zero_rows().child->table_scan().table->alias);
 
   query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ImpossibleRangeWithOverflowBitset) {
+  // We want to test a query that has an impossible range and enough predicates
+  // that they don't fit in an inlined OverflowBitset in the zero-rows access
+  // path. We need at least 64 predicates to make OverflowBitset overflow.
+  constexpr int number_of_predicates = 70;
+  string query = "SELECT 1 FROM t1 WHERE t1.x >= 2 AND t1.x <= 1";
+  for (int i = 2; i < number_of_predicates; ++i) {
+    query += " AND t1.y <> " + to_string(i);
+  }
+
+  Query_block *query_block = ParseAndResolve(query.c_str(),
+                                             /*nullable=*/false);
+
+  // Add an index on t1.x so that we try a range scan on the
+  // impossible range (x >= 2 AND x <= 1).
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The predicate bitsets in the zero-rows access path need to have enough
+  // space for all the predicates. Otherwise, assert failures/undefined
+  // behaviour may occur when the zero-rows path is combined with other paths in
+  // joins.
+  EXPECT_EQ(AccessPath::ZERO_ROWS, root->type);
+  EXPECT_LE(number_of_predicates, root->filter_predicates.capacity());
+  EXPECT_LE(number_of_predicates, root->delayed_predicates.capacity());
 }
 
 TEST_F(HypergraphOptimizerTest, IndexMerge) {
