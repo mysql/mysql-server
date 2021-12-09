@@ -834,7 +834,7 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
   // we want those that belong to the PRIMARY cluster to be first in the
   // resultset
   sqlstring query2 =
-      "SELECT i.address, csm.member_role FROM "
+      "SELECT i.address, csm.member_role "
       "FROM mysql_innodb_cluster_metadata.v2_instances i "
       "LEFT JOIN mysql_innodb_cluster_metadata.v2_cs_members csm "
       "ON i.cluster_id = csm.cluster_id "
