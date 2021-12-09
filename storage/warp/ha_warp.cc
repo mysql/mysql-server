@@ -1847,7 +1847,7 @@ fetch_again:
               parallel_join_mutex.lock();
               auto tmp = running_join_threads;
               parallel_join_mutex.unlock();
-              if(tmp >= max_threads && (part_it+1) != partitions->end() ) {
+              if(tmp >= THDVAR(table->in_use, max_degree_of_parallelism) && (part_it+1) != partitions->end() ) {
                 
                 struct timespec sleep_time;
                 struct timespec remaining_time;

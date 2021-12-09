@@ -180,6 +180,10 @@ static MYSQL_THDVAR_BOOL(adjust_table_stats_for_joins, PLUGIN_VAR_NOCMDARG,
                           "Sets the largest table in a query to have a row count of 2.  Can cause problems with some MySQL subquery optimizations.",
                           nullptr, nullptr, false);
 
+static MYSQL_THDVAR_ULONG(max_degree_of_parallelism, PLUGIN_VAR_RQCMDARG,
+                          "Maximum number of threads which can be used for join optimization",
+                          nullptr, nullptr, std::thread::hardware_concurrency(), 1, std::thread::hardware_concurrency() * 4, 0);
+
 
 SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(partition_max_rows),
@@ -188,6 +192,7 @@ SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(lock_wait_timeout),
   MYSQL_SYSVAR(partition_filter),
   MYSQL_SYSVAR(adjust_table_stats_for_joins),
+  MYSQL_SYSVAR(max_degree_of_parallelism),
   NULL
 };
 
