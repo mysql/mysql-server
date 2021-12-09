@@ -1025,7 +1025,7 @@ function get_response(stmt_key, options) {
       };
     case "router_clusterset_all_nodes":
       return {
-        stmt: "SELECT i.address, csm.member_role FROM " +
+        stmt: "SELECT i.address, csm.member_role " +
             "FROM mysql_innodb_cluster_metadata.v2_instances i " +
             "LEFT JOIN mysql_innodb_cluster_metadata.v2_cs_members csm " +
             "ON i.cluster_id = csm.cluster_id " +
