@@ -1599,6 +1599,14 @@ static void copy_bind_parameter_values(THD *thd, PS_PARAM *parameters,
 */
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command) {
+  assert(thd->lex->m_IS_table_stats.is_valid() == false);
+  assert(thd->lex->m_IS_tablespace_stats.is_valid() == false);
+#ifndef NDEBUG
+  auto tabstat_grd = create_scope_guard([&]() {
+    assert(thd->lex->m_IS_table_stats.is_valid() == false);
+    assert(thd->lex->m_IS_tablespace_stats.is_valid() == false);
+  });
+#endif /* NDEBUG */
   bool error = false;
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   DBUG_TRACE;
@@ -4771,6 +4779,7 @@ finish:
   }
 
   lex->cleanup(thd, true);
+
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);

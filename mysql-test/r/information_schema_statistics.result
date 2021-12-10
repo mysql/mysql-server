@@ -134,3 +134,105 @@ FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
 DROP TABLE t0;
 SET GLOBAL DEBUG=DEFAULT;
 SET DEBUG_SYNC = 'RESET';
+#
+# Bug#33538106: There is a problem when calling the system table
+# in stored function
+#
+# Verify that dynamic information from I_S reflects all changes also when
+# queried from a stored function or prepared statement.
+CREATE TABLE t1 (
+org_id INT NOT NULL AUTO_INCREMENT,
+org_code VARCHAR(16) NOT NULL,
+PRIMARY KEY (org_id));
+INSERT INTO t1 VALUES (NULL, '1');
+INSERT INTO t1 VALUES (NULL, '2');
+SET SESSION information_schema_stats_expiry = 0;
+CREATE FUNCTION f1(table_name VARCHAR(64)) RETURNS INT
+BEGIN
+DECLARE dbname VARCHAR(32) DEFAULT 'test';
+DECLARE nextid INT;
+SELECT DATABASE() INTO dbname;
+SELECT MAX(AUTO_INCREMENT) INTO nextid FROM information_schema.tables t WHERE
+table_schema = dbname AND t.table_name = table_name;
+RETURN nextid;
+END;
+/
+PREPARE ps1 FROM 'SELECT MAX(AUTO_INCREMENT) = ? FROM information_schema.tables WHERE
+table_schema = ? AND table_name = ?';
+# Expect the value to be 3
+SELECT MAX(AUTO_INCREMENT) FROM information_schema.tables t WHERE
+table_schema = 'test' AND t.table_name = 't1';
+MAX(AUTO_INCREMENT)
+3
+SELECT f1('t1') = 3;
+f1('t1') = 3
+1
+SET @expected = 3;
+SET @db = 'test';
+SET @table = 't1';
+EXECUTE ps1 USING @expected, @db, @table;
+MAX(AUTO_INCREMENT) = ?
+1
+INSERT INTO t1 VALUES (NULL, '1');
+# After additional insert the expected value is 4
+SELECT MAX(AUTO_INCREMENT) FROM information_schema.tables t WHERE
+table_schema = 'test' AND t.table_name = 't1';
+MAX(AUTO_INCREMENT)
+4
+# When using a function
+SELECT f1('t1') = 4;
+f1('t1') = 4
+1
+# And also with a prepared statement
+SET @expected = 4;
+EXECUTE ps1 USING @expected, @db, @table;
+MAX(AUTO_INCREMENT) = ?
+1
+# Testing caching of I_S.FILES
+CREATE TABLE t2 (b CHAR(250), c CHAR(250));
+# Procedure querying dynamic columns from I_S.FILES
+CREATE PROCEDURE p2(tablespace VARCHAR(64))
+BEGIN
+SELECT DATA_FREE, FREE_EXTENTS, TOTAL_EXTENTS FROM information_schema.files WHERE
+TABLESPACE_NAME = tablespace;
+END;
+/
+# Convenince procedure to populate table with data to make dyanmic
+# columns change
+CREATE PROCEDURE populate_t2()
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE (i <= 6000) DO
+INSERT INTO t2 (b,c) VALUES (repeat('b', 250), repeat('c', 250));
+SET i = i + 1;
+END WHILE;
+END; /
+PREPARE ps2 FROM 'SELECT DATA_FREE, FREE_EXTENTS, TOTAL_EXTENTS FROM information_schema.files WHERE
+TABLESPACE_NAME = ?';
+# Query I_S for empty table
+CALL p2('test/t2');
+DATA_FREE	FREE_EXTENTS	TOTAL_EXTENTS
+0	0	0
+SET @tablespace = 'test/t2';
+EXECUTE ps2 USING @tablepspace;
+DATA_FREE	FREE_EXTENTS	TOTAL_EXTENTS
+CALL populate_t2();
+# Querying I_S after table has been populated must show updated values
+CALL p2('test/t2');
+DATA_FREE	FREE_EXTENTS	TOTAL_EXTENTS
+4194304	2	11
+EXECUTE ps2 USING @tablespace;
+DATA_FREE	FREE_EXTENTS	TOTAL_EXTENTS
+4194304	2	11
+SELECT DATA_FREE, FREE_EXTENTS, TOTAL_EXTENTS FROM information_schema.files WHERE
+TABLESPACE_NAME = 'test/t2';
+DATA_FREE	FREE_EXTENTS	TOTAL_EXTENTS
+4194304	2	11
+# Cleanup
+DROP PROCEDURE populate_t2;
+DROP PROCEDURE p2;
+DROP TABLE t2;
+DEALLOCATE PREPARE ps1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+SET SESSION information_schema_stats_expiry = default;

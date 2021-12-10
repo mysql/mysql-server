@@ -521,8 +521,8 @@ bool lex_start(THD *thd) {
   assert(lex->current_query_block() == nullptr);
   lex->m_current_query_block = lex->query_block;
 
-  lex->m_IS_table_stats.invalidate_cache();
-  lex->m_IS_tablespace_stats.invalidate_cache();
+  assert(lex->m_IS_table_stats.is_valid() == false);
+  assert(lex->m_IS_tablespace_stats.is_valid() == false);
 
   return status;
 }

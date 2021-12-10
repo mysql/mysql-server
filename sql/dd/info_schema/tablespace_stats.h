@@ -194,6 +194,10 @@ class Tablespace_statistics {
                          const String &engine_name_ptr,
                          const char *ts_se_private_data);
 
+ public:
+  /// Predicate for determinig if cache is valid
+  bool is_valid() const { return !m_key.empty(); }
+
  private:
   // The cache key
   String_type m_key;  // Format '<tablespace_name>'

@@ -375,6 +375,10 @@ class Table_statistics {
   /// Set open table in progress.
   void set_read_stats_by_open(bool status) { m_read_stats_by_open = status; }
 
+ public:
+  /// Predicate for determinig if cache is valid
+  bool is_valid() const { return !m_key.empty(); }
+
  private:
   // The cache key
   String_type m_key;  // Format '<db_name>.<table_name>'

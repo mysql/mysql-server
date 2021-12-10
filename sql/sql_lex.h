@@ -4013,7 +4013,13 @@ struct LEX : public Query_tables_list {
 
   bool check_preparation_invalid(THD *thd);
 
-  void cleanup(THD *thd, bool full) { unit->cleanup(thd, full); }
+  void cleanup(THD *thd, bool full) {
+    unit->cleanup(thd, full);
+    if (full) {
+      m_IS_table_stats.invalidate_cache();
+      m_IS_tablespace_stats.invalidate_cache();
+    }
+  }
 
   bool is_exec_started() const { return m_exec_started; }
   void set_exec_started() { m_exec_started = true; }
