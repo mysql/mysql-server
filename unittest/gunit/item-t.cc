@@ -25,8 +25,11 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
+
+#include <array>
 #include <memory>
 #include <new>
+#include <utility>
 
 #include "decimal.h"
 #include "field_types.h"
@@ -59,6 +62,9 @@ namespace item_unittest {
 
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using std::array;
+using std::make_pair;
+using std::pair;
 using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
@@ -372,6 +378,48 @@ TEST_F(ItemTest, ItemEqual) {
 
   EXPECT_FALSE(item_equal->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_equal->val_int());
+}
+
+TEST_F(ItemTest, ItemEqualEq) {
+  Mock_field_timestamp field1;
+  field1.field_name = "field1";
+  Mock_field_timestamp field2;
+  field2.field_name = "field2";
+
+  Item_equal *item_equal1 =
+      new Item_equal(new Item_field(&field1), new Item_field(&field2));
+  Item_equal *item_equal2 =
+      new Item_equal(new Item_field(&field2), new Item_field(&field1));
+  Item_equal *item_equal3 =
+      new Item_equal(new Item_int(123), new Item_field(&field1));
+  Item_equal *item_equal4 =
+      new Item_equal(new Item_int(123), new Item_field(&field1));
+  item_equal4->add(new Item_field(&field2));
+
+  Item_func_equal *spaceship =
+      new Item_func_equal(new Item_field(&field1), new Item_field(&field2));
+
+  // Create an array of <int, Item *> pairs. If the int members of two pairs are
+  // the same, the Item * members should be considered equal by Item::eq(). (The
+  // first two objects are equivalent. The rest of them are different.)
+  array<pair<int, Item *>, 5> items{
+      make_pair(1, item_equal1), make_pair(1, item_equal2),
+      make_pair(2, item_equal3), make_pair(3, item_equal4),
+      make_pair(4, spaceship),
+  };
+
+  // Now compare all items with each other.
+  for (bool binary_cmp : {true, false}) {
+    for (pair<int, Item *> it1 : items) {
+      for (pair<int, Item *> it2 : items) {
+        EXPECT_EQ(it1.first == it2.first,
+                  it1.second->eq(it2.second, binary_cmp))
+            << "Item 1: " << ItemToString(it1.second)
+            << ", Item 2: " << ItemToString(it2.second)
+            << ", binary_cmp = " << binary_cmp;
+      }
+    }
+  }
 }
 
 TEST_F(ItemTest, ItemFuncExportSet) {

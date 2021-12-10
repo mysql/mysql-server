@@ -7125,7 +7125,7 @@ void Item_equal::print(const THD *thd, String *str,
 }
 
 bool Item_equal::eq(const Item *item, bool binary_cmp) const {
-  if (!is_function_of_type(item, Item_func::EQUAL_FUNC)) {
+  if (!is_function_of_type(item, Item_func::MULT_EQUAL_FUNC)) {
     return false;
   }
   const Item_equal *item_eq = down_cast<const Item_equal *>(item);
