@@ -1,1 +1,1 @@
-include/assert_grep.inc [Parameter TransactionMemory can not be set along with any of the below deprecated parameter(s) MaxNoOfConcurrentScans, MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations and MaxNoOfConcurrentTransactions]
+include/assert_grep.inc [Parameter TransactionMemory can not be set along with any of the below deprecated parameter(s) MaxNoOfConcurrentIndexOperations, MaxNoOfFiredTriggers, MaxNoOfLocalScans and MaxNoOfLocalOperations.]
