@@ -6857,6 +6857,91 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 /**
+  Check that pre-existing self-referencing foreign key or an orphan
+  non-self-referencing foreign key become non-orphan/adopted self-referencing
+  foreign key as a result of table rename operation will be valid after ALTER
+  TABLE, i.e. that table has parent index and types of child and parent
+  columns are compatible. Also update DD.UNIQUE_CONSTRAINT_NAME accordingly.
+
+  @param          thd                 Thread context..
+  @param          create_info         HA_CREATE_INFO describing table.
+  @param          alter_info          Alter_info structure describing
+                                      table.
+  @param          key_info            Array of indexes.
+  @param          key_count           Number of indexes.
+  @param          supporting_key      Supporting key for the foreign key.
+  @param          existing_fks_table  dd::Table object for table version
+                                      from which pre-existing foreign keys
+                                      come from. Needed for error
+                                      reporting.
+  @param          referencing_fields  List of foreign key referencing fields.
+  @param[in,out]  fk                  FOREIGN_KEY object describing
+                                      pre-existing foreign key.
+
+  @retval true if error (error reported), false otherwise.
+*/
+static bool prepare_preexisting_self_ref_foreign_key(
+    THD *thd, HA_CREATE_INFO *create_info, Alter_info *alter_info,
+    KEY *key_info, uint key_count, const KEY *supporting_key,
+    const dd::Table *existing_fks_table, FOREIGN_KEY *fk,
+    const Prealloced_array<Create_field *, 1> &referencing_fields) {
+  Create_field *sql_field;
+  List_iterator<Create_field> it(alter_info->create_list);
+
+  // Check that types of child and parent columns are still compatible.
+  if (create_info->db_type->check_fk_column_compat) {
+    for (size_t j = 0; j < fk->key_parts; j++) {
+      it.rewind();
+      while ((sql_field = it++)) {
+        if (my_strcasecmp(system_charset_info, fk->fk_key_part[j].str,
+                          sql_field->field_name) == 0)
+          break;
+      }
+      // We already have checked that referenced column exists.
+      assert(sql_field != nullptr);
+
+      Ha_fk_column_type child_column_type, parent_column_type;
+
+      fill_ha_fk_column_type(&child_column_type, referencing_fields[j]);
+      fill_ha_fk_column_type(&parent_column_type, sql_field);
+
+      /*
+        Allow charset discrepancies between child and parent columns
+        in FOREIGN_KEY_CHECKS=0 mode. This provides a way to change
+        charset of column which participates in a foreign key without
+        dropping the latter.
+        We allow such discrepancies even for foreign keys that has same
+        table as child and parent in order to be consistent with general
+        case, in which there is no way to change charset of both child
+        and parent columns simultaneously.
+
+        We do not allow creation of same discrepancies when adding
+        new foreign key using CREATE/ALTER TABLE or adding new parent
+        for existing orphan foreign key using CREATE/RENAME TABLE.
+      */
+      if (!create_info->db_type->check_fk_column_compat(
+              &child_column_type, &parent_column_type,
+              !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))) {
+        my_error(ER_FK_INCOMPATIBLE_COLUMNS, MYF(0), fk->key_part[j].str,
+                 fk->fk_key_part[j].str, fk->name);
+        return true;
+      }
+    }
+  }
+
+  /*
+    Check that foreign key still has matching parent key and adjust
+    DD.UNIQUE_CONSTRAINT_NAME accordingly.
+  */
+  if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info, key_info,
+                                     key_count, supporting_key,
+                                     existing_fks_table, fk))
+    return true;
+
+  return false;
+}
+
+/**
   Check that pre-existing foreign key will be still valid after ALTER TABLE,
   i.e. that table still has supporting index and types of child and parent
   columns are still compatible. Also if necessary check that there is parent
@@ -6966,57 +7051,25 @@ static bool prepare_preexisting_foreign_key(
       my_strcasecmp(table_alias_charset, fk->ref_table.str, table_name) == 0) {
     // Pre-existing foreign key which has same table as parent and child.
 
-    // Check that types of child and parent columns are still compatible.
-
-    // TODO: Run this check only in cases when column type is really
-    //       changed in order to avoid unnecessary work.
-    if (create_info->db_type->check_fk_column_compat) {
-      for (size_t j = 0; j < fk->key_parts; j++) {
-        it.rewind();
-        while ((sql_field = it++)) {
-          if (my_strcasecmp(system_charset_info, fk->fk_key_part[j].str,
-                            sql_field->field_name) == 0)
-            break;
-        }
-        // We already have checked that referenced column exists.
-        assert(sql_field != nullptr);
-
-        Ha_fk_column_type child_column_type, parent_column_type;
-
-        fill_ha_fk_column_type(&child_column_type, referencing_fields[j]);
-        fill_ha_fk_column_type(&parent_column_type, sql_field);
-
-        /*
-          Allow charset discrepancies between child and parent columns
-          in FOREIGN_KEY_CHECKS=0 mode. This provides a way to change
-          charset of column which participates in a foreign key without
-          dropping the latter.
-          We allow such discrepancies even for foreign keys that has same
-          table as child and parent in order to be consistent with general
-          case, in which there is no way to change charset of both child
-          and parent columns simultaneously.
-
-          We do not allow creation of same discrepancies when adding
-          new foreign key using CREATE/ALTER TABLE or adding new parent
-          for existing orphan foreign key using CREATE/RENAME TABLE.
-        */
-        if (!create_info->db_type->check_fk_column_compat(
-                &child_column_type, &parent_column_type,
-                !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))) {
-          my_error(ER_FK_INCOMPATIBLE_COLUMNS, MYF(0), fk->key_part[j].str,
-                   fk->fk_key_part[j].str, fk->name);
-          return true;
-        }
-      }
-    }
-
+    // TODO: Run this check only in cases when column type is really changed in
+    // order to avoid unnecessary work.
+    if (prepare_preexisting_self_ref_foreign_key(
+            thd, create_info, alter_info, key_info, key_count, supporting_key,
+            existing_fks_table, fk, referencing_fields))
+      return true;
+  } else if (alter_info->new_table_name.str != nullptr &&
+             my_strcasecmp(table_alias_charset, fk->ref_db.str,
+                           alter_info->new_db_name.str) == 0 &&
+             my_strcasecmp(table_alias_charset, fk->ref_table.str,
+                           alter_info->new_table_name.str) == 0) {
     /*
-      Check that foreign key still has matching parent key and adjust
-      DD.UNIQUE_CONSTRAINT_NAME accordingly.
+      Pre-existing orphan non-self-referencing foreign key become
+      non-orphan/adopted self-referencing foreign key as a result of table
+      rename operation.
     */
-    if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info,
-                                       key_info, key_count, supporting_key,
-                                       existing_fks_table, fk))
+    if (prepare_preexisting_self_ref_foreign_key(
+            thd, create_info, alter_info, key_info, key_count, supporting_key,
+            nullptr, fk, referencing_fields))
       return true;
   } else {
     /*
@@ -7060,8 +7113,9 @@ static bool prepare_preexisting_foreign_key(
             return true;
 
           /*
-            See above comment about allowing charset discrepancies between
-            child and parent columns in FOREIGN_KEY_CHECKS=0 mode.
+            See comment in prepare_preexisting_self_ref_foreign_key() about
+            allowing charset discrepancies between child and parent columns in
+            FOREIGN_KEY_CHECKS=0 mode.
           */
           if (!create_info->db_type->check_fk_column_compat(
                   &child_column_type, &parent_column_type,
@@ -9303,6 +9357,62 @@ bool adjust_fk_parents(THD *thd, const char *db, const char *name,
 }
 
 /**
+  Check if foreign key's parent table has a column compatible with foreign key's
+  referenced column.
+
+  @param[in]     parent_table_def   Data-dictionary object for parent table.
+  @param[in]     fk                 Data-dictionary object for foreign key.
+  @param[in]     fk_el              Data-dictionary object for foreign key
+                                    element.
+  @param[in]     hton               Handlerton for table's storage engine.
+
+  @retval        false              Success.
+  @retval        true               Failure.
+*/
+static bool check_table_has_col_compatible_with_fk_ref_col(
+    const dd::Table *parent_table_def, const dd::Foreign_key *fk,
+    const dd::Foreign_key_element *fk_el, handlerton *hton) {
+  auto same_column_name = [fk_el](const dd::Column *c) {
+    return my_strcasecmp(system_charset_info, c->name().c_str(),
+                         fk_el->referenced_column_name().c_str()) == 0;
+  };
+  auto ref_column =
+      std::find_if(parent_table_def->columns().begin(),
+                   parent_table_def->columns().end(), same_column_name);
+  if (ref_column == parent_table_def->columns().end()) {
+    my_error(ER_FK_NO_COLUMN_PARENT, MYF(0),
+             fk_el->referenced_column_name().c_str(), fk->name().c_str(),
+             fk->referenced_table_name().c_str());
+    return true;
+  }
+
+  if ((*ref_column)->is_virtual()) {
+    my_error(ER_FK_CANNOT_USE_VIRTUAL_COLUMN, MYF(0), fk->name().c_str(),
+             fk_el->referenced_column_name().c_str());
+    return true;
+  }
+
+  // Check that type of referencing and referenced columns are compatible.
+  if (hton->check_fk_column_compat) {
+    Ha_fk_column_type child_column_type, parent_column_type;
+
+    if (fill_ha_fk_column_type(&child_column_type, &fk_el->column()) ||
+        fill_ha_fk_column_type(&parent_column_type, *ref_column))
+      return true;
+
+    if (!hton->check_fk_column_compat(&child_column_type, &parent_column_type,
+                                      true)) {
+      my_error(ER_FK_INCOMPATIBLE_COLUMNS, MYF(0),
+               fk_el->column().name().c_str(),
+               fk_el->referenced_column_name().c_str(), fk->name().c_str());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
   Check if new definition of parent table is compatible with foreign keys
   on child table which reference it. Update the unique constraint names and
   referenced column names for the foreign keys accordingly.
@@ -9463,45 +9573,9 @@ static bool adjust_fk_child_after_parent_def_change(
             CREATE or RENAME TABLE. We need to check that it has columns
             which match referenced columns in foreign key.
           */
-          auto same_column_name = [fk_el](const dd::Column *c) {
-            return my_strcasecmp(system_charset_info, c->name().c_str(),
-                                 fk_el->referenced_column_name().c_str()) == 0;
-          };
-
-          auto ref_column =
-              std::find_if(parent_table_def->columns().begin(),
-                           parent_table_def->columns().end(), same_column_name);
-
-          if (ref_column == parent_table_def->columns().end()) {
-            my_error(ER_FK_NO_COLUMN_PARENT, MYF(0),
-                     fk_el->referenced_column_name().c_str(),
-                     fk->name().c_str(), fk->referenced_table_name().c_str());
+          if (check_table_has_col_compatible_with_fk_ref_col(parent_table_def,
+                                                             fk, fk_el, hton))
             return true;
-          }
-
-          if ((*ref_column)->is_virtual()) {
-            my_error(ER_FK_CANNOT_USE_VIRTUAL_COLUMN, MYF(0),
-                     fk->name().c_str(),
-                     fk_el->referenced_column_name().c_str());
-            return true;
-          }
-
-          if (hton->check_fk_column_compat) {
-            Ha_fk_column_type child_column_type, parent_column_type;
-
-            if (fill_ha_fk_column_type(&child_column_type, &fk_el->column()) ||
-                fill_ha_fk_column_type(&parent_column_type, *ref_column))
-              return true;
-
-            if (!hton->check_fk_column_compat(
-                    &child_column_type, &parent_column_type, check_charsets)) {
-              my_error(ER_FK_INCOMPATIBLE_COLUMNS, MYF(0),
-                       fk_el->column().name().c_str(),
-                       fk_el->referenced_column_name().c_str(),
-                       fk->name().c_str());
-              return true;
-            }
-          }
         }
       }
 
@@ -9644,16 +9718,20 @@ static bool check_fk_children_after_parent_def_change(
   Check if new definition of parent table is compatible with foreign keys which
   reference it and were previously orphan.
 
-  @param thd                  Thread handle.
-  @param parent_table_db      Parent table schema name.
-  @param parent_table_name    Parent table name.
-  @param hton                 Handlerton for table's storage engine.
-  @param parent_table_def     Table object representing the parent table.
+  @param thd                     Thread handle.
+  @param parent_table_db         Parent table schema name.
+  @param parent_table_name       Parent table name.
+  @param old_parent_table_db     Old parent table schema name, if table is
+                                 renamed.
+  @param old_parent_table_name   Old parent table name, if table is renamed.
+  @param hton                    Handlerton for table's storage engine.
+  @param parent_table_def        Table object representing the parent table.
 
   @retval operation outcome, false if no error.
 */
 static bool check_fk_children_after_parent_def_change(
     THD *thd, const char *parent_table_db, const char *parent_table_name,
+    const char *old_parent_table_db, const char *old_parent_table_name,
     handlerton *hton, const dd::Table *parent_table_def) {
   Normalized_fk_children fk_children;
   if (fetch_fk_children_uncached_uncommitted_normalized(
@@ -9670,6 +9748,23 @@ static bool check_fk_children_after_parent_def_change(
             0) {
       // Safety. Self-referencing FKs are handled separately.
       continue;
+    }
+
+    if (old_parent_table_name != nullptr) {
+      assert(old_parent_table_db != nullptr);
+      if (my_strcasecmp(table_alias_charset, schema_name,
+                        old_parent_table_db) == 0 &&
+          my_strcasecmp(table_alias_charset, table_name,
+                        old_parent_table_name) == 0) {
+        /*
+          In case of ALTER TABLE with RENAME clause, the above check involving
+          parent_table_db and parent_table_name will skip orphan FKs which
+          will become non-orphan/adopted self-referencing FKs as result of this
+          RENAME. Hence we need to do additional check using old_parent_table_db
+          and old_parent_table_name for non-orphan/adopted self-referencing FKs.
+        */
+        continue;
+      }
     }
 
     if (adjust_fk_child_after_parent_def_change(
@@ -13923,6 +14018,42 @@ static bool transfer_preexisting_foreign_keys(
       if (!ref_col_renamed)
         to_lex_cstring(thd->mem_root, &sql_fk->fk_key_part[j],
                        dd_fk_ele->referenced_column_name());
+
+      /*
+        Orphan non-self-referencing FK become non-orphan/adopted
+        self-referencing FK as a result of a table rename operation. Make sure
+        referenced column exists and it is not a virtual column. Such FK needs
+        additional handling later.
+      */
+      if (!is_self_referencing && alter_ctx->is_table_renamed() &&
+          my_strcasecmp(table_alias_charset,
+                        dd_fk->referenced_table_schema_name().c_str(),
+                        alter_ctx->new_db) == 0 &&
+          my_strcasecmp(table_alias_charset,
+                        dd_fk->referenced_table_name().c_str(),
+                        alter_ctx->new_name) == 0) {
+        find_it.rewind();
+        const Create_field *find;
+        while ((find = find_it++)) {
+          if (find->field &&
+              my_strcasecmp(system_charset_info,
+                            dd_fk_ele->referenced_column_name().c_str(),
+                            find->field_name) == 0)
+            break;
+        }
+        if (find == nullptr) {
+          my_error(ER_FK_NO_COLUMN_PARENT, MYF(0), sql_fk->fk_key_part[j].str,
+                   dd_fk->name().c_str(),
+                   dd_fk->referenced_table_name().c_str());
+          return true;
+        }
+        if (find->is_virtual_gcol()) {
+          my_error(ER_FK_CANNOT_USE_VIRTUAL_COLUMN, MYF(0),
+                   dd_fk->name().c_str(), sql_fk->fk_key_part[j].str);
+          return true;
+        }
+      }
+
 #ifndef NDEBUG
       {
         find_it.rewind();
@@ -15317,11 +15448,47 @@ bool collect_and_lock_fk_tables_for_rename_table(
   return false;
 }
 
+bool adjust_adopted_self_ref_fk_for_simple_rename_table(
+    THD *thd, const char *db, const char *table_name, const char *new_db,
+    const char *new_table_name, handlerton *hton) {
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  dd::Table *table_def = nullptr;
+
+  if (thd->dd_client()->acquire_for_modification(db, table_name, &table_def))
+    return true;
+
+  if (table_def->foreign_keys()->empty()) return false;
+
+  bool has_adopted_fk = false;
+  for (dd::Foreign_key *fk : *(table_def->foreign_keys())) {
+    if (my_strcasecmp(table_alias_charset,
+                      fk->referenced_table_schema_name().c_str(),
+                      new_db) == 0 &&
+        my_strcasecmp(table_alias_charset, fk->referenced_table_name().c_str(),
+                      new_table_name) == 0) {
+      /*
+        Check that table has a column which is compatible with the foreign key's
+        referenced column.
+      */
+      for (dd::Foreign_key_element *fk_el : *(fk->elements())) {
+        if (check_table_has_col_compatible_with_fk_ref_col(table_def, fk, fk_el,
+                                                           hton))
+          return true;
+      }
+
+      if (prepare_fk_parent_key(hton, table_def, nullptr, nullptr, true, fk))
+        return true;
+
+      has_adopted_fk = true;
+    }
+  }
+
+  return (has_adopted_fk && thd->dd_client()->update(table_def));
+}
+
 bool adjust_fks_for_rename_table(THD *thd, const char *db,
                                  const char *table_name, const char *new_db,
-                                 const char *new_table_name, handlerton *hton)
-
-{
+                                 const char *new_table_name, handlerton *hton) {
   const dd::Table *new_table = nullptr;
 
   if (thd->dd_client()->acquire(new_db, new_table_name, &new_table))
@@ -15499,23 +15666,38 @@ static bool simple_rename_or_index_change(
 
     close_all_tables_for_name(thd, table->s, false, nullptr);
 
-    if (mysql_rename_table(
-            thd, old_db_type, alter_ctx->db, alter_ctx->table_name,
-            alter_ctx->db, alter_ctx->table_name, new_schema, alter_ctx->new_db,
-            alter_ctx->new_alias, (atomic_ddl ? NO_DD_COMMIT : 0)))
+    /*
+      Orphan non-self-referencing foreign keys may become non-orphan/adopted
+      self-referencing foreign keys. Check that table has compatible referenced
+      column and parent key for such foreign key. Also, update
+      DD.UNIQUE_CONSTRAINT_NAME.
+    */
+    if ((old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
+        adjust_adopted_self_ref_fk_for_simple_rename_table(
+            thd, table_list->db, table_list->table_name, alter_ctx->new_db,
+            alter_ctx->new_alias, old_db_type))
       error = -1;
-    else if (old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
-      /*
-        We don't have SEs which support FKs and don't support atomic DDL.
-        If we ever to support such engines we need to decide how to handle
-        errors in the below code for them.
-      */
-      assert(atomic_ddl);
 
-      if (adjust_fks_for_rename_table(thd, table_list->db,
-                                      table_list->table_name, alter_ctx->new_db,
-                                      alter_ctx->new_alias, old_db_type))
+    if (!error) {
+      if (mysql_rename_table(thd, old_db_type, alter_ctx->db,
+                             alter_ctx->table_name, alter_ctx->db,
+                             alter_ctx->table_name, new_schema,
+                             alter_ctx->new_db, alter_ctx->new_alias,
+                             (atomic_ddl ? NO_DD_COMMIT : 0)))
         error = -1;
+      else if (old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
+        /*
+          We don't have SEs which support FKs and don't support atomic DDL.
+          If we ever to support such engines we need to decide how to handle
+          errors in the below code for them.
+        */
+        assert(atomic_ddl);
+
+        if (adjust_fks_for_rename_table(
+                thd, table_list->db, table_list->table_name, alter_ctx->new_db,
+                alter_ctx->new_alias, old_db_type))
+          error = -1;
+      }
     }
   }
 
@@ -16952,9 +17134,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       */
       assert(old_table_def->foreign_key_parents().size() == 0);
 
-      if (check_fk_children_after_parent_def_change(thd, table_list->db,
-                                                    table_list->table_name,
-                                                    new_db_type, table_def))
+      if (check_fk_children_after_parent_def_change(
+              thd, table_list->db, table_list->table_name, nullptr, nullptr,
+              new_db_type, table_def))
         goto err_new_table_cleanup;
     } else {
       if (check_fk_children_after_parent_def_change(
@@ -16965,7 +17147,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     if (alter_ctx.is_table_renamed() &&
         check_fk_children_after_parent_def_change(
-            thd, alter_ctx.new_db, alter_ctx.new_alias, new_db_type, table_def))
+            thd, alter_ctx.new_db, alter_ctx.new_alias, table_list->db,
+            table_list->table_name, new_db_type, table_def))
       goto err_new_table_cleanup;
   }
 
