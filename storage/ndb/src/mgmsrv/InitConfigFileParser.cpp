@@ -306,10 +306,26 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* fname,
 					 const char* value)
 {
-  if (native_strcasecmp(fname, "MaxNoOfConcurrentScans") == 0 ||
-      native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
-      native_strcasecmp(fname, "MaxNoOfConcurrentOperations") == 0 ||
-      native_strcasecmp(fname, "MaxNoOfConcurrentTransactions") == 0)
+
+  /**
+   * The parameters MaxNoOfConcurrentIndexOperations, MaxNoOfLocalOperations
+   * MaxNoOfFiredTriggers and MaxNoOfLocalScans cannot be used concurrently with
+   * TransactionMemory.
+   * Explicitly setting any of these parameters when TransactionMemory has also been
+   * set keeps the management node from starting.
+   *
+   * The parameter MaxNoOfConcurrentOperations can be used concurrently with
+   * TransactionMemory since it also sets the size of Dbtc record pools for takeover
+   * and puts an upper limit on MaxDMLOperationsPerTransaction.
+   *
+   * The parameter MaxNoOfConcurrentScans can be used concurrently with
+   * TransactionMemory  it is also determines max size of pool Dbtc::scanRecordPool
+   * and will limit the number of concurrent scans in one Dbtc instance.
+   */
+  if(native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfFiredTriggers") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfLocalScans") == 0 ||
+     native_strcasecmp(fname, "MaxNoOfLocalOperations") == 0)
   {
     if (ctx.m_currentSection->contains("TransactionMemory"))
     {
@@ -322,16 +338,16 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 
   if (native_strcasecmp(fname, "TransactionMemory") == 0)
   {
-    if (ctx.m_currentSection->contains("MaxNoOfConcurrentScans") ||
-        ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
-        ctx.m_currentSection->contains("MaxNoOfConcurrentOperations") ||
-        ctx.m_currentSection->contains("MaxNoOfConcurrentTransactions"))
+    if (ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfFiredTriggers") ||
+        ctx.m_currentSection->contains("MaxNoOfLocalScans") ||
+        ctx.m_currentSection->contains("MaxNoOfLocalOperations"))
     {
       ctx.reportError(
           "[%s] Parameter %s can not be set along with any of the below "
-          "deprecated parameter(s) MaxNoOfConcurrentScans, "
-          "MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations "
-          "and MaxNoOfConcurrentTransactions",
+          "deprecated parameter(s) MaxNoOfConcurrentIndexOperations, "
+          "MaxNoOfFiredTriggers, MaxNoOfLocalScans "
+          "and MaxNoOfLocalOperations.",
           ctx.fname, fname);
       return false;
     }
