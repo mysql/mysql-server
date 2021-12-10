@@ -2642,3 +2642,14 @@ INSERT INTO t2 VALUES (564);
 ANALYZE TABLE t1, t2;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.b = t2.id GROUP BY t1.id;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#33639644: sig11 in CreateIteratorFromAccessPath
+--echo #
+CREATE TABLE t1 (x INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (x INTEGER);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+WITH subq(x) AS (SELECT 1 AS x FROM t1 AS t1a, t1 AS t1b, t2 WHERE FALSE)
+SELECT 1 FROM t1 LEFT JOIN subq ON t1.x = subq.x ORDER BY subq.x;
+DROP TABLE t1, t2;

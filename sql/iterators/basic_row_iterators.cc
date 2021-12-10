@@ -27,35 +27,28 @@
   in some way). See row_iterator.h.
 */
 
+#include "sql/iterators/basic_row_iterators.h"
+
 #include <assert.h>
 #include <atomic>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "my_alloc.h"
 #include "my_base.h"
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
-#include "sql/iterators/basic_row_iterators.h"
 #include "sql/iterators/row_iterator.h"
-#include "sql/iterators/timing_iterator.h"
-#include "sql/join_optimizer/access_path.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_executor.h"
-#include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-
-struct POSITION;
 
 using std::string;
 using std::vector;
@@ -230,6 +223,21 @@ int TableScanIterator::Read() {
     ++*m_examined_rows;
   }
   return 0;
+}
+
+ZeroRowsIterator::ZeroRowsIterator(THD *thd,
+                                   Mem_root_array<TABLE *> pruned_tables)
+    : RowIterator(thd), m_pruned_tables(std::move(pruned_tables)) {}
+
+void ZeroRowsIterator::SetNullRowFlag(bool is_null_row) {
+  assert(!m_pruned_tables.empty());
+  for (TABLE *table : m_pruned_tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
 }
 
 FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table,

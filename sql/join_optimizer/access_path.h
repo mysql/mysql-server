@@ -966,8 +966,13 @@ struct AccessPath {
       // No members.
     } fake_single_row;
     struct {
-      // See ZeroRowsIterator for an explanation as of why there is
-      // a child path here.
+      // The child is optional. It is only used for keeping track of which
+      // tables are pruned away by this path, and it is only needed when this
+      // path is on the inner side of an outer join. See ZeroRowsIterator for
+      // details. The child of a ZERO_ROWS access path will not be visited by
+      // WalkAccessPaths(). It will be visited by WalkTablesUnderAccessPath()
+      // only if called with include_pruned_tables = true. No iterator is
+      // created for the child, and the child is not shown by EXPLAIN.
       AccessPath *child;
       // Used for EXPLAIN only.
       // TODO(sgunders): make an enum.

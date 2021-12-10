@@ -29,24 +29,20 @@
   or iterators.
  */
 
+#include <assert.h>
 #include <sys/types.h>
 
-#include <memory>
-
-#include "map_helpers.h"
 #include "mem_root_deque.h"
-#include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_list.h"
 
 class Filesort_info;
 class Item;
+class JOIN;
 class Sort_result;
 class THD;
-class handler;
 struct IO_CACHE;
 struct TABLE;
 
@@ -339,34 +335,26 @@ class UnqualifiedCountIterator final : public RowIterator {
   Used when the optimizer has figured out ahead of time that a given table
   can produce no output (e.g. SELECT ... WHERE 2+2 = 5).
 
-  The child iterator is optional (can be nullptr) if SetNullRowFlag() is
-  not to be called. It is used when a subtree used on the inner side of an
-  outer join is found to be never executable, and replaced with a
-  ZeroRowsIterator; in that case, we need to forward the SetNullRowFlag call
-  to it. This child is not printed as part of the iterator tree.
+  The iterator can optionally have an array of the tables that are pruned away
+  from the join tree by this iterator. It is only required when the iterator is
+  on the inner side of an outer join, in which case it needs it in order to
+  NULL-complement the rows in SetNullRowFlag().
  */
 class ZeroRowsIterator final : public RowIterator {
  public:
-  ZeroRowsIterator(THD *thd,
-                   unique_ptr_destroy_only<RowIterator> child_iterator)
-      : RowIterator(thd), m_child_iterator(std::move(child_iterator)) {}
+  ZeroRowsIterator(THD *thd, Mem_root_array<TABLE *> pruned_tables);
 
   bool Init() override { return false; }
 
   int Read() override { return -1; }
 
-  void SetNullRowFlag(bool is_null_row) override {
-    assert(m_child_iterator != nullptr);
-    m_child_iterator->SetNullRowFlag(is_null_row);
-  }
+  void SetNullRowFlag(bool is_null_row) override;
 
   void UnlockRow() override {}
 
  private:
-  unique_ptr_destroy_only<RowIterator> m_child_iterator;
+  const Mem_root_array<TABLE *> m_pruned_tables;
 };
-
-class Query_block;
 
 /**
   Like ZeroRowsIterator, but produces a single output row, since there are

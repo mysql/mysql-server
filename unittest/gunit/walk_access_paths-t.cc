@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <initializer_list>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -27,6 +28,9 @@
 
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/walk_access_paths.h"
+#include "sql/table.h"
+
+class JOIN;
 
 using std::vector;
 using testing::ElementsAre;
@@ -49,9 +53,17 @@ AccessPath MakeHashJoin(AccessPath *outer, AccessPath *inner) {
   return join;
 }
 
-AccessPath MakeTableScan() {
+AccessPath MakeTableScan(TABLE *table = nullptr) {
   AccessPath path;
   path.type = AccessPath::TABLE_SCAN;
+  path.table_scan().table = table;
+  return path;
+}
+
+AccessPath MakeZeroRows(AccessPath *child) {
+  AccessPath path;
+  path.type = AccessPath::ZERO_ROWS;
+  path.zero_rows().child = child;
   return path;
 }
 
@@ -128,7 +140,7 @@ TEST(WalkAccessPathsTest, PostOrderTraversal) {
 
   vector<AccessPath *> paths;
   WalkAccessPaths(
-      &nlj1, nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      &nlj1, /*join=*/nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
       [&paths](AccessPath *path, const JOIN *) {
         paths.push_back(path);
         // The return value is ignored when doing post-order traversal.
@@ -142,6 +154,106 @@ TEST(WalkAccessPathsTest, PostOrderTraversal) {
   // returning true does not prevent us recursing into the subtree.)
   EXPECT_THAT(paths, ElementsAre(&ts1, &ts2, &hj1, &ts3, &nlj2, &ts4, &ts5,
                                  &ts6, &hj2, &nlj3, &nlj1));
+}
+
+TEST(WalkAccessPaths, ZeroRows) {
+  /*
+   * Set up this access path tree:
+   *
+   *                 NLJ1
+   *               /      \
+   *           NLJ2        NLJ3
+   *          /    \      /    \
+   *        TS1   ZERO  TS2    TS3
+   *                |
+   *              NLJ4
+   *             /    \
+   *           TS4    TS5
+   */
+
+  TABLE t1;
+  TABLE t2;
+  TABLE t3;
+  TABLE t4;
+  TABLE t5;
+
+  AccessPath ts1 = MakeTableScan(&t1);
+  AccessPath ts2 = MakeTableScan(&t2);
+  AccessPath ts3 = MakeTableScan(&t3);
+  AccessPath ts4 = MakeTableScan(&t4);
+  AccessPath ts5 = MakeTableScan(&t5);
+
+  AccessPath nlj4 = MakeNestedLoopJoin(&ts4, &ts5);
+  AccessPath zero = MakeZeroRows(&nlj4);
+  AccessPath nlj2 = MakeNestedLoopJoin(&ts1, &zero);
+  AccessPath nlj3 = MakeNestedLoopJoin(&ts2, &ts3);
+  AccessPath nlj1 = MakeNestedLoopJoin(&nlj2, &nlj3);
+
+  // WalkAccessPaths() should not see the paths below the ZERO_ROWS access path.
+  {
+    vector<AccessPath *> paths;
+    WalkAccessPaths(
+        &nlj1, /*join=*/nullptr, WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+        [&paths](AccessPath *path, const JOIN *) {
+          paths.push_back(path);
+          // The return value is ignored when doing post-order traversal.
+          return path->type == AccessPath::HASH_JOIN;
+        },
+        /*post_order_traversal=*/false);
+    EXPECT_THAT(paths,
+                ElementsAre(&nlj1, &nlj2, &ts1, &zero, &nlj3, &ts2, &ts3));
+  }
+
+  // WalkTablesUnderAccessPath() should see all tables when called with
+  // include_pruned_tables = true.
+  {
+    vector<TABLE *> tables;
+    WalkTablesUnderAccessPath(
+        &nlj1,
+        [&tables](TABLE *table) {
+          tables.push_back(table);
+          return false;
+        },
+        /*include_pruned_tables=*/true);
+    EXPECT_THAT(tables, ElementsAre(&t1, &t4, &t5, &t2, &t3));
+  }
+
+  // WalkTablesUnderAccessPath() should not see tables under ZERO_ROWS when
+  // called with include_pruned_tables = false.
+  {
+    vector<TABLE *> tables;
+    WalkTablesUnderAccessPath(
+        &nlj1,
+        [&tables](TABLE *table) {
+          tables.push_back(table);
+          return false;
+        },
+        /*include_pruned_tables=*/false);
+    EXPECT_THAT(tables, ElementsAre(&t1, &t2, &t3));
+  }
+}
+
+TEST(WalkAccessPaths, ZeroRowsNoChild) {
+  AccessPath zero_path = MakeZeroRows(/*child=*/nullptr);
+
+  vector<AccessPath *> paths;
+  WalkAccessPaths(&zero_path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&paths](AccessPath *path, const JOIN *) {
+                    paths.push_back(path);
+                    return false;
+                  });
+  EXPECT_THAT(paths, ElementsAre(&zero_path));
+
+  for (bool include_pruned_tables : {true, false}) {
+    WalkTablesUnderAccessPath(
+        &zero_path,
+        [](TABLE *) {
+          EXPECT_TRUE(false);
+          return true;
+        },
+        include_pruned_tables);
+  }
 }
 
 }  // namespace walk_access_paths_test

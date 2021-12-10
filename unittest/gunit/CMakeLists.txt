@@ -183,7 +183,6 @@ SET(TESTS
   unhex
   val_int_compare
   varlen_sort
-  walk_access_paths
   )
 
 SET(ALL_SMALL_TESTS)
@@ -285,6 +284,7 @@ SET(SERVER_TESTS
   union_syntax
   unique
   value_map
+  walk_access_paths
   wild_case_compare
 )
 

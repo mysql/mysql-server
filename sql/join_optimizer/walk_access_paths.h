@@ -299,7 +299,7 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
             assert(false);
             return true;
           case AccessPath::ZERO_ROWS:
-            if (include_pruned_tables) {
+            if (include_pruned_tables && path->zero_rows().child != nullptr) {
               WalkTablesUnderAccessPath(path->zero_rows().child, func,
                                         include_pruned_tables);
             }

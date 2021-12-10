@@ -571,18 +571,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             NewIterator<FakeSingleRowIterator>(thd, mem_root, examined_rows);
         break;
       case AccessPath::ZERO_ROWS: {
-        const auto &param = path->zero_rows();
-        unique_ptr_destroy_only<RowIterator> child;
-        if (param.child != nullptr) {
-          if (job.children.is_null()) {
-            SetupJobsForChildren(mem_root, param.child, join,
-                                 /*eligible_for_batch_mode=*/false, &job,
-                                 &todo);
-            continue;
-          }
-          child = move(job.children[0]);
-        }
-        iterator = NewIterator<ZeroRowsIterator>(thd, mem_root, move(child));
+        iterator = NewIterator<ZeroRowsIterator>(thd, mem_root,
+                                                 CollectTables(thd, path));
         break;
       }
       case AccessPath::ZERO_ROWS_AGGREGATED:
