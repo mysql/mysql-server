@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -167,7 +167,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   /* Create the per thread heap for transient memory allocations. */
   for (size_t i = 0; i < use_n_threads; ++i) {
-    m_heaps.push_back(mem_heap_create(1024));
+    m_heaps.push_back(mem_heap_create(1024, UT_LOCATION_HERE));
 
     if (m_heaps.back() == nullptr) {
       return cleanup(m_heaps, DB_OUT_OF_MEMORY);

@@ -176,7 +176,7 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
        m_policy.get_id() == LATCH_ID_BUF_POOL_ZIP)
           ? SYNC_BUF_BLOCK
           : SYNC_MUTEX,
-      filename, line, &cell);
+      {filename, line}, &cell);
 
   /* The memory order of the array reservation and
   the change in the waiters field is important: when

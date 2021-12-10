@@ -46,33 +46,18 @@ static inline const rec_t *ha_node_get_data(
   return (node->data);
 }
 
-/** Sets hash node data. */
-static inline void ha_node_set_data_func(
-    ha_node_t *node, /*!< in: hash chain node */
+/** Sets hash node data.
+ @param[in] hash chain node */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    buf_block_t *block, /*!< in: buffer block containing the data */
-#endif                  /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-    const rec_t *data)  /*!< in: pointer to the data */
-{
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  node->block = block;
+/** @param[in] block buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+/** @param[in] data pointer to the data */
+static inline void ha_node_set_data(ha_node_t *node,
+                                    IF_AHI_DEBUG(buf_block_t *block, )
+                                        const rec_t *data) {
+  IF_AHI_DEBUG(node->block = block;)
   node->data = data;
 }
-
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-/** Sets hash node data.
-@param n in: hash chain node
-@param b in: buffer block containing the data
-@param d in: pointer to the data */
-#define ha_node_set_data(n, b, d) ha_node_set_data_func(n, b, d)
-#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-/** Sets hash node data.
-@param n in: hash chain node
-@param b in: buffer block containing the data
-@param d in: pointer to the data */
-#define ha_node_set_data(n, b, d) ha_node_set_data_func(n, d)
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /** Gets the next node in a hash chain.
  @return next node, NULL if none */
@@ -141,7 +126,7 @@ static inline ha_node_t *ha_search_with_data(
 /** Looks for an element when we know the pointer to the data, and deletes
  it from the hash table, if found.
  @return true if found */
-static inline ibool ha_search_and_delete_if_found(
+static inline bool ha_search_and_delete_if_found(
     hash_table_t *table, /*!< in: hash table */
     ulint fold,          /*!< in: folded value of the searched data */
     const rec_t *data)   /*!< in: pointer to the data */
@@ -156,8 +141,8 @@ static inline ibool ha_search_and_delete_if_found(
   if (node) {
     ha_delete_hash_node(table, node);
 
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }

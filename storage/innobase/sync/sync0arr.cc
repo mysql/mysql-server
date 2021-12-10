@@ -177,16 +177,8 @@ static os_event_t sync_cell_get_event(
   }
 }
 
-/** Reserves a wait array cell for waiting for an object.
- The event of the cell is reset to nonsignalled state.
- @return sync cell to wait on */
-sync_cell_t *sync_array_reserve_cell(
-    sync_array_t *arr, /*!< in: wait array */
-    void *object,      /*!< in: pointer to the object to wait for */
-    ulint type,        /*!< in: lock request type */
-    const char *file,  /*!< in: file where requested */
-    ulint line)        /*!< in: line where requested */
-{
+sync_cell_t *sync_array_reserve_cell(sync_array_t *arr, void *object,
+                                     ulint type, ut::Location location) {
   sync_cell_t *cell;
 
   sync_array_enter(arr);
@@ -230,8 +222,8 @@ sync_cell_t *sync_array_reserve_cell(
 
   cell->waiting = false;
 
-  cell->file = file;
-  cell->line = line;
+  cell->file = location.filename;
+  cell->line = location.line;
 
   sync_array_exit(arr);
 
@@ -794,7 +786,7 @@ static bool sync_array_print_long_waits_low(
     sync_array_t *arr,       /*!< in: sync array instance */
     std::thread::id *waiter, /*!< out: longest waiting thread */
     const void **sema,       /*!< out: longest-waited-for semaphore */
-    ibool *noticed)          /*!< out: TRUE if long wait noticed */
+    bool *noticed)           /*!< out: true if long wait noticed */
 {
   bool fatal = false;
   std::chrono::steady_clock::duration longest_diff{};
@@ -841,7 +833,7 @@ static bool sync_array_print_long_waits_low(
           << "A long semaphore wait:";
 
       sync_array_cell_print(stderr, cell);
-      *noticed = TRUE;
+      *noticed = true;
     }
 
     if (time_diff > fatal_timeout) {
@@ -860,13 +852,13 @@ static bool sync_array_print_long_waits_low(
 
 /** Prints warnings of long semaphore waits to stderr.
  @return true if fatal semaphore wait threshold was exceeded */
-ibool sync_array_print_long_waits(
+bool sync_array_print_long_waits(
     std::thread::id *waiter, /*!< out: longest waiting thread */
     const void **sema)       /*!< out: longest-waited-for semaphore */
 {
   ulint i;
-  ibool fatal = FALSE;
-  ibool noticed = FALSE;
+  bool fatal = false;
+  bool noticed = false;
 
   for (i = 0; i < sync_array_size; ++i) {
     sync_array_t *arr = sync_wait_array[i];
@@ -874,20 +866,18 @@ ibool sync_array_print_long_waits(
     sync_array_enter(arr);
 
     if (sync_array_print_long_waits_low(arr, waiter, sema, &noticed)) {
-      fatal = TRUE;
+      fatal = true;
     }
 
     sync_array_exit(arr);
   }
 
   if (noticed) {
-    ibool old_val;
-
     fprintf(stderr,
             "InnoDB: ###### Starts InnoDB Monitor"
             " for 30 secs to print diagnostic info:\n");
 
-    old_val = srv_print_innodb_monitor;
+    auto old_val = srv_print_innodb_monitor;
 
     /* If some crucial semaphore is reserved, then also the InnoDB
     Monitor can hang, and we do not get diagnostics. Since in
@@ -898,7 +888,7 @@ ibool sync_array_print_long_waits(
     fprintf(stderr, "InnoDB: Pending preads %lu, pwrites %lu\n",
             (ulong)os_n_pending_reads, (ulong)os_n_pending_writes);
 
-    srv_print_innodb_monitor = TRUE;
+    srv_print_innodb_monitor = true;
 
 #ifndef UNIV_NO_ERR_MSGS
     lock_set_timeout_event();

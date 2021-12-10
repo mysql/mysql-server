@@ -98,7 +98,7 @@ buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
     cur += index_entry_t::SIZE;
   }
 
-  ut_ad(flst_validate(free_list, m_mtr));
+  ut_d(flst_validate(free_list, m_mtr));
   return (m_block);
 }
 
@@ -137,7 +137,8 @@ void z_frag_entry_t::free_frag_page(mtr_t *mtr, dict_index_t *index) {
   if (page_no != FIL_NULL) {
     page_id_t page_id = page_id_t(index->space_id(), page_no);
     page_size_t page_size = index->get_page_size();
-    buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
+    buf_block_t *block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
     btr_page_free_low(index, block, ULINT_UNDEFINED, mtr);
     set_page_no(FIL_NULL);
   }
@@ -269,9 +270,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     data_page.set_trx_id(trxid);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, data_page.get_page_no(), mtr);
 
@@ -312,9 +313,9 @@ dberr_t z_insert_strm(dict_index_t *index, z_first_page_t &first,
     frag_entry.update(frag_page);
 
     /* Get the previous page and update its next page. */
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), prev_page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), prev_page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     buf_block_set_next_page_no(block, frag_page.get_page_no(), mtr);
   }
@@ -1218,9 +1219,9 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
         want -= actual_read;
 
       } else {
-        buf_block_t *block =
-            buf_page_get(page_id_t(ctx->m_space_id, read_from_page_no),
-                         ctx->m_page_size, RW_S_LATCH, &data_mtr);
+        buf_block_t *block = buf_page_get(
+            page_id_t(ctx->m_space_id, read_from_page_no), ctx->m_page_size,
+            RW_S_LATCH, UT_LOCATION_HERE, &data_mtr);
 
         data_page_t page(block, &data_mtr);
         actual_read = page.read(page_offset, ptr, want);

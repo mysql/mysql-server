@@ -89,14 +89,14 @@ char *innobase_convert_name(
  differently than other threads. Also used in
  srv_conc_force_exit_innodb().
  @return true if thd is the replication thread */
-ibool thd_is_replication_slave_thread(THD *thd); /*!< in: thread handle */
+bool thd_is_replication_slave_thread(THD *thd); /*!< in: thread handle */
 
 /** Returns true if the transaction this thread is processing has edited
  non-transactional tables. Used by the deadlock detector when deciding
  which transaction to rollback in case of a deadlock - we try to avoid
  rolling back transactions that have edited non-transactional tables.
  @return true if non-transactional tables have been edited */
-ibool thd_has_edited_nontrans_tables(THD *thd); /*!< in: thread handle */
+bool thd_has_edited_nontrans_tables(THD *thd); /*!< in: thread handle */
 
 /** Prints info of a THD object (== user session thread) to the given file.
 @param[in] f Output stream
@@ -132,7 +132,7 @@ const char *innobase_basename(const char *path_name);
 
 /** Returns true if the thread is executing a SELECT statement.
  @return true if thd is executing SELECT */
-ibool thd_is_query_block(const THD *thd); /*!< in: thread handle */
+bool thd_is_query_block(const THD *thd); /*!< in: thread handle */
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void innobase_casedn_str(char *a); /*!< in/out: string to put in lower case */
@@ -254,10 +254,10 @@ THD *thd_trx_arbitrate(THD *requestor, THD *holder);
 
 int thd_trx_priority(THD *thd);
 
-/** Check if the transaction is an auto-commit transaction. TRUE also
+/** Check if the transaction is an auto-commit transaction. true also
  implies that it is a SELECT (read-only) transaction.
  @return true if the transaction is an auto commit read-only transaction. */
-ibool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
+bool thd_trx_is_auto_commit(THD *thd); /*!< in: thread handle, or NULL */
 
 /** Get the thread start time.
  @return the thread start time. */
@@ -291,7 +291,7 @@ enum ib_log_level_t {
  */
 void ib_errf(THD *thd,             /*!< in/out: session */
              ib_log_level_t level, /*!< in: warning level */
-             ib_uint32_t code,     /*!< MySQL error code */
+             uint32_t code,        /*!< MySQL error code */
              const char *format,   /*!< printf format */
              ...)                  /*!< Args */
     MY_ATTRIBUTE((format(printf, 4, 5)));
@@ -307,7 +307,7 @@ void ib_errf(THD *thd,             /*!< in/out: session */
  */
 void ib_senderrf(THD *thd,             /*!< in/out: session */
                  ib_log_level_t level, /*!< in: warning level */
-                 ib_uint32_t code,     /*!< MySQL error code */
+                 uint32_t code,        /*!< MySQL error code */
                  ...);                 /*!< Args */
 
 extern const char *TROUBLESHOOTING_MSG;

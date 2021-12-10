@@ -34,8 +34,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a descriptor page */
-static inline ibool fsp_descr_page(const page_id_t &page_id,
-                                   const page_size_t &page_size) {
+static inline bool fsp_descr_page(const page_id_t &page_id,
+                                  const page_size_t &page_size) {
   return ((page_id.page_no() & (page_size.physical() - 1)) == FSP_XDES_OFFSET);
 }
 
@@ -46,7 +46,12 @@ static inline bool fsp_flags_is_compressed(uint32_t flags) {
   return (FSP_FLAGS_GET_ZIP_SSIZE(flags) != 0);
 }
 
-#define ACTUAL_SSIZE(ssize) (0 == ssize ? UNIV_PAGE_SSIZE_ORIG : ssize)
+constexpr uint32_t ACTUAL_SSIZE(uint32_t ssize) {
+  if (ssize == 0) {
+    return UNIV_PAGE_SSIZE_ORIG;
+  }
+  return ssize;
+}
 
 /** Determine if two tablespaces are equivalent or compatible.
 @param[in]	flags1	First tablespace flags
@@ -214,7 +219,7 @@ static inline ulint xdes_calc_descriptor_index(const page_size_t &page_size,
 
 /** Gets a descriptor bit of a page.
  @return true if free */
-static inline ibool xdes_get_bit(
+static inline bool xdes_get_bit(
     const xdes_t *descr, /*!< in: descriptor */
     ulint bit,           /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
     page_no_t offset)    /*!< in: page offset within extent:
@@ -374,9 +379,9 @@ inline bool fsp_flags_is_valid(uint32_t flags) {
     return (false);
   }
 
-#if FSP_FLAGS_POS_UNUSED != 15
-#error You have added a new FSP_FLAG without adding a validation check.
-#endif
+  static_assert(
+      FSP_FLAGS_POS_UNUSED == 15,
+      "You have added a new FSP_FLAG without adding a validation check.");
 
   return (true);
 }
@@ -385,15 +390,10 @@ inline bool fsp_flags_is_valid(uint32_t flags) {
 @param[in]	page_size	page size.
 @return	offset on success, otherwise 0. */
 inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
-  ulint offset;
+  ulint offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size) +
+                 Encryption::INFO_MAX_SIZE;
 #ifdef UNIV_DEBUG
-  ulint left_size;
-#endif
-
-  offset = XDES_ARR_OFFSET + XDES_SIZE * xdes_arr_size(page_size) +
-           Encryption::INFO_MAX_SIZE;
-#ifdef UNIV_DEBUG
-  left_size =
+  ulint left_size =
       page_size.physical() - FSP_HEADER_OFFSET - offset - FIL_PAGE_DATA_END;
 
   ut_ad(left_size >= FSP_SDI_HEADER_LEN);
@@ -406,14 +406,9 @@ inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
 @return offset on success, otherwise 0. */
 inline ulint fsp_header_get_encryption_progress_offset(
     const page_size_t &page_size) {
-  ulint offset;
+  ulint offset = fsp_header_get_sdi_offset(page_size) + FSP_SDI_HEADER_LEN;
 #ifdef UNIV_DEBUG
-  ulint left_size;
-#endif
-
-  offset = fsp_header_get_sdi_offset(page_size) + FSP_SDI_HEADER_LEN;
-#ifdef UNIV_DEBUG
-  left_size =
+  ulint left_size =
       page_size.physical() - FSP_HEADER_OFFSET - offset - FIL_PAGE_DATA_END;
 
   ut_ad(left_size >=
@@ -426,8 +421,8 @@ inline ulint fsp_header_get_encryption_progress_offset(
 /** Reads the server space version from the first page of a tablespace.
 @param[in]      page            first page of a tablespace
 @return space server version */
-static inline uint32 fsp_header_get_server_version(const page_t *page) {
-  uint32 version;
+static inline uint32_t fsp_header_get_server_version(const page_t *page) {
+  uint32_t version;
 
   version = mach_read_from_4(page + FIL_PAGE_SRV_VERSION);
 
@@ -437,8 +432,8 @@ static inline uint32 fsp_header_get_server_version(const page_t *page) {
 /** Reads the server space version from the first page of a tablespace.
 @param[in]      page            first page of a tablespace
 @return space server version */
-static inline uint32 fsp_header_get_space_version(const page_t *page) {
-  uint32 version;
+static inline uint32_t fsp_header_get_space_version(const page_t *page) {
+  uint32_t version;
 
   version = mach_read_from_4(page + FIL_PAGE_SPACE_VERSION);
 

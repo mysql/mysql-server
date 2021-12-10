@@ -288,8 +288,8 @@ const char *fts_get_select_columns_str(
 
     sel_str = mem_heap_printf(heap, "sel%lu", (ulong)i);
 
-    /* Set copy_name to TRUE since it's dynamic. */
-    pars_info_bind_id(info, TRUE, sel_str, field->name);
+    /* Set copy_name to true since it's dynamic. */
+    pars_info_bind_id(info, true, sel_str, field->name);
 
     str = mem_heap_printf(heap, "%s%s$%s", str, (*str) ? ", " : "", sel_str);
   }

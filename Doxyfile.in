@@ -2350,8 +2350,7 @@ EXPAND_AS_DEFINED      = C_MODE_START \
                          DEFINE_METHOD \
                          DEFINE_BOOL_METHOD \
                          DECLARE_METHOD \
-                         DECLARE_BOOL_METHOD \
-                         IF_DEBUG
+                         DECLARE_BOOL_METHOD
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES then doxygen's preprocessor will
 # remove all references to function-like macros that are alone on a line, have

@@ -115,14 +115,14 @@ struct fts_sync_t {
                         the cache to disk */
   dict_table_t *table;  /*!< Table with FTS index(es) */
   ulint max_cache_size; /*!< Max size in bytes of the cache */
-  ibool cache_full;     /*!< flag, when true it indicates that
-                        we need to sync the cache to disk */
+  bool cache_full;      /*!< flag, when true it indicates that
+                         we need to sync the cache to disk */
   ulint lower_index;    /*!< the start index of the doc id
                         vector from where to start adding
                         documents to the FTS cache */
   ulint upper_index;    /*!< max index of the doc id vector to
                         add to the FTS cache */
-  ibool interrupted;    /*!< TRUE if SYNC was interrupted */
+  bool interrupted;     /*!< true if SYNC was interrupted */
   doc_id_t min_doc_id;  /*!< The smallest doc id added to the
                         cache. It should equal to
                         doc_ids[lower_index] */
@@ -267,7 +267,7 @@ struct fts_index_selector_t {
 struct fts_doc_t {
   fts_string_t text; /*!< document text */
 
-  ibool found; /*!< TRUE if the document was found
+  bool found; /*!< true if the document was found
                successfully in the database */
 
   ib_rbt_t *tokens; /*!< This is filled when the document

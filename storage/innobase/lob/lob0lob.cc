@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** A BLOB field reference has all the bits set to zero, except the "being
-modified" bit. */
+ modified" bit. */
 const byte field_ref_almost_zero[FIELD_REF_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x20, 0, 0, 0, 0, 0, 0, 0,
 };
@@ -82,7 +82,7 @@ void BtrContext::disown_inherited_fields(const upd_t *update) {
   for (ulint i = 0; i < rec_offs_n_fields(m_offsets); i++) {
     if (rec_offs_nth_extern(m_offsets, i) &&
         !upd_get_field_by_field_no(update, i, false)) {
-      set_ownership_of_extern_field(i, FALSE);
+      set_ownership_of_extern_field(i, false);
     }
   }
 }
@@ -167,7 +167,7 @@ int zReader::setup_zstream() {
 
   /* Zlib inflate needs 32 kilobytes for the default
   window size, plus a few kilobytes for small objects. */
-  m_heap = mem_heap_create(40000);
+  m_heap = mem_heap_create(40000, UT_LOCATION_HERE);
   page_zip_set_alloc(&m_stream, m_heap);
 
   int err = inflateInit(&m_stream);
@@ -298,7 +298,7 @@ struct Being_modified {
     /* All pointers to externally stored columns in the record
     must either be zero or they must be pointers to inherited
     columns, owned by this record or an earlier record version. */
-    rec_t *rec = btr_pcur_get_rec(m_pcur);
+    rec_t *rec = m_pcur->get_rec();
     dict_index_t *index = m_pcur->index();
 #ifdef UNIV_DEBUG
     rec_offs_make_valid(rec, index, m_offsets);
@@ -322,7 +322,7 @@ struct Being_modified {
         }
 
         if (!m_btr_ctx.is_bulk()) {
-          buf_block_t *rec_block = btr_pcur_get_block(m_pcur);
+          buf_block_t *rec_block = m_pcur->get_block();
           page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
           page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
                                   m_mtr);
@@ -351,7 +351,7 @@ struct Being_modified {
 
   /** Destructor.  Clear the "being modified" bit in LOB references. */
   ~Being_modified() {
-    rec_t *rec = btr_pcur_get_rec(m_pcur);
+    rec_t *rec = m_pcur->get_rec();
     dict_index_t *index = m_pcur->index();
 #ifdef UNIV_DEBUG
     rec_offs_make_valid(rec, index, m_offsets);
@@ -364,7 +364,7 @@ struct Being_modified {
       if (index->is_compressed()) {
         blobref.set_being_modified(false, nullptr);
         if (!m_btr_ctx.is_bulk()) {
-          buf_block_t *rec_block = btr_pcur_get_block(m_pcur);
+          buf_block_t *rec_block = m_pcur->get_block();
           page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
           page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
                                   m_mtr);
@@ -417,8 +417,8 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
   dberr_t error = DB_SUCCESS;
   dict_index_t *index = pcur->index();
   dict_table_t *table = index->table;
-  buf_block_t *rec_block = btr_pcur_get_block(pcur);
-  rec_t *rec = btr_pcur_get_rec(pcur);
+  buf_block_t *rec_block = pcur->get_block();
+  rec_t *rec = pcur->get_rec();
 
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(rec_offs_any_extern(offsets));
@@ -441,8 +441,8 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 
   /* The pcur could be re-positioned.  Commit and restart btr_mtr. */
   ctx.check_redolog();
-  rec_block = btr_pcur_get_block(pcur);
-  rec = btr_pcur_get_rec(pcur);
+  rec_block = pcur->get_block();
+  rec = pcur->get_rec();
 
   page_zip = buf_block_get_page_zip(rec_block);
   ut_a(fil_page_index_page_check(page_align(rec)) || op == OPCODE_INSERT_BULK);
@@ -469,7 +469,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
     ulint field_no = big_rec_vec->fields[i].field_no;
 
     /* Cursor could have changed position. */
-    rec = btr_pcur_get_rec(pcur);
+    rec = pcur->get_rec();
     rec_offs_make_valid(rec, index, offsets);
     ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -601,7 +601,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 
 #ifdef UNIV_DEBUG
     /* Ensure that the LOB references are valid now. */
-    rec = btr_pcur_get_rec(pcur);
+    rec = pcur->get_rec();
     rec_offs_make_valid(rec, index, offsets);
     field_ref =
         btr_rec_get_field_ref(rec, offsets, big_rec_vec->fields[i].field_no);
@@ -642,23 +642,14 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
-@param[out]	lob_version	version of lob that has been copied */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
+@param[out]	lob_version	version of lob that has been copied
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
-    size_t *lob_version,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap) {
-
+    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) {
   ulint local_len;
   const byte *data;
 
@@ -693,8 +684,9 @@ byte *btr_rec_copy_externally_stored_field_func(
     return (nullptr);
   }
 
-  return (btr_copy_externally_stored_field(trx, index, len, lob_version, data,
-                                           page_size, local_len, is_sdi, heap));
+  return (btr_copy_externally_stored_field_func(trx, index, len, lob_version,
+                                                data, page_size, local_len,
+                                                IF_DEBUG(is_sdi, ) heap));
 }
 
 /** Returns the page number where the next BLOB part is stored.
@@ -708,9 +700,9 @@ static inline page_no_t btr_blob_get_next_page_no(const byte *blob_header) {
 @param[in]	space_id	space identifier.
 @param[in]	page_no		page number.
 @param[in]	page		the page
-@param[in]	read		TRUE=read, FALSE=purge */
+@param[in]	read		true=read, false=purge */
 static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
-                                         const page_t *page, ibool read) {
+                                         const page_t *page, bool read) {
   ulint type = fil_page_get_type(page);
 
   ut_a(space_id == page_get_space_id(page));
@@ -763,16 +755,17 @@ void Reader::fetch_page() {
 
   mtr_start(&mtr);
 
-  m_cur_block = buf_page_get(page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
-                             m_rctx.m_page_size, RW_S_LATCH, &mtr);
+  m_cur_block =
+      buf_page_get(page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
+                   m_rctx.m_page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
   buf_block_dbg_add_level(m_cur_block, SYNC_EXTERN_STORAGE);
   page_t *page = buf_block_get_frame(m_cur_block);
 
-  btr_check_blob_fil_page_type(m_rctx.m_space_id, m_rctx.m_page_no, page, TRUE);
+  btr_check_blob_fil_page_type(m_rctx.m_space_id, m_rctx.m_page_no, page, true);
 
   byte *blob_header = page + m_rctx.m_offset;
   part_len = btr_blob_get_part_len(blob_header);
-  copy_len = ut_min(part_len, m_rctx.m_len - m_copied_len);
+  copy_len = std::min(part_len, m_rctx.m_len - m_copied_len);
 
   memcpy(m_rctx.m_buf + m_copied_len, blob_header + LOB_HDR_SIZE, copy_len);
 
@@ -817,35 +810,21 @@ or nullptr.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
-                                latch. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI indexes */
-#endif /* UNIV_DEBUG */
-/**
+                                latch.
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
-ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
-                                                   const dict_index_t *index,
-                                                   byte *buf, ulint len,
-                                                   const page_size_t &page_size,
-                                                   const byte *data,
-#ifdef UNIV_DEBUG
-                                                   bool is_sdi,
-#endif /* UNIV_DEBUG */
-                                                   ulint local_len) {
+ulint btr_copy_externally_stored_field_prefix_func(
+    trx_t *trx, const dict_index_t *index, byte *buf, ulint len,
+    const page_size_t &page_size, const byte *data,
+    IF_DEBUG(bool is_sdi, ) ulint local_len) {
   ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
   if (page_size.is_compressed()) {
     ut_a(local_len == BTR_EXTERN_FIELD_REF_SIZE);
 
-    ReadContext rctx(page_size, data, local_len, buf, len
-#ifdef UNIV_DEBUG
-                     ,
-                     is_sdi
-#endif /* UNIV_DEBUG */
-    );
+    ReadContext rctx(page_size, data, local_len, buf, len IF_DEBUG(, is_sdi));
 
     rctx.m_index = const_cast<dict_index_t *>(index);
     rctx.m_trx = trx;
@@ -891,12 +870,7 @@ ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
   }
 
   ReadContext rctx(page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-                   buf + local_len, len
-#ifdef UNIV_DEBUG
-                   ,
-                   false
-#endif /* UNIV_DEBUG */
-  );
+                   buf + local_len, len IF_DEBUG(, false));
 
   rctx.m_index = (dict_index_t *)index;
   rctx.m_trx = trx;
@@ -1036,7 +1010,7 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
 /** Deallocate a buffer block that was reserved for a BLOB part.
 @param[in]	index	Index
 @param[in]	block	Buffer block
-@param[in]	all	TRUE=remove also the compressed page
+@param[in]	all	true=remove also the compressed page
                         if there is one
 @param[in]	mtr	Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
@@ -1122,7 +1096,7 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
   ut_ad(!need_recalc());
 
   /* Free possible externally stored fields in the record */
-  ut_ad(dict_table_is_comp(m_index->table) == !!rec_offs_comp(m_offsets));
+  ut_ad(dict_table_is_comp(m_index->table) == rec_offs_comp(m_offsets));
   ulint n_fields = rec_offs_n_fields(m_offsets);
 
   for (ulint i = 0; i < n_fields; i++) {
@@ -1157,7 +1131,7 @@ ulint ref_t::get_lob_page_info(const dict_index_t *index,
   mtr_start(&mtr);
 
   block = buf_page_get(page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
-                       page_size, RW_S_LATCH, &mtr);
+                       page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
 
   page_type_t page_type = block->get_page_type();
 
@@ -1201,7 +1175,7 @@ void ref_t::mark_not_partially_updatable(trx_t *trx, mtr_t *mtr,
   }
 
   block = buf_page_get(page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
-                       page_size, RW_X_LATCH, mtr);
+                       page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   page_type_t page_type = block->get_page_type();
 
@@ -1281,7 +1255,7 @@ void DeleteContext::x_latch_rec_page(mtr_t *mtr) {
   buf_block_t *block =
 #endif /* UNIV_DEBUG */
       buf_page_get(page_id_t(rec_space_id, rec_page_no), rec_page_size,
-                   RW_X_LATCH, mtr);
+                   RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   ut_ad(block != nullptr);
 }

@@ -123,9 +123,7 @@ dtuple_t *row_build_index_entry_low(
       col_no = dict_col_get_no(col);
       dfield = dtuple_get_nth_field(entry, i);
     }
-#if DATA_MISSING != 0
-#error "DATA_MISSING != 0"
-#endif
+    static_assert(DATA_MISSING == 0, "DATA_MISSING != 0");
 
     if (col->is_virtual()) {
       const dict_v_col_t *v_col = reinterpret_cast<const dict_v_col_t *>(col);
@@ -221,7 +219,7 @@ dtuple_t *row_build_index_entry_low(
             dptr = static_cast<byte *>(dfield_get_data(dfield2));
           }
 
-          temp_heap = mem_heap_create(1000);
+          temp_heap = mem_heap_create(100, UT_LOCATION_HERE);
 
           const page_size_t page_size =
               (ext != nullptr) ? ext->page_size
@@ -879,12 +877,12 @@ void row_build_row_ref_in_tuple(dtuple_t *ref, const rec_t *rec,
 
 /** Searches the clustered index record for a row, if we have the row reference.
  @return true if found */
-ibool row_search_on_row_ref(btr_pcur_t *pcur, /*!< out: persistent cursor, which
+bool row_search_on_row_ref(btr_pcur_t *pcur, /*!< out: persistent cursor, which
                                               must be closed by the caller */
-                            ulint mode,       /*!< in: BTR_MODIFY_LEAF, ... */
-                            dict_table_t *table, /*!< in: table */
-                            const dtuple_t *ref, /*!< in: row reference */
-                            mtr_t *mtr)          /*!< in/out: mtr */
+                           ulint mode,       /*!< in: BTR_MODIFY_LEAF, ... */
+                           dict_table_t *table, /*!< in: table */
+                           const dtuple_t *ref, /*!< in: row reference */
+                           mtr_t *mtr)          /*!< in/out: mtr */
 {
   ulint low_match;
   rec_t *rec;
@@ -896,21 +894,21 @@ ibool row_search_on_row_ref(btr_pcur_t *pcur, /*!< out: persistent cursor, which
 
   ut_a(dtuple_get_n_fields(ref) == dict_index_get_n_unique(index));
 
-  btr_pcur_open(index, ref, PAGE_CUR_LE, mode, pcur, mtr);
+  pcur->open(index, 0, ref, PAGE_CUR_LE, mode, mtr, UT_LOCATION_HERE);
 
-  low_match = btr_pcur_get_low_match(pcur);
+  low_match = pcur->get_low_match();
 
-  rec = btr_pcur_get_rec(pcur);
+  rec = pcur->get_rec();
 
   if (page_rec_is_infimum(rec)) {
-    return (FALSE);
+    return false;
   }
 
   if (low_match != dtuple_get_n_fields(ref)) {
-    return (FALSE);
+    return false;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Fetches the clustered index record for a secondary index record. The latches
@@ -927,24 +925,23 @@ rec_t *row_get_clust_rec(
   dtuple_t *ref;
   dict_table_t *table;
   btr_pcur_t pcur;
-  ibool found;
   rec_t *clust_rec;
 
   ut_ad(!index->is_clustered());
 
   table = index->table;
 
-  heap = mem_heap_create(256);
+  heap = mem_heap_create(256, UT_LOCATION_HERE);
 
   ref = row_build_row_ref(ROW_COPY_POINTERS, index, rec, heap);
 
-  found = row_search_on_row_ref(&pcur, mode, table, ref, mtr);
+  auto found = row_search_on_row_ref(&pcur, mode, table, ref, mtr);
 
-  clust_rec = found ? btr_pcur_get_rec(&pcur) : nullptr;
+  clust_rec = found ? pcur.get_rec() : nullptr;
 
   mem_heap_free(heap);
 
-  btr_pcur_close(&pcur);
+  pcur.close();
 
   *clust_index = table->first_index();
 
@@ -958,7 +955,7 @@ or 2) the field is null.
 @param[in]	field		field to read the int value
 @return the integer value read from the field, 0 for negative signed
 int or NULL field */
-ib_uint64_t row_parse_int_from_field(const dfield_t *field) {
+uint64_t row_parse_int_from_field(const dfield_t *field) {
   const dtype_t *dtype = dfield_get_type(field);
   ulint len = dfield_get_len(field);
   const byte *data = static_cast<const byte *>(dfield_get_data(field));
@@ -976,7 +973,7 @@ ib_uint64_t row_parse_int_from_field(const dfield_t *field) {
 @param[in]	row	row to read the autoinc counter
 @param[in]	n	autoinc counter is in the nth field
 @return the autoinc counter read */
-ib_uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n) {
+uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n) {
   const dfield_t *field = dtuple_get_nth_field(row, n);
 
   return (row_parse_int_from_field(field));
@@ -1000,12 +997,13 @@ enum row_search_result row_search_index_entry(
 
   if (dict_index_is_spatial(index)) {
     ut_ad(mode & BTR_MODIFY_LEAF || mode & BTR_MODIFY_TREE);
-    rtr_pcur_open(index, entry, PAGE_CUR_RTREE_LOCATE, mode, pcur, mtr);
+    rtr_pcur_open(index, entry, PAGE_CUR_RTREE_LOCATE, mode, pcur,
+                  UT_LOCATION_HERE, mtr);
   } else {
-    btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+    pcur->open(index, 0, entry, PAGE_CUR_LE, mode, mtr, UT_LOCATION_HERE);
   }
 
-  switch (btr_pcur_get_btr_cur(pcur)->flag) {
+  switch (pcur->get_btr_cur()->flag) {
     case BTR_CUR_UNSET:
       ut_ad(0);
       break;
@@ -1025,9 +1023,9 @@ enum row_search_result row_search_index_entry(
       break;
   }
 
-  low_match = btr_pcur_get_low_match(pcur);
+  low_match = pcur->get_low_match();
 
-  rec = btr_pcur_get_rec(pcur);
+  rec = pcur->get_rec();
 
   n_fields = dtuple_get_n_fields(entry);
 
@@ -1043,28 +1041,28 @@ enum row_search_result row_search_index_entry(
 /** Formats the raw data in "data" (in InnoDB on-disk format) that is of
  type DATA_INT using "prtype" and writes the result to "buf".
  If the data is in unknown format, then nothing is written to "buf",
- 0 is returned and "format_in_hex" is set to TRUE, otherwise
+ 0 is returned and "format_in_hex" is set to true, otherwise
  "format_in_hex" is left untouched.
  Not more than "buf_size" bytes are written to "buf".
  The result is always '\0'-terminated (provided buf_size > 0) and the
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_int(const char *data, /*!< in: raw data */
-                                ulint data_len,   /*!< in: raw data length
-                                                  in bytes */
-                                ulint prtype,     /*!< in: precise type */
-                                char *buf,        /*!< out: output buffer */
-                                ulint buf_size,   /*!< in: output buffer size
-                                                  in bytes */
-                                ibool *format_in_hex) /*!< out: should the data
+static ulint row_raw_format_int(const char *data,    /*!< in: raw data */
+                                ulint data_len,      /*!< in: raw data length
+                                                     in bytes */
+                                ulint prtype,        /*!< in: precise type */
+                                char *buf,           /*!< out: output buffer */
+                                ulint buf_size,      /*!< in: output buffer size
+                                                     in bytes */
+                                bool *format_in_hex) /*!< out: should the data
                                                       be formated in hex */
 {
   ulint ret;
 
-  if (data_len <= sizeof(ib_uint64_t)) {
-    ib_uint64_t value;
-    ibool unsigned_type = prtype & DATA_UNSIGNED;
+  if (data_len <= sizeof(uint64_t)) {
+    uint64_t value;
+    bool unsigned_type = (prtype & DATA_UNSIGNED) != 0;
 
     value = mach_read_int_type((const byte *)data, data_len, unsigned_type);
 
@@ -1072,32 +1070,32 @@ static ulint row_raw_format_int(const char *data, /*!< in: raw data */
         snprintf(buf, buf_size, unsigned_type ? UINT64PF : "%" PRId64, value) +
         1;
   } else {
-    *format_in_hex = TRUE;
+    *format_in_hex = true;
     ret = 0;
   }
 
-  return (ut_min(ret, buf_size));
+  return (std::min(ret, buf_size));
 }
 
 /** Formats the raw data in "data" (in InnoDB on-disk format) that is of
  type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "prtype" and writes the
  result to "buf".
  If the data is in binary format, then nothing is written to "buf",
- 0 is returned and "format_in_hex" is set to TRUE, otherwise
+ 0 is returned and "format_in_hex" is set to true, otherwise
  "format_in_hex" is left untouched.
  Not more than "buf_size" bytes are written to "buf".
  The result is always '\0'-terminated (provided buf_size > 0) and the
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_str(const char *data, /*!< in: raw data */
-                                ulint data_len,   /*!< in: raw data length
-                                                  in bytes */
-                                ulint prtype,     /*!< in: precise type */
-                                char *buf,        /*!< out: output buffer */
-                                ulint buf_size,   /*!< in: output buffer size
-                                                  in bytes */
-                                ibool *format_in_hex) /*!< out: should the data
+static ulint row_raw_format_str(const char *data,    /*!< in: raw data */
+                                ulint data_len,      /*!< in: raw data length
+                                                     in bytes */
+                                ulint prtype,        /*!< in: precise type */
+                                char *buf,           /*!< out: output buffer */
+                                ulint buf_size,      /*!< in: output buffer size
+                                                     in bytes */
+                                bool *format_in_hex) /*!< out: should the data
                                                       be formated in hex */
 {
   ulint charset_coll;
@@ -1116,7 +1114,7 @@ static ulint row_raw_format_str(const char *data, /*!< in: raw data */
   /* else */
 
   if (charset_coll == DATA_MYSQL_BINARY_CHARSET_COLL) {
-    *format_in_hex = TRUE;
+    *format_in_hex = true;
     return (0);
   }
   /* else */
@@ -1142,7 +1140,7 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
   ulint mtype;
   ulint prtype;
   ulint ret;
-  ibool format_in_hex;
+  bool format_in_hex;
 
   if (buf_size == 0) {
     return (0);
@@ -1153,13 +1151,13 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
   if (data_len == UNIV_SQL_NULL) {
     ret = snprintf((char *)buf, buf_size, "NULL") + 1;
 
-    return (ut_min(ret, buf_size));
+    return (std::min(ret, buf_size));
   }
 
   mtype = dict_field->col->mtype;
   prtype = dict_field->col->prtype;
 
-  format_in_hex = FALSE;
+  format_in_hex = false;
 
   switch (mtype) {
     case DATA_INT:
@@ -1223,51 +1221,44 @@ dfield_t *Multi_value_entry_builder_normal::find_multi_value_field() {
 
 #ifdef HAVE_UT_CHRONO_T
 
+static inline void CALL_AND_TEST(char *data, ulint data_len, ulint prtype,
+                                 char *buf, ulint buf_size, ulint ret_expected,
+                                 char *buf_expected,
+                                 int format_in_hex_expected) {
+  bool ok = true;
+  memset(buf, 'x', 10);
+  buf[10] = '\0';
+  format_in_hex = false;
+  fprintf(stderr, "TESTING \"\\x");
+  for (ulint i = 0; i < data_len; i++) {
+    fprintf(stderr, "%02hhX", data[i]);
+  }
+  fprintf(stderr, "\", %lu, %lu, %lu\n", data_len, prtype, buf_size);
+  auto ret =
+      row_raw_format_int(data, data_len, prtype, buf, buf_size, &format_in_hex);
+  if (ret != ret_expected) {
+    fprintf(stderr, "expected ret %lu, got %lu\n", ret_expected, ret);
+    ok = false;
+  }
+  if (strcmp(buf, buf_expected) != 0) {
+    fprintf(stderr, "expected buf \"%s\", got \"%s\"\n", buf_expected, buf);
+    ok = false;
+  }
+  if (format_in_hex != format_in_hex_expected) {
+    fprintf(stderr, "expected format_in_hex %d, got %d\n",
+            (int)format_in_hex_expected, (int)format_in_hex);
+    ok = false;
+  }
+  if (ok) {
+    fprintf(stderr, "OK: %lu, \"%s\" %d\n\n", (ulint)ret, buf,
+            (int)format_in_hex);
+  }
+}
+
 void test_row_raw_format_int() {
-  ulint ret;
   char buf[128];
-  ibool format_in_hex;
-  ulint i;
+  bool format_in_hex;
 
-#define CALL_AND_TEST(data, data_len, prtype, buf, buf_size, ret_expected,     \
-                      buf_expected, format_in_hex_expected)                    \
-  do {                                                                         \
-    ibool ok = TRUE;                                                           \
-    ulint i;                                                                   \
-    memset(buf, 'x', 10);                                                      \
-    buf[10] = '\0';                                                            \
-    format_in_hex = FALSE;                                                     \
-    fprintf(stderr, "TESTING \"\\x");                                          \
-    for (i = 0; i < data_len; i++) {                                           \
-      fprintf(stderr, "%02hhX", data[i]);                                      \
-    }                                                                          \
-    fprintf(stderr, "\", %lu, %lu, %lu\n", (ulint)data_len, (ulint)prtype,     \
-            (ulint)buf_size);                                                  \
-    ret = row_raw_format_int(data, data_len, prtype, buf, buf_size,            \
-                             &format_in_hex);                                  \
-    if (ret != ret_expected) {                                                 \
-      fprintf(stderr, "expected ret %lu, got %lu\n", (ulint)ret_expected,      \
-              ret);                                                            \
-      ok = FALSE;                                                              \
-    }                                                                          \
-    if (strcmp((char *)buf, buf_expected) != 0) {                              \
-      fprintf(stderr, "expected buf \"%s\", got \"%s\"\n", buf_expected, buf); \
-      ok = FALSE;                                                              \
-    }                                                                          \
-    if (format_in_hex != format_in_hex_expected) {                             \
-      fprintf(stderr, "expected format_in_hex %d, got %d\n",                   \
-              (int)format_in_hex_expected, (int)format_in_hex);                \
-      ok = FALSE;                                                              \
-    }                                                                          \
-    if (ok) {                                                                  \
-      fprintf(stderr, "OK: %lu, \"%s\" %d\n\n", (ulint)ret, buf,               \
-              (int)format_in_hex);                                             \
-    } else {                                                                   \
-      return;                                                                  \
-    }                                                                          \
-  } while (0)
-
-#if 1
   /* min values for signed 1-8 byte integers */
 
   CALL_AND_TEST("\x00", 1, 0, buf, sizeof(buf), 5, "-128", 0);
@@ -1386,13 +1377,12 @@ void test_row_raw_format_int() {
 
   CALL_AND_TEST("\x00\x00\x00\x00\x00\x01\x64\x62", 8, DATA_UNSIGNED, buf,
                 sizeof(buf), 6, "91234", 0);
-#endif
 
   /* speed test */
 
   ut_chrono_t ch(__func__);
 
-  for (i = 0; i < 1000000; i++) {
+  for (auto i = 0; i < 1000000; i++) {
     row_raw_format_int("\x23", 1, 0, buf, sizeof(buf), &format_in_hex);
     row_raw_format_int("\x23", 1, DATA_UNSIGNED, buf, sizeof(buf),
                        &format_in_hex);

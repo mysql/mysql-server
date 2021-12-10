@@ -129,7 +129,7 @@ bool Histogram_sampler::init(trx_t *trx, dict_index_t *index,
                              row_prebuilt_t *prebuilt) {
   mtr_t mtr;
   mtr_start(&mtr);
-  mtr_sx_lock(dict_index_get_lock(index), &mtr);
+  mtr_sx_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
 
   /* Read pages from one level above the leaf page. */
   ulint read_level = btr_height_get(index, &mtr);
@@ -307,7 +307,7 @@ dberr_t Histogram_sampler::process_non_leaf_rec(
   page_cur_set_before_first(leaf_block, &cur);
   page_cur_move_to_next(&cur);
 
-  auto heap = mem_heap_create(srv_page_size / 4);
+  auto heap = mem_heap_create(srv_page_size / 4, UT_LOCATION_HERE);
   dberr_t err{DB_SUCCESS};
 
   for (;;) {

@@ -685,9 +685,9 @@ inline int ha_innopart::initialize_auto_increment(bool no_lock
   } else {
     dict_index_t *index;
     const char *col_name;
-    ib_uint64_t read_auto_inc;
-    ib_uint64_t persisted_auto_inc;
-    ib_uint64_t max_auto_inc = 0;
+    uint64_t read_auto_inc;
+    uint64_t persisted_auto_inc;
+    uint64_t max_auto_inc = 0;
     ulint err;
     dict_table_t *ib_table;
     ulonglong col_max_value;
@@ -721,7 +721,7 @@ inline int ha_innopart::initialize_auto_increment(bool no_lock
         in-memory counter while persisted one could
         be updated if it's updated to larger value. */
         max_auto_inc =
-            std::max(max_auto_inc, ut_max(read_auto_inc, persisted_auto_inc));
+            std::max(max_auto_inc, std::max(read_auto_inc, persisted_auto_inc));
         dict_table_autoinc_unlock(ib_table);
         continue;
       }
@@ -745,7 +745,7 @@ inline int ha_innopart::initialize_auto_increment(bool no_lock
 
           auto_inc =
               innobase_next_autoinc(read_auto_inc, 1, 1, 0, col_max_value);
-          max_auto_inc = std::max(max_auto_inc, ib_uint64_t(auto_inc));
+          max_auto_inc = std::max(max_auto_inc, uint64_t(auto_inc));
           dict_table_autoinc_initialize(ib_table, auto_inc);
           break;
         }
@@ -960,7 +960,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   of length ref_length! */
 
   if (!row_table_got_default_clust_index(ib_table)) {
-    m_prebuilt->clust_index_was_generated = FALSE;
+    m_prebuilt->clust_index_was_generated = false;
 
     if (table_share->is_missing_primary_key()) {
       table_name_t table_name;
@@ -1057,7 +1057,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
                           name);
     }
 
-    m_prebuilt->clust_index_was_generated = TRUE;
+    m_prebuilt->clust_index_was_generated = true;
 
     ref_length = DATA_ROW_ID_LEN;
     ref_length += PARTITION_BYTES_IN_POS;
@@ -1210,8 +1210,8 @@ void ha_innopart::clear_ins_upd_nodes() {
           upd->cascade_heap = nullptr;
         }
         if (upd->in_mysql_interface) {
-          btr_pcur_free_for_mysql(upd->pcur);
-          upd->in_mysql_interface = FALSE;
+          btr_pcur_t::free_for_mysql(upd->pcur);
+          upd->in_mysql_interface = false;
         }
 
         if (upd->select != nullptr) {
@@ -1251,7 +1251,7 @@ int ha_innopart::close() {
   done in m_part_share->close_table_parts(). */
   if (m_prebuilt != nullptr) {
     m_prebuilt->table = nullptr;
-    row_prebuilt_free(m_prebuilt, FALSE);
+    row_prebuilt_free(m_prebuilt, false);
   }
 
   if (m_upd_buf != nullptr) {
@@ -1622,9 +1622,9 @@ inline void ha_innopart::destroy_record_priority_queue_for_parts() {
     uint used_parts;
     used_parts = bitmap_bits_set(&m_part_info->read_partitions);
     for (uint i = 0; i < used_parts; i++) {
-      btr_pcur_free(&m_pcur_parts[i]);
+      m_pcur_parts[i].free_rec_buf();
       if (m_clust_pcur_parts != nullptr) {
-        btr_pcur_free(&m_clust_pcur_parts[i]);
+        m_clust_pcur_parts[i].free_rec_buf();
       }
     }
     ut::free(m_pcur_parts);
@@ -1738,7 +1738,7 @@ int ha_innopart::change_active_index(uint part_id, uint keynr) {
   if (UNIV_UNLIKELY(m_prebuilt->index == nullptr)) {
     ib::warn(ER_IB_MSG_594)
         << "change_active_index(" << part_id << "," << keynr << ") failed";
-    m_prebuilt->index_usable = FALSE;
+    m_prebuilt->index_usable = false;
     return 1;
   }
 
@@ -2044,7 +2044,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     update_thd(ha_thd());
 
     trx = m_prebuilt->trx;
-    trx_start_if_not_started_xa(trx, false);
+    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
     if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED) {
       trx_assign_read_view(trx);
@@ -2741,7 +2741,7 @@ int ha_innopart::rename_table(const char *from, const char *to,
   if not yet created */
   trx_t *trx = check_trx_exists(thd);
 
-  trx_start_if_not_started(trx, false);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
   innobase_register_trx(ht, thd, trx);
 
   TrxInInnoDB trx_in_innodb(trx);
@@ -2975,7 +2975,7 @@ enum row_type ha_innopart::get_partition_row_type(
   const dd::Properties &part_p = dd_table->se_private_data();
   if (part_p.exists(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT])) {
     part_p.get(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT],
-               reinterpret_cast<uint32 *>(&format));
+               reinterpret_cast<uint32_t *>(&format));
     switch (format) {
       case dd::Table::RF_REDUNDANT:
         real_type = ROW_TYPE_REDUNDANT;
@@ -3200,7 +3200,7 @@ int ha_innopart::records(ha_rows *num_rows) {
       m_prebuilt->select_lock_type == LOCK_NONE &&
       trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt &&
       n_threads > 1) {
-    trx_start_if_not_started_xa(trx, false);
+    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
     trx_assign_read_view(trx);
 
     const auto first_used_partition = m_part_info->get_first_used_partition();
@@ -3310,7 +3310,8 @@ ha_rows ha_innopart::records_in_range(uint keynr, key_range *min_key,
   }
 
   heap = mem_heap_create(
-      2 * (key->actual_key_parts * sizeof(dfield_t) + sizeof(dtuple_t)));
+      2 * (key->actual_key_parts * sizeof(dfield_t) + sizeof(dtuple_t)),
+      UT_LOCATION_HERE);
 
   range_start = dtuple_create(heap, key->actual_key_parts);
   dict_index_copy_types(range_start, index, key->actual_key_parts);
@@ -3482,7 +3483,7 @@ in various fields of the handle object.
 @return	HA_ERR_* error code or 0. */
 int ha_innopart::info_low(uint flag, bool is_analyze) {
   dict_table_t *ib_table;
-  ib_uint64_t max_rows = 0;
+  uint64_t max_rows = 0;
   uint biggest_partition = 0;
   int error = 0;
 
@@ -3547,7 +3548,7 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
     instead of using the info from the TABLE_SHARE. */
     ulint stat_clustered_index_size = 0;
     ulint stat_sum_of_other_index_sizes = 0;
-    ib_uint64_t n_rows = 0;
+    uint64_t n_rows = 0;
     ulint avail_space = 0;
     bool checked_sys_tablespace = false;
 
@@ -4231,7 +4232,7 @@ int ha_innopart::rnd_pos_by_record(uchar *record) {
   position(record);
   error = handler::ha_rnd_pos(record, ref);
 err:
-  rnd_end_in_part(m_last_part, FALSE);
+  rnd_end_in_part(m_last_part, false);
   return error;
 }
 

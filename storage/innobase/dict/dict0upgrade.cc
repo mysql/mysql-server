@@ -732,7 +732,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     dict_name::build_table("", norm_name, part_str, false, false, table_name);
 
     dict_table_t *part_table = dict_table_open_on_name(
-        table_name.c_str(), FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+        table_name.c_str(), false, true, DICT_ERR_IGNORE_NONE);
 
     if (part_table == nullptr) {
       ib::error(ER_IB_MSG_DICT_PARTITION_NOT_FOUND, table_name.c_str());
@@ -910,7 +910,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   }
 
   ib_table =
-      dict_table_open_on_name(norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+      dict_table_open_on_name(norm_name, false, true, DICT_ERR_IGNORE_NONE);
 
   if (ib_table == nullptr) {
     ib::error(ER_IB_MSG_258)
@@ -1123,7 +1123,7 @@ int dd_upgrade_tablespace(THD *thd) {
     return HA_ERR_TABLESPACE_MISSING;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   dict_sys_mutex_enter();
@@ -1212,7 +1212,7 @@ int dd_upgrade_tablespace(THD *thd) {
           df.set_filepath(orig_name.c_str());
           if (df.open_read_only(false) != DB_SUCCESS) {
             mem_heap_free(heap);
-            btr_pcur_close(&pcur);
+            pcur.close();
             return HA_ERR_TABLESPACE_MISSING;
           }
           df.close();
@@ -1285,7 +1285,7 @@ int dd_upgrade_tablespace(THD *thd) {
 @param[in]	space_id		space id of tablespace
 @param[in]	server_version_only	leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
+bool upgrade_space_version(const uint32_t space_id, bool server_version_only) {
   buf_block_t *block;
   page_t *page;
   mtr_t mtr;
@@ -1305,7 +1305,8 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
-  block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH, &mtr);
+  block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH,
+                       UT_LOCATION_HERE, &mtr);
 
   page = buf_block_get_frame(block);
 
@@ -1325,7 +1326,7 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
 @param[in]      tablespace              dd::Tablespace
 @return false on success, true on failure. */
 bool upgrade_space_version(dd::Tablespace *tablespace) {
-  uint32 space_id;
+  uint32_t space_id;
 
   if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
@@ -1441,7 +1442,7 @@ format on upgrade failure, else mark FTS aux tables evictable
                                         false */
 static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
   for (std::string &name : tables_with_fts) {
-    dict_table_t *ib_table = dict_table_open_on_name(name.c_str(), FALSE, TRUE,
+    dict_table_t *ib_table = dict_table_open_on_name(name.c_str(), false, true,
                                                      DICT_ERR_IGNORE_NONE);
     ut_ad(ib_table != nullptr);
     if (ib_table != nullptr) {

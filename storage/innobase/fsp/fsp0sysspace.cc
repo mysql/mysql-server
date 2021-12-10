@@ -428,7 +428,7 @@ dberr_t SysTablespace::create_file(Datafile &file) {
 
     case SRV_OLD_RAW:
 
-      srv_start_raw_disk_in_use = TRUE;
+      srv_start_raw_disk_in_use = true;
 
       [[fallthrough]];
 
@@ -462,7 +462,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
       [[fallthrough]];
 
     case SRV_OLD_RAW:
-      srv_start_raw_disk_in_use = TRUE;
+      srv_start_raw_disk_in_use = true;
 
       if (srv_read_only_mode && !m_ignore_read_only) {
         ib::error(ER_IB_MSG_443)

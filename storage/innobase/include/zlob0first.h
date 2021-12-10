@@ -152,7 +152,8 @@ struct z_first_page_t {
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -163,7 +164,7 @@ struct z_first_page_t {
   buf_block_t *load_x(mtr_t *mtr) const {
     ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
     buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
-                                    RW_X_LATCH, mtr);
+                                    RW_X_LATCH, UT_LOCATION_HERE, mtr);
     ut_ad(tmp == m_block);
     return (tmp);
   }
@@ -182,7 +183,8 @@ struct z_first_page_t {
 
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_S_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -366,12 +368,12 @@ struct z_first_page_t {
 
  private:
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * NOT USED to link the fragment pages.
+   NOT USED to link the fragment pages.
   @return the number of pages freed. */
   size_t free_all_frag_pages_old();
 
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * USED to link the fragment pages.
+   USED to link the fragment pages.
   @return the number of pages freed. */
   size_t free_all_frag_pages_new();
 

@@ -52,7 +52,7 @@ dict_hdr_t *dict_hdr_get(mtr_t *mtr) /*!< in: mtr */
   dict_hdr_t *header;
 
   block = buf_page_get(page_id_t(DICT_HDR_SPACE, DICT_HDR_PAGE_NO),
-                       univ_page_size, RW_X_LATCH, mtr);
+                       univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
   header = DICT_HDR + buf_block_get_frame(block);
 
   buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
@@ -168,7 +168,7 @@ void dict_hdr_flush_row_id(void) {
 /** Creates the file page for the dictionary header. This function is
  called only at the database creation.
  @return true if succeed */
-static ibool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
+static bool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
 {
   buf_block_t *block;
   dict_hdr_t *dict_header;
@@ -195,7 +195,7 @@ static ibool dict_hdr_create(mtr_t *mtr) /*!< in: mtr */
   /* Obsolete, but we must initialize it anyway. */
   mlog_write_ulint(dict_header + DICT_HDR_MIX_ID_LOW, 0, MLOG_4BYTES, mtr);
 
-  return (TRUE);
+  return true;
 }
 
 /** Initializes the data dictionary memory structures when the database is
@@ -253,7 +253,7 @@ dberr_t dict_boot(void) {
     ut_ad(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
     ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
 
-    heap = mem_heap_create(450);
+    heap = mem_heap_create(450, UT_LOCATION_HERE);
 
     /* Insert into the dictionary cache the descriptions of the basic
     system tables */
@@ -280,7 +280,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, FALSE, heap);
+    dict_table_add_to_cache(table, false, heap);
     dict_sys_mutex_exit();
     dict_sys->sys_tables = table;
     mem_heap_empty(heap);
@@ -294,7 +294,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_TABLES, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_TABLES, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -307,7 +307,7 @@ dberr_t dict_boot(void) {
     err = dict_index_add_to_cache(
         table, index,
         mtr_read_ulint(dict_hdr + DICT_HDR_TABLE_IDS, MLOG_4BYTES, &mtr),
-        FALSE);
+        false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -325,7 +325,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, FALSE, heap);
+    dict_table_add_to_cache(table, false, heap);
     dict_sys_mutex_exit();
     dict_sys->sys_columns = table;
     mem_heap_empty(heap);
@@ -340,7 +340,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -361,7 +361,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, FALSE, heap);
+    dict_table_add_to_cache(table, false, heap);
     dict_sys_mutex_exit();
     dict_sys->sys_indexes = table;
     mem_heap_empty(heap);
@@ -376,7 +376,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     /*-------------------------*/
@@ -390,7 +390,7 @@ dberr_t dict_boot(void) {
 
     dict_table_add_system_columns(table, heap);
     dict_sys_mutex_enter();
-    dict_table_add_to_cache(table, FALSE, heap);
+    dict_table_add_to_cache(table, false, heap);
     dict_sys_mutex_exit();
     dict_sys->sys_fields = table;
     mem_heap_free(heap);
@@ -405,7 +405,7 @@ dberr_t dict_boot(void) {
 
     err = dict_index_add_to_cache(
         table, index,
-        mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), FALSE);
+        mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), false);
     ut_a(err == DB_SUCCESS);
 
     dict_sys_mutex_enter();

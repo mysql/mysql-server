@@ -1248,7 +1248,8 @@ static bool is_buffer_pool_size_ok() noexcept {
 byte *Double_write::get(mtr_t *mtr) noexcept {
   const page_id_t sys_page_id(TRX_SYS_SPACE, TRX_SYS_PAGE_NO);
 
-  auto block = buf_page_get(sys_page_id, univ_page_size, RW_X_LATCH, mtr);
+  auto block = buf_page_get(sys_page_id, univ_page_size, RW_X_LATCH,
+                            UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 

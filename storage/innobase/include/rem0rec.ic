@@ -84,7 +84,7 @@ most significant bytes and bits are written below less significant.
 /** Sets the value of the ith field SQL null bit of an old-style record. */
 void rec_set_nth_field_null_bit(rec_t *rec, /*!< in: record */
                                 ulint i,    /*!< in: ith field */
-                                ibool val); /*!< in: value to set */
+                                bool val);  /*!< in: value to set */
 /** Sets an old-style record field to SQL null.
  The physical size of the field is not changed. */
 void rec_set_nth_field_sql_null(rec_t *rec, /*!< in: record */
@@ -199,12 +199,8 @@ static inline ulint rec_get_next_offs(
     ulint comp)       /*!< in: nonzero=compact page format */
 {
   ulint field_value;
-#if REC_NEXT_MASK != 0xFFFFUL
-#error "REC_NEXT_MASK != 0xFFFFUL"
-#endif
-#if REC_NEXT_SHIFT
-#error "REC_NEXT_SHIFT != 0"
-#endif
+  static_assert(REC_NEXT_MASK == 0xFFFFUL, "REC_NEXT_MASK != 0xFFFFUL");
+  static_assert(REC_NEXT_SHIFT == 0, "REC_NEXT_SHIFT != 0");
 
   field_value = mach_read_from_2(rec - REC_NEXT);
 
@@ -253,12 +249,8 @@ static inline void rec_set_next_offs_old(
 {
   ut_ad(rec);
   ut_ad(UNIV_PAGE_SIZE > next);
-#if REC_NEXT_MASK != 0xFFFFUL
-#error "REC_NEXT_MASK != 0xFFFFUL"
-#endif
-#if REC_NEXT_SHIFT
-#error "REC_NEXT_SHIFT != 0"
-#endif
+  static_assert(REC_NEXT_MASK == 0xFFFFUL, "REC_NEXT_MASK != 0xFFFFUL");
+  static_assert(REC_NEXT_SHIFT == 0, "REC_NEXT_SHIFT != 0");
 
   mach_write_to_2(rec - REC_NEXT, next);
 }
@@ -378,17 +370,17 @@ static inline void rec_set_status(rec_t *rec, /*!< in/out: physical record */
  @return info bits */
 static inline ulint rec_get_info_and_status_bits(
     const rec_t *rec, /*!< in: physical record */
-    ulint comp)       /*!< in: nonzero=compact page format */
+    bool comp)        /*!< in: nonzero=compact page format */
 {
   ulint bits;
-#if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) & \
-    (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)
-#error "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap"
-#endif
+  static_assert(((REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) &
+                 (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)) == 0,
+                "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap");
+
   if (comp) {
-    bits = rec_get_info_bits(rec, TRUE) | rec_get_status(rec);
+    bits = rec_get_info_bits(rec, true) | rec_get_status(rec);
   } else {
-    bits = rec_get_info_bits(rec, FALSE);
+    bits = rec_get_info_bits(rec, false);
     ut_ad(!(bits & ~(REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)));
   }
   return (bits);
@@ -399,19 +391,19 @@ static inline void rec_set_info_and_status_bits(
     rec_t *rec, /*!< in/out: physical record */
     ulint bits) /*!< in: info bits */
 {
-#if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) & \
-    (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)
-#error "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap"
-#endif
+  static_assert(((REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) &
+                 (REC_INFO_BITS_MASK >> REC_INFO_BITS_SHIFT)) == 0,
+                "REC_NEW_STATUS_MASK and REC_INFO_BITS_MASK overlap");
+
   rec_set_status(rec, bits & REC_NEW_STATUS_MASK);
   rec_set_info_bits_new(rec, bits & ~REC_NEW_STATUS_MASK);
 }
 
 /** The following function tells if record is delete marked.
  @return nonzero if delete marked */
-static inline ulint rec_get_deleted_flag(
+static inline bool rec_get_deleted_flag(
     const rec_t *rec, /*!< in: physical record */
-    ulint comp)       /*!< in: nonzero=compact page format */
+    bool comp)        /*!< in: nonzero=compact page format */
 {
   if (comp) {
     return (rec_get_bit_field_1(rec, REC_NEW_INFO_BITS, REC_INFO_DELETED_FLAG,
@@ -425,11 +417,9 @@ static inline ulint rec_get_deleted_flag(
 /** The following function is used to set the deleted bit. */
 static inline void rec_set_deleted_flag_old(
     rec_t *rec, /*!< in: old-style physical record */
-    ulint flag) /*!< in: nonzero if delete marked */
+    bool flag)  /*!< in: nonzero if delete marked */
 {
-  ulint val;
-
-  val = rec_get_info_bits(rec, FALSE);
+  auto val = rec_get_info_bits(rec, false);
 
   if (flag) {
     val |= REC_INFO_DELETED_FLAG;
@@ -444,11 +434,11 @@ static inline void rec_set_deleted_flag_old(
 static inline void rec_set_deleted_flag_new(
     rec_t *rec,               /*!< in/out: new-style physical record */
     page_zip_des_t *page_zip, /*!< in/out: compressed page, or NULL */
-    ulint flag)               /*!< in: nonzero if delete marked */
+    bool flag)                /*!< in: nonzero if delete marked */
 {
   ulint val;
 
-  val = rec_get_info_bits(rec, TRUE);
+  val = rec_get_info_bits(rec, true);
 
   if (flag) {
     val |= REC_INFO_DELETED_FLAG;
@@ -469,7 +459,7 @@ static inline void rec_set_deleted_flag_new(
 static inline void rec_set_instant_flag_new(rec_t *rec, bool flag) {
   ulint val;
 
-  val = rec_get_info_bits(rec, TRUE);
+  val = rec_get_info_bits(rec, true);
 
   if (flag) {
     val |= REC_INFO_INSTANT_FLAG;
@@ -531,13 +521,8 @@ static inline void rec_set_heap_no_new(
 /** The following function is used to set the 1-byte offsets flag. */
 static inline void rec_set_1byte_offs_flag(
     rec_t *rec, /*!< in: physical record */
-    ibool flag) /*!< in: TRUE if 1byte form */
+    bool flag)  /*!< in: true if 1byte form */
 {
-#if TRUE != 1
-#error "TRUE != 1"
-#endif
-  ut_ad(flag <= TRUE);
-
   rec_set_bit_field_1(rec, flag, REC_OLD_SHORT, REC_OLD_SHORT_MASK,
                       REC_OLD_SHORT_SHIFT);
 }
@@ -598,11 +583,11 @@ static inline bool rec_field_not_null_not_add_col_def(ulint len) {
 /** Determine if the offsets are for a record in the new
  compact format.
  @return nonzero if compact format */
-static inline ulint rec_offs_comp(
+static inline bool rec_offs_comp(
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
   ut_ad(rec_offs_validate(nullptr, nullptr, offsets));
-  return (*rec_offs_base(offsets) & REC_OFFS_COMPACT);
+  return (*rec_offs_base(offsets) & REC_OFFS_COMPACT) != 0;
 }
 
 /** Determine if the offsets are for a record containing
@@ -874,7 +859,7 @@ static inline void rec_set_nth_field(
 
   if (len2 == UNIV_SQL_NULL) {
     ut_ad(!rec_offs_comp(offsets));
-    rec_set_nth_field_null_bit(rec, n, FALSE);
+    rec_set_nth_field_null_bit(rec, n, false);
     ut_ad(len == rec_get_nth_field_size(rec, n));
   } else {
     ut_ad(len2 == len);

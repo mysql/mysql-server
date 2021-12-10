@@ -50,7 +50,7 @@ struct fts_ast_state_t;
 
 /** fts parse query by plugin parser.
  @return 0 if parse successfully, or return non-zero. */
-int fts_parse_by_parser(ibool mode,   /*!< in: query boolean mode */
+int fts_parse_by_parser(bool mode,    /*!< in: query boolean mode */
                         uchar *query, /*!< in: query string */
                         ulint len,    /*!< in: query string length */
                         st_mysql_ftparser *parse, /*!< in: fts plugin parser */

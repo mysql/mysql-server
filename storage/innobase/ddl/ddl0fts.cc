@@ -818,7 +818,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
 
   auto table = m_ctx.new_table();
   auto old_table = m_ctx.old_table();
-  auto blob_heap = mem_heap_create(512);
+  auto blob_heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   memset(&doc, 0, sizeof(doc));
 
@@ -1255,7 +1255,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   auto trx = trx_allocate_for_background();
 
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   trx->op_info = "inserting index entries";
 
@@ -1263,7 +1263,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   ins_ctx.m_doc_id_32_bit = m_doc_id_32_bit;
 
-  auto tuple_heap = mem_heap_create(512);
+  auto tuple_heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   auto index = m_dup->m_index;
 
@@ -1391,7 +1391,7 @@ dberr_t FTS::Inserter::insert(Builder *builder,
 
   doc_id_t doc_id{};
   dtuple_t *dtuple{};
-  auto heap = mem_heap_create(1000);
+  auto heap = mem_heap_create(1000, UT_LOCATION_HERE);
   auto positions = ib_vector_create(heap_alloc, sizeof(doc_id_t), 32);
 
   while ((err = cursor.fetch(dtuple)) == DB_SUCCESS) {

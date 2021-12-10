@@ -719,7 +719,7 @@ static recv_sys_t::Space *recv_get_page_map(space_id_t space_id, bool create) {
   } else if (create) {
     mem_heap_t *heap;
 
-    heap = mem_heap_create_typed(256, MEM_HEAP_FOR_RECV_SYS);
+    heap = mem_heap_create_typed(256, UT_LOCATION_HERE, MEM_HEAP_FOR_RECV_SYS);
 
     using Space = recv_sys_t::Space;
     using Value = recv_sys_t::Spaces::value_type;
@@ -1199,7 +1199,8 @@ static void recv_apply_log_rec(recv_addr_t *recv_addr) {
 
       buf_block_t *block;
 
-      block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+      block =
+          buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
       buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
@@ -1502,7 +1503,7 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
     err = fil_io(IORequestRead, true, page_id, page_size, 0,
                  page_size.physical(), block->page.zip.data, nullptr);
 
-    if (err == DB_SUCCESS && !buf_zip_decompress(block, TRUE)) {
+    if (err == DB_SUCCESS && !buf_zip_decompress(block, true)) {
       ut_error;
     }
   } else {
@@ -2033,10 +2034,9 @@ static byte *recv_parse_or_apply_log_rec_body(
       if (nullptr !=
           (ptr = mlog_parse_index(ptr, end_ptr, type == MLOG_COMP_REC_INSERT,
                                   &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
-        ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr, block, index, mtr);
+        ptr = page_cur_parse_insert_rec(false, ptr, end_ptr, block, index, mtr);
       }
 
       break;
@@ -2049,8 +2049,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       if (nullptr != (ptr = mlog_parse_index(
                           ptr, end_ptr, type == MLOG_COMP_REC_CLUST_DELETE_MARK,
                           &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr = btr_cur_parse_del_mark_set_clust_rec(ptr, end_ptr, page, page_zip,
                                                    index);
@@ -2091,8 +2090,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       if (nullptr !=
           (ptr = mlog_parse_index(
                ptr, end_ptr, type == MLOG_COMP_REC_UPDATE_IN_PLACE, &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr =
             btr_cur_parse_update_in_place(ptr, end_ptr, page, page_zip, index);
@@ -2112,8 +2110,7 @@ static byte *recv_parse_or_apply_log_rec_body(
                                   type == MLOG_COMP_LIST_END_DELETE ||
                                       type == MLOG_COMP_LIST_START_DELETE,
                                   &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr = page_parse_delete_rec_list(type, ptr, end_ptr, block, index, mtr);
       }
@@ -2128,8 +2125,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       if (nullptr != (ptr = mlog_parse_index(
                           ptr, end_ptr, type == MLOG_COMP_LIST_END_COPY_CREATED,
                           &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr = page_parse_copy_rec_list_to_created_page(ptr, end_ptr, block,
                                                        index, mtr);
@@ -2142,8 +2138,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       /* Uncompressed pages don't have any payload in the
       MTR so ptr and end_ptr can be, and are nullptr */
       mlog_parse_index(ptr, end_ptr, false, &index);
-      ut_a(!page ||
-           (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+      ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
       ptr = btr_parse_page_reorganize(ptr, end_ptr, index, false, block, mtr);
 
@@ -2155,8 +2150,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       ut_ad(!page || fil_page_type_is_index(page_type));
 
       if (nullptr != (ptr = mlog_parse_index(ptr, end_ptr, true, &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr = btr_parse_page_reorganize(
             ptr, end_ptr, index, type == MLOG_ZIP_PAGE_REORGANIZE, block, mtr);
@@ -2246,8 +2240,7 @@ static byte *recv_parse_or_apply_log_rec_body(
       if (nullptr !=
           (ptr = mlog_parse_index(ptr, end_ptr, type == MLOG_COMP_REC_DELETE,
                                   &index))) {
-        ut_a(!page ||
-             (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+        ut_a(!page || page_is_comp(page) == dict_table_is_comp(index->table));
 
         ptr = page_cur_parse_delete_rec(ptr, end_ptr, block, index, mtr);
       }
@@ -2339,8 +2332,7 @@ static byte *recv_parse_or_apply_log_rec_body(
     case MLOG_ZIP_PAGE_COMPRESS_NO_DATA:
 
       if (nullptr != (ptr = mlog_parse_index(ptr, end_ptr, true, &index))) {
-        ut_a(!page || ((ibool) !!page_is_comp(page) ==
-                       dict_table_is_comp(index->table)));
+        ut_a(!page || (page_is_comp(page) == dict_table_is_comp(index->table)));
 
         ptr = page_zip_parse_compress_no_data(ptr, end_ptr, page, page_zip,
                                               index);
@@ -2765,7 +2757,7 @@ void recv_recover_page_func(
   if (fil_page_index_page_check(page)) {
     page_zip_des_t *page_zip = buf_block_get_page_zip(block);
 
-    ut_a(!page_zip || page_zip_validate_low(page_zip, page, nullptr, FALSE));
+    ut_a(!page_zip || page_zip_validate_low(page_zip, page, nullptr, false));
   }
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -2860,7 +2852,7 @@ static ulint recv_parse_log_rec(mlog_id_t *type, byte *ptr, byte *end_ptr,
     case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
 
       table_id_t id;
-      uint64 version;
+      uint64_t version;
 
       *page_no = FIL_NULL;
       *space_id = SPACE_UNKNOWN;
@@ -4157,7 +4149,7 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
     without redo logging. */
 
     block = buf_page_get(page_id_t(IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, &mtr);
+                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
     fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
@@ -4165,17 +4157,17 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
     to FIL_PAGE_INDEX. No need to reset that one. */
 
     block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, &mtr);
+                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
     fil_block_check_type(block, FIL_PAGE_TYPE_TRX_SYS, &mtr);
 
     block = buf_page_get(page_id_t(TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, &mtr);
+                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
     fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
     block = buf_page_get(page_id_t(TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO),
-                         univ_page_size, RW_X_LATCH, &mtr);
+                         univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
     fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 

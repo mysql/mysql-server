@@ -296,7 +296,7 @@ struct Debug_check {
 
 #ifdef UNIV_DEBUG
 /** Assure that there are no slots that are latching any resources. Only buffer
-fixing a page is allowed. */
+ fixing a page is allowed. */
 struct Debug_check_no_latching {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
@@ -723,7 +723,7 @@ void mtr_t::x_lock_space(fil_space_t *space, const char *file, ulint line) {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   ut_ad(is_active());
 
-  x_lock(&space->latch, file, line);
+  x_lock(&space->latch, {file, line});
 }
 
 /** Release an object in the memo stack. */

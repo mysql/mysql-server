@@ -37,7 +37,6 @@
 
 #define true_word_char(ctype, character) \
   ((ctype) & (_MY_U | _MY_L | _MY_NMR) || (character) == '_')
-#define misc_word_char(X) 0
 
 #define FT_MAX_WORD_LEN_FOR_SORT 31
 

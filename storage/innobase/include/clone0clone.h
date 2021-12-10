@@ -518,7 +518,7 @@ class Clone_Task_Manager {
   /** Get next in complete chunk if any
   @param[out]	block_num	first block number in chunk
   @return incomplete chunk number */
-  uint32_t get_next_incomplete_chunk(uint32 &block_num);
+  uint32_t get_next_incomplete_chunk(uint32_t &block_num);
 
   /** Get next unreserved chunk
   @return chunk number */
@@ -1028,7 +1028,7 @@ class Clone_Handle {
   uint m_clone_arr_index;
 
   /** Unique clone identifier */
-  ib_uint64_t m_clone_id;
+  uint64_t m_clone_id;
 
   /** Reference count */
   uint m_ref_count;
@@ -1120,7 +1120,7 @@ class Clone_Sys {
   @param[out]	snapshot	clone snapshot
   @return error code */
   int attach_snapshot(Clone_Handle_Type hdl_type, Ha_clone_type clone_type,
-                      ib_uint64_t snapshot_id, bool is_pfs_monitor,
+                      uint64_t snapshot_id, bool is_pfs_monitor,
                       Clone_Snapshot *&snapshot);
 
   /** Detach clone handle from snapshot
@@ -1176,7 +1176,7 @@ class Clone_Sys {
 
   /** Get next unique ID
   @return unique ID */
-  ib_uint64_t get_next_id();
+  uint64_t get_next_id();
 
   /** Get clone sys mutex
   @return clone system mutex */

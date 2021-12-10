@@ -32,8 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "page0types.h"
 #include "sql/gis/rtree_support.h"
 
-#define SPTYPE HA_KEYTYPE_DOUBLE
-#define SPLEN 8
+constexpr uint32_t SPLEN = 8;
 
 namespace dd {
 class Spatial_reference_system;

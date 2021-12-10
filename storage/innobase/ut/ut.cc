@@ -166,7 +166,7 @@ ulint ut_strlcpy_rev(char *dst,       /*!< in: destination buffer */
   ulint src_size = strlen(src);
 
   if (size != 0) {
-    ulint n = ut_min(src_size, size - 1);
+    ulint n = std::min(src_size, size - 1);
 
     memcpy(dst, src + src_size - n, n + 1);
   }

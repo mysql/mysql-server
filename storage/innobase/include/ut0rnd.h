@@ -68,7 +68,7 @@ static inline ulint ut_hash_ulint(ulint key, ulint table_size);
 /** Folds a 64-bit integer.
 @param[in]	d	64-bit integer
 @return folded value */
-static inline ulint ut_fold_ull(ib_uint64_t d);
+static inline ulint ut_fold_ull(uint64_t d);
 
 /** Folds a character string ending in the null character.
  @return folded value */

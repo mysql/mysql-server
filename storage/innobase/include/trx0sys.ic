@@ -43,18 +43,15 @@ typedef byte trx_sysf_rseg_t;
 
 /* Rollback segment specification slot offsets */
 /*-------------------------------------------------------------*/
-#define TRX_SYS_RSEG_SPACE          \
-  0 /* space where the segment      \
-    header is placed; starting with \
-    MySQL/InnoDB 5.1.7, this is     \
-    UNIV_UNDEFINED if the slot is unused */
-#define TRX_SYS_RSEG_PAGE_NO           \
-  4 /*  page number where the segment  \
-    header is placed; this is FIL_NULL \
-    if the slot is unused */
+/** space where the segment header is placed; starting with MySQL/InnoDB 5.1.7,
+ this is UNIV_UNDEFINED if the slot is unused */
+constexpr uint32_t TRX_SYS_RSEG_SPACE = 0;
+/** page number where the segment header is placed; this is FIL_NULL if the slot
+ is unused */
+constexpr uint32_t TRX_SYS_RSEG_PAGE_NO = 4;
 /*-------------------------------------------------------------*/
 /* Size of a rollback segment specification slot */
-#define TRX_SYS_RSEG_SLOT_SIZE 8
+constexpr uint32_t TRX_SYS_RSEG_SLOT_SIZE = 8;
 
 /** Writes the value of max_trx_id to the file based trx system header. */
 void trx_sys_write_max_trx_id(void);
@@ -77,7 +74,7 @@ static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr) /*!< in: mtr */
   ut_ad(mtr);
 
   block = buf_page_get(page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
-                       univ_page_size, RW_X_LATCH, mtr);
+                       univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
   buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
   header = TRX_SYS + buf_block_get_frame(block);

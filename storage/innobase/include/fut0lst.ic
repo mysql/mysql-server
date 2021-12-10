@@ -35,24 +35,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0log.h"
 
 /* We define the field offsets of a node for the list */
-#define FLST_PREV                                   \
-  0 /* 6-byte address of the previous list element; \
-    the page part of address is FIL_NULL, if no     \
-    previous element */
-#define FLST_NEXT                              \
-  FIL_ADDR_SIZE /* 6-byte address of the next  \
-        list element; the page part of address \
-        is FIL_NULL, if no next element */
+/** 6-byte address of the previous list element; the page part of address is
+FIL_NULL, if no previous element */
+constexpr uint32_t FLST_PREV = 0;
+/* 6-byte address of the next list element; the page part of address is
+ FIL_NULL, if no next element */
+constexpr uint32_t FLST_NEXT = FIL_ADDR_SIZE;
 
 /* We define the field offsets of a base node for the list */
-#define FLST_LEN 0 /* 32-bit list length field */
-#define FLST_FIRST                         \
-  4 /* 6-byte address of the first element \
-    of the list; undefined if empty list */
-#define FLST_LAST                              \
-  (4 + FIL_ADDR_SIZE) /* 6-byte address of the \
-          last element of the list; undefined  \
-          if empty list */
+/** 32-bit list length field */
+constexpr uint32_t FLST_LEN = 0;
+/** 6-byte address of the first element of the list; undefined if empty list */
+constexpr uint32_t FLST_FIRST = 4;
+/** 6-byte address of the last element of the list; undefined if empty list */
+constexpr uint32_t FLST_LAST = 4 + FIL_ADDR_SIZE;
 
 /** Writes a file address. */
 static inline void flst_write_addr(

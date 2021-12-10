@@ -43,19 +43,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 // Forward declaration
 struct trx_t;
 
-/** Returns TRUE if less than 25 % of the buffer pool is available. This can be
+/** Returns true if less than 25 % of the buffer pool is available. This can be
  used in heuristics to prevent huge transactions eating up the whole buffer
  pool for their locks.
  @return true if less than 25 % of buffer pool left */
-ibool buf_LRU_buf_pool_running_out(void);
+bool buf_LRU_buf_pool_running_out(void);
 
 /*#######################################################################
 These are low-level functions
 #########################################################################*/
 
-/** Minimum LRU list length for which the LRU_old pointer is defined */
-#define BUF_LRU_OLD_MIN_LEN 512 /* 8 megabytes of 16k pages */
-#endif                          /* !UNIV_HOTBACKUP */
+/** Minimum LRU list length for which the LRU_old pointer is defined
+8 megabytes of 16k pages */
+constexpr uint32_t BUF_LRU_OLD_MIN_LEN = 8 * 1024 / 16;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Flushes all dirty pages or removes all pages belonging to a given
 tablespace. A PROBLEM: if readahead is being started, what guarantees
@@ -132,7 +133,7 @@ we put it to free list to be used.
 instead of the general LRU list.
 @param[in,out]	buf_pool	buffer pool instance
 @return true if should use unzip_LRU */
-ibool buf_LRU_evict_from_unzip_LRU(buf_pool_t *buf_pool);
+bool buf_LRU_evict_from_unzip_LRU(buf_pool_t *buf_pool);
 
 /** Puts a block back to the free list.
 @param[in]	block	block must not contain a file page */
@@ -142,16 +143,16 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block);
  already set when invoking the function, so that we can get correct
  page_size from the buffer page when adding a block into LRU */
 void buf_LRU_add_block(buf_page_t *bpage, /*!< in: control block */
-                       ibool old); /*!< in: TRUE if should be put to the old
+                       bool old); /*!< in: true if should be put to the old
                                    blocks in the LRU list, else put to the
                                    start; if the LRU list is very short, added
                                    to the start regardless of this parameter */
 
 /** Adds a block to the LRU list of decompressed zip pages.
 @param[in]	block	control block
-@param[in]	old	TRUE if should be put to the end of the list,
+@param[in]	old	true if should be put to the end of the list,
                         else put to the start */
-void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
+void buf_unzip_LRU_add_block(buf_block_t *block, bool old);
 
 /** Moves a block to the start of the LRU list.
 @param[in]	bpage	control block */
@@ -164,10 +165,10 @@ void buf_LRU_make_block_old(buf_page_t *bpage);
 /** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(
-    uint old_pct,  /*!< in: Reserve this percentage of
-                   the buffer pool for "old" blocks. */
-    ibool adjust); /*!< in: TRUE=adjust the LRU list;
-                   FALSE=just assign buf_pool->LRU_old_ratio
+    uint old_pct, /*!< in: Reserve this percentage of
+                  the buffer pool for "old" blocks. */
+    bool adjust); /*!< in: true=adjust the LRU list;
+                   false=just assign buf_pool->LRU_old_ratio
                    during the initialization of InnoDB */
 /** Update the historical stats that we are collecting for LRU eviction
  policy at the end of each interval. */
@@ -193,7 +194,7 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list.
  @return true */
-ibool buf_LRU_validate(void);
+void buf_LRU_validate(void);
 
 /** Validates the LRU list for one buffer pool instance.
 @param[in]	buf_pool	buffer pool instance */
@@ -215,24 +216,22 @@ void buf_LRU_print(void);
 /** @name Heuristics for detecting index scan
 @{ */
 /** The denominator of buf_pool->LRU_old_ratio. */
-#define BUF_LRU_OLD_RATIO_DIV 1024
+constexpr uint32_t BUF_LRU_OLD_RATIO_DIV = 1024;
 /** Maximum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
 @see buf_pool->LRU_old_ratio_update */
-#define BUF_LRU_OLD_RATIO_MAX BUF_LRU_OLD_RATIO_DIV
+constexpr uint32_t BUF_LRU_OLD_RATIO_MAX = BUF_LRU_OLD_RATIO_DIV;
 /** Minimum value of buf_pool->LRU_old_ratio.
 @see buf_LRU_old_adjust_len
 @see buf_pool->LRU_old_ratio_update
 The minimum must exceed
 (BUF_LRU_OLD_TOLERANCE + 5) * BUF_LRU_OLD_RATIO_DIV / BUF_LRU_OLD_MIN_LEN. */
-#define BUF_LRU_OLD_RATIO_MIN 51
+constexpr uint32_t BUF_LRU_OLD_RATIO_MIN = 51;
 
-#if BUF_LRU_OLD_RATIO_MIN >= BUF_LRU_OLD_RATIO_MAX
-#error "BUF_LRU_OLD_RATIO_MIN >= BUF_LRU_OLD_RATIO_MAX"
-#endif
-#if BUF_LRU_OLD_RATIO_MAX > BUF_LRU_OLD_RATIO_DIV
-#error "BUF_LRU_OLD_RATIO_MAX > BUF_LRU_OLD_RATIO_DIV"
-#endif
+static_assert(BUF_LRU_OLD_RATIO_MIN < BUF_LRU_OLD_RATIO_MAX,
+              "BUF_LRU_OLD_RATIO_MIN >= BUF_LRU_OLD_RATIO_MAX");
+static_assert(BUF_LRU_OLD_RATIO_MAX <= BUF_LRU_OLD_RATIO_DIV,
+              "BUF_LRU_OLD_RATIO_MAX > BUF_LRU_OLD_RATIO_DIV");
 
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
@@ -258,9 +257,9 @@ Updated by buf_LRU_stat_update(). Accesses protected by memory barriers. */
 extern buf_LRU_stat_t buf_LRU_stat_sum;
 
 /** Increments the I/O counter in buf_LRU_stat_cur. */
-#define buf_LRU_stat_inc_io() buf_LRU_stat_cur.io++
+inline void buf_LRU_stat_inc_io() { buf_LRU_stat_cur.io++; }
 /** Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
-#define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
+inline void buf_LRU_stat_inc_unzip() { buf_LRU_stat_cur.unzip++; }
 
 #endif /* !UNIV_HOTBACKUP */
 

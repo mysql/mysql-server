@@ -63,10 +63,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
     const ulint *offsets);     /*!< in: rec_get_offsets(rec, index) */
 
 /* Flags for row build type. */
-#define ROW_BUILD_NORMAL 0     /*!< build index row */
-#define ROW_BUILD_FOR_PURGE 1  /*!< build row for purge. */
-#define ROW_BUILD_FOR_UNDO 2   /*!< build row for undo. */
-#define ROW_BUILD_FOR_INSERT 3 /*!< build row for insert. */
+/** build index row */
+constexpr uint32_t ROW_BUILD_NORMAL = 0;
+/** build row for purge. */
+constexpr uint32_t ROW_BUILD_FOR_PURGE = 1;
+/** build row for undo. */
+constexpr uint32_t ROW_BUILD_FOR_UNDO = 2;
+/** build row for insert. */
+constexpr uint32_t ROW_BUILD_FOR_INSERT = 3;
 /** When an insert or purge to a table is performed, this function builds
  the entry to be inserted into or purged from an index on the table.
  @return index entry which should be inserted or purged
@@ -237,7 +241,7 @@ static inline void row_build_row_ref_fast(dtuple_t *ref, const ulint *map,
 /** Searches the clustered index record for a row, if we have the row
  reference.
  @return true if found */
-[[nodiscard]] ibool row_search_on_row_ref(
+[[nodiscard]] bool row_search_on_row_ref(
     btr_pcur_t *pcur,    /*!< out: persistent cursor, which
             must be closed by the caller */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF, ... */
@@ -262,8 +266,8 @@ and the type is not unsigned then we reset the value to 0
 @param[in]	mtype		mtype of data
 @param[in]	unsigned_type	if the data is unsigned
 @return the integer value from the data */
-inline ib_uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
-                                 bool unsigned_type);
+inline uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
+                              bool unsigned_type);
 
 /** Parse the integer data from specified field, which could be
 DATA_INT, DATA_FLOAT or DATA_DOUBLE. We could return 0 if
@@ -272,13 +276,13 @@ or 2) the field is null.
 @param[in]	field		field to read the int value
 @return the integer value read from the field, 0 for negative signed
 int or NULL field */
-ib_uint64_t row_parse_int_from_field(const dfield_t *field);
+uint64_t row_parse_int_from_field(const dfield_t *field);
 
 /** Read the autoinc counter from the clustered index row.
 @param[in]	row	row to read the autoinc counter
 @param[in]	n	autoinc counter is in the nth field
 @return the autoinc counter read */
-ib_uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n);
+uint64_t row_get_autoinc_counter(const dtuple_t *row, ulint n);
 
 /** Result of row_search_index_entry */
 enum row_search_result {
@@ -303,8 +307,8 @@ enum row_search_result {
                            be closed by the caller */
     mtr_t *mtr);           /*!< in: mtr */
 
-#define ROW_COPY_DATA 1
-#define ROW_COPY_POINTERS 2
+constexpr uint32_t ROW_COPY_DATA = 1;
+constexpr uint32_t ROW_COPY_POINTERS = 2;
 
 /* The allowed latching order of index records is the following:
 (1) a secondary index record ->

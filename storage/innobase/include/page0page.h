@@ -57,20 +57,20 @@ typedef page_dir_slot_t page_dir_t;
 /* Offset of the directory start down from the page end. We call the
 slot with the highest file address directory start, as it points to
 the first record in the list of records. */
-#define PAGE_DIR FIL_PAGE_DATA_END
+constexpr uint32_t PAGE_DIR = FIL_PAGE_DATA_END;
 
 /* We define a slot in the page directory as two bytes */
-#define PAGE_DIR_SLOT_SIZE 2
+constexpr uint32_t PAGE_DIR_SLOT_SIZE = 2;
 
 /* The offset of the physically lower end of the directory, counted from
 page end, when the page is empty */
-#define PAGE_EMPTY_DIR_START (PAGE_DIR + 2 * PAGE_DIR_SLOT_SIZE)
+constexpr uint32_t PAGE_EMPTY_DIR_START = PAGE_DIR + 2 * PAGE_DIR_SLOT_SIZE;
 
 /* The maximum and minimum number of records owned by a directory slot. The
 number may drop below the minimum in the first and the last slot in the
 directory. */
-#define PAGE_DIR_SLOT_MAX_N_OWNED 8
-#define PAGE_DIR_SLOT_MIN_N_OWNED 4
+constexpr uint32_t PAGE_DIR_SLOT_MAX_N_OWNED = 8;
+constexpr uint32_t PAGE_DIR_SLOT_MIN_N_OWNED = 4;
 
 /* The infimum and supremum records are omitted from the compressed page.
 On compress, we compare that the records are there, and on uncompress we
@@ -151,7 +151,7 @@ static inline void page_set_ssn_id(buf_block_t *block, page_zip_des_t *page_zip,
 /** Reads the given header field.
 @param[in]	page	page
 @param[in]	field	PAGE_N_DIR_SLOTS, ... */
-static inline ulint page_header_get_field(const page_t *page, ulint field);
+static inline uint16_t page_header_get_field(const page_t *page, ulint field);
 
 /** Sets the given header field.
 @param[in,out]	page		page
@@ -169,10 +169,20 @@ static inline void page_header_set_field(page_t *page, page_zip_des_t *page_zip,
     ulint field);       /*!< in: PAGE_FREE, ... */
 
 /** Returns the pointer stored in the given header field, or NULL. */
-#define page_header_get_ptr(page, field)          \
-  (page_header_get_offs(page, field)              \
-       ? page + page_header_get_offs(page, field) \
-       : NULL)
+static inline byte *page_header_get_ptr(page_t *page, uint32_t field) {
+  if (page_header_get_offs(page, field)) {
+    return page + page_header_get_offs(page, field);
+  }
+  return nullptr;
+}
+
+static inline const byte *page_header_get_ptr(const page_t *page,
+                                              uint32_t field) {
+  if (page_header_get_offs(page, field)) {
+    return page + page_header_get_offs(page, field);
+  }
+  return nullptr;
+}
 
 /** Sets the pointer stored in the given header field.
 @param[in,out]	page		page
@@ -203,8 +213,18 @@ static inline ulint page_get_infimum_offset(
  @return offset of the last record in record list, relative from page */
 static inline ulint page_get_supremum_offset(
     const page_t *page); /*!< in: page which must have record(s) */
-#define page_get_infimum_rec(page) ((page) + page_get_infimum_offset(page))
-#define page_get_supremum_rec(page) ((page) + page_get_supremum_offset(page))
+static inline byte *page_get_infimum_rec(byte *page) {
+  return page + page_get_infimum_offset(page);
+}
+static inline const byte *page_get_infimum_rec(const byte *page) {
+  return page + page_get_infimum_offset(page);
+}
+static inline byte *page_get_supremum_rec(byte *page) {
+  return page + page_get_supremum_offset(page);
+}
+static inline const byte *page_get_supremum_rec(const byte *page) {
+  return page + page_get_supremum_offset(page);
+}
 
 /** Returns the nth record of the record list.
  This is the inverse function of page_rec_get_n_recs_before().
@@ -250,9 +270,9 @@ static inline ulint page_get_n_recs(const page_t *page); /*!< in: index page */
 ulint page_rec_get_n_recs_before(
     const rec_t *rec); /*!< in: the physical record */
 /** Gets the number of records in the heap.
+ @param[in] page index page
  @return number of user records */
-static inline ulint page_dir_get_n_heap(
-    const page_t *page); /*!< in: index page */
+static inline uint16_t page_dir_get_n_heap(const page_t *page);
 
 /** Sets the number of records in the heap.
 @param[in,out]	page		index page
@@ -291,7 +311,7 @@ static inline page_dir_slot_t *page_dir_get_nth_slot(const page_t *page,
 
 /** Used to check the consistency of a record on a page.
  @return true if succeed */
-static inline ibool page_rec_check(const rec_t *rec); /*!< in: record */
+static inline bool page_rec_check(const rec_t *rec); /*!< in: record */
 /** Gets the record pointed to by a directory slot.
  @return pointer to record */
 static inline const rec_t *page_dir_slot_get_rec(
@@ -327,10 +347,10 @@ ulint page_dir_find_owner_slot(
 /** Determine whether the page is in new-style compact format.
  @return nonzero if the page is in compact format, zero if it is in
  old-style format */
-static inline ulint page_is_comp(const page_t *page); /*!< in: index page */
-/** TRUE if the record is on a page in compact format.
+static inline bool page_is_comp(const page_t *page); /*!< in: index page */
+/** true if the record is on a page in compact format.
  @return nonzero if in compact format */
-static inline ulint page_rec_is_comp(const rec_t *rec); /*!< in: record */
+static inline bool page_rec_is_comp(const rec_t *rec); /*!< in: record */
 /** Returns the heap number of a record.
  @return heap number */
 static inline ulint page_rec_get_heap_no(
@@ -387,33 +407,33 @@ static inline const rec_t *page_rec_get_prev_const(
  @return pointer to previous record */
 static inline rec_t *page_rec_get_prev(rec_t *rec); /*!< in: pointer to record,
                                                     must not be page infimum */
-/** TRUE if the record is a user record on the page.
+/** true if the record is a user record on the page.
 @param[in]  offset      record offset on page
 @return true if a user record */
-static inline ibool page_rec_is_user_rec_low(ulint offset);
+static inline bool page_rec_is_user_rec_low(ulint offset);
 
-/** TRUE if the record is the supremum record on a page.
+/** true if the record is the supremum record on a page.
 @param[in]  offset      record offset on page
 @return true if the supremum record */
-static inline ibool page_rec_is_supremum_low(ulint offset);
+static inline bool page_rec_is_supremum_low(ulint offset);
 
-/** TRUE if the record is the infimum record on a page.
+/** true if the record is the infimum record on a page.
 @param[in]  offset      record offset on page
 @return true if the infimum record */
-static inline ibool page_rec_is_infimum_low(ulint offset);
+static inline bool page_rec_is_infimum_low(ulint offset);
 
-/** TRUE if the record is a user record on the page.
+/** true if the record is a user record on the page.
  @return true if a user record */
-[[nodiscard]] static inline ibool page_rec_is_user_rec(
+[[nodiscard]] static inline bool page_rec_is_user_rec(
     const rec_t *rec); /*!< in: record */
-/** TRUE if the record is the supremum record on a page.
+/** true if the record is the supremum record on a page.
  @return true if the supremum record */
-[[nodiscard]] static inline ibool page_rec_is_supremum(
+[[nodiscard]] static inline bool page_rec_is_supremum(
     const rec_t *rec); /*!< in: record */
 
-/** TRUE if the record is the infimum record on a page.
+/** true if the record is the infimum record on a page.
  @return true if the infimum record */
-[[nodiscard]] static inline ibool page_rec_is_infimum(
+[[nodiscard]] static inline bool page_rec_is_infimum(
     const rec_t *rec); /*!< in: record */
 
 /** true if the record is the first user record on a page.
@@ -482,7 +502,7 @@ static inline ulint page_get_max_insert_size_after_reorganize(
 /** Calculates free space if a page is emptied.
 @param[in]  comp    nonzero=compact page format
 @return free space */
-static inline ulint page_get_free_space_of_empty(ulint comp);
+static inline ulint page_get_free_space_of_empty(bool comp);
 
 /** Returns the base extra size of a physical record.  This is the
  size of the fixed header, independent of the record size.
@@ -632,7 +652,7 @@ void page_delete_rec_list_start(
 
  @return true on success; false on compression failure (new_block will
  be decompressed) */
-ibool page_move_rec_list_end(
+bool page_move_rec_list_end(
     buf_block_t *new_block, /*!< in/out: index page where to move */
     buf_block_t *block,     /*!< in: index page from where to move */
     rec_t *split_rec,       /*!< in: first record to move */
@@ -647,7 +667,7 @@ ibool page_move_rec_list_end(
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return true on success; false on compression failure */
-ibool page_move_rec_list_start(
+bool page_move_rec_list_start(
     buf_block_t *new_block, /*!< in/out: index page where to move */
     buf_block_t *block,     /*!< in/out: page containing split_rec */
     rec_t *split_rec,       /*!< in: first record not to move */
@@ -723,7 +743,7 @@ void page_print(buf_block_t *block,  /*!< in: index page */
  differs from rec_validate as it can also check the n_owned field and
  the heap_no field.
  @return true if ok */
-ibool page_rec_validate(
+bool page_rec_validate(
     const rec_t *rec,      /*!< in: physical record */
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
 #ifdef UNIV_DEBUG
@@ -736,17 +756,17 @@ void page_check_dir(const page_t *page); /*!< in: index page */
  know the index. This is also resilient so that this should never crash
  even if the page is total garbage.
  @return true if ok */
-ibool page_simple_validate_old(
+bool page_simple_validate_old(
     const page_t *page); /*!< in: index page in ROW_FORMAT=REDUNDANT */
 /** This function checks the consistency of an index page when we do not
  know the index. This is also resilient so that this should never crash
  even if the page is total garbage.
  @return true if ok */
-ibool page_simple_validate_new(
+bool page_simple_validate_new(
     const page_t *page); /*!< in: index page in ROW_FORMAT!=REDUNDANT */
 /** This function checks the consistency of an index page.
  @return true if ok */
-ibool page_validate(
+bool page_validate(
     const page_t *page,   /*!< in: index page */
     dict_index_t *index); /*!< in: data dictionary index containing
                           the page record type definition */
@@ -781,7 +801,7 @@ inline ulong page_size_validate(ulong page_size);
 non-leaf node of a spatial index.
 param[in]       rec     Btree record
 param[in]       index   index
-@return TRUE if ok */
+@return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
 
 #include "page0page.ic"

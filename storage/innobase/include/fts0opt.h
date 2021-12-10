@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-ibool fts_optimize_index_fetch_node(
+bool fts_optimize_index_fetch_node(
     /* out: always returns non-NULL */
     void *row,       /* in: sel_node_t* */
     void *user_arg); /* in: pointer to ib_vector_t */

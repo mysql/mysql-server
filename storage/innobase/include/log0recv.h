@@ -58,7 +58,7 @@ struct recv_addr_t;
 extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */
 extern volatile lsn_t backup_redo_log_flushed_lsn;
-/** TRUE when the redo log is being backed up */
+/** true when the redo log is being backed up */
 extern bool recv_is_making_a_backup;
 
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
@@ -90,11 +90,14 @@ void recv_recover_page_func(buf_block_t *block);
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
-@param jri in: TRUE if just read in (the i/o handler calls this for
+@param jri in: true if just read in (the i/o handler calls this for
 a freshly read page)
 @param block in,out: the buffer block
 */
-#define recv_recover_page(jri, block) recv_recover_page_func(block)
+static inline void recv_recover_page(bool jri [[maybe_unused]],
+                                     buf_block_t *block) {
+  recv_recover_page_func(block);
+}
 
 /** Applies log records in the hash table to a backup. */
 void meb_apply_log_recs(void);
@@ -176,10 +179,12 @@ void recv_recover_page_func(bool just_read_in, buf_block_t *block);
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
-@param jri in: TRUE if just read in (the i/o handler calls this for
+@param jri in: true if just read in (the i/o handler calls this for
 a freshly read page)
 @param[in,out]	block	buffer block */
-#define recv_recover_page(jri, block) recv_recover_page_func(jri, block)
+static inline void recv_recover_page(bool jri, buf_block_t *block) {
+  recv_recover_page_func(jri, block);
+}
 
 #endif /* UNIV_HOTBACKUP */
 
@@ -655,33 +660,33 @@ struct recv_sys_t {
 /** The recovery system */
 extern recv_sys_t *recv_sys;
 
-/** TRUE when applying redo log records during crash recovery; FALSE
-otherwise.  Note that this is FALSE while a background thread is
+/** true when applying redo log records during crash recovery; false
+otherwise.  Note that this is false while a background thread is
 rolling back incomplete transactions. */
 extern volatile bool recv_recovery_on;
 
-/** If the following is TRUE, the buffer pool file pages must be invalidated
-after recovery and no ibuf operations are allowed; this becomes TRUE if
+/** If the following is true, the buffer pool file pages must be invalidated
+after recovery and no ibuf operations are allowed; this becomes true if
 the log record hash table becomes too full, and log records must be merged
 to file pages already before the recovery is finished: in this case no
 ibuf operations are allowed, as they could modify the pages read in the
 buffer pool before the pages have been recovered to the up-to-date state.
 
-TRUE means that recovery is running and no operations on the log files
+true means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
 extern bool recv_no_ibuf_operations;
 
-/** TRUE when recv_init_crash_recovery() has been called. */
+/** true when recv_init_crash_recovery() has been called. */
 extern bool recv_needed_recovery;
 
-/** TRUE if buf_page_is_corrupted() should check if the log sequence
-number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
+/** true if buf_page_is_corrupted() should check if the log sequence
+number (FIL_PAGE_LSN) is in the future.  Initially false, and set by
 recv_recovery_from_checkpoint_start(). */
 extern bool recv_lsn_checks_on;
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */
-#define RECV_PARSING_BUF_SIZE (2 * 1024 * 1024)
+constexpr uint32_t RECV_PARSING_BUF_SIZE = 2 * 1024 * 1024;
 
 /** Size of block reads when the log groups are scanned forward to do a
 roll-forward */

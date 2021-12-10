@@ -57,29 +57,27 @@ typedef mem_block_t mem_heap_t;
 dynamic memory pool of the C compiler, BUFFER means allocation from the
 buffer pool; the latter method is used for very big heaps */
 
-#define MEM_HEAP_DYNAMIC 0 /* the most common type */
-#define MEM_HEAP_BUFFER 1
-#define MEM_HEAP_BTR_SEARCH            \
-  2 /* this flag can optionally be     \
-    ORed to MEM_HEAP_BUFFER, in which  \
-    case heap->free_block is used in   \
-    some cases for memory allocations, \
-    and if it's NULL, the memory       \
-    allocation functions can return    \
-    NULL. */
+/** the most common type */
+constexpr uint32_t MEM_HEAP_DYNAMIC = 0;
+constexpr uint32_t MEM_HEAP_BUFFER = 1;
+/** this flag can optionally be ORed to MEM_HEAP_BUFFER, in which case
+ heap->free_block is used in some cases for memory allocations, and if it's
+ NULL, the memory allocation functions can return NULL. */
+constexpr uint32_t MEM_HEAP_BTR_SEARCH = 2;
 
 /** Different type of heaps in terms of which data structure is using them */
-#define MEM_HEAP_FOR_BTR_SEARCH (MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
-#define MEM_HEAP_FOR_PAGE_HASH (MEM_HEAP_DYNAMIC)
-#define MEM_HEAP_FOR_RECV_SYS (MEM_HEAP_BUFFER)
-#define MEM_HEAP_FOR_LOCK_HEAP (MEM_HEAP_BUFFER)
+constexpr uint32_t MEM_HEAP_FOR_BTR_SEARCH =
+    MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER;
+constexpr uint32_t MEM_HEAP_FOR_PAGE_HASH = MEM_HEAP_DYNAMIC;
+constexpr uint32_t MEM_HEAP_FOR_RECV_SYS = MEM_HEAP_BUFFER;
+constexpr uint32_t MEM_HEAP_FOR_LOCK_HEAP = MEM_HEAP_BUFFER;
 
 /** The following start size is used for the first block in the memory heap if
 the size is not specified, i.e., 0 is given as the parameter in the call of
 create. The standard size is the maximum (payload) size of the blocks used for
 allocations of small buffers. */
+constexpr uint32_t MEM_BLOCK_START_SIZE = 64;
 
-#define MEM_BLOCK_START_SIZE 64
 #define MEM_BLOCK_STANDARD_SIZE \
   (UNIV_PAGE_SIZE >= 16384 ? 8000 : MEM_MAX_ALLOC_IN_BUF)
 
@@ -99,9 +97,9 @@ anyone. This way it would be much easier to determine whether anyone was
 writing on not his memory, especially that Valgrind can assure there was no
 reads or writes to this memory. */
 #ifdef UNIV_DEBUG
-const int MEM_NO_MANS_LAND = 16;
+constexpr int MEM_NO_MANS_LAND = 16;
 #else
-const int MEM_NO_MANS_LAND = 0;
+constexpr int MEM_NO_MANS_LAND = 0;
 #endif
 
 /* Byte that we would put before allocated object MEM_NO_MANS_LAND times.*/
@@ -112,53 +110,40 @@ const byte MEM_NO_MANS_LAND_AFTER_BYTE = 0xDF;
 /** Space needed when allocating for a user a field of length N.
 The space is allocated only in multiples of UNIV_MEM_ALIGNMENT. In debug mode
 contains two areas of no mans lands before and after the buffer requested. */
-#define MEM_SPACE_NEEDED(N) \
-  ut_calc_align(N + 2 * MEM_NO_MANS_LAND, UNIV_MEM_ALIGNMENT)
-
-#ifdef UNIV_DEBUG
-/** Macro for memory heap creation.
-@param[in]	size		Desired start block size. */
-#define mem_heap_create(size) \
-  mem_heap_create_func((size), __FILE__, __LINE__, MEM_HEAP_DYNAMIC)
-
-/** Macro for memory heap creation.
-@param[in]	size		Desired start block size.
-@param[in]	type		Heap type */
-#define mem_heap_create_typed(size, type) \
-  mem_heap_create_func((size), __FILE__, __LINE__, (type))
-
-#else /* UNIV_DEBUG */
-/** Macro for memory heap creation.
-@param[in]	size		Desired start block size. */
-#define mem_heap_create(size) mem_heap_create_func((size), MEM_HEAP_DYNAMIC)
-
-/** Macro for memory heap creation.
-@param[in]	size		Desired start block size.
-@param[in]	type		Heap type */
-#define mem_heap_create_typed(size, type) mem_heap_create_func((size), (type))
-
-#endif /* UNIV_DEBUG */
+static inline uint64_t MEM_SPACE_NEEDED(uint64_t N) {
+  return ut_calc_align(N + 2 * MEM_NO_MANS_LAND, UNIV_MEM_ALIGNMENT);
+}
 
 /** Creates a memory heap.
 NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
-@param[in]	size		Desired start block size. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	file_name	File name where created
-@param[in]	line		Line where created */
-#endif /* UNIV_DEBUG */
-/**
+@param[in]	size		Desired start block size.
+@param[in]	loc		Location where created
 @param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 static inline mem_heap_t *mem_heap_create_func(ulint size,
-#ifdef UNIV_DEBUG
-                                               const char *file_name,
-                                               ulint line,
-#endif /* UNIV_DEBUG */
-                                               ulint type);
+                                               IF_DEBUG(ut::Location loc, )
+                                                   ulint type);
+
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size.
+@param[in]	loc		Location where called. */
+static inline mem_heap_t *mem_heap_create(ulint size, ut::Location loc) {
+  return mem_heap_create_func(size, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
+}
+
+/** Macro for memory heap creation.
+@param[in]	size		Desired start block size.
+@param[in]	loc		Location where called
+@param[in]	type		Heap type */
+static inline mem_heap_t *mem_heap_create_typed(ulint size,
+                                                ut::Location loc
+                                                [[maybe_unused]],
+                                                ulint type) {
+  return mem_heap_create_func(size, IF_DEBUG(loc, ) type);
+}
 
 /** Frees the space occupied by a memory heap.
 NOTE: Use the corresponding macro instead of this function.
@@ -370,8 +355,8 @@ struct mem_block_info_t {
 because DevStudio12.6 initializes the pointer-to-member offset to 0 otherwise.*/
 UT_LIST_NODE_GETTER_DEFINITION(mem_block_t, list)
 
-#define MEM_BLOCK_MAGIC_N 0x445566778899AABB
-#define MEM_FREED_BLOCK_MAGIC_N 0xBBAA998877665544
+constexpr uint64_t MEM_BLOCK_MAGIC_N = 0x445566778899AABB;
+constexpr uint64_t MEM_FREED_BLOCK_MAGIC_N = 0xBBAA998877665544;
 
 /* Header size for a memory heap block */
 #define MEM_BLOCK_HEADER_SIZE \
@@ -473,22 +458,19 @@ struct Scoped_heap {
 
   /** Constructs heap with a free space of specified size.
   @param[in] n                  Initial size of the heap to allocate.
-  @param[in] file               File name from where called.
-  @param[in] line               Line number if filenane from where called. */
-  Scoped_heap(size_t n IF_DEBUG(, const char *file, int line)) noexcept
-      : m_ptr(
-            mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC)) {}
+  @param[in] location           Location from where called. */
+  Scoped_heap(size_t n IF_DEBUG(, ut::Location location)) noexcept
+      : m_ptr(mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC)) {}
 
   /** Destructor. */
   ~Scoped_heap() = default;
 
   /** Create the heap, it must not already be created.
   @param[in] n                  Initial size of the heap to allocate.
-  @param[in] file               File name from where called.
-  @param[in] line               Line number if filenane from where called. */
-  void create(size_t n IF_DEBUG(, const char *file, int line)) noexcept {
+  @param[in] location           Location from where called. */
+  void create(size_t n IF_DEBUG(, ut::Location location)) noexcept {
     ut_a(get() == nullptr);
-    auto ptr = mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC);
+    auto ptr = mem_heap_create_func(n, IF_DEBUG(location, ) MEM_HEAP_DYNAMIC);
     reset(ptr);
   }
 
@@ -534,10 +516,5 @@ struct Scoped_heap {
   Scoped_heap &operator=(Scoped_heap &&) = delete;
   Scoped_heap &operator=(const Scoped_heap &) = delete;
 };
-
-#define HEAP_NEW_EMPTY(h) \
-  Scoped_heap h {}
-#define MEM_HEAP_CREATE(h, n) (h).create((n)IF_DEBUG(, __FILE__, __LINE__))
-#define MEM_HEAP_NEW(h, n) Scoped_heap h((n)IF_DEBUG(, __FILE__, __LINE__))
 
 #endif

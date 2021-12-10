@@ -373,7 +373,7 @@ update_statement_start:
 	PARS_UPDATE_TOKEN table_name
 	PARS_SET_TOKEN
 	column_assignment_list	{ $$ = pars_update_statement_start(
-					FALSE,
+					false,
 					static_cast<sym_node_t*>($2),
 					static_cast<col_assign_node_t*>($4)); }
 ;
@@ -397,7 +397,7 @@ update_statement_positioned:
 delete_statement_start:
 	PARS_DELETE_TOKEN PARS_FROM_TOKEN
 	table_name		{ $$ = pars_update_statement_start(
-					TRUE,
+					true,
 					static_cast<sym_node_t*>($3), NULL); }
 ;
 

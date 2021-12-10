@@ -41,7 +41,7 @@ struct os_event;
 typedef struct os_event *os_event_t;
 
 /** Return value of os_event_wait_time() when the time is exceeded */
-#define OS_SYNC_TIME_EXCEEDED 1
+constexpr uint32_t OS_SYNC_TIME_EXCEEDED = 1;
 
 #ifndef UNIV_HOTBACKUP
 /**
@@ -80,13 +80,13 @@ void os_event_destroy(os_event_t &event); /*!< in/own: event to free */
 Waits for an event object until it is in the signaled state.
 
 Typically, if the event has been signalled after the os_event_reset()
-we'll return immediately because event->is_set == TRUE.
+we'll return immediately because event->is_set == true.
 There are, however, situations (e.g.: sync_array code) where we may
 lose this information. For example:
 
 thread A calls os_event_reset()
-thread B calls os_event_set()   [event->is_set == TRUE]
-thread C calls os_event_reset() [event->is_set == FALSE]
+thread B calls os_event_set()   [event->is_set == true]
+thread C calls os_event_reset() [event->is_set == false]
 thread A calls os_event_wait()  [infinite wait!]
 thread C calls os_event_wait()  [infinite wait!]
 
@@ -100,7 +100,7 @@ void os_event_wait_low(os_event_t event,         /*!< in/out: event to wait */
 
 /** Blocking infinite wait on an event, until signealled.
 @param e - event to wait on. */
-#define os_event_wait(e) os_event_wait_low((e), 0)
+static inline void os_event_wait(os_event_t e) { os_event_wait_low(e, 0); }
 
 /**
 Waits for an event object until it is in the signaled state or
@@ -117,7 +117,10 @@ ulint os_event_wait_time_low(
 /** Blocking timed wait on an event.
 @param e - event to wait on.
 @param t - timeout */
-#define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
+static inline ulint os_event_wait_time(os_event_t e,
+                                       std::chrono::microseconds t) {
+  return os_event_wait_time_low(e, t, 0);
+}
 
 #include "os0event.ic"
 

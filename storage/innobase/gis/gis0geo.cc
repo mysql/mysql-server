@@ -78,18 +78,18 @@ static void pick_seeds(
   }
 }
 
-/** Generates a random iboolean value.
+/** Generates a random boolean value.
  @return the random value */
-static ibool ut_rnd_gen_ibool(void) {
+static bool ut_rnd_gen_bool(void) {
   ulint x;
 
   x = ut_rnd_gen_ulint();
 
   if (((x >> 20) + (x >> 15)) & 1) {
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Select next node and group where to add. */
@@ -125,7 +125,7 @@ static void pick_next(
       /* Introduce some randomness if the record
       is identical */
       if (diff == 0) {
-        diff = static_cast<double>(ut_rnd_gen_ibool());
+        diff = static_cast<double>(ut_rnd_gen_bool());
       }
 
       *n_group = 1 + (diff > 0);

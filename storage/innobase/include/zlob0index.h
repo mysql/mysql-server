@@ -474,7 +474,8 @@ struct z_index_entry_t {
 
     page_id_t page_id(dict_index_get_space(m_index), m_page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_S_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 

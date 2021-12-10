@@ -40,14 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "univ.i"
 
-#ifdef UNIV_DEBUG
-#define row_ext_create(index, n_ext, ext, flags, tuple, is_sdi, heap) \
-  row_ext_create_func(index, n_ext, ext, flags, tuple, is_sdi, heap)
-#else /* UNIV_DEBUG */
-#define row_ext_create(index, n_ext, ext, flags, tuple, is_sdi, heap) \
-  row_ext_create_func(index, n_ext, ext, flags, tuple, heap)
-#endif /* UNIV_DEBUG */
-
 /** Creates a cache of column prefixes of externally stored columns.
 @param[in]	index	the index to which LOB belongs.
 @param[in]	n_ext	number of externally stored columns
@@ -58,21 +50,23 @@ in the clustered index
 @param[in]	tuple	data tuple containing the field references of the
 externally stored columns; must be indexed by col_no; the clustered index record
 must be covered by a lock or a page latch to prevent deletion (rollback
-or purge) */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi	true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
+or purge)
+@param[in]	is_sdi	true for SDI Indexes
 @param[in,out]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
                                const ulint *ext, uint32_t flags,
                                const dtuple_t *tuple,
-#ifdef UNIV_DEBUG
-                               bool is_sdi,
-#endif /* UNIV_DEBUG */
-                               mem_heap_t *heap);
+                               IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
+
+static inline row_ext_t *row_ext_create(const dict_index_t *index, ulint n_ext,
+                                        const ulint *ext, uint32_t flags,
+                                        const dtuple_t *tuple,
+                                        bool is_sdi [[maybe_unused]],
+                                        mem_heap_t *heap) {
+  return row_ext_create_func(index, n_ext, ext, flags, tuple,
+                             IF_DEBUG(is_sdi, ) heap);
+}
 
 /** Looks up a column prefix of an externally stored column.
 @param[in,out]	ext	column prefix cache

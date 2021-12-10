@@ -60,10 +60,9 @@ struct sess_t {
 };
 
 /* Session states */
-#define SESS_ACTIVE 1
-#define SESS_ERROR                       \
-  2 /* session contains an error message \
-    which has not yet been communicated  \
-    to the client */
+constexpr uint32_t SESS_ACTIVE = 1;
+/** session contains an error message which has not yet been communicated to the
+client */
+constexpr uint32_t SESS_ERROR = 2;
 
 #endif

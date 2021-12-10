@@ -74,7 +74,7 @@ struct Pool {
     (MTR) results change if we instantiate too many mutexes up
     front. */
 
-    init(ut_min(size_t(16), size_t(m_end - m_start)));
+    init(std::min(size_t(16), size_t(m_end - m_start)));
 
     ut_ad(m_pqueue.size() <= size_t(m_last - m_start));
   }

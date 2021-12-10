@@ -93,11 +93,11 @@ class dyn_buf_t {
     /**
     @return pointer to start of reserved space */
     template <typename Type>
-    Type push(ib_uint32_t size) {
+    Type push(uint32_t size) {
       Type ptr = reinterpret_cast<Type>(end());
 
       m_used += size;
-      ut_ad(m_used <= static_cast<ib_uint32_t>(MAX_DATA_SIZE));
+      ut_ad(m_used <= static_cast<uint32_t>(MAX_DATA_SIZE));
 
       return (ptr);
     }
@@ -110,7 +110,7 @@ class dyn_buf_t {
       ut_ad(ptr <= begin() + m_buf_end);
 
       /* We have done the boundary check above */
-      m_used = static_cast<ib_uint32_t>(ptr - begin());
+      m_used = static_cast<uint32_t>(ptr - begin());
 
       ut_ad(m_used <= MAX_DATA_SIZE);
       ut_d(m_buf_end = 0);
@@ -144,7 +144,7 @@ class dyn_buf_t {
 
     /** number of data bytes used in this block;
     DYN_BLOCK_FULL_FLAG is set when the block becomes full */
-    ib_uint32_t m_used;
+    uint32_t m_used;
 
     friend class dyn_buf_t;
   };
@@ -214,7 +214,7 @@ class dyn_buf_t {
   @param size	in bytes of the element
   @return	pointer to the element */
   template <typename Type>
-  Type push(ib_uint32_t size) {
+  Type push(uint32_t size) {
     ut_ad(size > 0);
     ut_ad(size <= MAX_DATA_SIZE);
 
@@ -233,9 +233,9 @@ class dyn_buf_t {
   Pushes n bytes.
   @param	ptr	string to write
   @param	len	string length */
-  void push(const byte *ptr, ib_uint32_t len) {
+  void push(const byte *ptr, uint32_t len) {
     while (len > 0) {
-      ib_uint32_t n_copied;
+      uint32_t n_copied;
 
       if (len >= MAX_DATA_SIZE) {
         n_copied = MAX_DATA_SIZE;
@@ -384,7 +384,7 @@ class dyn_buf_t {
     block_t *block;
 
     if (m_heap == nullptr) {
-      m_heap = mem_heap_create(sizeof(*block));
+      m_heap = mem_heap_create(sizeof(*block), UT_LOCATION_HERE);
     }
 
     block = reinterpret_cast<block_t *>(mem_heap_alloc(m_heap, sizeof(*block)));

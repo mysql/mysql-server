@@ -374,7 +374,7 @@ void fts_ast_term_set_wildcard(fts_ast_node_t *node) /*!< in/out: set attribute
   ut_a(node->type == FTS_AST_TERM);
   ut_a(!node->term.wildcard);
 
-  node->term.wildcard = TRUE;
+  node->term.wildcard = true;
 }
 
 /** Set the proximity attribute of a text node. */

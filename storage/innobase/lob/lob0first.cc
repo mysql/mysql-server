@@ -206,7 +206,7 @@ std::ostream &first_page_t::print_index_entries(std::ostream &out) const {
 #ifdef UNIV_DEBUG
 bool first_page_t::validate() const {
   flst_base_node_t *idx_list = index_list();
-  ut_ad(flst_validate(idx_list, m_mtr));
+  ut_d(flst_validate(idx_list, m_mtr));
   return (true);
 }
 #endif /* UNIV_DEBUG */
@@ -249,7 +249,7 @@ buf_block_t *first_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
     flst_add_last(free_lst, cur, m_mtr);
     cur += index_entry_t::SIZE;
   }
-  ut_ad(flst_validate(free_lst, m_mtr));
+  ut_d(flst_validate(free_lst, m_mtr));
   set_next_page_null();
   ut_ad(get_page_type() == FIL_PAGE_TYPE_LOB_FIRST);
   return (m_block);
@@ -349,7 +349,7 @@ void first_page_t::free_all_index_pages() {
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
                                   const page_size_t &page_size, mtr_t *mtr) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
+  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
   ut_ad(m_block != nullptr);
 #ifdef UNIV_DEBUG

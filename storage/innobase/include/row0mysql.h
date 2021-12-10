@@ -88,7 +88,7 @@ struct upd_node_t;
 struct upd_t;
 
 #ifndef UNIV_HOTBACKUP
-extern ibool row_rollback_on_timeout;
+extern bool row_rollback_on_timeout;
 
 struct row_prebuilt_t;
 
@@ -166,13 +166,13 @@ byte *row_mysql_store_col_in_innobase_format(
                             may also get a pointer to 'buf',
                             therefore do not discard this as long
                             as dfield is used! */
-    ibool row_format_col,   /*!< TRUE if the mysql_data is from
-                            a MySQL row, FALSE if from a MySQL
-                            key value;
-                            in MySQL, a true VARCHAR storage
-                            format differs in a row and in a
-                            key value: in a key value the length
-                            is always stored in 2 bytes! */
+    bool row_format_col,    /*!< true if the mysql_data is from
+                             a MySQL row, false if from a MySQL
+                             key value;
+                             in MySQL, a true VARCHAR storage
+                             format differs in a row and in a
+                             key value: in a key value the length
+                             is always stored in 2 bytes! */
     const byte *mysql_data, /*!< in: MySQL column value, not
                             SQL NULL; NOTE that dfield may also
                             get a pointer to mysql_data,
@@ -205,7 +205,7 @@ row_prebuilt_t *row_create_prebuilt(
 /** Free a prebuilt struct for a MySQL table handle.
 @param[in,out] prebuilt Prebuilt struct
 @param[in] dict_locked True=data dictionary locked */
-void row_prebuilt_free(row_prebuilt_t *prebuilt, ibool dict_locked);
+void row_prebuilt_free(row_prebuilt_t *prebuilt, bool dict_locked);
 
 /** Updates the transaction pointers in query graphs stored in the prebuilt
 struct.
@@ -248,7 +248,7 @@ upd_t *row_get_prebuilt_update_vector(
 /** Checks if a table is such that we automatically created a clustered
  index on it (on row id).
  @return true if the clustered index was generated automatically */
-ibool row_table_got_default_clust_index(
+bool row_table_got_default_clust_index(
     const dict_table_t *table); /*!< in: table */
 
 /** Does an update or delete of a row for MySQL.
@@ -290,26 +290,18 @@ upd_node_t *row_create_update_node_for_mysql(
 /** Locks the data dictionary exclusively for performing a table create or other
  data dictionary modification operation.
 @param[in,out] trx Transaction
-@param[in] file File name
-@param[in] line Line number */
-void row_mysql_lock_data_dictionary_func(trx_t *trx, const char *file,
-                                         ulint line);
+@param[in] location Location */
+void row_mysql_lock_data_dictionary(trx_t *trx, ut::Location location);
 
-#define row_mysql_lock_data_dictionary(trx) \
-  row_mysql_lock_data_dictionary_func(trx, __FILE__, __LINE__)
 /** Unlocks the data dictionary exclusive lock. */
 void row_mysql_unlock_data_dictionary(trx_t *trx); /*!< in/out: transaction */
 
 /** Locks the data dictionary in shared mode from modifications, for performing
  foreign key check, rollback, or other operation invisible to MySQL.
 @param[in,out] trx Transaction
-@param[in] file File name
-@param[in] line Line number */
-void row_mysql_freeze_data_dictionary_func(trx_t *trx, const char *file,
-                                           ulint line);
+@param[in] location Location */
+void row_mysql_freeze_data_dictionary(trx_t *trx, ut::Location location);
 
-#define row_mysql_freeze_data_dictionary(trx) \
-  row_mysql_freeze_data_dictionary_func(trx, __FILE__, __LINE__)
 /** Unlocks the data dictionary shared lock. */
 void row_mysql_unfreeze_data_dictionary(trx_t *trx); /*!< in/out: transaction */
 
@@ -398,7 +390,7 @@ inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding
  means that this function deletes the .ibd file and assigns a new table id for
- the table. Also the flag table->ibd_file_missing is set TRUE.
+ the table. Also the flag table->ibd_file_missing is set true.
  @return error code or DB_SUCCESS */
 [[nodiscard]] dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
@@ -514,12 +506,12 @@ struct mysql_row_templ_t {
                                 column */
 };
 
-#define MYSQL_FETCH_CACHE_SIZE 8
+constexpr uint32_t MYSQL_FETCH_CACHE_SIZE = 8;
 /* After fetching this many rows, we start caching them in fetch_cache */
-#define MYSQL_FETCH_CACHE_THRESHOLD 4
+constexpr uint32_t MYSQL_FETCH_CACHE_THRESHOLD = 4;
 
-#define ROW_PREBUILT_ALLOCATED 78540783
-#define ROW_PREBUILT_FREED 26423527
+constexpr uint32_t ROW_PREBUILT_ALLOCATED = 78540783;
+constexpr uint32_t ROW_PREBUILT_FREED = 26423527;
 
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
@@ -533,7 +525,7 @@ struct row_prebuilt_t {
   dict_index_t *index;         /*!< current index for a search, if
                                any */
   trx_t *trx;                  /*!< current transaction handle */
-  unsigned sql_stat_start : 1; /*!< TRUE when we start processing of
+  unsigned sql_stat_start : 1; /*!< true when we start processing of
                               an SQL statement: we may have to set
                               an intention lock on the table,
                               create a consistent read view etc. */
@@ -543,7 +535,7 @@ struct row_prebuilt_t {
   automatically generated a clustered
   index where the ordering column is
   the row id: in this case this flag
-  is set to TRUE */
+  is set to true */
   unsigned index_usable : 1;               /*!< caches the value of
                                            index->is_usable(trx) */
   unsigned read_just_key : 1;              /*!< set to 1 when MySQL calls
@@ -552,7 +544,7 @@ struct row_prebuilt_t {
                                            to read just columns defined in
                                            the index (i.e., no read of the
                                            clustered index record necessary) */
-  unsigned used_in_HANDLER : 1;            /*!< TRUE if we have been using this
+  unsigned used_in_HANDLER : 1;            /*!< true if we have been using this
                                          handle in a MySQL HANDLER low level
                                          index cursor command: then we must
                                          store the pcur position even in a
@@ -572,15 +564,15 @@ struct row_prebuilt_t {
                                columns through a secondary index
                                and at least one column is not in
                                the secondary index, then this is
-                               set to TRUE */
-  unsigned templ_contains_blob : 1;        /*!< TRUE if the template contains
+                               set to true */
+  unsigned templ_contains_blob : 1;        /*!< true if the template contains
                                      a column with DATA_LARGE_MTYPE(
                                      get_innobase_type_from_mysql_type())
-                                     is TRUE;
+                                     is true;
                                      not to be confused with InnoDB
                                      externally stored columns
                                      (VARCHAR can be off-page too) */
-  unsigned templ_contains_fixed_point : 1; /*!< TRUE if the
+  unsigned templ_contains_fixed_point : 1; /*!< true if the
                               template contains a column with
                               DATA_POINT. Since InnoDB regards
                               DATA_POINT as non-BLOB type, the
@@ -763,21 +755,21 @@ struct row_prebuilt_t {
   allocated mem buf start, because
   there is a 4 byte magic number at the
   start and at the end */
-  ibool keep_other_fields_on_keyread; /*!< when using fetch
+  bool keep_other_fields_on_keyread; /*!< when using fetch
                         cache with HA_EXTRA_KEYREAD, don't
                         overwrite other fields in mysql row
                         row buffer.*/
-  ulint fetch_cache_first;            /*!< position of the first not yet
-                                    fetched row in fetch_cache */
-  ulint n_fetch_cached;               /*!< number of not yet fetched rows
-                                      in fetch_cache */
-  mem_heap_t *blob_heap;              /*!< in SELECTS BLOB fields are copied
-                                      to this heap */
-  mem_heap_t *old_vers_heap;          /*!< memory heap where a previous
-                                      version is built in consistent read */
-  bool in_fts_query;                  /*!< Whether we are in a FTS query */
-  bool fts_doc_id_in_read_set;        /*!< true if table has externally
-                              defined FTS_DOC_ID coulmn. */
+  ulint fetch_cache_first;           /*!< position of the first not yet
+                                   fetched row in fetch_cache */
+  ulint n_fetch_cached;              /*!< number of not yet fetched rows
+                                     in fetch_cache */
+  mem_heap_t *blob_heap;             /*!< in SELECTS BLOB fields are copied
+                                     to this heap */
+  mem_heap_t *old_vers_heap;         /*!< memory heap where a previous
+                                     version is built in consistent read */
+  bool in_fts_query;                 /*!< Whether we are in a FTS query */
+  bool fts_doc_id_in_read_set;       /*!< true if table has externally
+                             defined FTS_DOC_ID coulmn. */
   /*----------------------*/
   ulonglong autoinc_last_value;
   /*!< last value of AUTO-INC interval */
@@ -990,23 +982,22 @@ void innobase_init_vc_templ(dict_table_t *table);
 dbname and tbname to be renamed. */
 void innobase_rename_vc_templ(dict_table_t *table);
 
-#define ROW_PREBUILT_FETCH_MAGIC_N 465765687
+constexpr uint32_t ROW_PREBUILT_FETCH_MAGIC_N = 465765687;
 
-#define ROW_MYSQL_WHOLE_ROW 0
-#define ROW_MYSQL_REC_FIELDS 1
-#define ROW_MYSQL_NO_TEMPLATE 2
-#define ROW_MYSQL_DUMMY_TEMPLATE \
-  3 /* dummy template used in    \
-    row_scan_and_check_index */
+constexpr uint32_t ROW_MYSQL_WHOLE_ROW = 0;
+constexpr uint32_t ROW_MYSQL_REC_FIELDS = 1;
+constexpr uint32_t ROW_MYSQL_NO_TEMPLATE = 2;
+/** dummy template used in row_scan_and_check_index */
+constexpr uint32_t ROW_MYSQL_DUMMY_TEMPLATE = 3;
 
 /* Values for hint_need_to_fetch_extra_cols */
-#define ROW_RETRIEVE_PRIMARY_KEY 1
-#define ROW_RETRIEVE_ALL_COLS 2
+constexpr uint32_t ROW_RETRIEVE_PRIMARY_KEY = 1;
+constexpr uint32_t ROW_RETRIEVE_ALL_COLS = 2;
 
 /* Values for row_read_type */
-#define ROW_READ_WITH_LOCKS 0
-#define ROW_READ_TRY_SEMI_CONSISTENT 1
-#define ROW_READ_DID_SEMI_CONSISTENT 2
+constexpr uint32_t ROW_READ_WITH_LOCKS = 0;
+constexpr uint32_t ROW_READ_TRY_SEMI_CONSISTENT = 1;
+constexpr uint32_t ROW_READ_DID_SEMI_CONSISTENT = 2;
 
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */

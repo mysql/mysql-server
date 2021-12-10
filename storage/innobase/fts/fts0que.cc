@@ -123,9 +123,9 @@ struct fts_query_t {
 
   fts_ast_oper_t oper; /*!< Current boolean mode operator */
 
-  /*!< TRUE if we want to collect the
+  /*!< true if we want to collect the
   word positions within the document */
-  ibool collect_positions;
+  bool collect_positions;
 
   ulint flags; /*!< Specify the full text search type,
                such as  boolean search, phrase
@@ -142,7 +142,7 @@ struct fts_query_t {
 
   doc_id_t upper_doc_id; /*!< Highest doc id in doc_ids */
 
-  bool boolean_mode; /*!< TRUE if boolean mode query */
+  bool boolean_mode; /*!< true if boolean mode query */
 
   ib_vector_t *matched; /*!< Array of matching documents
                         (fts_match_t) to search for a phrase */
@@ -151,7 +151,7 @@ struct fts_query_t {
                              position info for each matched word
                              in the word list */
 
-  ib_uint64_t total_docs; /*!< The total number of documents */
+  uint64_t total_docs; /*!< The total number of documents */
 
   ulint total_words; /*!< The total number of words */
 
@@ -196,11 +196,11 @@ rejected for a phrase search. */
 struct fts_select_t {
   doc_id_t doc_id; /*!< The document id to match */
 
-  ulint min_pos; /*!< For found to be TRUE at least
+  ulint min_pos; /*!< For found to be true at least
                  one position must be greater than
                  min_pos. */
 
-  ibool found; /*!< TRUE if found */
+  bool found; /*!< true if found */
 
   fts_word_freq_t *word_freq; /*!< Word frequency instance of the
                               current word being looked up in
@@ -238,7 +238,7 @@ struct fts_phrase_t {
         parser(nullptr) {}
 
   /** Match result */
-  ibool found;
+  bool found;
 
   /** Positions within text */
   const fts_match_t *match;
@@ -284,18 +284,18 @@ struct fts_word_freq_t {
   fts_string_t word; /*!< Word for which we need the freq,
                      it's allocated on the query heap */
 
-  ib_rbt_t *doc_freqs;   /*!< RB Tree for storing per document
-                         word frequencies. The elements are
-                         of type fts_doc_freq_t */
-  ib_uint64_t doc_count; /*!< Total number of documents that
-                         contain this word */
-  double idf;            /*!< Inverse document frequency */
+  ib_rbt_t *doc_freqs; /*!< RB Tree for storing per document
+                       word frequencies. The elements are
+                       of type fts_doc_freq_t */
+  uint64_t doc_count;  /*!< Total number of documents that
+                          contain this word */
+  double idf;          /*!< Inverse document frequency */
 };
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record.
 @return always true */
-static ibool fts_query_index_fetch_nodes(
+static bool fts_query_index_fetch_nodes(
     void *row,       /*!< in: sel_node_t* */
     void *user_arg); /*!< in: pointer to ib_vector_t */
 
@@ -309,8 +309,8 @@ static dberr_t fts_query_filter_doc_ids(
     const fts_node_t *node,     /*!< in: current FTS node */
     void *data,                 /*!< in: doc id ilist */
     ulint len,                  /*!< in: doc id ilist size */
-    ibool calc_doc_count);      /*!< in: whether to remember doc
-                                count */
+    bool calc_doc_count);       /*!< in: whether to remember doc
+                                 count */
 
 /** Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
@@ -327,7 +327,7 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
 Find a doc_id in a word's ilist.
 @return true if found. */
 static
-ibool
+bool
 fts_query_find_doc_id(
 	fts_select_t*	select,		/*!< in/out: search the doc id selected,
 					update the frequency if found. */
@@ -349,7 +349,7 @@ fts_query_find_doc_id(
  the words are close enough to each other, as in specified distance.
  This function is called for phrase and proximity search.
  @return true if documents are found, false if otherwise */
-static ibool fts_phrase_or_proximity_search(
+static bool fts_phrase_or_proximity_search(
     fts_query_t *query,   /*!< in/out:  query instance
                           query->doc_ids might be instantiated
                           with qualified doc IDs */
@@ -460,7 +460,7 @@ fts_query_lcs(
 
 				ulint	value;
 
-				value = ut_max(
+				value = std::max(
 					FTS_ELEM(table, c, i + 1, j),
 					FTS_ELEM(table, c, i, j + 1));
 
@@ -737,7 +737,7 @@ static void fts_query_remove_doc_id(
 static void fts_query_change_ranking(
     fts_query_t *query, /*!< in: query instance */
     doc_id_t doc_id,    /*!< in: the doc id to add */
-    ibool downgrade)    /*!< in: Whether to downgrade ranking */
+    bool downgrade)     /*!< in: Whether to downgrade ranking */
 {
   ib_rbt_bound_t parent;
   ulint size = ib_vector_size(query->deleted->doc_ids);
@@ -920,7 +920,7 @@ static void fts_query_check_node(
     word_freqs = rbt_value(fts_word_freq_t, parent.last);
 
     query->error = fts_query_filter_doc_ids(query, token, word_freqs, node,
-                                            node->ilist, ilist_size, TRUE);
+                                            node->ilist, ilist_size, true);
   }
 }
 
@@ -950,7 +950,7 @@ static ulint fts_cache_find_wildcard(
     const fts_tokenizer_word_t *word;
     ulint i;
     const ib_rbt_node_t *cur_node;
-    ibool forward = FALSE;
+    bool forward = false;
 
     word = rbt_value(fts_tokenizer_word_t, parent.last);
     cur_node = parent.last;
@@ -975,7 +975,7 @@ static ulint fts_cache_find_wildcard(
 
         query->error =
             fts_query_filter_doc_ids(query, &srch_text, word_freqs, node,
-                                     node->ilist, node->ilist_size, TRUE);
+                                     node->ilist, node->ilist_size, true);
 
         if (query->error != DB_SUCCESS) {
           return (0);
@@ -999,7 +999,7 @@ static ulint fts_cache_find_wildcard(
     }
 
     if (!forward) {
-      forward = TRUE;
+      forward = true;
       cur_node = parent.last;
       goto cont_search;
     }
@@ -1043,7 +1043,7 @@ static ulint fts_cache_find_wildcard(
     fts_cache_t *cache = table->fts->cache;
     dberr_t error;
 
-    rw_lock_x_lock(&cache->lock);
+    rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
 
     index_cache = fts_find_index_cache(cache, query->index);
 
@@ -1163,7 +1163,7 @@ static ulint fts_cache_find_wildcard(
 
     /* Search the cache for a matching word first. */
 
-    rw_lock_x_lock(&cache->lock);
+    rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
 
     /* Search for the index specific cache. */
     index_cache = fts_find_index_cache(cache, query->index);
@@ -1238,7 +1238,7 @@ static dberr_t fts_query_cache(
   fts_cache_t *cache = table->fts->cache;
 
   /* Search the cache for a matching word first. */
-  rw_lock_x_lock(&cache->lock);
+  rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
 
   /* Search for the index specific cache. */
   index_cache = fts_find_index_cache(cache, query->index);
@@ -1364,17 +1364,17 @@ static dberr_t fts_query_process_doc_id(
       break;
 
     case FTS_NEGATE:
-      fts_query_change_ranking(query, doc_id, TRUE);
+      fts_query_change_ranking(query, doc_id, true);
       break;
 
     case FTS_DECR_RATING:
       fts_query_union_doc_id(query, doc_id, rank);
-      fts_query_change_ranking(query, doc_id, TRUE);
+      fts_query_change_ranking(query, doc_id, true);
       break;
 
     case FTS_INCR_RATING:
       fts_query_union_doc_id(query, doc_id, rank);
-      fts_query_change_ranking(query, doc_id, FALSE);
+      fts_query_change_ranking(query, doc_id, false);
       break;
 
     default:
@@ -1457,7 +1457,7 @@ static inline byte *fts_query_skip_word(
 
 /** Check whether the remaining terms in the phrase match the text.
  @return true if matched else false */
-static ibool fts_query_match_phrase_terms(
+static bool fts_query_match_phrase_terms(
     fts_phrase_t *phrase, /*!< in: phrase to match */
     byte **start,         /*!< in/out: text to search, we can't
                           make this const becase we need to
@@ -1528,7 +1528,7 @@ static ibool fts_query_match_phrase_terms(
 
   /* This is the case for multiple words. */
   if (i == ib_vector_size(tokens)) {
-    phrase->found = TRUE;
+    phrase->found = true;
   }
 
   return (phrase->found);
@@ -1644,7 +1644,7 @@ static int fts_query_match_phrase_add_word_for_parser(
 
   /* This is the case for multiple words. */
   if (phrase_param->token_index == ib_vector_size(tokens)) {
-    phrase->found = TRUE;
+    phrase->found = true;
   }
 
   return (static_cast<int>(phrase->found));
@@ -1652,7 +1652,7 @@ static int fts_query_match_phrase_add_word_for_parser(
 
 /** Check whether the terms in the phrase match the text.
  @return true if matched else false */
-static ibool fts_query_match_phrase_terms_by_parser(
+static bool fts_query_match_phrase_terms_by_parser(
     fts_phrase_param_t *phrase_param, /* in/out: phrase param */
     st_mysql_ftparser *parser,        /* in: plugin fts parser */
     byte *text,                       /* in: text to check */
@@ -1687,9 +1687,9 @@ static ibool fts_query_match_phrase_terms_by_parser(
 @param[in]	prev_len	total length for searched doc fields
 @param[in]	heap		heap
 @return true if matched else false */
-static ibool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
-                                    ulint cur_len, ulint prev_len,
-                                    mem_heap_t *heap) {
+static bool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
+                                   ulint cur_len, ulint prev_len,
+                                   mem_heap_t *heap) {
   ulint i;
   const fts_string_t *first;
   const byte *end = start + cur_len;
@@ -1761,7 +1761,7 @@ static ibool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
         /* This is the case for the single word
         in the phrase. */
         if (ib_vector_size(phrase->tokens) == 1) {
-          phrase->found = TRUE;
+          phrase->found = true;
           break;
         }
 
@@ -1780,8 +1780,8 @@ static ibool fts_query_match_phrase(fts_phrase_t *phrase, byte *start,
 
 /** Callback function to fetch and search the document.
  @return whether the phrase is found */
-static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
-                                      void *user_arg) /*!< in:  fts_doc_t* */
+static bool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
+                                     void *user_arg) /*!< in:  fts_doc_t* */
 {
   que_node_t *exp;
   sel_node_t *node = static_cast<sel_node_t *>(row);
@@ -1792,7 +1792,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
 
   exp = node->select_list;
 
-  phrase->found = FALSE;
+  phrase->found = false;
 
   /* For proximity search, we will need to get the whole document
   from all fields, so first count the total length of the document
@@ -1825,7 +1825,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
         static_cast<byte *>(mem_heap_zalloc(phrase->heap, total_len));
 
     if (!document_text) {
-      return (FALSE);
+      return false;
     }
   }
 
@@ -1882,7 +1882,7 @@ static ibool fts_query_fetch_document(void *row,      /*!< in:  sel_node_t* */
 /********************************************************************
 Callback function to check whether a record was found or not. */
 static
-ibool
+bool
 fts_query_query_block(
 	void*		row,		/*!< in:  sel_node_t* */
 	void*		user_arg)	/*!< in:  fts_doc_t* */
@@ -1925,7 +1925,7 @@ fts_query_query_block(
 		exp = que_node_get_next(exp);
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /********************************************************************
@@ -1941,7 +1941,7 @@ fts_query_find_term(
 	doc_id_t		doc_id,	/*!< in: doc id to match */
 	ulint*			min_pos,/*!< in/out: pos found must be
 					 greater than this minimum value. */
-	ibool*			found)	/*!< out: TRUE if found else FALSE */
+	bool*			found)	/*!< out: true if found else false */
 {
 	pars_info_t*		info;
 	dberr_t			error;
@@ -1966,7 +1966,7 @@ fts_query_find_term(
 		pars_info_bind_id(info, true, "index_table_name", table_name);
 	}
 
-	select.found = FALSE;
+	select.found = false;
 	select.doc_id = doc_id;
 	select.min_pos = *min_pos;
 	select.word_freq = fts_query_add_word_freq(query, word->f_str);
@@ -2041,9 +2041,9 @@ fts_query_find_term(
 /********************************************************************
 Callback aggregator for int columns. */
 static
-ibool
+bool
 fts_query_sum(
-					/*!< out: always returns TRUE */
+					/*!< out: always returns true */
 	void*		row,		/*!< in:  sel_node_t* */
 	void*		user_arg)	/*!< in:  ulint* */
 {
@@ -2066,7 +2066,7 @@ fts_query_sum(
 		exp = que_node_get_next(exp);
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /********************************************************************
@@ -2240,7 +2240,7 @@ fts_query_terms_in_document(
     fts_match_t *match,        /*!< in: doc id and positions */
     ulint distance,            /*!< in: proximity distance */
     st_mysql_ftparser *parser, /*!< in: fts plugin parser */
-    ibool *found)              /*!< out: TRUE if phrase found */
+    bool *found)               /*!< out: true if phrase found */
 {
   dberr_t error;
   fts_phrase_t phrase(get_doc->index_cache->index->table);
@@ -2249,10 +2249,10 @@ fts_query_terms_in_document(
   phrase.tokens = tokens; /* Tokens to match */
   phrase.distance = distance;
   phrase.charset = get_doc->index_cache->charset;
-  phrase.heap = mem_heap_create(512);
+  phrase.heap = mem_heap_create(512, UT_LOCATION_HERE);
   phrase.parser = parser;
 
-  *found = phrase.found = FALSE;
+  *found = phrase.found = false;
 
   error = fts_doc_fetch_by_doc_id(get_doc, match->doc_id, nullptr,
                                   FTS_FETCH_DOC_BY_ID_EQUAL,
@@ -2285,7 +2285,7 @@ fts_query_terms_in_document(
 
   memset(&get_doc, 0x0, sizeof(get_doc));
 
-  rw_lock_x_lock(&cache->lock);
+  rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
   get_doc.index_cache = fts_find_index_cache(cache, query->index);
   rw_lock_x_unlock(&cache->lock);
   ut_a(get_doc.index_cache != nullptr);
@@ -2294,9 +2294,9 @@ fts_query_terms_in_document(
 
   phrase.distance = query->distance;
   phrase.charset = get_doc.index_cache->charset;
-  phrase.heap = mem_heap_create(512);
+  phrase.heap = mem_heap_create(512, UT_LOCATION_HERE);
   phrase.proximity_pos = qualified_pos;
-  phrase.found = FALSE;
+  phrase.found = false;
 
   err = fts_doc_fetch_by_doc_id(&get_doc, match[0]->doc_id, nullptr,
                                 FTS_FETCH_DOC_BY_ID_EQUAL,
@@ -2342,7 +2342,7 @@ fts_query_terms_in_document(
   /* Setup the doc retrieval infrastructure. */
   memset(&get_doc, 0x0, sizeof(get_doc));
 
-  rw_lock_x_lock(&cache->lock);
+  rw_lock_x_lock(&cache->lock, UT_LOCATION_HERE);
 
   get_doc.index_cache = fts_find_index_cache(cache, query->index);
 
@@ -2360,7 +2360,7 @@ fts_query_terms_in_document(
   doc id set. */
   for (i = 0; i < n_matched && query->error == DB_SUCCESS; ++i) {
     fts_match_t *match;
-    ibool found = FALSE;
+    bool found = false;
 
     match = static_cast<fts_match_t *>(ib_vector_get(query->matched, i));
 
@@ -2499,7 +2499,7 @@ static void fts_query_phrase_split(fts_query_t *query,
 {
   ib_vector_t *tokens;
   ib_vector_t *orig_tokens;
-  mem_heap_t *heap = mem_heap_create(sizeof(fts_string_t));
+  mem_heap_t *heap = mem_heap_create(sizeof(fts_string_t), UT_LOCATION_HERE);
   ib_alloc_t *heap_alloc;
   ulint num_token;
 
@@ -2626,8 +2626,6 @@ static void fts_query_phrase_split(fts_query_t *query,
     if (query->flags & FTS_PROXIMITY) {
       fts_phrase_or_proximity_search(query, tokens);
     } else {
-      ibool matched;
-
       /* Phrase Search case:
       We filter out the doc ids that don't contain
       all the tokens in the phrase. It's cheaper to
@@ -2635,7 +2633,7 @@ static void fts_query_phrase_split(fts_query_t *query,
       and then doing a search through the text. Isolated
       testing shows this also helps in mitigating disruption
       of the buffer cache. */
-      matched = fts_phrase_or_proximity_search(query, tokens);
+      auto matched = fts_phrase_or_proximity_search(query, tokens);
       query->matched = query->match_array[0];
 
       /* Read the actual text in and search for the phrase. */
@@ -2759,11 +2757,11 @@ static dberr_t fts_query_visitor(
       query->distance = node->text.distance;
 
       /* Force collection of doc ids and the positions. */
-      query->collect_positions = TRUE;
+      query->collect_positions = true;
 
       query->error = fts_query_phrase_search(query, node);
 
-      query->collect_positions = FALSE;
+      query->collect_positions = false;
 
       if (query->oper == FTS_EXIST) {
         fts_query_free_doc_ids(query, query->doc_ids);
@@ -2944,7 +2942,7 @@ fts_query_find_doc_id(
 				doc_freq->freq = freq;
 			}
 
-			select->found = TRUE;
+			select->found = true;
 			select->min_pos = min_pos;
 		}
 	}
@@ -2963,7 +2961,7 @@ static dberr_t fts_query_filter_doc_ids(
     const fts_node_t *node,     /*!< in: current FTS node */
     void *data,                 /*!< in: doc id ilist */
     ulint len,                  /*!< in: doc id ilist size */
-    ibool calc_doc_count)       /*!< in: whether to remember doc count */
+    bool calc_doc_count)        /*!< in: whether to remember doc count */
 {
   byte *ptr = static_cast<byte *>(data);
   doc_id_t doc_id = 0;
@@ -3089,7 +3087,7 @@ static dberr_t fts_query_read_node(
   fts_node_t node;
   ib_rbt_bound_t parent;
   fts_word_freq_t *word_freq;
-  ibool skip = FALSE;
+  bool skip = false;
   fts_string_t term;
   byte buf[FTS_MAX_WORD_LEN + 1];
   dberr_t error = DB_SUCCESS;
@@ -3146,7 +3144,7 @@ static dberr_t fts_query_read_node(
         /* Skip nodes whose doc ids are out range. */
         if (query->oper == FTS_EXIST && query->upper_doc_id > 0 &&
             node.first_doc_id > query->upper_doc_id) {
-          skip = TRUE;
+          skip = true;
         }
         break;
 
@@ -3156,14 +3154,14 @@ static dberr_t fts_query_read_node(
         /* Skip nodes whose doc ids are out range. */
         if (query->oper == FTS_EXIST && query->lower_doc_id > 0 &&
             node.last_doc_id < query->lower_doc_id) {
-          skip = TRUE;
+          skip = true;
         }
         break;
 
       case 4: /* ILIST */
 
         error = fts_query_filter_doc_ids(query, &word_freq->word, word_freq,
-                                         &node, data, len, FALSE);
+                                         &node, data, len, false);
 
         break;
 
@@ -3183,7 +3181,7 @@ static dberr_t fts_query_read_node(
 
 /** Callback function to fetch the rows in an FTS INDEX record.
  @return always returns true */
-static ibool fts_query_index_fetch_nodes(
+static bool fts_query_index_fetch_nodes(
     void *row,      /*!< in: sel_node_t* */
     void *user_arg) /*!< in: pointer to fts_fetch_t */
 {
@@ -3206,9 +3204,9 @@ static ibool fts_query_index_fetch_nodes(
 
   if (query->error != DB_SUCCESS) {
     ut_ad(query->error == DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
-    return (FALSE);
+    return false;
   } else {
-    return (TRUE);
+    return true;
   }
 }
 
@@ -3216,7 +3214,7 @@ static ibool fts_query_index_fetch_nodes(
 static void fts_query_calculate_idf(fts_query_t *query) /*!< in: Query state */
 {
   const ib_rbt_node_t *node;
-  ib_uint64_t total_docs = query->total_docs;
+  uint64_t total_docs = query->total_docs;
 
   /* We need to free any instances of fts_doc_freq_t that we
   may have allocated. */
@@ -3731,7 +3729,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
 
   lc_query_str[result_len] = 0;
 
-  query.heap = mem_heap_create(128);
+  query.heap = mem_heap_create(128, UT_LOCATION_HERE);
 
   /* Create the rb tree for the doc id (current) set. */
   query.doc_ids = rbt_create(sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3925,7 +3923,7 @@ static void fts_print_doc_id(
   /* Init "result_doc", to hold words from the first search pass */
   fts_doc_init(&result_doc);
 
-  rw_lock_x_lock(&index->table->fts->cache->lock);
+  rw_lock_x_lock(&index->table->fts->cache->lock, UT_LOCATION_HERE);
   index_cache = fts_find_index_cache(index->table->fts->cache, index);
   rw_lock_x_unlock(&index->table->fts->cache->lock);
 
@@ -4029,7 +4027,7 @@ func_exit:
  the words are close enough to each other, as in specified distance.
  This function is called for phrase and proximity search.
  @return true if documents are found, false if otherwise */
-static ibool fts_phrase_or_proximity_search(
+static bool fts_phrase_or_proximity_search(
     fts_query_t *query,  /*!< in/out:  query instance.
                          query->doc_ids might be instantiated
                          with qualified doc IDs */
@@ -4037,10 +4035,10 @@ static ibool fts_phrase_or_proximity_search(
 {
   ulint n_matched;
   ulint i;
-  ibool matched = FALSE;
+  bool matched = false;
   ulint num_token = ib_vector_size(tokens);
   fts_match_t *match[MAX_PROXIMITY_ITEM];
-  ibool end_list = FALSE;
+  bool end_list = false;
 
   /* Number of matched documents for the first token */
   n_matched = ib_vector_size(query->match_array[0]);
@@ -4079,7 +4077,7 @@ static ibool fts_phrase_or_proximity_search(
       }
 
       if (k == ib_vector_size(query->match_array[j])) {
-        end_list = TRUE;
+        end_list = true;
 
         if (query->flags & FTS_PHRASE) {
           ulint s;
@@ -4117,7 +4115,7 @@ static ibool fts_phrase_or_proximity_search(
     to each other, and within the distance specified
     in the proximity search */
     if (query->flags & FTS_PHRASE) {
-      matched = TRUE;
+      matched = true;
     } else if (fts_proximity_get_positions(match, num_token, ULINT_MAX,
                                            &qualified_pos)) {
       /* Fetch the original documents and count the
@@ -4127,11 +4125,11 @@ static ibool fts_phrase_or_proximity_search(
         /* If so, mark we find a matching doc */
         query->error = fts_query_process_doc_id(query, match[0]->doc_id, 0);
         if (query->error != DB_SUCCESS) {
-          matched = FALSE;
+          matched = false;
           goto func_exit;
         }
 
-        matched = TRUE;
+        matched = true;
         for (ulint z = 0; z < num_token; z++) {
           fts_string_t *token;
           token = static_cast<fts_string_t *>(ib_vector_get(tokens, z));

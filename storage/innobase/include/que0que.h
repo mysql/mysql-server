@@ -131,7 +131,7 @@ static inline trx_t *thr_get_trx(que_thr_t *thr); /*!< in: query thread */
  in crash recovery.
  @return true if thr is rolling back an incomplete transaction in crash
  recovery */
-static inline ibool thr_is_recv(const que_thr_t *thr); /*!< in: query thread */
+static inline bool thr_is_recv(const que_thr_t *thr); /*!< in: query thread */
 /** Gets the type of a graph node. */
 static inline ulint que_node_get_type(
     const que_node_t *node); /*!< in: graph node */
@@ -185,18 +185,18 @@ static inline ulint que_node_list_get_len(
  @return true if should be stopped; NOTE that if the peek is made
  without reserving the trx_t::mutex, then another peek with the mutex
  reserved is necessary before deciding the actual stopping */
-static inline ibool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
-/** Returns TRUE if the query graph is for a SELECT statement.
+static inline bool que_thr_peek_stop(que_thr_t *thr); /*!< in: query thread */
+/** Returns true if the query graph is for a SELECT statement.
  @return true if a select */
-static inline ibool que_graph_is_select(que_t *graph); /*!< in: graph */
+static inline bool que_graph_is_select(que_t *graph); /*!< in: graph */
 /** Prints info of an SQL query graph node. */
 void que_node_print_info(que_node_t *node); /*!< in: query graph node */
 /** Evaluate the given SQL
  @return error code or DB_SUCCESS */
 dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
                      const char *sql,   /*!< in: SQL string */
-                     ibool reserve_dict_mutex,
-                     /*!< in: if TRUE, acquire/release
+                     bool reserve_dict_mutex,
+                     /*!< in: if true, acquire/release
                      dict_sys->mutex around call to pars_sql. */
                      trx_t *trx); /*!< in: trx */
 
@@ -247,11 +247,11 @@ struct que_thr_t {
   que_node_t *child;     /*!< graph child node */
   que_t *graph;          /*!< graph where this node belongs */
   que_thr_state_t state; /*!< state of the query thread */
-  ibool is_active;       /*!< TRUE if the thread has been set
-                         to the run state in
-                         que_thr_move_to_run_state, but not
-                         deactivated in
-                         que_thr_dec_reference_count */
+  bool is_active;        /*!< true if the thread has been set
+                          to the run state in
+                          que_thr_move_to_run_state, but not
+                          deactivated in
+                          que_thr_dec_reference_count */
   /*------------------------------*/
   /* The following fields are private to the OS thread executing the
   query thread, and are not protected by any mutex: */
@@ -295,8 +295,8 @@ struct que_thr_t {
                             the query thread */
 };
 
-#define QUE_THR_MAGIC_N 8476583
-#define QUE_THR_MAGIC_FREED 123461526
+constexpr uint32_t QUE_THR_MAGIC_N = 8476583;
+constexpr uint32_t QUE_THR_MAGIC_FREED = 123461526;
 
 /* Query graph fork node: its fields are protected by the query thread mutex */
 struct que_fork_t {
@@ -330,9 +330,9 @@ struct que_fork_t {
                              first row, or after last row, depending
                              on cur_end; values 1...n mean a row
                              index */
-  ibool cur_on_row;          /*!< TRUE if cursor is on a row, i.e.,
-                             it is not before the first row or
-                             after the last row */
+  bool cur_on_row;           /*!< true if cursor is on a row, i.e.,
+                              it is not before the first row or
+                              after the last row */
   sel_node_t *last_sel_node; /*!< last executed select node, or NULL
                              if none */
   UT_LIST_NODE_T(que_fork_t)
@@ -344,58 +344,58 @@ struct que_fork_t {
 };
 
 /* Query fork (or graph) types */
-#define QUE_FORK_SELECT_NON_SCROLL 1 /* forward-only cursor */
-#define QUE_FORK_SELECT_SCROLL 2     /* scrollable cursor */
-#define QUE_FORK_INSERT 3
-#define QUE_FORK_UPDATE 4
-#define QUE_FORK_ROLLBACK 5
+constexpr uint32_t QUE_FORK_SELECT_NON_SCROLL = 1; /* forward-only cursor */
+constexpr uint32_t QUE_FORK_SELECT_SCROLL = 2;     /* scrollable cursor */
+constexpr uint32_t QUE_FORK_INSERT = 3;
+constexpr uint32_t QUE_FORK_UPDATE = 4;
+constexpr uint32_t QUE_FORK_ROLLBACK = 5;
 /* This is really the undo graph used in rollback,
 no signal-sending roll_node in this graph */
-#define QUE_FORK_PURGE 6
-#define QUE_FORK_EXECUTE 7
-#define QUE_FORK_PROCEDURE 8
-#define QUE_FORK_PROCEDURE_CALL 9
-#define QUE_FORK_MYSQL_INTERFACE 10
-#define QUE_FORK_RECOVERY 11
+constexpr uint32_t QUE_FORK_PURGE = 6;
+constexpr uint32_t QUE_FORK_EXECUTE = 7;
+constexpr uint32_t QUE_FORK_PROCEDURE = 8;
+constexpr uint32_t QUE_FORK_PROCEDURE_CALL = 9;
+constexpr uint32_t QUE_FORK_MYSQL_INTERFACE = 10;
+constexpr uint32_t QUE_FORK_RECOVERY = 11;
 
 /* Query fork (or graph) states */
-#define QUE_FORK_ACTIVE 1
-#define QUE_FORK_COMMAND_WAIT 2
-#define QUE_FORK_INVALID 3
-#define QUE_FORK_BEING_FREED 4
+constexpr uint32_t QUE_FORK_ACTIVE = 1;
+constexpr uint32_t QUE_FORK_COMMAND_WAIT = 2;
+constexpr uint32_t QUE_FORK_INVALID = 3;
+constexpr uint32_t QUE_FORK_BEING_FREED = 4;
 
 /* Flag which is ORed to control structure statement node types */
-#define QUE_NODE_CONTROL_STAT 1024
+constexpr uint32_t QUE_NODE_CONTROL_STAT = 1024;
 
 /* Query graph node types */
-#define QUE_NODE_LOCK 1
-#define QUE_NODE_INSERT 2
-#define QUE_NODE_UPDATE 4
-#define QUE_NODE_CURSOR 5
-#define QUE_NODE_SELECT 6
-#define QUE_NODE_AGGREGATE 7
-#define QUE_NODE_FORK 8
-#define QUE_NODE_THR 9
-#define QUE_NODE_UNDO 10
-#define QUE_NODE_COMMIT 11
-#define QUE_NODE_ROLLBACK 12
-#define QUE_NODE_PURGE 13
-#define QUE_NODE_SYMBOL 14
-#define QUE_NODE_RES_WORD 15
-#define QUE_NODE_FUNC 16
-#define QUE_NODE_ORDER 17
-#define QUE_NODE_PROC (18 + QUE_NODE_CONTROL_STAT)
-#define QUE_NODE_IF (19 + QUE_NODE_CONTROL_STAT)
-#define QUE_NODE_WHILE (20 + QUE_NODE_CONTROL_STAT)
-#define QUE_NODE_ASSIGNMENT 21
-#define QUE_NODE_FETCH 22
-#define QUE_NODE_OPEN 23
-#define QUE_NODE_COL_ASSIGNMENT 24
-#define QUE_NODE_FOR (25 + QUE_NODE_CONTROL_STAT)
-#define QUE_NODE_RETURN 26
-#define QUE_NODE_ELSIF 27
-#define QUE_NODE_CALL 28
-#define QUE_NODE_EXIT 29
+constexpr uint32_t QUE_NODE_LOCK = 1;
+constexpr uint32_t QUE_NODE_INSERT = 2;
+constexpr uint32_t QUE_NODE_UPDATE = 4;
+constexpr uint32_t QUE_NODE_CURSOR = 5;
+constexpr uint32_t QUE_NODE_SELECT = 6;
+constexpr uint32_t QUE_NODE_AGGREGATE = 7;
+constexpr uint32_t QUE_NODE_FORK = 8;
+constexpr uint32_t QUE_NODE_THR = 9;
+constexpr uint32_t QUE_NODE_UNDO = 10;
+constexpr uint32_t QUE_NODE_COMMIT = 11;
+constexpr uint32_t QUE_NODE_ROLLBACK = 12;
+constexpr uint32_t QUE_NODE_PURGE = 13;
+constexpr uint32_t QUE_NODE_SYMBOL = 14;
+constexpr uint32_t QUE_NODE_RES_WORD = 15;
+constexpr uint32_t QUE_NODE_FUNC = 16;
+constexpr uint32_t QUE_NODE_ORDER = 17;
+constexpr uint32_t QUE_NODE_PROC = 18 + QUE_NODE_CONTROL_STAT;
+constexpr uint32_t QUE_NODE_IF = 19 + QUE_NODE_CONTROL_STAT;
+constexpr uint32_t QUE_NODE_WHILE = 20 + QUE_NODE_CONTROL_STAT;
+constexpr uint32_t QUE_NODE_ASSIGNMENT = 21;
+constexpr uint32_t QUE_NODE_FETCH = 22;
+constexpr uint32_t QUE_NODE_OPEN = 23;
+constexpr uint32_t QUE_NODE_COL_ASSIGNMENT = 24;
+constexpr uint32_t QUE_NODE_FOR = 25 + QUE_NODE_CONTROL_STAT;
+constexpr uint32_t QUE_NODE_RETURN = 26;
+constexpr uint32_t QUE_NODE_ELSIF = 27;
+constexpr uint32_t QUE_NODE_CALL = 28;
+constexpr uint32_t QUE_NODE_EXIT = 29;
 
 #include "que0que.ic"
 

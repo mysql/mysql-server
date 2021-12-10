@@ -89,7 +89,8 @@ void scan_page_type(space_id_t space_id,
   for (page_no_t page_no = 0; page_no < space->size; ++page_no) {
     const page_id_t page_id(space_id, page_no);
     mtr_start(&mtr);
-    buf_block_t *block = buf_page_get(page_id, page_size, RW_S_LATCH, &mtr);
+    buf_block_t *block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, &mtr);
     page_type_t page_type = block->get_page_type();
     result_map[page_type]++;
     mtr_commit(&mtr);
@@ -262,7 +263,8 @@ Ret_t Tester::find_fil_page_lsn(std::vector<std::string> &tokens) noexcept {
 
   mtr_t mtr;
   mtr_start(&mtr);
-  buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+  buf_block_t *block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, &mtr);
   lsn_t newest_lsn = block->page.get_newest_lsn();
   mtr_commit(&mtr);
 
@@ -551,8 +553,8 @@ DISPATCH_FUNCTION_DEF(Tester::make_page_dirty) {
 
   mtr.start();
 
-  buf_block_t *block =
-      buf_page_get(page_id, page_size_t(space->flags), RW_X_LATCH, &mtr);
+  buf_block_t *block = buf_page_get(page_id, page_size_t(space->flags),
+                                    RW_X_LATCH, UT_LOCATION_HERE, &mtr);
 
   if (block != nullptr) {
     byte *page = block->frame;

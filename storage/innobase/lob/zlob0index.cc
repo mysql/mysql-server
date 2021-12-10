@@ -95,7 +95,7 @@ fil_addr_t z_index_entry_t::make_old_version_current(dict_index_t *index,
 
   fil_addr_t loc = purge_version(index, trxid, first, idx_flst, free_list);
 
-  ut_ad(flst_validate(idx_flst, m_mtr));
+  ut_d(flst_validate(idx_flst, m_mtr));
 
   return (loc);
 }
@@ -117,7 +117,7 @@ void z_index_entry_t::purge(dict_index_t *index, z_first_page_t &first) {
     }
 
     buf_block_t *block = buf_page_get(page_id_t(space_id, page_no), page_size,
-                                      RW_X_LATCH, m_mtr);
+                                      RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
     page_type_t type = fil_page_get_type(block->frame);
     page_no_t next = block->get_next_page_no();
@@ -183,7 +183,7 @@ std::ostream &z_index_entry_t::print_pages(std::ostream &out) const {
   out << "[PAGES: ";
   while (page_no != FIL_NULL) {
     buf_block_t *block = buf_page_get(page_id_t(space_id, page_no), page_size,
-                                      RW_S_LATCH, m_mtr);
+                                      RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
 
     page_type_t type = block->get_page_type();
     out << "[page_no=" << page_no << ", type=" << block->get_page_type_str()
@@ -272,7 +272,7 @@ size_t z_index_entry_t::free_data_pages(mtr_t *mtr) {
   while (page_no != FIL_NULL) {
     buf_block_t *block =
         buf_page_get(page_id_t(space_id, page_no), m_index->get_page_size(),
-                     RW_X_LATCH, mtr);
+                     RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     /* Save the next page number before freeing. */
     page_no = block->get_next_page_no();

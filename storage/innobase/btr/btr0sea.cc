@@ -89,11 +89,11 @@ btr_search_sys_t *btr_search_sys;
 /** If the number of records on the page divided by this parameter
 would have been successfully accessed using a hash index, the index
 is then built on the page, assuming the global limit has been reached */
-#define BTR_SEARCH_PAGE_BUILD_LIMIT 16
+constexpr uint32_t BTR_SEARCH_PAGE_BUILD_LIMIT = 16;
 
 /** The global limit for consecutive potentially successful hash searches,
 before hash index building is started */
-#define BTR_SEARCH_BUILD_LIMIT 100
+constexpr uint32_t BTR_SEARCH_BUILD_LIMIT = 100;
 
 /** Compute the hash value of an index identifier.
 @param[in]	space_id	tablespace identifier
@@ -216,7 +216,7 @@ void btr_search_sys_create(ulint hash_size) {
                   MEM_HEAP_FOR_BTR_SEARCH);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    btr_search_sys->hash_tables[i]->adaptive = TRUE;
+    btr_search_sys->hash_tables[i]->adaptive = true;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   }
 }
@@ -246,7 +246,7 @@ void btr_search_sys_resize(ulint hash_size) {
                   MEM_HEAP_FOR_BTR_SEARCH);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    btr_search_sys->hash_tables[i]->adaptive = TRUE;
+    btr_search_sys->hash_tables[i]->adaptive = true;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   }
 
@@ -372,7 +372,7 @@ btr_search_t *btr_search_info_create(mem_heap_t *heap) {
   info->hash_analysis = 0;
   info->n_hash_potential = 0;
 
-  info->last_hash_succ = FALSE;
+  info->last_hash_succ = false;
 
 #ifdef UNIV_SEARCH_PERF_STAT
   info->n_hash_succ = 0;
@@ -524,15 +524,15 @@ semaphore, to save CPU time! Do not assume the fields are consistent.
 @param[in,out]	info	search info
 @param[in,out]	block	buffer block
 @param[in]	cursor	cursor */
-static ibool btr_search_update_block_hash_info(btr_search_t *info,
-                                               buf_block_t *block,
-                                               const btr_cur_t *cursor) {
+static bool btr_search_update_block_hash_info(btr_search_t *info,
+                                              buf_block_t *block,
+                                              const btr_cur_t *cursor) {
   ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
   ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
   ut_ad(rw_lock_own(&block->lock, RW_LOCK_S) ||
         rw_lock_own(&block->lock, RW_LOCK_X));
 
-  info->last_hash_succ = FALSE;
+  info->last_hash_succ = false;
 
   ut_a(buf_block_state_valid(block));
   ut_ad(info->magic_n == BTR_SEARCH_MAGIC_N);
@@ -540,14 +540,14 @@ static ibool btr_search_update_block_hash_info(btr_search_t *info,
   if ((block->n_hash_helps > 0) && (info->n_hash_potential > 0) &&
       (block->n_fields == info->n_fields) &&
       (block->n_bytes == info->n_bytes) &&
-      (block->left_side == !!info->left_side)) {
+      (block->left_side == info->left_side)) {
     if ((block->index) && (block->curr_n_fields == info->n_fields) &&
         (block->curr_n_bytes == info->n_bytes) &&
         (block->curr_left_side == info->left_side)) {
       /* The search would presumably have succeeded using
       the hash index */
 
-      info->last_hash_succ = TRUE;
+      info->last_hash_succ = true;
     }
 
     block->n_hash_helps++;
@@ -574,11 +574,11 @@ static ibool btr_search_update_block_hash_info(btr_search_t *info,
         (block->left_side != block->curr_left_side)) {
       /* Build a new hash index on the page */
 
-      return (TRUE);
+      return true;
     }
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Updates a hash node reference when it has been unsuccessfully used in a
@@ -649,7 +649,6 @@ static void btr_search_update_hash_ref(const btr_search_t *info,
 @param[in]	cursor	cursor which was just positioned */
 void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
   buf_block_t *block;
-  ibool build_index;
 
   ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
   ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
@@ -663,7 +662,7 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
 
   btr_search_info_update_hash(info, cursor);
 
-  build_index = btr_search_update_block_hash_info(info, block, cursor);
+  auto build_index = btr_search_update_block_hash_info(info, block, cursor);
 
   if (build_index || (cursor->flag == BTR_CUR_HASH_FAIL)) {
     btr_search_check_free_space_in_heap(cursor->index);
@@ -694,7 +693,7 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
 
 /** Checks if a guessed position for a tree cursor is right. Note that if
 mode is PAGE_CUR_LE, which is used in inserts, and the function returns
-TRUE, then cursor->up_match and cursor->low_match both have sensible values.
+true, then cursor->up_match and cursor->low_match both have sensible values.
 @param[in,out]	cursor		Guess cursor position
 @param[in]	can_only_compare_to_cursor_rec
                                 If we do not have a latch on the page of cursor,
@@ -707,10 +706,10 @@ TRUE, then cursor->up_match and cursor->low_match both have sensible values.
 @param[in]	mode		PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G, PAGE_CUR_GE
 @param[in]	mtr		Mini-transaction
 @return true if success */
-static ibool btr_search_check_guess(btr_cur_t *cursor,
-                                    ibool can_only_compare_to_cursor_rec,
-                                    const dtuple_t *tuple, ulint mode,
-                                    mtr_t *mtr) {
+static bool btr_search_check_guess(btr_cur_t *cursor,
+                                   bool can_only_compare_to_cursor_rec,
+                                   const dtuple_t *tuple, ulint mode,
+                                   mtr_t *mtr) {
   rec_t *rec;
   ulint n_unique;
   ulint match;
@@ -718,7 +717,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
-  ibool success = FALSE;
+  bool success = false;
   rec_offs_init(offsets_);
 
   n_unique = dict_index_get_n_unique_in_tree(cursor->index);
@@ -740,7 +739,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
     cursor->up_match = match;
 
     if (match >= n_unique) {
-      success = TRUE;
+      success = true;
       goto exit_func;
     }
   } else if (mode == PAGE_CUR_LE) {
@@ -762,7 +761,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
 
   if (can_only_compare_to_cursor_rec) {
     /* Since we could not determine if our guess is right just by
-    looking at the record under the cursor, return FALSE */
+    looking at the record under the cursor, return false */
     goto exit_func;
   }
 
@@ -801,7 +800,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
     if (page_rec_is_supremum(next_rec)) {
       if (btr_page_get_next(page_align(next_rec), mtr) == FIL_NULL) {
         cursor->up_match = 0;
-        success = TRUE;
+        success = true;
       }
 
       goto exit_func;
@@ -821,7 +820,7 @@ exit_func:
   if (UNIV_LIKELY_NULL(heap)) {
     mem_heap_free(heap);
   }
-  return (success);
+  return success;
 }
 
 static void btr_search_failure(btr_search_t *info, btr_cur_t *cursor) {
@@ -835,12 +834,12 @@ static void btr_search_failure(btr_search_t *info, btr_cur_t *cursor) {
   }
 #endif /* UNIV_SEARCH_PERF_STAT */
 
-  info->last_hash_succ = FALSE;
+  info->last_hash_succ = false;
 }
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
-and the function returns TRUE, then cursor->up_match and cursor->low_match
+and the function returns true, then cursor->up_match and cursor->low_match
 both have sensible values.
 @param[in,out]	index		Index
 @param[in,out]	info		Index search info
@@ -857,10 +856,10 @@ both have sensible values.
                                 search system: RW_S/X_LATCH or 0
 @param[in]	mtr		Mini-transaction
 @return true if succeeded */
-ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
-                               const dtuple_t *tuple, ulint mode,
-                               ulint latch_mode, btr_cur_t *cursor,
-                               ulint has_search_latch, mtr_t *mtr) {
+bool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
+                              const dtuple_t *tuple, ulint mode,
+                              ulint latch_mode, btr_cur_t *cursor,
+                              ulint has_search_latch, mtr_t *mtr) {
   const rec_t *rec;
   ulint fold;
 #ifdef notdefined
@@ -869,7 +868,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 #endif
 
   if (!btr_search_enabled) {
-    return (FALSE);
+    return false;
   }
 
   ut_ad(index && info && tuple && cursor && mtr);
@@ -883,14 +882,14 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   any latch here! */
 
   if (info->n_hash_potential == 0) {
-    return (FALSE);
+    return false;
   }
 
   cursor->n_fields = info->n_fields;
   cursor->n_bytes = info->n_bytes;
 
   if (dtuple_get_n_fields(tuple) < btr_search_get_n_fields(cursor)) {
-    return (FALSE);
+    return false;
   }
 
 #ifdef UNIV_SEARCH_PERF_STAT
@@ -910,7 +909,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 
       btr_search_failure(info, cursor);
 
-      return (FALSE);
+      return false;
     }
   }
 
@@ -926,7 +925,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 
     btr_search_failure(info, cursor);
 
-    return (FALSE);
+    return false;
   }
 
   buf_block_t *block = buf_block_from_ahi(rec);
@@ -940,7 +939,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 
       btr_search_failure(info, cursor);
 
-      return (FALSE);
+      return false;
     }
 
     btr_search_s_unlock(index);
@@ -957,7 +956,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 
     btr_search_failure(info, cursor);
 
-    return (FALSE);
+    return false;
   }
 
   ut_ad(page_rec_is_user_rec(rec));
@@ -980,7 +979,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
 
     btr_search_failure(info, cursor);
 
-    return (FALSE);
+    return false;
   }
 
   if (info->n_hash_potential < BTR_SEARCH_BUILD_LIMIT + 5) {
@@ -991,7 +990,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   /* These lines of code can be used in a debug version to check
   the correctness of the searched cursor position: */
 
-  info->last_hash_succ = FALSE;
+  info->last_hash_succ = false;
 
   /* Currently, does not work if the following fails: */
   ut_ad(!has_search_latch);
@@ -1006,11 +1005,12 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
     in the index tree may actually take us to the supremum
     of the previous page */
 
-    info->last_hash_succ = FALSE;
+    info->last_hash_succ = false;
 
-    btr_pcur_open_on_user_rec(index, tuple, mode, latch_mode, &pcur, mtr);
+    pcur.open_on_user_rec(index, tuple, mode, latch_mode, mtr,
+                          UT_LOCATION_HERE);
 
-    ut_ad(btr_pcur_get_rec(&pcur) == btr_cur_get_rec(cursor));
+    ut_ad(pcur.get_rec() == btr_cur_get_rec(cursor));
   } else {
     ut_ad(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
   }
@@ -1019,7 +1019,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   fail if the page of the cursor gets removed from the buffer pool
   meanwhile! Thus it might not be a bug. */
 #endif
-  info->last_hash_succ = TRUE;
+  info->last_hash_succ = true;
 
 #ifdef UNIV_SEARCH_PERF_STAT
   btr_search_n_succ++;
@@ -1037,7 +1037,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
     Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Drop any adaptive hash index entries that point to an index page.
@@ -1094,7 +1094,7 @@ retry:
   ut_ad(!btr_search_own_any(RW_LOCK_S));
   ut_ad(!btr_search_own_any(RW_LOCK_X));
 
-  rw_lock_s_lock(latch);
+  rw_lock_s_lock(latch, UT_LOCATION_HERE);
   assert_block_ahi_valid(block);
 
   if (block->index == nullptr) {
@@ -1191,7 +1191,7 @@ retry:
     mem_heap_free(heap);
   }
 
-  rw_lock_x_lock(latch);
+  rw_lock_x_lock(latch, UT_LOCATION_HERE);
 
   if (UNIV_UNLIKELY(!block->index)) {
     /* Someone else has meanwhile dropped the hash index */
@@ -1252,9 +1252,8 @@ void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
   are possibly holding, we cannot s-latch the page, but must
   (recursively) x-latch it, even though we are only reading. */
 
-  block =
-      buf_page_get_gen(page_id, page_size, RW_X_LATCH, nullptr,
-                       Page_fetch::PEEK_IF_IN_POOL, __FILE__, __LINE__, &mtr);
+  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, nullptr,
+                           Page_fetch::PEEK_IF_IN_POOL, UT_LOCATION_HERE, &mtr);
 
   if (block) {
     /* If AHI is still valid, page can't be in free state.
@@ -1773,8 +1772,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
   ulint next_fold = 0; /* remove warning (??? bug ???) */
   ulint n_fields;
   ulint n_bytes;
-  ibool left_side;
-  ibool locked = FALSE;
+  bool locked = false;
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -1808,7 +1806,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
 
   n_fields = block->curr_n_fields;
   n_bytes = block->curr_n_bytes;
-  left_side = block->curr_left_side;
+  auto left_side = block->curr_left_side;
 
   ins_rec = page_rec_get_next_const(rec);
   next_rec = page_rec_get_next_const(ins_rec);
@@ -1832,7 +1830,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
     if (left_side) {
       btr_search_x_lock(index, UT_LOCATION_HERE);
 
-      locked = TRUE;
+      locked = true;
 
       if (!btr_search_enabled) {
         goto function_exit;
@@ -1848,7 +1846,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
     if (!locked) {
       btr_search_x_lock(index, UT_LOCATION_HERE);
 
-      locked = TRUE;
+      locked = true;
 
       if (!btr_search_enabled) {
         goto function_exit;
@@ -1868,7 +1866,7 @@ check_next_rec:
       if (!locked) {
         btr_search_x_lock(index, UT_LOCATION_HERE);
 
-        locked = TRUE;
+        locked = true;
 
         if (!btr_search_enabled) {
           goto function_exit;
@@ -1885,7 +1883,7 @@ check_next_rec:
     if (!locked) {
       btr_search_x_lock(index, UT_LOCATION_HERE);
 
-      locked = TRUE;
+      locked = true;
 
       if (!btr_search_enabled) {
         goto function_exit;
@@ -1913,9 +1911,9 @@ function_exit:
 /** Validates the search system for given hash table.
 @param[in]	hash_table_id	hash table to validate
 @return true if ok */
-static ibool btr_search_hash_table_validate(ulint hash_table_id) {
+static bool btr_search_hash_table_validate(ulint hash_table_id) {
   ha_node_t *node;
-  ibool ok = TRUE;
+  bool ok = true;
   ulint i;
   ulint cell_count;
   mem_heap_t *heap = nullptr;
@@ -1923,7 +1921,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
   ulint *offsets = offsets_;
 
   if (!btr_search_enabled) {
-    return (TRUE);
+    return true;
   }
 
   /* How many cells to check before temporarily releasing
@@ -2018,7 +2016,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
       if (node->fold != fold) {
         const page_t *page = block->frame;
 
-        ok = FALSE;
+        ok = false;
 
         ib::error(ER_IB_MSG_46)
             << "Error in an adaptive hash"
@@ -2065,11 +2063,11 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
       }
     }
 
-    ulint end_index = ut_min(i + chunk_size - 1, cell_count - 1);
+    ulint end_index = std::min(i + chunk_size - 1, cell_count - 1);
 
     if (!ha_validate(btr_search_sys->hash_tables[hash_table_id], i,
                      end_index)) {
-      ok = FALSE;
+      ok = false;
     }
   }
 
@@ -2079,7 +2077,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     mem_heap_free(heap);
   }
 
-  return (ok);
+  return ok;
 }
 
 /** Validate the search system.

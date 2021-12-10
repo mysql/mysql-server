@@ -306,9 +306,8 @@ Clone_Handle *Clone_Sys::get_clone_by_index(const byte *loc, uint loc_len) {
 }
 
 int Clone_Sys::attach_snapshot(Clone_Handle_Type hdl_type,
-                               Ha_clone_type clone_type,
-                               ib_uint64_t snapshot_id, bool is_pfs_monitor,
-                               Clone_Snapshot *&snapshot) {
+                               Ha_clone_type clone_type, uint64_t snapshot_id,
+                               bool is_pfs_monitor, Clone_Snapshot *&snapshot) {
   uint idx;
   uint free_idx = SNAPSHOT_ARR_SIZE;
 
@@ -638,7 +637,7 @@ void Clone_Sys::end_ddl_state(Clone_notify::Type type, space_id_t space,
   mutex_enter(get_mutex());
 }
 
-ib_uint64_t Clone_Sys::get_next_id() {
+uint64_t Clone_Sys::get_next_id() {
   ut_ad(mutex_own(&m_clone_sys_mutex));
 
   return (++m_clone_id_generator);
@@ -1221,7 +1220,7 @@ uint32_t Clone_Task_Manager::get_next_chunk() {
   return (ret_chunk);
 }
 
-uint32_t Clone_Task_Manager::get_next_incomplete_chunk(uint32 &block_num) {
+uint32_t Clone_Task_Manager::get_next_incomplete_chunk(uint32_t &block_num) {
   block_num = 0;
 
   auto &chunks = m_chunk_info.m_incomplete_chunks;
@@ -1995,7 +1994,7 @@ int Clone_Handle::create_clone_directory() {
 
 int Clone_Handle::init(const byte *ref_loc, uint ref_len, Ha_clone_type type,
                        const char *data_dir) {
-  ib_uint64_t snapshot_id;
+  uint64_t snapshot_id;
   Clone_Snapshot *snapshot;
 
   m_clone_dir = data_dir;
@@ -2084,7 +2083,7 @@ byte *Clone_Handle::get_locator(uint &loc_len) {
 
 void Clone_Handle::build_descriptor(Clone_Desc_Locator *loc_desc) {
   Clone_Snapshot *snapshot;
-  ib_uint64_t snapshot_id = CLONE_LOC_INVALID_ID;
+  uint64_t snapshot_id = CLONE_LOC_INVALID_ID;
   Snapshot_State state = CLONE_SNAPSHOT_NONE;
 
   snapshot = m_clone_task_manager.get_snapshot();

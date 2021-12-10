@@ -129,7 +129,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector);
                                 sdi_len is UINT64MAX_T, else sdi_len is
                                 actual length of SDI */
 bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
-                  void *sdi, uint64 *sdi_len);
+                  void *sdi, uint64_t *sdi_len);
 
 /** Insert/Update SDI in tablespace.
 @param[in]	hton            handlerton object
@@ -143,7 +143,7 @@ object
 @retval		true		failure */
 bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                   const dd::Table *table, const sdi_key_t *sdi_key,
-                  const void *sdi, uint64 sdi_len);
+                  const void *sdi, uint64_t sdi_len);
 
 /** Delete SDI from tablespace.
 @param[in]	tablespace	tablespace object

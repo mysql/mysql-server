@@ -45,8 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	file_offset	start offset in bytes
 @param[in]	context		snapshot
 @return	error code */
-static int add_redo_file_callback(char *file_name, ib_uint64_t file_size,
-                                  ib_uint64_t file_offset, void *context) {
+static int add_redo_file_callback(char *file_name, uint64_t file_size,
+                                  uint64_t file_offset, void *context) {
   auto snapshot = static_cast<Clone_Snapshot *>(context);
 
   auto err = snapshot->add_redo_file(file_name, file_size, file_offset);
@@ -64,7 +64,7 @@ static int add_page_callback(void *context, byte *buff, uint num_pages) {
   Clone_Snapshot *snapshot;
 
   space_id_t space_id;
-  ib_uint32_t page_num;
+  uint32_t page_num;
 
   snapshot = static_cast<Clone_Snapshot *>(context);
 
@@ -889,7 +889,7 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node, bool by_ddl) {
   return (err != 0 ? DB_ERROR : DB_SUCCESS);
 }
 
-int Clone_Snapshot::add_page(space_id_t space_id, ib_uint32_t page_num) {
+int Clone_Snapshot::add_page(space_id_t space_id, uint32_t page_num) {
   /* Skip pages belonging to tablespace not included for clone. This could
   be some left over pages from drop or truncate in buffer pool which
   would eventually get removed. Or it may be a page for an undo tablespace

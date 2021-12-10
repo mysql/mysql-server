@@ -293,7 +293,7 @@ inline std::ostream &operator<<(std::ostream &out, const lock_t &lock) {
 }
 
 #ifdef UNIV_DEBUG
-extern ibool lock_print_waits;
+extern bool lock_print_waits;
 #endif /* UNIV_DEBUG */
 
 /* Safety margin when creating a new record lock: this many extra records
@@ -553,11 +553,11 @@ locks on the inserted record. */
  */
 static const byte lock_compatibility_matrix[5][5] = {
     /**         IS     IX       S     X       AI */
-    /* IS */ {TRUE, TRUE, TRUE, FALSE, TRUE},
-    /* IX */ {TRUE, TRUE, FALSE, FALSE, TRUE},
-    /* S  */ {TRUE, FALSE, TRUE, FALSE, FALSE},
-    /* X  */ {FALSE, FALSE, FALSE, FALSE, FALSE},
-    /* AI */ {TRUE, TRUE, FALSE, FALSE, FALSE}};
+    /* IS */ {true, true, true, false, true},
+    /* IX */ {true, true, false, false, true},
+    /* S  */ {true, false, true, false, false},
+    /* X  */ {false, false, false, false, false},
+    /* AI */ {true, true, false, false, false}};
 
 /* STRONGER-OR-EQUAL RELATION (mode1=row, mode2=column)
     IS IX S  X  AI
@@ -570,16 +570,16 @@ static const byte lock_compatibility_matrix[5][5] = {
  */
 static const byte lock_strength_matrix[5][5] = {
     /**         IS     IX       S     X       AI */
-    /* IS */ {TRUE, FALSE, FALSE, FALSE, FALSE},
-    /* IX */ {TRUE, TRUE, FALSE, FALSE, FALSE},
-    /* S  */ {TRUE, FALSE, TRUE, FALSE, FALSE},
-    /* X  */ {TRUE, TRUE, TRUE, TRUE, TRUE},
-    /* AI */ {FALSE, FALSE, FALSE, FALSE, TRUE}};
+    /* IS */ {true, false, false, false, false},
+    /* IX */ {true, true, false, false, false},
+    /* S  */ {true, false, true, false, false},
+    /* X  */ {true, true, true, true, true},
+    /* AI */ {false, false, false, false, true}};
 
 /** Maximum depth of the DFS stack. */
-static const ulint MAX_STACK_SIZE = 4096;
+constexpr uint32_t MAX_STACK_SIZE = 4096;
 
-#define PRDT_HEAPNO PAGE_HEAP_NO_INFIMUM
+constexpr uint32_t PRDT_HEAPNO = PAGE_HEAP_NO_INFIMUM;
 /** Record locking request status */
 enum lock_rec_req_status {
   /** Failed to acquire a lock */
@@ -914,7 +914,7 @@ static inline const lock_t *lock_rec_get_next_on_page_const(
 static inline ulint lock_rec_get_n_bits(
     const lock_t *lock); /*!< in: record lock */
 
-/** Sets the nth bit of a record lock to TRUE.
+/** Sets the nth bit of a record lock to true.
 @param[in]	lock	record lock
 @param[in]	i	index of the bit */
 static inline void lock_rec_set_nth_bit(lock_t *lock, ulint i);

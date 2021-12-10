@@ -194,7 +194,8 @@ buf_block_t *data_page_t::load_x(page_no_t page_no) {
   const page_id_t page_id(space_id, page_no);
   const page_size_t page_size = dict_table_page_size(m_index->table);
 
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+  m_block =
+      buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
   return (m_block);
 }
 

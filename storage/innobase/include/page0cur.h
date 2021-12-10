@@ -79,13 +79,13 @@ static inline void page_cur_set_before_first(const buf_block_t *block,
 static inline void page_cur_set_after_last(const buf_block_t *block,
                                            page_cur_t *cur);
 
-/** Returns TRUE if the cursor is before first user record on page.
+/** Returns true if the cursor is before first user record on page.
  @return true if at start */
-static inline ibool page_cur_is_before_first(
+static inline bool page_cur_is_before_first(
     const page_cur_t *cur); /*!< in: cursor */
-/** Returns TRUE if the cursor is after last user record.
+/** Returns true if the cursor is after last user record.
  @return true if at end */
-static inline ibool page_cur_is_after_last(
+static inline bool page_cur_is_after_last(
     const page_cur_t *cur); /*!< in: cursor */
 
 /** Positions the cursor on the given record.
@@ -274,7 +274,7 @@ void page_cur_open_on_rnd_user_rec(buf_block_t *block,  /*!< in: page */
 /** Parses a log record of a record insert on a page.
  @return end of log record or NULL */
 byte *page_cur_parse_insert_rec(
-    ibool is_short,      /*!< in: TRUE if short inserts */
+    bool is_short,       /*!< in: true if short inserts */
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
     buf_block_t *block,  /*!< in: page or NULL */

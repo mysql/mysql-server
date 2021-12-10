@@ -121,10 +121,9 @@ static inline void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr,
 static inline fil_addr_t flst_read_addr(const fil_faddr_t *faddr, mtr_t *mtr);
 
 /** Validates a file-based list.
- @return true if ok */
-ibool flst_validate(
-    const flst_base_node_t *base, /*!< in: pointer to base node of list */
-    mtr_t *mtr1);                 /*!< in: mtr */
+ @param[in] base pointer to base node of list
+ @param[in] mtr1 mtr */
+void flst_validate(const flst_base_node_t *base, mtr_t *mtr1);
 
 /** Inserts a node after another in a list.
 @param[in]	base	Pointer to base node of list

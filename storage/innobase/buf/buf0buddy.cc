@@ -71,15 +71,15 @@ a frame.
 
 /** Offset within buf_buddy_free_t where free or non_free stamps
 are written.*/
-#define BUF_BUDDY_STAMP_OFFSET FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
+constexpr uint32_t BUF_BUDDY_STAMP_OFFSET = FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID;
 
 /** Value that we stamp on all buffers that are currently on the zip_free
 list. This value is stamped at BUF_BUDDY_STAMP_OFFSET offset */
-#define BUF_BUDDY_STAMP_FREE dict_sys_t::s_log_space_first_id
+constexpr uint64_t BUF_BUDDY_STAMP_FREE = dict_sys_t::s_log_space_first_id;
 
 /** Stamp value for non-free buffers. Will be overwritten by a non-zero
 value by the consumer of the block */
-#define BUF_BUDDY_STAMP_NONFREE 0XFFFFFFFFUL
+[[maybe_unused]] constexpr uint64_t BUF_BUDDY_STAMP_NONFREE = 0XFFFFFFFFUL;
 
 /** Return type of buf_buddy_is_free() */
 enum buf_buddy_state_t {
@@ -101,8 +101,10 @@ static inline void buf_buddy_mem_invalid(
   UNIV_MEM_ASSERT_W(buf, size);
   UNIV_MEM_INVALID(buf, size);
 }
-#else /* UNIV_DEBUG_VALGRIND */
-#define buf_buddy_mem_invalid(buf, i) ut_ad((i) <= BUF_BUDDY_SIZES)
+#else  /* UNIV_DEBUG_VALGRIND */
+static inline void buf_buddy_mem_invalid(buf_buddy_free_t *buf, ulint i) {
+  ut_ad(i <= BUF_BUDDY_SIZES);
+}
 #endif /* UNIV_DEBUG_VALGRIND */
 
 /** Check if a buddy is stamped free.
@@ -129,14 +131,10 @@ static inline void buf_buddy_stamp_free(
 /** Stamps a buddy nonfree.
  @param[in,out]	buf	block to stamp
  @param[in]	i	block size */
-#define buf_buddy_stamp_nonfree(buf, i)                         \
-  do {                                                          \
-    buf_buddy_mem_invalid(buf, i);                              \
-    memset(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET, 0xff, 4); \
-  } while (0)
-#if BUF_BUDDY_STAMP_NONFREE != 0xffffffff
-#error "BUF_BUDDY_STAMP_NONFREE != 0xffffffff"
-#endif
+static inline void buf_buddy_stamp_nonfree(buf_buddy_free_t *buf, ulint i) {
+  buf_buddy_mem_invalid(buf, i);
+  memset(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET, 0xff, 4);
+}
 
 /** Get the offset of the buddy of a compressed page frame.
  @return the buddy relative of page */
@@ -348,7 +346,7 @@ static void buf_buddy_block_free(buf_pool_t *buf_pool, void *buf) {
   ut_a(buf_page_get_state(bpage) == BUF_BLOCK_MEMORY);
   ut_ad(!bpage->in_page_hash);
   ut_ad(bpage->in_zip_hash);
-  ut_d(bpage->in_zip_hash = FALSE);
+  ut_d(bpage->in_zip_hash = false);
   HASH_DELETE(buf_page_t, hash, buf_pool->zip_hash, fold, bpage);
 
   ut_ad(buf_pool->buddy_n_frames > 0);
@@ -377,7 +375,7 @@ static void buf_buddy_block_register(buf_block_t *block) {
 
   ut_ad(!block->page.in_page_hash);
   ut_ad(!block->page.in_zip_hash);
-  ut_d(block->page.in_zip_hash = TRUE);
+  ut_d(block->page.in_zip_hash = true);
 
   mutex_enter(&buf_pool->zip_hash_mutex);
   HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
@@ -505,7 +503,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
   rw_lock_t *hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
-  rw_lock_x_lock(hash_lock);
+  rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
 
   /* page_hash can be changed. */
   hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
@@ -538,7 +536,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
     while (bpage != nullptr) {
       if (bpage->zip.data == src) {
         hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
-        rw_lock_x_lock(hash_lock);
+        rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
         break;
       }
       bpage = UT_LIST_GET_NEXT(LRU, bpage);

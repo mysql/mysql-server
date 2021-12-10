@@ -89,8 +89,8 @@ static inline ib_list_node_t *ib_list_get_last(
 
 /********************************************************************
 Check if list is empty. */
-static inline ibool ib_list_is_empty(
-    /* out: TRUE if empty else  */
+static inline bool ib_list_is_empty(
+    /* out: true if empty else  */
     const ib_list_t *list); /* in: list */
 
 /* List. */

@@ -263,34 +263,22 @@ called once during thread de-initialization. */
 void trx_sys_undo_spaces_deinit();
 
 /** The automatically created system rollback segment has this id */
-#define TRX_SYS_SYSTEM_RSEG_ID 0
+constexpr uint32_t TRX_SYS_SYSTEM_RSEG_ID = 0;
 
 /** The offset of the transaction system header on the page */
-#define TRX_SYS FSEG_PAGE_DATA
+constexpr uint32_t TRX_SYS = FSEG_PAGE_DATA;
 
 /** Transaction system header */
 /*------------------------------------------------------------- @{ */
-#define TRX_SYS_TRX_ID_STORE       \
-  0 /*!< the maximum trx id or trx \
-    number modulo                  \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    written to a file page by any  \
-    transaction; the assignment of \
-    transaction ids continues from \
-    this number rounded up by      \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    plus                           \
-    TRX_SYS_TRX_ID_UPDATE_MARGIN   \
-    when the database is           \
-    started */
-#define TRX_SYS_FSEG_HEADER     \
-  8 /*!< segment header for the \
-    tablespace segment the trx  \
-    system is created into */
-#define TRX_SYS_RSEGS (8 + FSEG_HEADER_SIZE)
-/*!< the start of the array of
-rollback segment specification
-slots */
+/** the maximum trx id or trx number modulo TRX_SYS_TRX_ID_UPDATE_MARGIN written
+   to a file page by any  transaction; the assignment of transaction ids
+   continues from  this number rounded up by TRX_SYS_TRX_ID_UPDATE_MARGIN  plus
+   TRX_SYS_TRX_ID_UPDATE_MARGIN when the database is started */
+constexpr uint32_t TRX_SYS_TRX_ID_STORE = 0;
+/** segment header for the  tablespace segment the trx system is created into */
+constexpr uint32_t TRX_SYS_FSEG_HEADER = 8;
+/** the start of the array of rollback segment specification slots */
+constexpr uint32_t TRX_SYS_RSEGS = 8 + FSEG_HEADER_SIZE;
 /*------------------------------------------------------------- @} */
 
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
@@ -307,82 +295,59 @@ remains the same. */
 constexpr size_t TRX_SYS_OLD_TMP_RSEGS = 32;
 
 /** Maximum length of MySQL binlog file name, in bytes. */
-#define TRX_SYS_MYSQL_LOG_NAME_LEN 512
+constexpr uint32_t TRX_SYS_MYSQL_LOG_NAME_LEN = 512;
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
-#define TRX_SYS_MYSQL_LOG_MAGIC_N 873422344
+constexpr uint32_t TRX_SYS_MYSQL_LOG_MAGIC_N = 873422344;
 
-#if UNIV_PAGE_SIZE_MIN < 4096
-#error "UNIV_PAGE_SIZE_MIN < 4096"
-#endif
+static_assert(UNIV_PAGE_SIZE_MIN >= 4096, "UNIV_PAGE_SIZE_MIN < 4096");
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO (UNIV_PAGE_SIZE - 1000)
-#define TRX_SYS_MYSQL_LOG_MAGIC_N_FLD \
-  0 /*!< magic number which is        \
-    TRX_SYS_MYSQL_LOG_MAGIC_N         \
-    if we have valid data in the      \
-    MySQL binlog info */
-#define TRX_SYS_MYSQL_LOG_OFFSET_HIGH \
-  4 /*!< high 4 bytes of the offset   \
-    within that file */
-#define TRX_SYS_MYSQL_LOG_OFFSET_LOW                             \
-  8                               /*!< low 4 bytes of the offset \
-                                  within that file */
-#define TRX_SYS_MYSQL_LOG_NAME 12 /*!< MySQL log file name */
+/** magic number which is TRX_SYS_MYSQL_LOG_MAGIC_N if we have valid data in the
+ MySQL binlog info */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_MAGIC_N_FLD = 0;
+/** high 4 bytes of the offset within that file */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_OFFSET_HIGH = 4;
+/** low 4 bytes of the offset within that file */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_OFFSET_LOW = 8;
+/** MySQL log file name */
+constexpr uint32_t TRX_SYS_MYSQL_LOG_NAME = 12;
 
 /** Reserve next 8 bytes for transaction number up to which GTIDs
 are persisted to table */
 #define TRX_SYS_TRX_NUM_GTID \
   (TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME + TRX_SYS_MYSQL_LOG_NAME_LEN)
-#define TRX_SYS_TRX_NUM_END = (TRX_SYS_TRX_NUM_GTID + 8)
-
+#define TRX_SYS_TRX_NUM_END (TRX_SYS_TRX_NUM_GTID + 8)
 /** Doublewrite buffer */
 /** @{ */
 /** The offset of the doublewrite buffer header on the trx system header page */
 #define TRX_SYS_DOUBLEWRITE (UNIV_PAGE_SIZE - 200)
 /*-------------------------------------------------------------*/
-#define TRX_SYS_DOUBLEWRITE_FSEG \
-  0 /*!< fseg header of the fseg \
-    containing the doublewrite   \
-    buffer */
-#define TRX_SYS_DOUBLEWRITE_MAGIC FSEG_HEADER_SIZE
-/*!< 4-byte magic number which
-shows if we already have
-created the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_BLOCK1 (4 + FSEG_HEADER_SIZE)
-/*!< page number of the
-first page in the first
-sequence of 64
-(= FSP_EXTENT_SIZE) consecutive
-pages in the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_BLOCK2 (8 + FSEG_HEADER_SIZE)
-/*!< page number of the
-first page in the second
-sequence of 64 consecutive
-pages in the doublewrite
-buffer */
-#define TRX_SYS_DOUBLEWRITE_REPEAT \
-  12 /*!< we repeat                \
-     TRX_SYS_DOUBLEWRITE_MAGIC,    \
-     TRX_SYS_DOUBLEWRITE_BLOCK1,   \
-     TRX_SYS_DOUBLEWRITE_BLOCK2    \
-     so that if the trx sys        \
-     header is half-written        \
-     to disk, we still may         \
-     be able to recover the        \
-     information */
+/** fseg header of the fseg containing the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_FSEG = 0;
+/** 4-byte magic number which shows if we already have created the doublewrite
+ buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_MAGIC = FSEG_HEADER_SIZE;
+/** page number of the first page in the first sequence of 64 (=
+ FSP_EXTENT_SIZE) consecutive pages in the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_BLOCK1 = 4 + FSEG_HEADER_SIZE;
+/** page number of the first page in the second sequence of 64 consecutive pages
+ in the doublewrite buffer */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_BLOCK2 = 8 + FSEG_HEADER_SIZE;
+/** we repeat TRX_SYS_DOUBLEWRITE_MAGIC, TRX_SYS_DOUBLEWRITE_BLOCK1,
+ TRX_SYS_DOUBLEWRITE_BLOCK2 so that if the trx sys header is half-written to
+ disk, we still may be able to recover the information */
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_REPEAT = 12;
 /** If this is not yet set to TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
 we must reset the doublewrite buffer, because starting from 4.1.x the
 space id of a data page is stored into
 FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
-#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED (24 + FSEG_HEADER_SIZE)
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED = 24 + FSEG_HEADER_SIZE;
 
 /*-------------------------------------------------------------*/
 /** Contents of TRX_SYS_DOUBLEWRITE_MAGIC */
-#define TRX_SYS_DOUBLEWRITE_MAGIC_N 536853855
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_MAGIC_N = 536853855;
 /** Contents of TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED */
-#define TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N 1783657386
+constexpr uint32_t TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N = 1783657386;
 
 /** Size of the doublewrite block in pages */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE FSP_EXTENT_SIZE
@@ -639,36 +604,32 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 constexpr trx_id_t TRX_SYS_TRX_ID_WRITE_MARGIN = 256;
 
-/** Test if trx_sys->mutex is owned. */
-#define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
-
 /** Acquire the trx_sys->mutex. */
-#define trx_sys_mutex_enter()     \
-  do {                            \
-    mutex_enter(&trx_sys->mutex); \
-  } while (0)
+static inline void trx_sys_mutex_enter() { mutex_enter(&trx_sys->mutex); }
 
 /** Release the trx_sys->mutex. */
-#define trx_sys_mutex_exit() \
-  do {                       \
-    trx_sys->mutex.exit();   \
-  } while (0)
+static inline void trx_sys_mutex_exit() { trx_sys->mutex.exit(); }
+
+#ifdef UNIV_DEBUG
+
+/** Test if trx_sys->mutex is owned. */
+static inline bool trx_sys_mutex_own() { return trx_sys->mutex.is_owned(); }
 
 /** Test if trx_sys->serialisation_mutex is owned. */
-#define trx_sys_serialisation_mutex_own() \
-  (trx_sys->serialisation_mutex.is_owned())
+static inline bool trx_sys_serialisation_mutex_own() {
+  return trx_sys->serialisation_mutex.is_owned();
+}
+#endif
 
 /** Acquire the trx_sys->serialisation_mutex. */
-#define trx_sys_serialisation_mutex_enter()     \
-  do {                                          \
-    mutex_enter(&trx_sys->serialisation_mutex); \
-  } while (0)
+static inline void trx_sys_serialisation_mutex_enter() {
+  mutex_enter(&trx_sys->serialisation_mutex);
+}
 
 /** Release the trx_sys->serialisation_mutex. */
-#define trx_sys_serialisation_mutex_exit() \
-  do {                                     \
-    trx_sys->serialisation_mutex.exit();   \
-  } while (0)
+static inline void trx_sys_serialisation_mutex_exit() {
+  trx_sys->serialisation_mutex.exit();
+}
 
 #endif /* !UNIV_HOTBACKUP */
 

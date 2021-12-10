@@ -132,7 +132,7 @@ inline dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
 
 /** Returns a cached table object based on table id.
 @param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	dict_locked	true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
                                                 bool dict_locked) {
@@ -169,10 +169,10 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
 
 /** Returns a cached table object based on table name.
 @param[in]	name		table name
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	dict_locked	true=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
-                                                  ibool dict_locked) {
+                                                  bool dict_locked) {
   dict_table_t *table = nullptr;
 
   if (!dict_locked) {
@@ -333,7 +333,7 @@ inline uint64_t dd_get_version(const dd::Table *dd_table) {
 
   if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION]) ||
       p.get(dd_table_key_strings[DD_TABLE_VERSION],
-            reinterpret_cast<uint64 *>(&version))) {
+            reinterpret_cast<uint64_t *>(&version))) {
     return (0);
   }
 

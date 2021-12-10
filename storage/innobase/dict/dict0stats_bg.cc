@@ -49,8 +49,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Minimum time interval between stats recalc for a given table */
 constexpr std::chrono::seconds MIN_RECALC_INTERVAL{10};
 
-#define SHUTTING_DOWN() \
-  (srv_shutdown_state.load() >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS)
+static inline bool SHUTTING_DOWN() {
+  return srv_shutdown_state.load() >=
+         SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS;
+}
 
 /** Event to wake up the stats thread */
 os_event_t dict_stats_event = nullptr;
@@ -198,7 +200,7 @@ void dict_stats_wait_bg_to_stop_using_table(
                          unlocking/locking the data dict */
 {
   while (!dict_stats_stop_bg(table)) {
-    DICT_STATS_BG_YIELD(trx);
+    DICT_STATS_BG_YIELD(trx, UT_LOCATION_HERE);
   }
 }
 

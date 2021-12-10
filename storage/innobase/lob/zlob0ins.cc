@@ -37,7 +37,8 @@ int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   buf_block_t *blob_block = alloc_blob_page();
 
@@ -77,7 +78,7 @@ int zInserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   m_prev_page_no = page_get_page_no(blob_page);
 
   /* Commit mtr and release uncompressed page frame to save memory.*/
-  blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+  blob_free(m_ctx->index(), m_cur_blob_block, false, mtr);
 
   return (err);
 }
@@ -243,7 +244,8 @@ int zInserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   buf_block_t *blob_block = alloc_blob_page();
   page_t *blob_page = buf_block_get_frame(blob_block);
@@ -263,7 +265,7 @@ int zInserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
   }
 
   /* Commit mtr and release uncompressed page frame to save memory.*/
-  blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
+  blob_free(m_ctx->index(), m_cur_blob_block, false, mtr);
 
   return (err);
 }
@@ -277,7 +279,7 @@ dberr_t zInserter::prepare() {
   kilobytes for small objects.  We use reduced memLevel
   to limit the memory consumption, and preallocate the
   heap, hoping to avoid memory fragmentation. */
-  m_heap = mem_heap_create(250000);
+  m_heap = mem_heap_create(250000, UT_LOCATION_HERE);
 
   if (m_heap == nullptr) {
     return (DB_OUT_OF_MEMORY);

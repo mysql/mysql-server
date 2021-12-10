@@ -64,7 +64,7 @@ struct dict_table_t;
 
 /** If buffer pool is less than the size,
 only one buffer pool instance is used. */
-#define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
+constexpr uint32_t BUF_POOL_SIZE_THRESHOLD = 1024 * 1024 * 1024;
 
 /** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
@@ -145,7 +145,7 @@ extern bool srv_sys_tablespaces_open;
 incomplete transactions */
 extern bool srv_startup_is_before_trx_rollback_phase;
 
-/** TRUE if a raw partition is in use */
-extern ibool srv_start_raw_disk_in_use;
+/** true if a raw partition is in use */
+extern bool srv_start_raw_disk_in_use;
 
 #endif

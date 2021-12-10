@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0types.h"
 #include "os0event.h"
 #include "os0thread.h"
+#include "row0mysql.h"
 
 /** Event to wake up the stats thread */
 extern os_event_t dict_stats_event;
@@ -66,13 +67,13 @@ void dict_stats_recalc_pool_del(
 
 /** Yield the data dictionary latch when waiting
 for the background thread to stop accessing a table.
-@param trx transaction holding the data dictionary locks */
-#define DICT_STATS_BG_YIELD(trx)                                 \
-  do {                                                           \
-    row_mysql_unlock_data_dictionary(trx);                       \
-    std::this_thread::sleep_for(std::chrono::milliseconds(250)); \
-    row_mysql_lock_data_dictionary(trx);                         \
-  } while (0)
+@param[in] trx transaction holding the data dictionary locks
+@param[in] location location where called */
+static inline void DICT_STATS_BG_YIELD(trx_t *trx, ut::Location location) {
+  row_mysql_unlock_data_dictionary(trx);
+  std::this_thread::sleep_for(std::chrono::milliseconds(250));
+  row_mysql_lock_data_dictionary(trx, location);
+}
 
 /** Request the background collection of statistics to stop for a table.
  @retval true when no background process is active

@@ -84,7 +84,7 @@ static inline void dfield_set_len(dfield_t *field, ulint len);
     const dfield_t *field); /*!< in: field */
 /** Determines if a field is externally stored
  @return nonzero if externally stored */
-[[nodiscard]] static inline ulint dfield_is_ext(
+[[nodiscard]] static inline bool dfield_is_ext(
     const dfield_t *field); /*!< in: field */
 /** Sets the "external storage" flag */
 static inline void dfield_set_ext(dfield_t *field); /*!< in/out: field */
@@ -601,8 +601,8 @@ class Multi_value_logger {
 
 /** Structure for an SQL data field */
 struct dfield_t {
-  void *data;       /*!< pointer to data */
-  unsigned ext : 1; /*!< TRUE=externally stored, FALSE=local */
+  void *data; /*!< pointer to data */
+  bool ext;   /*!< true=externally stored, false=local */
   unsigned spatial_status : 2;
   /*!< spatial status of externally stored field
   in undo log for purge */
@@ -613,7 +613,7 @@ struct dfield_t {
 
   void reset() {
     data = nullptr;
-    ext = FALSE;
+    ext = false;
     spatial_status = SPATIAL_UNKNOWN, len = 0;
   }
 
@@ -670,6 +670,11 @@ object into the given output stream.
 inline std::ostream &operator<<(std::ostream &out, const dfield_t &obj) {
   return (obj.print(out));
 }
+
+#ifdef UNIV_DEBUG
+/** Value of dtuple_t::magic_n */
+constexpr uint32_t DATA_TUPLE_MAGIC_N = 65478679;
+#endif
 
 /** Structure for an SQL data tuple of fields (logical record) */
 struct dtuple_t {

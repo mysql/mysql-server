@@ -876,7 +876,7 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
 static int i_s_cmp_fill_low(THD *thd,           /*!< in: thread */
                             TABLE_LIST *tables, /*!< in/out: tables to fill */
                             Item *,             /*!< in: condition (ignored) */
-                            ibool reset) /*!< in: TRUE=reset cumulated counts */
+                            bool reset) /*!< in: true=reset cumulated counts */
 {
   TABLE *table = (TABLE *)tables->table;
   int status = 0;
@@ -930,7 +930,7 @@ static int i_s_cmp_fill(THD *thd,           /*!< in: thread */
                         TABLE_LIST *tables, /*!< in/out: tables to fill */
                         Item *cond)         /*!< in: condition (ignored) */
 {
-  return (i_s_cmp_fill_low(thd, tables, cond, FALSE));
+  return (i_s_cmp_fill_low(thd, tables, cond, false));
 }
 
 /** Fill the dynamic table information_schema.innodb_cmp_reset.
@@ -939,7 +939,7 @@ static int i_s_cmp_reset_fill(THD *thd,           /*!< in: thread */
                               TABLE_LIST *tables, /*!< in/out: tables to fill */
                               Item *cond) /*!< in: condition (ignored) */
 {
-  return (i_s_cmp_fill_low(thd, tables, cond, TRUE));
+  return (i_s_cmp_fill_low(thd, tables, cond, true));
 }
 
 /** Bind the dynamic table information_schema.innodb_cmp.
@@ -1152,7 +1152,7 @@ static int i_s_cmp_per_index_fill_low(
     THD *thd,           /*!< in: thread */
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *,             /*!< in: condition (ignored) */
-    ibool reset)        /*!< in: TRUE=reset cumulated counts */
+    bool reset)         /*!< in: true=reset cumulated counts */
 {
   TABLE *table = tables->table;
   Field **fields = table->field;
@@ -1257,7 +1257,7 @@ static int i_s_cmp_per_index_fill(
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
 {
-  return (i_s_cmp_per_index_fill_low(thd, tables, cond, FALSE));
+  return (i_s_cmp_per_index_fill_low(thd, tables, cond, false));
 }
 
 /** Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
@@ -1267,7 +1267,7 @@ static int i_s_cmp_per_index_reset_fill(
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
 {
-  return (i_s_cmp_per_index_fill_low(thd, tables, cond, TRUE));
+  return (i_s_cmp_per_index_fill_low(thd, tables, cond, true));
 }
 
 /** Bind the dynamic table information_schema.innodb_cmp_per_index.
@@ -1462,10 +1462,10 @@ innodb_cmpmem_reset.
 @param[in]	thd	thread
 @param[in,out]	tables	tables to fill
 @param[in]	item	condition (ignored)
-@param[in]	reset	TRUE=reset cumulated counts
+@param[in]	reset	true=reset cumulated counts
 @return 0 on success, 1 on failure */
 static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
-                               ibool reset) {
+                               bool reset) {
   int status = 0;
   TABLE *table = (TABLE *)tables->table;
 
@@ -1538,7 +1538,7 @@ static int i_s_cmpmem_fill(THD *thd,           /*!< in: thread */
                            TABLE_LIST *tables, /*!< in/out: tables to fill */
                            Item *cond)         /*!< in: condition (ignored) */
 {
-  return (i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
+  return (i_s_cmpmem_fill_low(thd, tables, cond, false));
 }
 
 /** Fill the dynamic table information_schema.innodb_cmpmem_reset.
@@ -1548,7 +1548,7 @@ static int i_s_cmpmem_reset_fill(
     TABLE_LIST *tables, /*!< in/out: tables to fill */
     Item *cond)         /*!< in: condition (ignored) */
 {
-  return (i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
+  return (i_s_cmpmem_fill_low(thd, tables, cond, true));
 }
 
 /** Bind the dynamic table information_schema.innodb_cmpmem.
@@ -1861,10 +1861,10 @@ static int i_s_metrics_fill(
     OK(field_store_string(fields[METRIC_DESC], monitor_info->monitor_desc));
 
     /* Fill in counter values */
-    OK(fields[METRIC_VALUE_RESET]->store(MONITOR_VALUE(count), FALSE));
+    OK(fields[METRIC_VALUE_RESET]->store(MONITOR_VALUE(count), false));
 
     OK(fields[METRIC_VALUE_START]->store(MONITOR_VALUE_SINCE_START(count),
-                                         FALSE));
+                                         false));
 
     /* If the max value is MAX_RESERVED, counter max
     value has not been updated. Set the column value
@@ -1874,7 +1874,7 @@ static int i_s_metrics_fill(
       fields[METRIC_MAX_VALUE_RESET]->set_null();
     } else {
       OK(fields[METRIC_MAX_VALUE_RESET]->store(MONITOR_MAX_VALUE(count),
-                                               FALSE));
+                                               false));
       fields[METRIC_MAX_VALUE_RESET]->set_notnull();
     }
 
@@ -1886,7 +1886,7 @@ static int i_s_metrics_fill(
       fields[METRIC_MIN_VALUE_RESET]->set_null();
     } else {
       OK(fields[METRIC_MIN_VALUE_RESET]->store(MONITOR_MIN_VALUE(count),
-                                               FALSE));
+                                               false));
       fields[METRIC_MIN_VALUE_RESET]->set_notnull();
     }
 
@@ -1896,7 +1896,7 @@ static int i_s_metrics_fill(
     if (max_val == MAX_RESERVED || MONITOR_MAX_MIN_NOT_INIT(count)) {
       fields[METRIC_MAX_VALUE_START]->set_null();
     } else {
-      OK(fields[METRIC_MAX_VALUE_START]->store(max_val, FALSE));
+      OK(fields[METRIC_MAX_VALUE_START]->store(max_val, false));
       fields[METRIC_MAX_VALUE_START]->set_notnull();
     }
 
@@ -1906,7 +1906,7 @@ static int i_s_metrics_fill(
     if (min_val == MIN_RESERVED || MONITOR_MAX_MIN_NOT_INIT(count)) {
       fields[METRIC_MIN_VALUE_START]->set_null();
     } else {
-      OK(fields[METRIC_MIN_VALUE_START]->store(min_val, FALSE));
+      OK(fields[METRIC_MIN_VALUE_START]->store(min_val, false));
 
       fields[METRIC_MIN_VALUE_START]->set_notnull();
     }
@@ -1962,7 +1962,7 @@ static int i_s_metrics_fill(
 
       if (value_start) {
         OK(fields[METRIC_AVG_VALUE_START]->store(
-            MONITOR_VALUE_SINCE_START(count) / value_start, FALSE));
+            MONITOR_VALUE_SINCE_START(count) / value_start, false));
 
         fields[METRIC_AVG_VALUE_START]->set_notnull();
       } else {
@@ -1973,7 +1973,7 @@ static int i_s_metrics_fill(
         OK(fields[METRIC_AVG_VALUE_RESET]->store(
             MONITOR_VALUE(count) /
                 MONITOR_VALUE(monitor_info->monitor_related_id),
-            FALSE));
+            false));
         fields[METRIC_AVG_VALUE_RESET]->set_notnull();
       } else {
         fields[METRIC_AVG_VALUE_RESET]->set_null();
@@ -2287,9 +2287,9 @@ static ST_FIELD_INFO i_s_fts_doc_fields_info[] = {
  INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
  @return 0 on success, 1 on failure */
 static int i_s_fts_deleted_generic_fill(
-    THD *thd,            /*!< in: thread */
-    TABLE_LIST *tables,  /*!< in/out: tables to fill */
-    ibool being_deleted) /*!< in: BEING_DELTED table */
+    THD *thd,           /*!< in: thread */
+    TABLE_LIST *tables, /*!< in/out: tables to fill */
+    bool being_deleted) /*!< in: BEING_DELTED table */
 {
   Field **fields;
   TABLE *table = (TABLE *)tables->table;
@@ -2319,7 +2319,7 @@ static int i_s_fts_deleted_generic_fill(
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Prevent DDL to drop fts aux tables. */
-  rw_lock_s_lock(dict_operation_lock);
+  rw_lock_s_lock(dict_operation_lock, UT_LOCATION_HERE);
 
   user_table =
       dd_table_open_on_name(thd, &mdl, local_name, false, DICT_ERR_IGNORE_NONE);
@@ -2380,7 +2380,7 @@ static int i_s_fts_deleted_fill(
 {
   DBUG_TRACE;
 
-  return i_s_fts_deleted_generic_fill(thd, tables, FALSE);
+  return i_s_fts_deleted_generic_fill(thd, tables, false);
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
@@ -2461,7 +2461,7 @@ static int i_s_fts_being_deleted_fill(
 {
   DBUG_TRACE;
 
-  return i_s_fts_deleted_generic_fill(thd, tables, TRUE);
+  return i_s_fts_deleted_generic_fill(thd, tables, true);
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
@@ -3040,7 +3040,7 @@ static int i_s_fts_index_table_fill_one_index(
   DBUG_TRACE;
   assert(!dict_index_is_online_ddl(index));
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   words =
       ib_vector_create(ib_heap_allocator_create(heap), sizeof(fts_word_t), 256);
@@ -3130,7 +3130,7 @@ static int i_s_fts_index_table_fill(
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Prevent DDL to drop fts aux tables. */
-  rw_lock_s_lock(dict_operation_lock);
+  rw_lock_s_lock(dict_operation_lock, UT_LOCATION_HERE);
 
   user_table =
       dd_table_open_on_name(thd, &mdl, local_name, false, DICT_ERR_IGNORE_NONE);
@@ -3289,7 +3289,7 @@ static int i_s_fts_config_fill(
   }
 
   /* Prevent DDL to drop fts aux tables. */
-  rw_lock_s_lock(dict_operation_lock);
+  rw_lock_s_lock(dict_operation_lock, UT_LOCATION_HERE);
 
   user_table =
       dd_table_open_on_name(thd, &mdl, local_name, false, DICT_ERR_IGNORE_NONE);
@@ -3320,7 +3320,7 @@ static int i_s_fts_config_fill(
   while (fts_config_key[i]) {
     fts_string_t value;
     char *key_name;
-    ulint allocated = FALSE;
+    ulint allocated = false;
 
     value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
 
@@ -3328,7 +3328,7 @@ static int i_s_fts_config_fill(
 
     if (index && strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0) {
       key_name = fts_config_create_index_param_name(fts_config_key[i], index);
-      allocated = TRUE;
+      allocated = true;
     } else {
       key_name = (char *)fts_config_key[i];
     }
@@ -4337,10 +4337,10 @@ static int i_s_innodb_buffer_page_fill(
                              : 0,
         true));
 
-#if BUF_PAGE_STATE_BITS > 3
-#error \
-    "BUF_PAGE_STATE_BITS > 3, please ensure that all 1<<BUF_PAGE_STATE_BITS values are checked for"
-#endif
+    static_assert(BUF_PAGE_STATE_BITS <= 3,
+                  "BUF_PAGE_STATE_BITS > 3, please ensure that all "
+                  "1<<BUF_PAGE_STATE_BITS values are checked for");
+
     state = static_cast<enum buf_page_state>(page_info->page_state);
 
     switch (state) {
@@ -4575,11 +4575,11 @@ static int i_s_innodb_fill_buffer_pool(
 
   DBUG_TRACE;
 
-  heap = mem_heap_create(10000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   /* Go through each chunk of buffer pool. Currently, we only
   have one single chunk for each buffer pool */
-  for (ulint n = 0; n < ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new);
+  for (ulint n = 0; n < std::min(buf_pool->n_chunks, buf_pool->n_chunks_new);
        n++) {
     const buf_block_t *block;
     ulint n_blocks;
@@ -4597,7 +4597,7 @@ static int i_s_innodb_fill_buffer_pool(
     while (chunk_size > 0) {
       /* we cache maximum MAX_BUF_INFO_CACHED number of
       buffer page info */
-      num_to_process = ut_min(chunk_size, MAX_BUF_INFO_CACHED);
+      num_to_process = std::min(chunk_size, MAX_BUF_INFO_CACHED);
 
       mem_size = num_to_process * sizeof(buf_page_info_t);
 
@@ -4903,7 +4903,7 @@ static int i_s_innodb_buf_page_lru_fill(
 
   fields = table->field;
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   /* Iterate through the cached array and fill the I_S table rows */
   for (ulint i = 0; i < num_page; i++) {
@@ -5331,7 +5331,7 @@ static int i_s_dict_fill_innodb_tables(THD *thd, dict_table_t *table,
 
   fields = table_to_fill->field;
 
-  OK(fields[INNODB_TABLES_ID]->store(longlong(table->id), TRUE));
+  OK(fields[INNODB_TABLES_ID]->store(longlong(table->id), true));
 
   OK(field_store_string(fields[INNODB_TABLES_NAME], table->name.m_name));
 
@@ -5376,7 +5376,7 @@ static int i_s_innodb_tables_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
   mtr_start(&mtr);
 
@@ -5614,7 +5614,7 @@ static int i_s_dict_fill_innodb_tablestats(THD *thd, dict_table_t *table,
 
   fields = table_to_fill->field;
 
-  OK(fields[INNODB_TABLESTATS_ID]->store(longlong(table->id), TRUE));
+  OK(fields[INNODB_TABLESTATS_ID]->store(longlong(table->id), true));
 
   OK(field_store_string(fields[INNODB_TABLESTATS_NAME], table->name.m_name));
 
@@ -5678,7 +5678,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   /* Prevent DDL to drop tables. */
   dict_sys_mutex_enter();
@@ -5690,11 +5690,6 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     dict_table_t *table_rec;
     MDL_ticket *mdl_on_tab = nullptr;
     ulint ref_count = 0;
-#ifdef UNIV_DEBUG
-    bool dd_closed;
-
-    dd_closed = false;
-#endif
 
     /* Fetch the dict_table_t structure corresponding to
     this INNODB_TABLES record */
@@ -5715,11 +5710,7 @@ static int i_s_innodb_tables_fill_table_stats(THD *thd, TABLE_LIST *tables,
     /* Get the next record */
     dict_sys_mutex_enter();
 
-    if (table_rec != nullptr
-#ifdef UNIV_DEBUG
-        && !dd_closed
-#endif
-    ) {
+    if (table_rec != nullptr) {
       dd_table_close(table_rec, thd, &mdl_on_tab, true);
     }
 
@@ -5931,7 +5922,7 @@ static int i_s_innodb_indexes_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
   mtr_start(&mtr);
 
@@ -6298,7 +6289,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
 
   /* Scan mysql.tables table */
@@ -6479,7 +6470,7 @@ static int i_s_innodb_virtual_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
   mtr_start(&mtr);
 
@@ -6720,7 +6711,7 @@ collected by scanning INNODB_TABLESPACESS table.
 @return 0 on success */
 static int i_s_dict_fill_innodb_tablespaces(
     THD *thd, space_id_t space_id, const char *name, uint32_t flags,
-    uint32 server_version, uint32 space_version, bool is_encrypted,
+    uint32_t server_version, uint32_t space_version, bool is_encrypted,
     uint64_t autoextend_size, const char *state, TABLE *table_to_fill) {
   Field **fields;
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
@@ -6873,7 +6864,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     return 0;
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   dict_sys_mutex_enter();
   mtr_start(&mtr);
 
@@ -6883,8 +6874,8 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     space_id_t space;
     char *name{nullptr};
     uint32_t flags;
-    uint32 server_version;
-    uint32 space_version;
+    uint32_t server_version;
+    uint32_t space_version;
     bool is_encrypted = false;
     dd::String_type state;
     uint64_t autoextend_size;
@@ -7070,7 +7061,7 @@ static int i_s_innodb_cached_indexes_fill_table(THD *thd, TABLE_LIST *tables,
     return 0;
   }
 
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   dict_sys_mutex_enter();
 

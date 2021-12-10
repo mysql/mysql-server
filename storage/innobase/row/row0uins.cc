@@ -68,7 +68,6 @@ introduced where a call to log_free_check() is bypassed. */
     undo_node_t *node) /*!< in: undo node */
 {
   btr_cur_t *btr_cur;
-  ibool success;
   dberr_t err;
   ulint n_tries = 0;
   mtr_t mtr;
@@ -92,15 +91,15 @@ introduced where a call to log_free_check() is bypassed. */
   if (online) {
     ut_ad(node->trx->dict_operation_lock_mode != RW_X_LATCH);
     ut_ad(node->table->id != DICT_INDEXES_ID);
-    mtr_s_lock(dict_index_get_lock(index), &mtr);
+    mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   }
 
-  success = btr_pcur_restore_position(
-      online ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED : BTR_MODIFY_LEAF,
-      &node->pcur, &mtr);
+  auto success = node->pcur.restore_position(
+      online ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED : BTR_MODIFY_LEAF, &mtr,
+      UT_LOCATION_HERE);
   ut_a(success);
 
-  btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+  btr_cur = node->pcur.get_btr_cur();
 
   ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index) ==
         node->trx->id);
@@ -122,18 +121,18 @@ introduced where a call to log_free_check() is bypassed. */
     goto func_exit;
   }
 
-  btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+  node->pcur.commit_specify_mtr(&mtr);
 retry:
   /* If did not succeed, try pessimistic descent to tree */
   mtr_start(&mtr);
 
   dict_disable_redo_if_temporary(index->table, &mtr);
 
-  success = btr_pcur_restore_position(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
-                                      &node->pcur, &mtr);
+  success = node->pcur.restore_position(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+                                        &mtr, UT_LOCATION_HERE);
   ut_a(success);
 
-  btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
+  btr_cur_pessimistic_delete(&err, false, btr_cur, 0, true, node->trx->id,
                              node->undo_no, node->rec_type, &mtr, &node->pcur,
                              nullptr);
 
@@ -142,7 +141,7 @@ retry:
   and restart with more file space */
 
   if (err == DB_OUT_OF_FILE_SPACE && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
-    btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
+    node->pcur.commit_specify_mtr(&mtr);
 
     n_tries++;
 
@@ -153,7 +152,7 @@ retry:
   }
 
 func_exit:
-  btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+  node->pcur.commit_specify_mtr(&mtr);
 
   return (err);
 }
@@ -177,7 +176,7 @@ func_exit:
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   enum row_search_result search_result;
-  ibool modify_leaf = false;
+  bool modify_leaf = false;
   ulint rec_deleted;
 
   log_free_check();
@@ -188,11 +187,11 @@ func_exit:
 
   if (mode == BTR_MODIFY_LEAF) {
     mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-    mtr_s_lock(dict_index_get_lock(index), &mtr);
+    mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
     modify_leaf = true;
   } else {
     ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
-    mtr_sx_lock(dict_index_get_lock(index), &mtr);
+    mtr_sx_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   }
 
   if (row_log_online_op_try(index, entry, 0)) {
@@ -203,7 +202,7 @@ func_exit:
     if (mode & BTR_MODIFY_LEAF) {
       mode |= BTR_RTREE_DELETE_MARK;
     }
-    btr_pcur_get_btr_cur(&pcur)->thr = thr;
+    pcur.get_btr_cur()->thr = thr;
     mode |= BTR_RTREE_UNDO_INS;
   }
 
@@ -223,8 +222,8 @@ func_exit:
       ut_error;
   }
 
-  rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
-                                     dict_table_is_comp(index->table));
+  rec_deleted =
+      rec_get_deleted_flag(pcur.get_rec(), dict_table_is_comp(index->table));
 
   if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
     if (rec_deleted) {
@@ -233,7 +232,7 @@ func_exit:
     }
   }
 
-  btr_cur = btr_pcur_get_btr_cur(&pcur);
+  btr_cur = pcur.get_btr_cur();
 
   if (rec_deleted == 0) {
     /* This record is not delete marked and has an implicit
@@ -252,11 +251,11 @@ func_exit:
     only matters when deleting a record that contains
     externally stored columns. */
     ut_ad(!index->is_clustered());
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr,
+    btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, 0, 0, 0, &mtr,
                                &pcur, nullptr);
   }
 func_exit:
-  btr_pcur_close(&pcur);
+  pcur.close();
 func_exit_no_pcur:
   mtr_commit(&mtr);
 
@@ -402,7 +401,7 @@ static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
   dict_index_t *index = node->index;
   mem_heap_t *heap;
 
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   while (index != nullptr) {
     dtuple_t *entry;

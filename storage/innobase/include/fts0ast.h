@@ -169,9 +169,9 @@ bool fts_ast_node_check_union(fts_ast_node_t *node);
 /********************************************************************
 Create a lex instance.*/
 [[nodiscard]] fts_lexer_t *fts_lexer_create(
-    ibool boolean_mode, /*!< in: query type */
-    const byte *query,  /*!< in: query string */
-    ulint query_len)    /*!< in: query string len */
+    bool boolean_mode, /*!< in: query type */
+    const byte *query, /*!< in: query string */
+    ulint query_len)   /*!< in: query string len */
     MY_ATTRIBUTE((malloc));
 /********************************************************************
 Free an fts_lexer_t instance.*/
@@ -212,7 +212,7 @@ struct fts_ast_string_t {
 /* Query term type */
 struct fts_ast_term_t {
   fts_ast_string_t *ptr; /*!< Pointer to term string.*/
-  ibool wildcard;        /*!< TRUE if wild card set.*/
+  bool wildcard;         /*!< true if wild card set.*/
 };
 
 /* Query text type */

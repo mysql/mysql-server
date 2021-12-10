@@ -1922,7 +1922,7 @@ Create a fts_lexer_t instance.*/
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
-	ibool		boolean_mode,
+	bool		boolean_mode,
 	const byte*	query,
 	ulint		query_len)
 {

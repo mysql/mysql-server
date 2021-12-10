@@ -119,66 +119,66 @@ static inline uint32_t mach_get_compressed_size(ulint n);
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline ib_uint32_t mach_read_next_compressed(const byte **b);
+static inline uint32_t mach_read_next_compressed(const byte **b);
 
 /** The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 6 bytes where to store
 @param[in]	id	48-bit integer to write */
-static inline void mach_write_to_6(byte *b, ib_uint64_t id);
+static inline void mach_write_to_6(byte *b, uint64_t id);
 
 /** The following function is used to fetch data from 6 consecutive
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 6 bytes to read
 @return 48-bit integer */
-[[nodiscard]] static inline ib_uint64_t mach_read_from_6(const byte *b);
+[[nodiscard]] static inline uint64_t mach_read_from_6(const byte *b);
 
 /** The following function is used to store data in 7 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 7 bytes where to store
 @param[in]	n	56-bit integer */
-static inline void mach_write_to_7(byte *b, ib_uint64_t n);
+static inline void mach_write_to_7(byte *b, uint64_t n);
 
 /** The following function is used to fetch data from 7 consecutive
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 7 bytes to read
 @return 56-bit integer */
-[[nodiscard]] static inline ib_uint64_t mach_read_from_7(const byte *b);
+[[nodiscard]] static inline uint64_t mach_read_from_7(const byte *b);
 
 /** The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 8 bytes where to store
 @param[in]	n	64-bit integer to be stored */
-static inline void mach_write_to_8(void *b, ib_uint64_t n);
+static inline void mach_write_to_8(void *b, uint64_t n);
 
 /** The following function is used to fetch data from 8 consecutive
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 8 bytes to read
 @return 64-bit integer */
-[[nodiscard]] static inline ib_uint64_t mach_read_from_8(const byte *b);
+[[nodiscard]] static inline uint64_t mach_read_from_8(const byte *b);
 
 /** Writes a 64-bit integer in a compressed form (5..9 bytes).
 @param[in]	b	pointer to memory where to store
 @param[in]	n	64-bit integer to be stored
 @return size in bytes */
-static inline ulint mach_u64_write_compressed(byte *b, ib_uint64_t n);
+static inline ulint mach_u64_write_compressed(byte *b, uint64_t n);
 
 /** Read a 64-bit integer in a compressed form.
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline ib_uint64_t mach_u64_read_next_compressed(const byte **b);
+static inline uint64_t mach_u64_read_next_compressed(const byte **b);
 
 /** Writes a 64-bit integer in a compressed form (1..11 bytes).
 @param[in]	b	pointer to memory where to store
 @param[in]	n	64-bit integer to be stored
 @return size in bytes */
-static inline ulint mach_u64_write_much_compressed(byte *b, ib_uint64_t n);
+static inline ulint mach_u64_write_much_compressed(byte *b, uint64_t n);
 
 /** Reads a 64-bit integer in a compressed form.
 @param[in]	b	pointer to memory from where to read
 @return the value read */
-[[nodiscard]] static inline ib_uint64_t mach_u64_read_much_compressed(
+[[nodiscard]] static inline uint64_t mach_u64_read_much_compressed(
     const byte *b);
 
 /** Read a 64-bit integer in a much compressed form.
@@ -186,23 +186,22 @@ static inline ulint mach_u64_write_much_compressed(byte *b, ib_uint64_t n);
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned 64-bit integer */
-ib_uint64_t mach_parse_u64_much_compressed(const byte **ptr,
-                                           const byte *end_ptr);
+uint64_t mach_parse_u64_much_compressed(const byte **ptr, const byte *end_ptr);
 
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory from where to read;
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
-ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr);
+uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr);
 
 /** Read a 64-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory from where to read;
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
-static inline ib_uint64_t mach_u64_parse_compressed(const byte **ptr,
-                                                    const byte *end_ptr);
+static inline uint64_t mach_u64_parse_compressed(const byte **ptr,
+                                                 const byte *end_ptr);
 
 /** Reads a double. It is stored in a little-endian format.
  @return double read */
@@ -254,8 +253,8 @@ order.
 @param[in]	len		length of src
 @param[in]	unsigned_type	signed or unsigned flag
 @return integer value */
-static inline ib_uint64_t mach_read_int_type(const byte *src, ulint len,
-                                             ibool unsigned_type);
+static inline uint64_t mach_read_int_type(const byte *src, ulint len,
+                                          bool unsigned_type);
 
 /** Convert integral type from host byte order to (big-endian) storage
 byte order.

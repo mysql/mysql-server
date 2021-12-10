@@ -523,7 +523,7 @@ class Arch_Block {
   lsn_t m_stop_lsn{LSN_MAX};
 
   /** Oldest LSN of all the page IDs added to the block since the last
-   * checkpoint */
+   checkpoint */
   lsn_t m_oldest_lsn{LSN_MAX};
 
   /** Start LSN or the last reset LSN of the group */
@@ -835,12 +835,7 @@ class Arch_Group {
   @param[in]	mutex		archive system mutex from caller */
   Arch_Group(lsn_t start_lsn, uint header_len, ib_mutex_t *mutex)
       : m_begin_lsn(start_lsn),
-        m_header_len(header_len)
-#ifdef UNIV_DEBUG
-        ,
-        m_arch_mutex(mutex)
-#endif /* UNIV_DEBUG */
-  {
+        m_header_len(header_len) IF_DEBUG(, m_arch_mutex(mutex)) {
     m_active_file.m_file = OS_FILE_CLOSED;
     m_durable_file.m_file = OS_FILE_CLOSED;
     m_stop_pos.init();
@@ -1412,7 +1407,7 @@ class Arch_Log_Sys {
   uint m_start_log_index;
 
   /** System log file offset where the archiving started */
-  ib_uint64_t m_start_log_offset;
+  uint64_t m_start_log_offset;
 };
 
 /** Vector of page archive in memory blocks */

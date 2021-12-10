@@ -147,7 +147,7 @@ static inline rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock,
   while (hash_lock_tmp != hash_lock) {
     rw_lock_s_unlock(hash_lock);
     hash_lock = hash_lock_tmp;
-    rw_lock_s_lock(hash_lock);
+    rw_lock_s_lock(hash_lock, UT_LOCATION_HERE);
     hash_lock_tmp = hash_get_lock(table, fold);
   }
 
@@ -169,7 +169,7 @@ static inline rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock,
   while (hash_lock_tmp != hash_lock) {
     rw_lock_x_unlock(hash_lock);
     hash_lock = hash_lock_tmp;
-    rw_lock_x_lock(hash_lock);
+    rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
     hash_lock_tmp = hash_get_lock(table, fold);
   }
 

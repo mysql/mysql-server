@@ -69,7 +69,7 @@ void Dup::report(const mrec_t *mrec, const ulint *offsets) noexcept {
   ++m_n_dup;
 
   if (m_n_dup == 1) {
-    auto heap = mem_heap_create(1024);
+    auto heap = mem_heap_create(1024, UT_LOCATION_HERE);
     auto dtuple = row_rec_to_index_entry_low(mrec, m_index, offsets, heap);
 
     /* Report the first duplicate record, but count all duplicate records. */
@@ -311,7 +311,7 @@ dberr_t lock_table(trx_t *trx, dict_table_t *table,
 static void index_build_failed(dict_index_t *index) noexcept {
   DEBUG_SYNC_C("merge_drop_index_after_abort");
 
-  rw_lock_x_lock(dict_index_get_lock(index));
+  rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
   dict_index_set_online_status(index, ONLINE_INDEX_ABORTED_DROPPED);
 
@@ -378,7 +378,7 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
           index = prev;
 
         } else {
-          rw_lock_x_lock(dict_index_get_lock(index));
+          rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
           dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
 
@@ -395,7 +395,7 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
         break;
 
       case ONLINE_INDEX_CREATION:
-        rw_lock_x_lock(dict_index_get_lock(index));
+        rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
         ut_ad(!index->is_committed());
         row_log_abort_sec(index);
         rw_lock_x_unlock(dict_index_get_lock(index));
@@ -478,7 +478,7 @@ void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
   ut_ad(table->get_ref_count() >= 1);
 
   /* It is possible that table->n_ref_count > 1 when
-  locked=TRUE. In this case, all code that should have an open
+  locked=true. In this case, all code that should have an open
   handle to the table be waiting for the next statement to execute,
   or waiting for a meta-data lock.
 

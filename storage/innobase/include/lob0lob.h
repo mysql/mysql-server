@@ -86,8 +86,8 @@ const ulint MAX_SIZE = UINT32_MAX;
 uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
 these chunks are compressed individually and stored as compressed LOB.
 data. */
-#define KB128 (128 * 1024)
-#define Z_CHUNK_SIZE KB128
+constexpr uint32_t KB128 = 128 * 1024;
+constexpr uint32_t Z_CHUNK_SIZE = KB128;
 
 /** The reference in a field for which data is stored on a different page.
 The reference is at the end of the 'locally' stored part of the field.
@@ -589,34 +589,23 @@ the file, in case the file was somehow truncated in the crash.
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
-@param[out]	lob_version	version of lob that has been copied */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
+@param[out]	lob_version	version of lob that has been copied
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, const rec_t *rec,
     const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
-    size_t *lob_version,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap);
+    size_t *lob_version, IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
 
-#ifdef UNIV_DEBUG
-#define btr_rec_copy_externally_stored_field(                        \
-    trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap) \
-  btr_rec_copy_externally_stored_field_func(                         \
-      trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap)
-#else /* UNIV_DEBUG */
-#define btr_rec_copy_externally_stored_field(                         \
-    trx, index, rec, offsets, page_size, no, len, ver, is_sdi, heap)  \
-  btr_rec_copy_externally_stored_field_func(trx, index, rec, offsets, \
-                                            page_size, no, len, ver, heap)
-#endif /* UNIV_DEBUG */
+static inline byte *btr_rec_copy_externally_stored_field(
+    trx_t *trx, const dict_index_t *index, const rec_t *rec,
+    const ulint *offsets, const page_size_t &page_size, ulint no, ulint *len,
+    size_t *ver, bool is_sdi [[maybe_unused]], mem_heap_t *heap) {
+  return btr_rec_copy_externally_stored_field_func(trx, index, rec, offsets,
+                                                   page_size, no, len, ver,
+                                                   IF_DEBUG(is_sdi, ) heap);
+}
 
 /** Gets the offset of the pointer to the externally stored part of a field.
 @param[in]	offsets		array returned by rec_get_offsets()
@@ -629,13 +618,25 @@ ulint btr_rec_get_field_ref_offs(const ulint *offsets, ulint n);
 @param offsets rec_get_offsets(rec)
 @param n index of the externally stored field
 @return pointer to the externally stored part */
-#define btr_rec_get_field_ref(rec, offsets, n) \
-  ((rec) + lob::btr_rec_get_field_ref_offs(offsets, n))
+static inline const byte *btr_rec_get_field_ref(const byte *rec,
+                                                const ulint *offsets, ulint n) {
+  return rec + lob::btr_rec_get_field_ref_offs(offsets, n);
+}
+
+/** Gets a pointer to the externally stored part of a field.
+@param rec record
+@param offsets rec_get_offsets(rec)
+@param n index of the externally stored field
+@return pointer to the externally stored part */
+static inline byte *btr_rec_get_field_ref(byte *rec, const ulint *offsets,
+                                          ulint n) {
+  return rec + lob::btr_rec_get_field_ref_offs(offsets, n);
+}
 
 /** Deallocate a buffer block that was reserved for a BLOB part.
 @param[in]	index	Index
 @param[in]	block	Buffer block
-@param[in]	all	TRUE=remove also the compressed page
+@param[in]	all	true=remove also the compressed page
                         if there is one
 @param[in]	mtr	Mini-transaction to commit */
 void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr);
@@ -679,7 +680,7 @@ class BtrContext {
     ut_ad(m_pcur == nullptr || rec_offs_validate());
     ut_ad(m_block == nullptr || m_rec == nullptr ||
           m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
   }
 
   /** Constructor **/
@@ -695,7 +696,7 @@ class BtrContext {
         m_btr_page_no(FIL_NULL) {
     ut_ad(m_pcur == nullptr || rec_offs_validate());
     ut_ad(m_block->frame == page_align(m_rec));
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
   }
 
   /** Copy Constructor **/
@@ -719,7 +720,7 @@ class BtrContext {
   /** Sets the ownership bit of an externally stored field in a record.
   @param[in]		i		field number
   @param[in]		val		value to set */
-  void set_ownership_of_extern_field(ulint i, ibool val) {
+  void set_ownership_of_extern_field(ulint i, bool val) {
     byte *data;
     ulint local_len;
 
@@ -759,7 +760,7 @@ class BtrContext {
 
     for (ulint i = 0; i < n; i++) {
       if (rec_offs_nth_extern(m_offsets, i)) {
-        set_ownership_of_extern_field(i, TRUE);
+        set_ownership_of_extern_field(i, true);
       }
     }
   }
@@ -805,13 +806,13 @@ class BtrContext {
   /** Check if there is a need to recalculate the context information.
   @return true if there is a need to recalculate, false otherwise. */
   bool need_recalc() const {
-    return ((m_pcur != nullptr) && (m_rec != btr_pcur_get_rec(m_pcur)));
+    return ((m_pcur != nullptr) && (m_rec != m_pcur->get_rec()));
   }
 
   /** Get the clustered index record pointer.
   @return clustered index record pointer. */
   rec_t *rec() const {
-    ut_ad(m_pcur == nullptr || m_rec == btr_pcur_get_rec(m_pcur));
+    ut_ad(m_pcur == nullptr || m_rec == m_pcur->get_rec());
     return (m_rec);
   }
 
@@ -912,7 +913,7 @@ class BtrContext {
   void rec_block_fix() {
     m_rec_offset = page_offset(m_rec);
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
-    buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+    buf_block_buf_fix_inc(m_block, UT_LOCATION_HERE);
   }
 
   /** Decrement the buffer fix count of the clustered index record block,
@@ -930,10 +931,10 @@ class BtrContext {
     page_size_t page_size(dict_table_page_size(table()));
     page_cur_t *page_cur = &m_pcur->m_btr_cur.page_cur;
 
-    mtr_x_lock(dict_index_get_lock(index()), m_mtr);
+    mtr_x_lock(dict_index_get_lock(index()), m_mtr, UT_LOCATION_HERE);
 
-    page_cur->block =
-        btr_block_get(page_id, page_size, RW_X_LATCH, index(), m_mtr);
+    page_cur->block = btr_block_get(page_id, page_size, RW_X_LATCH,
+                                    UT_LOCATION_HERE, index(), m_mtr);
 
     page_cur->rec = buf_block_get_frame(page_cur->block) + m_rec_offset;
 
@@ -949,7 +950,8 @@ class BtrContext {
   /** Restore the position of the persistent cursor. */
   void restore_position() {
     ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
-    bool ret = btr_pcur_restore_position(m_pcur->m_latch_mode, m_pcur, m_mtr);
+    bool ret =
+        m_pcur->restore_position(m_pcur->m_latch_mode, m_mtr, UT_LOCATION_HERE);
 
     ut_a(ret);
 
@@ -1032,7 +1034,7 @@ class BtrContext {
   buf_block_t *block() const { return (m_block); }
 
   /** Save the position of the persistent cursor. */
-  void store_position() { btr_pcur_store_position(m_pcur, m_mtr); }
+  void store_position() { m_pcur->store_position(m_mtr); }
 
   /** Check if there is enough space in log file. Commit and re-start the
   mini-transaction. */
@@ -1045,8 +1047,8 @@ class BtrContext {
   /** Recalculate some of the members after restoring the persistent
   cursor. */
   void recalc() {
-    m_block = btr_pcur_get_block(m_pcur);
-    m_rec = btr_pcur_get_rec(m_pcur);
+    m_block = m_pcur->get_block();
+    m_rec = m_pcur->get_rec();
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
     m_rec_offset = page_offset(m_rec);
 
@@ -1199,18 +1201,10 @@ struct ReadContext {
                                   the clustered index record, including
                                   the blob reference.
   @param[out]	buf		the output buffer.
-  @param[in]	len		the output buffer length. */
-#ifdef UNIV_DEBUG
-  /**
+  @param[in]	len		the output buffer length.
   @param[in]	is_sdi		true for SDI Indexes. */
-#endif /* UNIV_DEBUG */
   ReadContext(const page_size_t &page_size, const byte *data, ulint prefix_len,
-              byte *buf, ulint len
-#ifdef UNIV_DEBUG
-              ,
-              bool is_sdi
-#endif /* UNIV_DEBUG */
-              )
+              byte *buf, ulint len IF_DEBUG(, bool is_sdi))
       : m_page_size(page_size),
         m_data(data),
         m_local_len(prefix_len),
@@ -1218,12 +1212,7 @@ struct ReadContext {
                   BTR_EXTERN_FIELD_REF_SIZE),
         m_buf(buf),
         m_len(len),
-        m_lob_version(0)
-#ifdef UNIV_DEBUG
-        ,
-        m_is_sdi(is_sdi)
-#endif /* UNIV_DEBUG */
-  {
+        m_lob_version(0) IF_DEBUG(, m_is_sdi(is_sdi)) {
     read_blobref();
   }
 
@@ -1472,31 +1461,8 @@ inline bool btr_lob_op_is_update(opcode op) {
   }
 
   ut_ad(0);
-  return (FALSE);
+  return false;
 }
-
-#ifdef UNIV_DEBUG
-#define btr_copy_externally_stored_field_prefix(              \
-    trx, index, buf, len, page_size, data, is_sdi, local_len) \
-  btr_copy_externally_stored_field_prefix_func(               \
-      trx, index, buf, len, page_size, data, is_sdi, local_len)
-
-#define btr_copy_externally_stored_field(trx, index, len, ver, data,           \
-                                         page_size, local_len, is_sdi, heap)   \
-  btr_copy_externally_stored_field_func(trx, index, len, ver, data, page_size, \
-                                        local_len, is_sdi, heap)
-
-#else /* UNIV_DEBUG */
-#define btr_copy_externally_stored_field_prefix(                     \
-    trx, index, buf, len, page_size, data, is_sdi, local_len)        \
-  btr_copy_externally_stored_field_prefix_func(trx, index, buf, len, \
-                                               page_size, data, local_len)
-
-#define btr_copy_externally_stored_field(trx, index, len, ver, data,           \
-                                         page_size, local_len, is_sdi, heap)   \
-  btr_copy_externally_stored_field_func(trx, index, len, ver, data, page_size, \
-                                        local_len, heap)
-#endif /* UNIV_DEBUG */
 
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
@@ -1509,24 +1475,15 @@ or nullptr.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
-                                latch. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI indexes */
-#endif /* UNIV_DEBUG */
-/**
+                                latch.
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
-ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
-                                                   const dict_index_t *index,
-                                                   byte *buf, ulint len,
-                                                   const page_size_t &page_size,
-                                                   const byte *data,
-#ifdef UNIV_DEBUG
-                                                   bool is_sdi,
-#endif /* UNIV_DEBUG */
-                                                   ulint local_len);
+ulint btr_copy_externally_stored_field_prefix_func(
+    trx_t *trx, const dict_index_t *index, byte *buf, ulint len,
+    const page_size_t &page_size, const byte *data,
+    IF_DEBUG(bool is_sdi, ) ulint local_len);
 
 /** Copies an externally stored field of a record to mem heap.
 The clustered index record must be protected by a lock or a page latch.
@@ -1547,6 +1504,22 @@ byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
     IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
+
+static inline ulint btr_copy_externally_stored_field_prefix(
+    trx_t *trx, const dict_index_t *index, byte *buf, ulint len,
+    const page_size_t &page_size, const byte *data, bool is_sdi,
+    ulint local_len) {
+  return btr_copy_externally_stored_field_prefix_func(
+      trx, index, buf, len, page_size, data, IF_DEBUG(is_sdi, ) local_len);
+}
+static inline byte *btr_copy_externally_stored_field(
+    trx_t *trx, const dict_index_t *index, ulint *len, size_t *ver,
+    const byte *data, const page_size_t &page_size, ulint local_len,
+    bool is_sdi, mem_heap_t *heap) {
+  return btr_copy_externally_stored_field_func(trx, index, len, ver, data,
+                                               page_size, local_len,
+                                               IF_DEBUG(is_sdi, ) heap);
+}
 
 /** Gets the externally stored size of a record, in units of a database page.
 @param[in]	rec	record

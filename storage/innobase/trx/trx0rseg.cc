@@ -717,7 +717,7 @@ page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id) {
 
   /* To obey the latching order, acquire the file space
   x-latch before the mutex for trx_sys. */
-  mtr_x_lock(&space->latch, &mtr);
+  mtr_x_lock(&space->latch, &mtr, UT_LOCATION_HERE);
 
   ut_ad(space->purpose == (fsp_is_system_temporary(space_id)
                                ? FIL_TYPE_TEMPORARY
@@ -882,7 +882,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
 
     fil_space_t *space = fil_space_get(space_id);
     ut_ad(univ_page_size.equals_to(page_size_t(space->flags)));
-    mtr_x_lock(&space->latch, &mtr);
+    mtr_x_lock(&space->latch, &mtr, UT_LOCATION_HERE);
 
     if (type == TEMP) {
       mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -926,7 +926,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
           << ". Only " << n_known << " are active.";
 
       srv_rollback_segments =
-          ut_min(srv_rollback_segments, static_cast<ulong>(n_known));
+          std::min(srv_rollback_segments, static_cast<ulong>(n_known));
 
     } else {
       ib::warn(ER_IB_MSG_1192)
@@ -934,7 +934,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
           << loc.str() << ". Only " << n_known << " are active.";
 
       srv_rollback_segments =
-          ut_min(srv_rollback_segments, static_cast<ulong>(n_known));
+          std::min(srv_rollback_segments, static_cast<ulong>(n_known));
 
       success = false;
     }
@@ -1090,7 +1090,7 @@ void trx_rseg_upgrade_undo_tablespaces() {
 
   mtr_start(&mtr);
   fil_space_t *space = fil_space_get(TRX_SYS_SPACE);
-  mtr_x_lock(&space->latch, &mtr);
+  mtr_x_lock(&space->latch, &mtr, UT_LOCATION_HERE);
 
   sys_header = trx_sysf_get(&mtr);
 

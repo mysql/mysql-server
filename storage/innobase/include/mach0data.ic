@@ -272,7 +272,7 @@ static inline ulint mach_read_compressed(const byte *b) {
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline ib_uint32_t mach_read_next_compressed(const byte **b) {
+static inline uint32_t mach_read_next_compressed(const byte **b) {
   ulint val = mach_read_from_1(*b);
 
   if (val < 0x80) {
@@ -317,14 +317,14 @@ static inline ib_uint32_t mach_read_next_compressed(const byte **b) {
     *b += 4;
   }
 
-  return (static_cast<ib_uint32_t>(val));
+  return (static_cast<uint32_t>(val));
 }
 
 /** The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 8 bytes where to store
 @param[in]	n	64-bit integer (< 2^64) to be stored */
-static inline void mach_write_to_8(void *b, ib_uint64_t n) {
+static inline void mach_write_to_8(void *b, uint64_t n) {
   ut_ad(b);
 
   mach_write_to_4(static_cast<byte *>(b), (ulint)(n >> 32));
@@ -335,8 +335,8 @@ static inline void mach_write_to_8(void *b, ib_uint64_t n) {
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 8 bytes from where read
 @return 64-bit integer */
-static inline ib_uint64_t mach_read_from_8(const byte *b) {
-  ib_uint64_t u64;
+static inline uint64_t mach_read_from_8(const byte *b) {
+  uint64_t u64;
 
   u64 = mach_read_from_4(b);
   u64 <<= 32;
@@ -349,7 +349,7 @@ static inline ib_uint64_t mach_read_from_8(const byte *b) {
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 7 bytes where to store
 @param[in]	n	56-bit integer */
-static inline void mach_write_to_7(byte *b, ib_uint64_t n) {
+static inline void mach_write_to_7(byte *b, uint64_t n) {
   ut_ad(b);
 
   mach_write_to_3(b, (ulint)(n >> 32));
@@ -360,7 +360,7 @@ static inline void mach_write_to_7(byte *b, ib_uint64_t n) {
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 7 bytes to read
 @return 56-bit integer */
-static inline ib_uint64_t mach_read_from_7(const byte *b) {
+static inline uint64_t mach_read_from_7(const byte *b) {
   ut_ad(b);
 
   return (ut_ull_create(mach_read_from_3(b), mach_read_from_4(b + 3)));
@@ -370,7 +370,7 @@ static inline ib_uint64_t mach_read_from_7(const byte *b) {
 bytes. We store the most significant byte to the lowest address.
 @param[in]	b	pointer to 6 bytes where to store
 @param[in]	n	48-bit integer to write */
-static inline void mach_write_to_6(byte *b, ib_uint64_t n) {
+static inline void mach_write_to_6(byte *b, uint64_t n) {
   ut_ad(b);
 
   mach_write_to_2(b, (ulint)(n >> 32));
@@ -381,7 +381,7 @@ static inline void mach_write_to_6(byte *b, ib_uint64_t n) {
 bytes. The most significant byte is at the lowest address.
 @param[in]	b	pointer to 6 bytes to read
 @return 48-bit integer */
-static inline ib_uint64_t mach_read_from_6(const byte *b) {
+static inline uint64_t mach_read_from_6(const byte *b) {
   ut_ad(b);
 
   return (ut_ull_create(mach_read_from_2(b), mach_read_from_4(b + 2)));
@@ -390,8 +390,8 @@ static inline ib_uint64_t mach_read_from_6(const byte *b) {
 /** Writes a 64-bit integer in a compressed form (5..9 bytes).
  @return size in bytes */
 static inline ulint mach_u64_write_compressed(
-    byte *b,       /*!< in: pointer to memory where to store */
-    ib_uint64_t n) /*!< in: 64-bit integer to be stored */
+    byte *b,    /*!< in: pointer to memory where to store */
+    uint64_t n) /*!< in: 64-bit integer to be stored */
 {
   ulint size;
 
@@ -407,8 +407,8 @@ static inline ulint mach_u64_write_compressed(
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline ib_uint64_t mach_u64_read_next_compressed(const byte **b) {
-  ib_uint64_t val;
+static inline uint64_t mach_u64_read_next_compressed(const byte **b) {
+  uint64_t val;
 
   val = mach_read_next_compressed(b);
   val <<= 32;
@@ -420,8 +420,8 @@ static inline ib_uint64_t mach_u64_read_next_compressed(const byte **b) {
 /** Writes a 64-bit integer in a compressed form (1..11 bytes).
  @return size in bytes */
 static inline ulint mach_u64_write_much_compressed(
-    byte *b,       /*!< in: pointer to memory where to store */
-    ib_uint64_t n) /*!< in: 64-bit integer to be stored */
+    byte *b,    /*!< in: pointer to memory where to store */
+    uint64_t n) /*!< in: 64-bit integer to be stored */
 {
   ulint size;
 
@@ -442,10 +442,10 @@ static inline ulint mach_u64_write_much_compressed(
 /** Reads a 64-bit integer in a compressed form.
  @return the value read
  @see mach_parse_u64_much_compressed() */
-static inline ib_uint64_t mach_u64_read_much_compressed(
+static inline uint64_t mach_u64_read_much_compressed(
     const byte *b) /*!< in: pointer to memory from where to read */
 {
-  ib_uint64_t n;
+  uint64_t n;
 
   if (*b != 0xFF) {
     return (mach_read_compressed(b));
@@ -463,8 +463,8 @@ static inline ib_uint64_t mach_u64_read_much_compressed(
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed
 @return unsigned value */
-static inline ib_uint64_t mach_read_next_much_compressed(const byte **b) {
-  ib_uint64_t val = mach_read_from_1(*b);
+static inline uint64_t mach_read_next_much_compressed(const byte **b) {
+  uint64_t val = mach_read_from_1(*b);
 
   if (val < 0x80) {
     /* 0nnnnnnn (7 bits) */
@@ -524,9 +524,9 @@ static inline ib_uint64_t mach_read_next_much_compressed(const byte **b) {
 advanced by the number of bytes consumed, or set NULL if out of space
 @param[in]	end_ptr	end of the buffer
 @return unsigned value */
-static inline ib_uint64_t mach_u64_parse_compressed(const byte **ptr,
-                                                    const byte *end_ptr) {
-  ib_uint64_t val = 0;
+static inline uint64_t mach_u64_parse_compressed(const byte **ptr,
+                                                 const byte *end_ptr) {
+  uint64_t val = 0;
 
   if (end_ptr < *ptr + 5) {
     *ptr = nullptr;
@@ -712,10 +712,10 @@ static inline void mach_write_to_2_little_endian(
 /** Convert integral type from storage byte order (big endian) to
  host byte order.
  @return integer value */
-static inline ib_uint64_t mach_read_int_type(
-    const byte *src,     /*!< in: where to read from */
-    ulint len,           /*!< in: length of src */
-    ibool unsigned_type) /*!< in: signed or unsigned flag */
+static inline uint64_t mach_read_int_type(
+    const byte *src,    /*!< in: where to read from */
+    ulint len,          /*!< in: length of src */
+    bool unsigned_type) /*!< in: signed or unsigned flag */
 {
   /* XXX this can be optimized on big-endian machines */
 

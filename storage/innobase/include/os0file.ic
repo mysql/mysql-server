@@ -67,7 +67,7 @@ static inline pfs_os_file_t pfs_os_file_create_simple_func(
 
   /* Regsiter psi value for the file */
   register_pfs_file_open_end(locker, file,
-                             (*success == TRUE ? success : nullptr));
+                             (*success == true ? success : nullptr));
 
   return (file);
 }
@@ -108,7 +108,7 @@ static inline pfs_os_file_t pfs_os_file_create_simple_no_error_handling_func(
 
   file.m_psi = nullptr;
   register_pfs_file_open_end(locker, file,
-                             (*success == TRUE ? success : nullptr));
+                             (*success == true ? success : nullptr));
 
   return (file);
 }
@@ -153,7 +153,7 @@ static inline pfs_os_file_t pfs_os_file_create_func(
 
   file.m_psi = nullptr;
   register_pfs_file_open_end(locker, file,
-                             (*success == TRUE ? success : nullptr));
+                             (*success == true ? success : nullptr));
 
   return (file);
 }
@@ -307,21 +307,6 @@ static inline dberr_t pfs_os_file_copy_func(
   return (result);
 }
 
-/** NOTE! Please use the corresponding macro os_file_read_no_error_handling(),
-not directly this function!
-This is the performance schema instrumented wrapper function for
-os_file_read_no_error_handling_func() which requests a synchronous
-read operation.
-@param[in, out]	type		IO request context
-@param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[out]	o		number of bytes actually read
-@param[in]	src_file	file name where func invoked
-@param[in]	src_line	line where the func invoked
-@return DB_SUCCESS if request was successful */
 static inline dberr_t pfs_os_file_read_no_error_handling_func(
     IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
     os_offset_t offset, ulint n, ulint *o, const char *src_file,

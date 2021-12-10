@@ -2145,7 +2145,7 @@ yyreduce:
   case 94:
 #line 365 "pars0grm.y" /* yacc.c:1646  */
     { (yyval) = pars_update_statement_start(
-					FALSE,
+					false,
 					static_cast<sym_node_t*>((yyvsp[-2])),
 					static_cast<col_assign_node_t*>((yyvsp[0]))); }
 #line 2106 "pars0grm.cc" /* yacc.c:1646  */
@@ -2175,7 +2175,7 @@ yyreduce:
 #line 389 "pars0grm.y" /* yacc.c:1646  */
     {
     (yyval) = pars_update_statement_start(
-        TRUE, static_cast<sym_node_t *>((yyvsp[0])), nullptr);
+        true, static_cast<sym_node_t *>((yyvsp[0])), nullptr);
   }
 #line 2132 "pars0grm.cc" /* yacc.c:1646  */
   break;

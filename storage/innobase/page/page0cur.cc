@@ -63,18 +63,18 @@ static ulint page_cur_short_succ = 0;
  m = 18446744073709551616 (2^64)
 
  @return number between 0 and 2^64-1 */
-static ib_uint64_t page_cur_lcg_prng(void) {
+static uint64_t page_cur_lcg_prng(void) {
 #define LCG_a 1103515245
 #define LCG_c 12345
-  static ib_uint64_t lcg_current = 0;
-  static ibool initialized = FALSE;
+  static uint64_t lcg_current = 0;
+  static bool initialized = false;
 
   if (!initialized) {
     lcg_current = std::chrono::duration_cast<std::chrono::microseconds>(
                       std::chrono::steady_clock::now() -
                       std::chrono::steady_clock::time_point{})
                       .count();
-    initialized = TRUE;
+    initialized = true;
   }
 
   /* no need to "% 2^64" explicitly because lcg_current is
@@ -101,7 +101,7 @@ static inline bool page_cur_try_search_shortcut(
   const rec_t *next_rec;
   ulint low_match;
   ulint up_match;
-  ibool success = FALSE;
+  bool success = false;
   const page_t *page = buf_block_get_frame(block);
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
@@ -142,7 +142,7 @@ static inline bool page_cur_try_search_shortcut(
 #ifdef UNIV_SEARCH_PERF_STAT
   page_cur_short_succ++;
 #endif
-  success = TRUE;
+  success = true;
 exit_func:
   if (UNIV_LIKELY_NULL(heap)) {
     mem_heap_free(heap);
@@ -174,7 +174,7 @@ static inline bool page_cur_try_search_shortcut_bytes(
   ulint low_bytes;
   ulint up_match;
   ulint up_bytes;
-  ibool success = FALSE;
+  bool success = false;
   const page_t *page = buf_block_get_frame(block);
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
@@ -225,7 +225,7 @@ static inline bool page_cur_try_search_shortcut_bytes(
 #ifdef UNIV_SEARCH_PERF_STAT
   page_cur_short_succ++;
 #endif
-  success = TRUE;
+  success = true;
 exit_func:
   if (UNIV_LIKELY_NULL(heap)) {
     mem_heap_free(heap);
@@ -244,9 +244,9 @@ exit_func:
  @param[in]	n	compare nth field
  @param[in]	index	index where the record resides
  @return true if rec field extends tuple field */
-static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
-                                        const ulint *offsets, ulint n,
-                                        const dict_index_t *index) {
+static bool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
+                                       const ulint *offsets, ulint n,
+                                       const dict_index_t *index) {
   const dtype_t *type;
   const dfield_t *dfield;
   const byte *rec_f;
@@ -272,11 +272,11 @@ static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
         &&
         !cmp_data_data(type->mtype, type->prtype, true, dfield_get_data(dfield),
                        dfield_get_len(dfield), rec_f, dfield_get_len(dfield))) {
-      return (TRUE);
+      return true;
     }
   }
 
-  return (FALSE);
+  return false;
 }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 #endif /* PAGE_CUR_ADAPT */
@@ -905,7 +905,7 @@ static void page_cur_insert_rec_write_log(
   i = 0;
 
   if (cur_extra_size == extra_size) {
-    ulint min_rec_size = ut_min(cur_rec_size, rec_size);
+    ulint min_rec_size = std::min(cur_rec_size, rec_size);
 
     const byte *cur_ptr = cursor_rec - cur_extra_size;
 
@@ -966,13 +966,13 @@ static void page_cur_insert_rec_write_log(
   }
 
   if (page_rec_is_comp(insert_rec)) {
-    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, TRUE) !=
-                      rec_get_info_and_status_bits(cursor_rec, TRUE))) {
+    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, true) !=
+                      rec_get_info_and_status_bits(cursor_rec, true))) {
       goto need_extra_info;
     }
   } else {
-    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, FALSE) !=
-                      rec_get_info_and_status_bits(cursor_rec, FALSE))) {
+    if (UNIV_UNLIKELY(rec_get_info_and_status_bits(insert_rec, false) !=
+                      rec_get_info_and_status_bits(cursor_rec, false))) {
       goto need_extra_info;
     }
   }
@@ -1023,7 +1023,7 @@ static void page_cur_insert_rec_write_log(
 /** Parses a log record of a record insert on a page.
  @return end of log record or NULL */
 byte *page_cur_parse_insert_rec(
-    ibool is_short,      /*!< in: TRUE if short inserts */
+    bool is_short,       /*!< in: true if short inserts */
     const byte *ptr,     /*!< in: buffer */
     const byte *end_ptr, /*!< in: buffer end */
     buf_block_t *block,  /*!< in: page or NULL */
@@ -1064,7 +1064,7 @@ byte *page_cur_parse_insert_rec(
     if (page != nullptr) cursor_rec = page + offset;
 
     if (offset >= UNIV_PAGE_SIZE) {
-      recv_sys->found_corrupt_log = TRUE;
+      recv_sys->found_corrupt_log = true;
 
       return (nullptr);
     }
@@ -1077,7 +1077,7 @@ byte *page_cur_parse_insert_rec(
   }
 
   if (end_seg_len >= UNIV_PAGE_SIZE << 1) {
-    recv_sys->found_corrupt_log = TRUE;
+    recv_sys->found_corrupt_log = true;
 
     return (nullptr);
   }
@@ -1117,7 +1117,7 @@ byte *page_cur_parse_insert_rec(
     return (const_cast<byte *>(ptr + (end_seg_len >> 1)));
   }
 
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
   /* Read from the log the inserted index record end segment which
@@ -1211,7 +1211,7 @@ rec_t *page_cur_insert_rec_low(
   ut_ad(rec_offs_validate(rec, index, offsets));
 
   page = page_align(current_rec);
-  ut_ad(dict_table_is_comp(index->table) == (ibool) !!page_is_comp(page));
+  ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
         recv_recovery_is_on() ||
@@ -1261,11 +1261,11 @@ rec_t *page_cur_insert_rec_low(
 
     if (page_is_comp(page)) {
       heap_no = rec_get_heap_no_new(free_rec);
-      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, TRUE),
+      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, true),
                           rec_size);
     } else {
       heap_no = rec_get_heap_no_old(free_rec);
-      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, FALSE),
+      page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, false),
                           rec_size);
     }
 
@@ -1393,7 +1393,7 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
   page = page_align(current_rec);
 
-  ut_ad(dict_table_is_comp(index->table) == (ibool) !!page_is_comp(page));
+  ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
 
   ut_ad(fil_page_index_page_check(page));
 
@@ -1430,11 +1430,11 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
 
       if (page_is_comp(page)) {
         heap_no = rec_get_heap_no_new(free_rec);
-        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, TRUE),
+        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, true),
                             rec_size);
       } else {
         heap_no = rec_get_heap_no_old(free_rec);
-        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, FALSE),
+        page_mem_alloc_free(page, nullptr, rec_get_next_ptr(free_rec, false),
                             rec_size);
       }
 
@@ -1729,7 +1729,7 @@ rec_t *page_cur_insert_rec_zip(
             cursor->rec = page + PAGE_NEW_INFIMUM;
           }
 
-          insert_rec = page + rec_get_next_offs(cursor->rec, TRUE);
+          insert_rec = page + rec_get_next_offs(cursor->rec, true);
           rec_offs_make_valid(insert_rec, index, offsets);
           return (insert_rec);
         }
@@ -1745,7 +1745,7 @@ rec_t *page_cur_insert_rec_zip(
       }
 
       /* Out of space: restore the page */
-      if (!page_zip_decompress(page_zip, page, FALSE)) {
+      if (!page_zip_decompress(page_zip, page, false)) {
         ut_error; /* Memory corrupted? */
       }
       ut_ad(page_validate(page, index));
@@ -1797,7 +1797,7 @@ rec_t *page_cur_insert_rec_zip(
     }
 
     heap_no = rec_get_heap_no_new(free_rec);
-    page_mem_alloc_free(page, page_zip, rec_get_next_ptr(free_rec, TRUE),
+    page_mem_alloc_free(page, page_zip, rec_get_next_ptr(free_rec, true),
                         rec_size);
 
     if (!page_is_leaf(page)) {
@@ -1868,7 +1868,7 @@ rec_t *page_cur_insert_rec_zip(
 
   {
     /* next record after current before the insertion */
-    const rec_t *next_rec = page_rec_get_next_low(cursor->rec, TRUE);
+    const rec_t *next_rec = page_rec_get_next_low(cursor->rec, true);
     ut_ad(rec_get_status(cursor->rec) <= REC_STATUS_INFIMUM);
     ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
     ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
@@ -1957,7 +1957,7 @@ rec_t *page_cur_insert_rec_zip(
 @retval false if mtr log is not opened. One case is when redo is disabled. */
 static inline bool page_copy_rec_list_to_created_page_write_log(
     page_t *page, dict_index_t *index, mtr_t *mtr, byte *&log_ptr) {
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
 
   const bool opened = mlog_open_and_write_index(
       mtr, page, index,
@@ -2005,7 +2005,7 @@ byte *page_parse_copy_rec_list_to_created_page(
   }
 
   while (ptr < rec_end) {
-    ptr = page_cur_parse_insert_rec(TRUE, ptr, end_ptr, block, index, mtr);
+    ptr = page_cur_parse_insert_rec(true, ptr, end_ptr, block, index, mtr);
   }
 
   ut_a(ptr == rec_end);
@@ -2201,7 +2201,7 @@ static inline void page_cur_delete_rec_write_log(
     mtr_t *mtr)                /*!< in: mini-transaction handle */
 {
   byte *log_ptr = nullptr;
-  ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+  ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
   if (!mlog_open_and_write_index(
           mtr, rec, index,
@@ -2301,7 +2301,7 @@ void page_cur_delete_rec(
 
   current_rec = cursor->rec;
   ut_ad(rec_offs_validate(current_rec, index, offsets));
-  ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+  ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
         (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
@@ -2381,9 +2381,8 @@ void page_cur_delete_rec(
   prev_rec is owned by the same slot, i.e., PAGE_DIR_SLOT_MIN_N_OWNED
   >= 2. */
 
-#if PAGE_DIR_SLOT_MIN_N_OWNED < 2
-#error "PAGE_DIR_SLOT_MIN_N_OWNED < 2"
-#endif
+  static_assert(PAGE_DIR_SLOT_MIN_N_OWNED >= 2,
+                "PAGE_DIR_SLOT_MIN_N_OWNED < 2");
   ut_ad(cur_n_owned > 1);
 
   if (current_rec == page_dir_slot_get_rec(cur_dir_slot)) {

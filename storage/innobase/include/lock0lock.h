@@ -409,10 +409,10 @@ void lock_rec_restore_from_page_infimum(const buf_block_t *block,
     dict_index_t *index, /*!< in: index */
     que_thr_t *thr,      /*!< in: query thread */
     mtr_t *mtr,          /*!< in/out: mini-transaction */
-    ibool *inherit);     /*!< out: set to TRUE if the new
-                        inserted record maybe should inherit
-                        LOCK_GAP type locks from the successor
-                        record */
+    bool *inherit);      /*!< out: set to true if the new
+                         inserted record maybe should inherit
+                         LOCK_GAP type locks from the successor
+                         record */
 
 /** Checks if locks of other transactions prevent an immediate modify (update,
  delete mark, or delete unmark) of a clustered index record. If they do,
@@ -629,13 +629,13 @@ for ASYNC Rollback.
 void lock_make_trx_hit_list(trx_t *trx, hit_list_t &hit_list);
 
 /** Removes locks on a table to be dropped.
- If remove_also_table_sx_locks is TRUE then table-level S and X locks are
+ If remove_also_table_sx_locks is true then table-level S and X locks are
  also removed in addition to other table-level and record-level locks.
  No lock, that is going to be removed, is allowed to be a wait lock. */
 void lock_remove_all_on_table(
-    dict_table_t *table,               /*!< in: table to be dropped
-                                       or discarded */
-    ibool remove_also_table_sx_locks); /*!< in: also removes
+    dict_table_t *table,              /*!< in: table to be dropped
+                                      or discarded */
+    bool remove_also_table_sx_locks); /*!< in: also removes
                                    table S and X locks */
 
 /** Calculates the fold value of a page file address: used in inserting or
@@ -668,7 +668,7 @@ if none found */
 ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no);
 
 /** Checks if a lock request lock1 has to wait for request lock2.
- @return TRUE if lock1 has to wait for lock2 to be removed */
+ @return true if lock1 has to wait for lock2 to be removed */
 bool lock_has_to_wait(const lock_t *lock1,  /*!< in: waiting lock */
                       const lock_t *lock2); /*!< in: another lock; NOTE that it
                                             is assumed that this has a lock bit
@@ -853,68 +853,53 @@ void lock_trx_alloc_locks(trx_t *trx);
 
 /** Lock modes and types */
 /** @{ */
-#define LOCK_MODE_MASK                          \
-  0xFUL /*!< mask used to extract mode from the \
-        type_mode field in a lock */
+/** mask used to extract mode from the  type_mode field in a lock */
+constexpr uint32_t LOCK_MODE_MASK = 0xF;
 /** Lock types */
-#define LOCK_TABLE 16 /*!< table lock */
-#define LOCK_REC 32   /*!< record lock */
-#define LOCK_TYPE_MASK                                \
-  0xF0UL /*!< mask used to extract lock type from the \
-         type_mode field in a lock */
-#if LOCK_MODE_MASK & LOCK_TYPE_MASK
-#error "LOCK_MODE_MASK & LOCK_TYPE_MASK"
-#endif
+/** table lock */
+constexpr uint32_t LOCK_TABLE = 16;
+/** record lock */
+constexpr uint32_t LOCK_REC = 32;
+/** mask used to extract lock type from the type_mode field in a lock */
+constexpr uint32_t LOCK_TYPE_MASK = 0xF0UL;
+static_assert((LOCK_MODE_MASK & LOCK_TYPE_MASK) == 0,
+              "LOCK_MODE_MASK & LOCK_TYPE_MASK");
 
-#define LOCK_WAIT                          \
-  256 /*!< Waiting lock flag; when set, it \
-      means that the lock has not yet been \
-      granted, it is just waiting for its  \
-      turn in the wait queue */
+/** Waiting lock flag; when set, it  means that the lock has not yet been
+ granted, it is just waiting for its  turn in the wait queue */
+constexpr uint32_t LOCK_WAIT = 256;
 /* Precise modes */
-#define LOCK_ORDINARY                     \
-  0 /*!< this flag denotes an ordinary    \
-    next-key lock in contrast to LOCK_GAP \
-    or LOCK_REC_NOT_GAP */
-#define LOCK_GAP                                     \
-  512 /*!< when this bit is set, it means that the   \
-      lock holds only on the gap before the record;  \
-      for instance, an x-lock on the gap does not    \
-      give permission to modify the record on which  \
-      the bit is set; locks of this type are created \
-      when records are removed from the index chain  \
-      of records */
-#define LOCK_REC_NOT_GAP                            \
-  1024 /*!< this bit means that the lock is only on \
-       the index record and does NOT block inserts  \
-       to the gap before the index record; this is  \
-       used in the case when we retrieve a record   \
-       with a unique key, and is also used in       \
-       locking plain SELECTs (not part of UPDATE    \
-       or DELETE) when the user has set the READ    \
-       COMMITTED isolation level */
-#define LOCK_INSERT_INTENTION                                             \
-  2048                       /*!< this bit is set when we place a waiting \
-                          gap type record lock request in order to let    \
-                          an insert of an index record to wait until      \
-                          there are no conflicting locks by other         \
-                          transactions on the gap; note that this flag    \
-                          remains set when the waiting lock is granted,   \
-                          or if the lock is inherited to a neighboring    \
-                          record */
-#define LOCK_PREDICATE 8192  /*!< Predicate lock */
-#define LOCK_PRDT_PAGE 16384 /*!< Page lock */
+/** this flag denotes an ordinary next-key lock in contrast to LOCK_GAP or
+ LOCK_REC_NOT_GAP */
+constexpr uint32_t LOCK_ORDINARY = 0;
+/** when this bit is set, it means that the lock holds only on the gap before
+  the record; for instance, an x-lock on the gap does not give permission to
+  modify the record on which the bit is set; locks of this type are created
+  when records are removed from the index chain of records */
+constexpr uint32_t LOCK_GAP = 512;
+/** this bit means that the lock is only on the index record and does NOT
+   block inserts to the gap before the index record; this is used in the case
+   when we retrieve a record with a unique key, and is also used in locking
+   plain SELECTs (not part of UPDATE or DELETE) when the user has set the READ
+   COMMITTED isolation level */
+constexpr uint32_t LOCK_REC_NOT_GAP = 1024;
+/** this bit is set when we place a waiting gap type record lock request in
+   order to let an insert of an index record to wait until there are no
+   conflicting locks by other transactions on the gap; note that this flag
+   remains set when the waiting lock is granted, or if the lock is inherited to
+   a neighboring record */
+constexpr uint32_t LOCK_INSERT_INTENTION = 2048;
+/** Predicate lock */
+constexpr uint32_t LOCK_PREDICATE = 8192;
+/** Page lock */
+constexpr uint32_t LOCK_PRDT_PAGE = 16384;
 
-#if (LOCK_WAIT | LOCK_GAP | LOCK_REC_NOT_GAP | LOCK_INSERT_INTENTION | \
-     LOCK_PREDICATE | LOCK_PRDT_PAGE) &                                \
-    LOCK_MODE_MASK
-#error
-#endif
-#if (LOCK_WAIT | LOCK_GAP | LOCK_REC_NOT_GAP | LOCK_INSERT_INTENTION | \
-     LOCK_PREDICATE | LOCK_PRDT_PAGE) &                                \
-    LOCK_TYPE_MASK
-#error
-#endif
+static_assert(
+    ((LOCK_WAIT | LOCK_GAP | LOCK_REC_NOT_GAP | LOCK_INSERT_INTENTION |
+      LOCK_PREDICATE | LOCK_PRDT_PAGE) &
+     LOCK_MODE_MASK) == 0,
+    "(LOCK_WAIT | LOCK_GAP | LOCK_REC_NOT_GAP | LOCK_INSERT_INTENTION | "
+    "LOCK_PREDICATE | LOCK_PRDT_PAGE) & LOCK_TYPE_MASK");
 /** @} */
 
 /** Lock operation struct */
@@ -954,7 +939,7 @@ struct lock_sys_t {
   Protected by lock_sys->wait_mutex. */
   srv_slot_t *last_slot;
 
-  /** TRUE if rollback of all recovered transactions is complete.
+  /** true if rollback of all recovered transactions is complete.
   Protected by exclusive global lock_sys latch. */
   bool rollback_complete;
 
@@ -1018,21 +1003,17 @@ extern lock_sys_t *lock_sys;
 
 #ifdef UNIV_DEBUG
 /** Test if lock_sys->wait_mutex is owned. */
-#define lock_wait_mutex_own() (lock_sys->wait_mutex.is_owned())
-
+static inline bool lock_wait_mutex_own() {
+  return lock_sys->wait_mutex.is_owned();
+}
 #endif
 
 /** Acquire the lock_sys->wait_mutex. */
-#define lock_wait_mutex_enter()         \
-  do {                                  \
-    mutex_enter(&lock_sys->wait_mutex); \
-  } while (0)
-
+static inline void lock_wait_mutex_enter() {
+  mutex_enter(&lock_sys->wait_mutex);
+}
 /** Release the lock_sys->wait_mutex. */
-#define lock_wait_mutex_exit()   \
-  do {                           \
-    lock_sys->wait_mutex.exit(); \
-  } while (0)
+static inline void lock_wait_mutex_exit() { lock_sys->wait_mutex.exit(); }
 
 #include "lock0lock.ic"
 
@@ -1064,17 +1045,17 @@ bool owns_page_shard(const page_id_t &page_id);
 /**
 Test if given table shard can be safely accessed by the current thread.
 @param  table   the table
-@return true iff the current thread owns exclusive global lock_sys latch or both
-        a shared global lock_sys latch and mutex protecting the table shard
+@return true iff the current thread owns exclusive global lock_sys latch or
+both a shared global lock_sys latch and mutex protecting the table shard
 */
 bool owns_table_shard(const dict_table_t &table);
 
 /** Checks if shard which contains lock is latched (or that an exclusive latch
 on whole lock_sys is held) by current thread
 @param[in]  lock   lock which belongs to a shard we want to check
-@return true iff the current thread owns exclusive global lock_sys latch or both
-        a shared global lock_sys latch and mutex protecting the shard containing
-        the specified lock */
+@return true iff the current thread owns exclusive global lock_sys latch or
+both a shared global lock_sys latch and mutex protecting the shard
+containing the specified lock */
 bool owns_lock_shard(const lock_t *lock);
 
 #endif /* UNIV_DEBUG */

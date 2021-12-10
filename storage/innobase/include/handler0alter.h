@@ -31,7 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef handler0alter_h
 #define handler0alter_h
 
-#define ERROR_STR_LENGTH 1024
+constexpr uint32_t ERROR_STR_LENGTH = 1024;
 
 /** Copies an InnoDB record to table->record[0].
 @param[in,out] table Mysql table

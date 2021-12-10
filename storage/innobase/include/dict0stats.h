@@ -67,12 +67,12 @@ the in-memory table object and is not saved on disk. It will be read from the
 @param[in,out]	table	table
 @param[in]	ps_on	persistent stats explicitly enabled
 @param[in]	ps_off	persistent stats explicitly disabled */
-static inline void dict_stats_set_persistent(dict_table_t *table, ibool ps_on,
-                                             ibool ps_off);
+static inline void dict_stats_set_persistent(dict_table_t *table, bool ps_on,
+                                             bool ps_off);
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-[[nodiscard]] static inline ibool dict_stats_is_persistent_enabled(
+[[nodiscard]] static inline bool dict_stats_is_persistent_enabled(
     const dict_table_t *table); /*!< in: table */
 
 /** Set the auto recalc flag for a given table (only honored for a persistent
@@ -83,12 +83,12 @@ from MySQL after a server restart.
 @param[in]	auto_recalc_on	explicitly enabled
 @param[in]	auto_recalc_off	explicitly disabled */
 static inline void dict_stats_auto_recalc_set(dict_table_t *table,
-                                              ibool auto_recalc_on,
-                                              ibool auto_recalc_off);
+                                              bool auto_recalc_on,
+                                              bool auto_recalc_off);
 
 /** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
-static inline ibool dict_stats_auto_recalc_is_enabled(
+static inline bool dict_stats_auto_recalc_is_enabled(
     const dict_table_t *table); /*!< in: table */
 
 /** Initialize table's stats for the first time when opening a table. */
@@ -191,11 +191,11 @@ class TableStatsRecord {
 
   /** Get the n_rows from the innodb_table_stats record.
   @retval n_rows from the record. */
-  ib_uint64_t get_n_rows() const;
+  uint64_t get_n_rows() const;
 
   /** Set the n_rows for the innodb_table_stats record.
   @param[in]	no_of_rows	number of rows. */
-  void set_n_rows(ib_uint64_t no_of_rows);
+  void set_n_rows(uint64_t no_of_rows);
 
   /** Get the clustered index size from
   innodb_table_stats record.
@@ -232,7 +232,7 @@ class TableStatsRecord {
   /** Table name. */
   char *m_tbl_name;
   /** Number of rows. */
-  ib_uint64_t m_n_rows;
+  uint64_t m_n_rows;
   /** Clustered index size. */
   ulint m_clustered_index_size;
   /** Sum of other index size. */

@@ -107,7 +107,7 @@ static inline ulint dfield_is_null(const dfield_t *field) /*!< in: field */
 
 /** Determines if a field is externally stored
  @return nonzero if externally stored */
-static inline ulint dfield_is_ext(const dfield_t *field) /*!< in: field */
+static inline bool dfield_is_ext(const dfield_t *field) /*!< in: field */
 {
   ut_ad(field);
   ut_ad(!field->ext || field->len >= BTR_EXTERN_FIELD_REF_SIZE);
@@ -171,7 +171,7 @@ static inline void dfield_write_mbr(dfield_t *field,   /*!< in: field */
 #endif /* UNIV_VALGRIND_DEBUG */
   field->ext = 0;
 
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     mach_double_write(static_cast<byte *>(field->data) + i * sizeof(double),
                       mbr[i]);
   }

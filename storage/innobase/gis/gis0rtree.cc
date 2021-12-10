@@ -297,13 +297,13 @@ bool rtr_update_mbr_field(
 
   rec_info = rec_get_info_bits(rec, rec_offs_comp(offsets));
 
-  heap = mem_heap_create(100);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
   block = btr_cur_get_block(cursor);
   ut_ad(page == buf_block_get_frame(block));
   page_zip = buf_block_get_page_zip(block);
 
   child = btr_node_ptr_get_child_page_no(rec, offsets);
-  level = btr_page_get_level(buf_block_get_frame(block), mtr);
+  level = btr_page_get_level(buf_block_get_frame(block));
 
   if (new_rec) {
     child_rec = new_rec;
@@ -550,7 +550,7 @@ bool rtr_update_mbr_field(
     }
 
     if (cursor2) {
-      btr_cur_compress_if_useful(cursor, FALSE, mtr);
+      btr_cur_compress_if_useful(cursor, false, mtr);
     }
   }
 
@@ -606,13 +606,13 @@ static void rtr_adjust_upper_level(
   rec_t *rec;
 
   /* Create a memory heap where the data tuple is stored */
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   cursor.thr = sea_cur->thr;
 
   /* Get the level of the split pages */
-  level = btr_page_get_level(buf_block_get_frame(block), mtr);
-  ut_ad(level == btr_page_get_level(buf_block_get_frame(new_block), mtr));
+  level = btr_page_get_level(buf_block_get_frame(block));
+  ut_ad(level == btr_page_get_level(buf_block_get_frame(new_block)));
 
   page = buf_block_get_frame(block);
   page_no = block->page.id.page_no();
@@ -708,8 +708,8 @@ static void rtr_adjust_upper_level(
   if (prev_page_no != FIL_NULL) {
     page_id_t prev_page_id(space, prev_page_no);
 
-    buf_block_t *prev_block =
-        btr_block_get(prev_page_id, page_size, RW_X_LATCH, index, mtr);
+    buf_block_t *prev_block = btr_block_get(prev_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, index, mtr);
 #ifdef UNIV_BTR_DEBUG
     ut_a(page_is_comp(prev_block->frame) == page_is_comp(page));
     ut_a(btr_page_get_next(prev_block->frame, mtr) == block->page.id.page_no());
@@ -722,8 +722,8 @@ static void rtr_adjust_upper_level(
   if (next_page_no != FIL_NULL) {
     page_id_t next_page_id(space, next_page_no);
 
-    buf_block_t *next_block =
-        btr_block_get(next_page_id, page_size, RW_X_LATCH, index, mtr);
+    buf_block_t *next_block = btr_block_get(next_page_id, page_size, RW_X_LATCH,
+                                            UT_LOCATION_HERE, index, mtr);
 #ifdef UNIV_BTR_DEBUG
     ut_a(page_is_comp(next_block->frame) == page_is_comp(page));
     ut_a(btr_page_get_prev(next_block->frame, mtr) == page_get_page_no(page));
@@ -748,7 +748,7 @@ static void rtr_adjust_upper_level(
  or by invoking ibuf_reset_free_bits() before mtr_commit().
 
  @return true on success; false on compression failure */
-static ibool rtr_split_page_move_rec_list(
+static bool rtr_split_page_move_rec_list(
     rtr_split_node_t *node_array, /*!< in: split node array. */
     int first_rec_group,          /*!< in: group number of the
                                   first rec. */
@@ -861,7 +861,7 @@ static ibool rtr_split_page_move_rec_list(
 
       if (UNIV_UNLIKELY(!page_zip_reorganize(new_block, index, mtr))) {
         if (UNIV_UNLIKELY(
-                !page_zip_decompress(new_page_zip, new_page, FALSE))) {
+                !page_zip_decompress(new_page_zip, new_page, false))) {
           ut_error;
         }
 #ifdef UNIV_GIS_DEBUG
@@ -942,7 +942,7 @@ rec_t *rtr_page_split_and_insert(
   ulint n_iterations = 0;
 
   if (!*heap) {
-    *heap = mem_heap_create(1024);
+    *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   }
 
 func_start:
@@ -960,7 +960,7 @@ func_start:
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
   page_zip = buf_block_get_page_zip(block);
-  page_level = btr_page_get_level(page, mtr);
+  page_level = btr_page_get_level(page);
   current_ssn = page_get_ssn_id(page);
 
   ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -1249,7 +1249,7 @@ dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
   ut_ad(!btr_cur->rtr_info->parent_path->empty());
 
   /* Create a memory heap. */
-  heap = mem_heap_create(1024);
+  heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   /* Leaf level page is stored in cursor */
   page_cursor = btr_cur_get_page_cur(btr_cur);
@@ -1261,7 +1261,7 @@ dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
 
     /* If there's no mbr enlarge, return.*/
     if (node_visit->mbr_inc == 0) {
-      block = btr_pcur_get_block(node_visit->cursor);
+      block = node_visit->cursor->get_block();
       continue;
     }
 
@@ -1338,7 +1338,7 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
   btr_assert_not_corrupted(new_block, index);
   ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
   ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) ==
-       (ulint)(page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
+       (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
   cur_rec =
       page_rec_get_next(page_get_infimum_rec(buf_block_get_frame(new_block)));
@@ -1378,7 +1378,7 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
           /* We have two identical leaf records,
           skip copying the undeleted one, and
           unmark deleted on the current page */
-          btr_rec_set_deleted_flag(cur_rec, nullptr, FALSE);
+          btr_rec_set_deleted_flag(cur_rec, nullptr, false);
           goto next;
         }
       }
@@ -1492,7 +1492,7 @@ void rtr_page_copy_rec_list_start_no_locks(
           /* We have two identical leaf records,
           skip copying the undeleted one, and
           unmark deleted on the current page */
-          btr_rec_set_deleted_flag(cur_rec, nullptr, FALSE);
+          btr_rec_set_deleted_flag(cur_rec, nullptr, false);
           goto next;
         }
       }
@@ -1571,7 +1571,7 @@ bool rtr_merge_mbr_changed(btr_cur_t *cursor, btr_cur_t *cursor2,
 
   mbr = reinterpret_cast<double *>(new_mbr);
 
-  for (int i = 0; i < SPDIMS * 2; i += 2) {
+  for (uint i = 0; i < SPDIMS * 2; i += 2) {
     changed = (changed || mbr1[i] != mbr2[i]);
     *mbr = mbr1[i] < mbr2[i] ? mbr1[i] : mbr2[i];
     mbr++;
@@ -1630,16 +1630,15 @@ search
 */
 void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
                          buf_block_t *block, mtr_t *mtr) {
-  ibool compressed;
   dberr_t err;
 
-  compressed =
-      btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG, false, 0,
+  auto compressed =
+      btr_cur_pessimistic_delete(&err, true, sea_cur, BTR_CREATE_FLAG, false, 0,
                                  0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {
-    btr_cur_compress_if_useful(sea_cur, FALSE, mtr);
+    btr_cur_compress_if_useful(sea_cur, false, mtr);
   }
 }
 
@@ -1757,9 +1756,10 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
 
   mtr_start(&mtr);
 
-  mtr_s_lock(dict_index_get_lock(index), &mtr);
+  mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
 
-  block = btr_block_get(page_id, page_size, RW_S_LATCH, index, &mtr);
+  block = btr_block_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, index,
+                        &mtr);
   page = buf_block_get_frame(block);
   n_recs = page_header_get_field(page, PAGE_N_RECS);
 
@@ -1774,7 +1774,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
   ulint *offsets = nullptr;
   mem_heap_t *heap;
 
-  heap = mem_heap_create(512);
+  heap = mem_heap_create(512, UT_LOCATION_HERE);
   rec = page_rec_get_next(page_get_infimum_rec(page));
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 

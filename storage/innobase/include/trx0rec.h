@@ -65,18 +65,14 @@ static inline ulint trx_undo_rec_get_type(
  @return compiler info */
 static inline ulint trx_undo_rec_get_cmpl_info(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
-/** Returns TRUE if an undo log record contains an extern storage field.
+/** Returns true if an undo log record contains an extern storage field.
  @return true if extern */
-static inline ibool trx_undo_rec_get_extern_storage(
+static inline bool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Reads the undo log record number.
  @return undo no */
 static inline undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
-
-/** Returns the start of the undo record data area. */
-#define trx_undo_rec_get_ptr(undo_rec, undo_no) \
-  ((undo_rec) + trx_undo_rec_get_offset(undo_no))
 
 /** Reads from an undo log record the table ID
 @param[in]	undo_rec	Undo log record
@@ -150,9 +146,9 @@ byte *trx_undo_update_rec_get_update(
                          record! */
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t **row,      /*!< out, own: partial row */
-    ibool ignore_prefix, /*!< in: flag to indicate if we
-                  expect blob prefixes in undo. Used
-                  only in the assertion. */
+    bool ignore_prefix,  /*!< in: flag to indicate if we
+                   expect blob prefixes in undo. Used
+                   only in the assertion. */
     mem_heap_t *heap);   /*!< in: memory heap from which the memory
                         needed is allocated */
 /** Writes information to an undo log about an insert, update, or a delete
@@ -189,11 +185,11 @@ byte *trx_undo_update_rec_get_update(
 is being called purge view and we would like to get the purge record
 even it is in the purge view (in normal case, it will return without
 fetching the purge record */
-#define TRX_UNDO_PREV_IN_PURGE 0x1
+constexpr uint32_t TRX_UNDO_PREV_IN_PURGE = 0x1;
 
 /** This tells trx_undo_prev_version_build() to fetch the old value in
 the undo log (which is the after image for an update) */
-#define TRX_UNDO_GET_OLD_V_VALUE 0x2
+constexpr uint32_t TRX_UNDO_GET_OLD_V_VALUE = 0x2;
 
 /** Build a previous version of a clustered index record. The caller must hold
 a latch on the index page of the clustered index record.
@@ -298,38 +294,28 @@ const byte *trx_undo_read_v_idx(const dict_table_t *table, const byte *ptr,
 compilation info multiplied by 16 is ORed to this value in an undo log
 record */
 
-#define TRX_UNDO_INSERT_REC 11 /* fresh insert into clustered index */
-#define TRX_UNDO_UPD_EXIST_REC        \
-  12 /* update of a non-delete-marked \
-     record */
-#define TRX_UNDO_UPD_DEL_REC                \
-  13 /* update of a delete marked record to \
-     a not delete marked record; also the   \
-     fields of the record can change */
-#define TRX_UNDO_DEL_MARK_REC              \
-  14 /* delete marking of a record; fields \
-     do not change */
-#define TRX_UNDO_CMPL_INFO_MULT           \
-  16 /* compilation info is multiplied by \
-     this and ORed to the type above */
+/** fresh insert into clustered index */
+constexpr uint32_t TRX_UNDO_INSERT_REC = 11;
+/** update of a non-delete-marked  record */
+constexpr uint32_t TRX_UNDO_UPD_EXIST_REC = 12;
+/** update of a delete marked record to a not delete marked record; also the
+fields of the record can change */
+constexpr uint32_t TRX_UNDO_UPD_DEL_REC = 13;
+/* delete marking of a record; fields do not change */
+constexpr uint32_t TRX_UNDO_DEL_MARK_REC = 14;
+/** compilation info is multiplied by this and ORed to the type above */
+constexpr uint32_t TRX_UNDO_CMPL_INFO_MULT = 16;
+/** If this bit is set in type_cmpl,  then the undo log record has support for
+ partial update of BLOBs. Also to  make the undo log format extensible,
+ introducing a new flag next to the  type_cmpl flag. */
+constexpr uint32_t TRX_UNDO_MODIFY_BLOB = 64;
+/* This bit can be ORed to type_cmpl to denote that we updated external storage
+ fields: used by purge to free the external storage */
+constexpr uint32_t TRX_UNDO_UPD_EXTERN = 128;
 
-#define TRX_UNDO_MODIFY_BLOB              \
-  64 /* If this bit is set in type_cmpl,  \
-     then the undo log record has support \
-     for partial update of BLOBs. Also to \
-     make the undo log format extensible, \
-     introducing a new flag next to the   \
-     type_cmpl flag. */
-
-#define TRX_UNDO_UPD_EXTERN                \
-  128 /* This bit can be ORed to type_cmpl \
-      to denote that we updated external   \
-      storage fields: used by purge to     \
-      free the external storage */
-
-/* Operation type flags used in trx_undo_report_row_operation */
-#define TRX_UNDO_INSERT_OP 1
-#define TRX_UNDO_MODIFY_OP 2
+/** Operation type flags used in trx_undo_report_row_operation */
+constexpr uint32_t TRX_UNDO_INSERT_OP = 1;
+constexpr uint32_t TRX_UNDO_MODIFY_OP = 2;
 
 /** The type and compilation info flag in the undo record for update.
 For easier understanding let the 8 bits be numbered as

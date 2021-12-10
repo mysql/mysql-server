@@ -141,7 +141,7 @@ to truncate an undo tablespace. */
 namespace undo {
 
 /** Magic Number to indicate truncate action is complete. */
-const ib_uint32_t s_magic = 76845412;
+const uint32_t s_magic = 76845412;
 
 /** Truncate Log file Prefix. */
 const char *const s_log_prefix = "undo_";
@@ -756,13 +756,13 @@ class Tablespaces {
 #endif /* UNIV_DEBUG */
 
   /** Get a shared lock on m_spaces. */
-  void s_lock() { rw_lock_s_lock(m_latch); }
+  void s_lock() { rw_lock_s_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release a shared lock on m_spaces. */
   void s_unlock() { rw_lock_s_unlock(m_latch); }
 
   /** Get an exclusive lock on m_spaces. */
-  void x_lock() { rw_lock_x_lock(m_latch); }
+  void x_lock() { rw_lock_x_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release an exclusive lock on m_spaces. */
   void x_unlock() { rw_lock_x_unlock(m_latch); }

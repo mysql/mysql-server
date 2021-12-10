@@ -174,7 +174,7 @@ static inline void buf_flush_recv_note_modification(buf_block_t *block,
                                                     lsn_t start_lsn,
                                                     lsn_t end_lsn);
 
-/** Returns TRUE if the file page block is immediately suitable for replacement,
+/** Returns true if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
 LRU list and block mutexes.
 @param[in]	bpage	buffer control block, must be buf_page_in_file() and
@@ -228,8 +228,8 @@ returns true.
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request
 @return true if page was flushed */
-ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
-                     buf_flush_t flush_type, bool sync);
+bool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
+                    buf_flush_t flush_type, bool sync);
 
 /** Check if the block is modified and ready for flushing.
 Requires buf_page_get_mutex(bpage).

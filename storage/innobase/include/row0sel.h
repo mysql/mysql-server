@@ -230,7 +230,7 @@ dberr_t row_count_rtree_recs(
 [[nodiscard]] dberr_t row_search_max_autoinc(
     dict_index_t *index,  /*!< in: index to search */
     const char *col_name, /*!< in: autoinc column name */
-    ib_uint64_t *value);  /*!< out: AUTOINC value read */
+    uint64_t *value);     /*!< out: AUTOINC value read */
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t {
@@ -252,18 +252,18 @@ struct plan_t {
   dict_index_t *index; /*!< table index used in the search */
   btr_pcur_t pcur;     /*!< persistent cursor used to search
                        the index */
-  ibool asc;           /*!< TRUE if cursor traveling upwards */
-  ibool pcur_is_open;  /*!< TRUE if pcur has been positioned
-                       and we can try to fetch new rows */
-  ibool cursor_at_end; /*!< TRUE if the cursor is open but
-                       we know that there are no more
-                       qualifying rows left to retrieve from
-                       the index tree; NOTE though, that
-                       there may still be unprocessed rows in
-                       the prefetch stack; always FALSE when
-                       pcur_is_open is FALSE */
-  ibool stored_cursor_rec_processed;
-  /*!< TRUE if the pcur position has been
+  bool asc;            /*!< true if cursor traveling upwards */
+  bool pcur_is_open;   /*!< true if pcur has been positioned
+                        and we can try to fetch new rows */
+  bool cursor_at_end;  /*!< true if the cursor is open but
+                        we know that there are no more
+                        qualifying rows left to retrieve from
+                        the index tree; NOTE though, that
+                        there may still be unprocessed rows in
+                        the prefetch stack; always false when
+                        pcur_is_open is false */
+  bool stored_cursor_rec_processed;
+  /*!< true if the pcur position has been
   stored and the record it is positioned
   on has already been processed */
   que_node_t **tuple_exps; /*!< array of expressions
@@ -277,8 +277,8 @@ struct plan_t {
   ulint n_exact_match;     /*!< number of first fields in
                            the search tuple which must be
                            exactly matched */
-  ibool unique_search;     /*!< TRUE if we are searching an
-                           index record with a unique key */
+  bool unique_search;      /*!< true if we are searching an
+                            index record with a unique key */
   ulint n_rows_fetched;    /*!< number of rows fetched using pcur
                            after it was opened */
   ulint n_rows_prefetched; /*!< number of prefetched rows cached
@@ -286,7 +286,7 @@ struct plan_t {
                          the same mtr saves CPU time */
   ulint first_prefetched;  /*!< index of the first cached row in
                           select buffer arrays for each column */
-  ibool no_prefetch;       /*!< no prefetch for this table */
+  bool no_prefetch;        /*!< no prefetch for this table */
   sym_node_list_t columns; /*!< symbol table nodes for the columns
                            to retrieve from the table */
   using Cond_list = UT_LIST_BASE_NODE_T_EXTERN(func_node_t, cond_list);
@@ -297,14 +297,14 @@ struct plan_t {
   Cond_list end_conds;
   /** the rest of search conditions we can test at this table in a join */
   Cond_list other_conds;
-  ibool must_get_clust;      /*!< TRUE if index is a non-clustered
-                             index and we must also fetch the
-                             clustered index record; this is the
-                             case if the non-clustered record does
-                             not contain all the needed columns, or
-                             if this is a single-table explicit
-                             cursor, or a searched update or
-                             delete */
+  bool must_get_clust;       /*!< true if index is a non-clustered
+                              index and we must also fetch the
+                              clustered index record; this is the
+                              case if the non-clustered record does
+                              not contain all the needed columns, or
+                              if this is a single-table explicit
+                              cursor, or a searched update or
+                              delete */
   ulint *clust_map;          /*!< map telling how clust_ref is built
                              from the fields of a non-clustered
                              record */
@@ -334,11 +334,11 @@ struct sel_node_t {
   que_node_t *select_list;   /*!< select list */
   sym_node_t *into_list;     /*!< variables list or NULL */
   sym_node_t *table_list;    /*!< table list */
-  ibool asc;                 /*!< TRUE if the rows should be fetched
-                             in an ascending order */
-  ibool set_x_locks;         /*!< TRUE if the cursor is for update or
-                             delete, which means that a row x-lock
-                             should be placed on the cursor row */
+  bool asc;                  /*!< true if the rows should be fetched
+                              in an ascending order */
+  bool set_x_locks;          /*!< true if the cursor is for update or
+                              delete, which means that a row x-lock
+                              should be placed on the cursor row */
   ulint row_lock_mode;       /*!< LOCK_X or LOCK_S */
   ulint n_tables;            /*!< number of tables */
   ulint fetch_table;         /*!< number of the next table to access
@@ -350,23 +350,23 @@ struct sel_node_t {
   ReadView *read_view;       /*!< if the query is a non-locking
                              consistent read, its read view is
                              placed here, otherwise NULL */
-  ibool consistent_read;     /*!< TRUE if the select is a consistent,
-                             non-locking read */
+  bool consistent_read;      /*!< true if the select is a consistent,
+                              non-locking read */
   order_node_t *order_by;    /*!< order by column definition, or
                              NULL */
-  ibool is_aggregate;        /*!< TRUE if the select list consists of
-                             aggregate functions */
-  ibool aggregate_already_fetched;
-  /*!< TRUE if the aggregate row has
+  bool is_aggregate;         /*!< true if the select list consists of
+                              aggregate functions */
+  bool aggregate_already_fetched;
+  /*!< true if the aggregate row has
   already been fetched for the current
   cursor */
 
-  /** this is TRUE if the select is in a single-table explicit cursor which can
+  /** this is true if the select is in a single-table explicit cursor which can
   get updated within the stored procedure, or in a searched update or delete;
   NOTE that to determine of an explicit cursor if it can get updated, the
   parser checks from a stored procedure if it contains positioned update or
   delete statements */
-  ibool can_get_updated;
+  bool can_get_updated;
   /** not NULL if an explicit cursor */
   sym_node_t *explicit_cursor;
   /** variables whose values we have to copy when an explicit cursor is opened,
@@ -422,19 +422,6 @@ enum row_sel_match_mode {
                        of a fixed length column) */
 };
 
-#ifdef UNIV_DEBUG
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           sec)
-#else /* UNIV_DEBUG */
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
-#endif /* UNIV_DEBUG */
-
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in,out] dest		buffer where to store; NOTE
@@ -445,34 +432,27 @@ function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in]	templ		MySQL column template. Its following fields
                                 are referenced: type, is_unsigned,
 mysql_col_len, mbminlen, mbmaxlen
-@param[in]	index		InnoDB index */
-#ifdef UNIV_DEBUG
-/**
+@param[in]	index		InnoDB index
 @param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
-                                or templ->icp_rec_field_no */
-#endif /* UNIV_DEBUG */
-/**
+                                or templ->icp_rec_field_no
 @param[in]	data		data to store
-@param[in]	len		length of the data */
-#ifdef UNIV_DEBUG
-/**
+@param[in]	len		length of the data
 @param[in]	sec_field	secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
                                 range comparison. */
-#endif /* UNIV_DEBUG */
-void row_sel_field_store_in_mysql_format_func(byte *dest,
-                                              const mysql_row_templ_t *templ,
-                                              const dict_index_t *index,
-#ifdef UNIV_DEBUG
-                                              ulint field_no,
-#endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len
-#ifdef UNIV_DEBUG
-                                              ,
-                                              ulint sec_field
-#endif /* UNIV_DEBUG */
-);
+void row_sel_field_store_in_mysql_format_func(
+    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *index,
+    IF_DEBUG(ulint field_no, ) const byte *data,
+    ulint len IF_DEBUG(, ulint sec_field));
+
+/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
+static inline void row_sel_field_store_in_mysql_format(
+    byte *dest, const mysql_row_templ_t *templ, const dict_index_t *idx,
+    ulint field, const byte *src, ulint len, ulint sec) {
+  row_sel_field_store_in_mysql_format_func(
+      dest, templ, idx, IF_DEBUG(field, ) src, len IF_DEBUG(, sec));
+}
 
 /** Search the record present in innodb_table_stats table using
 db_name, table_name and fill it in table stats structure.

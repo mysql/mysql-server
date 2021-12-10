@@ -95,8 +95,7 @@ class Sharded_rw_lock {
   size_t s_lock(ut::Location location) {
     const size_t shard_no =
         default_indexer_t<>::get_rnd_index() & (m_n_shards - 1);
-    rw_lock_s_lock_inline(&m_shards[shard_no], 0, location.filename,
-                          location.line);
+    rw_lock_s_lock_gen(&m_shards[shard_no], 0, location);
     return shard_no;
   }
 
@@ -119,8 +118,7 @@ class Sharded_rw_lock {
   */
   bool try_x_lock(ut::Location location) {
     for (size_t shard_no = 0; shard_no < m_n_shards; ++shard_no) {
-      if (!rw_lock_x_lock_func_nowait_inline(
-              &m_shards[shard_no], location.filename, location.line)) {
+      if (!rw_lock_x_lock_nowait(&m_shards[shard_no], location)) {
         while (0 < shard_no--) {
           rw_lock_x_unlock(&m_shards[shard_no]);
         }
@@ -132,7 +130,7 @@ class Sharded_rw_lock {
 
   void x_lock(ut::Location location) {
     for_each([location](rw_lock_t &lock) {
-      rw_lock_x_lock_inline(&lock, 0, location.filename, location.line);
+      rw_lock_x_lock_gen(&lock, 0, location);
     });
   }
 

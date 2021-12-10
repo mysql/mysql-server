@@ -305,3 +305,21 @@ vio/vio.cc:*
 #===========================================================================
 
 
+
+#===========================================================================
+# WL#14680 - Removing #defines from InnoDB
+# 10-DEC-2021 Ela Babij
+#
+# Ignore errors reported by doxygen incorrectly parsing [[maybe_unused]] attribute.
+# Fixed in Doxygen 1.9.2
+#
+\)\(\(maybe_unused\)
+IF_DEBUG
+IF_AHI_DEBUG
+ha_insert_for_fold_func
+ha_search_and_update_if_found_func
+ibuf_get_merge_page_nos_func
+mem_heap_create_func
+rec_get_offsets_func
+srv_init_abort_low
+

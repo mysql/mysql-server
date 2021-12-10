@@ -204,7 +204,7 @@ bool innodb_page_cleaner_disabled_debug;
 should not happen. This is because when we do LRU flushing we also put
 the blocks on free list. If LRU list is very small then we can end up
 in thrashing. */
-#define BUF_LRU_MIN_LEN 256
+constexpr uint32_t BUF_LRU_MIN_LEN = 256;
 
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
@@ -249,11 +249,11 @@ static bool buf_flush_validate_low(const buf_pool_t *buf_pool);
 
 /** Validates the flush list some of the time.
  @return true if ok or the check was skipped */
-static ibool buf_flush_validate_skip(
+static bool buf_flush_validate_skip(
     buf_pool_t *buf_pool) /*!< in: Buffer pool instance */
 {
-/** Try buf_flush_validate_low() every this many times */
-#define BUF_FLUSH_VALIDATE_SKIP 23
+  /** Try buf_flush_validate_low() every this many times */
+  constexpr uint32_t BUF_FLUSH_VALIDATE_SKIP = 23;
 
   /** The buf_flush_validate_low() call skip counter.
   Use a signed type because of the race condition below. */
@@ -266,7 +266,7 @@ static ibool buf_flush_validate_skip(
   reduce the call frequency of the costly buf_flush_validate_low()
   check in debug builds. */
   if (--buf_flush_validate_count > 0) {
-    return (TRUE);
+    return true;
   }
 
   buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
@@ -309,15 +309,12 @@ static buf_page_t *buf_flush_insert_in_flush_rbt(
 static void buf_flush_delete_from_flush_rbt(
     buf_page_t *bpage) /*!< in: bpage to be removed. */
 {
-#ifdef UNIV_DEBUG
-  ibool ret = FALSE;
-#endif /* UNIV_DEBUG */
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
 #ifdef UNIV_DEBUG
-  ret =
+  bool ret =
 #endif /* UNIV_DEBUG */
       rbt_delete(buf_pool->flush_rbt, &bpage);
 
@@ -524,7 +521,7 @@ void buf_flush_insert_into_flush_list(
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
   ut_ad(!block->page.in_flush_list);
 
-  ut_d(block->page.in_flush_list = TRUE);
+  ut_d(block->page.in_flush_list = true);
 
   if (lsn == 0) {
     /* This is no-redo dirtied page. Borrow the lsn. */
@@ -626,7 +623,7 @@ void buf_flush_insert_sorted_into_flush_list(
   ut_ad(!block->page.in_zip_hash);
 
   ut_ad(!block->page.in_flush_list);
-  ut_d(block->page.in_flush_list = TRUE);
+  ut_d(block->page.in_flush_list = true);
   block->page.set_oldest_lsn(lsn);
 
 #ifdef UNIV_DEBUG_VALGRIND
@@ -827,7 +824,7 @@ void buf_flush_remove(buf_page_t *bpage) {
 
   /* Must be done after we have removed it from the flush_rbt
   because we assert on in_flush_list in comparison function. */
-  ut_d(bpage->in_flush_list = FALSE);
+  ut_d(bpage->in_flush_list = false);
 
   buf_pool->stat.flush_list_bytes -= bpage->size.physical();
 
@@ -890,7 +887,7 @@ void buf_flush_relocate_on_flush_list(
 
   /* Must be done after we have removed it from the flush_rbt
   because we assert on in_flush_list in comparison function. */
-  ut_d(bpage->in_flush_list = FALSE);
+  ut_d(bpage->in_flush_list = false);
 
   prev = UT_LIST_GET_PREV(list, bpage);
   UT_LIST_REMOVE(buf_pool->flush_list, bpage);
@@ -934,7 +931,7 @@ void buf_flush_write_complete(buf_page_t *bpage) {
   buf_pool->n_flush[flush_type]--;
 
   if (buf_pool->n_flush[flush_type] == 0 &&
-      buf_pool->init_flush[flush_type] == FALSE) {
+      buf_pool->init_flush[flush_type] == false) {
     /* The running flush batch has ended */
 
     os_event_set(buf_pool->no_flush[flush_type]);
@@ -997,7 +994,7 @@ bool page_is_uncompressed_type(const byte *page) {
 void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
                                 void *page_zip_, lsn_t newest_lsn,
                                 bool skip_checksum, bool skip_lsn_check) {
-  ib_uint32_t checksum = BUF_NO_CHECKSUM_MAGIC;
+  uint32_t checksum = BUF_NO_CHECKSUM_MAGIC;
 
   ut_ad(block == nullptr || block->frame == page);
   ut_ad(block == nullptr || page_zip_ == nullptr ||
@@ -1135,9 +1132,9 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
         break;
       case SRV_CHECKSUM_ALGORITHM_INNODB:
       case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-        checksum = (ib_uint32_t)buf_calc_page_new_checksum(page);
+        checksum = (uint32_t)buf_calc_page_new_checksum(page);
         mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
-        checksum = (ib_uint32_t)buf_calc_page_old_checksum(page);
+        checksum = (uint32_t)buf_calc_page_old_checksum(page);
         break;
       case SRV_CHECKSUM_ALGORITHM_NONE:
       case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
@@ -1280,8 +1277,8 @@ returns true.
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request
 @return true if page was flushed */
-ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
-                     buf_flush_t flush_type, bool sync) {
+bool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
+                    buf_flush_t flush_type, bool sync) {
   BPageMutex *block_mutex;
 
   ut_ad(flush_type < BUF_FLUSH_N_TYPES);
@@ -1307,12 +1304,12 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
   is_uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
   ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
-  ibool flush;
+  bool flush;
   rw_lock_t *rw_lock = nullptr;
   bool no_fix_count = bpage->buf_fix_count == 0;
 
   if (!is_uncompressed) {
-    flush = TRUE;
+    flush = true;
     rw_lock = nullptr;
   } else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST) ||
              (!no_fix_count &&
@@ -1322,14 +1319,14 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
     /* For table residing in temporary tablespace sync is done
     using IO_FIX and so before scheduling for flush ensure that
     page is not fixed. */
-    flush = FALSE;
+    flush = false;
   } else {
     rw_lock = &reinterpret_cast<buf_block_t *>(bpage)->lock;
     if (flush_type != BUF_FLUSH_LIST) {
-      flush = rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE);
+      flush = rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE, UT_LOCATION_HERE);
     } else {
       /* Will SX lock later */
-      flush = TRUE;
+      flush = true;
     }
   }
 
@@ -1374,14 +1371,14 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
     }
 
     if (flush_type == BUF_FLUSH_LIST && is_uncompressed &&
-        !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE)) {
+        !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE, UT_LOCATION_HERE)) {
       if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::enabled) {
         dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
       } else {
         buf_flush_sync_datafiles();
       }
 
-      rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
+      rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE, UT_LOCATION_HERE);
     }
 
     /* If there is an observer that wants to know if the
@@ -1401,7 +1398,7 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
     buf_flush_write_block_low(bpage, flush_type, sync);
   }
 
-  return (flush);
+  return flush;
 }
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -1418,7 +1415,7 @@ bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block) {
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
 
   if (!buf_flush_ready_for_flush(&block->page, BUF_FLUSH_SINGLE_PAGE)) {
-    return (FALSE);
+    return false;
   }
 
   /* The following call will release the LRU list and block mutexes. */
@@ -1502,7 +1499,7 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
 
     page_no_t buf_flush_area;
 
-    buf_flush_area = std::min(BUF_READ_AHEAD_AREA(buf_pool),
+    buf_flush_area = std::min(buf_pool->read_ahead_area,
                               static_cast<page_no_t>(buf_pool->curr_size / 16));
 
     low = (page_id.page_no() / buf_flush_area) * buf_flush_area;
@@ -2004,27 +2001,27 @@ static void buf_flush_stats(ulint page_count_flush, ulint page_count_LRU) {
 /** Start a buffer flush batch for LRU or flush list
 @param[in]	buf_pool	buffer pool instance
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST */
-static ibool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
+static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
   mutex_enter(&buf_pool->flush_state_mutex);
 
   if (buf_pool->n_flush[flush_type] > 0 ||
-      buf_pool->init_flush[flush_type] == TRUE) {
+      buf_pool->init_flush[flush_type] == true) {
     /* There is already a flush batch of the same type running */
 
     mutex_exit(&buf_pool->flush_state_mutex);
 
-    return (FALSE);
+    return false;
   }
 
-  buf_pool->init_flush[flush_type] = TRUE;
+  buf_pool->init_flush[flush_type] = true;
 
   os_event_reset(buf_pool->no_flush[flush_type]);
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  return (TRUE);
+  return true;
 }
 
 /** End a buffer flush batch for LRU or flush list
@@ -2033,9 +2030,9 @@ static ibool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   mutex_enter(&buf_pool->flush_state_mutex);
 
-  buf_pool->init_flush[flush_type] = FALSE;
+  buf_pool->init_flush[flush_type] = false;
 
-  buf_pool->try_LRU_scan = TRUE;
+  buf_pool->try_LRU_scan = true;
 
   if (buf_pool->n_flush[flush_type] == 0) {
     /* The running flush batch has ended */
@@ -2258,9 +2255,9 @@ static ulint buf_flush_LRU_list(buf_pool_t *buf_pool) {
   withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
   if (withdraw_depth > srv_LRU_scan_depth) {
-    scan_depth = ut_min(withdraw_depth, scan_depth);
+    scan_depth = std::min(withdraw_depth, scan_depth);
   } else {
-    scan_depth = ut_min(static_cast<ulint>(srv_LRU_scan_depth), scan_depth);
+    scan_depth = std::min(static_cast<ulint>(srv_LRU_scan_depth), scan_depth);
   }
 
   /* Currently one of page_cleaners is the only thread
@@ -2558,7 +2555,7 @@ ulint set_flush_target_by_lsn(bool sync_flush, lsn_t sync_flush_limit_lsn) {
 
   ulint pct_for_dirty = get_pct_for_dirty();
   ulint pct_for_lsn = get_pct_for_lsn(age);
-  ulint pct_total = ut_max(pct_for_dirty, pct_for_lsn);
+  ulint pct_total = std::max(pct_for_dirty, pct_for_lsn);
 
   /* Estimate pages to be flushed for the lsn progress */
   ulint sum_pages_for_lsn = 0;
@@ -3697,7 +3694,7 @@ static bool buf_flush_validate_low(const buf_pool_t *buf_pool) {
   flush_rbt (if active) as well. */
   ut_a(rnode == nullptr);
 
-  return (TRUE);
+  return true;
 }
 
 bool buf_flush_validate(buf_pool_t *buf_pool) {

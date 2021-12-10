@@ -25,11 +25,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**
- * @file fts/fts0pars.y
- * FTS parser: input file for the GNU Bison parser generator
- *
- * Created 2007/5/9 Sunny Bains
- */
+@file fts/fts0pars.y
+FTS parser: input file for the GNU Bison parser generator
+
+Created 2007/5/9 Sunny Bains
+*/
 
 %{
 #include "ha_prototypes.h"
@@ -236,7 +236,7 @@ Create a fts_lexer_t instance.*/
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
-	ibool		boolean_mode,
+	bool		boolean_mode,
 	const byte*	query,
 	ulint		query_len)
 {

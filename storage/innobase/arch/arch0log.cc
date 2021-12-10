@@ -40,7 +40,7 @@ const uint ARCH_LOG_CHUNK_SIZE = 1024 * 1024;
 @param[out]	file_sz		redo file size
 @param[out]	header_sz	redo header size
 @param[out]	trailer_sz	redo trailer size */
-void Log_Arch_Client_Ctx::get_header_size(ib_uint64_t &file_sz, uint &header_sz,
+void Log_Arch_Client_Ctx::get_header_size(uint64_t &file_sz, uint &header_sz,
                                           uint &trailer_sz) {
   file_sz = srv_log_file_size;
   header_sz = LOG_FILE_HDR_SIZE;
@@ -203,7 +203,7 @@ void Arch_Log_Sys::update_header(const Arch_Group *group, byte *header,
                                  lsn_t checkpoint_lsn) {
   lsn_t start_lsn;
   lsn_t lsn_offset;
-  ib_uint64_t file_size;
+  uint64_t file_size;
 
   start_lsn = group->get_begin_lsn();
   file_size = group->get_file_size();
@@ -353,7 +353,7 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
     /* Currently use log file size for archived files. */
     auto db_err = m_current_group->init_file_ctx(
         ARCH_DIR, ARCH_LOG_DIR, ARCH_LOG_FILE, 0,
-        static_cast<ib_uint64_t>(srv_log_file_size));
+        static_cast<uint64_t>(srv_log_file_size));
 
     if (db_err != DB_SUCCESS) {
       arch_mutex_exit();
@@ -646,10 +646,10 @@ dberr_t Arch_Log_Sys::copy_log(Arch_File_Ctx *file_ctx, uint length) {
 
   /* Copy log data into one or more files in archiver group. */
   while (length > 0) {
-    ib_uint64_t len_copy;
-    ib_uint64_t len_left;
+    uint64_t len_copy;
+    uint64_t len_left;
 
-    len_copy = static_cast<ib_uint64_t>(length);
+    len_copy = static_cast<uint64_t>(length);
 
     len_left = file_ctx->bytes_left();
 

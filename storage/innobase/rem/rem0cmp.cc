@@ -125,7 +125,7 @@ bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
       return (dtype_get_charset_coll(col1->prtype) ==
               dtype_get_charset_coll(col2->prtype));
     } else {
-      return (TRUE);
+      return true;
     }
   }
 
@@ -133,11 +133,11 @@ bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
       dtype_is_binary_string_type(col2->mtype, col2->prtype)) {
     /* Both are binary string types: they can be compared */
 
-    return (TRUE);
+    return true;
   }
 
   if (col1->mtype != col2->mtype) {
-    return (FALSE);
+    return false;
   }
 
   if (col1->mtype == DATA_INT &&
@@ -146,7 +146,7 @@ bool cmp_cols_are_equal(const dict_col_t *col1, const dict_col_t *col2,
     from a signed integer: in a signed integer we OR
     0x8000... to the value of positive integers. */
 
-    return (FALSE);
+    return false;
   }
 
   return (col1->mtype != DATA_INT || col1->len == col2->len);

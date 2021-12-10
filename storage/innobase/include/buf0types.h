@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0ut.h"
 
 /** Magic value to use instead of checksums when they are disabled */
-#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+constexpr uint32_t BUF_NO_CHECKSUM_MAGIC = 0xDEADBEEFUL;
 
 /** Buffer page (uncompressed or compressed) */
 class buf_page_t;
@@ -139,16 +139,17 @@ inline bool is_checksum_strict(ulint algo) {
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /** @{ */
 /** Zip shift value for the smallest page size */
-#define BUF_BUDDY_LOW_SHIFT UNIV_ZIP_SIZE_SHIFT_MIN
+constexpr uint32_t BUF_BUDDY_LOW_SHIFT = UNIV_ZIP_SIZE_SHIFT_MIN;
 
 /** Smallest buddy page size */
-#define BUF_BUDDY_LOW (1U << BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_LOW = (1U << BUF_BUDDY_LOW_SHIFT);
 
 /** Actual number of buddy sizes based on current page size */
 #define BUF_BUDDY_SIZES (UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 
 /** Maximum number of buddy sizes based on the max page size */
-#define BUF_BUDDY_SIZES_MAX (UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
+constexpr uint32_t BUF_BUDDY_SIZES_MAX =
+    UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT;
 
 /** twice the maximum block size of the buddy system;
 the underlying memory is aligned by this amount:

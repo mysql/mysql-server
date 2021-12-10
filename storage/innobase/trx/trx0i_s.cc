@@ -80,7 +80,7 @@ static_assert(sizeof(pk_pos_data_lock_wait::m_blocking_engine_lock_id) >
               "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
 
 /** Initial number of rows in the table cache */
-#define TABLE_CACHE_INITIAL_ROWSNUM 1024
+constexpr uint32_t TABLE_CACHE_INITIAL_ROWSNUM = 1024;
 
 /** @brief The maximum number of chunks to allocate for a table cache.
 
@@ -90,7 +90,7 @@ first one is 1024 rows (TABLE_CACHE_INITIAL_ROWSNUM) and each
 subsequent is N/2 where N is the number of rows we have allocated till
 now, then 39th chunk would accommodate 1677416425 rows and all chunks
 would accommodate 3354832851 rows. */
-#define MEM_CHUNKS_IN_TABLE_CACHE 39
+constexpr uint32_t MEM_CHUNKS_IN_TABLE_CACHE = 39;
 
 /** The following are some testing auxiliary macros. Do not enable them
 in a production environment. */
@@ -165,6 +165,11 @@ struct i_s_table_cache_t {
                                   rows */
 };
 
+/** Initial size of the cache storage */
+constexpr uint32_t CACHE_STORAGE_INITIAL_SIZE = 1024;
+/** Number of hash cells in the cache storage */
+constexpr uint32_t CACHE_STORAGE_HASH_CELLS = 2048;
+
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
   rw_lock_t *rw_lock; /*!< read-write lock protecting
@@ -176,10 +181,7 @@ struct trx_i_s_cache_t {
 
   i_s_table_cache_t innodb_trx;   /*!< innodb_trx table */
   i_s_table_cache_t innodb_locks; /*!< innodb_locks table */
-/** Initial size of the cache storage */
-#define CACHE_STORAGE_INITIAL_SIZE 1024
-/** Number of hash cells in the cache storage */
-#define CACHE_STORAGE_HASH_CELLS 2048
+
   /** storage for external volatile data that may become unavailable when we
   release exclusive global locksys latch or trx_sys->mutex */
   ha_storage_t *storage;
@@ -187,7 +189,7 @@ struct trx_i_s_cache_t {
   /** the amount of memory allocated with mem_alloc*() */
   ulint mem_allocd;
 
-  /** this is TRUE if the memory limit was hit and thus the data in the cache is
+  /** this is true if the memory limit was hit and thus the data in the cache is
   truncated */
   bool is_truncated;
 };
@@ -388,7 +390,7 @@ static void *table_cache_create_empty_row(
 #ifdef UNIV_DEBUG
 /** Validates a row in the locks cache.
  @return true if valid */
-static ibool i_s_locks_row_validate(
+static bool i_s_locks_row_validate(
     const i_s_locks_row_t *row) /*!< in: row to validate */
 {
   ut_ad(row->lock_immutable_id != 0);
@@ -403,14 +405,14 @@ static ibool i_s_locks_row_validate(
     ut_ad(row->lock_rec != ULINT_UNDEFINED);
   }
 
-  return (TRUE);
+  return true;
 }
 #endif /* UNIV_DEBUG */
 
 /** Fills i_s_trx_row_t object.
- If memory can not be allocated then FALSE is returned.
+ If memory can not be allocated then false is returned.
  @return false if allocation fails */
-static ibool fill_trx_row(
+static bool fill_trx_row(
     i_s_trx_row_t *row,                        /*!< out: result object
                                                that's filled */
     const trx_t *trx,                          /*!< in: transaction to
@@ -479,7 +481,7 @@ static ibool fill_trx_row(
     row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
     if (row->trx_query == nullptr) {
-      return (FALSE);
+      return false;
     }
   } else {
     row->trx_query = nullptr;
@@ -493,7 +495,7 @@ thd_done:
                         TRX_I_S_TRX_OP_STATE_MAX_LEN, cache);
 
     if (row->trx_operation_state == nullptr) {
-      return (FALSE);
+      return false;
     }
   } else {
     row->trx_operation_state = nullptr;
@@ -531,9 +533,9 @@ thd_done:
       row->trx_isolation_level = "UNKNOWN";
   }
 
-  row->trx_unique_checks = (ibool)trx->check_unique_secondary;
+  row->trx_unique_checks = trx->check_unique_secondary;
 
-  row->trx_foreign_key_checks = (ibool)trx->check_foreigns;
+  row->trx_foreign_key_checks = trx->check_foreigns;
 
   s = trx->detailed_error;
 
@@ -542,19 +544,19 @@ thd_done:
                         TRX_I_S_TRX_FK_ERROR_MAX_LEN, cache);
 
     if (row->trx_foreign_key_error == nullptr) {
-      return (FALSE);
+      return false;
     }
   } else {
     row->trx_foreign_key_error = nullptr;
   }
 
-  row->trx_has_search_latch = (ibool)trx->has_search_latch;
+  row->trx_has_search_latch = trx->has_search_latch;
 
   row->trx_is_read_only = trx->read_only;
 
   row->trx_is_autocommit_non_locking = trx_is_autocommit_non_locking(trx);
 
-  return (TRUE);
+  return true;
 }
 
 /** Format the nth field of "rec" and put it in "buf". The result is always
@@ -650,7 +652,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   mtr_start(&mtr);
 
-  block = buf_page_try_get(lock_rec_get_page_id(lock), &mtr);
+  block = buf_page_try_get(lock_rec_get_page_id(lock), UT_LOCATION_HERE, &mtr);
 
   if (block == nullptr) {
     *lock_data = nullptr;
@@ -746,10 +748,10 @@ static i_s_locks_row_t *add_lock_to_cache(
  If the transaction is waiting, then the wait lock is added to
  innodb_locks and a pointer to the added row is returned in
  requested_lock_row, otherwise requested_lock_row is set to NULL.
- If rows can not be allocated then FALSE is returned and the value of
+ If rows can not be allocated then false is returned and the value of
  requested_lock_row is undefined.
  @return false if allocation fails */
-static ibool add_trx_relevant_locks_to_cache(
+static bool add_trx_relevant_locks_to_cache(
     trx_i_s_cache_t *cache,               /*!< in/out: cache */
     const trx_t *trx,                     /*!< in: transaction */
     i_s_locks_row_t **requested_lock_row) /*!< out: pointer to the
@@ -780,7 +782,7 @@ static ibool add_trx_relevant_locks_to_cache(
 
     /* memory could not be allocated */
     if (*requested_lock_row == nullptr) {
-      return (FALSE);
+      return false;
     }
 
     /* then iterate over the locks before the wait lock and
@@ -801,7 +803,7 @@ static ibool add_trx_relevant_locks_to_cache(
 
         /* memory could not be allocated */
         if (blocking_lock_row == nullptr) {
-          return (FALSE);
+          return false;
         }
       }
     }
@@ -809,12 +811,12 @@ static ibool add_trx_relevant_locks_to_cache(
     *requested_lock_row = nullptr;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Checks if the cache can safely be updated.
  @return true if can be updated */
-static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
+static bool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 {
   /* Here we read cache->last_read without acquiring its mutex
   because last_read is only updated when a shared rw lock on the
@@ -1028,7 +1030,7 @@ void trx_i_s_cache_free(trx_i_s_cache_t *cache) /*!< in, own: cache to free */
 /** Issue a shared/read lock on the tables cache. */
 void trx_i_s_cache_start_read(trx_i_s_cache_t *cache) /*!< in: cache */
 {
-  rw_lock_s_lock(cache->rw_lock);
+  rw_lock_s_lock(cache->rw_lock, UT_LOCATION_HERE);
 }
 
 /** Release a shared/read lock on the tables cache. */
@@ -1045,7 +1047,7 @@ void trx_i_s_cache_end_read(trx_i_s_cache_t *cache) /*!< in: cache */
 /** Issue an exclusive/write lock on the tables cache. */
 void trx_i_s_cache_start_write(trx_i_s_cache_t *cache) /*!< in: cache */
 {
-  rw_lock_x_lock(cache->rw_lock);
+  rw_lock_x_lock(cache->rw_lock, UT_LOCATION_HERE);
 }
 
 /** Release an exclusive/write lock on the tables cache. */

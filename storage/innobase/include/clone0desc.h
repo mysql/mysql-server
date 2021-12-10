@@ -37,7 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 /** Invalid locator ID. */
-const ib_uint64_t CLONE_LOC_INVALID_ID = 0;
+const uint64_t CLONE_LOC_INVALID_ID = 0;
 
 /** Maximum base length for any serialized descriptor. This is only used for
 optimal allocation and has no impact on version compatibility. */
@@ -383,8 +383,8 @@ struct Clone_Desc_Locator {
   @param[in]	state	snapshot state
   @param[in]	version	Descriptor version
   @param[in]	index	clone index */
-  void init(ib_uint64_t id, ib_uint64_t snap_id, Snapshot_State state,
-            uint version, uint index);
+  void init(uint64_t id, uint64_t snap_id, Snapshot_State state, uint version,
+            uint index);
 
   /** Check if the passed locator matches the current one.
   @param[in]	other_desc	input locator descriptor
@@ -485,7 +485,7 @@ struct Clone_Desc_State {
 struct Clone_File_Meta {
   /** Set file as deleted chunk.
   @param[in]	chunk	chunk number that is found deleted. */
-  inline void set_deleted_chunk(uint32 chunk) {
+  inline void set_deleted_chunk(uint32_t chunk) {
     m_begin_chunk = chunk;
     m_end_chunk = 0;
     m_deleted = true;

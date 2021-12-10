@@ -159,8 +159,8 @@ static inline ulint fts_select_index_by_hash(const CHARSET_INFO *cs,
     it gives different results for Windows and Linux, but it needs to match
     on-disk data.
    */
-  uint64 nr1 = 1;
-  uint64 nr2 = 4;
+  uint64_t nr1 = 1;
+  uint64_t nr2 = 4;
   cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
 
   return (static_cast<ulong>(nr1) % FTS_NUM_AUX_INDEX);

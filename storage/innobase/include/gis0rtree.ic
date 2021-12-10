@@ -67,7 +67,7 @@ static inline void rtr_page_cal_mbr(
 
     ut_ad(len == DATA_MBR_LEN);
     inc = 0;
-    for (int i = 0; i < SPDIMS; i++) {
+    for (uint i = 0; i < SPDIMS; i++) {
       bmin = mach_double_read(field + inc);
       bmax = mach_double_read(field + inc + sizeof(double));
 
@@ -152,7 +152,7 @@ static inline void rtr_write_mbr(byte *data,           /*!< out: data */
 {
   const double *my_mbr = reinterpret_cast<const double *>(mbr);
 
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     mach_double_write(data + i * sizeof(double), my_mbr[i]);
   }
 }
@@ -161,7 +161,7 @@ static inline void rtr_write_mbr(byte *data,           /*!< out: data */
 static inline void rtr_read_mbr(const byte *data, /*!< in: data */
                                 rtr_mbr_t *mbr)   /*!< out: MBR */
 {
-  for (int i = 0; i < SPDIMS * 2; i++) {
+  for (uint i = 0; i < SPDIMS * 2; i++) {
     (reinterpret_cast<double *>(mbr))[i] =
         mach_double_read(data + i * sizeof(double));
   }

@@ -69,13 +69,13 @@ void Block_hint::buffer_fix_block_if_still_valid() {
   if (m_block != nullptr) {
     const buf_pool_t *const pool = buf_pool_get(m_page_id);
     rw_lock_t *latch = buf_page_hash_lock_get(pool, m_page_id);
-    rw_lock_s_lock(latch);
+    rw_lock_s_lock(latch, UT_LOCATION_HERE);
     /* If not own buf_pool_mutex, page_hash can be changed. */
     latch = buf_page_hash_lock_s_confirm(latch, pool, m_page_id);
     if (buf_is_block_in_instance(pool, m_block) &&
         m_page_id == m_block->page.id &&
         buf_block_get_state(m_block) == BUF_BLOCK_FILE_PAGE) {
-      buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+      buf_block_buf_fix_inc(m_block, UT_LOCATION_HERE);
     } else {
       clear();
     }

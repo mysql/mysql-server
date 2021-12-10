@@ -210,16 +210,15 @@ void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
 
 /** Checks that a transaction id is sensible, i.e., not in the future.
  @return true if ok */
-#ifdef UNIV_DEBUG
-
-#else
+#ifndef UNIV_DEBUG
 [[nodiscard]] static
 #endif
-bool lock_check_trx_id_sanity(
-    trx_id_t trx_id,           /*!< in: trx id */
-    const rec_t *rec,          /*!< in: user record */
-    const dict_index_t *index, /*!< in: index */
-    const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
+    bool
+    lock_check_trx_id_sanity(
+        trx_id_t trx_id,           /*!< in: trx id */
+        const rec_t *rec,          /*!< in: user record */
+        const dict_index_t *index, /*!< in: index */
+        const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
 {
   ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -2038,7 +2037,8 @@ static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
 
   using LockDescriptorEx = std::pair<trx_schedule_weight_t, lock_t *>;
   /* Preallocate for 4 lists with 32 locks. */
-  MEM_HEAP_NEW(heap, (sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) * 32);
+  Scoped_heap heap((sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) *
+                   32 IF_DEBUG(, UT_LOCATION_HERE));
 
   RecID rec_id{in_lock, heap_no};
   Locks<lock_t *> low_priority_light{heap.get()};
@@ -2552,7 +2552,6 @@ void lock_move_reorganize_page(
   lock_t *lock;
   trx_lock_list_t old_locks;
   mem_heap_t *heap = nullptr;
-  ulint comp;
   {
     /* We only process locks on block, not oblock */
     locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
@@ -2564,7 +2563,7 @@ void lock_move_reorganize_page(
       return;
     }
 
-    heap = mem_heap_create(256);
+    heap = mem_heap_create(256, UT_LOCATION_HERE);
 
     /* Copy first all the locks on the page to heap and reset the
     bitmaps in the original locks; chain the copies of the locks
@@ -2586,7 +2585,7 @@ void lock_move_reorganize_page(
       lock = lock_rec_get_next_on_page(lock);
     } while (lock != nullptr);
 
-    comp = page_is_comp(block->frame);
+    auto comp = page_is_comp(block->frame);
     ut_ad(comp == page_is_comp(oblock->frame));
 
     lock_move_granted_locks_to_front(old_locks);
@@ -2657,7 +2656,7 @@ void lock_move_reorganize_page(
 void lock_move_rec_list_end(const buf_block_t *new_block,
                             const buf_block_t *block, const rec_t *rec) {
   lock_t *lock;
-  const ulint comp = page_rec_is_comp(rec);
+  const auto comp = page_rec_is_comp(rec);
 
   ut_ad(buf_block_get_frame(block) == page_align(rec));
   ut_ad(comp == page_is_comp(buf_block_get_frame(new_block)));
@@ -2749,7 +2748,7 @@ void lock_move_rec_list_start(const buf_block_t *new_block,
                               const buf_block_t *block, const rec_t *rec,
                               const rec_t *old_end) {
   lock_t *lock;
-  const ulint comp = page_rec_is_comp(rec);
+  const auto comp = page_rec_is_comp(rec);
 
   ut_ad(block->frame == page_align(rec));
   ut_ad(new_block->frame == page_align(old_end));
@@ -2835,13 +2834,12 @@ void lock_rtr_move_rec_list(const buf_block_t *new_block,
                             const buf_block_t *block, rtr_rec_move_t *rec_move,
                             ulint num_move) {
   lock_t *lock;
-  ulint comp;
 
   if (!num_move) {
     return;
   }
 
-  comp = page_rec_is_comp(rec_move[0].old_rec);
+  auto comp = page_rec_is_comp(rec_move[0].old_rec);
 
   ut_ad(block->frame == page_align(rec_move[0].old_rec));
   ut_ad(new_block->frame == page_align(rec_move[0].new_rec));
@@ -3749,7 +3747,7 @@ dberr_t lock_table_for_trx(dict_table_t *table, trx_t *trx,
   que_thr_t *thr;
   dberr_t err;
   sel_node_t *node;
-  heap = mem_heap_create(512);
+  heap = mem_heap_create(512, UT_LOCATION_HERE);
 
   node = sel_node_create(heap);
   thr = pars_complete_graph_for_exec(node, trx, heap, nullptr);
@@ -4189,17 +4187,18 @@ namespace locksys {
 }  // namespace locksys
 
 /* True if a lock mode is S or X */
-#define IS_LOCK_S_OR_X(lock) \
-  (lock_get_mode(lock) == LOCK_S || lock_get_mode(lock) == LOCK_X)
+static inline bool IS_LOCK_S_OR_X(lock_t *lock) {
+  return lock_get_mode(lock) == LOCK_S || lock_get_mode(lock) == LOCK_X;
+}
 
 /** Removes locks of a transaction on a table to be dropped.
  If remove_also_table_sx_locks is true then table-level S and X locks are
  also removed in addition to other table-level and record-level locks.
  No lock that is going to be removed is allowed to be a wait lock. */
 static void lock_remove_all_on_table_for_trx(
-    dict_table_t *table,              /*!< in: table to be dropped */
-    trx_t *trx,                       /*!< in: a transaction */
-    ibool remove_also_table_sx_locks) /*!< in: also removes
+    dict_table_t *table,             /*!< in: table to be dropped */
+    trx_t *trx,                      /*!< in: a transaction */
+    bool remove_also_table_sx_locks) /*!< in: also removes
                                    table S and X locks */
 {
   lock_t *lock;
@@ -4300,9 +4299,9 @@ static ulint lock_remove_recovered_trx_record_locks(
  also removed in addition to other table-level and record-level locks.
  No lock, that is going to be removed, is allowed to be a wait lock. */
 void lock_remove_all_on_table(
-    dict_table_t *table,              /*!< in: table to be dropped
-                                      or discarded */
-    ibool remove_also_table_sx_locks) /*!< in: also removes
+    dict_table_t *table,             /*!< in: table to be dropped
+                                     or discarded */
+    bool remove_also_table_sx_locks) /*!< in: also removes
                                    table S and X locks */
 {
   /* We will iterate over locks (including record locks) from various shards */
@@ -4419,7 +4418,7 @@ static void lock_rec_print(FILE *file,         /*!< in: file where to print */
 
   const buf_block_t *block;
 
-  block = buf_page_try_get(page_id, &mtr);
+  block = buf_page_try_get(page_id, UT_LOCATION_HERE, &mtr);
 
   for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
     if (!lock_rec_get_nth_bit(lock, i)) {
@@ -4727,7 +4726,7 @@ static bool lock_rec_fetch_page(const lock_t *lock) {
     if (space) {
       mtr_start(&mtr);
       buf_page_get_gen(page_id, page_size, RW_NO_LATCH, nullptr,
-                       Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+                       Page_fetch::POSSIBLY_FREED, UT_LOCATION_HERE, &mtr);
       mtr_commit(&mtr);
       fil_space_release(space);
     }
@@ -5136,8 +5135,8 @@ static void lock_rec_block_validate(const page_id_t &page_id) {
     mtr_start(&mtr);
 
     block = buf_page_get_gen(page_id, page_size_t(space->flags), RW_X_LATCH,
-                             nullptr, Page_fetch::POSSIBLY_FREED, __FILE__,
-                             __LINE__, &mtr);
+                             nullptr, Page_fetch::POSSIBLY_FREED,
+                             UT_LOCATION_HERE, &mtr);
 
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
@@ -5199,10 +5198,10 @@ dberr_t lock_rec_insert_check_and_lock(
     dict_index_t *index, /*!< in: index */
     que_thr_t *thr,      /*!< in: query thread */
     mtr_t *mtr,          /*!< in/out: mini-transaction */
-    ibool *inherit)      /*!< out: set to true if the new
-                         inserted record maybe should inherit
-                         LOCK_GAP type locks from the successor
-                         record */
+    bool *inherit)       /*!< out: set to true if the new
+                          inserted record maybe should inherit
+                          LOCK_GAP type locks from the successor
+                          record */
 {
   ut_ad(block->frame == page_align(rec));
   ut_ad(!dict_index_is_online_ddl(index) || index->is_clustered() ||
@@ -5216,7 +5215,7 @@ dberr_t lock_rec_insert_check_and_lock(
 
   dberr_t err = DB_SUCCESS;
   lock_t *lock;
-  ibool inherit_in = *inherit;
+  auto inherit_in = *inherit;
   trx_t *trx = thr_get_trx(thr);
   const rec_t *next_rec = page_rec_get_next_const(rec);
   ulint heap_no = page_rec_get_heap_no(next_rec);

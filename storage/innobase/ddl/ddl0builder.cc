@@ -250,7 +250,7 @@ File_cursor::File_cursor(Builder *builder,
 }
 
 dberr_t File_cursor::open() noexcept {
-  MEM_HEAP_CREATE(m_tuple_heap, 2048);
+  m_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
 
   return m_reader.prepare();
 }
@@ -517,7 +517,7 @@ dberr_t Key_sort_buffer_cursor::open() noexcept {
   {
     const auto i = 1 + REC_OFFS_HEADER_SIZE + n_fields;
 
-    MEM_HEAP_CREATE(m_heap, 1024 + i * sizeof(ulint));
+    m_heap.create(1024 + i * sizeof(ulint) IF_DEBUG(, UT_LOCATION_HERE));
 
     const size_t n = i * sizeof(*m_offsets);
 
@@ -534,7 +534,7 @@ dberr_t Key_sort_buffer_cursor::open() noexcept {
 
   dtuple_set_n_fields_cmp(m_dtuple, dict_index_get_n_unique_in_tree(index));
 
-  MEM_HEAP_CREATE(m_tuple_heap, 2048);
+  m_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
 
   return DB_SUCCESS;
 }
@@ -591,7 +591,7 @@ Builder::Builder(ddl::Context &ctx, Loader &loader, size_t i) noexcept
 
   if (dict_table_is_comp(m_ctx.m_old_table) &&
       !dict_table_is_comp(m_ctx.m_new_table)) {
-    MEM_HEAP_CREATE(m_conv_heap, sizeof(mrec_buf_t));
+    m_conv_heap.create(sizeof(mrec_buf_t) IF_DEBUG(, UT_LOCATION_HERE));
   }
 }
 
@@ -722,7 +722,7 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
   }
 
   if (cursor.m_row_heap.get() == nullptr) {
-    MEM_HEAP_CREATE(cursor.m_row_heap, sizeof(mrec_buf_t));
+    cursor.m_row_heap.create(sizeof(mrec_buf_t) IF_DEBUG(, UT_LOCATION_HERE));
 
     if (cursor.m_row_heap.get() == nullptr) {
       set_error(DB_OUT_OF_MEMORY);
@@ -1663,7 +1663,7 @@ dberr_t Builder::check_duplicates(Thread_ctxs &dupcheck, Dup *dup) noexcept {
 
   const auto n_compare = dict_index_get_n_unique_in_tree(m_index);
 
-  MEM_HEAP_CREATE(prev_tuple_heap, 2048);
+  prev_tuple_heap.create(2048 IF_DEBUG(, UT_LOCATION_HERE));
 
   while ((err = cursor.fetch(dtuple)) == DB_SUCCESS) {
     if (prev_dtuple != nullptr) {

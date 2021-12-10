@@ -42,7 +42,7 @@ const uint MAX_CLONES_PER_SNAPSHOT = 1;
 
 Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
                                Ha_clone_type clone_type, uint arr_idx,
-                               ib_uint64_t snap_id)
+                               uint64_t snap_id)
     : m_snapshot_handle_type(hdl_type),
       m_snapshot_type(clone_type),
       m_snapshot_id(snap_id),
@@ -72,7 +72,8 @@ Clone_Snapshot::Clone_Snapshot(Clone_Handle_Type hdl_type,
       m_enable_pfs(false) {
   mutex_create(LATCH_ID_CLONE_SNAPSHOT, &m_snapshot_mutex);
 
-  m_snapshot_heap = mem_heap_create(SNAPSHOT_MEM_INITIAL_SIZE);
+  m_snapshot_heap =
+      mem_heap_create(SNAPSHOT_MEM_INITIAL_SIZE, UT_LOCATION_HERE);
 
   m_chunk_size_pow2 = SNAPSHOT_DEF_CHUNK_SIZE_POW2;
   m_block_size_pow2 = SNAPSHOT_DEF_BLOCK_SIZE_POW2;
@@ -442,7 +443,7 @@ int Clone_Snapshot::get_next_block(uint chunk_num, uint &block_num,
   /* Find number of blocks in current chunk. */
   if (chunk_num == file_meta->m_end_chunk) {
     /* If it is last chunk, we need to adjust the size. */
-    ib_uint64_t size_in_pages;
+    uint64_t size_in_pages;
     uint aligned_sz;
 
     ut_ad(file_meta->m_file_size >= start_offset);
@@ -472,9 +473,9 @@ int Clone_Snapshot::get_next_block(uint chunk_num, uint &block_num,
   ut_ad(block_num < num_blocks);
 
   /* Calculate the offset of next block. */
-  ib_uint64_t block_offset;
+  uint64_t block_offset;
 
-  block_offset = static_cast<ib_uint64_t>(block_num);
+  block_offset = static_cast<uint64_t>(block_num);
   block_offset *= block_size();
 
   data_offset = chunk_offset + block_offset;
@@ -695,7 +696,7 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
   ut_ad(file_meta->m_space_id == clone_page.m_space_id);
 
   /* Data offset could be beyond 32 BIT integer. */
-  data_offset = static_cast<ib_uint64_t>(clone_page.m_page_no);
+  data_offset = static_cast<uint64_t>(clone_page.m_page_no);
   data_offset *= page_size.physical();
 
   auto file_index = file_meta->m_file_index;
@@ -874,7 +875,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   we would like to serialize with page flush to disk. */
   auto block =
       buf_page_get_gen(page_id, page_size, RW_SX_LATCH, nullptr,
-                       Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+                       Page_fetch::POSSIBLY_FREED, UT_LOCATION_HERE, &mtr);
   auto bpage = &block->page;
 
   buf_page_mutex_enter(block);

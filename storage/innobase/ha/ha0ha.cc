@@ -59,10 +59,10 @@ hash_table_t *ib_create(ulint n, latch_id_t id, ulint n_sync_obj, ulint type) {
 
   if (n_sync_obj == 0) {
     table->heap = mem_heap_create_typed(
-        ut_min(static_cast<ulint>(4096), MEM_MAX_ALLOC_IN_BUF / 2 -
-                                             MEM_BLOCK_HEADER_SIZE -
-                                             MEM_SPACE_NEEDED(0)),
-        type);
+        std::min(uint64_t{4096}, MEM_MAX_ALLOC_IN_BUF / 2 -
+                                     MEM_BLOCK_HEADER_SIZE -
+                                     MEM_SPACE_NEEDED(0)),
+        UT_LOCATION_HERE, type);
     ut_a(table->heap);
 
     return table;
@@ -99,22 +99,9 @@ void ha_clear(hash_table_t *table) /*!< in, own: hash table */
   }
 }
 
-/** Inserts an entry into a hash table. If an entry with the same fold number
- is found, its node is updated to point to the new data, and no new node
- is inserted. If btr_search_enabled is set to FALSE, we will only allow
- updating existing nodes, but no new node is allowed to be added.
- @return true if succeed, false if no more memory could be allocated */
-ibool ha_insert_for_fold_func(
-    hash_table_t *table, /*!< in: hash table */
-    ulint fold,          /*!< in: folded value of data; if a node with
-                         the same fold value already exists, it is
-                         updated to point to the same data, and no new
-                         node is created! */
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    buf_block_t *block, /*!< in: buffer block containing the data */
-#endif                  /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-    const rec_t *data)  /*!< in: data, must not be NULL */
-{
+bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
+                             IF_AHI_DEBUG(buf_block_t *block, )
+                                 const rec_t *data) {
   hash_cell_t *cell;
   ha_node_t *node;
   ha_node_t *prev_node;
@@ -149,7 +136,7 @@ ibool ha_insert_for_fold_func(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
       prev_node->data = data;
 
-      return (TRUE);
+      return true;
     }
 
     prev_node = prev_node->next;
@@ -166,10 +153,10 @@ ibool ha_insert_for_fold_func(
 
     ut_ad(hash_get_heap(table, fold)->type & MEM_HEAP_BTR_SEARCH);
 
-    return (FALSE);
+    return false;
   }
 
-  ha_node_set_data(node, block, data);
+  ha_node_set_data(node, IF_AHI_DEBUG(block, ) data);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   if (table->adaptive) {
@@ -186,7 +173,7 @@ ibool ha_insert_for_fold_func(
   if (prev_node == nullptr) {
     cell->node = node;
 
-    return (TRUE);
+    return true;
   }
 
   while (prev_node->next != nullptr) {
@@ -195,7 +182,7 @@ ibool ha_insert_for_fold_func(
 
   prev_node->next = node;
 
-  return (TRUE);
+  return true;
 }
 
 #ifdef UNIV_DEBUG
@@ -232,18 +219,10 @@ void ha_delete_hash_node(hash_table_t *table, /*!< in: hash table */
   HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
-/** Looks for an element when we know the pointer to the data, and updates
- the pointer to data, if found.
- @return true if found */
-ibool ha_search_and_update_if_found_func(
-    hash_table_t *table, /*!< in/out: hash table */
-    ulint fold,          /*!< in: folded value of the searched data */
-    const rec_t *data,   /*!< in: pointer to the data */
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    buf_block_t *new_block, /*!< in: block containing new_data */
-#endif                      /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-    const rec_t *new_data)  /*!< in: new pointer to the data */
-{
+bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
+                                        const rec_t *data,
+                                        IF_AHI_DEBUG(buf_block_t *new_block, )
+                                            const rec_t *new_data) {
   ha_node_t *node;
 
   ut_ad(table);
@@ -256,7 +235,7 @@ ibool ha_search_and_update_if_found_func(
   ut_d(ha_btr_search_latch_x_locked(table));
 
   if (!btr_search_enabled) {
-    return (FALSE);
+    return false;
   }
 
   node = ha_search_with_data(table, fold, data);
@@ -272,10 +251,10 @@ ibool ha_search_and_update_if_found_func(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
     node->data = new_data;
 
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Removes from the chain determined by fold all nodes whose data pointer
@@ -325,11 +304,11 @@ void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Validates a given range of the cells in hash table.
  @return true if ok */
-ibool ha_validate(hash_table_t *table, /*!< in: hash table */
-                  ulint start_index,   /*!< in: start index */
-                  ulint end_index)     /*!< in: end index */
+bool ha_validate(hash_table_t *table, /*!< in: hash table */
+                 ulint start_index,   /*!< in: start index */
+                 ulint end_index)     /*!< in: end index */
 {
-  ibool ok = TRUE;
+  bool ok = true;
   ulint i;
 
   ut_ad(table);
@@ -352,7 +331,7 @@ ibool ha_validate(hash_table_t *table, /*!< in: hash table */
                                     " cell number "
                                  << i << ".";
 
-        ok = FALSE;
+        ok = false;
       }
     }
   }

@@ -302,7 +302,7 @@ inline const char *mtr_memo_type(const ulint type) {
 }
 
 #ifdef UNIV_DEBUG
-#define MTR_MAGIC_N 54551
+constexpr uint32_t MTR_MAGIC_N = 54551;
 #endif /* UNIV_DEBUG */
 
 enum mtr_state_t {

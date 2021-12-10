@@ -221,29 +221,10 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
   }
 }
 
-/** The following function determines the offsets to each field
- in the record.	It can reuse a previously returned array.
- Note that after instant ADD COLUMN, if this is a record
- from clustered index, fields in the record may be less than
- the fields defined in the clustered index. So the offsets
- size is allocated according to the clustered index fields.
- @return the new offsets */
-ulint *rec_get_offsets_func(
-    const rec_t *rec,          /*!< in: physical record */
-    const dict_index_t *index, /*!< in: record descriptor */
-    ulint *offsets,            /*!< in/out: array consisting of
-                               offsets[0] allocated elements,
-                               or an array from rec_get_offsets(),
-                               or NULL */
-    ulint n_fields,            /*!< in: maximum number of
-                              initialized fields
-                               (ULINT_UNDEFINED if all fields) */
-#ifdef UNIV_DEBUG
-    const char *file,  /*!< in: file name where called */
-    ulint line,        /*!< in: line number where called */
-#endif                 /* UNIV_DEBUG */
-    mem_heap_t **heap) /*!< in/out: memory heap */
-{
+ulint *rec_get_offsets_func(const rec_t *rec, const dict_index_t *index,
+                            ulint *offsets, ulint n_fields,
+                            IF_DEBUG(ut::Location location, )
+                                mem_heap_t **heap) {
   ulint n;
   ulint size;
 
@@ -285,7 +266,7 @@ ulint *rec_get_offsets_func(
   if (UNIV_UNLIKELY(!offsets) ||
       UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
     if (UNIV_UNLIKELY(!*heap)) {
-      *heap = mem_heap_create_at(size * sizeof(ulint), file, line);
+      *heap = mem_heap_create_at(size * sizeof(ulint) IF_DEBUG(, location));
     }
     offsets = static_cast<ulint *>(mem_heap_alloc(*heap, size * sizeof(ulint)));
 

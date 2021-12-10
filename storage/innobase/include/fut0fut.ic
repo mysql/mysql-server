@@ -52,7 +52,8 @@ static inline byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
   ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH) ||
         (rw_latch == RW_SX_LATCH));
 
-  block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch, mtr);
+  block = buf_page_get(page_id_t(space, addr.page), page_size, rw_latch,
+                       UT_LOCATION_HERE, mtr);
   ptr = buf_block_get_frame(block) + addr.boffset;
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);

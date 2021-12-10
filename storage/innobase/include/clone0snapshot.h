@@ -202,10 +202,10 @@ using Clone_File_Map = std::map<space_id_t, uint>;
 /** Page identified by space and page number */
 struct Clone_Page {
   /** Tablespace ID */
-  ib_uint32_t m_space_id;
+  uint32_t m_space_id;
 
   /** Page number within tablespace */
-  ib_uint32_t m_page_no;
+  uint32_t m_page_no;
 };
 
 /** Comparator for storing sorted page ID. */
@@ -295,7 +295,7 @@ class Clone_Snapshot {
   @param[in]	arr_idx		index in global array
   @param[in]	snap_id		unique snapshot ID */
   Clone_Snapshot(Clone_Handle_Type hdl_type, Ha_clone_type clone_type,
-                 uint arr_idx, ib_uint64_t snap_id);
+                 uint arr_idx, uint64_t snap_id);
 
   /** Release contexts and free heap */
   ~Clone_Snapshot();
@@ -335,7 +335,7 @@ class Clone_Snapshot {
 
   /** Get unique snapshot identifier
   @return snapshot ID */
-  ib_uint64_t get_id() { return (m_snapshot_id); }
+  uint64_t get_id() { return (m_snapshot_id); }
 
   /** Get snapshot index in global array
   @return array index */
@@ -365,7 +365,7 @@ class Clone_Snapshot {
 
   /** Get the redo file size for the snapshot
   @return redo file size */
-  ib_uint64_t get_redo_file_size() { return (m_redo_file_size); }
+  uint64_t get_redo_file_size() { return (m_redo_file_size); }
 
   /** Get total number of chunks for current state
   @return number of data chunks */
@@ -486,15 +486,14 @@ class Clone_Snapshot {
   @param[in]	space_id	page tablespace
   @param[in]	page_num	page number within tablespace
   @return error code */
-  int add_page(ib_uint32_t space_id, ib_uint32_t page_num);
+  int add_page(uint32_t space_id, uint32_t page_num);
 
   /** Add redo file to snapshot
   @param[in]	file_name	file name
   @param[in]	file_size	file size in bytes
   @param[in]	file_offset	start offset
   @return error code. */
-  int add_redo_file(char *file_name, ib_uint64_t file_size,
-                    ib_uint64_t file_offset);
+  int add_redo_file(char *file_name, uint64_t file_size, uint64_t file_offset);
 
   /** Get file metadata by index for current state
   @param[in]	index	file index
@@ -949,7 +948,7 @@ class Clone_Snapshot {
   Ha_clone_type m_snapshot_type;
 
   /** Unique snapshot ID */
-  ib_uint64_t m_snapshot_id;
+  uint64_t m_snapshot_id;
 
   /** Index in global snapshot array */
   uint m_snapshot_arr_idx;
@@ -962,7 +961,7 @@ class Clone_Snapshot {
   /** Number of blockers for state change. Usually DDLs for short duration. */
   uint32_t m_num_blockers;
 
-  /** Set to TRUE only if clone is aborted after error. */
+  /** Set to true only if clone is aborted after error. */
   bool m_aborted;
 
   /** Number of clones attached to this snapshot */
@@ -1037,7 +1036,7 @@ class Clone_Snapshot {
   Clone_File_Vec m_redo_file_vector;
 
   /** Start offset in first redo file */
-  ib_uint64_t m_redo_start_offset;
+  uint64_t m_redo_start_offset;
 
   /** Redo header block */
   byte *m_redo_header;
@@ -1052,10 +1051,10 @@ class Clone_Snapshot {
   uint m_redo_trailer_size;
 
   /** Redo trailer block offset */
-  ib_uint64_t m_redo_trailer_offset;
+  uint64_t m_redo_trailer_offset;
 
   /** Archived redo file size */
-  ib_uint64_t m_redo_file_size;
+  uint64_t m_redo_file_size;
 
   /** Total number of redo data chunks */
   uint m_num_redo_chunks;

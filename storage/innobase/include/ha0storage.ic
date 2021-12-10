@@ -73,7 +73,8 @@ static inline ha_storage_t *ha_storage_create(
 
   /* we put "storage" within "storage->heap" */
 
-  heap = mem_heap_create(sizeof(ha_storage_t) + initial_heap_bytes);
+  heap = mem_heap_create(sizeof(ha_storage_t) + initial_heap_bytes,
+                         UT_LOCATION_HERE);
 
   storage = (ha_storage_t *)mem_heap_alloc(heap, sizeof(ha_storage_t));
 

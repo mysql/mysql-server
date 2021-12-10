@@ -156,8 +156,8 @@ class BlockReporter {
   /** Print checksum values on a compressed page.
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
-  virtual inline void print_compressed_checksum(ib_uint32_t calc,
-                                                ib_uint32_t stored) const {}
+  virtual inline void print_compressed_checksum(uint32_t calc,
+                                                uint32_t stored) const {}
 
   /** Verify a compressed page's checksum.
   @retval		true		if stored checksum is valid

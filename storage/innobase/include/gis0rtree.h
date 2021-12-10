@@ -53,11 +53,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0wqueue.h"
 
 /* Define it for rtree search mode checking. */
-#define RTREE_SEARCH_MODE(mode) \
-  (((mode) >= PAGE_CUR_CONTAIN) && ((mode <= PAGE_CUR_RTREE_GET_FATHER)))
+static inline bool RTREE_SEARCH_MODE(page_cur_mode_t mode) {
+  return mode >= PAGE_CUR_CONTAIN && mode <= PAGE_CUR_RTREE_GET_FATHER;
+}
 
 /* Geometry data header */
-#define GEO_DATA_HEADER_SIZE 4
+constexpr uint32_t GEO_DATA_HEADER_SIZE = 4;
 /** Builds a Rtree node pointer out of a physical record and a page number.
  @return own: node pointer */
 dtuple_t *rtr_index_build_node_ptr(
@@ -271,25 +272,26 @@ ulint rtr_store_parent_path(
     mtr_t *mtr); /*!< in: mtr */
 
 /** Initializes and opens a persistent cursor to an index tree. It should be
- closed with btr_pcur_close. */
-void rtr_pcur_open_low(
-    dict_index_t *index,   /*!< in: index */
-    ulint level,           /*!< in: level in the btree */
-    const dtuple_t *tuple, /*!< in: tuple on which search done */
-    page_cur_mode_t mode,  /*!< in: PAGE_CUR_L, ...;
-                           NOTE that if the search is made using a unique
-                           prefix of a record, mode should be
-                           PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
-                           may end up on the previous page from the
-                           record! */
-    ulint latch_mode,      /*!< in: BTR_SEARCH_LEAF, ... */
-    btr_pcur_t *cursor,    /*!< in: memory buffer for persistent cursor */
-    const char *file,      /*!< in: file name */
-    ulint line,            /*!< in: line where called */
-    mtr_t *mtr);           /*!< in: mtr */
+ closed with btr_pcur::close. Mainly called by row_search_index_entry()
+ @param[in] index index
+ @param[in] level level in the btree
+ @param[in] tuple tuple on which search done
+ @param[in] mode PAGE_CUR_L, ...; NOTE that if the search is made using a unique
+ prefix of a record, mode should be PAGE_CUR_LE, not PAGE_CUR_GE, as the latter
+ may end up on the previous page from the record!
+ @param[in] latch_mode BTR_SEARCH_LEAF, ...
+ @param[in] cursor memore buffer for persistent cursor
+ @param[in] location location where called
+ @param[in] mtr mtr */
+void rtr_pcur_open_low(dict_index_t *index, ulint level, const dtuple_t *tuple,
+                       page_cur_mode_t mode, ulint latch_mode,
+                       btr_pcur_t *cursor, ut::Location location, mtr_t *mtr);
 
-#define rtr_pcur_open(i, t, md, l, c, m) \
-  rtr_pcur_open_low(i, 0, t, md, l, c, __FILE__, __LINE__, m)
+static inline void rtr_pcur_open(dict_index_t *i, const dtuple_t *t,
+                                 page_cur_mode_t md, ulint l, btr_pcur_t *c,
+                                 ut::Location loc, mtr_t *m) {
+  rtr_pcur_open_low(i, 0, t, md, l, c, loc, m);
+}
 
 struct btr_cur_t;
 

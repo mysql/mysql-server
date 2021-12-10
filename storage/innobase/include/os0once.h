@@ -63,7 +63,7 @@ std::call_once() when we start compiling with C++11 enabled. */
 class os_once {
  public:
   /** Control variables' state type */
-  typedef ib_uint32_t state_t;
+  typedef uint32_t state_t;
 
   /** Not yet executed. */
   static const state_t NEVER_DONE = 0;

@@ -353,7 +353,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
 static void dfield_print_raw(FILE *f, const dfield_t *dfield) {
   ulint len = dfield_get_len(dfield);
   if (!dfield_is_null(dfield)) {
-    ulint print_len = ut_min(len, static_cast<ulint>(1000));
+    ulint print_len = std::min(len, static_cast<ulint>(1000));
     ut_print_buf(f, dfield_get_data(dfield), print_len);
     if (len != print_len) {
       fprintf(f, "(total %lu bytes%s)", (ulong)len,
@@ -455,7 +455,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   }
 
   heap = mem_heap_create(
-      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000);
+      size + dtuple_get_n_fields(entry) * sizeof(big_rec_field_t) + 1000,
+      UT_LOCATION_HERE);
 
   vector = big_rec_t::alloc(heap, dtuple_get_n_fields(entry));
 

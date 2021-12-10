@@ -63,11 +63,11 @@ extern std::vector<space_id_t> flag_mismatch_spaces;
 #endif
 
 /** Offset of the space header within a file page */
-#define FSP_HEADER_OFFSET FIL_PAGE_DATA
+constexpr uint32_t FSP_HEADER_OFFSET = FIL_PAGE_DATA;
 
 /** The number of bytes required to store SDI root page number(4)
 and SDI version(4) at Page 0 */
-#define FSP_SDI_HEADER_LEN 8
+constexpr uint32_t FSP_SDI_HEADER_LEN = 8;
 
 /* The data structures in files are defined just as byte strings in C */
 typedef byte fsp_header_t;
@@ -130,63 +130,54 @@ first page of a space. The space for this header is reserved in every extent
 descriptor page, but used only in the first. */
 
 /*-------------------------------------*/
-#define FSP_SPACE_ID 0 /* space id */
-#define FSP_NOT_USED                      \
-  4 /* this field contained a value up to \
-    which we know that the modifications  \
-    in the database have been flushed to  \
-    the file space; not used now */
-#define FSP_SIZE                    \
-  8 /* Current size of the space in \
-    pages */
-#define FSP_FREE_LIMIT                       \
-  12 /* Minimum page number for which the    \
-     free list has not been initialized:     \
-     the pages >= this limit are, by         \
-     definition, free; note that in a        \
-     single-table tablespace where size      \
-     < 64 pages, this number is 64, i.e.,    \
-     we have initialized the space           \
-     about the first extent, but have not    \
-     physically allocated those pages to the \
-     file */
-#define FSP_SPACE_FLAGS               \
-  16 /* fsp_space_t.flags, similar to \
-     dict_table_t::flags */
-#define FSP_FRAG_N_USED                            \
-  20                /* number of used pages in the \
-                    FSP_FREE_FRAG list */
-#define FSP_FREE 24 /* list of free extents */
-#define FSP_FREE_FRAG (24 + FLST_BASE_NODE_SIZE)
-/* list of partially free extents not
-belonging to any segment */
-#define FSP_FULL_FRAG (24 + 2 * FLST_BASE_NODE_SIZE)
-/* list of full extents not belonging
-to any segment */
-#define FSP_SEG_ID (24 + 3 * FLST_BASE_NODE_SIZE)
-/* 8 bytes which give the first unused
-segment id */
-#define FSP_SEG_INODES_FULL (32 + 3 * FLST_BASE_NODE_SIZE)
-/* list of pages containing segment
-headers, where all the segment inode
-slots are reserved */
-#define FSP_SEG_INODES_FREE (32 + 4 * FLST_BASE_NODE_SIZE)
-/* list of pages containing segment
-headers, where not all the segment
-header slots are reserved */
+/** space id */
+constexpr uint32_t FSP_SPACE_ID = 0;
+/** this field contained a value up to which we know that the modifications in
+ the database have been flushed to the file space; not used now */
+constexpr uint32_t FSP_NOT_USED = 4;
+/** Current size of the space in pages */
+constexpr uint32_t FSP_SIZE = 8;
+/** Minimum page number for which the  free list has not been initialized: the
+ pages >= this limit are, bydefinition, free; note that in a single-table
+ tablespace where size < 64 pages, this number is 64, i.e.,we have initialized
+ the space about the first extent, but have not physically allocated those
+ pages to thefile */
+constexpr uint32_t FSP_FREE_LIMIT = 12;
+/** fsp_space_t.flags, similar to dict_table_t::flags */
+constexpr uint32_t FSP_SPACE_FLAGS = 16;
+/** number of used pages in the FSP_FREE_FRAG list */
+constexpr uint32_t FSP_FRAG_N_USED = 20;
+/** list of free extents */
+constexpr uint32_t FSP_FREE = 24;
+/** list of partially free extents not belonging to any segment */
+constexpr uint32_t FSP_FREE_FRAG = 24 + FLST_BASE_NODE_SIZE;
+
+/** list of full extents not belonging to any segment */
+constexpr uint32_t FSP_FULL_FRAG = 24 + 2 * FLST_BASE_NODE_SIZE;
+
+/** 8 bytes which give the first unused segment id */
+constexpr uint32_t FSP_SEG_ID = 24 + 3 * FLST_BASE_NODE_SIZE;
+
+/** list of pages containing segment headers, where all the segment inode slots
+ are reserved */
+constexpr uint32_t FSP_SEG_INODES_FULL = 32 + 3 * FLST_BASE_NODE_SIZE;
+
+/** list of pages containing segment headers, where not all the segment header
+ slots are reserved */
+constexpr uint32_t FSP_SEG_INODES_FREE = 32 + 4 * FLST_BASE_NODE_SIZE;
+
 /*-------------------------------------*/
 /* File space header size */
-#define FSP_HEADER_SIZE (32 + 5 * FLST_BASE_NODE_SIZE)
+constexpr uint32_t FSP_HEADER_SIZE = 32 + 5 * FLST_BASE_NODE_SIZE;
 
-#define FSP_FREE_ADD                    \
-  4 /* this many free extents are added \
-    to the free list from above         \
-    FSP_FREE_LIMIT at a time */
+/** This many free extents are added to the free list from above FSP_FREE_LIMIT
+ at a time */
+constexpr uint32_t FSP_FREE_ADD = 4;
 
 /** @} */
 
-/* Maximum allowed value of AUTOEXTEND_SIZE attribue */
-const uint64_t FSP_MAX_AUTOEXTEND_SIZE(4 * 1024 * 1024 * 1024ULL);
+/* Maximum allowed value of AUTOEXTEND_SIZE attribute */
+constexpr uint64_t FSP_MAX_AUTOEXTEND_SIZE = 4 * 1024 * 1024 * 1024ULL;
 
 /** @defgroup File Segment Inode Constants (moved from fsp0fsp.c)
 @{ */
@@ -201,48 +192,44 @@ bufferfixed file pages. */
 
 typedef byte fseg_inode_t;
 
-#define FSEG_INODE_PAGE_NODE FSEG_PAGE_DATA
+constexpr uint32_t FSEG_INODE_PAGE_NODE = FSEG_PAGE_DATA;
 /* the list node for linking
 segment inode pages */
 
-#define FSEG_ARR_OFFSET (FSEG_PAGE_DATA + FLST_NODE_SIZE)
+constexpr uint32_t FSEG_ARR_OFFSET = FSEG_PAGE_DATA + FLST_NODE_SIZE;
 /*-------------------------------------*/
-#define FSEG_ID                             \
-  0 /* 8 bytes of segment id: if this is 0, \
-    it means that the header is unused */
-#define FSEG_NOT_FULL_N_USED 8
-/* number of used segment pages in
-the FSEG_NOT_FULL list */
-#define FSEG_FREE 12
-/* list of free extents of this
-segment */
-#define FSEG_NOT_FULL (12 + FLST_BASE_NODE_SIZE)
-/* list of partially free extents */
-#define FSEG_FULL (12 + 2 * FLST_BASE_NODE_SIZE)
-/* list of full extents */
-#define FSEG_MAGIC_N (12 + 3 * FLST_BASE_NODE_SIZE)
-/* magic number used in debugging */
-#define FSEG_FRAG_ARR (16 + 3 * FLST_BASE_NODE_SIZE)
-/* array of individual pages
-belonging to this segment in fsp
-fragment extent lists */
+/* 8 bytes of segment id: if this is 0,  it means that the header is unused */
+constexpr uint32_t FSEG_ID = 0;
+/** number of used segment pages in the FSEG_NOT_FULL list */
+constexpr uint32_t FSEG_NOT_FULL_N_USED = 8;
+/** list of free extents of this segment */
+constexpr uint32_t FSEG_FREE = 12;
+/** list of partially free extents */
+constexpr uint32_t FSEG_NOT_FULL = 12 + FLST_BASE_NODE_SIZE;
+/** list of full extents */
+constexpr uint32_t FSEG_FULL = 12 + 2 * FLST_BASE_NODE_SIZE;
+/** magic number used in debugging */
+constexpr uint32_t FSEG_MAGIC_N = 12 + 3 * FLST_BASE_NODE_SIZE;
+/** array of individual pages belonging to this segment in fsp fragment extent
+ lists */
+constexpr uint32_t FSEG_FRAG_ARR = 16 + 3 * FLST_BASE_NODE_SIZE;
+/* number of slots in the array for the fragment pages */
 #define FSEG_FRAG_ARR_N_SLOTS (FSP_EXTENT_SIZE / 2)
-/* number of slots in the array for
-the fragment pages */
-#define FSEG_FRAG_SLOT_SIZE              \
-  4 /* a fragment page slot contains its \
-    page number within space, FIL_NULL   \
-    means that the slot is not in use */
+/** a fragment page slot contains its  page number within space, FIL_NULL means
+ that the slot is not in use */
+constexpr uint32_t FSEG_FRAG_SLOT_SIZE = 4;
+
 /*-------------------------------------*/
 #define FSEG_INODE_SIZE \
   (16 + 3 * FLST_BASE_NODE_SIZE + FSEG_FRAG_ARR_N_SLOTS * FSEG_FRAG_SLOT_SIZE)
 
-#define FSP_SEG_INODES_PER_PAGE(page_size) \
-  ((page_size.physical() - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE)
+static inline uint32_t FSP_SEG_INODES_PER_PAGE(page_size_t page_size) {
+  return (page_size.physical() - FSEG_ARR_OFFSET - 10) / FSEG_INODE_SIZE;
+}
 /* Number of segment inodes which fit on a
 single page */
 
-#define FSEG_MAGIC_N_VALUE 97937874
+constexpr uint32_t FSEG_MAGIC_N_VALUE = 97937874;
 
 /** The segment_reserve_factor is the ratio x/y expressed in percentage,
 where x is the number of free pages in the segment, and y is the total number
@@ -258,19 +245,12 @@ constexpr double FSEG_RESERVE_PCT_MIN = 0.03;
 constexpr double FSEG_RESERVE_PCT_MAX = 40.00;
 
 #define FSEG_FRAG_LIMIT FSEG_FRAG_ARR_N_SLOTS
-/* If the segment has >= this many
-used pages, it may be expanded by
-allocating extents to the segment;
-until that only individual fragment
-pages are allocated from the space */
 
-#define FSEG_FREE_LIST_LIMIT              \
-  40 /* If the reserved size of a segment \
-     is at least this many extents, we    \
-     allow extents to be put to the free  \
-     list of the extent: at most          \
-     FSEG_FREE_LIST_MAX_LEN many */
-#define FSEG_FREE_LIST_MAX_LEN 4
+/** If the reserved size of a segment is at least this many extents, we allow
+extents to be put to the free list of the extent: at most
+FSEG_FREE_LIST_MAX_LEN many */
+constexpr uint32_t FSEG_FREE_LIST_LIMIT = 40;
+constexpr uint32_t FSEG_FREE_LIST_MAX_LEN = 4;
 /** @} */
 
 /** @defgroup Extent Descriptor Constants (moved from fsp0fsp.c)
@@ -283,29 +263,25 @@ File extent descriptor data structure: contains bits to tell which pages in
 the extent are free and which contain old tuple version to clean. */
 
 /*-------------------------------------*/
-#define XDES_ID                      \
-  0 /* The identifier of the segment \
-    to which this extent belongs */
-#define XDES_FLST_NODE              \
-  8 /* The list node data structure \
-    for the descriptors */
-#define XDES_STATE (FLST_NODE_SIZE + 8)
-/* contains state information
-of the extent */
-#define XDES_BITMAP (FLST_NODE_SIZE + 12)
-/* Descriptor bitmap of the pages
-in the extent */
+/** The identifier of the segment to which this extent belongs */
+constexpr uint32_t XDES_ID = 0;
+/** The list node data structure for the descriptors */
+constexpr uint32_t XDES_FLST_NODE = 8;
+/** contains state information of the extent */
+constexpr uint32_t XDES_STATE = FLST_NODE_SIZE + 8;
+/** Descriptor bitmap of the pages in the extent */
+constexpr uint32_t XDES_BITMAP = FLST_NODE_SIZE + 12;
+
 /*-------------------------------------*/
 
-#define XDES_BITS_PER_PAGE 2 /* How many bits are there per page */
-#define XDES_FREE_BIT                  \
-  0 /* Index of the bit which tells if \
-    the page is free */
-#define XDES_CLEAN_BIT               \
-  1 /* NOTE: currently not used!     \
-    Index of the bit which tells if  \
-    there are old versions of tuples \
-    on the page */
+/** How many bits are there per page */
+constexpr uint32_t XDES_BITS_PER_PAGE = 2;
+/** Index of the bit which tells if the page is free */
+constexpr uint32_t XDES_FREE_BIT = 0;
+/** NOTE: currently not used! Index of the bit which tells if  there are old
+versions of tuples on the page */
+constexpr uint32_t XDES_CLEAN_BIT = 1;
+
 /** States of a descriptor */
 enum xdes_state_t {
 
@@ -341,7 +317,7 @@ enum xdes_state_t {
   (XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE_MIN * XDES_BITS_PER_PAGE))
 
 /** Offset of the descriptor array on a descriptor page */
-#define XDES_ARR_OFFSET (FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
+constexpr uint32_t XDES_ARR_OFFSET = FSP_HEADER_OFFSET + FSP_HEADER_SIZE;
 
 /** The number of reserved pages in a fragment extent. */
 const ulint XDES_FRAG_N_USED = 2;
@@ -533,7 +509,7 @@ check for this individual operation
 @return the block where the segment header is placed, x-latched, NULL
 if could not create segment because of lack of space */
 buf_block_t *fseg_create_general(space_id_t space_id, page_no_t page,
-                                 ulint byte_offset, ibool has_done_reservation,
+                                 ulint byte_offset, bool has_done_reservation,
                                  mtr_t *mtr);
 
 /** Calculates the number of pages reserved by a segment, and how many pages are
@@ -543,21 +519,6 @@ ulint fseg_n_reserved_pages(
     fseg_header_t *header, /*!< in: segment header */
     ulint *used,           /*!< out: number of pages used (<= reserved) */
     mtr_t *mtr);           /*!< in/out: mini-transaction */
-
-/** Allocates a single free page from a segment. This function implements
- the intelligent allocation strategy which tries to minimize
- file space fragmentation.
- @param[in,out] seg_header Segment header
- @param[in] hint Hint of which page would be desirable
- @param[in] direction If the new page is needed because
-                                 of an index page split, and records are
-                                 inserted there in order, into which
-                                 direction they go alphabetically: FSP_DOWN,
-                                 FSP_UP, FSP_NO_DIR
- @param[in,out] mtr Mini-transaction
- @return X-latched block, or NULL if no page could be allocated */
-#define fseg_alloc_free_page(seg_header, hint, direction, mtr) \
-  fseg_alloc_free_page_general(seg_header, hint, direction, FALSE, mtr, mtr)
 
 /** Allocates a single free page from a segment. This function implements
  the intelligent allocation strategy which tries to minimize file space
@@ -580,7 +541,26 @@ latched in mtr, do not initialize the page.
 returned block is not allocated nor initialized otherwise */
 [[nodiscard]] buf_block_t *fseg_alloc_free_page_general(
     fseg_header_t *seg_header, page_no_t hint, byte direction,
-    ibool has_done_reservation, mtr_t *mtr, mtr_t *init_mtr);
+    bool has_done_reservation, mtr_t *mtr, mtr_t *init_mtr);
+
+/** Allocates a single free page from a segment. This function implements
+ the intelligent allocation strategy which tries to minimize
+ file space fragmentation.
+ @param[in,out] seg_header Segment header
+ @param[in] hint Hint of which page would be desirable
+ @param[in] direction If the new page is needed because
+                                 of an index page split, and records are
+                                 inserted there in order, into which
+                                 direction they go alphabetically: FSP_DOWN,
+                                 FSP_UP, FSP_NO_DIR
+ @param[in,out] mtr Mini-transaction
+ @return X-latched block, or NULL if no page could be allocated */
+static inline buf_block_t *fseg_alloc_free_page(fseg_header_t *seg_header,
+                                                page_no_t hint, byte direction,
+                                                mtr_t *mtr) {
+  return fseg_alloc_free_page_general(seg_header, hint, direction, false, mtr,
+                                      mtr);
+}
 
 /** Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
@@ -658,7 +638,7 @@ void fseg_free_page(fseg_header_t *seg_header, space_id_t space_id,
  Doing the freeing in a single mini-transaction might result in
  too big a mini-transaction.
  @return true if freeing completed */
-[[nodiscard]] ibool fseg_free_step(
+[[nodiscard]] bool fseg_free_step(
     fseg_header_t *header, /*!< in, own: segment header; NOTE: if the header
                            resides on the first page of the frag list
                            of the segment, this pointer becomes obsolete
@@ -669,7 +649,7 @@ void fseg_free_page(fseg_header_t *seg_header, space_id_t space_id,
 /** Frees part of a segment. Differs from fseg_free_step because this function
  leaves the header page unfreed.
  @return true if freeing completed, except the header page */
-[[nodiscard]] ibool fseg_free_step_not_header(
+[[nodiscard]] bool fseg_free_step_not_header(
     fseg_header_t *header, /*!< in: segment header which must reside on
                            the first fragment page of the segment */
     bool ahi,              /*!< in: whether we may need to drop
@@ -680,8 +660,8 @@ void fseg_free_page(fseg_header_t *seg_header, space_id_t space_id,
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a descriptor page */
-static inline ibool fsp_descr_page(const page_id_t &page_id,
-                                   const page_size_t &page_size);
+static inline bool fsp_descr_page(const page_id_t &page_id,
+                                  const page_size_t &page_size);
 
 /** Parses a redo log record of a file page init.
  @return end of log record or NULL */
@@ -789,8 +769,8 @@ static inline ulint xdes_calc_descriptor_index(const page_size_t &page_size,
 @param[in]	bit	XDES_FREE_BIT or XDES_CLEAN_BIT
 @param[in]	offset	page offset within extent: 0 ... FSP_EXTENT_SIZE - 1
 @return true if free */
-static inline ibool xdes_get_bit(const xdes_t *descr, ulint bit,
-                                 page_no_t offset);
+static inline bool xdes_get_bit(const xdes_t *descr, ulint bit,
+                                page_no_t offset);
 
 /** Calculates the page where the descriptor of a page resides.
 @param[in]	page_size	page size
@@ -841,12 +821,12 @@ void fsp_sdi_write_root_to_page(page_t *page, const page_size_t &page_size,
 /** Reads the server version from the first page of a tablespace.
 @param[in]	page	first page of a tablespace
 @return space server version */
-inline uint32 fsp_header_get_server_version(const page_t *page);
+inline uint32_t fsp_header_get_server_version(const page_t *page);
 
 /** Reads the server space version from the first page of a tablespace.
 @param[in]	page	first page of a tablespace
 @return space server version */
-inline uint32 fsp_header_get_space_version(const page_t *page);
+inline uint32_t fsp_header_get_space_version(const page_t *page);
 
 /** Get the state of an xdes.
 @param[in]	descr	extent descriptor
@@ -968,14 +948,7 @@ class File_segment_inode {
       : m_space_id(space_id),
         m_page_size(page_size),
         m_fseg_inode(inode),
-        m_mtr(mtr)
-#ifdef UNIV_DEBUG
-        ,
-        m_random_engine(m_rd()),
-        m_dist(1, 100)
-#endif /* UNIV_DEBUG */
-  {
-  }
+        m_mtr(mtr) IF_DEBUG(, m_random_engine(m_rd()), m_dist(1, 100)) {}
 
   /** Update the value of FSEG_NOT_FULL_N_USED.
   @param[in]   n_used  the new value of FSEG_NOT_FULL_N_USED. */

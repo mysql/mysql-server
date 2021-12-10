@@ -142,9 +142,9 @@ undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
   undo->trx = trx;
 
   undo->partial = partial_rollback;
-  btr_pcur_init(&(undo->pcur));
+  undo->pcur.init();
 
-  undo->heap = mem_heap_create(256);
+  undo->heap = mem_heap_create(256, UT_LOCATION_HERE);
 
   return (undo);
 }
@@ -182,7 +182,7 @@ bool row_undo_search_clust_to_pcur(
     goto func_exit;
   }
 
-  rec = btr_pcur_get_rec(&node->pcur);
+  rec = node->pcur.get_rec();
 
   offsets = rec_get_offsets(rec, clust_index, offsets, ULINT_UNDEFINED, &heap);
 
@@ -227,7 +227,7 @@ bool row_undo_search_clust_to_pcur(
       node->undo_ext = nullptr;
     }
 
-    btr_pcur_store_position(&node->pcur, &mtr);
+    node->pcur.store_position(&mtr);
   }
 
   if (heap) {
@@ -235,7 +235,7 @@ bool row_undo_search_clust_to_pcur(
   }
 
 func_exit:
-  btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+  node->pcur.commit_specify_mtr(&mtr);
   return (found);
 }
 
@@ -301,7 +301,7 @@ func_exit:
   }
 
   /* Do some cleanup */
-  btr_pcur_close(&(node->pcur));
+  node->pcur.close();
 
   mem_heap_empty(node->heap);
 
@@ -328,7 +328,7 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   }
 
   ut_ad(node->trx->in_rollback);
-  auto index = btr_cur_get_index(cursor);
+  auto index = cursor->index;
   auto rec = btr_cur_get_rec(cursor);
   auto block = btr_cur_get_block(cursor);
   auto heap_no = page_rec_get_heap_no(rec);

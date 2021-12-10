@@ -50,9 +50,9 @@ void mlog_write_ulint(
 
 /** Writes 8 bytes to a file page. Writes the corresponding log
  record to the mini-transaction log, only if mtr is not NULL */
-void mlog_write_ull(byte *ptr,       /*!< in: pointer where to write */
-                    ib_uint64_t val, /*!< in: value to write */
-                    mtr_t *mtr);     /*!< in: mini-transaction handle */
+void mlog_write_ull(byte *ptr,    /*!< in: pointer where to write */
+                    uint64_t val, /*!< in: value to write */
+                    mtr_t *mtr);  /*!< in: mini-transaction handle */
 /** Writes a string to a file page buffered in the buffer pool. Writes the
  corresponding log record to the mini-transaction log. */
 void mlog_write_string(byte *ptr,       /*!< in: pointer where to write */
@@ -100,7 +100,7 @@ static inline void mlog_catenate_ulint_compressed(mtr_t *mtr, ulint val);
 /** Catenates a compressed 64-bit integer to mlog.
 @param[in]	mtr	mtr
 @param[in]	val	value to write */
-static inline void mlog_catenate_ull_compressed(mtr_t *mtr, ib_uint64_t val);
+static inline void mlog_catenate_ull_compressed(mtr_t *mtr, uint64_t val);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 @param[in,out]	mtr	mtr
@@ -181,7 +181,7 @@ static inline byte *mlog_write_initial_log_record_fast(const byte *ptr,
 @return parsed record end, NULL if not a complete record */
 byte *mlog_parse_initial_dict_log_record(const byte *ptr, const byte *end_ptr,
                                          mlog_id_t *type, table_id_t *id,
-                                         uint64 *version);
+                                         uint64_t *version);
 
 /** Parses an initial log record written by mlog_write_initial_log_record.
  @return parsed record end, NULL if not a complete record */
@@ -229,12 +229,12 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
  @return parsed record end, NULL if not a complete record */
 byte *mlog_parse_index(byte *ptr,           /*!< in: buffer */
                        const byte *end_ptr, /*!< in: buffer end */
-                       ibool comp, /*!< in: TRUE=compact record format */
+                       bool comp, /*!< in: true=compact record format */
                        dict_index_t **index); /*!< out, own: dummy index */
 
 /** Insert, update, and maybe other functions may use this value to define an
 extra mlog buffer size for variable size data */
-#define MLOG_BUF_MARGIN 256
+constexpr auto MLOG_BUF_MARGIN = 256;
 
 #include "mtr0log.ic"
 

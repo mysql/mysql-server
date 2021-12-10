@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_LIBRARY
 #ifdef UNIV_DEBUG
 
-#define MUTEX_MAGIC_N 979585UL
+constexpr uint32_t MUTEX_MAGIC_N = 979585;
 
 template <typename Mutex>
 class MutexDebug {

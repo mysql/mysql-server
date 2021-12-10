@@ -40,8 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	read_offset	offset to start reading from
 @param[in]	ctx		context passed by caller
 @return error code */
-using Log_Arch_Cbk = int(char *file_name, ib_uint64_t file_size,
-                         ib_uint64_t read_offset, void *ctx);
+using Log_Arch_Cbk = int(char *file_name, uint64_t file_size,
+                         uint64_t read_offset, void *ctx);
 
 /** Redo Log archiver client context */
 class Log_Arch_Client_Ctx {
@@ -57,7 +57,7 @@ class Log_Arch_Client_Ctx {
   @param[out]	file_sz		redo file size
   @param[out]	header_sz	redo header size
   @param[out]	trailer_sz	redo trailer size */
-  void get_header_size(ib_uint64_t &file_sz, uint &header_sz, uint &trailer_sz);
+  void get_header_size(uint64_t &file_sz, uint &header_sz, uint &trailer_sz);
 
   /** Start redo log archiving
   @param[out]	header	redo header. Caller must allocate buffer.

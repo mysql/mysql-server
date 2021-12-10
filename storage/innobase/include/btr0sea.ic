@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "dict0mem.h"
+#include "sync0rw.h"
 
 /** Updates the search info. */
 void btr_search_info_update_slow(
@@ -87,8 +88,7 @@ static inline void btr_search_info_update(
 @param[in]	index	index handler */
 static inline void btr_search_x_lock(const dict_index_t *index,
                                      ut::Location location) {
-  rw_lock_x_lock_inline(btr_get_search_latch(index), 0, location.filename,
-                        location.line);
+  rw_lock_x_lock_gen(btr_get_search_latch(index), 0, location);
 }
 
 /** X-Unlock the search latch (corresponding to given index)
@@ -100,8 +100,7 @@ static inline void btr_search_x_unlock(const dict_index_t *index) {
 /** Lock all search latches in exclusive mode. */
 static inline void btr_search_x_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_x_lock_inline(btr_search_latches[i], 0, location.filename,
-                          location.line);
+    rw_lock_x_lock_gen(btr_search_latches[i], 0, location);
   }
 }
 
@@ -116,8 +115,7 @@ static inline void btr_search_x_unlock_all() {
 @param[in]	index	index handler */
 static inline void btr_search_s_lock(const dict_index_t *index,
                                      ut::Location location) {
-  rw_lock_s_lock_inline(btr_get_search_latch(index), 0, location.filename,
-                        location.line);
+  rw_lock_s_lock_gen(btr_get_search_latch(index), 0, location);
 }
 
 /** S-Unlock the search latch (corresponding to given index)
@@ -129,8 +127,7 @@ static inline void btr_search_s_unlock(const dict_index_t *index) {
 /** Lock all search latches in shared mode. */
 static inline void btr_search_s_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock_inline(btr_search_latches[i], 0, location.filename,
-                          location.line);
+    rw_lock_s_lock_gen(btr_search_latches[i], 0, location);
   }
 }
 

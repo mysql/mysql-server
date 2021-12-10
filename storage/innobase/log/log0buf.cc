@@ -509,8 +509,8 @@ static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
     log_buffer_s_lock_wait(log, start_sn);
   }
 
-  ut_d(rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_S, __FILE__,
-                              __LINE__));
+  ut_d(
+      rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_S, UT_LOCATION_HERE));
 #ifdef UNIV_PFS_RWLOCK
   if (locker != nullptr) {
     PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
@@ -603,8 +603,8 @@ void log_buffer_x_lock_enter(log_t &log) {
     }
   }
 
-  ut_d(rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_X, __FILE__,
-                              __LINE__));
+  ut_d(
+      rw_lock_add_debug_info(log.sn_lock_inst, 0, RW_LOCK_X, UT_LOCATION_HERE));
 #ifdef UNIV_PFS_RWLOCK
   if (locker != nullptr) {
     PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);

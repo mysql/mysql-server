@@ -102,10 +102,6 @@ static inline page_zip_des_t *btr_cur_get_page_zip(
  @return pointer to page */
 static inline page_t *btr_cur_get_page(
     btr_cur_t *cursor); /*!< in: tree cursor */
-/** Returns the index of a cursor.
- @param cursor b-tree cursor
- @return index */
-#define btr_cur_get_index(cursor) ((cursor)->index)
 
 /** Positions a tree cursor at a given record.
 @param[in]	index	index
@@ -124,8 +120,7 @@ static inline void btr_cur_position(dict_index_t *index, rec_t *rec,
 @param[in]	line		Line where called
 @param[in]	mtr		Mini-transaction
 @return true if success */
-bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
-                                     ib_uint64_t modify_clock,
+bool btr_cur_optimistic_latch_leaves(buf_block_t *block, uint64_t modify_clock,
                                      ulint *latch_mode, btr_cur_t *cursor,
                                      const char *file, ulint line, mtr_t *mtr);
 
@@ -197,16 +192,11 @@ end
 @param[in]      latch_mode  Latch mode
 @param[in,out]  cursor      Cursor
 @param[in]      level       Level to search for (0=leaf)
-@param[in]      file        File name
-@param[in]      line        Line where called
+@param[in]      location    Location where called
 @param[in,out] mtr Mini-transaction */
-void btr_cur_open_at_index_side_func(bool from_left, dict_index_t *index,
-                                     ulint latch_mode, btr_cur_t *cursor,
-                                     ulint level, const char *file, ulint line,
-                                     mtr_t *mtr);
-
-#define btr_cur_open_at_index_side(f, i, l, c, lv, m) \
-  btr_cur_open_at_index_side_func(f, i, l, c, lv, __FILE__, __LINE__, m)
+void btr_cur_open_at_index_side(bool from_left, dict_index_t *index,
+                                ulint latch_mode, btr_cur_t *cursor,
+                                ulint level, ut::Location location, mtr_t *mtr);
 
 /** Opens a cursor at either end of an index.
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
@@ -217,28 +207,23 @@ end.
 @param[in]	index	Index
 @param[in,out]	cursor	Cursor
 @param[in]	level	Level to search for (0=leaf)
-@param[in]	file	File name
-@param[in]	line	Line where called
+@param[in]	location	Location where called
 @param[in,out]	mtr	Mini-transaction */
-void btr_cur_open_at_index_side_with_no_latch_func(
-    bool from_left, dict_index_t *index, btr_cur_t *cursor, ulint level,
-    const char *file, ulint line, mtr_t *mtr);
-#define btr_cur_open_at_index_side_with_no_latch(f, i, c, lv, m)       \
-  btr_cur_open_at_index_side_with_no_latch_func(f, i, c, lv, __FILE__, \
-                                                __LINE__, m)
+void btr_cur_open_at_index_side_with_no_latch(bool from_left,
+                                              dict_index_t *index,
+                                              btr_cur_t *cursor, ulint level,
+                                              ut::Location location,
+                                              mtr_t *mtr);
 
 /** Positions a cursor at a randomly chosen position within a B-tree.
  @return true if the index is available and we have put the cursor, false
  if the index is unavailable */
-bool btr_cur_open_at_rnd_pos_func(
-    dict_index_t *index, /*!< in: index */
-    ulint latch_mode,    /*!< in: BTR_SEARCH_LEAF, ... */
-    btr_cur_t *cursor,   /*!< in/out: B-tree cursor */
-    const char *file,    /*!< in: file name */
-    ulint line,          /*!< in: line where called */
-    mtr_t *mtr);         /*!< in: mtr */
-#define btr_cur_open_at_rnd_pos(i, l, c, m) \
-  btr_cur_open_at_rnd_pos_func(i, l, c, __FILE__, __LINE__, m)
+bool btr_cur_open_at_rnd_pos(dict_index_t *index, /*!< in: index */
+                             ulint latch_mode,  /*!< in: BTR_SEARCH_LEAF, ... */
+                             btr_cur_t *cursor, /*!< in/out: B-tree cursor */
+                             const char *file,  /*!< in: file name */
+                             ulint line,        /*!< in: line where called */
+                             mtr_t *mtr);       /*!< in: mtr */
 /** Tries to perform an insert to a page in an index tree, next to cursor.
  It is assumed that mtr holds an x-latch on the page. The operation does
  not succeed if there is too little space on the page. If there is just
@@ -294,6 +279,14 @@ bool btr_cur_open_at_rnd_pos_func(
 /** See if there is enough place in the page modification log to log
  an update-in-place.
 
+ @param[in,out] page_zip compressed page
+ @param[in,out] cursor B-tree page cursor
+ @param[in] index the index corresponding to cursor
+ @param[in,out] offsets offsets of the cursor record
+ @param[in] length size needed
+ @param[in] create true=delete-and-insert, false=update-in-place
+ @param[in,out] mtr mini-transaction
+
  @retval false if out of space; IBUF_BITMAP_FREE will be reset
  outside mtr if the page was recompressed
  @retval true if enough place;
@@ -303,25 +296,16 @@ bool btr_cur_open_at_rnd_pos_func(
  same mini-transaction, or by invoking ibuf_reset_free_bits() before
  mtr_commit(mtr). */
 [[nodiscard]] bool btr_cur_update_alloc_zip_func(
-    page_zip_des_t *page_zip, /*!< in/out: compressed page */
-    page_cur_t *cursor,       /*!< in/out: B-tree page cursor */
-    dict_index_t *index,      /*!< in: the index corresponding to cursor */
-#ifdef UNIV_DEBUG
-    ulint *offsets, /*!< in/out: offsets of the cursor record */
-#endif              /* UNIV_DEBUG */
-    ulint length,   /*!< in: size needed */
-    bool create,    /*!< in: true=delete-and-insert,
-                    false=update-in-place */
-    mtr_t *mtr);    /*!< in/out: mini-transaction */
-#ifdef UNIV_DEBUG
-#define btr_cur_update_alloc_zip(page_zip, cursor, index, offsets, len, cr, \
-                                 mtr)                                       \
-  btr_cur_update_alloc_zip_func(page_zip, cursor, index, offsets, len, cr, mtr)
-#else /* UNIV_DEBUG */
-#define btr_cur_update_alloc_zip(page_zip, cursor, index, offsets, len, cr, \
-                                 mtr)                                       \
-  btr_cur_update_alloc_zip_func(page_zip, cursor, index, len, cr, mtr)
-#endif /* UNIV_DEBUG */
+    page_zip_des_t *page_zip, page_cur_t *cursor, dict_index_t *index,
+    IF_DEBUG(ulint *offsets, ) ulint length, bool create, mtr_t *mtr);
+
+inline bool btr_cur_update_alloc_zip(page_zip_des_t *page_zip,
+                                     page_cur_t *cursor, dict_index_t *index,
+                                     ulint *offsets [[maybe_unused]], ulint len,
+                                     bool cr, mtr_t *mtr) {
+  return btr_cur_update_alloc_zip_func(page_zip, cursor, index,
+                                       IF_DEBUG(offsets, ) len, cr, mtr);
+}
 
 /** Updates a record when the update causes no size changes in its fields.
 @param[in] flags Undo logging and locking flags
@@ -442,12 +426,12 @@ latching any further pages
     que_thr_t *thr,        /*!< in: query thread */
     const dtuple_t *entry, /*!< in: dtuple for the deleting record */
     mtr_t *mtr);           /*!< in/out: mini-transaction */
-/** Sets a secondary index record delete mark to TRUE or FALSE.
+/** Sets a secondary index record delete mark to true or false.
  @return DB_SUCCESS, DB_LOCK_WAIT, or error number */
 [[nodiscard]] dberr_t btr_cur_del_mark_set_sec_rec(
     ulint flags,       /*!< in: locking flag */
     btr_cur_t *cursor, /*!< in: cursor */
-    ibool val,         /*!< in: value to set */
+    bool val,          /*!< in: value to set */
     que_thr_t *thr,    /*!< in: query thread */
     mtr_t *mtr);       /*!< in/out: mini-transaction */
 /** Tries to compress a page of the tree if it seems useful. It is assumed
@@ -456,36 +440,33 @@ latching any further pages
  brothers exist. NOTE: it is assumed that the caller has reserved enough
  free extents so that the compression will always succeed if done!
  @return true if compression occurred */
-ibool btr_cur_compress_if_useful(
+bool btr_cur_compress_if_useful(
     btr_cur_t *cursor, /*!< in/out: cursor on the page to compress;
                        cursor does not stay valid if compression
                        occurs */
-    ibool adjust,      /*!< in: TRUE if should adjust the
-                       cursor position even if compression occurs */
+    bool adjust,       /*!< in: true if should adjust the
+                        cursor position even if compression occurs */
     mtr_t *mtr);       /*!< in/out: mini-transaction */
-/** Removes the record on which the tree cursor is positioned. It is assumed
- that the mtr has an x-latch on the page where the cursor is positioned,
- but no latch on the whole tree.
+
+/** Removes the record on which the tree cursor is positioned on a leaf page.
+ It is assumed that the mtr has an x-latch on the page where the cursor is
+ positioned, but no latch on the whole tree.
+ @param[in] cursor cursor on leaf page, on the record to delete; cursor stays
+ valid: if deletion succeeds, on function exit it points to the successor of the
+ deleted record
+ @param[in] flags BTR_CREATE_FLAG or 0
+ @param[in] mtr if this function returns true on a leaf page of a secondary
+ index, the mtr must be committed before latching any further pages
  @return true if success, i.e., the page did not become too empty */
-[[nodiscard]] ibool btr_cur_optimistic_delete_func(
-    btr_cur_t *cursor, /*!< in: cursor on the record to delete;
-                       cursor stays valid: if deletion succeeds,
-                       on function exit it points to the successor
-                       of the deleted record */
-#ifdef UNIV_DEBUG
-    ulint flags, /*!< in: BTR_CREATE_FLAG or 0 */
-#endif           /* UNIV_DEBUG */
-    mtr_t *mtr); /*!< in: mtr; if this function returns
-                TRUE on a leaf page of a secondary
-                index, the mtr must be committed
-                before latching any further pages */
-#ifdef UNIV_DEBUG
-#define btr_cur_optimistic_delete(cursor, flags, mtr) \
-  btr_cur_optimistic_delete_func(cursor, flags, mtr)
-#else /* UNIV_DEBUG */
-#define btr_cur_optimistic_delete(cursor, flags, mtr) \
-  btr_cur_optimistic_delete_func(cursor, mtr)
-#endif /* UNIV_DEBUG */
+[[nodiscard]] bool btr_cur_optimistic_delete_func(btr_cur_t *cursor,
+                                                  IF_DEBUG(ulint flags, )
+                                                      mtr_t *mtr);
+
+inline bool btr_cur_optimistic_delete(btr_cur_t *cursor,
+                                      ulint flags [[maybe_unused]],
+                                      mtr_t *mtr) {
+  return btr_cur_optimistic_delete_func(cursor, IF_DEBUG(flags, ) mtr);
+}
 
 /** Removes the record on which the tree cursor is positioned. Tries
  to compress the page if its fillfactor drops below a threshold
@@ -497,7 +478,7 @@ ibool btr_cur_compress_if_useful(
                 because we may have to update node pointers on upper
                 levels, and in the case of variable length keys these may
                 actually grow in size
-@param[in] has_reserved_extents TRUE if the caller has already reserved
+@param[in] has_reserved_extents true if the caller has already reserved
                                 enough free extents so that he knows
                                 that the operation will succeed
 @param[in] cursor Cursor on the record to delete; if compression does not
@@ -513,11 +494,11 @@ ibool btr_cur_compress_if_useful(
 @param[in] pcur         Persistent cursor on the record to delete.
 @param[in,out] node     purge node or nullptr
 @return true if compression occurred */
-ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
-                                 btr_cur_t *cursor, uint32_t flags,
-                                 bool rollback, trx_id_t trx_id,
-                                 undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
-                                 btr_pcur_t *pcur, purge_node_t *node);
+bool btr_cur_pessimistic_delete(dberr_t *err, bool has_reserved_extents,
+                                btr_cur_t *cursor, uint32_t flags,
+                                bool rollback, trx_id_t trx_id,
+                                undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
+                                btr_pcur_t *pcur, purge_node_t *node);
 
 /** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */
@@ -581,21 +562,14 @@ bool btr_estimate_number_of_different_key_vals(
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
 @param[out]	len		length of the field
-@param[out]	lob_version	version of lob */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
+@param[out]	lob_version	version of lob
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
     trx_t *trx, dict_index_t *index, const rec_t *rec, const ulint *offsets,
     const page_size_t &page_size, ulint no, ulint *len, size_t *lob_version,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap);
+    IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
 
 /** Sets a secondary index record's delete mark to the given value. This
  function is only used by the insert buffer merge mechanism. */
@@ -604,7 +578,7 @@ void btr_cur_set_deleted_flag_for_ibuf(
     page_zip_des_t *page_zip, /*!< in/out: compressed page
                               corresponding to rec, or NULL
                               when the tablespace is uncompressed */
-    ibool val,                /*!< in: value to set */
+    bool val,                 /*!< in: value to set */
     mtr_t *mtr);              /*!< in/out: mini-transaction */
 
 /** The following function is used to set the deleted bit of a record.
@@ -613,7 +587,7 @@ void btr_cur_set_deleted_flag_for_ibuf(
 @param[in]	flag		nonzero if delete marked */
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
-                                            ulint flag);
+                                            bool flag);
 
 /** Latches the leaf page or pages requested.
 @param[in]	block		Leaf page where the search converged
@@ -664,7 +638,8 @@ struct btr_path_t {
   ulint page_level{ULINT_UNDEFINED};
 };
 
-#define BTR_PATH_ARRAY_N_SLOTS 250 /*!< size of path array (in slots) */
+/** size of path array (in slots) */
+constexpr uint32_t BTR_PATH_ARRAY_N_SLOTS = 250;
 
 /** Values for the flag documenting the used search method */
 enum btr_cur_method {
@@ -690,71 +665,60 @@ enum btr_cur_method {
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
 struct btr_cur_t {
-  dict_index_t *index{nullptr};      /*!< index where positioned */
-  page_cur_t page_cur;               /*!< page cursor */
-  purge_node_t *purge_node{nullptr}; /*!< purge node, for BTR_DELETE */
-  buf_block_t *left_block{nullptr};  /*!< this field is used to store
-                             a pointer to the left neighbor
-                             page, in the cases
-                             BTR_SEARCH_PREV and
-                             BTR_MODIFY_PREV */
+  /** index where positioned */
+  dict_index_t *index{nullptr};
+  /** page cursor */
+  page_cur_t page_cur;
+  /** purge node, for BTR_DELETE */
+  purge_node_t *purge_node{nullptr};
+  /** this field is used to store a pointer to the left neighbor page, in the
+   cases BTR_SEARCH_PREV and BTR_MODIFY_PREV */
+  buf_block_t *left_block{nullptr};
   /*------------------------------*/
-  que_thr_t *thr{nullptr}; /*!< this field is only used
-                           when btr_cur_search_to_nth_level
-                           is called for an index entry
-                           insertion: the calling query
-                           thread is passed here to be
-                           used in the insert buffer */
+  /** this field is only used when btr_cur_search_to_nth_level is called for an
+   index entry insertion: the calling query thread is passed here to be used
+   in the insert buffer */
+  que_thr_t *thr{nullptr};
   /*------------------------------*/
   /** The following fields are used in
   btr_cur_search_to_nth_level to pass information: */
   /** @{ */
-  btr_cur_method flag{BTR_CUR_UNSET}; /*!< Search method used */
-  ulint tree_height{0};               /*!< Tree height if the search is done
-                                      for a pessimistic insert or update
-                                      operation */
-  ulint up_match{0};                  /*!< If the search mode was PAGE_CUR_LE,
-                                      the number of matched fields to the
-                                      the first user record to the right of
-                                      the cursor record after
-                                      btr_cur_search_to_nth_level;
-                                      for the mode PAGE_CUR_GE, the matched
-                                      fields to the first user record AT THE
-                                      CURSOR or to the right of it;
-                                      NOTE that the up_match and low_match
-                                      values may exceed the correct values
-                                      for comparison to the adjacent user
-                                      record if that record is on a
-                                      different leaf page! (See the note in
-                                      row_ins_duplicate_error_in_clust.) */
-  ulint up_bytes{0};                  /*!< number of matched bytes to the
-                                      right at the time cursor positioned;
-                                      only used internally in searches: not
-                                      defined after the search */
-  ulint low_match{0};                 /*!< if search mode was PAGE_CUR_LE,
-                                      the number of matched fields to the
-                                      first user record AT THE CURSOR or
-                                      to the left of it after
-                                      btr_cur_search_to_nth_level;
-                                      NOT defined for PAGE_CUR_GE or any
-                                      other search modes; see also the NOTE
-                                      in up_match! */
-  ulint low_bytes{0};                 /*!< number of matched bytes to the
-                                      left at the time cursor positioned;
-                                      only used internally in searches: not
-                                      defined after the search */
-  ulint n_fields{0};                  /*!< prefix length used in a hash
-                                      search if hash_node != NULL */
-  ulint n_bytes{0};                   /*!< hash prefix bytes if hash_node !=
-                                      NULL */
-  ulint fold{0};                      /*!< fold value used in the search if
-                                      flag is BTR_CUR_HASH */
+  /** Search method used */
+  btr_cur_method flag{BTR_CUR_UNSET};
+  /** Tree height if the search is done for a pessimistic insert or update
+   operation */
+  ulint tree_height{0};
+  /** If the search mode was PAGE_CUR_LE, the number of matched fields to the
+   first user record to the right of the cursor record after
+   btr_cur_search_to_nth_level; for the mode PAGE_CUR_GE, the matched fields
+   to the first user record AT THE CURSOR or to the right of it; NOTE that the
+   up_match and low_match values may exceed the correct values for comparison
+   to the adjacent user record if that record is on a different leaf page!
+   (See the note in row_ins_duplicate_error_in_clust.) */
+  ulint up_match{0};
+  /** number of matched bytes to the right at the time cursor positioned; only
+   used internally in searches: not defined after the search */
+  ulint up_bytes{0};
+  /** if search mode was PAGE_CUR_LE, the number of matched fields to the first
+   user record AT THE CURSOR or to the left of it after
+   btr_cur_search_to_nth_level; NOT defined for PAGE_CUR_GE or any other
+   search modes; see also the NOTE in up_match! */
+  ulint low_match{0};
+  /** number of matched bytes to the left at the time cursor positioned; only
+   used internally in searches: not defined after the search */
+  ulint low_bytes{0};
+  /** prefix length used in a hash search if hash_node != NULL */
+  ulint n_fields{0};
+  /** hash prefix bytes if hash_node != NULL */
+  ulint n_bytes{0};
+  /** fold value used in the search if flag is BTR_CUR_HASH */
+  ulint fold{0};
   /** @} */
-  btr_path_t *path_arr{nullptr}; /*!< in estimating the number of
-                         rows in range, we store in this array
-                         information of the path through
-                         the tree */
-  rtr_info_t *rtr_info{nullptr}; /*!< rtree search info */
+  /** in estimating the number of rows in range, we store in this array
+   information of the path through the tree */
+  btr_path_t *path_arr{nullptr};
+  /** rtree search info */
+  rtr_info_t *rtr_info{nullptr};
 
   /** Ownership of the above rtr_info member. */
   bool m_own_rtr_info = true;
@@ -769,16 +733,16 @@ struct btr_cur_t {
 @param[in]	flag		nonzero if delete marked */
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
-                                            ulint flag);
+                                            bool flag);
 
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Try this many
 times. */
-#define BTR_CUR_RETRY_DELETE_N_TIMES 100
+constexpr uint32_t BTR_CUR_RETRY_DELETE_N_TIMES = 100;
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Sleep this many
 milliseconds between retries. */
-#define BTR_CUR_RETRY_SLEEP_TIME_MS 50
+constexpr uint32_t BTR_CUR_RETRY_SLEEP_TIME_MS = 50;
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint btr_cur_n_non_sea;

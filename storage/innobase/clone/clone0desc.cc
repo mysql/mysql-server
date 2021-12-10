@@ -470,7 +470,7 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
   ut_ad(len_left == 0);
 }
 
-void Clone_Desc_Locator::init(ib_uint64_t id, ib_uint64_t snap_id,
+void Clone_Desc_Locator::init(uint64_t id, uint64_t snap_id,
                               Snapshot_State state, uint version, uint index) {
   m_header.m_version = version;
 

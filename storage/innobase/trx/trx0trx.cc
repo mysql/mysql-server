@@ -258,7 +258,8 @@ struct TrxFactory {
     trx->detailed_error = reinterpret_cast<char *>(
         ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, MAX_DETAILED_ERROR_LEN));
 
-    trx->lock.lock_heap = mem_heap_create_typed(1024, MEM_HEAP_FOR_LOCK_HEAP);
+    trx->lock.lock_heap =
+        mem_heap_create_typed(1024, UT_LOCATION_HERE, MEM_HEAP_FOR_LOCK_HEAP);
 
     mutex_create(LATCH_ID_TRX, &trx->mutex);
     mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
@@ -453,7 +454,8 @@ static trx_t *trx_create_low() {
   the trx was forced to rollback before it's reused.*/
   trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
 
-  heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void *) * 8);
+  heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void *) * 8,
+                         UT_LOCATION_HERE);
 
   alloc = ib_heap_allocator_create(heap);
 
@@ -518,7 +520,7 @@ trx_t *trx_allocate_for_mysql(void) {
 
   trx_sys_mutex_enter();
 
-  ut_d(trx->in_mysql_trx_list = TRUE);
+  ut_d(trx->in_mysql_trx_list = true);
   UT_LIST_ADD_FIRST(trx_sys->mysql_trx_list, trx);
 
   trx_sys_mutex_exit();
@@ -622,7 +624,7 @@ inline void trx_disconnect_from_mysql(trx_t *trx, bool prepared) {
   trx_sys_mutex_enter();
 
   ut_ad(trx->in_mysql_trx_list);
-  ut_d(trx->in_mysql_trx_list = FALSE);
+  ut_d(trx->in_mysql_trx_list = false);
 
   UT_LIST_REMOVE(trx_sys->mysql_trx_list, trx);
 
@@ -2431,7 +2433,7 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
 }
 
 /** If required, flushes the log to disk if we called trx_commit_for_mysql()
- with trx->flush_log_later == TRUE. */
+ with trx->flush_log_later == true. */
 void trx_commit_complete_for_mysql(trx_t *trx) /*!< in/out: transaction */
 {
   if (trx->id != 0 || !trx->must_flush_log_later ||
@@ -2496,7 +2498,7 @@ void trx_print_low(FILE *f,
                    ulint heap_size)
 /*!< in: mem_heap_get_size(trx->lock.lock_heap) */
 {
-  ibool newline;
+  bool newline;
   const char *op_info;
 
   ut_ad(trx_sys_mutex_own());
@@ -2560,7 +2562,7 @@ void trx_print_low(FILE *f,
             (ulong)trx->mysql_n_tables_locked);
   }
 
-  newline = TRUE;
+  newline = true;
 
   /* trx->lock.que_state of an ACTIVE transaction may change
   while we are not holding trx->mutex. We perform a dirty read
@@ -2568,7 +2570,7 @@ void trx_print_low(FILE *f,
 
   switch (trx->lock.que_state) {
     case TRX_QUE_RUNNING:
-      newline = FALSE;
+      newline = false;
       break;
     case TRX_QUE_LOCK_WAIT:
       fputs("LOCK WAIT ", f);
@@ -2584,7 +2586,7 @@ void trx_print_low(FILE *f,
   }
 
   if (n_trx_locks > 0 || heap_size > 400) {
-    newline = TRUE;
+    newline = true;
 
     fprintf(f,
             "%lu lock struct(s), heap size %lu,"
@@ -2593,12 +2595,12 @@ void trx_print_low(FILE *f,
   }
 
   if (trx->has_search_latch) {
-    newline = TRUE;
+    newline = true;
     fputs(", holds adaptive hash latch", f);
   }
 
   if (trx->undo_no != 0) {
-    newline = TRUE;
+    newline = true;
     fprintf(f, ", undo log entries " TRX_ID_FMT, trx->undo_no);
   }
 
@@ -2652,7 +2654,7 @@ bool trx_can_be_handled_by_current_thread_or_is_hp_victim(const trx_t *trx) {
 /** Asserts that a transaction has been started.
  The caller must hold trx_sys->mutex.
  @return true if started */
-ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
+bool trx_assert_started(const trx_t *trx) /*!< in: transaction */
 {
   ut_ad(trx_sys_mutex_own());
 
@@ -2666,11 +2668,11 @@ ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
 
   switch (trx->state.load(std::memory_order_relaxed)) {
     case TRX_STATE_PREPARED:
-      return (TRUE);
+      return true;
 
     case TRX_STATE_ACTIVE:
     case TRX_STATE_COMMITTED_IN_MEMORY:
-      return (TRUE);
+      return true;
 
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
@@ -2829,16 +2831,14 @@ bool trx_weight_ge(const trx_t *a, /*!< in: transaction to be compared */
 {
   /* To read TRX_WEIGHT we need a exclusive global lock_sys latch */
   ut_ad(locksys::owns_exclusive_global_latch());
-  ibool a_notrans_edit;
-  ibool b_notrans_edit;
 
   /* If mysql_thd is NULL for a transaction we assume that it has
   not edited non-transactional tables. */
 
-  a_notrans_edit =
+  auto a_notrans_edit =
       a->mysql_thd != nullptr && thd_has_edited_nontrans_tables(a->mysql_thd);
 
-  b_notrans_edit =
+  auto b_notrans_edit =
       b->mysql_thd != nullptr && thd_has_edited_nontrans_tables(b->mysql_thd);
 
   if (a_notrans_edit != b_notrans_edit) {
@@ -3019,7 +3019,7 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
 Does the transaction prepare for MySQL.
 @param[in, out] trx		Transaction instance to prepare */
 dberr_t trx_prepare_for_mysql(trx_t *trx) {
-  trx_start_if_not_started_xa(trx, false);
+  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
   TrxInInnoDB trx_in_innodb(trx, true);
 
@@ -3490,7 +3490,7 @@ void trx_kill_blocking(trx_t *trx) {
   }
 
   if (had_dict_lock) {
-    row_mysql_freeze_data_dictionary(trx);
+    row_mysql_freeze_data_dictionary(trx, UT_LOCATION_HERE);
   }
 }
 

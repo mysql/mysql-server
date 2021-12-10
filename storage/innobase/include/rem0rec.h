@@ -119,7 +119,7 @@ static inline void rec_set_status(rec_t *rec, ulint bits);
  @return info bits */
 [[nodiscard]] static inline ulint rec_get_info_and_status_bits(
     const rec_t *rec, /*!< in: physical record */
-    ulint comp);      /*!< in: nonzero=compact page format */
+    bool comp);       /*!< in: true=compact page format */
 
 /** The following function is used to set the info and status bits of a record.
 (Only compact records have status bits.)
@@ -129,22 +129,22 @@ static inline void rec_set_info_and_status_bits(rec_t *rec, ulint bits);
 
 /** The following function tells if record is delete marked.
  @return nonzero if delete marked */
-[[nodiscard]] static inline ulint rec_get_deleted_flag(
+[[nodiscard]] static inline bool rec_get_deleted_flag(
     const rec_t *rec, /*!< in: physical record */
-    ulint comp);      /*!< in: nonzero=compact page format */
+    bool comp);       /*!< in: nonzero=compact page format */
 
 /** The following function is used to set the deleted bit.
 @param[in]	rec		old-style physical record
-@param[in]	flag		nonzero if delete marked */
-static inline void rec_set_deleted_flag_old(rec_t *rec, ulint flag);
+@param[in]	flag		true if delete marked */
+static inline void rec_set_deleted_flag_old(rec_t *rec, bool flag);
 
 /** The following function is used to set the deleted bit.
 @param[in,out]	rec		new-style physical record
 @param[in,out]	page_zip	compressed page, or NULL
-@param[in]	flag		nonzero if delete marked */
+@param[in]	flag		true if delete marked */
 static inline void rec_set_deleted_flag_new(rec_t *rec,
                                             page_zip_des_t *page_zip,
-                                            ulint flag);
+                                            bool flag);
 
 /** The following function is used to set the instant bit.
 @param[in,out]	rec	new-style physical record
@@ -183,13 +183,13 @@ static inline void rec_set_heap_no_new(rec_t *rec, ulint heap_no);
 /** The following function is used to test whether the data offsets
  in the record are stored in one-byte or two-byte format.
  @return true if 1-byte form */
-[[nodiscard]] static inline ibool rec_get_1byte_offs_flag(
+[[nodiscard]] static inline bool rec_get_1byte_offs_flag(
     const rec_t *rec); /*!< in: physical record */
 
 /** The following function is used to set the 1-byte offsets flag.
 @param[in]	rec	physical record
-@param[in]	flag	TRUE if 1byte form */
-static inline void rec_set_1byte_offs_flag(rec_t *rec, ibool flag);
+@param[in]	flag	true if 1byte form */
+static inline void rec_set_1byte_offs_flag(rec_t *rec, bool flag);
 
 /** Returns the offset of nth field end if the record is stored in the 1-byte
  offsets form. If the field is SQL null, the flag is ORed in the returned
@@ -225,7 +225,7 @@ static inline void rec_set_1byte_offs_flag(rec_t *rec, ibool flag);
 
 #ifdef UNIV_DEBUG
 #define rec_get_offsets(rec, index, offsets, n, heap) \
-  rec_get_offsets_func(rec, index, offsets, n, __FILE__, __LINE__, heap)
+  rec_get_offsets_func(rec, index, offsets, n, UT_LOCATION_HERE, heap)
 #else /* UNIV_DEBUG */
 #define rec_get_offsets(rec, index, offsets, n, heap) \
   rec_get_offsets_func(rec, index, offsets, n, heap)
@@ -275,7 +275,7 @@ static inline ulint rec_get_nth_field_offs(const ulint *offsets, ulint n,
 /** Gets the value of the specified field in the record.
 This is used for normal cases, i.e. secondary index or clustered index
 which must have no instantly added columns. Also note, if it's non-leaf
-page records, it's OK to always use this functioni.
+page records, it's OK to always use this function.
 @param[in]	rec	physical record
 @param[in]	offsets	array returned by rec_get_offsets()
 @param[in]	n	index of the field
@@ -291,7 +291,7 @@ inline byte *rec_get_nth_field(const rec_t *rec, const ulint *offsets, ulint n,
 /** Gets the value of the specified field in the record.
 This is used for normal cases, i.e. secondary index or clustered index
 which must have no instantly added columns. Also note, if it's non-leaf
-page records, it's OK to always use this functioni. */
+page records, it's OK to always use this function. */
 #define rec_get_nth_field(rec, offsets, n, len) \
   ((rec) + rec_get_nth_field_offs(offsets, n, len))
 #endif /* UNIV_DEBUG */
@@ -322,7 +322,7 @@ static inline bool rec_field_not_null_not_add_col_def(ulint len);
 /** Determine if the offsets are for a record in the new
  compact format.
  @return nonzero if compact format */
-[[nodiscard]] static inline ulint rec_offs_comp(
+[[nodiscard]] static inline bool rec_offs_comp(
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
 /** Determine if the offsets are for a record containing
  externally stored columns.
@@ -628,7 +628,7 @@ static inline uint8_t rec_set_n_fields(rec_t *rec, ulint n_fields);
 
 /** Validates the consistency of a physical record.
  @return true if ok */
-ibool rec_validate(
+bool rec_validate(
     const rec_t *rec,      /*!< in: physical record */
     const ulint *offsets); /*!< in: array returned by rec_get_offsets() */
 

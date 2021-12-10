@@ -40,7 +40,7 @@ void Deleter::x_latch_rec_page() {
   ut_ad(found);
 
   buf_page_get(page_id_t(rec_space_id, rec_page_no), rec_page_size, RW_X_LATCH,
-               &m_mtr);
+               UT_LOCATION_HERE, &m_mtr);
 }
 
 /** Returns the page number where the next BLOB part is stored.
@@ -68,8 +68,9 @@ dberr_t Deleter::free_first_page() {
 
   x_latch_rec_page();
 
-  buf_block_t *blob_block = buf_page_get(page_id_t(space_id, page_no),
-                                         m_ctx.m_page_size, RW_X_LATCH, &m_mtr);
+  buf_block_t *blob_block =
+      buf_page_get(page_id_t(space_id, page_no), m_ctx.m_page_size, RW_X_LATCH,
+                   UT_LOCATION_HERE, &m_mtr);
 
   buf_block_dbg_add_level(blob_block, SYNC_EXTERN_STORAGE);
   page_t *page = buf_block_get_frame(blob_block);
@@ -95,7 +96,7 @@ dberr_t Deleter::free_first_page() {
   }
 
   /* Commit mtr and release the BLOB block to save memory. */
-  blob_free(m_ctx.m_index, blob_block, TRUE, &m_mtr);
+  blob_free(m_ctx.m_index, blob_block, true, &m_mtr);
 
   return (err);
 }

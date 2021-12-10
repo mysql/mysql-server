@@ -236,7 +236,7 @@ static int fts_parse_query_internal(
 
 /** fts parse query by plugin parser.
  @return 0 if parse successfully, or return non-zero. */
-int fts_parse_by_parser(ibool mode,       /*!< in: parse boolean mode */
+int fts_parse_by_parser(bool mode,        /*!< in: parse boolean mode */
                         uchar *query_str, /*!< in: query string */
                         ulint query_len,  /*!< in: query string length */
                         st_mysql_ftparser *parser, /*!< in: fts plugin parser */

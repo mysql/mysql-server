@@ -53,7 +53,7 @@ void mlog_catenate_string(mtr_t *mtr, const byte *str, ulint len) {
     return;
   }
 
-  mtr->get_log()->push(str, ib_uint32_t(len));
+  mtr->get_log()->push(str, uint32_t(len));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -93,7 +93,7 @@ void mlog_write_initial_log_record(
 @return parsed record end, NULL if not a complete record */
 byte *mlog_parse_initial_dict_log_record(const byte *ptr, const byte *end_ptr,
                                          mlog_id_t *type, table_id_t *id,
-                                         uint64 *version) {
+                                         uint64_t *version) {
   if (end_ptr < ptr + 1) {
     return (nullptr);
   }
@@ -161,7 +161,7 @@ byte *mlog_parse_nbytes(
 {
   ulint offset;
   ulint val;
-  ib_uint64_t dval;
+  uint64_t dval;
 
   ut_a(type <= MLOG_8BYTES);
   ut_a(!page || !page_zip || !fil_page_index_page_check(page));
@@ -174,7 +174,7 @@ byte *mlog_parse_nbytes(
   ptr += 2;
 
   if (offset >= UNIV_PAGE_SIZE) {
-    recv_sys->found_corrupt_log = TRUE;
+    recv_sys->found_corrupt_log = true;
 
     return (nullptr);
   }
@@ -235,7 +235,7 @@ byte *mlog_parse_nbytes(
       break;
     default:
     corrupt:
-      recv_sys->found_corrupt_log = TRUE;
+      recv_sys->found_corrupt_log = true;
       ptr = nullptr;
   }
 
@@ -286,9 +286,9 @@ void mlog_write_ulint(
 
 /** Writes 8 bytes to a file page. Writes the corresponding log
  record to the mini-transaction log, only if mtr is not NULL */
-void mlog_write_ull(byte *ptr,       /*!< in: pointer where to write */
-                    ib_uint64_t val, /*!< in: value to write */
-                    mtr_t *mtr)      /*!< in: mini-transaction handle */
+void mlog_write_ull(byte *ptr,    /*!< in: pointer where to write */
+                    uint64_t val, /*!< in: value to write */
+                    mtr_t *mtr)   /*!< in: mini-transaction handle */
 {
   mach_write_to_8(ptr, val);
 
@@ -383,7 +383,7 @@ byte *mlog_parse_string(
   ptr += 2;
 
   if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE) {
-    recv_sys->found_corrupt_log = TRUE;
+    recv_sys->found_corrupt_log = true;
 
     return (nullptr);
   }
@@ -409,7 +409,7 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
   const byte *log_start;
   const byte *log_end;
 
-  ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+  ut_ad(page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
   if (!page_rec_is_comp(rec)) {
     if (!mlog_open(mtr, 11 + size, log_ptr)) {
@@ -518,7 +518,7 @@ bool mlog_open_and_write_index(mtr_t *mtr, const byte *rec,
  @return parsed record end, NULL if not a complete record */
 byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
                        const byte *end_ptr,  /*!< in: buffer end */
-                       ibool comp,           /*!< in: TRUE=compact row format */
+                       bool comp,            /*!< in: true=compact row format */
                        dict_index_t **index) /*!< out, own: dummy index */
 {
   ulint i;
@@ -527,8 +527,6 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
   bool instant = false;
   uint16_t n, n_uniq;
   uint16_t instant_cols = 0;
-
-  ut_ad(comp == FALSE || comp == TRUE);
 
   if (comp) {
     if (end_ptr < ptr + 4) {
@@ -609,7 +607,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
     }
   }
   /* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
-  ind->cached = TRUE;
+  ind->cached = true;
   *index = ind;
   return (ptr);
 }

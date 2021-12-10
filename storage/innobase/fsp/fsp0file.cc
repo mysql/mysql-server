@@ -186,13 +186,13 @@ void Datafile::init_file_info() {
 @return DB_SUCCESS or error code */
 dberr_t Datafile::close() {
   if (m_handle.m_file != OS_FILE_CLOSED) {
-    ibool success = os_file_close(m_handle);
+    auto success = os_file_close(m_handle);
     ut_a(success);
 
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Make a full filepath from a directory path and a filename.

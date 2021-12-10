@@ -460,10 +460,10 @@ class Datafile {
   space_id_t m_space_id;
 
   /** Server version */
-  uint32 m_server_version;
+  uint32_t m_server_version;
 
   /** Space version */
-  uint32 m_space_version;
+  uint32_t m_space_version;
 
   /** Tablespace flags. Contained in the datafile header.
   If this is a system tablespace, FSP_SPACE_FLAGS are only valid

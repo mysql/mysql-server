@@ -340,18 +340,18 @@ struct fts_table_t {
 };
 
 enum fts_status {
-  BG_THREAD_STOP = 1, /*!< TRUE if the FTS background thread
+  BG_THREAD_STOP = 1, /*!< true if the FTS background thread
                       has finished reading the ADDED table,
                       meaning more items can be added to
                       the table. */
 
-  BG_THREAD_READY = 2, /*!< TRUE if the FTS background thread
+  BG_THREAD_READY = 2, /*!< true if the FTS background thread
                        is ready */
 
-  ADD_THREAD_STARTED = 4, /*!< TRUE if the FTS add thread
+  ADD_THREAD_STARTED = 4, /*!< true if the FTS add thread
                           has started */
 
-  ADDED_TABLE_SYNCED = 8, /*!< TRUE if the ADDED table record is
+  ADDED_TABLE_SYNCED = 8, /*!< true if the ADDED table record is
                           sync-ed after crash recovery */
 };
 
@@ -374,7 +374,7 @@ class fts_t {
   /** Number of background threads accessing this table. */
   ulint bg_threads;
 
-  /** Status bit regarding fts running state. TRUE if background
+  /** Status bit regarding fts running state. true if background
   threads running should stop themselves. */
   ulint fts_status;
 
@@ -825,17 +825,17 @@ CHARSET_INFO *fts_valid_stopword_table(
                                       name */
 /** This function loads specified stopword into FTS cache
  @return true if success */
-ibool fts_load_stopword(
+bool fts_load_stopword(
     const dict_table_t *table,          /*!< in: Table with FTS */
     trx_t *trx,                         /*!< in: Transaction */
     const char *global_stopword_table,  /*!< in: Global stopword table
                                         name */
     const char *session_stopword_table, /*!< in: Session stopword table
                                         name */
-    ibool stopword_is_on,               /*!< in: Whether stopword
-                                        option is turned on/off */
-    ibool reload);                      /*!< in: Whether it is during
-                                        reload of FTS table */
+    bool stopword_is_on,                /*!< in: Whether stopword
+                                         option is turned on/off */
+    bool reload);                       /*!< in: Whether it is during
+                                         reload of FTS table */
 
 /** Read the rows from the FTS index
  @return DB_SUCCESS if OK */
@@ -848,9 +848,9 @@ dberr_t fts_table_fetch_doc_ids(trx_t *trx,              /*!< in: transaction */
  tables from last server abnormally shutdown, we will need to bring
  such document into FTS cache before any further operations
  @return true if all OK */
-ibool fts_init_index(dict_table_t *table,   /*!< in: Table with FTS */
-                     ibool has_cache_lock); /*!< in: Whether we already
-                                            have cache lock */
+bool fts_init_index(dict_table_t *table,  /*!< in: Table with FTS */
+                    bool has_cache_lock); /*!< in: Whether we already
+                                           have cache lock */
 /** Add a newly create index in FTS cache */
 void fts_add_index(dict_index_t *index,  /*!< FTS index to be added */
                    dict_table_t *table); /*!< table */
@@ -875,7 +875,7 @@ dberr_t fts_rename_aux_tables(dict_table_t *table,  /*!< in: user Table */
 /** Check indexes in the fts->indexes is also present in index cache and
  table->indexes list
  @return true if all indexes match */
-ibool fts_check_cached_index(
+bool fts_check_cached_index(
     dict_table_t *table); /*!< in: Table where indexes are dropped */
 
 /** Fetch the document from tuple, tokenize the text data and

@@ -50,17 +50,17 @@ static inline const rec_t *ha_search_and_get_data(hash_table_t *table,
 
 /** Looks for an element when we know the pointer to the data and updates
  the pointer to data if found.
- @return true if found */
-ibool ha_search_and_update_if_found_func(
-    hash_table_t *table, /*!< in/out: hash table */
-    ulint fold,          /*!< in: folded value of the searched data */
-    const rec_t *data,   /*!< in: pointer to the data */
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    buf_block_t *new_block, /*!< in: block containing new_data */
-#endif                      /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-    const rec_t *new_data); /*!< in: new pointer to the data */
+ @param[in,out] table hash table
+ @param[in] fold folded value of the searched data
+ @param[in] data pointer to the data
+ @param[in] new_block block containing new data
+ @param[in] new_data new pointer to the data
+@return true if found */
+bool ha_search_and_update_if_found_func(hash_table_t *table, ulint fold,
+                                        const rec_t *data,
+                                        IF_AHI_DEBUG(buf_block_t *new_block, )
+                                            const rec_t *new_data);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Looks for an element when we know the pointer to the data and
 updates the pointer to data if found.
 @param table in/out: hash table
@@ -68,20 +68,13 @@ updates the pointer to data if found.
 @param data in: pointer to the data
 @param new_block in: block containing new_data
 @param new_data in: new pointer to the data */
-#define ha_search_and_update_if_found(table, fold, data, new_block, new_data) \
-  ha_search_and_update_if_found_func(table, fold, data, new_block, new_data)
-#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-/** Looks for an element when we know the pointer to the data and
-updates the pointer to data if found.
-@param table in/out: hash table
-@param fold in: folded value of the searched data
-@param data in: pointer to the data
-@param new_block ignored: block containing new_data
-@param new_data in: new pointer to the data */
-#define ha_search_and_update_if_found(table, fold, data, new_block, new_data) \
-  ha_search_and_update_if_found_func(table, fold, data, new_data)
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-
+static inline bool ha_search_and_update_if_found(hash_table_t *table,
+                                                 ulint fold, const rec_t *data,
+                                                 buf_block_t *new_block,
+                                                 const rec_t *new_data) {
+  return ha_search_and_update_if_found_func(table, fold, data,
+                                            IF_AHI_DEBUG(new_block, ) new_data);
+}
 /** Creates a hash table with at least n array cells.  The actual number
  of cells is chosen to be a prime number slightly bigger than n.
  @param[in] n           number of array cells
@@ -100,20 +93,19 @@ void ha_clear(hash_table_t *table); /*!< in, own: hash table */
 
 /** Inserts an entry into a hash table. If an entry with the same fold number
  is found, its node is updated to point to the new data, and no new node
- is inserted.
+ is inserted. If btr_search_enabled is set to false, we will only allow
+ updating existing nodes, but no new node is allowed to be added.
+ @param[in] table hash table
+ @param[in] fold folded value of data; if a node with the same fold value
+ already exists, it is updated to point to the same data, and no new node is
+ created!
+ @param[in] block buffer block containing the data
+ @param[in] data data, must not be NULL
  @return true if succeed, false if no more memory could be allocated */
-ibool ha_insert_for_fold_func(
-    hash_table_t *table, /*!< in: hash table */
-    ulint fold,          /*!< in: folded value of data; if a node with
-                         the same fold value already exists, it is
-                         updated to point to the same data, and no new
-                         node is created! */
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-    buf_block_t *block, /*!< in: buffer block containing the data */
-#endif                  /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-    const rec_t *data); /*!< in: data, must not be NULL */
+bool ha_insert_for_fold_func(hash_table_t *table, ulint fold,
+                             IF_AHI_DEBUG(buf_block_t *block, )
+                                 const rec_t *data);
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
@@ -123,27 +115,11 @@ is inserted.
 @param f in: folded value of data
 @param b in: buffer block containing the data
 @param d in: data, must not be NULL */
-#define ha_insert_for_fold(t, f, b, d)            \
-  do {                                            \
-    ha_insert_for_fold_func(t, f, b, d);          \
-    MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED); \
-  } while (0)
-#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-/**
-Inserts an entry into a hash table. If an entry with the same fold number
-is found, its node is updated to point to the new data, and no new node
-is inserted.
-@return true if succeed, false if no more memory could be allocated
-@param t in: hash table
-@param f in: folded value of data
-@param b ignored: buffer block containing the data
-@param d in: data, must not be NULL */
-#define ha_insert_for_fold(t, f, b, d)            \
-  do {                                            \
-    ha_insert_for_fold_func(t, f, d);             \
-    MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED); \
-  } while (0)
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+static inline void ha_insert_for_fold(hash_table_t *t, ulint f, buf_block_t *b,
+                                      const rec_t *d) {
+  ha_insert_for_fold_func(t, f, IF_AHI_DEBUG(b, ) d);
+  MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
+}
 
 /** Looks for an element when we know the pointer to the data and deletes it
 from the hash table if found.
@@ -151,9 +127,8 @@ from the hash table if found.
 @param[in]	fold	folded value of the searched data
 @param[in]	data	pointer to the data
 @return true if found */
-static inline ibool ha_search_and_delete_if_found(hash_table_t *table,
-                                                  ulint fold,
-                                                  const rec_t *data);
+static inline bool ha_search_and_delete_if_found(hash_table_t *table,
+                                                 ulint fold, const rec_t *data);
 
 #ifndef UNIV_HOTBACKUP
 
@@ -168,9 +143,9 @@ void ha_remove_all_nodes_to_page(hash_table_t *table, ulint fold,
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Validates a given range of the cells in hash table.
  @return true if ok */
-ibool ha_validate(hash_table_t *table, /*!< in: hash table */
-                  ulint start_index,   /*!< in: start index */
-                  ulint end_index);    /*!< in: end index */
+bool ha_validate(hash_table_t *table, /*!< in: hash table */
+                 ulint start_index,   /*!< in: start index */
+                 ulint end_index);    /*!< in: end index */
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /** Prints info of a hash table.
@@ -182,12 +157,16 @@ void ha_print_info(FILE *file, hash_table_t *table);
 
 /** The hash table external chain node */
 struct ha_node_t {
-  ulint fold;      /*!< fold value for the data */
-  ha_node_t *next; /*!< next chain node or NULL if none */
+  /** fold value for the data  */
+  ulint fold;
+  /** next chain node or NULL if none */
+  ha_node_t *next;
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  buf_block_t *block; /*!< buffer block containing the data, or NULL */
-#endif                /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-  const rec_t *data;  /*!< pointer to the data */
+  /** buffer block containing the data, or NULL */
+  buf_block_t *block;
+#endif
+  /** pointer to the data */
+  const rec_t *data;
 };
 
 #include "ha0ha.ic"

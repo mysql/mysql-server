@@ -96,7 +96,7 @@ page size | FSP_EXTENT_SIZE  | Initial Size | Pages
    16 KB  |  64 pages = 1 MB |   16 MB      | 1024
    32 KB  |  64 pages = 2 MB |   16 MB      | 512
    64 KB  |  64 pages = 4 MB |   16 MB      | 256  */
-#define UNDO_INITIAL_SIZE (16 * 1024 * 1024)
+constexpr uint32_t UNDO_INITIAL_SIZE = 16 * 1024 * 1024;
 #define UNDO_INITIAL_SIZE_IN_PAGES \
   os_offset_t { UNDO_INITIAL_SIZE / srv_page_size }
 
@@ -1318,14 +1318,18 @@ constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY = 29;
 constexpr page_type_t FIL_PAGE_TYPE_LAST = FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY;
 
 /** Check whether the page type is index (Btree or Rtree or SDI) type */
-#define fil_page_type_is_index(page_type)                      \
-  (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_SDI || \
-   page_type == FIL_PAGE_RTREE)
+inline bool fil_page_type_is_index(page_type_t page_type) {
+  return page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_SDI ||
+         page_type == FIL_PAGE_RTREE;
+}
+
+page_type_t fil_page_get_type(const byte *page);
 
 /** Check whether the page is index page (either regular Btree index or Rtree
 index */
-#define fil_page_index_page_check(page) \
-  fil_page_type_is_index(fil_page_get_type(page))
+inline bool fil_page_index_page_check(const byte *page) {
+  return fil_page_type_is_index(fil_page_get_type(page));
+}
 
 /** @} */
 
@@ -2099,7 +2103,9 @@ void test_make_filepath();
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 
 /** @return the system tablespace instance */
-#define fil_space_get_sys_space() (fil_space_t::s_sys_space)
+inline fil_space_t *fil_space_get_sys_space() {
+  return fil_space_t::s_sys_space;
+}
 
 /** Redo a tablespace create.
 @param[in]	ptr		redo log record

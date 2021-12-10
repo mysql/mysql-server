@@ -66,9 +66,9 @@ uint64_t ib_wqueue_get_count(ib_wqueue_t *wq);
 
 /********************************************************************
 Check if queue is empty. */
-ibool ib_wqueue_is_empty(
-    /* out: TRUE if queue empty
-    else FALSE */
+bool ib_wqueue_is_empty(
+    /* out: true if queue empty
+    else false */
     const ib_wqueue_t *wq); /* in: work queue */
 
 /********************************************************************

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,7 +101,7 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   ut_a(m_add_cols == nullptr || m_col_map != nullptr);
   ut_a((m_old_table == m_new_table) == (m_col_map == nullptr));
 
-  trx_start_if_not_started_xa(m_trx, true);
+  trx_start_if_not_started_xa(m_trx, true, UT_LOCATION_HERE);
 
   if (m_need_observer) {
     const auto space_id = m_new_table->space;
@@ -117,7 +117,7 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   m_trx->error_key_num = ULINT_UNDEFINED;
 
   if (m_add_cols != nullptr) {
-    m_dtuple_heap = mem_heap_create(512);
+    m_dtuple_heap = mem_heap_create(512, UT_LOCATION_HERE);
     ut_a(m_dtuple_heap != nullptr);
   }
 }
@@ -320,7 +320,7 @@ dberr_t Context::cleanup(dberr_t err) noexcept {
         case ONLINE_INDEX_COMPLETE:
           break;
         case ONLINE_INDEX_CREATION:
-          rw_lock_x_lock(latch);
+          rw_lock_x_lock(latch, UT_LOCATION_HERE);
           row_log_abort_sec(index);
           index->type |= DICT_CORRUPT;
           rw_lock_x_unlock(latch);
@@ -474,7 +474,7 @@ void Context::note_max_trx_id(dict_index_t *index) noexcept {
 
   auto rw_latch = dict_index_get_lock(index);
 
-  rw_lock_x_lock(rw_latch);
+  rw_lock_x_lock(rw_latch, UT_LOCATION_HERE);
 
   ut_a(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
 

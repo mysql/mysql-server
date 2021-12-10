@@ -193,7 +193,7 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
   mem_heap_t *heap;
   que_fork_t *fork;
 
-  heap = mem_heap_create(512);
+  heap = mem_heap_create(512, UT_LOCATION_HERE);
   fork = que_fork_create(nullptr, nullptr, QUE_FORK_PURGE, heap);
   fork->trx = trx;
 
@@ -228,7 +228,7 @@ void trx_purge_sys_mem_create() {
 
   mutex_create(LATCH_ID_PURGE_SYS_PQ, &purge_sys->pq_mutex);
 
-  purge_sys->heap = mem_heap_create(8 * 1024);
+  purge_sys->heap = mem_heap_create(8 * 1024, UT_LOCATION_HERE);
 }
 
 void trx_purge_sys_initialize(uint32_t n_purge_threads,
@@ -382,7 +382,7 @@ void trx_purge_add_update_undo_to_history(
   /* Write information about delete markings to the undo log header */
 
   if (!undo->del_marks) {
-    mlog_write_ulint(undo_header + TRX_UNDO_DEL_MARKS, FALSE, MLOG_2BYTES, mtr);
+    mlog_write_ulint(undo_header + TRX_UNDO_DEL_MARKS, false, MLOG_2BYTES, mtr);
   }
 
   /* Write GTID information if there. */
@@ -451,7 +451,7 @@ static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
 
     if (!marked) {
       marked = true;
-      mlog_write_ulint(log_hdr + TRX_UNDO_DEL_MARKS, FALSE, MLOG_2BYTES, &mtr);
+      mlog_write_ulint(log_hdr + TRX_UNDO_DEL_MARKS, false, MLOG_2BYTES, &mtr);
     }
 
     if (fseg_free_step_not_header(seg_hdr + TRX_UNDO_FSEG_HEADER, false,
@@ -1697,11 +1697,6 @@ static void trx_purge_rseg_get_next_history_log(
     ulint *n_pages_handled) /*!< in/out: number of UNDO pages
                             handled */
 {
-  page_t *undo_page;
-  trx_ulogf_t *log_hdr;
-  fil_addr_t prev_log_addr;
-  trx_id_t trx_no;
-  ibool del_marks;
   mtr_t mtr;
 
   rseg->latch();
@@ -1711,20 +1706,20 @@ static void trx_purge_rseg_get_next_history_log(
   purge_sys->iter.trx_no = rseg->last_trx_no + 1;
   purge_sys->iter.undo_no = 0;
   purge_sys->iter.undo_rseg_space = SPACE_UNKNOWN;
-  purge_sys->next_stored = FALSE;
+  purge_sys->next_stored = false;
 
   mtr_start(&mtr);
 
-  undo_page = trx_undo_page_get_s_latched(
+  auto undo_page = trx_undo_page_get_s_latched(
       page_id_t(rseg->space_id, rseg->last_page_no), rseg->page_size, &mtr);
 
-  log_hdr = undo_page + rseg->last_offset;
+  auto log_hdr = undo_page + rseg->last_offset;
 
   /* Increase the purge page count by one for every handled log */
 
   (*n_pages_handled)++;
 
-  prev_log_addr = trx_purge_get_log_from_hist(
+  auto prev_log_addr = trx_purge_get_log_from_hist(
       flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
 
   if (prev_log_addr.page == FIL_NULL) {
@@ -1772,9 +1767,9 @@ static void trx_purge_rseg_get_next_history_log(
                                   rseg->page_size, &mtr) +
       prev_log_addr.boffset;
 
-  trx_no = mach_read_from_8(log_hdr + TRX_UNDO_TRX_NO);
+  trx_id_t trx_no = mach_read_from_8(log_hdr + TRX_UNDO_TRX_NO);
 
-  del_marks = mach_read_from_2(log_hdr + TRX_UNDO_DEL_MARKS);
+  auto del_marks = mach_read_from_2(log_hdr + TRX_UNDO_DEL_MARKS);
 
   mtr_commit(&mtr);
 
@@ -1809,7 +1804,7 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
                                     const page_size_t &page_size) {
   ulint offset;
   page_no_t page_no;
-  ib_uint64_t undo_no;
+  uint64_t undo_no;
   space_id_t undo_rseg_space;
   trx_id_t modifier_trx_id;
 
@@ -1851,7 +1846,7 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
   purge_sys->iter.modifier_trx_id = modifier_trx_id;
   purge_sys->iter.undo_rseg_space = undo_rseg_space;
 
-  purge_sys->next_stored = TRUE;
+  purge_sys->next_stored = true;
 }
 
 /** Chooses the next undo log to purge and updates the info in purge_sys. This
@@ -1859,7 +1854,7 @@ static void trx_purge_read_undo_rec(trx_purge_t *purge_sys,
  known, and also to update the purge system info on the next record when purge
  has handled the whole undo log for a transaction. */
 static void trx_purge_choose_next_log(void) {
-  ut_ad(purge_sys->next_stored == FALSE);
+  ut_ad(purge_sys->next_stored == false);
 
   const page_size_t &page_size = purge_sys->rseg_iter->set_next();
 
@@ -2220,7 +2215,7 @@ void Purge_groups_t::distribute_if_needed() {
   /* fprintf(stderr, "Thread %s purging trx %llu undo record %llu\n",
   to_string(std::this_thread::get_id()), iter->trx_no, iter->undo_no); */
 
-  *roll_ptr = trx_undo_build_roll_ptr(FALSE, purge_sys->rseg->space_id,
+  *roll_ptr = trx_undo_build_roll_ptr(false, purge_sys->rseg->space_id,
                                       purge_sys->page_no, purge_sys->offset);
 
   *modifier_trx_id = purge_sys->iter.modifier_trx_id;
@@ -2404,7 +2399,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   /* The number of tasks submitted should be completed. */
   ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->view_active = false;
 
@@ -2461,7 +2456,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
 #ifdef UNIV_DEBUG
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
   if (purge_sys->limit.trx_no == 0) {
     purge_sys->done = purge_sys->iter;
   } else {
@@ -2503,7 +2498,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 purge_state_t trx_purge_state(void) {
   purge_state_t state;
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   state = purge_sys->state;
 
@@ -2519,7 +2514,7 @@ void trx_purge_stop(void) {
 
   ut_a(srv_n_purge_threads > 0);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   ut_a(purge_sys->state != PURGE_STATE_INIT);
   ut_a(purge_sys->state != PURGE_STATE_EXIT);
@@ -2549,7 +2544,7 @@ void trx_purge_stop(void) {
   } else {
     bool once = true;
 
-    rw_lock_x_lock(&purge_sys->latch);
+    rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
     /* Wait for purge to signal that it has actually stopped. */
     while (purge_sys->running) {
@@ -2562,7 +2557,7 @@ void trx_purge_stop(void) {
 
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-      rw_lock_x_lock(&purge_sys->latch);
+      rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
     }
 
     rw_lock_x_unlock(&purge_sys->latch);
@@ -2577,7 +2572,7 @@ void trx_purge_run(void) {
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.wait_flush(false, false, nullptr);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   switch (purge_sys->state) {
     case PURGE_STATE_INIT:

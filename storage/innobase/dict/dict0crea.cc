@@ -686,7 +686,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   /* 18 = strlen(SDI) + Max digits of 4 byte spaceid (10) + 1 */
   char table_name[18];
-  mem_heap_t *heap = mem_heap_create(DICT_HEAP_SIZE);
+  mem_heap_t *heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
   snprintf(table_name, sizeof(table_name), "SDI_" SPACE_ID_PF, space);
 
   dict_table_t *table =
@@ -759,7 +759,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
     dict_mem_table_free(table);
     table = exist;
   } else {
-    dict_table_add_to_cache(table, TRUE, heap);
+    dict_table_add_to_cache(table, true, heap);
   }
 
   mem_heap_free(heap);

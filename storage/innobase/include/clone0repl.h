@@ -376,10 +376,10 @@ class Clone_persist_gtid {
   /** Set to true, when the background thread is asked to exit. */
   std::atomic<bool> m_close_thread;
 
-  /** TRUE, if background thread is active.*/
+  /** true, if background thread is active.*/
   std::atomic<bool> m_thread_active;
 
-  /** TRUE, if GTID persistence is active.*/
+  /** true, if GTID persistence is active.*/
   std::atomic<bool> m_active;
 };
 

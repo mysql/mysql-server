@@ -148,7 +148,8 @@ struct first_page_t : public basic_page_t {
   @param[in]   page_size  the page size information.
   @return the buffer block of the first page. */
   buf_block_t *load_s(page_id_t page_id, page_size_t page_size) {
-    m_block = buf_page_get(page_id, page_size, RW_S_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_S_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -167,7 +168,7 @@ struct first_page_t : public basic_page_t {
   buf_block_t *load_x(mtr_t *mtr) const {
     ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
     buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
-                                    RW_X_LATCH, mtr);
+                                    RW_X_LATCH, UT_LOCATION_HERE, mtr);
     ut_ad(tmp == m_block);
     return (tmp);
   }

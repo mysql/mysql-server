@@ -187,7 +187,7 @@ bool lock_prdt_has_to_wait(
       different users can have conflicting lock types
       on predicates. */
 
-      return (FALSE);
+      return false;
     }
 
     if (lock2->type_mode & LOCK_INSERT_INTENTION) {
@@ -195,17 +195,17 @@ bool lock_prdt_has_to_wait(
       intention lock to be removed. This makes it similar
       to GAP lock, that allows conflicting insert intention
       locks */
-      return (FALSE);
+      return false;
     }
 
     if (!lock_prdt_consistent(cur_prdt, prdt, 0, lock2->index->rtr_srs.get())) {
       return (false);
     }
 
-    return (TRUE);
+    return true;
   }
 
-  return (FALSE);
+  return false;
 }
 
 /** Checks if a transaction has a GRANTED stronger or equal predicate lock

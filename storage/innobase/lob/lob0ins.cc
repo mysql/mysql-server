@@ -83,7 +83,7 @@ buf_block_t *BaseInserter::get_previous_blob_block() {
 
   buf_block_t *prev_block =
       buf_page_get(page_id_t(space_id, m_prev_page_no), rec_block->page.size,
-                   RW_X_LATCH, &m_blob_mtr);
+                   RW_X_LATCH, UT_LOCATION_HERE, &m_blob_mtr);
 
   buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
 
@@ -182,7 +182,8 @@ dberr_t Inserter::write_first_page(size_t blob_j, big_rec_field_t &field) {
   buf_block_t *rec_block = m_ctx->block();
   mtr_t *mtr = start_blob_mtr();
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   alloc_blob_page();
 
@@ -222,7 +223,8 @@ dberr_t Inserter::write_single_blob_page(size_t blob_j, big_rec_field_t &field,
   mtr_t *mtr = start_blob_mtr();
   ut_a(nth_blob_page > 0);
 
-  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH, mtr);
+  buf_page_get(rec_block->page.id, rec_block->page.size, RW_X_LATCH,
+               UT_LOCATION_HERE, mtr);
 
   alloc_blob_page();
   set_page_next();

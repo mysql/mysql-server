@@ -295,7 +295,7 @@ dberr_t Page_load::init() noexcept {
 
   ut_ad(m_heap == nullptr);
 
-  m_heap = mem_heap_create(1024);
+  m_heap = mem_heap_create(1024, UT_LOCATION_HERE);
 
   auto mtr_alloc = mem_heap_alloc(m_heap, sizeof(mtr_t));
 
@@ -304,7 +304,7 @@ dberr_t Page_load::init() noexcept {
   mtr->start();
 
   if (!dict_index_is_online_ddl(m_index)) {
-    mtr->x_lock(dict_index_get_lock(m_index), __FILE__, __LINE__);
+    mtr->x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
   }
 
   mtr->set_log_mode(MTR_LOG_NO_REDO);
@@ -361,7 +361,8 @@ dberr_t Page_load::init() noexcept {
     page_id_t page_id(dict_index_get_space(m_index), m_page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
 
-    new_block = btr_block_get(page_id, page_size, RW_X_LATCH, m_index, mtr);
+    new_block = btr_block_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE,
+                              m_index, mtr);
 
     new_page = buf_block_get_frame(new_block);
     new_page_zip = buf_block_get_page_zip(new_block);
@@ -384,7 +385,7 @@ dberr_t Page_load::init() noexcept {
   m_page_zip = new_page_zip;
   m_page_no = new_page_no;
   m_cur_rec = page_get_infimum_rec(new_page);
-  ut_ad(m_is_comp == !!page_is_comp(new_page));
+  ut_ad(m_is_comp == page_is_comp(new_page));
   m_free_space = page_get_free_space_of_empty(m_is_comp);
 
   if (ddl::fill_factor == 100 && m_index->is_clustered()) {
@@ -806,7 +807,7 @@ void Page_load::release() noexcept {
   ut_ad(m_block->page.buf_fix_count > 0);
 
   /* We fix the block because we will re-pin it soon. */
-  buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+  buf_block_buf_fix_inc(m_block, UT_LOCATION_HERE);
 
   m_modify_clock = m_block->get_modify_clock(IF_DEBUG(true));
 
@@ -818,7 +819,7 @@ void Page_load::latch() noexcept {
   m_mtr->start();
 
   if (!dict_index_is_online_ddl(m_index)) {
-    m_mtr->x_lock(dict_index_get_lock(m_index), __FILE__, __LINE__);
+    m_mtr->x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
   }
 
   m_mtr->set_log_mode(MTR_LOG_NO_REDO);
@@ -842,9 +843,8 @@ void Page_load::latch() noexcept {
     page_id_t page_id(dict_index_get_space(m_index), m_page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
 
-    m_block =
-        buf_page_get_gen(page_id, page_size, RW_X_LATCH, m_block,
-                         Page_fetch::IF_IN_POOL, __FILE__, __LINE__, m_mtr);
+    m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, m_block,
+                               Page_fetch::IF_IN_POOL, UT_LOCATION_HERE, m_mtr);
     ut_ad(m_block != nullptr);
   }
 
@@ -1221,10 +1221,10 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   mtr_t mtr;
 
   mtr.start();
-  mtr.x_lock(dict_index_get_lock(m_index), __FILE__, __LINE__);
+  mtr.x_lock(dict_index_get_lock(m_index), UT_LOCATION_HERE);
 
-  auto last_block =
-      btr_block_get(page_id, page_size, RW_X_LATCH, m_index, &mtr);
+  auto last_block = btr_block_get(page_id, page_size, RW_X_LATCH,
+                                  UT_LOCATION_HERE, m_index, &mtr);
 
   auto last_page = buf_block_get_frame(last_block);
 

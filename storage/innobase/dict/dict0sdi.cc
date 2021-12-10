@@ -49,7 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @return DB_SUCCESS if SDI exists, else return DB_ERROR,
 DB_TABLESPACE_NOT_FOUND */
 static dberr_t dict_sdi_exists(const dd::Tablespace &dd_space,
-                               uint32 *space_id) {
+                               uint32_t *space_id) {
   if (dd_space.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
                                      space_id)) {
     /* error, attribute not found */
@@ -127,7 +127,7 @@ bool dict_sdi_create(dd::Tablespace *tablespace) {
                                 << tablespace->name() << "," << tablespace->id()
                                 << ")";);
 
-  uint32 space_id = 0;
+  uint32_t space_id = 0;
   if (tablespace->se_private_data().get("id", &space_id)) {
     /* error, attribute not found */
     ut_ad(0);
@@ -185,7 +185,7 @@ bool dict_sdi_drop(dd::Tablespace *tablespace) {
 @retval		false		success
 @retval		true		failure */
 bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
-  uint32 space_id;
+  uint32_t space_id;
 
   if (dd_tablespace_is_discarded(&tablespace)) {
     /* sdi_get_keys shouldn't be called on discarded tablespaces.*/
@@ -215,7 +215,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
   ib_vector.sdi_vector = &vector;
 
   trx_t *trx = check_trx_exists(current_thd);
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   dberr_t err = ib_sdi_get_keys(space_id, &ib_vector, trx);
 
@@ -233,7 +233,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
                                 sdi_len is UINT64MAX_T, else sdi_len is
                                 actual length of SDI */
 bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
-                  void *sdi, uint64 *sdi_len) {
+                  void *sdi, uint64_t *sdi_len) {
 #if 0 /* TODO: Enable in WL#9761 */
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info(ER_IB_MSG_214) << "dict_sdi_get(" << tablespace.name()
@@ -264,7 +264,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace, const sdi_key_t *sdi_key,
 #endif /* UNIV_DEBUG */
 
 	trx_t*	trx = check_trx_exists(current_thd);
-	trx_start_if_not_started(trx, true);
+	trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
 	ib_sdi_key_t	ib_sdi_key;
 	ib_sdi_key.sdi_key = sdi_key;
@@ -315,7 +315,7 @@ object
 @retval		true		failure */
 bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
                   const dd::Table *table, const sdi_key_t *sdi_key,
-                  const void *sdi, uint64 sdi_len) {
+                  const void *sdi, uint64_t sdi_len) {
   const char *operation = "set";
 
   DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_215)
@@ -359,7 +359,7 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
     return (false);
   }
 
-  uint32 space_id;
+  uint32_t space_id;
   dberr_t err = dict_sdi_exists(tablespace, &space_id);
   if (err != DB_SUCCESS) {
     if (err == DB_TABLESPACE_NOT_FOUND) {
@@ -378,7 +378,7 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
   }
 
   trx_t *trx = check_trx_exists(current_thd);
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   innobase_register_trx(hton, current_thd, trx);
 
@@ -460,7 +460,7 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
     return (false);
   }
 
-  uint32 space_id;
+  uint32_t space_id;
   dberr_t err = dict_sdi_exists(tablespace, &space_id);
   if (err != DB_SUCCESS) {
     if (err == DB_TABLESPACE_NOT_FOUND) {
@@ -479,7 +479,7 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
   }
 
   trx_t *trx = check_trx_exists(current_thd);
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   ib_sdi_key_t ib_sdi_key;
   ib_sdi_key.sdi_key = sdi_key;

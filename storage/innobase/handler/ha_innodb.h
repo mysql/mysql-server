@@ -31,6 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <assert.h>
 #include <sys/types.h>
+#include "create_field.h"
+#include "field.h"
 #include "handler.h"
 #include "mysql/components/services/clone_protocol_service.h"
 
@@ -787,7 +789,7 @@ static inline bool is_shared_tablespace(const char *tablespace_name) {
   return false;
 }
 
-#define SIZE_MB (1024 * 1024)
+constexpr uint32_t SIZE_MB = 1024 * 1024;
 
 /** Validate AUTOEXTEND_SIZE attribute for a tablespace.
 @param[in]	ext_size	Value of autoextend_size attribute
@@ -1188,7 +1190,7 @@ class innobase_truncate {
 /**
 Initialize the table FTS stopword list
 @return true if success */
-[[nodiscard]] ibool innobase_fts_load_stopword(
+[[nodiscard]] bool innobase_fts_load_stopword(
     dict_table_t *table, /*!< in: Table has the FTS */
     trx_t *trx,          /*!< in: transaction */
     THD *thd);           /*!< in: current thread */
@@ -1244,17 +1246,22 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
                                       const Field *field, dict_s_col_t *s_col);
 
 /** whether this is a stored column */
-#define innobase_is_s_fld(field) ((field)->gcol_info && (field)->stored_in_db)
+static inline bool innobase_is_s_fld(const Field *field) {
+  return field->gcol_info && field->stored_in_db;
+}
 
 /** Whether this is a computed multi-value virtual column.
 This condition check should be equal to the following one:
 (innobase_is_v_fld(field) && (field)->gcol_info->expr_item &&
  field->gcol_info->expr_item->returns_array())
 */
-#define innobase_is_multi_value_fld(field) (field->is_array())
+static inline bool innobase_is_multi_value_fld(const Field *field) {
+  return field->is_array();
+}
 
-#define normalize_table_name(norm_name, name) \
-  create_table_info_t::normalize_table_name(norm_name, name)
+static inline bool normalize_table_name(char *norm_name, const char *name) {
+  return create_table_info_t::normalize_table_name(norm_name, name);
+}
 
 /** Note that a transaction has been registered with MySQL.
 @param[in]	trx	Transaction.

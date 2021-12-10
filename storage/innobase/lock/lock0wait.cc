@@ -97,7 +97,7 @@ static void lock_wait_table_release_slot(
 
   slot->thr->slot = nullptr;
   slot->thr = nullptr;
-  slot->in_use = FALSE;
+  slot->in_use = false;
 
   /* Scan backwards and adjust the last free slot pointer. */
   for (slot = lock_sys->last_slot;
@@ -146,7 +146,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   for (uint32_t i = srv_max_n_threads; i--; ++slot) {
     if (!slot->in_use) {
       slot->reservation_no = lock_wait_table_reservations++;
-      slot->in_use = TRUE;
+      slot->in_use = true;
       slot->thr = thr;
       slot->thr->slot = slot;
 
@@ -156,7 +156,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
       }
 
       os_event_reset(slot->event);
-      slot->suspended = TRUE;
+      slot->suspended = true;
       slot->suspend_time = std::chrono::steady_clock::now();
       slot->wait_timeout = wait_timeout;
 
@@ -204,7 +204,6 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 {
   srv_slot_t *slot;
   trx_t *trx;
-  ibool was_declared_inside_innodb;
   std::chrono::steady_clock::time_point start_time;
 
   trx = thr_get_trx(thr);
@@ -285,7 +284,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
   /* Suspend this thread and wait for the event. */
 
-  was_declared_inside_innodb = trx->declared_to_be_inside_innodb;
+  auto was_declared_inside_innodb = trx->declared_to_be_inside_innodb;
 
   if (was_declared_inside_innodb) {
     /* We must declare this OS thread to exit InnoDB, since a
@@ -317,9 +316,9 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
   }
 
   if (had_dict_lock == RW_S_LATCH) {
-    row_mysql_freeze_data_dictionary(trx);
+    row_mysql_freeze_data_dictionary(trx, UT_LOCATION_HERE);
   } else if (had_dict_lock == RW_X_LATCH) {
-    rw_lock_x_lock(dict_operation_lock);
+    rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
   }
 
   const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;

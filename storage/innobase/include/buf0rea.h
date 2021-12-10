@@ -90,7 +90,7 @@ the OS does not support asynchronous i/o.
 @param[in]	page_id		page id of a page which the current thread
 wants to access
 @param[in]	page_size	page size
-@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
+@param[in]	inside_ibuf	true if we are inside ibuf routine
 @return number of page read requests issued; NOTE that if we read ibuf
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
@@ -121,7 +121,7 @@ set to prevent unintended read-aheads performed by ibuf routines, a situation
 which could result in a deadlock if the OS does not support asynchronous io.
 @param[in]	page_id		page id; see NOTE 3 above
 @param[in]	page_size	page size
-@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
+@param[in]	inside_ibuf	true if we are inside ibuf routine
 @return number of page read requests issued */
 ulint buf_read_ahead_linear(const page_id_t &page_id,
                             const page_size_t &page_size, bool inside_ibuf);
@@ -150,16 +150,12 @@ highest page number the last in the array
 void buf_read_recv_pages(bool sync, space_id_t space_id,
                          const page_no_t *page_nos, ulint n_stored);
 
-/** The size in pages of the area which the read-ahead algorithms read if
-invoked */
-#define BUF_READ_AHEAD_AREA(b) ((b)->read_ahead_area)
-
 /** @name Modes used in read-ahead
 @{ */
 /** read only pages belonging to the insert buffer tree */
-#define BUF_READ_IBUF_PAGES_ONLY 131
+constexpr uint32_t BUF_READ_IBUF_PAGES_ONLY = 131;
 /** read any page */
-#define BUF_READ_ANY_PAGE 132
+constexpr uint32_t BUF_READ_ANY_PAGE = 132;
 /** @} */
 
 #endif

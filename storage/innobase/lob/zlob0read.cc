@@ -264,9 +264,9 @@ ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
   ulint remain = zbuf_size;
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     page_type_t ptype = block->get_page_type();
     byte *data = nullptr;
@@ -308,9 +308,9 @@ static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
   ulint remain = exp_zlen;
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t *block =
-        buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                     dict_table_page_size(index->table), RW_X_LATCH, mtr);
+    buf_block_t *block = buf_page_get(
+        page_id_t(dict_index_get_space(index), page_no),
+        dict_table_page_size(index->table), RW_X_LATCH, UT_LOCATION_HERE, mtr);
 
     page_type_t ptype = block->get_page_type();
     ulint data_size = 0;

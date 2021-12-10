@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef dict0types_h
 #define dict0types_h
 
+#include "fsp0types.h"
 #include "ibuf0types.h" /* IBUF_SPACE_ID */
 #include "mysql_com.h"
 #include "rem0types.h"
@@ -204,12 +205,12 @@ void rebuild(std::string &dict_name);
 }  // namespace dict_name
 
 /* Space id and page no where the dictionary header resides */
-#define DICT_HDR_SPACE 0 /* the SYSTEM tablespace */
-#define DICT_HDR_PAGE_NO FSP_DICT_HDR_PAGE_NO
+constexpr uint32_t DICT_HDR_SPACE = 0; /* the SYSTEM tablespace */
+constexpr uint32_t DICT_HDR_PAGE_NO = FSP_DICT_HDR_PAGE_NO;
 
 /* The ibuf table and indexes's ID are assigned as the number
 DICT_IBUF_ID_MIN plus the space id */
-#define DICT_IBUF_ID_MIN 0xFFFFFFFF00000000ULL
+constexpr uint64_t DICT_IBUF_ID_MIN = 0xFFFFFFFF00000000ULL;
 
 /** Table or partition identifier (unique within an InnoDB instance). */
 typedef ib_id_t table_id_t;
@@ -315,14 +316,13 @@ extern uint ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Shift for spatial status */
-#define SPATIAL_STATUS_SHIFT 12
+constexpr uint32_t SPATIAL_STATUS_SHIFT = 12;
 
 /** Mask to encode/decode spatial status. */
-#define SPATIAL_STATUS_MASK (3 << SPATIAL_STATUS_SHIFT)
+constexpr uint32_t SPATIAL_STATUS_MASK = 3 << SPATIAL_STATUS_SHIFT;
 
-#if SPATIAL_STATUS_MASK < REC_VERSION_56_MAX_INDEX_COL_LEN
-#error SPATIAL_STATUS_MASK < REC_VERSION_56_MAX_INDEX_COL_LEN
-#endif
+static_assert(SPATIAL_STATUS_MASK >= REC_VERSION_56_MAX_INDEX_COL_LEN,
+              "SPATIAL_STATUS_MASK < REC_VERSION_56_MAX_INDEX_COL_LEN");
 
 /** whether a col is used in spatial index or regular index
 Note: the spatial status is part of persistent undo log,

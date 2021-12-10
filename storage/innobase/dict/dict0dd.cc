@@ -142,9 +142,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   }
 
   const dd::Properties &p = dd_index->se_private_data();
-  uint64 id = 0;
-  uint32 root = 0;
-  uint64 trx_id = 0;
+  uint64_t id = 0;
+  uint32_t root = 0;
+  uint64_t trx_id = 0;
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ID]));
   p.get(dd_index_key_strings[DD_INDEX_ID], &id);
   if (id != index->id) {
@@ -1430,7 +1430,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data		dd::Table::se_private_data
 @param[in]	autoinc			the auto-increment value */
-void dd_set_autoinc(dd::Properties &se_private_data, uint64 autoinc) {
+void dd_set_autoinc(dd::Properties &se_private_data, uint64_t autoinc) {
   /* The value of "autoinc" here is the AUTO_INCREMENT attribute
   specified at table creation. AUTO_INCREMENT=0 will silently
   be treated as AUTO_INCREMENT=1. Likewise, if no AUTO_INCREMENT
@@ -1441,7 +1441,7 @@ void dd_set_autoinc(dd::Properties &se_private_data, uint64 autoinc) {
     autoinc--;
   }
 
-  uint64 version = 0;
+  uint64_t version = 0;
 
   if (se_private_data.exists(dd_table_key_strings[DD_TABLE_AUTOINC])) {
     /* Increment the dynamic metadata version, so that
@@ -1473,9 +1473,9 @@ void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest) {
   }
 
   if (src.get(dd_table_key_strings[DD_TABLE_AUTOINC],
-              reinterpret_cast<uint64 *>(&autoinc)) ||
+              reinterpret_cast<uint64_t *>(&autoinc)) ||
       src.get(dd_table_key_strings[DD_TABLE_VERSION],
-              reinterpret_cast<uint64 *>(&version))) {
+              reinterpret_cast<uint64_t *>(&version))) {
     ut_ad(0);
     return;
   }
@@ -1513,8 +1513,8 @@ void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table) {
 
 template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table) {
-  uint64 autoinc = 0;
-  uint64 version = 0;
+  uint64_t autoinc = 0;
+  uint64_t version = 0;
   bool reset = false;
   dd::Properties &se_private_data = new_table.se_private_data();
 
@@ -2129,7 +2129,7 @@ void dd_set_table_options(Table *dd_table, const dict_table_t *table) {
 
   if (!dd_table_is_partitioned(*dd_table_def)) {
     if (auto zip_ssize = DICT_TF_GET_ZIP_SSIZE(table->flags)) {
-      uint32 old_size;
+      uint32_t old_size;
       if (!options.get("key_block_size", &old_size) && old_size != 0) {
         options.set("key_block_size", 1 << (zip_ssize - 1));
       }
@@ -2168,7 +2168,7 @@ void dd_update_v_cols(dd::Table *dd_table, table_id_t id) {
             dd_index_key_strings[DD_TABLE_ID])) {
       table_id_t table_id;
       dd_column->se_private_data().get(dd_index_key_strings[DD_TABLE_ID],
-                                       reinterpret_cast<uint64 *>(&table_id));
+                                       reinterpret_cast<uint64_t *>(&table_id));
       ut_ad(table_id == id);
     }
 #endif /* UNIV_DEBUG */
@@ -2409,7 +2409,7 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 
   index->n_user_defined_cols = key.user_defined_key_parts;
 
-  if (dict_index_add_to_cache(table, index, 0, FALSE) != DB_SUCCESS) {
+  if (dict_index_add_to_cache(table, index, 0, false) != DB_SUCCESS) {
     ut_ad(0);
     return HA_ERR_GENERIC;
   }
@@ -2425,7 +2425,7 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
       DICT_TF2_FLAG_SET(table, DICT_TF2_FTS);
       table->fts->cache = fts_cache_create(table);
 
-      rw_lock_x_lock(&table->fts->cache->init_lock);
+      rw_lock_x_lock(&table->fts->cache->init_lock, UT_LOCATION_HERE);
       /* Notify the FTS cache about this index. */
       fts_cache_index_cache_create(table, index);
       rw_lock_x_unlock(&table->fts->cache->init_lock);
@@ -2578,7 +2578,7 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
     index->n_uniq = 0;
 
     dberr_t new_err =
-        dict_index_add_to_cache(m_table, index, index->page, FALSE);
+        dict_index_add_to_cache(m_table, index, index->page, false);
     if (new_err != DB_SUCCESS) {
       error = HA_ERR_GENERIC;
       goto dd_error;
@@ -2648,7 +2648,7 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
         doc_id_index->add_field(FTS_DOC_ID_COL_NAME, 0, true);
 
         dberr_t new_err = dict_index_add_to_cache(m_table, doc_id_index,
-                                                  doc_id_index->page, FALSE);
+                                                  doc_id_index->page, false);
         if (new_err != DB_SUCCESS) {
           error = HA_ERR_GENERIC;
           goto dd_error;
@@ -2892,7 +2892,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     if (part_p.exists(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT])) {
       dd::Table::enum_row_format format;
       part_p.get(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT],
-                 reinterpret_cast<uint32 *>(&format));
+                 reinterpret_cast<uint32_t *>(&format));
       switch (format) {
         case dd::Table::RF_REDUNDANT:
           real_type = ROW_TYPE_REDUNDANT;
@@ -3032,7 +3032,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 
-  heap = mem_heap_create(1000);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   /* Fill out each column info */
   for (unsigned i = 0; i < n_mysql_cols; i++) {
@@ -3312,7 +3312,7 @@ bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 @retval true	on failure (corrupt tablespace object). */
 bool dd_tablespace_is_implicit(const dd::Tablespace *dd_space, bool *implicit) {
   space_id_t id = 0;
-  uint32 flags;
+  uint32_t flags;
 
   if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID], &id)) {
     return true;
@@ -3385,7 +3385,7 @@ bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
 
   /* Get the space id from the tablespace properties. */
   const dd::Properties &pd = dd_space->se_private_data();
-  uint32 id;
+  uint32_t id;
   pd.get(dd_space_key_strings[DD_SPACE_ID], &id);
 
   /* Get the tablespace options. */
@@ -3490,7 +3490,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
     foreign->foreign_table_name =
         mem_heap_strdup(foreign->heap, m_table->name.m_name);
 
-    dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+    dict_mem_foreign_table_name_lookup_set(foreign, true);
 
     if (innobase_get_lower_case_table_names() == 2) {
       innobase_casedn_str(norm_name);
@@ -3503,7 +3503,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
     }
 
     foreign->referenced_table_name = mem_heap_strdup(foreign->heap, norm_name);
-    dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+    dict_mem_referenced_table_name_lookup_set(foreign, true);
     ulint db_len = dict_get_db_name_len(m_table->name.m_name);
 
     ut_ad(db_len > 0);
@@ -3595,7 +3595,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
     /* Fill in foreign->foreign_table and index, then add to
     dict_table_t */
     err =
-        dict_foreign_add_to_cache(foreign, col_names, FALSE, true, ignore_err);
+        dict_foreign_add_to_cache(foreign, col_names, false, true, ignore_err);
     if (!dict_locked) {
       dict_sys_mutex_exit();
     }
@@ -3886,7 +3886,7 @@ void dd_get_and_save_data_dir_path(dict_table_t *table, const Table *dd_table,
   char *path = fil_space_get_first_path(table->space);
 
   if (path == nullptr) {
-    heap = mem_heap_create(1000);
+    heap = mem_heap_create(100, UT_LOCATION_HERE);
     if (dict_mutex_own) {
       dict_mutex_exit_for_mysql();
     }
@@ -3972,7 +3972,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
           << "Tablespace for table " << table->name << " is set as discarded.";
     }
 
-    table->ibd_file_missing = TRUE;
+    table->ibd_file_missing = true;
     return;
   }
 
@@ -4041,7 +4041,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     /* If space id is already open with a different space name, then skip
     loading the space. It can happen because DDL log recovery might not
     have happened yet. */
-    table->ibd_file_missing = TRUE;
+    table->ibd_file_missing = true;
 
     ut::free(shared_space_name);
     ut::free(filepath);
@@ -4080,7 +4080,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     dd_get_and_save_data_dir_path(table, dd_table, true);
   } else {
     /* We failed to find a sensible tablespace file */
-    table->ibd_file_missing = TRUE;
+    table->ibd_file_missing = true;
   }
 
   ut::free(shared_space_name);
@@ -4274,7 +4274,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
   if (Field **autoinc_col = table->s->found_next_number_field) {
     const dd::Properties &p = dd_table->table().se_private_data();
     dict_table_autoinc_set_col_pos(m_table, (*autoinc_col)->field_index());
-    uint64 version, autoinc = 0;
+    uint64_t version, autoinc = 0;
     if (p.get(dd_table_key_strings[DD_TABLE_VERSION], &version) ||
         p.get(dd_table_key_strings[DD_TABLE_AUTOINC], &autoinc)) {
       ut_ad(!"problem setting AUTO_INCREMENT");
@@ -4288,7 +4288,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     m_table->autoinc_persisted = autoinc;
   }
 
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = mem_heap_create(100, UT_LOCATION_HERE);
   bool fail = false;
 
   /* Now fill the space ID and Root page number for each index */
@@ -4297,10 +4297,10 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     ut_ad(index != nullptr);
 
     const dd::Properties &se_private_data = dd_index->se_private_data();
-    uint64 id = 0;
-    uint32 root = 0;
-    uint32 sid = 0;
-    uint64 trx_id = 0;
+    uint64_t id = 0;
+    uint32_t root = 0;
+    uint32_t sid = 0;
+    uint64_t trx_id = 0;
     dd::Object_id index_space_id = dd_index->tablespace_id();
 
     if (dd_table->tablespace_id() == dict_sys_t::s_dd_dict_space_id) {
@@ -4331,7 +4331,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
             dd_table->tablespace_id() == index_space_id);
       m_table->dd_space_id = index_space_id;
 
-      uint32 dd_fsp_flags;
+      uint32_t dd_fsp_flags;
       if (dd_table->tablespace_id() == dict_sys_t::s_dd_dict_space_id) {
         dd_fsp_flags = dict_tf_to_fsp_flags(m_table->flags);
       } else {
@@ -4425,7 +4425,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
     m_table = exist;
   } else {
-    dict_table_add_to_cache(m_table, TRUE, heap);
+    dict_table_add_to_cache(m_table, true, heap);
 
     if (m_table->fts && dict_table_has_fts_index(m_table)) {
       fts_optimize_add_table(m_table);
@@ -4457,7 +4457,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
         dd_table_load_fk(client, norm_name, nullptr, m_table,
                          &dd_table->table(), thd, false, true, &fk_list);
     if (error != DB_SUCCESS) {
-      dict_table_close(m_table, FALSE, FALSE);
+      dict_table_close(m_table, false, false);
       m_table = nullptr;
     }
   }
@@ -4624,18 +4624,18 @@ static const rec_t *dd_getnext_system_low(btr_pcur_t *pcur, mtr_t *mtr) {
   while (!rec || rec_get_deleted_flag(rec, is_comp)) {
     pcur->move_to_next_user_rec(mtr);
 
-    rec = btr_pcur_get_rec(pcur);
+    rec = pcur->get_rec();
 
-    if (!btr_pcur_is_on_user_rec(pcur)) {
+    if (!pcur->is_on_user_rec()) {
       /* end of index */
-      btr_pcur_close(pcur);
+      pcur->close();
 
       return nullptr;
     }
   }
 
   /* Get a record, let's save the position */
-  btr_pcur_store_position(pcur, mtr);
+  pcur->store_position(mtr);
 
   return rec;
 }
@@ -4646,7 +4646,7 @@ static const rec_t *dd_getnext_system_low(btr_pcur_t *pcur, mtr_t *mtr) {
 @retval next record */
 const rec_t *dd_getnext_system_rec(btr_pcur_t *pcur, mtr_t *mtr) {
   /* Restore the position */
-  btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+  pcur->restore_position(BTR_SEARCH_LEAF, mtr, UT_LOCATION_HERE);
 
   return dd_getnext_system_low(pcur, mtr);
 }
@@ -4671,8 +4671,7 @@ const rec_t *dd_startscan_system(THD *thd, MDL_ticket **mdl, btr_pcur_t *pcur,
   clust_index = UT_LIST_GET_FIRST((*table)->indexes);
 
   mtr_start(mtr);
-  btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur, true, 0,
-                              mtr);
+  pcur->open_at_side(true, clust_index, BTR_SEARCH_LEAF, true, 0, mtr);
 
   rec = dd_getnext_system_low(pcur, mtr);
 
@@ -4910,7 +4909,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
     return false;
   }
 
-  if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64 *)table_id)) {
+  if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64_t *)table_id)) {
     THD *thd = current_thd;
     dict_table_t *table;
     MDL_ticket *mdl = nullptr;
@@ -5063,7 +5062,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
     return false;
   }
 
-  if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64 *)table_id)) {
+  if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64_t *)table_id)) {
     THD *thd = current_thd;
     dict_table_t *table;
     MDL_ticket *mdl = nullptr;
@@ -5123,9 +5122,9 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
                                dict_table_t *dd_indexes, mtr_t *mtr) {
   ulint len;
   const byte *field;
-  uint32 index_id;
-  uint32 space_id;
-  uint64 table_id;
+  uint32_t index_id;
+  uint32_t space_id;
+  uint64_t table_id;
 
   *index = nullptr;
 
@@ -5278,7 +5277,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
                                       dict_table_t *dd_indexes) {
   ulint len;
   const byte *field;
-  uint32 idx_id;
+  uint32_t idx_id;
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
@@ -5337,8 +5336,8 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
-                                   uint32_t *flags, uint32 *server_version,
-                                   uint32 *space_version, bool *is_encrypted,
+                                   uint32_t *flags, uint32_t *server_version,
+                                   uint32_t *space_version, bool *is_encrypted,
                                    uint64_t *autoextend_size,
                                    dd::String_type *state,
                                    dict_table_t *dd_spaces) {
@@ -5525,7 +5524,7 @@ static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
       return false;
     }
 
-    uint32 id;
+    uint32_t id;
     if (index_space == nullptr) {
       return false;
     } else if (index_space->se_private_data().get(
@@ -6348,8 +6347,8 @@ bool dd_tablespace_update_cache(THD *thd) {
     }
 
     const dd::Properties &p = t->se_private_data();
-    uint32 id;
-    uint32 flags = 0;
+    uint32_t id;
+    uint32_t flags = 0;
 
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
@@ -6459,7 +6458,7 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
     if (!client->acquire_uncached_uncommitted<dd::Tablespace>(
             table->dd_space_id, &dd_space) &&
         dd_space != nullptr) {
-      uint32 flags;
+      uint32_t flags;
       dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
                                       &flags);
 

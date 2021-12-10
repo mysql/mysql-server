@@ -163,7 +163,7 @@ the corresponding canonical strings have the same property. */
 
 /** Validates the consistency of an old-style physical record.
  @return true if ok */
-static ibool rec_validate_old(const rec_t *rec); /*!< in: physical record */
+static bool rec_validate_old(const rec_t *rec); /*!< in: physical record */
 
 /** Determine how many of the first n columns in a compact
  physical record are stored externally.
@@ -462,7 +462,7 @@ ulint rec_get_nth_field_offs_old(const rec_t *rec, /*!< in: record */
           flen = vfield->len;
 
           if (flen != UNIV_SQL_NULL) {
-            flen = ut_min(
+            flen = std::min(
                 flen,
                 static_cast<ulint>(DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
             data_size += flen;
@@ -537,7 +537,7 @@ ulint rec_get_converted_size_comp(
 /** Sets the value of the ith field SQL null bit of an old-style record. */
 void rec_set_nth_field_null_bit(rec_t *rec, /*!< in: record */
                                 ulint i,    /*!< in: ith field */
-                                ibool val)  /*!< in: value to set */
+                                bool val)   /*!< in: value to set */
 {
   ulint info;
 
@@ -577,7 +577,7 @@ void rec_set_nth_field_sql_null(rec_t *rec, /*!< in: record */
 
   data_write_sql_null(rec + offset, rec_get_nth_field_size(rec, n));
 
-  rec_set_nth_field_null_bit(rec, n, TRUE);
+  rec_set_nth_field_null_bit(rec, n, true);
 }
 
 /** Builds an old-style physical record out of a data tuple and
@@ -623,7 +623,7 @@ static rec_t *rec_convert_dtuple_to_rec_old(
 
   end_offset = 0;
   if (!has_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
-    rec_set_1byte_offs_flag(rec, TRUE);
+    rec_set_1byte_offs_flag(rec, true);
 
     for (i = 0; i < n_fields; i++) {
       field = dtuple_get_nth_field(dtuple, i);
@@ -647,7 +647,7 @@ static rec_t *rec_convert_dtuple_to_rec_old(
       rec_1_set_field_end_info(rec, i, ored_offset);
     }
   } else {
-    rec_set_1byte_offs_flag(rec, FALSE);
+    rec_set_1byte_offs_flag(rec, false);
 
     for (i = 0; i < n_fields; i++) {
       field = dtuple_get_nth_field(dtuple, i);
@@ -893,8 +893,9 @@ static inline bool rec_convert_dtuple_to_rec_comp(
           /* The virtual column can only be in sec
           index, and index key length is bound by
           DICT_MAX_FIELD_LEN_BY_FORMAT */
-          flen = ut_min(flen, static_cast<ulint>(
-                                  DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
+          flen = std::min(
+              flen,
+              static_cast<ulint>(DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
         }
 
         ptr += mach_write_compressed(ptr, flen);
@@ -1238,7 +1239,7 @@ rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
 
 /** Validates the consistency of an old-style physical record.
  @return true if ok */
-static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
+static bool rec_validate_old(const rec_t *rec) /*!< in: physical record */
 {
   ulint len;
   ulint n_fields;
@@ -1250,7 +1251,7 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
 
   if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
     ib::error(ER_IB_MSG_922) << "Record has " << n_fields << " fields";
-    return (FALSE);
+    return false;
   }
 
   for (i = 0; i < n_fields; i++) {
@@ -1258,7 +1259,7 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
 
     if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
       ib::error(ER_IB_MSG_923) << "Record field " << i << " len " << len;
-      return (FALSE);
+      return false;
     }
 
     if (len != UNIV_SQL_NULL) {
@@ -1271,15 +1272,15 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
   if (len_sum != rec_get_data_size_old(rec)) {
     ib::error(ER_IB_MSG_924) << "Record len should be " << len_sum << ", len "
                              << rec_get_data_size_old(rec);
-    return (FALSE);
+    return false;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Validates the consistency of a physical record.
  @return true if ok */
-ibool rec_validate(
+bool rec_validate(
     const rec_t *rec,     /*!< in: physical record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
@@ -1294,7 +1295,7 @@ ibool rec_validate(
 
   if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
     ib::error(ER_IB_MSG_925) << "Record has " << n_fields << " fields";
-    return (FALSE);
+    return false;
   }
 
   for (i = 0; i < n_fields; i++) {
@@ -1320,7 +1321,7 @@ ibool rec_validate(
         ut_a(n_defaults == 0);
         if (len >= UNIV_PAGE_SIZE) {
           ib::error(ER_IB_MSG_926) << "Record field " << i << " len " << len;
-          return (FALSE);
+          return false;
         }
 
         len_sum += len;
@@ -1334,14 +1335,14 @@ ibool rec_validate(
   if (len_sum != rec_offs_data_size(offsets)) {
     ib::error(ER_IB_MSG_927) << "Record len should be " << len_sum << ", len "
                              << rec_offs_data_size(offsets);
-    return (FALSE);
+    return false;
   }
 
   if (!rec_offs_comp(offsets)) {
     ut_a(rec_validate_old(rec));
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Prints an old-style physical record.
@@ -1361,7 +1362,7 @@ void rec_print_old(FILE *file, const rec_t *rec) {
           "PHYSICAL RECORD: n_fields %lu;"
           " %u-byte offsets; info bits %lu\n",
           (ulong)n, rec_get_1byte_offs_flag(rec) ? 1 : 2,
-          (ulong)rec_get_info_bits(rec, FALSE));
+          (ulong)rec_get_info_bits(rec, false));
 
   for (i = 0; i < n; i++) {
     data = rec_get_nth_field_old(rec, i, &len);
@@ -1453,7 +1454,7 @@ static void rec_print_mbr_old(FILE *file,       /*!< in: file where to print */
           "PHYSICAL RECORD: n_fields %lu;"
           " %u-byte offsets; info bits %lu\n",
           (ulong)n, rec_get_1byte_offs_flag(rec) ? 1 : 2,
-          (ulong)rec_get_info_bits(rec, FALSE));
+          (ulong)rec_get_info_bits(rec, false));
 
   for (i = 0; i < n; i++) {
     data = rec_get_nth_field_old(rec, i, &len);
@@ -1594,7 +1595,7 @@ void rec_print_new(
           "PHYSICAL RECORD: n_fields %lu;"
           " compact format; info bits %lu\n",
           (ulong)rec_offs_n_fields(offsets),
-          (ulong)rec_get_info_bits(rec, TRUE));
+          (ulong)rec_get_info_bits(rec, true));
 
   rec_print_comp(file, rec, offsets);
   rec_validate(rec, offsets);

@@ -60,7 +60,7 @@ void hash_lock_x_all(hash_table_t *table) /*!< in: hash table */
     ut_ad(!rw_lock_own(lock, RW_LOCK_S));
     ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 
-    rw_lock_x_lock(lock);
+    rw_lock_x_lock(lock, UT_LOCATION_HERE);
   }
 }
 
@@ -121,7 +121,7 @@ hash_table_t *hash_create(ulint n) /*!< in: number of array cells */
   table->set_n_cells(prime);
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  table->adaptive = FALSE;
+  table->adaptive = false;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   table->n_sync_obj = 0;
   table->rw_locks = nullptr;

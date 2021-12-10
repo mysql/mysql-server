@@ -132,14 +132,14 @@ static inline void page_zip_set_size(
 tablespace is not compressed
 @param[in]	page_size	page size
 @return false if the entire record can be stored locally on the page */
-static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
-                                           ulint n_fields,
-                                           const page_size_t &page_size) {
+static inline bool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
+                                          ulint n_fields,
+                                          const page_size_t &page_size) {
   ut_ad(rec_size > (comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES));
   ut_ad(comp || !page_size.is_compressed());
 
   if (UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE && rec_size >= REC_MAX_DATA_SIZE) {
-    return (TRUE);
+    return true;
   }
 
   if (page_size.is_compressed()) {
@@ -152,7 +152,7 @@ static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
     on the uncompressed page. */
     return (rec_size - (REC_N_NEW_EXTRA_BYTES - 2 - 1) >=
                 page_zip_empty_size(n_fields, page_size.physical()) ||
-            rec_size >= page_get_free_space_of_empty(TRUE) / 2);
+            rec_size >= page_get_free_space_of_empty(true) / 2);
   }
 
   return (rec_size >= page_get_free_space_of_empty(comp) / 2);
@@ -162,9 +162,9 @@ static inline ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp,
 /** Determine if the length of the page trailer.
  @return length of the page trailer, in bytes, not including the
  terminating zero byte of the modification log */
-static inline ibool page_zip_get_trailer_len(
+static inline ulint page_zip_get_trailer_len(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust)                  /*!< in: TRUE if clustered index */
+    bool is_clust)                  /*!< in: true if clustered index */
 {
   ulint uncompressed_size;
 
@@ -191,7 +191,7 @@ static inline ibool page_zip_get_trailer_len(
  whose insertion is guaranteed to succeed, or zero or negative */
 static inline lint page_zip_max_ins_size(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    ibool is_clust)                 /*!< in: TRUE if clustered index */
+    bool is_clust)                  /*!< in: true if clustered index */
 {
   ulint trailer_len;
 
@@ -212,9 +212,9 @@ static inline lint page_zip_max_ins_size(
 
 /** Determine if enough space is available in the modification log.
  @return true if enough space is available */
-static inline ibool page_zip_available(
+static inline bool page_zip_available(
     const page_zip_des_t *page_zip, /*!< in: compressed page */
-    bool is_clust,                  /*!< in: TRUE if clustered index */
+    bool is_clust,                  /*!< in: true if clustered index */
     ulint length,                   /*!< in: combined size of the record */
     ulint create)                   /*!< in: nonzero=add the record to
                                     the heap */

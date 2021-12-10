@@ -83,7 +83,7 @@ static inline void btr_search_info_update(dict_index_t *index,
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
-and the function returns TRUE, then cursor->up_match and cursor->low_match
+and the function returns true, then cursor->up_match and cursor->low_match
 both have sensible values.
 @param[in,out]	index		Index
 @param[in,out]	info		Index search info
@@ -100,10 +100,10 @@ both have sensible values.
                                 search system: RW_S/X_LATCH or 0
 @param[in]	mtr		Mini-transaction
 @return true if succeeded */
-ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
-                               const dtuple_t *tuple, ulint mode,
-                               ulint latch_mode, btr_cur_t *cursor,
-                               ulint has_search_latch, mtr_t *mtr);
+bool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
+                              const dtuple_t *tuple, ulint mode,
+                              ulint latch_mode, btr_cur_t *cursor,
+                              ulint has_search_latch, mtr_t *mtr);
 
 /** Moves or deletes hash entries for moved records. If new_page is already
 hashed, then the hash index for page, if any, is dropped. If new_page is not
@@ -241,11 +241,11 @@ struct btr_search_t {
                            BTR_SEARCH_HASH_ANALYSIS, the hash
                            analysis starts; this is reset if no
                            success noticed */
-  ibool last_hash_succ;    /*!< TRUE if the last search would have
-                           succeeded, or did succeed, using the hash
-                           index; NOTE that the value here is not exact:
-                           it is not calculated for every search, and the
-                           calculation itself is not always accurate! */
+  bool last_hash_succ;     /*!< true if the last search would have
+                            succeeded, or did succeed, using the hash
+                            index; NOTE that the value here is not exact:
+                            it is not calculated for every search, and the
+                            calculation itself is not always accurate! */
   ulint n_hash_potential;
   /*!< number of consecutive searches
   which would have succeeded, or did succeed,
@@ -272,10 +272,13 @@ struct btr_search_t {
 #endif               /* UNIV_SEARCH_PERF_STAT */
 #ifdef UNIV_DEBUG
   ulint magic_n; /*!< magic number @see BTR_SEARCH_MAGIC_N */
-/** value of btr_search_t::magic_n, used in assertions */
-#define BTR_SEARCH_MAGIC_N 1112765
-#endif /* UNIV_DEBUG */
+#endif           /* UNIV_DEBUG */
 };
+
+#ifdef UNIV_DEBUG
+/** value of btr_search_t::magic_n, used in assertions */
+constexpr uint32_t BTR_SEARCH_MAGIC_N = 1112765;
+#endif /* UNIV_DEBUG */
 
 /** The hash index system */
 struct btr_search_sys_t {
@@ -300,15 +303,15 @@ extern ulint btr_search_n_hash_fail;
 /** After change in n_fields or n_bytes in info, this many rounds are waited
 before starting the hash analysis again: this is to save CPU time when there
 is no hope in building a hash index. */
-#define BTR_SEARCH_HASH_ANALYSIS 17
+constexpr uint32_t BTR_SEARCH_HASH_ANALYSIS = 17;
 
 /** Limit of consecutive searches for trying a search shortcut on the search
 pattern */
-#define BTR_SEARCH_ON_PATTERN_LIMIT 3
+constexpr uint32_t BTR_SEARCH_ON_PATTERN_LIMIT = 3;
 
 /** Limit of consecutive searches for trying a search shortcut using
 the hash index */
-#define BTR_SEARCH_ON_HASH_LIMIT 3
+constexpr uint32_t BTR_SEARCH_ON_HASH_LIMIT = 3;
 
 #include "btr0sea.ic"
 

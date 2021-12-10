@@ -81,7 +81,7 @@ fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
 
   fil_addr_t loc = purge_version(index, trxid, base, free_list);
 
-  ut_ad(flst_validate(base, m_mtr));
+  ut_d(flst_validate(base, m_mtr));
 
   return (loc);
 }
@@ -97,7 +97,8 @@ void index_entry_t::purge(dict_index_t *index) {
   buf_block_t *block = nullptr;
 
   block = buf_page_get(page_id_t(dict_index_get_space(index), page_no),
-                       dict_table_page_size(index->table), RW_X_LATCH, m_mtr);
+                       dict_table_page_size(index->table), RW_X_LATCH,
+                       UT_LOCATION_HERE, m_mtr);
 
   page_type_t type = fil_page_get_type(block->frame);
 

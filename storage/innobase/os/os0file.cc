@@ -206,7 +206,8 @@ static ulint os_innodb_umask = 0;
 /* On Windows when using native AIO the number of AIO requests
 that a thread can handle at a given time is limited to 32
 i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-#define SRV_N_PENDING_IOS_PER_THREAD OS_AIO_N_PENDING_IOS_PER_THREAD
+constexpr uint32_t SRV_N_PENDING_IOS_PER_THREAD =
+    OS_AIO_N_PENDING_IOS_PER_THREAD;
 
 #endif /* _WIN32 */
 
@@ -1473,8 +1474,8 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 /** Validates the consistency the aio system some of the time.
 @return true if ok or the check was skipped */
 static bool os_aio_validate_skip() {
-/** Try os_aio_validate() every this many times */
-#define OS_AIO_VALIDATE_SKIP 13
+  /** Try os_aio_validate() every this many times */
+  constexpr uint32_t OS_AIO_VALIDATE_SKIP = 13;
 
   /** The os_aio_validate() call skip counter.
   Use a signed type because of the race condition below. */
@@ -2749,7 +2750,7 @@ bool AIO::is_linux_native_aio_supported() {
           << (srv_read_only_mode ? name : "tmpdir")
           << " to a file system that supports native"
              " AIO or you can set innodb_use_native_aio to"
-             " FALSE to avoid this message.";
+             " false to avoid this message.";
 
       [[fallthrough]];
     default:
@@ -5554,8 +5555,8 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
   if (size <= UNIV_PAGE_SIZE) {
     buf_size = 1;
   } else {
-    buf_size = ut_min(static_cast<ulint>(64),
-                      static_cast<ulint>(size / UNIV_PAGE_SIZE));
+    buf_size = std::min(static_cast<ulint>(64),
+                        static_cast<ulint>(size / UNIV_PAGE_SIZE));
   }
 
   ut_ad(buf_size != 0);
@@ -5871,18 +5872,6 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 }
 #endif
 
-/** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
-not directly this function!
-Requests a synchronous positioned read operation. This function does not do
-any error handling. In case of error it returns FALSE.
-@param[in]	type		IO request context
-@param[in]  file_name file name
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[out]	o		number of bytes actually read
-@return DB_SUCCESS or error code */
 dberr_t os_file_read_no_error_handling_func(IORequest &type,
                                             const char *file_name,
                                             os_file_t file, void *buf,
@@ -6043,7 +6032,7 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
   ut_a(len > 0);
 
   /* Extend at most 1M at a time */
-  ulint n_bytes = ut_min(static_cast<ulint>(1024 * 1024), len);
+  ulint n_bytes = std::min(static_cast<ulint>(1024 * 1024), len);
 
   byte *buf = reinterpret_cast<byte *>(ut::aligned_zalloc(n_bytes, page_size));
 
@@ -6066,7 +6055,7 @@ dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
 
     offset += n_bytes;
 
-    n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
+    n_bytes = std::min(n_bytes, static_cast<ulint>(end - offset));
 
     DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
   }
@@ -6327,7 +6316,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   if (srv_use_native_aio && !is_linux_native_aio_supported()) {
     ib::warn(ER_IB_MSG_829) << "Linux Native AIO disabled.";
 
-    srv_use_native_aio = FALSE;
+    srv_use_native_aio = false;
   }
 #endif /* LINUX_NATIVE_AIO */
 
@@ -7144,16 +7133,15 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
     srv_set_io_thread_op_info(orig_seg, "get windows aio return value");
   }
 
-  BOOL ret;
-  ret = GetOverlappedResult(slot->file.m_file, &slot->control, &slot->n_bytes,
-                            TRUE);
+  BOOL ret = GetOverlappedResult(slot->file.m_file, &slot->control,
+                                 &slot->n_bytes, TRUE);
 
   *m1 = slot->m1;
   *m2 = slot->m2;
 
   *type = slot->type;
 
-  BOOL retry = FALSE;
+  bool retry = false;
 
   dberr_t err = DB_IO_ERROR;
   if (ret && slot->n_bytes == slot->len) {
@@ -7377,7 +7365,7 @@ class SimulatedAIOHandler {
   SimulatedAIOHandler(AIO *array, ulint segment)
       : m_oldest(),
         m_n_elems(),
-        m_lowest_offset(IB_UINT64_MAX),
+        m_lowest_offset(std::numeric_limits<uint64_t>::max()),
         m_array(array),
         m_n_slots(),
         m_segment(segment),
@@ -7396,7 +7384,7 @@ class SimulatedAIOHandler {
     m_oldest = std::chrono::seconds::zero();
     m_n_elems = 0;
     m_n_slots = n_slots;
-    m_lowest_offset = IB_UINT64_MAX;
+    m_lowest_offset = std::numeric_limits<uint64_t>::max();
 
     ut::aligned_free(m_buf);
     m_buf = nullptr;
@@ -7602,7 +7590,7 @@ class SimulatedAIOHandler {
 
     ulint offset = m_segment * m_n_slots;
 
-    m_lowest_offset = IB_UINT64_MAX;
+    m_lowest_offset = std::numeric_limits<uint64_t>::max();
 
     for (ulint i = 0; i < m_n_slots; ++i) {
       Slot *slot;

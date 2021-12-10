@@ -129,8 +129,8 @@ extern uint32_t predefined_flags;
 /** Recovered persistent metadata */
 static MetadataRecover *srv_dict_metadata;
 
-/** TRUE if a raw partition is in use */
-ibool srv_start_raw_disk_in_use = FALSE;
+/** true if a raw partition is in use */
+bool srv_start_raw_disk_in_use = false;
 
 /** Number of IO threads to use */
 ulint srv_n_file_io_threads = 0;
@@ -580,7 +580,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
                           OS_FILE_ON_ERROR_NO_EXIT,
                       OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
-  if (ret == FALSE) {
+  if (ret == false) {
     std::ostringstream stmt;
 
     if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
@@ -1277,7 +1277,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     mtr_start(&mtr);
 
-    mtr_x_lock(fil_space_get_latch(space_id), &mtr);
+    mtr_x_lock(fil_space_get_latch(space_id), &mtr, UT_LOCATION_HERE);
 
     if (!fsp_header_init(space_id, UNDO_INITIAL_SIZE_IN_PAGES, &mtr,
                          create_new_db)) {
@@ -1769,20 +1769,14 @@ void srv_shutdown_exit_threads() {
 #endif /* UNIV_DEBUG */
 
 /** Innobase start-up aborted. Perform cleanup actions.
-@param[in]	create_new_db	TRUE if new db is  being created */
-#ifdef UNIV_DEBUG
-/**
+@param[in]	create_new_db	true if new db is  being created
 @param[in]	file		File name
-@param[in]	line		Line number */
-#endif /* UNIV_DEBUG */
-/**
+@param[in]	line		Line number
 @param[in]	err		Reason for aborting InnoDB startup
 @return DB_SUCCESS or error code. */
 static dberr_t srv_init_abort_low(bool create_new_db,
-#ifdef UNIV_DEBUG
-                                  const char *file, ulint line,
-#endif /* UNIV_DEBUG */
-                                  dberr_t err) {
+                                  IF_DEBUG(const char *file, ulint line, )
+                                      dberr_t err) {
   std::ostringstream msg;
 
 #ifdef UNIV_DEBUG
@@ -2814,7 +2808,7 @@ files_checked:
 
   if (!srv_read_only_mode) {
     if (create_new_db) {
-      srv_buffer_pool_load_at_startup = FALSE;
+      srv_buffer_pool_load_at_startup = false;
     }
 
     /* Create the thread which watches the timeouts
@@ -2913,7 +2907,7 @@ struct metadata_applier {
   @param[in]      table   table to visit */
   void operator()(dict_table_t *table) const {
     ut_ad(dict_sys->dynamic_metadata != nullptr);
-    ib_uint64_t autoinc = table->autoinc;
+    uint64_t autoinc = table->autoinc;
     dict_table_load_dynamic_metadata(table);
     /* For those tables which were not opened by
     ha_innobase::open() and not initialized by
@@ -2949,7 +2943,7 @@ void srv_dict_recover_on_restart() {
   The data dictionary latch should guarantee that there is at
   most one data dictionary transaction active at a time. */
   if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && trx_sys_need_rollback()) {
-    trx_rollback_or_clean_recovered(FALSE);
+    trx_rollback_or_clean_recovered(false);
   }
 
   /* Resurrect locks for non-dictionary transactions only after rolling back all

@@ -39,9 +39,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Callback function for fetching the config value.
  @return always returns true */
-static ibool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
-                                    void *user_arg) /*!< in: pointer to
-                                                     ib_vector_t */
+static bool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
+                                   void *user_arg) /*!< in: pointer to
+                                                    ib_vector_t */
 {
   sel_node_t *node = static_cast<sel_node_t *>(row);
   fts_string_t *value = static_cast<fts_string_t *>(user_arg);
@@ -54,14 +54,14 @@ static ibool fts_config_fetch_value(void *row,      /*!< in: sel_node_t* */
   ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
 
   if (len != UNIV_SQL_NULL) {
-    ulint max_len = ut_min(value->f_len - 1, len);
+    ulint max_len = std::min(value->f_len - 1, len);
 
     memcpy(value->f_str, data, max_len);
     value->f_len = max_len;
     value->f_str[value->f_len] = '\0';
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Get value from the config table. The caller must ensure that enough

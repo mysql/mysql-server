@@ -70,7 +70,7 @@ file size then it will assert. TODO: Fix this limitation of the IO functions.
 @param	m	page size of the tablespace.
 @param	n	page size of the tablespace.
 @retval number of pages */
-#define IO_BUFFER_SIZE(m, n) ((m) / (n))
+inline size_t IO_BUFFER_SIZE(size_t m, size_t n) { return m / n; }
 
 /** For gathering stats on records during phase I */
 struct row_stats_t {
@@ -78,7 +78,7 @@ struct row_stats_t {
                      found in the index */
 
   ulint m_n_purged; /*!< Number of records purged
-                    optimisatically */
+                    optimistically */
 
   ulint m_n_rows; /*!< Number of rows */
 
@@ -233,7 +233,7 @@ struct row_import {
   mem_heap_t *m_heap; /*!< Memory heap for default
                       value of instant columns */
 
-  ib_uint64_t m_autoinc; /*!< Next autoinc value */
+  uint64_t m_autoinc; /*!< Next autoinc value */
 
   page_size_t m_page_size; /*!< Tablespace page size */
 
@@ -299,7 +299,7 @@ class RecIterator {
 
   /**
   @return true if cursor is at the end */
-  bool end() UNIV_NOTHROW { return (page_cur_is_after_last(&m_cur) == TRUE); }
+  bool end() UNIV_NOTHROW { return (page_cur_is_after_last(&m_cur) == true); }
 
   /** Remove the current record
   @return true on success */
@@ -705,8 +705,7 @@ dberr_t FetchIndexRootPages::operator()(os_offset_t offset,
     /* Since there are SDI Indexes before normal indexes, we
     check for FIL_PAGE_INDEX type. */
     if (page_type == FIL_PAGE_INDEX) {
-      m_table_flags = fsp_flags_to_dict_tf(m_space_flags,
-                                           page_is_comp(page) ? true : false);
+      m_table_flags = fsp_flags_to_dict_tf(m_space_flags, page_is_comp(page));
 
       err = check_row_format(m_table_flags);
     }
@@ -1655,7 +1654,7 @@ Purge delete marked records.
 @return DB_SUCCESS or error code. */
 dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   dberr_t err;
-  ibool comp = dict_table_is_comp(m_index->table);
+  auto comp = dict_table_is_comp(m_index->table);
 
   /* Open the persistent cursor and start the mini-transaction. */
 
@@ -1664,8 +1663,8 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
   m_pcur.import_ctx = &import_ctx;
 
   while ((err = next()) == DB_SUCCESS) {
-    rec_t *rec = btr_pcur_get_rec(&m_pcur);
-    ibool deleted = rec_get_deleted_flag(rec, comp);
+    rec_t *rec = m_pcur.get_rec();
+    auto deleted = rec_get_deleted_flag(rec, comp);
 
     if (!deleted) {
       ++m_n_rows;
@@ -1693,14 +1692,13 @@ void IndexPurge::open() UNIV_NOTHROW {
   mtr_start(&m_mtr);
   mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
-  btr_pcur_open_at_index_side(true, m_index, BTR_MODIFY_LEAF, &m_pcur, true, 0,
-                              &m_mtr);
+  m_pcur.open_at_side(true, m_index, BTR_MODIFY_LEAF, true, 0, &m_mtr);
 }
 
 /**
 Close the persistent curosr and commit the mini-transaction. */
 void IndexPurge::close() UNIV_NOTHROW {
-  btr_pcur_close(&m_pcur);
+  m_pcur.close();
   mtr_commit(&m_mtr);
 }
 
@@ -1708,12 +1706,12 @@ void IndexPurge::close() UNIV_NOTHROW {
 Position the cursor on the next record.
 @return DB_SUCCESS or error code */
 dberr_t IndexPurge::next() UNIV_NOTHROW {
-  btr_pcur_move_to_next_on_page(&m_pcur);
+  m_pcur.move_to_next_on_page();
 
   /* When switching pages, commit the mini-transaction
   in order to release the latch on the old page. */
 
-  if (!btr_pcur_is_after_last_on_page(&m_pcur)) {
+  if (!m_pcur.is_after_last_on_page()) {
     return (DB_SUCCESS);
   } else if (trx_is_interrupted(m_trx)) {
     /* Check after every page because the check
@@ -1721,16 +1719,16 @@ dberr_t IndexPurge::next() UNIV_NOTHROW {
     return (DB_INTERRUPTED);
   }
 
-  btr_pcur_store_position(&m_pcur, &m_mtr);
+  m_pcur.store_position(&m_mtr);
 
   mtr_commit(&m_mtr);
 
   mtr_start(&m_mtr);
   mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
-  btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
+  m_pcur.restore_position(BTR_MODIFY_LEAF, &m_mtr, UT_LOCATION_HERE);
 
-  if (!btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr)) {
+  if (m_pcur.move_to_next_user_rec(&m_mtr) != DB_SUCCESS) {
     return (DB_END_OF_INDEX);
   }
 
@@ -1744,14 +1742,14 @@ tree structure may be changed during a pessimistic delete. */
 void IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW {
   dberr_t err;
 
-  btr_pcur_restore_position(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &m_pcur,
-                            &m_mtr);
+  m_pcur.restore_position(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE, &m_mtr,
+                          UT_LOCATION_HERE);
 
-  ut_ad(rec_get_deleted_flag(btr_pcur_get_rec(&m_pcur),
+  ut_ad(rec_get_deleted_flag(m_pcur.get_rec(),
                              dict_table_is_comp(m_index->table)));
 
-  btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0,
-                             false, 0, 0, 0, &m_mtr, &m_pcur, nullptr);
+  btr_cur_pessimistic_delete(&err, false, m_pcur.get_btr_cur(), 0, false, 0, 0,
+                             0, &m_mtr, &m_pcur, nullptr);
 
   ut_a(err == DB_SUCCESS);
 
@@ -1762,14 +1760,14 @@ void IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW {
 /**
 Purge delete-marked records. */
 void IndexPurge::purge() UNIV_NOTHROW {
-  btr_pcur_store_position(&m_pcur, &m_mtr);
+  m_pcur.store_position(&m_mtr);
 
   purge_pessimistic_delete();
 
   mtr_start(&m_mtr);
   mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
-  btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
+  m_pcur.restore_position(BTR_MODIFY_LEAF, &m_mtr, UT_LOCATION_HERE);
 }
 
 /** Constructor
@@ -1930,7 +1928,7 @@ rows that can't be purged optimistically.
 @param block block to update
 @retval DB_SUCCESS or error code */
 dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
-  ibool comp = dict_table_is_comp(m_cfg->m_table);
+  auto comp = dict_table_is_comp(m_cfg->m_table);
   bool clust_index = (m_index->m_srv_index == m_cluster_index) ||
                      dict_index_is_sdi(m_index->m_srv_index);
 
@@ -1941,7 +1939,7 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
   while (!m_rec_iter.end()) {
     rec_t *rec = m_rec_iter.current();
 
-    ibool deleted = rec_get_deleted_flag(rec, comp);
+    auto deleted = rec_get_deleted_flag(rec, comp);
 
     /* For the clustered index we have to adjust the BLOB
     reference and the system fields irrespective of the
@@ -2091,7 +2089,7 @@ dberr_t PageConverter::update_page(buf_block_t *block,
       /* We need to decompress the contents into block->frame
       before we can do any thing with Btree pages. */
 
-      if (is_compressed_table() && !buf_zip_decompress(block, TRUE)) {
+      if (is_compressed_table() && !buf_zip_decompress(block, true)) {
         return (DB_CORRUPTION);
       }
 
@@ -2315,7 +2313,7 @@ static void row_import_discard_changes(
 
   if (trx->dict_operation_lock_mode != RW_X_LATCH) {
     ut_a(trx->dict_operation_lock_mode == 0);
-    row_mysql_lock_data_dictionary(trx);
+    row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
   }
 
   ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2330,7 +2328,7 @@ static void row_import_discard_changes(
     index->space = FIL_NULL;
   }
 
-  table->ibd_file_missing = TRUE;
+  table->ibd_file_missing = true;
 
   err = fil_close_tablespace(trx, table->space);
   ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
@@ -2506,14 +2504,14 @@ static void row_import_discard_changes(
 
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
-  btr_pcur_open_at_index_side(false,  // High end
-                              index, BTR_SEARCH_LEAF, &pcur,
-                              true,  // Init cursor
-                              0,     // Leaf level
-                              &mtr);
+  pcur.open_at_side(false,  // High end
+                    index, BTR_SEARCH_LEAF,
+                    true,  // Init cursor
+                    0,     // Leaf level
+                    &mtr);
 
-  btr_pcur_move_to_prev_on_page(&pcur);
-  rec = btr_pcur_get_rec(&pcur);
+  pcur.move_to_prev_on_page();
+  rec = pcur.get_rec();
 
   /* Check for empty table. */
   if (!page_rec_is_infimum(rec)) {
@@ -2545,7 +2543,7 @@ static void row_import_discard_changes(
     err = DB_SUCCESS;
   }
 
-  btr_pcur_close(&pcur);
+  pcur.close();
   mtr_commit(&mtr);
 
   DBUG_EXECUTE_IF("ib_import_set_max_rowid_failure", err = DB_CORRUPTION;);
@@ -2623,11 +2621,11 @@ static dberr_t row_import_cfg_read_string(
     row_import *cfg)    /*!< in/out: meta-data read */
 {
   /* v4 row will have prefix_len, fixed_len, is_ascending, name length */
-  byte row[sizeof(ib_uint32_t) * 4];
+  byte row[sizeof(uint32_t) * 4];
   size_t row_len = sizeof(row);
   if (cfg->m_version < IB_EXPORT_CFG_VERSION_V4) {
     /* v3 row will have prefix_len, fixed_len, name length */
-    row_len = sizeof(ib_uint32_t) * 3;
+    row_len = sizeof(uint32_t) * 3;
   }
 
   ulint n_fields = index->m_n_fields;
@@ -2662,14 +2660,14 @@ static dberr_t row_import_cfg_read_string(
     }
 
     field->prefix_len = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     field->fixed_len = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V4) {
       field->is_ascending = mach_read_from_4(ptr);
-      ptr += sizeof(ib_uint32_t);
+      ptr += sizeof(uint32_t);
     } else {
       /* Previous to CFG version 4 the DESC key was not recorded.
       Assume the index column is ascending.
@@ -2715,7 +2713,7 @@ static dberr_t row_import_cfg_read_string(
 {
   byte *ptr;
   row_index_t *cfg_index;
-  byte row[sizeof(space_index_t) + sizeof(ib_uint32_t) * 9];
+  byte row[sizeof(space_index_t) + sizeof(uint32_t) * 9];
 
   /* FIXME: What is the max value? */
   ut_a(cfg->m_n_indexes > 0);
@@ -2771,13 +2769,13 @@ static dberr_t row_import_cfg_read_string(
     ptr += sizeof(space_index_t);
 
     cfg_index->m_space = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_page_no = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_type = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_trx_id_offset = mach_read_from_4(ptr);
     if (cfg_index->m_trx_id_offset != mach_read_from_4(ptr)) {
@@ -2786,19 +2784,19 @@ static dberr_t row_import_cfg_read_string(
       has a variable-length PRIMARY KEY. */
       cfg_index->m_trx_id_offset = 0;
     }
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_n_user_defined_cols = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_n_uniq = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_n_nullable = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     cfg_index->m_n_fields = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     /* The NUL byte is included in the name length. */
     ulint len = mach_read_from_4(ptr);
@@ -2851,7 +2849,7 @@ static dberr_t row_import_read_indexes(
     THD *thd,        /*!< in: session */
     row_import *cfg) /*!< in/out: meta-data read */
 {
-  byte row[sizeof(ib_uint32_t)];
+  byte row[sizeof(uint32_t)];
 
   /* Trigger EOF */
   DBUG_EXECUTE_IF("ib_import_io_read_error_3",
@@ -2954,7 +2952,7 @@ Refer to row_quiesce_write_default_value() for the format details.
   }
 
   if (*heap == nullptr) {
-    *heap = mem_heap_create(100);
+    *heap = mem_heap_create(100, UT_LOCATION_HERE);
   }
 
   if (str[0] == 1) {
@@ -2995,7 +2993,7 @@ Refer to row_quiesce_write_default_value() for the format details.
     row_import *cfg) /*!< in/out: meta-data read */
 {
   dict_col_t *col;
-  byte row[sizeof(ib_uint32_t) * 8];
+  byte row[sizeof(uint32_t) * 8];
 
   /* FIXME: What should the upper limit be? */
   ut_a(cfg->m_n_cols > 0);
@@ -3044,25 +3042,25 @@ Refer to row_quiesce_write_default_value() for the format details.
     }
 
     col->prtype = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->mtype = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->len = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->mbminmaxlen = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->ind = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->ord_part = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     col->max_prefix = mach_read_from_4(ptr);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     /* Read in the column name as [len, byte array]. The len
     includes the NUL byte. */
@@ -3130,7 +3128,7 @@ Refer to row_quiesce_write_default_value() for the format details.
     THD *thd,        /*!< in: session */
     row_import *cfg) /*!< out: meta data */
 {
-  byte value[sizeof(ib_uint32_t)];
+  byte value[sizeof(uint32_t)];
 
   /* Trigger EOF */
   DBUG_EXECUTE_IF("ib_import_io_read_error_5",
@@ -3208,14 +3206,14 @@ Refer to row_quiesce_write_default_value() for the format details.
                           << "' that was exported from host '"
                           << cfg->m_hostname << "'";
 
-  byte row[sizeof(ib_uint32_t) * 3];
+  byte row[sizeof(uint32_t) * 3];
 
   /* Trigger EOF */
   DBUG_EXECUTE_IF("ib_import_io_read_error_7",
                   (void)fseek(file, 0L, SEEK_END););
 
   /* Read the autoinc value. */
-  if (fread(row, 1, sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
+  if (fread(row, 1, sizeof(uint64_t), file) != sizeof(uint64_t)) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                 strerror(errno), "while reading autoinc value.");
 
@@ -3239,7 +3237,7 @@ Refer to row_quiesce_write_default_value() for the format details.
   byte *ptr = row;
 
   const ulint logical_page_size = mach_read_from_4(ptr);
-  ptr += sizeof(ib_uint32_t);
+  ptr += sizeof(uint32_t);
 
   if (logical_page_size != univ_page_size.logical()) {
     ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
@@ -3253,7 +3251,7 @@ Refer to row_quiesce_write_default_value() for the format details.
   }
 
   cfg->m_flags = mach_read_from_4(ptr);
-  ptr += sizeof(ib_uint32_t);
+  ptr += sizeof(uint32_t);
 
   cfg->m_page_size.copy_from(dict_tf_get_page_size(cfg->m_flags));
 
@@ -3354,7 +3352,7 @@ Read the contents of the @<tablespace@>.cfg file.
     THD *thd,            /*!< in: session */
     row_import &cfg)     /*!< out: contents of the .cfg file */
 {
-  byte row[sizeof(ib_uint32_t)];
+  byte row[sizeof(uint32_t)];
 
   /* Trigger EOF */
   DBUG_EXECUTE_IF("ib_import_io_read_error_9",
@@ -3454,7 +3452,7 @@ Read the contents of the @<tablename@>.cfg file.
 @return DB_SUCCESS or error code. */
 static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
                                                THD *thd) {
-  byte row[sizeof(ib_uint32_t)];
+  byte row[sizeof(uint32_t)];
   ulint key_size;
   byte transfer_key[Encryption::KEY_LEN];
   byte encryption_key[Encryption::KEY_LEN];
@@ -3611,7 +3609,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                              row_prebuilt_t *prebuilt) {
   dberr_t err;
   trx_t *trx;
-  ib_uint64_t autoinc = 0;
+  uint64_t autoinc = 0;
   char *filepath = nullptr;
 
   /* The caller assured that this is not read_only_mode and that no
@@ -3625,14 +3623,14 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   ibuf_delete_for_discarded_space(table->space);
 
-  trx_start_if_not_started(prebuilt->trx, true);
+  trx_start_if_not_started(prebuilt->trx, true, UT_LOCATION_HERE);
 
   trx = trx_allocate_for_mysql();
 
   /* So that the table is not DROPped during recovery. */
   trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-  trx_start_if_not_started(trx, true);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   /* So that we can send error messages to the user. */
   trx->mysql_thd = prebuilt->trx->mysql_thd;
@@ -3661,7 +3659,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   prebuilt->trx->op_info = "read meta-data file";
 
   /* Prevent DDL operations while we are checking. */
-  rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
+  rw_lock_s_lock_func(dict_operation_lock, 0, UT_LOCATION_HERE);
 
   row_import cfg;
   ulint space_flags = 0;
@@ -3824,7 +3822,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     return (row_import_cleanup(prebuilt, trx, err));
   }
 
-  row_mysql_lock_data_dictionary(trx);
+  row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
   if (table->has_instant_cols()) {
     dd_import_instant_add_columns(table, table_def);
@@ -4033,7 +4031,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   mtr.start();
   buf_block_t *block =
       buf_page_get(page_id_t(table->space, 0), dict_table_page_size(table),
-                   RW_SX_LATCH, &mtr);
+                   RW_SX_LATCH, UT_LOCATION_HERE, &mtr);
 
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -4079,7 +4077,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* The dictionary latches will be released in in row_import_cleanup()
   after the transaction commit, for both success and error. */
 
-  row_mysql_lock_data_dictionary(trx);
+  row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
   DBUG_EXECUTE_IF("ib_import_internal_error", trx->error_state = DB_ERROR;
                   err = DB_ERROR;
@@ -4116,7 +4114,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   err = row_import_check_corruption(table, trx->mysql_thd, cfg.m_missing);
 
-  row_mysql_lock_data_dictionary(trx);
+  row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
   return (row_import_cleanup(prebuilt, trx, err));
 }

@@ -91,7 +91,7 @@ struct sync_cell_t {
                            requested */
   std::thread::id thread_id{}; /*!< thread id of this waiting
                             thread */
-  bool waiting = false;        /*!< TRUE if the thread has already
+  bool waiting = false;        /*!< true if the thread has already
                        called sync_array_event_wait
                        on this cell */
   int64_t signal_count = 0;    /*!< We capture the signal_count
@@ -162,8 +162,8 @@ extern ulint sync_array_size;
 mutexes and read-write locks */
 extern sync_array_t **sync_wait_array;
 
-#define sync_array_exit(a) mutex_exit(&(a)->mutex)
-#define sync_array_enter(a) mutex_enter(&(a)->mutex)
+static inline void sync_array_exit(sync_array_t *a) { mutex_exit(&a->mutex); }
+static inline void sync_array_enter(sync_array_t *a) { mutex_enter(&a->mutex); }
 
 /** Gets the nth cell in array.
  @param[in] arr Sync array to get cell from.

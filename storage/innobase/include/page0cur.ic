@@ -97,9 +97,9 @@ static inline void page_cur_set_after_last(
   cur->rec = page_get_supremum_rec(buf_block_get_frame(cur->block));
 }
 
-/** Returns TRUE if the cursor is before first user record on page.
+/** Returns true if the cursor is before first user record on page.
  @return true if at start */
-static inline ibool page_cur_is_before_first(
+static inline bool page_cur_is_before_first(
     const page_cur_t *cur) /*!< in: cursor */
 {
   ut_ad(cur);
@@ -107,9 +107,9 @@ static inline ibool page_cur_is_before_first(
   return (page_rec_is_infimum(cur->rec));
 }
 
-/** Returns TRUE if the cursor is after last user record.
+/** Returns true if the cursor is after last user record.
  @return true if at end */
-static inline ibool page_cur_is_after_last(
+static inline bool page_cur_is_after_last(
     const page_cur_t *cur) /*!< in: cursor */
 {
   ut_ad(cur);
@@ -213,7 +213,8 @@ hold the tuple converted record. */
   if (!*heap) {
     *heap = mem_heap_create(
         size + (4 + REC_OFFS_HEADER_SIZE + dtuple_get_n_fields(tuple)) *
-                   sizeof **offsets);
+                   sizeof **offsets,
+        UT_LOCATION_HERE);
   }
 
   rec = rec_convert_dtuple_to_rec((byte *)mem_heap_alloc(*heap, size), index,

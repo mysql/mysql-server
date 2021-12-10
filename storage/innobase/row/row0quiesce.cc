@@ -54,7 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 {
   /* This row will store prefix_len, fixed_len,
   and in IB_EXPORT_CFG_VERSION_V4, is_ascending */
-  byte row[sizeof(ib_uint32_t) * 3];
+  byte row[sizeof(uint32_t) * 3];
   size_t row_len = sizeof(row);
 
   for (ulint i = 0; i < index->n_fields; ++i) {
@@ -62,16 +62,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
     const dict_field_t *field = &index->fields[i];
 
     mach_write_to_4(ptr, field->prefix_len);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, field->fixed_len);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     /* In IB_EXPORT_CFG_VERSION_V4 we also write the is_ascending boolean. */
     mach_write_to_4(ptr, field->is_ascending);
 
     DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
-                    row_len = sizeof(ib_uint32_t) * 2;);
+                    row_len = sizeof(uint32_t) * 2;);
 
     DBUG_EXECUTE_IF("ib_export_io_write_failure_9", close(fileno(file)););
 
@@ -83,7 +83,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
     }
 
     /* Include the NUL byte in the length. */
-    ib_uint32_t len = static_cast<ib_uint32_t>(strlen(field->name) + 1);
+    uint32_t len = static_cast<uint32_t>(strlen(field->name) + 1);
     ut_a(len > 1);
 
     mach_write_to_4(row, len);
@@ -270,7 +270,7 @@ of dict_col_t default value part if exists.
 
 /** Write the meta data (table columns) config file. Serialise the contents of
  dict_col_t structure, along with the column name. All fields are serialized
- as ib_uint32_t.
+ as uint32_t.
  @return DB_SUCCESS or error code. */
 [[nodiscard]] static dberr_t row_quiesce_write_table(
     const dict_table_t *table, /*!< in: write the meta
@@ -279,7 +279,7 @@ of dict_col_t default value part if exists.
     THD *thd)                  /*!< in/out: session */
 {
   dict_col_t *col;
-  byte row[sizeof(ib_uint32_t) * 7];
+  byte row[sizeof(uint32_t) * 7];
 
   col = table->cols;
 
@@ -287,22 +287,22 @@ of dict_col_t default value part if exists.
     byte *ptr = row;
 
     mach_write_to_4(ptr, col->prtype);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->mtype);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->len);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->mbminmaxlen);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->ind);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->ord_part);
-    ptr += sizeof(ib_uint32_t);
+    ptr += sizeof(uint32_t);
 
     mach_write_to_4(ptr, col->max_prefix);
 
@@ -317,13 +317,13 @@ of dict_col_t default value part if exists.
 
     /* Write out the column name as [len, byte array]. The len
     includes the NUL byte. */
-    ib_uint32_t len;
+    uint32_t len;
     const char *col_name;
 
     col_name = table->get_col_name(dict_col_get_no(col));
 
     /* Include the NUL byte in the length. */
-    len = static_cast<ib_uint32_t>(strlen(col_name) + 1);
+    len = static_cast<uint32_t>(strlen(col_name) + 1);
     ut_a(len > 1);
 
     mach_write_to_4(row, len);
@@ -356,7 +356,7 @@ of dict_col_t default value part if exists.
     FILE *file,                /*!< in: file to write to */
     THD *thd)                  /*!< in/out: session */
 {
-  byte value[sizeof(ib_uint32_t)];
+  byte value[sizeof(uint32_t)];
 
   /* Write the current meta-data version number. */
   uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V6;
@@ -376,7 +376,7 @@ of dict_col_t default value part if exists.
   }
 
   /* Write the server hostname. */
-  ib_uint32_t len;
+  uint32_t len;
   const char *hostname = server_get_hostname();
 
   /* Play it safe and check for NULL. */
@@ -389,7 +389,7 @@ of dict_col_t default value part if exists.
   }
 
   /* The server hostname includes the NUL byte. */
-  len = static_cast<ib_uint32_t>(strlen(hostname) + 1);
+  len = static_cast<uint32_t>(strlen(hostname) + 1);
   mach_write_to_4(value, len);
 
   DBUG_EXECUTE_IF("ib_export_io_write_failure_5", close(fileno(file)););
@@ -404,7 +404,7 @@ of dict_col_t default value part if exists.
 
   /* The table name includes the NUL byte. */
   ut_a(table->name.m_name != nullptr);
-  len = static_cast<ib_uint32_t>(strlen(table->name.m_name) + 1);
+  len = static_cast<uint32_t>(strlen(table->name.m_name) + 1);
 
   /* Write the table name. */
   mach_write_to_4(value, len);
@@ -419,14 +419,14 @@ of dict_col_t default value part if exists.
     return (DB_IO_ERROR);
   }
 
-  byte row[sizeof(ib_uint32_t) * 3];
+  byte row[sizeof(uint32_t) * 3];
 
   /* Write the next autoinc value. */
   mach_write_to_8(row, table->autoinc);
 
   DBUG_EXECUTE_IF("ib_export_io_write_failure_7", close(fileno(file)););
 
-  if (fwrite(row, 1, sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
+  if (fwrite(row, 1, sizeof(uint64_t), file) != sizeof(uint64_t)) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing table autoinc value.");
 
@@ -437,11 +437,11 @@ of dict_col_t default value part if exists.
 
   /* Write the system page size. */
   mach_write_to_4(ptr, UNIV_PAGE_SIZE);
-  ptr += sizeof(ib_uint32_t);
+  ptr += sizeof(uint32_t);
 
   /* Write the table->flags. */
   mach_write_to_4(ptr, table->flags);
-  ptr += sizeof(ib_uint32_t);
+  ptr += sizeof(uint32_t);
 
   /* Write the number of columns in the table. */
   mach_write_to_4(ptr, table->n_cols);
@@ -558,7 +558,7 @@ of dict_col_t default value part if exists.
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
                                    THD *thd) {
-  byte key_size[sizeof(ib_uint32_t)];
+  byte key_size[sizeof(uint32_t)];
   byte row[Encryption::KEY_LEN * 3];
   byte *ptr = row;
   byte *transfer_key = ptr;
@@ -904,7 +904,7 @@ dberr_t row_quiesce_set_state(
                 " FTS auxiliary tables will not be flushed.");
   }
 
-  row_mysql_lock_data_dictionary(trx);
+  row_mysql_lock_data_dictionary(trx, UT_LOCATION_HERE);
 
   dict_table_x_lock_indexes(table);
 

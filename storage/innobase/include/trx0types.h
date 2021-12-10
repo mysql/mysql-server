@@ -51,20 +51,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const space_id_t TRX_SYS_SPACE = 0;
 
 /** Page number of the transaction system page */
-#define TRX_SYS_PAGE_NO FSP_TRX_SYS_PAGE_NO
+constexpr uint32_t TRX_SYS_PAGE_NO = FSP_TRX_SYS_PAGE_NO;
 
 /** Random value to check for corruption of trx_t */
 static const ulint TRX_MAGIC_N = 91118598;
 
 /** If this flag is set then the transaction cannot be rolled back
 asynchronously. */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
+static const uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
 
 /** Mark the transaction for forced rollback */
-static const ib_uint32_t TRX_FORCE_ROLLBACK = 1U << 31;
+static const uint32_t TRX_FORCE_ROLLBACK = 1U << 31;
 
 /** For masking out the above four flags */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
+static const uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
 enum trx_que_t {
@@ -354,13 +354,13 @@ class Rsegs {
   }
 
   /** Acquire the shared lock on m_rsegs. */
-  void s_lock() { rw_lock_s_lock(m_latch); }
+  void s_lock() { rw_lock_s_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release the shared lock on m_rsegs. */
   void s_unlock() { rw_lock_s_unlock(m_latch); }
 
   /** Acquire the exclusive lock on m_rsegs. */
-  void x_lock() { rw_lock_x_lock(m_latch); }
+  void x_lock() { rw_lock_x_lock(m_latch, UT_LOCATION_HERE); }
 
   /** Release the exclusive lock on m_rsegs. */
   void x_unlock() { rw_lock_x_unlock(m_latch); }

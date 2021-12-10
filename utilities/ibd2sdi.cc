@@ -1653,7 +1653,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
 
   /* Zlib inflate needs 32KB for the default window size, plus
   a few KB for small objects */
-  mem_heap_t *heap = mem_heap_create(40000);
+  mem_heap_t *heap = mem_heap_create(40000, UT_LOCATION_HERE);
   page_zip_set_alloc(&d_stream, heap);
 
   ut_ad(page_size.is_compressed());

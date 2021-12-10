@@ -38,21 +38,14 @@ external tools. */
 #define page_page_h
 
 #include "mach0data.h"
-/** Reads the given header field. */
-static inline ulint page_header_get_field(
-    const page_t *page, /*!< in: page */
-    ulint field)        /*!< in: PAGE_LEVEL, ... */
-{
+
+static inline uint16_t page_header_get_field(const page_t *page, ulint field) {
   ut_ad(page);
   ut_ad(field <= PAGE_INDEX_ID);
 
   return (mach_read_from_2(page + PAGE_HEADER + field));
 }
-/** Gets the number of records in the heap.
- @return number of user records */
-static inline ulint page_dir_get_n_heap(
-    const page_t *page) /*!< in: index page */
-{
+static inline uint16_t page_dir_get_n_heap(const page_t *page) {
   return (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }
 #endif

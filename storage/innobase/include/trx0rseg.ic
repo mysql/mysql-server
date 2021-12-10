@@ -47,7 +47,8 @@ static inline trx_rsegf_t *trx_rsegf_get(space_id_t space, page_no_t page_no,
   buf_block_t *block;
   trx_rsegf_t *header;
 
-  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH,
+                       UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 
@@ -69,7 +70,8 @@ static inline trx_rsegf_t *trx_rsegf_get_new(space_id_t space,
   buf_block_t *block;
   trx_rsegf_t *header;
 
-  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH, mtr);
+  block = buf_page_get(page_id_t(space, page_no), page_size, RW_X_LATCH,
+                       UT_LOCATION_HERE, mtr);
 
   buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 
@@ -116,8 +118,8 @@ static inline ulint trx_rsegf_undo_find_free(
 
 #ifdef UNIV_DEBUG
   if (trx_rseg_n_slots_debug) {
-    max_slots = ut_min(static_cast<ulint>(trx_rseg_n_slots_debug),
-                       static_cast<ulint>(TRX_RSEG_N_SLOTS));
+    max_slots = std::min(static_cast<ulint>(trx_rseg_n_slots_debug),
+                         static_cast<ulint>(TRX_RSEG_N_SLOTS));
   }
 #endif
 
@@ -189,7 +191,7 @@ inline trx_rsegsf_t *trx_rsegsf_get(space_id_t space_id, mtr_t *mtr) {
   ut_ad(undo::is_reserved(space_id));
 
   block = buf_page_get(page_id_t(space_id, FSP_RSEG_ARRAY_PAGE_NO),
-                       univ_page_size, RW_X_LATCH, mtr);
+                       univ_page_size, RW_X_LATCH, UT_LOCATION_HERE, mtr);
   buf_block_dbg_add_level(block, SYNC_RSEG_ARRAY_HEADER);
 
   rsegs_header = RSEG_ARRAY_HEADER + buf_block_get_frame(block);

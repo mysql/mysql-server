@@ -66,7 +66,7 @@ int dd_upgrade_tablespace(THD *thd);
 @param[in]	space_id		space id of tablespace
 @param[in]	server_version_only	leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id, bool server_version_only);
+bool upgrade_space_version(const uint32_t space_id, bool server_version_only);
 
 /** Add server version number to tablespace while upgrading.
 @param[in]	tablespace		dd::Tablespace

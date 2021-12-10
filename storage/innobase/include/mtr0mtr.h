@@ -123,16 +123,16 @@ savepoint. */
 #define mtr_memo_push(m, o, t) (m)->memo_push(o, t)
 
 /** Lock an rw-lock in s-mode. */
-#define mtr_s_lock(l, m) (m)->s_lock((l), __FILE__, __LINE__)
+#define mtr_s_lock(l, m, loc) (m)->s_lock((l), loc)
 
 /** Lock an rw-lock in x-mode. */
-#define mtr_x_lock(l, m) (m)->x_lock((l), __FILE__, __LINE__)
+#define mtr_x_lock(l, m, loc) (m)->x_lock((l), loc)
 
 /** Lock a tablespace in x-mode. */
 #define mtr_x_lock_space(s, m) (m)->x_lock_space((s), __FILE__, __LINE__)
 
 /** Lock an rw-lock in sx-mode. */
-#define mtr_sx_lock(l, m) (m)->sx_lock((l), __FILE__, __LINE__)
+#define mtr_sx_lock(l, m, loc) (m)->sx_lock((l), loc)
 
 #define mtr_memo_contains_flagged(m, p, l) (m)->memo_contains_flagged((p), (l))
 
@@ -208,7 +208,7 @@ struct mtr_t {
 
     /** Count of how many page initial log records have been
     written to the mtr log */
-    ib_uint32_t m_n_log_recs;
+    uint32_t m_n_log_recs;
 
     /** specifies which operations should be logged; default
     value MTR_LOG_ALL */
@@ -449,23 +449,20 @@ struct mtr_t {
   /** Locks a rw-latch in S mode.
   NOTE: use mtr_s_lock().
   @param lock	rw-lock
-  @param file	file name from where called
-  @param line	line number in file */
-  inline void s_lock(rw_lock_t *lock, const char *file, ulint line);
+  @param location location from where called */
+  inline void s_lock(rw_lock_t *lock, ut::Location location);
 
   /** Locks a rw-latch in X mode.
   NOTE: use mtr_x_lock().
   @param lock	rw-lock
-  @param file	file name from where called
-  @param line	line number in file */
-  inline void x_lock(rw_lock_t *lock, const char *file, ulint line);
+  @param location location where name from where called */
+  inline void x_lock(rw_lock_t *lock, ut::Location location);
 
   /** Locks a rw-latch in X mode.
   NOTE: use mtr_sx_lock().
   @param lock	rw-lock
-  @param file	file name from where called
-  @param line	line number in file */
-  inline void sx_lock(rw_lock_t *lock, const char *file, ulint line);
+  @param location location from where called */
+  inline void sx_lock(rw_lock_t *lock, ut::Location location);
 
   /** Acquire a tablespace X-latch.
   NOTE: use mtr_x_lock_space().

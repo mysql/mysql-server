@@ -32,30 +32,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0new.h"
 
-#ifdef UNIV_DEBUG
-#define mem_heap_create_block(heap, n, type, file_name, line) \
-  mem_heap_create_block_func(heap, n, file_name, line, type)
-#define mem_heap_create_at(N, file_name, line) \
-  mem_heap_create_func(N, file_name, line, MEM_HEAP_DYNAMIC)
-#else /* UNIV_DEBUG */
-#define mem_heap_create_block(heap, n, type, file_name, line) \
-  mem_heap_create_block_func(heap, n, type)
-#define mem_heap_create_at(N, file_name, line) \
-  mem_heap_create_func(N, MEM_HEAP_DYNAMIC)
-#endif /* UNIV_DEBUG */
 /** Creates a memory heap block where data can be allocated.
  @return own: memory heap block, NULL if did not succeed (only possible
- for MEM_HEAP_BTR_SEARCH type heaps) */
-mem_block_t *mem_heap_create_block_func(
-    mem_heap_t *heap, /*!< in: memory heap or NULL if first block
-                      should be created */
-    ulint n,          /*!< in: number of bytes needed for user data */
-#ifdef UNIV_DEBUG
-    const char *file_name, /*!< in: file name where created */
-    ulint line,            /*!< in: line where created */
-#endif                     /* UNIV_DEBUG */
-    ulint type);           /*!< in: type of heap: MEM_HEAP_DYNAMIC or
-                           MEM_HEAP_BUFFER */
+ for MEM_HEAP_BTR_SEARCH type heaps)
+ @param[in] heap memory heap or NULL if first block should be created
+ @param[in] n number od bytes needed for user data
+ @param[in] file_name file name where created
+ @param[in] line line where created
+ @param[in] type type of heap MEM_HEAP_DYNAMIC or MEM_HEAP_BUFFER */
+mem_block_t *mem_heap_create_block(mem_heap_t *heap, ulint n,
+                                   IF_DEBUG(const char *file_name, ulint line, )
+                                       ulint type);
+
+static inline mem_heap_t *mem_heap_create_at(
+    ulint N IF_DEBUG(, ut::Location loc)) {
+  return mem_heap_create_func(N, IF_DEBUG(loc, ) MEM_HEAP_DYNAMIC);
+}
 
 /** Frees a block from a memory heap. */
 void mem_heap_block_free(mem_heap_t *heap,    /*!< in: heap */
@@ -429,33 +421,17 @@ static inline void mem_heap_free_top(
   }
 }
 
-/** Creates a memory heap.
-NOTE: Use the corresponding macros instead of this function.
-A single user buffer of 'size' will fit in the block.
-0 creates a default size block.
-@param[in]	size		Desired start block size. */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	file_name	File name where created
-@param[in]	line		Line where created */
-#endif /* UNIV_DEBUG */
-/**
-@param[in]	type		Heap type
-@return own: memory heap, NULL if did not succeed (only possible for
-MEM_HEAP_BTR_SEARCH type heaps) */
 static inline mem_heap_t *mem_heap_create_func(ulint size,
-#ifdef UNIV_DEBUG
-                                               const char *file_name,
-                                               ulint line,
-#endif /* UNIV_DEBUG */
-                                               ulint type) {
+                                               IF_DEBUG(ut::Location loc, )
+                                                   ulint type) {
   mem_block_t *block;
 
   if (!size) {
     size = MEM_BLOCK_START_SIZE;
   }
 
-  block = mem_heap_create_block(nullptr, size, type, file_name, line);
+  block = mem_heap_create_block(nullptr, size,
+                                IF_DEBUG(loc.filename, loc.line, ) type);
 
   if (block == nullptr) {
     return (nullptr);

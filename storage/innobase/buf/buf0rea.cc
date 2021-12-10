@@ -52,12 +52,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD(b) (5 + BUF_READ_AHEAD_AREA(b) / 8)
+inline page_no_t BUF_READ_AHEAD_RANDOM_THRESHOLD(const buf_pool_t *b) {
+  return 5 + b->read_ahead_area / 8;
+}
 
 /** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
-static constexpr size_t BUF_READ_AHEAD_PEND_LIMIT = 2;
+static constexpr uint32_t BUF_READ_AHEAD_PEND_LIMIT = 2;
 
 ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                         const page_id_t &page_id, const page_size_t &page_size,
@@ -155,7 +157,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   page_no_t low, high;
   dberr_t err;
   page_no_t i;
-  const page_no_t buf_read_ahead_random_area = BUF_READ_AHEAD_AREA(buf_pool);
+  const page_no_t buf_read_ahead_random_area = buf_pool->read_ahead_area;
 
   if (!srv_random_read_ahead) {
     /* Disabled by user */
@@ -242,7 +244,7 @@ read_ahead:
 
   for (i = low; i < high; i++) {
     /* It is only sensible to do read-ahead in the non-sync aio
-    mode: hence FALSE as the first parameter */
+    mode: hence false as the first parameter */
 
     const page_id_t cur_page_id(page_id.space(), i);
 
@@ -337,7 +339,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   page_no_t low, high;
   dberr_t err;
   page_no_t i;
-  const page_no_t buf_read_ahead_linear_area = BUF_READ_AHEAD_AREA(buf_pool);
+  const page_no_t buf_read_ahead_linear_area = buf_pool->read_ahead_area;
   page_no_t threshold;
 
   /* check if readahead is disabled */
@@ -409,7 +411,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   /* How many out of order accessed pages can we ignore
   when working out the access pattern for linear readahead */
   threshold = std::min(static_cast<page_no_t>(64 - srv_read_ahead_threshold),
-                       BUF_READ_AHEAD_AREA(buf_pool));
+                       buf_pool->read_ahead_area);
 
   fail_count = 0;
 
@@ -544,7 +546,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
 
   for (i = low; i < high; i++) {
     /* It is only sensible to do read-ahead in the non-sync
-    aio mode: hence FALSE as the first parameter */
+    aio mode: hence false as the first parameter */
 
     const page_id_t cur_page_id(page_id.space(), i);
 
@@ -597,7 +599,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (!found) {
       /* The tablespace was not found, remove the
       entries for that page */
-      ibuf_merge_or_delete_for_page(nullptr, page_id, nullptr, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, nullptr, false);
       continue;
     }
 
@@ -616,7 +618,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
       tablespace: remove the entries for that page */
-      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, FALSE);
+      ibuf_merge_or_delete_for_page(nullptr, page_id, &page_size, false);
     }
   }
 

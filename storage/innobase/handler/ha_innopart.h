@@ -520,7 +520,7 @@ class ha_innopart : public ha_innobase,
     return (Partition_helper::ph_read_range_next());
   }
 
-  uint32 calculate_key_hash_value(Field **field_array) override {
+  uint32_t calculate_key_hash_value(Field **field_array) override {
     return (Partition_helper::ph_calculate_key_hash_value(field_array));
   }
 

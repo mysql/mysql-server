@@ -440,8 +440,8 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
       upd = static_cast<upd_node_t *>(node);
 
       if (upd->in_mysql_interface) {
-        btr_pcur_free_for_mysql(upd->pcur);
-        upd->in_mysql_interface = FALSE;
+        btr_pcur_t::free_for_mysql(upd->pcur);
+        upd->in_mysql_interface = false;
       }
 
       que_graph_free_recursive(upd->cascade_node);
@@ -580,7 +580,7 @@ static void que_thr_move_to_run_state(
 
     trx->lock.n_active_thrs++;
 
-    thr->is_active = TRUE;
+    thr->is_active = true;
   }
 
   thr->state = QUE_THR_RUNNING;
@@ -672,7 +672,7 @@ static void que_thr_dec_refer_count(
 
   --fork->n_active_thrs;
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
 }
 
 /** A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
@@ -702,11 +702,11 @@ void que_thr_stop_for_mysql(que_thr_t *thr) /*!< in: query thread */
     }
   }
 
-  ut_ad(thr->is_active == TRUE);
+  ut_ad(thr->is_active == true);
   ut_ad(trx->lock.n_active_thrs == 1);
   ut_ad(thr->graph->n_active_thrs == 1);
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
   thr->graph->n_active_thrs--;
 
   trx->lock.n_active_thrs--;
@@ -728,7 +728,7 @@ void que_thr_move_to_run_state_for_mysql(
 
     trx->lock.n_active_thrs++;
 
-    thr->is_active = TRUE;
+    thr->is_active = true;
   }
 
   thr->state = QUE_THR_RUNNING;
@@ -740,14 +740,14 @@ void que_thr_move_to_run_state_for_mysql(
 @param[in] trx Transaction */
 void que_thr_stop_for_mysql_no_error(que_thr_t *thr, trx_t *trx) {
   ut_ad(thr->state == QUE_THR_RUNNING);
-  ut_ad(thr->is_active == TRUE);
+  ut_ad(thr->is_active == true);
   ut_ad(trx->lock.n_active_thrs == 1);
   ut_ad(thr->graph->n_active_thrs == 1);
   ut_a(thr->magic_n == QUE_THR_MAGIC_N);
 
   thr->state = QUE_THR_COMPLETED;
 
-  thr->is_active = FALSE;
+  thr->is_active = false;
   thr->graph->n_active_thrs--;
 
   trx->lock.n_active_thrs--;
@@ -1036,8 +1036,8 @@ loop:
  @return error code or DB_SUCCESS */
 dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
                      const char *sql,   /*!< in: SQL string */
-                     ibool reserve_dict_mutex,
-                     /*!< in: if TRUE, acquire/release
+                     bool reserve_dict_mutex,
+                     /*!< in: if true, acquire/release
                      dict_sys->mutex around call to pars_sql. */
                      trx_t *trx) /*!< in: trx */
 {

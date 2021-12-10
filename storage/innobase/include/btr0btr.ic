@@ -42,39 +42,18 @@ insert_debug.test was failing in ASAN build because of a stack overflow issue.
 It was found that rtr_info_t was taking up a lot of stack space in the function
 btr_insert_on_non_leaf_level_func which is part of the recursive stack
 trace. */
-#define BTR_MAX_NODE_LEVEL          \
-  45 /*!< Maximum B-tree page level \
-     (not really a hard limit).     \
-     Used in debug assertions       \
-     in btr_page_set_level and      \
-     btr_page_get_level_low */
+/** Maximum B-tree page level (not really a hard limit). Used in debug
+ assertions in btr_page_set_level and btr_page_get_level */
+constexpr uint32_t BTR_MAX_NODE_LEVEL = 45;
 
 #ifndef UNIV_HOTBACKUP
-/** Gets a buffer page and declares its latching order level.
-@param[in]	page_id	Page id
-@param[in]	mode	Latch mode
-@param[in]	file	File name
-@param[in]	line	Line where called */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	index	Index tree, may be NULL if it is not an insert buffer
-tree */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	mtr	Mini-transaction
-@return block */
-static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                              const page_size_t &page_size,
-                                              ulint mode, const char *file,
-                                              ulint line,
-#ifdef UNIV_DEBUG
-                                              const dict_index_t *index,
-#endif /* UNIV_DEBUG */
-                                              mtr_t *mtr) {
+static inline buf_block_t *btr_block_get_func(
+    const page_id_t &page_id, const page_size_t &page_size, ulint mode,
+    ut::Location location, IF_DEBUG(const dict_index_t *index, ) mtr_t *mtr) {
   buf_block_t *block;
 
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,
-                           Page_fetch::NORMAL, file, line, mtr);
+                           Page_fetch::NORMAL, location, mtr);
 
   if (mode != RW_NO_LATCH) {
     buf_block_dbg_add_level(block, index != nullptr && dict_index_is_ibuf(index)
@@ -112,10 +91,9 @@ static inline space_index_t btr_page_get_index_id(
 }
 
 /** Gets the node level field in an index page.
+ @param[in] page index page
  @return level, leaf level == 0 */
-static inline ulint btr_page_get_level_low(
-    const page_t *page) /*!< in: index page */
-{
+static inline ulint btr_page_get_level(const page_t *page) {
   ulint level;
 
   ut_ad(page);

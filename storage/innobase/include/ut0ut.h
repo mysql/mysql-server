@@ -116,9 +116,6 @@ performance. */
 #define UT_RELAX_CPU() /* No op */
 #endif                 /* !UNIV_HOTBACKUP */
 
-#define ut_max std::max
-#define ut_min std::min
-
 #ifndef UNIV_HOTBACKUP
 
 /** Calculate the minimum of two pairs.

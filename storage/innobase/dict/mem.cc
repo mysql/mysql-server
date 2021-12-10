@@ -92,7 +92,7 @@ void dict_mem_table_free(dict_table_t *table) /*!< in: table */
 {
   ut_ad(table);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-  ut_d(table->cached = FALSE);
+  ut_d(table->cached = false);
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
@@ -200,7 +200,7 @@ dict_table_t *dict_mem_table_create(
   ut_a(!(flags2 & DICT_TF2_UNUSED_BIT_MASK));
 #endif /* !UNIV_HOTBACKUP */
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   table = static_cast<dict_table_t *>(mem_heap_zalloc(heap, sizeof(*table)));
 
@@ -297,7 +297,7 @@ dict_index_t *dict_mem_index_create(
 
   ut_ad(table_name && index_name);
 
-  heap = mem_heap_create(DICT_HEAP_SIZE);
+  heap = mem_heap_create(DICT_HEAP_SIZE, UT_LOCATION_HERE);
 
   index = static_cast<dict_index_t *>(mem_heap_zalloc(heap, sizeof(*index)));
 

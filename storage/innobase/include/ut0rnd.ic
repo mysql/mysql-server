@@ -122,9 +122,9 @@ static inline ulint ut_hash_ulint(ulint key, /*!< in: value to be hashed */
 
 /** Folds a 64-bit integer.
  @return folded value */
-static inline ulint ut_fold_ull(ib_uint64_t d) /*!< in: 64-bit integer */
+static inline ulint ut_fold_ull(uint64_t d) /*!< in: 64-bit integer */
 {
-  return (ut_fold_ulint_pair((ulint)d & ULINT32_MASK, (ulint)(d >> 32)));
+  return (ut_fold_ulint_pair((ulint)d & UINT32_MASK, (ulint)(d >> 32)));
 }
 
 /** Folds a character string ending in the null character.

@@ -60,10 +60,10 @@ new error, the value of trx->error_state at the entry of this function
 @param[in]	thr	query thread
 @param[in]	savept	savepoint or NULL
 @param[in]	is_sdi	true if table is SDI
-@return TRUE if it was a lock wait and we should continue running
+@return true if it was a lock wait and we should continue running
 the query thread. */
-ibool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
-                       trx_savept_t *savept, bool is_sdi) {
+bool ib_handle_errors(dberr_t *new_err, trx_t *trx, que_thr_t *thr,
+                      trx_savept_t *savept, bool is_sdi) {
   dberr_t err;
 handle_new_error:
   err = trx->error_state;
@@ -105,7 +105,7 @@ handle_new_error:
 
       *new_err = err;
 
-      return (TRUE); /* Operation needs to be retried. */
+      return true; /* Operation needs to be retried. */
 
     case DB_DEADLOCK:
     case DB_LOCK_TABLE_FULL:
@@ -134,5 +134,5 @@ handle_new_error:
 
   trx->error_state = DB_SUCCESS;
 
-  return (FALSE);
+  return false;
 }

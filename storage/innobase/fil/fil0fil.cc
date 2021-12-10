@@ -2426,8 +2426,8 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
   to be tested even when full punch hole support is not available. */
   DBUG_EXECUTE_IF(
       "ignore_punch_hole",
-      file.block_size = ut_min(static_cast<ulint>(stat_info.block_size),
-                               UNIV_PAGE_SIZE / 2););
+      file.block_size = std::min(static_cast<ulint>(stat_info.block_size),
+                                 UNIV_PAGE_SIZE / 2););
 
   if (!IORequest::is_punch_hole_supported() || !punch_hole ||
       file.block_size >= srv_page_size) {
@@ -4495,7 +4495,7 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
 #ifndef UNIV_HOTBACKUP
   shard->space_prepare_for_delete(space);
 #else
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
 
   /* If the free is successful, the X lock will be released before
   the space memory data structure is freed. */
@@ -6596,7 +6596,7 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
   ut_a(len > 0);
 
   /* Extend at most 1M at a time */
-  os_offset_t n_bytes = ut_min(static_cast<os_offset_t>(1024 * 1024), len);
+  os_offset_t n_bytes = std::min(static_cast<os_offset_t>(1024 * 1024), len);
 
   byte *buf = reinterpret_cast<byte *>(ut::aligned_zalloc(n_bytes, page_size));
 
@@ -6620,7 +6620,7 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
 
     offset += n_bytes;
 
-    n_bytes = ut_min(n_bytes, end - offset);
+    n_bytes = std::min(n_bytes, end - offset);
 
     DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
   }
@@ -6880,7 +6880,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
   } else {
     success = true;
     pages_added = n_node_extend;
-    os_has_said_disk_full = FALSE;
+    os_has_said_disk_full = false;
   }
 
   mutex_acquire();
@@ -7877,7 +7877,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     srv_stats.data_read.add(len);
 
     if (aio_mode == AIO_mode::NORMAL && !recv_no_ibuf_operations &&
-        ibuf_page(page_id, page_size, nullptr)) {
+        ibuf_page(page_id, page_size, UT_LOCATION_HERE, nullptr)) {
       /* Reduce probability of deadlock bugs
       in connection with ibuf: do not let the
       ibuf I/O handler sleep */
@@ -8781,7 +8781,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     InnoDB IO functions croak on failed reads. */
 
     n_bytes = static_cast<ulint>(
-        ut_min(static_cast<os_offset_t>(n_bytes), iter.m_end - offset));
+        std::min(static_cast<os_offset_t>(n_bytes), iter.m_end - offset));
 
     ut_ad(n_bytes > 0);
     ut_ad(!(n_bytes % iter.m_page_size));
@@ -9350,7 +9350,7 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
     return DB_NOT_FOUND;
   }
 
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
 
   space->autoextend_size_in_bytes = autoextend_size;
 
@@ -9829,7 +9829,7 @@ in MDL_EXCLUSIVE MODE.
 void fil_space_set_flags(fil_space_t *space, uint32_t flags) {
   ut_ad(fsp_flags_is_valid(flags));
 
-  rw_lock_x_lock(&space->latch);
+  rw_lock_x_lock(&space->latch, UT_LOCATION_HERE);
 
   ut_a(flags < std::numeric_limits<uint32_t>::max());
   space->flags = (uint32_t)flags;
@@ -9950,7 +9950,8 @@ std::ostream &fil_space_t::print_xdes_pages(std::ostream &out) const {
     }
 
     buf_block_t *xdes_block =
-        buf_page_get(page_id_t(id, xdes_page_no), page_size, RW_S_LATCH, &mtr);
+        buf_page_get(page_id_t(id, xdes_page_no), page_size, RW_S_LATCH,
+                     UT_LOCATION_HERE, &mtr);
 
     page_t *page = buf_block_get_frame(xdes_block);
 
@@ -10123,7 +10124,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
 
   trx->isolation_level = trx_t::READ_UNCOMMITTED;
 
-  trx_start_if_not_started_xa(trx, false);
+  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
   size_t count = 0;
   size_t failed = 0;
@@ -10177,7 +10178,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
 
       batch_size = 0;
 
-      trx_start_if_not_started_xa(trx, false);
+      trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
     }
   }
 

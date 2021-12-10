@@ -80,7 +80,7 @@ extern std::atomic<ulint> os_n_pending_writes;
 extern unsigned long long os_fsync_threshold;
 
 /** File offset in bytes */
-typedef ib_uint64_t os_offset_t;
+typedef uint64_t os_offset_t;
 
 namespace file {
 /** Blocks for doing IO, used in the transparent compression
@@ -189,7 +189,7 @@ whole block gets written. This should be true even in most cases of a crash:
 if this fails for a log block, then it is equivalent to a media failure in the
 log. */
 
-#define OS_FILE_LOG_BLOCK_SIZE 512
+constexpr uint32_t OS_FILE_LOG_BLOCK_SIZE = 512;
 
 /** Options for os_file_create_func @{ */
 enum os_file_create_t {
@@ -716,10 +716,9 @@ enum os_file_type_t {
 of this size from the thread stack; that is why this should not be made much
 bigger than 4000 bytes.  The maximum path length used by any storage engine
 in the server must be at least this big. */
-#define OS_FILE_MAX_PATH 4000
-#if (FN_REFLEN_SE < OS_FILE_MAX_PATH)
-#error "(FN_REFLEN_SE < OS_FILE_MAX_PATH)"
-#endif
+constexpr uint32_t OS_FILE_MAX_PATH = 4000;
+static_assert(FN_REFLEN_SE >= OS_FILE_MAX_PATH,
+              "(FN_REFLEN_SE < OS_FILE_MAX_PATH)");
 
 /** Struct used in fetching information of a file in a directory */
 struct os_file_stat_t {
@@ -1571,7 +1570,7 @@ void os_file_read_string(FILE *file, char *str, ulint size);
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
 not directly this function!
 Requests a synchronous positioned read operation. This function does not do
-any error handling. In case of error it returns FALSE.
+any error handling. In case of error it returns false.
 @param[in]	type		IO request context
 @param[in]  file_name file name
 @param[in]	file		Open file handle

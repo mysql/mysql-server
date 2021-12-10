@@ -46,9 +46,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 and varies in type, while 'user_arg' is a user-supplied argument. The
 meaning of the return type also varies. See the individual use cases, e.g.
 the FETCH statement, for details on them. */
-typedef ibool (*pars_user_func_cb_t)(void *arg, void *user_arg);
+typedef bool (*pars_user_func_cb_t)(void *arg, void *user_arg);
 
-/** If the following is set TRUE, the parser will emit debugging
+/** If the following is set true, the parser will emit debugging
 information */
 extern int yydebug;
 
@@ -176,7 +176,7 @@ col_assign_node_t *pars_column_assignment(
 /** Parses a delete or update statement start.
  @return own: update node in a query tree */
 upd_node_t *pars_update_statement_start(
-    ibool is_delete,                     /*!< in: TRUE if delete */
+    bool is_delete,                      /*!< in: true if delete */
     sym_node_t *table_sym,               /*!< in: table name node */
     col_assign_node_t *col_assign_list); /*!< in: column assignment list, NULL
                                      if delete */
@@ -367,7 +367,7 @@ new entry.
 @param[in]  name  Name
 @param[in]  val   Value */
 void pars_info_bind_int4_literal(pars_info_t *info, const char *name,
-                                 const ib_uint32_t *val);
+                                 const uint32_t *val);
 
 /** If the literal value already exists then it rebinds otherwise it creates a
 new entry.
@@ -375,7 +375,7 @@ new entry.
 @param[in]  name  Name
 @param[in]  val   Value */
 void pars_info_bind_int8_literal(pars_info_t *info, const char *name,
-                                 const ib_uint64_t *val);
+                                 const uint64_t *val);
 
 /** Add user function.
 @param[in] info Info struct
@@ -387,10 +387,10 @@ void pars_info_bind_function(pars_info_t *info, const char *name,
 
 /** Add bound id.
 @param[in]	info		info struct
-@param[in]	copy_name	copy name if TRUE
+@param[in]	copy_name	copy name if true
 @param[in]	name		name
 @param[in]	id		id */
-void pars_info_bind_id(pars_info_t *info, ibool copy_name, const char *name,
+void pars_info_bind_id(pars_info_t *info, bool copy_name, const char *name,
                        const char *id);
 
 /** Equivalent to:
@@ -415,7 +415,7 @@ void pars_info_add_int4_literal(pars_info_t *info, /*!< in: info struct */
  heap. */
 void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
                                const char *name,  /*!< in: name */
-                               ib_uint64_t val);  /*!< in: value */
+                               uint64_t val);     /*!< in: value */
 
 /** If the literal value already exists then it rebinds otherwise it
  creates a new entry.
@@ -423,7 +423,7 @@ void pars_info_add_ull_literal(pars_info_t *info, /*!< in: info struct */
 @param[in] name Name
 @param[in] val Value */
 void pars_info_bind_ull_literal(pars_info_t *info, const char *name,
-                                const ib_uint64_t *val);
+                                const uint64_t *val);
 
 /** Add bound id.
 @param[in]	info	info struct
@@ -457,7 +457,7 @@ struct pars_info_t {
   ib_vector_t *bound_ids;  /*!< bound ids, or NULL
                            (pars_bound_id_t*) */
 
-  ibool graph_owns_us; /*!< if TRUE (which is the default),
+  bool graph_owns_us; /*!< if true (which is the default),
                        que_graph_free() will free us */
 };
 
@@ -514,7 +514,7 @@ UT_LIST_NODE_GETTER_DEFINITION(func_node_t, func_node_list)
 struct order_node_t {
   que_common_t common; /*!< type: QUE_NODE_ORDER */
   sym_node_t *column;  /*!< order-by column */
-  ibool asc;           /*!< TRUE if ascending, FALSE if descending */
+  bool asc;            /*!< true if ascending, false if descending */
 };
 
 /** Procedure definition node */

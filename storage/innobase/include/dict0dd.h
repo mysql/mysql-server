@@ -66,8 +66,8 @@ class MDL_ticket;
 
 /** DD functions return false for success and true for failure
 because that is the way the server functions are defined. */
-#define DD_SUCCESS false
-#define DD_FAILURE true
+constexpr bool DD_SUCCESS = false;
+constexpr bool DD_FAILURE = true;
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
@@ -78,7 +78,7 @@ static const char innobase_hton_name[] = "InnoDB";
 static constexpr char autoextend_size_str[] = "autoextend_size";
 
 /** Maximum hardcoded data dictionary tables. */
-#define DICT_MAX_DD_TABLES 1024
+constexpr uint32_t DICT_MAX_DD_TABLES = 1024;
 
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
@@ -121,10 +121,10 @@ enum dd_column_keys {
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server version that the tablespace created */
-const uint32 DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
+const uint32_t DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
 
 /** The tablespace version that the tablespace created */
-const uint32 DD_SPACE_CURRENT_SPACE_VERSION = 1;
+const uint32_t DD_SPACE_CURRENT_SPACE_VERSION = 1;
 
 #ifndef UNIV_HOTBACKUP
 /** InnoDB private keys for dd::Partition */
@@ -538,7 +538,7 @@ inline dd::Object_id dd_get_space_id(const dd::Partition &partition);
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
-void dd_set_autoinc(dd::Properties &se_private_data, uint64 autoinc);
+void dd_set_autoinc(dd::Properties &se_private_data, uint64_t autoinc);
 
 /** Get the version attribute.
 @param[in]	dd_table	dd::Table
@@ -724,7 +724,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
 /** Set the AUTO_INCREMENT attribute.
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
-void dd_set_autoinc(dd::Properties &se_private_data, uint64 autoinc);
+void dd_set_autoinc(dd::Properties &se_private_data, uint64_t autoinc);
 
 /** Scan a new dd system table, like mysql.tables...
 @param[in]	thd		THD
@@ -839,8 +839,8 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 @return true if data is retrieved */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
-                                   uint32_t *flags, uint32 *server_version,
-                                   uint32 *space_version, bool *is_encrypted,
+                                   uint32_t *flags, uint32_t *server_version,
+                                   uint32_t *space_version, bool *is_encrypted,
                                    uint64_t *autoextend_size,
                                    dd::String_type *state,
                                    dict_table_t *dd_spaces);
@@ -999,17 +999,17 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
 
 /** Returns a cached table object based on table id.
 @param[in]	table_id	table id
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	dict_locked	true=data dictionary locked
 @return table, NULL if does not exist */
 static inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
                                                        bool dict_locked);
 
 /** Returns a cached table object based on table name.
 @param[in]	name		table name
-@param[in]	dict_locked	TRUE=data dictionary locked
+@param[in]	dict_locked	true=data dictionary locked
 @return table, NULL if does not exist */
 static inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
-                                                         ibool dict_locked);
+                                                         bool dict_locked);
 
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()

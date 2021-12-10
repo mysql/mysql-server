@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** An interger randomly initialized at startup used to make a temporary
 table name as unuique as possible. */
-static std::atomic<ib_uint32_t> dict_temp_file_num;
+static std::atomic<uint32_t> dict_temp_file_num;
 
 /** Display an identifier.
 @param[in,out]	s	output stream
@@ -342,7 +342,7 @@ dict_foreign_t *dict_mem_foreign_create(void) {
   mem_heap_t *heap;
   DBUG_TRACE;
 
-  heap = mem_heap_create(100);
+  heap = mem_heap_create(100, UT_LOCATION_HERE);
 
   foreign = static_cast<dict_foreign_t *>(
       mem_heap_zalloc(heap, sizeof(dict_foreign_t)));
@@ -362,7 +362,7 @@ dict_foreign_t *dict_mem_foreign_create(void) {
  allocated from foreign->heap and set to lower case. */
 void dict_mem_foreign_table_name_lookup_set(
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
-    ibool do_alloc)          /*!< in: is an alloc needed */
+    bool do_alloc)           /*!< in: is an alloc needed */
 {
   if (innobase_get_lower_case_table_names() == 2) {
     if (do_alloc) {
@@ -386,7 +386,7 @@ void dict_mem_foreign_table_name_lookup_set(
  allocated from foreign->heap and set to lower case. */
 void dict_mem_referenced_table_name_lookup_set(
     dict_foreign_t *foreign, /*!< in/out: foreign struct */
-    ibool do_alloc)          /*!< in: is an alloc needed */
+    bool do_alloc)           /*!< in: is an alloc needed */
 {
   if (innobase_get_lower_case_table_names() == 2) {
     if (do_alloc) {
@@ -772,7 +772,7 @@ char *dict_mem_create_temporary_tablename(mem_heap_t *heap, const char *dbtab,
 /** Initialize dict memory variables */
 void dict_mem_init(void) {
   /* Initialize a randomly distributed temporary file number */
-  ib_uint32_t now = static_cast<ib_uint32_t>(
+  uint32_t now = static_cast<uint32_t>(
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
   const byte *buf = reinterpret_cast<const byte *>(&now);

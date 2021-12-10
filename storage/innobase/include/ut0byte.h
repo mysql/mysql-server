@@ -40,15 +40,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	high		high-order 32 bits
 @param[in]	low		low-order 32 bits
 @return created integer */
-static inline ib_uint64_t ut_ull_create(ulint high, ulint low);
+constexpr uint64_t ut_ull_create(uint32_t high, uint32_t low);
 
 /** Rounds a 64-bit integer downward to a multiple of a power of 2.
 @param[in]	n		number to be rounded
 @param[in]	align_no	align by this number
 @return rounded value */
-static inline ib_uint64_t ut_uint64_align_down(ib_uint64_t n, ulint align_no);
+static inline uint64_t ut_uint64_align_down(uint64_t n, ulint align_no);
 
-/** Rounds ib_uint64_t upward to a multiple of a power of 2.
+/** Rounds uint64_t upward to a multiple of a power of 2.
 @param[in]	n		number to be rounded
 @param[in]	align_no	align by this number
 @return rounded value */
@@ -77,14 +77,14 @@ static inline ulint ut_align_offset(const void *ptr, ulint align_no);
 @param[in]	a	ulint
 @param[in]	n	nth bit requested
 @return true if nth bit is 1; 0th bit is defined to be the least significant */
-static inline ibool ut_bit_get_nth(ulint a, ulint n);
+static inline bool ut_bit_get_nth(ulint a, ulint n);
 
 /** Sets the nth bit of a ulint.
 @param[in]	a	ulint
 @param[in]	n	nth bit requested
 @param[in]	val	value for the bit to set
 @return the ulint with the bit set as requested */
-static inline ulint ut_bit_set_nth(ulint a, ulint n, ibool val);
+static inline ulint ut_bit_set_nth(ulint a, ulint n, bool val);
 
 #include "ut0byte.ic"
 

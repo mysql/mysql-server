@@ -71,13 +71,13 @@ static inline void eval_node_copy_and_alloc_val(que_node_t *node,
 @param[in]	node2	node to copy from */
 static inline void eval_node_copy_val(que_node_t *node1, que_node_t *node2);
 
-/** Gets a iboolean value from a query node.
- @return iboolean value */
-static inline ibool eval_node_get_ibool_val(
+/** Gets a boolean value from a query node.
+ @return boolean value */
+static inline bool eval_node_get_bool_val(
     que_node_t *node); /*!< in: query graph node */
 /** Evaluates a comparison node.
  @return the result of the comparison */
-ibool eval_cmp(func_node_t *cmp_node); /*!< in: comparison node */
+bool eval_cmp(func_node_t *cmp_node); /*!< in: comparison node */
 
 #include "eval0eval.ic"
 

@@ -173,10 +173,10 @@ Note: If enabled then UNDO tablespace will be selected for truncate.
 While Server waits for undo-tablespace to truncate if user disables
 it, truncate action is completed but no new tablespace is marked
 for truncate (action is never aborted). */
-bool srv_undo_log_truncate = FALSE;
+bool srv_undo_log_truncate = false;
 
 /** Enable or disable Encrypt of UNDO tablespace. */
-bool srv_undo_log_encrypt = FALSE;
+bool srv_undo_log_encrypt = false;
 
 /** Maximum size of undo tablespace. */
 unsigned long long srv_max_undo_tablespace_size;
@@ -402,10 +402,10 @@ page_size_t univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
-bool srv_adaptive_flushing = TRUE;
+bool srv_adaptive_flushing = true;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
-bool srv_flush_sync = TRUE;
+bool srv_flush_sync = true;
 
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
@@ -471,7 +471,7 @@ ulong srv_n_read_io_threads;
 ulong srv_n_write_io_threads;
 
 /* Switch to enable random read ahead. */
-bool srv_random_read_ahead = FALSE;
+bool srv_random_read_ahead = false;
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -541,13 +541,13 @@ ulong srv_force_recovery_crash;
 #endif /* UNIV_DEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
-bool srv_print_all_deadlocks = FALSE;
+bool srv_print_all_deadlocks = false;
 
 /** Print all DDL logs to mysqld stderr */
 bool srv_print_ddl_logs = false;
 
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
-bool srv_cmp_per_index_enabled = FALSE;
+bool srv_cmp_per_index_enabled = false;
 
 /** If innodb redo logging is enabled. */
 bool srv_redo_log = true;
@@ -567,7 +567,7 @@ If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
 ulong srv_fast_shutdown;
 
 /* Generate a innodb_status.<pid> file */
-ibool srv_innodb_status = FALSE;
+bool srv_innodb_status = false;
 
 /* When estimating number of different key values in an index, sample
 this many index pages, there are 2 ways to calculate statistics:
@@ -576,10 +576,10 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 unsigned long long srv_stats_transient_sample_pages = 8;
-bool srv_stats_persistent = TRUE;
-bool srv_stats_include_delete_marked = FALSE;
+bool srv_stats_persistent = true;
+bool srv_stats_include_delete_marked = false;
 unsigned long long srv_stats_persistent_sample_pages = 20;
-bool srv_stats_auto_recalc = TRUE;
+bool srv_stats_auto_recalc = true;
 
 ulong srv_replication_delay = 0;
 std::chrono::milliseconds get_srv_replication_delay() {
@@ -589,7 +589,7 @@ std::chrono::milliseconds get_srv_replication_delay() {
 /*-------------------------------------------*/
 ulong srv_n_spin_wait_rounds = 30;
 ulong srv_spin_wait_delay = 6;
-ibool srv_priority_boost = TRUE;
+bool srv_priority_boost = true;
 
 #ifndef UNIV_HOTBACKUP
 static ulint srv_n_rows_inserted_old = 0;
@@ -605,8 +605,8 @@ static ulint srv_n_system_rows_read_old = 0;
 
 ulint srv_truncated_status_writes = 0;
 
-bool srv_print_innodb_monitor = FALSE;
-bool srv_print_innodb_lock_monitor = FALSE;
+bool srv_print_innodb_monitor = false;
+bool srv_print_innodb_lock_monitor = false;
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
@@ -891,7 +891,7 @@ void srv_reset_io_thread_op_info() {
 #ifdef UNIV_DEBUG
 /** Validates the type of a thread table slot.
  @return true if ok */
-static ibool srv_thread_type_validate(
+static bool srv_thread_type_validate(
     srv_thread_type type) /*!< in: thread type */
 {
   switch (type) {
@@ -900,7 +900,7 @@ static ibool srv_thread_type_validate(
     case SRV_WORKER:
     case SRV_PURGE:
     case SRV_MASTER:
-      return (TRUE);
+      return true;
   }
   ut_error;
 }
@@ -949,8 +949,8 @@ static srv_slot_t *srv_reserve_slot(
 
   ut_a(!slot->in_use);
 
-  slot->in_use = TRUE;
-  slot->suspended = FALSE;
+  slot->in_use = true;
+  slot->suspended = false;
   slot->type = type;
 
   ut_ad(srv_slot_get_type(slot) == type);
@@ -997,7 +997,7 @@ static int64_t srv_suspend_thread_low(
   }
 
   ut_a(!slot->suspended);
-  slot->suspended = TRUE;
+  slot->suspended = true;
 
   ut_a(srv_sys->n_threads_active[type] > 0);
 
@@ -1067,7 +1067,7 @@ ulint srv_release_threads(srv_thread_type type, /*!< in: thread type */
           break;
       }
 
-      slot->suspended = FALSE;
+      slot->suspended = false;
 
       ++srv_sys->n_threads_active[type];
 
@@ -1096,7 +1096,7 @@ static void srv_free_slot(srv_slot_t *slot) /*!< in/out: thread slot */
 
   /* Free the slot for reuse. */
   ut_ad(slot->in_use);
-  slot->in_use = FALSE;
+  slot->in_use = false;
 
   srv_sys_mutex_exit();
 }
@@ -1333,7 +1333,7 @@ static void srv_printf_locks_and_transactions(FILE *file,
 bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
                                ulint *trx_end) {
   ulint n_reserved;
-  ibool ret;
+  bool ret;
 
   mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1434,7 +1434,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   ibuf_print(file);
 
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock(btr_search_latches[i]);
+    rw_lock_s_lock(btr_search_latches[i], UT_LOCATION_HERE);
     ha_print_info(file, btr_search_sys->hash_tables[i]);
     rw_lock_s_unlock(btr_search_latches[i]);
   }
@@ -1712,7 +1712,7 @@ void srv_export_innodb_status(void) {
   undo::spaces->s_unlock();
 
 #ifdef UNIV_DEBUG
-  rw_lock_s_lock(&purge_sys->latch);
+  rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
   trx_id_t done_trx_no = purge_sys->done.trx_no;
 
   /* Purge always deals with transaction end points represented by
@@ -1937,7 +1937,7 @@ void srv_active_wake_master_thread_low() {
       ut_a(srv_slot_get_type(slot) == SRV_MASTER);
 
       if (slot->suspended) {
-        slot->suspended = FALSE;
+        slot->suspended = false;
 
         ++srv_sys->n_threads_active[SRV_MASTER];
 
@@ -1981,8 +1981,7 @@ ulint srv_get_activity_count(void) {
 
 /** Check if there has been any activity.
  @return false if no change in activity counter. */
-ibool srv_check_activity(
-    ulint old_activity_count) /*!< in: old activity count */
+bool srv_check_activity(ulint old_activity_count) /*!< in: old activity count */
 {
   return (srv_sys == nullptr ? false
                              : srv_sys->activity_count != old_activity_count);
@@ -1995,7 +1994,7 @@ static ulint srv_master_evict_from_table_cache(
 {
   ulint n_tables_evicted = 0;
 
-  rw_lock_x_lock(dict_operation_lock);
+  rw_lock_x_lock(dict_operation_lock, UT_LOCATION_HERE);
 
   dict_mutex_enter_for_mysql();
 
@@ -2179,7 +2178,7 @@ static void srv_update_cpu_usage() {
 Do not cast a pointer to a FILETIME structure to either a ULARGE_INTEGER* or
 __int64* value because it can cause alignment faults on 64-bit Windows.
 */
-static uint64 FILETIME_to_microseconds(const FILETIME &ft) {
+static uint64_t FILETIME_to_microseconds(const FILETIME &ft) {
   ULARGE_INTEGER ulg;
   ulg.HighPart = ft.dwHighDateTime;
   ulg.LowPart = ft.dwLowDateTime;
@@ -2193,8 +2192,8 @@ static void srv_update_cpu_usage() {
 
   static Clock_point last_time = Clock::now();
 
-  static uint64 last_cpu_utime;
-  static uint64 last_cpu_stime;
+  static uint64_t last_cpu_utime;
+  static uint64_t last_cpu_stime;
   static bool last_cpu_times_set = false;
 
   Clock_point cur_time = Clock::now();
@@ -2219,8 +2218,8 @@ static void srv_update_cpu_usage() {
     return;
   }
 
-  uint64 cur_cpu_utime = FILETIME_to_microseconds(process_user_time);
-  uint64 cur_cpu_stime = FILETIME_to_microseconds(process_kernel_time);
+  uint64_t cur_cpu_utime = FILETIME_to_microseconds(process_user_time);
+  uint64_t cur_cpu_stime = FILETIME_to_microseconds(process_kernel_time);
   if (!last_cpu_times_set) {
     last_cpu_utime = cur_cpu_utime;
     last_cpu_stime = cur_cpu_stime;
@@ -2263,7 +2262,7 @@ static void srv_update_cpu_usage() {
 
   int n_cpu = 0;
   constexpr int MAX_CPU_N = 64;
-  uint64 j = 1;
+  uint64_t j = 1;
   for (int i = 0; i < MAX_CPU_N; ++i) {
     if (j & process_affinity_mask) {
       ++n_cpu;
@@ -2858,7 +2857,7 @@ void srv_worker_thread() {
 
   THD *thd = create_internal_thd();
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->thds.insert(thd);
 
@@ -2896,7 +2895,7 @@ void srv_worker_thread() {
 
   srv_free_slot(slot);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   ut_a(!purge_sys->running);
   ut_a(purge_sys->state == PURGE_STATE_EXIT);
@@ -3007,7 +3006,7 @@ static void srv_purge_coordinator_suspend(
   do {
     ulint ret;
 
-    rw_lock_x_lock(&purge_sys->latch);
+    rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
     purge_sys->running = false;
 
@@ -3035,7 +3034,7 @@ static void srv_purge_coordinator_suspend(
     but before this check if another thread sent a wakeup signal. */
 
     if (slot->suspended) {
-      slot->suspended = FALSE;
+      slot->suspended = false;
       ++srv_sys->n_threads_active[slot->type];
       ut_a(srv_sys->n_threads_active[slot->type] == 1);
     }
@@ -3044,7 +3043,7 @@ static void srv_purge_coordinator_suspend(
 
     sig_count = srv_suspend_thread(slot);
 
-    rw_lock_x_lock(&purge_sys->latch);
+    rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
     stop = (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE &&
             purge_sys->state == PURGE_STATE_STOP);
@@ -3088,7 +3087,7 @@ static void srv_purge_coordinator_suspend(
   srv_sys_mutex_enter();
 
   if (slot->suspended) {
-    slot->suspended = FALSE;
+    slot->suspended = false;
     ++srv_sys->n_threads_active[slot->type];
     ut_a(srv_sys->n_threads_active[slot->type] == 1);
   }
@@ -3102,7 +3101,7 @@ void srv_purge_coordinator_thread() {
 
   THD *thd = create_internal_thd();
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->thds.insert(thd);
 
@@ -3115,7 +3114,7 @@ void srv_purge_coordinator_thread() {
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->running = true;
   purge_sys->state = PURGE_STATE_RUN;
@@ -3190,7 +3189,7 @@ void srv_purge_coordinator_thread() {
   srv_free_slot(slot);
 
   /* Note that we are shutting down. */
-  rw_lock_x_lock(&purge_sys->latch);
+  rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   purge_sys->state = PURGE_STATE_EXIT;
 

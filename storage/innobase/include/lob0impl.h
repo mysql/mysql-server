@@ -522,7 +522,8 @@ struct node_page_t : public basic_page_t {
   buf_block_t *alloc(first_page_t &first_page, bool bulk);
 
   buf_block_t *load_x(page_id_t page_id, page_size_t page_size) {
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 
@@ -852,7 +853,8 @@ struct z_index_page_t {
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
     ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_INDEX);
     return (m_block);
@@ -1080,7 +1082,8 @@ struct z_frag_node_page_t {
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
 
     ut_ad(m_block->get_page_type() == FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
 
@@ -1606,7 +1609,8 @@ struct z_frag_page_t {
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
-    m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+    m_block =
+        buf_page_get(page_id, page_size, RW_X_LATCH, UT_LOCATION_HERE, m_mtr);
     return (m_block);
   }
 

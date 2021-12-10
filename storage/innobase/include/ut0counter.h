@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <functional>
 
 /** Default number of slots to use in ib_counter_t */
-#define IB_N_SLOTS 64
+constexpr uint32_t IB_N_SLOTS = 64;
 
 /** Get the offset into the counter array. */
 template <typename Type, int N>

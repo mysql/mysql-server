@@ -322,9 +322,7 @@ bool BlockReporter::is_corrupted() const {
   checksum_field2 = mach_read_from_4(m_read_buf + m_page_size.logical() -
                                      FIL_PAGE_END_LSN_OLD_CHKSUM);
 
-#if FIL_PAGE_LSN % 8
-#error "FIL_PAGE_LSN must be 64 bit aligned"
-#endif
+  static_assert(FIL_PAGE_LSN % 8 == 0, "FIL_PAGE_LSN must be 64 bit aligned");
 
   /* declare empty pages non-corrupted */
   if (checksum_field1 == 0 && checksum_field2 == 0 &&
@@ -484,7 +482,7 @@ bool BlockReporter::is_corrupted() const {
       return (true);
 
     case SRV_CHECKSUM_ALGORITHM_NONE:
-      /* should have returned FALSE earlier */
+      /* should have returned false earlier */
       break;
       /* no default so the compiler will emit a warning if new enum
       is added and not handled here */
@@ -522,7 +520,7 @@ uint32_t BlockReporter::calc_zip_checksum(
     const byte *read_buf, ulint phys_page_size, srv_checksum_algorithm_t algo,
     bool use_legacy_big_endian /* = false */) const {
   uLong adler;
-  ib_uint32_t crc32;
+  uint32_t crc32;
   const Bytef *s = read_buf;
   const ulint size = phys_page_size;
 
@@ -551,7 +549,7 @@ uint32_t BlockReporter::calc_zip_checksum(
           adler32(adler, s + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
                   static_cast<uInt>(size) - FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-      return ((ib_uint32_t)adler);
+      return ((uint32_t)adler);
     case SRV_CHECKSUM_ALGORITHM_NONE:
     case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
       return (BUF_NO_CHECKSUM_MAGIC);
@@ -571,9 +569,7 @@ bool BlockReporter::verify_zip_checksum() const {
   const uint32_t stored = static_cast<uint32_t>(
       mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_OR_CHKSUM));
 
-#if FIL_PAGE_LSN % 8
-#error "FIL_PAGE_LSN must be 64 bit aligned"
-#endif
+  static_assert(FIL_PAGE_LSN % 8 == 0, "FIL_PAGE_LSN must be 64 bit aligned");
 
   /* Check if page is empty */
   if (stored == 0 && mach_read_from_8(m_read_buf + FIL_PAGE_LSN) == 0) {

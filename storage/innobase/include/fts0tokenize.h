@@ -38,9 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Check a char is true word */
 #define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
 
-/** Check if a char is misc word */
-#define misc_word_char(X) 0
-
 /** Boolean search syntax */
 static const char *fts_boolean_syntax = DEFAULT_FTB_SYNTAX;
 
@@ -79,7 +76,6 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
                           FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *info) {
   uchar *doc = *start;
   int ctype;
-  uint mwc;
   uint length;
   int mbl;
 
@@ -144,23 +140,19 @@ inline uchar fts_get_word(const CHARSET_INFO *cs, uchar **start, uchar *end,
       info->weight_adjust = info->wasign = 0;
     }
 
-    mwc = length = 0;
+    length = 0;
     for (word->pos = doc; doc < end;
          length++, doc += (mbl > 0 ? mbl : (mbl < 0 ? -mbl : 1))) {
       mbl = cs->cset->ctype(cs, &ctype, doc, end);
 
-      if (true_word_char(ctype, *doc)) {
-        mwc = 0;
-      } else if (!misc_word_char(*doc) || mwc) {
+      if (!true_word_char(ctype, *doc)) {
         break;
-      } else {
-        mwc++;
       }
     }
 
     /* Be sure *prev is true_word_char. */
     info->prev = 'A';
-    word->len = (uint)(doc - word->pos) - mwc;
+    word->len = (uint)(doc - word->pos);
 
     if ((info->trunc = (doc < end && *doc == FTB_TRUNC))) {
       doc++;

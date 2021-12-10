@@ -377,8 +377,8 @@ struct hash_table_t {
   enum hash_table_sync_t type;
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 #ifndef UNIV_HOTBACKUP
-  /* TRUE if this is the hash table of the adaptive hash index */
-  ibool adaptive;
+  /* true if this is the hash table of the adaptive hash index */
+  bool adaptive;
 #endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
  private:

@@ -46,13 +46,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
  @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
  DB_ROW_IS_REFERENCED */
 [[nodiscard]] dberr_t row_ins_check_foreign_constraint(
-    ibool check_ref,         /*!< in: TRUE If we want to check that
-                           the referenced table is ok, FALSE if we
-                           want to check the foreign key table */
+    bool check_ref,          /*!< in: true If we want to check that
+                            the referenced table is ok, false if we
+                            want to check the foreign key table */
     dict_foreign_t *foreign, /*!< in: foreign constraint; NOTE that the
                              tables mentioned in it must be in the
                              dictionary cache if they exist at all */
-    dict_table_t *table,     /*!< in: if check_ref is TRUE, then the foreign
+    dict_table_t *table,     /*!< in: if check_ref is true, then the foreign
                              table, else the referenced table */
     dtuple_t *entry,         /*!< in: index entry for index */
     que_thr_t *thr);         /*!< in: query thread */
@@ -109,7 +109,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
                                 or trx_id when undo log is disabled during
                                 alter copy operation or 0
 @param[in]	thr		query thread
-@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+@param[in]	dup_chk_only	true, just do duplicate check and return.
                                 don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
@@ -193,20 +193,22 @@ struct ins_node_t {
   ulint magic_n;
 };
 
-#define INS_NODE_MAGIC_N 15849075
+constexpr uint32_t INS_NODE_MAGIC_N = 15849075;
 
 /* Insert node types */
-#define INS_SEARCHED 0 /* INSERT INTO ... SELECT ... */
-#define INS_VALUES 1   /* INSERT INTO ... VALUES ... */
-#define INS_DIRECT                            \
-  2 /* this is for internal use in dict0crea: \
-    insert the row directly */
+/** INSERT INTO ... SELECT ... */
+constexpr uint32_t INS_SEARCHED = 0;
+/** INSERT INTO ... VALUES ... */
+constexpr uint32_t INS_VALUES = 1;
+/** this is for internal use in dict0crea: insert the row directly */
+constexpr uint32_t INS_DIRECT = 2;
 
 /* Node execution states */
-#define INS_NODE_SET_IX_LOCK 1  /* we should set an IX lock on table */
-#define INS_NODE_ALLOC_ROW_ID 2 /* row id should be allocated */
-#define INS_NODE_INSERT_ENTRIES          \
-  3 /* index entries should be built and \
-    inserted */
+/** we should set an IX lock on table */
+constexpr uint32_t INS_NODE_SET_IX_LOCK = 1;
+/** row id should be allocated */
+constexpr uint32_t INS_NODE_ALLOC_ROW_ID = 2;
+/** index entries should be built and inserted */
+constexpr uint32_t INS_NODE_INSERT_ENTRIES = 3;
 
 #endif
