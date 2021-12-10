@@ -305,6 +305,25 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
     handlerton *hton, Foreign_key_parents_invalidator *fk_invalidator);
 
 /**
+  As a result of simple rename table operation, orphan non-self-referencing
+  foreign keys may become non-orphan/adopted self-referencing foreign keys.
+  For such transformed foreign key, check that table has compatible referenced
+  column and parent key. Also, update DD.UNIQUE_CONSTRAINT_NAME.
+
+  @param  thd             Thread handle.
+  @param  db              Table's old schema.
+  @param  table_name      Table's old name.
+  @param  new_db          Table's new schema.
+  @param  new_table_name  Table's new name.
+  @param  hton            Table's SE.
+
+  @retval operation outcome, false if no error.
+*/
+[[nodiscard]] bool adjust_adopted_self_ref_fk_for_simple_rename_table(
+    THD *thd, const char *db, const char *table_name, const char *new_db,
+    const char *new_table_name, handlerton *hton);
+
+/**
   Update referenced table names and the unique constraint name for FKs
   affected by RENAME TABLE operation.
 
