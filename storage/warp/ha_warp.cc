@@ -1554,7 +1554,7 @@ void filter_fact_column(
   ibis::query* column_query, 
   fact_table_filter::iterator fact_filter, 
   std::vector<uint32_t>* matching_rids, 
-  std::set<uint32_t>* matching_dim_rids,
+  std::set<uint64_t>* matching_dim_rids,
   uint32_t* running_filter_threads,
   std::mutex* fact_filter_mutex ) 
   {
@@ -1590,7 +1590,7 @@ void filter_fact_column(
 
 void merge_dimension_keys(
   fact_table_filter::iterator filter_it, 
-  std::set<uint32_t>* matching_dim_rowids, 
+  std::set<uint64_t>* matching_dim_rowids, 
   uint32_t* running_dimension_merges, 
   std::mutex* dimension_merge_mutex ) {
 
@@ -3069,7 +3069,7 @@ int ha_warp::bitmap_merge_join() {
   
     }
     
-    auto matches = new std::unordered_map<uint32_t, uint32_t>;
+    auto matches = new std::unordered_map<uint64_t, uint64_t>;
     uint64_t rownum = 0;
     while(dim_cursor->fetch() == 0) {
       ++rownum;   
